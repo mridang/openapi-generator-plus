@@ -46,6 +46,10 @@ class OAuth2TokenManager {
   String _refreshToken = '';
   DateTime? _tokenExpiry;
 
+  /// The id_token of the last token response: null when it carried none, an
+  /// empty string when its value was not a JSON string.
+  String? _lastIdToken;
+
   /// In-flight refresh future. When non-null, a refresh is already in
   /// progress and concurrent callers should await this future rather than
   /// issuing their own token request (single-flight pattern).
@@ -167,10 +171,17 @@ class OAuth2TokenManager {
   /// `expires_in` leaves no expiry. On any failure the previous session is
   /// restored and the error is rethrown, so a mistyped code does not end the
   /// current session.
+  ///
+  /// [idTokenCheck], when given, receives the response's `id_token` (null when
+  /// it carried none, an empty string when it was not a JSON string) before
+  /// the session is committed; when it throws, the previous session is
+  /// restored and the error propagates. OpenID Connect uses it to validate
+  /// the id_token.
   Future<void> exchange(
     String tokenUrl,
     Map<String, String> params, [
     Map<String, String> extraHeaders = const {},
+    void Function(String? idToken)? idTokenCheck,
   ]) async {
     _throwIfStopped();
     final inflight = _inflightRefresh;
@@ -189,6 +200,7 @@ class OAuth2TokenManager {
     _tokenExpiry = null;
     try {
       await _fetchToken(tokenUrl, params, extraHeaders);
+      idTokenCheck?.call(_lastIdToken);
     } catch (_) {
       _accessToken = previousAccessToken;
       _refreshToken = previousRefreshToken;
@@ -295,6 +307,8 @@ class OAuth2TokenManager {
       throw OAuth2TokenException('Unsupported token_type in token response');
     }
     _accessToken = accessTokenValue;
+    final idToken = parsed['id_token'];
+    _lastIdToken = idToken == null ? null : (idToken is String ? idToken : '');
     final newRefreshToken = parsed['refresh_token'];
     if (newRefreshToken is String && newRefreshToken.isNotEmpty) {
       _refreshToken = newRefreshToken;

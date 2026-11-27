@@ -165,7 +165,13 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
   }
 
   /// Exchanges an authorization code for an access token.
-  Future<void> exchangeCode(String code) async {
+  ///
+  /// [idTokenCheck], when given, receives the response's `id_token` before
+  /// the session is replaced; OpenID Connect uses it to validate the claims.
+  Future<void> exchangeCode(
+    String code, {
+    void Function(String? idToken)? idTokenCheck,
+  }) async {
     /* Cross-cutting `oauth-exchangecode-no-empty-code-guard`: refuse an
      * empty/whitespace authorization code before issuing the token POST,
      * so a missing code surfaces as a clear local error instead of a
@@ -187,7 +193,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
     /* Always POST the new code: the exchange bypasses the token cache and
      * the refresh path, replaces the session on success and keeps the
      * previous one on failure. */
-    await _tokenManager.exchange(_tokenUrl, params);
+    await _tokenManager.exchange(_tokenUrl, params, const {}, idTokenCheck);
     _pkceVerifier = null;
     _tokenExchanged = true;
   }

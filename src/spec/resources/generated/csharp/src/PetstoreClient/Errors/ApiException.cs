@@ -98,7 +98,7 @@ public class ApiException : OpenAPIException
     /// Whether repeating the request can succeed: the status is 408, 409, 429 or a
     /// 5xx other than 501, the statuses the client itself retries.
     /// </summary>
-    public bool IsRetryable =>
+    public virtual bool IsRetryable =>
         StatusCode is 408 or 409 or 429 || (StatusCode is >= 500 and < 600 and not 501);
 
     /// <summary>

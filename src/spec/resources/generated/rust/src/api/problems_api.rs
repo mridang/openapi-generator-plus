@@ -76,13 +76,13 @@ impl ProblemsApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP default: [`UnexpectedFailureError`](crate::errors::UnexpectedFailureError), a ApiError with a [`UnexpectedFailure`](crate::models::UnexpectedFailure) body
     pub async fn get_fallback(
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, crate::Error> {
         let result = self
             .get_fallback_with_http_info(fallback_id, options)
             .await?;
@@ -94,12 +94,12 @@ impl ProblemsApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_fallback but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -108,13 +108,14 @@ impl ProblemsApi {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_fallback_invoke(fallback_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_fallback operation. The resolved
@@ -211,13 +212,13 @@ impl ProblemsApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`MemberNotFoundError`](crate::errors::MemberNotFoundError), a NotFoundError with a [`MemberNotFound`](crate::models::MemberNotFound) body
     pub async fn get_member(
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, crate::Error> {
         let result = self.get_member_with_http_info(member_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -227,12 +228,12 @@ impl ProblemsApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_member but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -241,13 +242,14 @@ impl ProblemsApi {
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_member_invoke(member_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_member operation. The resolved
@@ -342,13 +344,13 @@ impl ProblemsApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`ProjectNotFoundError`](crate::errors::ProjectNotFoundError), a NotFoundError with a [`ProjectNotFound`](crate::models::ProjectNotFound) body
     pub async fn get_project(
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, crate::Error> {
         let result = self.get_project_with_http_info(project_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -358,12 +360,12 @@ impl ProblemsApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_project but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -372,13 +374,14 @@ impl ProblemsApi {
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_project_invoke(project_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_project operation. The resolved
@@ -475,13 +478,13 @@ impl ProblemsApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 4XX: [`RejectedRequestError`](crate::errors::RejectedRequestError), a ClientError with a [`RejectedRequest`](crate::models::RejectedRequest) body
     pub async fn get_range(
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, crate::Error> {
         let result = self.get_range_with_http_info(range_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -491,12 +494,12 @@ impl ProblemsApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_range but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -505,13 +508,14 @@ impl ProblemsApi {
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_range_invoke(range_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_range operation. The resolved
@@ -606,13 +610,13 @@ impl ProblemsApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 5XX: [`UpstreamFailureError`](crate::errors::UpstreamFailureError), a ServerError with a [`UpstreamFailure`](crate::models::UpstreamFailure) body
     pub async fn get_upstream(
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, crate::Error> {
         let result = self
             .get_upstream_with_http_info(upstream_id, options)
             .await?;
@@ -624,12 +628,12 @@ impl ProblemsApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_upstream but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -638,13 +642,14 @@ impl ProblemsApi {
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_upstream_invoke(upstream_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_upstream operation. The resolved
@@ -741,14 +746,14 @@ impl ProblemsApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 409: [`StateConflictError`](crate::errors::StateConflictError), a ConflictError with a [`StateConflict`](crate::models::StateConflict) body
     /// * HTTP 423: [`StateConflictError`](crate::errors::StateConflictError), a LockedError with a [`StateConflict`](crate::models::StateConflict) body
     pub async fn take_lock(
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> Result<ModelResult, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ModelResult, crate::Error> {
         let result = self.take_lock_with_http_info(lock_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -758,12 +763,12 @@ impl ProblemsApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for take_lock but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -772,13 +777,14 @@ impl ProblemsApi {
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ModelResult>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.take_lock_invoke(lock_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the take_lock operation. The resolved
@@ -886,62 +892,62 @@ pub trait ProblemsApiTrait {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>>;
     fn get_fallback_with_http_info(
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>>;
     fn get_member(
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>>;
     fn get_member_with_http_info(
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>>;
     fn get_project(
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>>;
     fn get_project_with_http_info(
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>>;
     fn get_range(
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>>;
     fn get_range_with_http_info(
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>>;
     fn get_upstream(
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>>;
     fn get_upstream_with_http_info(
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>>;
     fn take_lock(
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>>;
     fn take_lock_with_http_info(
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>>;
 }
 
 impl ProblemsApiTrait for ProblemsApi {
@@ -949,7 +955,7 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>> {
         ProblemsApi::get_fallback(self, fallback_id, options)
     }
 
@@ -957,15 +963,14 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>> {
         ProblemsApi::get_fallback_with_http_info(self, fallback_id, options)
     }
     fn get_member(
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>> {
         ProblemsApi::get_member(self, member_id, options)
     }
 
@@ -973,15 +978,14 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>> {
         ProblemsApi::get_member_with_http_info(self, member_id, options)
     }
     fn get_project(
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>> {
         ProblemsApi::get_project(self, project_id, options)
     }
 
@@ -989,15 +993,14 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>> {
         ProblemsApi::get_project_with_http_info(self, project_id, options)
     }
     fn get_range(
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>> {
         ProblemsApi::get_range(self, range_id, options)
     }
 
@@ -1005,15 +1008,14 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>> {
         ProblemsApi::get_range_with_http_info(self, range_id, options)
     }
     fn get_upstream(
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>> {
         ProblemsApi::get_upstream(self, upstream_id, options)
     }
 
@@ -1021,15 +1023,14 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>> {
         ProblemsApi::get_upstream_with_http_info(self, upstream_id, options)
     }
     fn take_lock(
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, crate::Error>> {
         ProblemsApi::take_lock(self, lock_id, options)
     }
 
@@ -1037,8 +1038,7 @@ impl ProblemsApiTrait for ProblemsApi {
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, crate::Error>> {
         ProblemsApi::take_lock_with_http_info(self, lock_id, options)
     }
 }

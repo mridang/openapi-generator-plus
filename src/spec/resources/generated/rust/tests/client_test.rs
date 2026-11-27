@@ -462,16 +462,16 @@ impl FakePetApi {
         }
     }
 
-    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+    fn failure(&self) -> petstore::Error {
         Self::fresh_failure()
     }
 
-    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
+    fn fresh_failure() -> petstore::Error {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
             .expect("a 404 is a client error");
-        Box::new(
+        petstore::Error::from(
             petstore::errors::not_found_error::NotFoundError::try_from(client_error)
                 .expect("a 404 is not found"),
         )
@@ -484,7 +484,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -497,8 +497,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "add_pet_with_http_info( options={})",
             options.is_some()
@@ -510,7 +509,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> impl Future<Output = Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Photo>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "add_pet_photos({:?}, options={})",
             pet_id,
@@ -524,8 +523,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "add_pet_photos_with_http_info({:?}, options={})",
             pet_id,
@@ -539,7 +537,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> impl Future<Output = Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetTreatment, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "add_pet_treatment({:?}, options={})",
             pet_id,
@@ -554,8 +552,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "add_pet_treatment_with_http_info({:?}, options={})",
             pet_id,
@@ -568,7 +565,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "attach_pet_files({:?}, options={})",
             pet_id,
@@ -582,8 +579,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "attach_pet_files_with_http_info({:?}, options={})",
             pet_id,
@@ -596,7 +592,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "delete_pet({:?}, options={})",
             pet_id,
@@ -610,7 +606,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "delete_pet_with_http_info({:?}, options={})",
             pet_id,
@@ -624,7 +620,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document({:?},{:?}, options={})",
             pet_id,
@@ -640,8 +636,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document_with_http_info({:?},{:?}, options={})",
             pet_id,
@@ -655,7 +650,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "find_pets_born_on({:?}, options={})",
             born_on,
@@ -669,8 +664,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "find_pets_born_on_with_http_info({:?}, options={})",
             born_on,
@@ -683,7 +677,7 @@ impl PetApiTrait for FakePetApi {
     fn find_pets_by_status(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "find_pets_by_status( options={})",
             options.is_some()
@@ -696,8 +690,7 @@ impl PetApiTrait for FakePetApi {
     fn find_pets_by_status_with_http_info(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "find_pets_by_status_with_http_info( options={})",
             options.is_some()
@@ -710,7 +703,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_external_pet_info({:?}, options={})",
             pet_id,
@@ -725,8 +718,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_external_pet_info_with_http_info({:?}, options={})",
             pet_id,
@@ -740,7 +732,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_multi_server_pet_info({:?}, options={})",
             pet_id,
@@ -755,8 +747,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_multi_server_pet_info_with_http_info({:?}, options={})",
             pet_id,
@@ -769,7 +760,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar({:?}, options={})",
             pet_id,
@@ -783,8 +774,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_with_http_info({:?}, options={})",
             pet_id,
@@ -797,7 +787,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<u8>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_thumbnail({:?}, options={})",
             pet_id,
@@ -811,8 +801,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_thumbnail_with_http_info({:?}, options={})",
             pet_id,
@@ -827,7 +816,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_by_id({:?}, options={})",
             pet_id,
@@ -843,8 +832,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_by_id_with_http_info({:?}, options={})",
             pet_id,
@@ -857,7 +845,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_by_name({:?}, options={})",
             name,
@@ -871,8 +859,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_by_name_with_http_info({:?}, options={})",
             name,
@@ -884,7 +871,7 @@ impl PetApiTrait for FakePetApi {
     fn get_pet_by_note(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -896,8 +883,7 @@ impl PetApiTrait for FakePetApi {
     fn get_pet_by_note_with_http_info(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_by_note_with_http_info( options={})",
             options.is_some()
@@ -909,7 +895,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> impl Future<Output = Result<PetPassport, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetPassport, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_passport({:?}, options={})",
             pet_id,
@@ -923,8 +909,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetPassport>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_passport_with_http_info({:?}, options={})",
             pet_id,
@@ -938,7 +923,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo({:?},{:?}, options={})",
             pet_id,
@@ -954,8 +939,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo_with_http_info({:?},{:?}, options={})",
             pet_id,
@@ -970,7 +954,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<String, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_summary({:?},{:?}, options={})",
             pet_id,
@@ -986,8 +970,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<String>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_summary_with_http_info({:?},{:?}, options={})",
             pet_id,
@@ -1002,7 +985,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_tag({:?},{:?}, options={})",
             pet_id,
@@ -1018,8 +1001,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_tag_with_http_info({:?},{:?}, options={})",
             pet_id,
@@ -1034,7 +1016,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_staging_pet_info({:?}, options={})",
             pet_id,
@@ -1049,8 +1031,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_staging_pet_info_with_http_info({:?}, options={})",
             pet_id,
@@ -1062,8 +1043,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_archive(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetArchivePage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1075,8 +1055,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_archive_with_http_info(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_archive_with_http_info( options={})",
             options.is_some()
@@ -1087,8 +1066,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_catalog(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetCatalogPage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1100,8 +1078,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_catalog_with_http_info(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_catalog_with_http_info( options={})",
             options.is_some()
@@ -1125,7 +1102,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetEventPage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1137,8 +1114,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_events_with_http_info(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_events_with_http_info( options={})",
             options.is_some()
@@ -1162,7 +1138,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Pet>, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1174,8 +1150,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_feed_with_http_info(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_feed_with_http_info( options={})",
             options.is_some()
@@ -1199,7 +1174,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_matches(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetMatchPage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1211,8 +1186,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_matches_with_http_info(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_matches_with_http_info( options={})",
             options.is_some()
@@ -1223,8 +1197,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_next_url(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> impl Future<Output = Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetNextUrlPage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1236,8 +1209,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_next_url_with_http_info(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_next_url_with_http_info( options={})",
             options.is_some()
@@ -1261,7 +1233,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetNotePage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1273,8 +1245,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_notes_with_http_info(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_notes_with_http_info( options={})",
             options.is_some()
@@ -1298,7 +1269,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_offsets(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> impl Future<Output = Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetOffsetPage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1310,8 +1281,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_offsets_with_http_info(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_offsets_with_http_info( options={})",
             options.is_some()
@@ -1335,8 +1305,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_page_numbers(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> impl Future<Output = Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetPageNumberPage, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_page_numbers( options={})",
             options.is_some()
@@ -1348,9 +1317,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pet_page_numbers_with_http_info(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> impl Future<
-        Output = Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>>,
-    > {
+    ) -> impl Future<Output = Result<ApiResult<PetPageNumberPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_page_numbers_with_http_info( options={})",
             options.is_some()
@@ -1374,7 +1341,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pets_after(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> impl Future<Output = Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetAfterPage, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1386,8 +1353,7 @@ impl PetApiTrait for FakePetApi {
     fn list_pets_after_with_http_info(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pets_after_with_http_info( options={})",
             options.is_some()
@@ -1415,7 +1381,7 @@ impl PetApiTrait for FakePetApi {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "set_pet_avatar({:?}, options={})",
             pet_id,
@@ -1432,7 +1398,7 @@ impl PetApiTrait for FakePetApi {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "set_pet_avatar_with_http_info({:?}, options={})",
             pet_id,
@@ -1446,7 +1412,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "set_pet_avatar_thumbnail({:?}, options={})",
             pet_id,
@@ -1461,7 +1427,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "set_pet_avatar_thumbnail_with_http_info({:?}, options={})",
             pet_id,
@@ -1474,7 +1440,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "set_pet_preferences({:?}, options={})",
             pet_id,
@@ -1488,8 +1454,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "set_pet_preferences_with_http_info({:?}, options={})",
             pet_id,
@@ -1503,7 +1468,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "update_pet({:?}, options={})",
             pet_id,
@@ -1518,8 +1483,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "update_pet_with_http_info({:?}, options={})",
             pet_id,
@@ -1532,7 +1496,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "upload_pet_certificate({:?}, options={})",
             pet_id,
@@ -1546,8 +1510,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "upload_pet_certificate_with_http_info({:?}, options={})",
             pet_id,
@@ -1562,7 +1525,7 @@ impl PetApiTrait for FakePetApi {
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "upload_pet_document({:?}, options={})",
             pet_id,
@@ -1578,8 +1541,7 @@ impl PetApiTrait for FakePetApi {
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "upload_pet_document_with_http_info({:?}, options={})",
             pet_id,
@@ -1603,16 +1565,16 @@ impl FakeProblemsApi {
         }
     }
 
-    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+    fn failure(&self) -> petstore::Error {
         Self::fresh_failure()
     }
 
-    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
+    fn fresh_failure() -> petstore::Error {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
             .expect("a 404 is a client error");
-        Box::new(
+        petstore::Error::from(
             petstore::errors::not_found_error::NotFoundError::try_from(client_error)
                 .expect("a 404 is not found"),
         )
@@ -1625,7 +1587,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_fallback({:?}, options={})",
             fallback_id,
@@ -1639,8 +1601,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         fallback_id: String,
         options: Option<&GetFallbackOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_fallback_with_http_info({:?}, options={})",
             fallback_id,
@@ -1653,7 +1614,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_member({:?}, options={})",
             member_id,
@@ -1667,8 +1628,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         member_id: String,
         options: Option<&GetMemberOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_member_with_http_info({:?}, options={})",
             member_id,
@@ -1681,7 +1641,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_project({:?}, options={})",
             project_id,
@@ -1695,8 +1655,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         project_id: String,
         options: Option<&GetProjectOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_project_with_http_info({:?}, options={})",
             project_id,
@@ -1709,7 +1668,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_range({:?}, options={})",
             range_id,
@@ -1723,8 +1682,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         range_id: String,
         options: Option<&GetRangeOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_range_with_http_info({:?}, options={})",
             range_id,
@@ -1737,7 +1695,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_upstream({:?}, options={})",
             upstream_id,
@@ -1751,8 +1709,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         upstream_id: String,
         options: Option<&GetUpstreamOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_upstream_with_http_info({:?}, options={})",
             upstream_id,
@@ -1765,7 +1722,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> impl Future<Output = Result<ModelResult, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ModelResult, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "take_lock({:?}, options={})",
             lock_id,
@@ -1779,8 +1736,7 @@ impl ProblemsApiTrait for FakeProblemsApi {
         &self,
         lock_id: String,
         options: Option<&TakeLockOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ModelResult>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ModelResult>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "take_lock_with_http_info({:?}, options={})",
             lock_id,
@@ -1804,16 +1760,16 @@ impl FakeStoreApi {
         }
     }
 
-    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+    fn failure(&self) -> petstore::Error {
         Self::fresh_failure()
     }
 
-    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
+    fn fresh_failure() -> petstore::Error {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
             .expect("a 404 is a client error");
-        Box::new(
+        petstore::Error::from(
             petstore::errors::not_found_error::NotFoundError::try_from(client_error)
                 .expect("a 404 is not found"),
         )
@@ -1826,7 +1782,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> impl Future<Output = Result<Account, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Account, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1839,8 +1795,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Account>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "create_account_with_http_info( options={})",
             options.is_some()
@@ -1852,7 +1807,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "delete_order({:?}, options={})",
             order_id,
@@ -1866,7 +1821,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "delete_order_with_http_info({:?}, options={})",
             order_id,
@@ -1880,8 +1835,7 @@ impl StoreApiTrait for FakeStoreApi {
         options: Option<&ExportOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<JsonLinesStream<Order>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "export_orders_stream( options={})",
             options.is_some()
@@ -1892,7 +1846,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_audit_trail(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1904,8 +1858,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_audit_trail_with_http_info(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_audit_trail_with_http_info( options={})",
             options.is_some()
@@ -1917,7 +1870,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> impl Future<Output = Result<Category, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Category, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_by_swatch({:?}, options={})",
             path_swatch,
@@ -1931,8 +1884,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Category>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_by_swatch_with_http_info({:?}, options={})",
             path_swatch,
@@ -1944,7 +1896,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_defaults(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> impl Future<Output = Result<Defaults, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Defaults, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1956,8 +1908,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_defaults_with_http_info(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Defaults>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_defaults_with_http_info( options={})",
             options.is_some()
@@ -1968,7 +1919,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_department(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> impl Future<Output = Result<Department, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Department, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -1980,8 +1931,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_department_with_http_info(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Department>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_department_with_http_info( options={})",
             options.is_some()
@@ -1992,12 +1942,8 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_grouped_categories(
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
-    ) -> impl Future<
-        Output = Result<
-            Vec<std::collections::HashMap<String, Category>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<Vec<std::collections::HashMap<String, Category>>, petstore::Error>>
+    {
         self.calls.lock().expect("calls lock").push(format!(
             "get_grouped_categories( options={})",
             options.is_some()
@@ -2012,7 +1958,7 @@ impl StoreApiTrait for FakeStoreApi {
     ) -> impl Future<
         Output = Result<
             ApiResult<Vec<std::collections::HashMap<String, Category>>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            petstore::Error,
         >,
     > {
         self.calls.lock().expect("calls lock").push(format!(
@@ -2025,12 +1971,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_inventory(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> impl Future<
-        Output = Result<
-            std::collections::HashMap<String, i32>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<std::collections::HashMap<String, i32>, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2042,12 +1983,8 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_inventory_with_http_info(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> impl Future<
-        Output = Result<
-            ApiResult<std::collections::HashMap<String, i32>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<ApiResult<std::collections::HashMap<String, i32>>, petstore::Error>>
+    {
         self.calls.lock().expect("calls lock").push(format!(
             "get_inventory_with_http_info( options={})",
             options.is_some()
@@ -2058,7 +1995,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_matrix(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> impl Future<Output = Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Vec<i32>>, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2070,8 +2007,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_matrix_with_http_info(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_matrix_with_http_info( options={})",
             options.is_some()
@@ -2082,7 +2018,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> impl Future<Output = Result<NativeValues, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<NativeValues, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2094,8 +2030,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_native_values_with_http_info(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<NativeValues>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_native_values_with_http_info( options={})",
             options.is_some()
@@ -2107,7 +2042,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Order, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_order_by_id({:?}, options={})",
             order_id,
@@ -2121,8 +2056,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Order>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_order_by_id_with_http_info({:?}, options={})",
             order_id,
@@ -2135,7 +2069,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Order, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_order_by_tracking_id({:?}, options={})",
             tracking_id,
@@ -2149,8 +2083,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Order>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_order_by_tracking_id_with_http_info({:?}, options={})",
             tracking_id,
@@ -2162,7 +2095,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_stock_item(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> impl Future<Output = Result<StockItem, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<StockItem, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2174,8 +2107,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_stock_item_with_http_info(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> impl Future<Output = Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<StockItem>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_stock_item_with_http_info( options={})",
             options.is_some()
@@ -2186,7 +2118,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_swatch(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> impl Future<Output = Result<Swatch, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Swatch, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2198,8 +2130,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_swatch_with_http_info(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Swatch>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_swatch_with_http_info( options={})",
             options.is_some()
@@ -2210,12 +2141,8 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_swatch_groups(
         &self,
         options: Option<&GetSwatchGroupsOptions>,
-    ) -> impl Future<
-        Output = Result<
-            Vec<std::collections::HashMap<String, Swatch>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<Vec<std::collections::HashMap<String, Swatch>>, petstore::Error>>
+    {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2228,10 +2155,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         options: Option<&GetSwatchGroupsOptions>,
     ) -> impl Future<
-        Output = Result<
-            ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
+        Output = Result<ApiResult<Vec<std::collections::HashMap<String, Swatch>>>, petstore::Error>,
     > {
         self.calls.lock().expect("calls lock").push(format!(
             "get_swatch_groups_with_http_info( options={})",
@@ -2246,7 +2170,7 @@ impl StoreApiTrait for FakeStoreApi {
     ) -> impl Future<
         Output = Result<
             Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            petstore::Error,
         >,
     > {
         self.calls.lock().expect("calls lock").push(format!(
@@ -2263,7 +2187,7 @@ impl StoreApiTrait for FakeStoreApi {
     ) -> impl Future<
         Output = Result<
             ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            petstore::Error,
         >,
     > {
         self.calls.lock().expect("calls lock").push(format!(
@@ -2276,7 +2200,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_tree(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> impl Future<Output = Result<TreeNode, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<TreeNode, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2288,8 +2212,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn get_tree_with_http_info(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> impl Future<Output = Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<TreeNode>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_tree_with_http_info( options={})",
             options.is_some()
@@ -2301,7 +2224,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Order, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2314,8 +2237,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Order>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "place_order_with_http_info( options={})",
             options.is_some()
@@ -2326,8 +2248,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn reserve_stock(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> impl Future<Output = Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ReserveStockResponse, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2339,9 +2260,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn reserve_stock_with_http_info(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> impl Future<
-        Output = Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>>,
-    > {
+    ) -> impl Future<Output = Result<ApiResult<ReserveStockResponse>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "reserve_stock_with_http_info( options={})",
             options.is_some()
@@ -2352,7 +2271,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn search_store(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> impl Future<Output = Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Order>, petstore::Error>> {
         self.calls
             .lock()
             .expect("calls lock")
@@ -2364,8 +2283,7 @@ impl StoreApiTrait for FakeStoreApi {
     fn search_store_with_http_info(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "search_store_with_http_info( options={})",
             options.is_some()
@@ -2378,8 +2296,7 @@ impl StoreApiTrait for FakeStoreApi {
         options: Option<&WatchNoticesOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<SseStream<String>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "watch_notices_stream( options={})",
             options.is_some()
@@ -2392,8 +2309,7 @@ impl StoreApiTrait for FakeStoreApi {
         options: Option<&WatchOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<SseStream<Order>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "watch_orders_stream( options={})",
             options.is_some()

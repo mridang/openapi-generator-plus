@@ -3748,6 +3748,97 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     )
   end
 
+  # Writes one byte of the body every 100 ms until the client hangs up or `left` runs out.
+  defp trickle(_socket, 0), do: :ok
+
+  defp trickle(socket, left) do
+    case RawServer.body(socket, "x") do
+      :ok ->
+        Process.sleep(100)
+        trickle(socket, left - 1)
+
+      {:error, _closed} ->
+        :ok
+    end
+  end
+
+  test "bhv transport 094 a per-call timeout bounds the whole call, body included" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, [
+          "Content-Type: application/octet-stream",
+          "Content-Length: 100000"
+        ])
+
+        trickle(socket, 100)
+      end)
+
+    client =
+      DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 60_000, max_retries: 0))
+
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      DefaultApiClient.send_request(client, :get, RawServer.url(server, "/items/blob"), %{}, nil,
+        timeout: 500
+      )
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 3_000
+  end
+
+  test "bhv transport 095 a buffered body past max_response_bytes raises ResponseTooLargeError and no limit reads it" do
+    body = String.duplicate("a", 4096)
+    limited_url = start_server(200, "text/plain", body)
+
+    limited =
+      DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(max_response_bytes: 1024, max_retries: 0)
+      )
+
+    error =
+      assert_raise PetstoreClient.Errors.ResponseTooLargeError, fn ->
+        DefaultApiClient.send_request(limited, :get, "#{limited_url}/items/blob", %{}, nil)
+      end
+
+    assert error.status_code == 200
+    assert error.limit == 1024
+    assert error.message == "Response body exceeds the limit of 1024 bytes"
+    assert error.response_body == ""
+    refute PetstoreClient.Errors.ApiError.retryable?(error)
+
+    unlimited_url = start_server(200, "text/plain", body)
+    unlimited = DefaultApiClient.new(PetstoreClient.TransportOptions.new(max_retries: 0))
+
+    response =
+      DefaultApiClient.send_request(unlimited, :get, "#{unlimited_url}/items/blob", %{}, nil)
+
+    assert response.status_code == 200
+    assert response.body == body
+  end
+
+  test "bhv transport 096 a gzip body that inflates past max_response_bytes raises ResponseTooLargeError" do
+    encoded = :zlib.gzip(:binary.copy(<<0>>, 100_000))
+    assert byte_size(encoded) < 1024
+
+    base_url =
+      start_server(200, "application/octet-stream", encoded, [{"Content-Encoding", "gzip"}])
+
+    client =
+      DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(max_response_bytes: 1024, max_retries: 0)
+      )
+
+    error =
+      assert_raise PetstoreClient.Errors.ResponseTooLargeError, fn ->
+        DefaultApiClient.send_request(client, :get, "#{base_url}/items/blob", %{}, nil)
+      end
+
+    assert error.status_code == 200
+    assert error.limit == 1024
+    assert error.message == "Response body exceeds the limit of 1024 bytes"
+  end
+
   test "bhv streaming 001 a binary stream delivers the bytes in order and returns before the body has ended" do
     server =
       RawServer.start(fn server, socket, _hit, _head ->

@@ -10,6 +10,7 @@ use PetstoreClient\ByteStream;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\ResponseTooLargeException;
 use PetstoreClient\Errors\StreamException;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\EventStream;
@@ -2289,6 +2290,90 @@ test('bhv transport 028 a per call timeout replaces the transport timeout for th
 
     expect($seen[0])->toBeGreaterThan(30.0);
     expect($seen[1])->toBeLessThanOrEqual(1.0);
+});
+
+test('bhv transport 094 a per call timeout bounds the whole call body included so a trickling body fails within the budget', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Type: application/octet-stream', 'Content-Length: 100000');
+        for ($i = 0; $i < 300; $i++) {
+            $written = @fwrite($socket, 'x');
+            if ($written === false || $written === 0) {
+                return;
+            }
+            usleep(100_000);
+        }
+        PHP);
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(60000)->maxRetries(0)->build());
+
+    $started = microtime(true);
+    try {
+        $client->sendWithRetries('GET', $server->url('/items/blob'), static fn (): array => [], null, timeoutMs: 500);
+        test()->fail('Expected the trickling body to raise NetworkTimeoutException');
+    } catch (NetworkTimeoutException $e) {
+        expect($e::class)->toBe(NetworkTimeoutException::class);
+    }
+
+    expect(microtime(true) - $started)->toBeLessThan(3.0);
+});
+
+test('bhv transport 095 a buffered body over maxResponseBytes fails with the response too large error and without a limit it is read whole', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if (str_contains($head, '/limited')) {
+            reply($socket, 200, 'Content-Type: application/octet-stream', 'Transfer-Encoding: chunked');
+            chunk($socket, str_repeat('a', 4096));
+            endChunks($socket);
+            return;
+        }
+        reply($socket, 200, 'Content-Type: application/octet-stream', 'Content-Length: 4096');
+        @fwrite($socket, str_repeat('a', 4096));
+        PHP);
+    $limited = new DefaultApiClient(TransportOptions::builder()->maxResponseBytes(1024)->maxRetries(0)->build());
+    $unlimited = new DefaultApiClient(TransportOptions::builder()->maxRetries(0)->build());
+
+    try {
+        $limited->sendRequest('GET', $server->url('/limited'), [], null);
+        test()->fail('Expected the body over the limit to raise ResponseTooLargeException');
+    } catch (ResponseTooLargeException $e) {
+        expect($e::class)->toBe(ResponseTooLargeException::class);
+        expect(get_parent_class($e))->toBe(ApiException::class);
+        expect($e->getStatusCode())->toBe(200);
+        expect($e->limit)->toBe(1024);
+        expect($e->getMessage())->toBe('Response body exceeds the limit of 1024 bytes');
+        expect($e->getResponseBody())->toBe('');
+        expect($e->isRetryable())->toBeFalse();
+        expect($e->getResponseHeaders())->toHaveKey('content-type');
+    }
+    $response = $unlimited->sendRequest('GET', $server->url('/whole'), [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(strlen((string) base64_decode($response->body, true)))->toBe(4096);
+});
+
+test('bhv transport 096 a gzip body that inflates past maxResponseBytes fails with the response too large error', function (): void {
+    $compressed = (string) gzencode(str_repeat("\0", 100000));
+    expect(strlen($compressed))->toBeLessThan(1024);
+    $server = RawServer::serve(str_replace('PAYLOAD', base64_encode($compressed), <<<'PHP'
+        $payload = (string) base64_decode('PAYLOAD', true);
+        reply(
+            $socket,
+            200,
+            'Content-Type: application/octet-stream',
+            'Content-Encoding: gzip',
+            'Content-Length: ' . strlen($payload)
+        );
+        @fwrite($socket, $payload);
+        PHP));
+    $client = new DefaultApiClient(TransportOptions::builder()->maxResponseBytes(1024)->maxRetries(0)->build());
+
+    try {
+        $client->sendRequest('GET', $server->url('/inflated'), [], null);
+        test()->fail('Expected the inflated body to raise ResponseTooLargeException');
+    } catch (ResponseTooLargeException $e) {
+        expect($e::class)->toBe(ResponseTooLargeException::class);
+        expect($e->getStatusCode())->toBe(200);
+        expect($e->limit)->toBe(1024);
+        expect($e->getMessage())->toBe('Response body exceeds the limit of 1024 bytes');
+    }
 });
 
 test('bhv retries 018 maxRetries 0 sends a failing request once', function (): void {

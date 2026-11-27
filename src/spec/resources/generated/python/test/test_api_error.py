@@ -61,6 +61,7 @@ ERROR_TREE = [
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
+    "ResponseTooLargeException",
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",

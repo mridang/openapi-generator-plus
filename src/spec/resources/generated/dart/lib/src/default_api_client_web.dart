@@ -65,6 +65,8 @@ class DefaultApiClient extends AbstractApiClient {
   /// `Content-Encoding`, so the bytes here are plaintext and are returned
   /// unchanged. The native transport's gzip-lie hardening is not available in
   /// the browser (no dart:io codec) -- a documented platform exception.
+  /// Because the bytes read are already the decoded ones, the
+  /// `maxResponseBytes` count of the read also caps the decoded size.
   @override
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding) {
     return bytes;

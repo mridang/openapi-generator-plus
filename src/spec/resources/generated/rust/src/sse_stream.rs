@@ -19,11 +19,11 @@ use futures_util::StreamExt as _;
 
 use crate::api_stream_response::{ApiStreamResponse, BodyStream};
 use crate::errors::api_error::{ApiError, TransportFailure};
+use crate::errors::api_error_of;
 use crate::errors::network_error::NetworkError;
 use crate::errors::network_timeout_error::NetworkTimeoutError;
 use crate::errors::serialization_error::SerializationError;
 use crate::errors::stream_error::StreamError;
-use crate::errors::OpenAPIErrorExt;
 use crate::event_stream::{RawEvent, SseParser};
 use crate::server_sent_event::ServerSentEvent;
 use crate::stream_options::StreamOptions;
@@ -478,7 +478,7 @@ fn is_connection_failure(failure: &(dyn std::error::Error + Send + Sync + 'stati
 
 /// Whether an error is a status a reconnect may get over: 408, 429 or 5xx.
 fn is_retryable_status(failure: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
-    match failure.as_api_error() {
+    match api_error_of(failure) {
         Some(api_error) => {
             let status = api_error.status_code();
             status == 408 || status == 429 || (500..=599).contains(&status)
@@ -491,7 +491,7 @@ fn is_retryable_status(failure: &(dyn std::error::Error + Send + Sync + 'static)
 fn retry_after_of(
     failure: Option<&(dyn std::error::Error + Send + Sync + 'static)>,
 ) -> Option<Duration> {
-    let api_error = failure?.as_api_error()?;
+    let api_error = api_error_of(failure?)?;
     if !matches!(api_error.status_code(), 429 | 502 | 503 | 504) {
         return None;
     }
@@ -806,7 +806,10 @@ mod tests {
         let failure = data_of(sse(refused, fast()).await)
             .await
             .expect_err("a 404 is raised");
-        assert_eq!(Some(404), failure.as_api_error().map(|e| e.status_code()));
+        assert_eq!(
+            Some(404),
+            api_error_of(failure.as_ref()).map(|e| e.status_code())
+        );
 
         let (wrong, ids) = script(vec![
             Connection::Text("data: a\n\n"),

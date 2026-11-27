@@ -5949,6 +5949,150 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvTransport094APerCallTimeoutBoundsTheWholeCallBodyIncluded()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(
+                    socket,
+                    200,
+                    "Content-Type: application/octet-stream",
+                    "Content-Length: 100000"
+                );
+                for (int sent = 0; sent < 300 && !self.IsReleased; sent++)
+                {
+                    await RawServer.WriteAsync(socket, "a");
+                    await Task.Delay(100);
+                }
+            }
+        );
+        using DefaultApiClient client = new(
+            TransportOptions.Builder().Timeout(60000).MaxRetries(0).Build()
+        );
+
+        long started = Stopwatch.GetTimestamp();
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(server.Url("/items/blob")),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                null,
+                500,
+                null,
+                CancellationToken.None
+            )
+        );
+
+        Assert.True(
+            Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(3),
+            "the trickling body was cut off by the per-call timeout"
+        );
+    }
+
+    [Fact]
+    public async Task BhvTransport095ABufferedBodyOverMaxResponseBytesFailsAndNoLimitReadsItWhole()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, head) =>
+            {
+                if (head.Contains("/limited", StringComparison.Ordinal))
+                {
+                    await RawServer.HeadAsync(
+                        socket,
+                        200,
+                        "Content-Type: application/octet-stream",
+                        "Transfer-Encoding: chunked"
+                    );
+                    await RawServer.ChunkAsync(socket, new string('a', 4096));
+                    await RawServer.EndAsync(socket);
+                    return;
+                }
+                await RawServer.HeadAsync(
+                    socket,
+                    200,
+                    "Content-Type: application/octet-stream",
+                    "Content-Length: 4096"
+                );
+                await RawServer.WriteAsync(socket, new string('a', 4096));
+            }
+        );
+        using DefaultApiClient limited = new(
+            TransportOptions.Builder().MaxResponseBytes(1024).MaxRetries(0).Build()
+        );
+        using DefaultApiClient unlimited = new(TransportOptions.Builder().MaxRetries(0).Build());
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.ResponseTooLargeException>(() =>
+            limited.SendRequestAsync(
+                "GET",
+                new Uri(server.Url("/limited")),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        ApiHttpResponse response = await unlimited.SendRequestAsync(
+            "GET",
+            new Uri(server.Url("/whole")),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(
+            typeof(ApiException),
+            typeof(PetstoreClient.Errors.ResponseTooLargeException).BaseType
+        );
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Equal(1024L, ex.Limit);
+        Assert.Equal("Response body exceeds the limit of 1024 bytes", ex.Message);
+        Assert.Equal(string.Empty, ex.ResponseBody);
+        Assert.False(ex.IsRetryable);
+        Assert.Equal("application/octet-stream", ex.ResponseHeaders!["content-type"]);
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(4096, Convert.FromBase64String(response.Body).Length);
+    }
+
+    [Fact]
+    public async Task BhvTransport096AGzipBodyThatInflatesPastMaxResponseBytesFails()
+    {
+        byte[] compressed = GzipBytes(new string('\0', 100000));
+        Assert.True(compressed.Length < 1024, "the compressed body is under the limit on the wire");
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(
+                    socket,
+                    200,
+                    "Content-Type: application/octet-stream",
+                    "Content-Encoding: gzip",
+                    "Content-Length: "
+                        + compressed.Length.ToString(
+                            System.Globalization.CultureInfo.InvariantCulture
+                        )
+                );
+                await RawServer.WriteBytesAsync(socket, compressed);
+            }
+        );
+        using DefaultApiClient client = new(
+            TransportOptions.Builder().MaxResponseBytes(1024).MaxRetries(0).Build()
+        );
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.ResponseTooLargeException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(server.Url("/inflated")),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Equal(1024L, ex.Limit);
+        Assert.Equal("Response body exceeds the limit of 1024 bytes", ex.Message);
+    }
+
+    [Fact]
     public async Task BhvRetries042ATimeoutIsNotRetried()
     {
         /* A timeout raised by the transport carries a TimeoutException inside the

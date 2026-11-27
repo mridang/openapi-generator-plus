@@ -874,7 +874,7 @@ class StoreApi extends BaseApi implements StoreApiInterface {
           'amount',
           options.amount,
           'query',
-          'double',
+          'Decimal',
           '',
           'form',
           true,

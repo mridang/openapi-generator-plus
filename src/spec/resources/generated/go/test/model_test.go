@@ -18,6 +18,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	jsonv2 "github.com/go-json-experiment/json"
 )
 
 /* Go tooling (gopls, staticcheck SA1019) only recognises a deprecation when a
@@ -732,5 +734,27 @@ func TestBhvMisc145_Model_ReadingTheUndeclaredKeysReturnsACopy(t *testing.T) {
 	}
 	if models.NewMetadata().GetAdditionalProperties() == nil {
 		t.Error("a built model starts with an empty collection, so the copy is not nil")
+	}
+}
+
+// A model decoded through JSON v2 reports a missing required key with the same error as encoding/json.
+func TestBhvLanggo133_Model_JsonV2DecodeReportsAMissingRequiredKey(t *testing.T) {
+	t.Parallel()
+	var account models.Account
+	err := jsonv2.Unmarshal([]byte(`{"id":1}`), &account)
+	if err == nil || !strings.Contains(err.Error(), "required field 'username' is missing in Account") {
+		t.Errorf("expected the missing username to be reported, got %v", err)
+	}
+}
+
+// A model decoded through JSON v2 matches keys exactly, so a mis-cased key does not fill the declared field.
+func TestBhvLanggo134_Model_JsonV2DecodeMatchesKeysExactly(t *testing.T) {
+	t.Parallel()
+	var category models.Category
+	if err := jsonv2.Unmarshal([]byte(`{"NAME":"Other"}`), &category); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if category.Name != nil {
+		t.Errorf("expected the mis-cased key to leave name unset, got %q", *category.Name)
 	}
 }

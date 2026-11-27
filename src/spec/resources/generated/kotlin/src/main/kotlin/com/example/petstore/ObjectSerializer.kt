@@ -201,6 +201,92 @@ internal object StringDecimalSerializer : KSerializer<BigDecimal> {
     }
 }
 
+/* `format: ipv4` and `ipv6` stay the text as given, because the JVM has no literal-only address
+ * parser below Java 22, but the text is read strictly: a value that is not exactly an address of
+ * that family (a leading zero, a prefix length, a zone id, brackets, whitespace or the other family)
+ * fails the decode. */
+internal object Ipv4StringSerializer : KSerializer<String> {
+    override val descriptor = PrimitiveSerialDescriptor("Ipv4String", PrimitiveKind.STRING)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: String,
+    ) = encoder.encodeString(value)
+
+    override fun deserialize(decoder: Decoder): String {
+        val text = decoder.decodeString()
+        if (!isIpv4Address(text)) {
+            throw kotlinx.serialization.SerializationException("Invalid IPv4 address: $text")
+        }
+        return text
+    }
+}
+
+internal object Ipv6StringSerializer : KSerializer<String> {
+    override val descriptor = PrimitiveSerialDescriptor("Ipv6String", PrimitiveKind.STRING)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: String,
+    ) = encoder.encodeString(value)
+
+    override fun deserialize(decoder: Decoder): String {
+        val text = decoder.decodeString()
+        if (!isIpv6Address(text)) {
+            throw kotlinx.serialization.SerializationException("Invalid IPv6 address: $text")
+        }
+        return text
+    }
+}
+
+internal object Ipv4StringListSerializer :
+    KSerializer<List<String>> by ListSerializer(Ipv4StringSerializer)
+
+internal object Ipv6StringListSerializer :
+    KSerializer<List<String>> by ListSerializer(Ipv6StringSerializer)
+
+private val ipv4Address =
+    Regex("((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])")
+
+private val ipv6Characters = Regex("[0-9A-Fa-f:.]+")
+
+// Four decimal parts from 0 to 255, with no leading zero.
+internal fun isIpv4Address(text: String): Boolean = ipv4Address.matches(text)
+
+/* Hexadecimal groups of up to four digits, at most one `::`, and an optional trailing dotted IPv4
+ * part, in any RFC 4291 text form. */
+internal fun isIpv6Address(text: String): Boolean {
+    if (!ipv6Characters.matches(text)) {
+        return false
+    }
+    val gap = text.indexOf("::")
+    if (gap >= 0 && text.indexOf("::", gap + 1) >= 0) {
+        return false
+    }
+    val halves = if (gap >= 0) listOf(text.substring(0, gap), text.substring(gap + 2)) else listOf(text)
+    var groups = 0
+    halves.forEachIndexed { half, segment ->
+        if (segment.isEmpty()) {
+            return@forEachIndexed
+        }
+        val parts = segment.split(":")
+        parts.forEachIndexed { index, part ->
+            val last = half == halves.lastIndex && index == parts.lastIndex
+            when {
+                part.contains('.') -> {
+                    if (!last || !isIpv4Address(part)) {
+                        return false
+                    }
+                    groups += 2
+                }
+                part.isEmpty() || part.length > 4 -> return false
+                else -> groups += 1
+            }
+        }
+    }
+    return if (gap >= 0) groups <= 7 else groups == 8
+}
+
 internal object StrictFloatSerializer : KSerializer<Float> {
     override val descriptor = PrimitiveSerialDescriptor("Float", PrimitiveKind.FLOAT)
 

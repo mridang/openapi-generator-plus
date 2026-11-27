@@ -777,6 +777,10 @@ func isRetryableTransportError(err error) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, ErrClientClosed) {
 		return false
 	}
+	var tooLarge *errors_pkg.ResponseTooLargeError
+	if errors.As(err, &tooLarge) {
+		return false
+	}
 	var certErr *tls.CertificateVerificationError
 	var unknownAuthority x509.UnknownAuthorityError
 	var hostnameErr x509.HostnameError
@@ -1071,7 +1075,7 @@ func serializeBodyOrdered(body any, contentType string, rawBody bool, order []st
 // isFormComposite reports whether a form-urlencoded field value is a model, a
 // map or an array holding one. Such values have no defined encoding without an
 // OAS encoding style, so they are rejected rather than sent as a Go %v dump.
-// Values with their own String form (time.Time, DateTime, Duration, UUIDs)
+// Values with their own String form (time.Time, DateTime, time.Duration, UUIDs)
 // are scalars.
 func isFormComposite(value any) bool {
 	rv := reflect.ValueOf(value)

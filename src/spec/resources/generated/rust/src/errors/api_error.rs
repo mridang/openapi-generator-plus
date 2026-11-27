@@ -505,13 +505,14 @@ pub(crate) fn attach_request(
         }
         Err(other) => match other.downcast::<crate::errors::network_error::NetworkError>() {
             Ok(network) => Box::new(network.with_request(method, path)),
-            Err(other) => match other
-                .downcast::<crate::errors::network_timeout_error::NetworkTimeoutError>()
-            {
+            Err(other) => match other.downcast::<crate::errors::network_timeout_error::NetworkTimeoutError>() {
                 Ok(timeout) => Box::new(timeout.with_request(method, path)),
                 Err(other) => match other.downcast::<crate::errors::stream_error::StreamError>() {
                     Ok(stream) => Box::new(stream.with_request(method, path)),
-                    Err(other) => other,
+                    Err(other) => match other.downcast::<crate::errors::response_too_large_error::ResponseTooLargeError>() {
+                        Ok(too_large) => Box::new(too_large.with_request(method, path)),
+                        Err(other) => other,
+                    },
                 },
             },
         },

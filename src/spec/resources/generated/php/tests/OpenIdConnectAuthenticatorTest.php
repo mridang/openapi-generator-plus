@@ -870,7 +870,7 @@ test('bhv misc 070 a discovery document that is not a json object keeps no cause
     expect($caught->getMessage())->not->toContain('leaked-body');
 });
 
-test('bhv misc 078 the authorization url carries an s256 challenge and no nonce', function (): void {
+test('bhv misc 078 the authorization url carries an s256 challenge and a nonce', function (): void {
     $client = makeOpenIdConnectMockClientWithDiscovery();
     $authenticator = new OpenIdConnectAuthenticator(
         'https://api.example.com',
@@ -888,7 +888,9 @@ test('bhv misc 078 the authorization url carries an s256 challenge and no nonce'
     $challenge = $params['code_challenge'] ?? '';
     assert(is_string($challenge));
     expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $challenge))->toBe(1);
-    expect($params)->not->toHaveKey('nonce');
+    $nonce = $params['nonce'] ?? '';
+    assert(is_string($nonce));
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $nonce))->toBe(1);
 });
 
 test('bhv misc 199 discovery runs again when the cached document has a zero max age', function (): void {
@@ -980,4 +982,161 @@ test('bhv misc 076 a call after a dropped code exchange reuses the discovered co
     expect($client->capturedRequests)->toHaveCount(3);
     expect($client->capturedRequests[2]['url'])->toBe('https://auth.example.com/token');
     expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer tok');
+});
+
+/**
+ * An unsigned compact JWT whose payload is the given claims.
+ *
+ * @param array<string, mixed> $claims
+ */
+function oidcIdToken(array $claims): string
+{
+    $encode = static fn (string $text): string => rtrim(strtr(base64_encode($text), '+/', '-_'), '=');
+
+    return $encode('{"alg":"none"}') . '.' . $encode((string) json_encode($claims)) . '.sig';
+}
+
+/**
+ * Claims that pass every check for the given nonce, with the given claims replaced.
+ *
+ * @param array<string, mixed> $overrides
+ * @return array<string, mixed>
+ */
+function oidcClaims(string $nonce, array $overrides = []): array
+{
+    return array_merge([
+        'iss' => 'https://auth.example.com',
+        'aud' => 'my-client-id',
+        'exp' => time() + 3600,
+        'nonce' => $nonce,
+    ], $overrides);
+}
+
+/**
+ * An authenticator that has built an authorization URL and whose token endpoint
+ * answers with the id_token that the function builds from the URL's nonce.
+ *
+ * @param \Closure(string): string $idTokenForNonce
+ */
+function oidcAuthenticatorReturning(\Closure $idTokenForNonce): OpenIdConnectAuthenticator
+{
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'issuer' => 'https://auth.example.com',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $params);
+    $nonce = $params['nonce'] ?? '';
+    assert(is_string($nonce));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'oidc-tok',
+        'expires_in' => 3600,
+        'id_token' => $idTokenForNonce($nonce),
+    ]), ['Content-Type' => 'application/json']));
+
+    return $authenticator;
+}
+
+test('bhv authoidc 034 each authorization url carries a fresh nonce', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $first);
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $second);
+
+    $nonce = $first['nonce'] ?? '';
+    assert(is_string($nonce));
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $nonce))->toBe(1);
+    expect($second['nonce'] ?? null)->not->toBe($nonce);
+});
+
+test('bhv authoidc 035 an id_token with valid claims is accepted', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['aud' => ['other', 'my-client-id']]))
+    );
+
+    $authenticator->exchangeCode('oidc-code');
+
+    expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer oidc-tok');
+});
+
+test('bhv authoidc 036 an id_token with another nonce is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['nonce' => 'replayed']))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \PetstoreClient\Errors\OAuth2TokenException::class,
+        'The id_token nonce does not match the authorization request'
+    );
+});
+
+test('bhv authoidc 037 an id_token from another issuer is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['iss' => 'https://evil.example.com']))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \PetstoreClient\Errors\OAuth2TokenException::class,
+        'The id_token issuer does not match the discovered issuer'
+    );
+});
+
+test('bhv authoidc 038 an id_token for another audience is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['aud' => 'other-client']))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \PetstoreClient\Errors\OAuth2TokenException::class,
+        'The id_token audience does not contain the client id'
+    );
+});
+
+test('bhv authoidc 039 an expired id_token is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['exp' => time() - 120]))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \PetstoreClient\Errors\OAuth2TokenException::class,
+        'The id_token has expired'
+    );
+});
+
+test('bhv authoidc 040 a malformed id_token is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(fn (string $nonce): string => 'not-a-jwt');
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \PetstoreClient\Errors\OAuth2TokenException::class,
+        'The id_token is malformed'
+    );
+});
+
+test('bhv authoidc 041 a rejected id_token leaves no session', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['nonce' => 'replayed']))
+    );
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))
+        ->toThrow(\PetstoreClient\Errors\OAuth2TokenException::class);
+
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\LogicException::class);
 });

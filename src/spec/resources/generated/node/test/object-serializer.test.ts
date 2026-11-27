@@ -62,7 +62,7 @@ import {
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from "../src/models/index.js";
-import { uuid, isUuid } from "../src/brand.js";
+import { uuid, isUuid, Decimal } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 
 describe("ObjectSerializer", () => {
@@ -592,13 +592,13 @@ describe("ObjectSerializer", () => {
 
     test("bhv serializationobject 171 emits a type:number (no-format) Decimal field as an unquoted JSON number", () => {
       // 2.5 — Pet.weightKg is `type: number` with no format, carried as a
-      // branded Decimal string at runtime. The wire form must be a JSON
-      // number, not a quoted string, or a server validating `type: number`
-      // rejects it. The raw text is preserved (no lossy Number() round-trip).
+      // decimal.js Decimal. The wire form must be a JSON number, not a quoted
+      // string, or a server validating `type: number` rejects it. The digits
+      // are preserved (no lossy Number() round-trip).
       const pet = new Pet({
         name: "Fido",
         photoUrls: new Set(["u"]),
-        weightKg: "12.345" as unknown as Pet["weightKg"],
+        weightKg: new Decimal("12.345"),
       });
       const result = ObjectSerializer.serialize(pet);
       // Unquoted in the raw JSON text...
@@ -612,12 +612,12 @@ describe("ObjectSerializer", () => {
 
     test("bhv serialization 114 preserves Decimal precision beyond IEEE-754 on the wire", () => {
       // A high-precision decimal that a JS number cannot hold exactly must
-      // survive verbatim in the wire text (the whole reason Decimal is a
-      // string), so the unquoted emission keeps every digit.
+      // survive verbatim in the wire text (the whole reason Decimal is not a
+      // number), so the unquoted emission keeps every digit.
       const pet = new Pet({
         name: "Fido",
         photoUrls: new Set(["u"]),
-        weightKg: "12.34567890123456789" as unknown as Pet["weightKg"],
+        weightKg: new Decimal("12.34567890123456789"),
       });
       const result = ObjectSerializer.serialize(pet);
       expect(result).toContain('"weightKg":12.34567890123456789');
@@ -635,7 +635,7 @@ describe("ObjectSerializer", () => {
       const body = {
         name: "Fido",
         photoUrls: ["u"],
-        weightKg: "1.5" as unknown as Pet["weightKg"],
+        weightKg: new Decimal("1.5"),
       };
       const result = ObjectSerializer.serialize(body);
       expect(result).toContain('"weightKg":1.5');
@@ -674,7 +674,7 @@ describe("ObjectSerializer", () => {
         pet: {
           name: "Fido",
           photoUrls: ["u"],
-          weightKg: "1.5" as unknown as Pet["weightKg"],
+          weightKg: new Decimal("1.5"),
         },
       };
       expect(ObjectSerializer.serialize(body)).toContain('"weightKg":1.5');
@@ -1249,13 +1249,14 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test("bhv langnode 117 collapses a nested uniqueItems array into a Set and keeps Decimal as a string", () => {
+    test("bhv langnode 117 collapses a nested uniqueItems array into a Set and keeps the Decimal exact", () => {
       const json = {
         pet: { name: "x", photoUrls: ["a", "a", "b"], weightKg: 12.5 },
       };
       const passport = ObjectSerializer.deserialize(json, PetPassport)!;
       expect(passport.pet!.photoUrls).toEqual(new Set(["a", "b"]));
-      expect(passport.pet!.weightKg).toBe("12.5");
+      expect(passport.pet!.weightKg).toBeInstanceOf(Decimal);
+      expect(passport.pet!.weightKg!.toFixed()).toBe("12.5");
     });
   });
 
@@ -1301,7 +1302,9 @@ describe("ObjectSerializer", () => {
         ObjectSerializer.parseJson(text),
         Pet,
       )!;
-      expect(pet.weightKg).toBe("12.34567890123456789012");
+      expect(pet.weightKg!.eq(new Decimal("12.34567890123456789012"))).toBe(
+        true,
+      );
       expect(ObjectSerializer.serialize(pet)).toContain(
         '"weightKg":12.34567890123456789012',
       );
@@ -1314,7 +1317,8 @@ describe("ObjectSerializer", () => {
         ),
         Pet,
       )!;
-      expect(pet.weightKg).toBe("1.50");
+      expect(pet.weightKg!.eq(new Decimal("1.5"))).toBe(true);
+      expect(ObjectSerializer.serialize(pet)).toContain('"weightKg":1.50');
     });
 
     test("bhv langnode 118 decodes a nested type:number field losslessly", () => {
@@ -1324,7 +1328,7 @@ describe("ObjectSerializer", () => {
         ObjectSerializer.parseJson(text),
         PetPassport,
       )!;
-      expect(passport.pet!.weightKg).toBe(
+      expect(passport.pet!.weightKg!.toFixed()).toBe(
         "0.1000000000000000055511151231257827",
       );
     });
@@ -3350,50 +3354,30 @@ describe("model value-equality", () => {
 
   test("bhv models 018 Decimal fields compare by numeric value, not by scale", () => {
     const photoUrls = new Set(["u"]);
-    const a = new Pet({
-      name: "x",
-      photoUrls,
-      weightKg: "1.5" as unknown as Pet["weightKg"],
-    });
+    const a = new Pet({ name: "x", photoUrls, weightKg: new Decimal("1.5") });
     expect(
       a.equals(
-        new Pet({
-          name: "x",
-          photoUrls,
-          weightKg: "1.50" as unknown as Pet["weightKg"],
-        }),
+        new Pet({ name: "x", photoUrls, weightKg: new Decimal("1.50") }),
       ),
     ).toBe(true);
     expect(
       a.equals(
-        new Pet({
-          name: "x",
-          photoUrls,
-          weightKg: "1.51" as unknown as Pet["weightKg"],
-        }),
+        new Pet({ name: "x", photoUrls, weightKg: new Decimal("1.51") }),
       ),
     ).toBe(false);
     const whole = new Pet({
       name: "x",
       photoUrls,
-      weightKg: "10" as unknown as Pet["weightKg"],
+      weightKg: new Decimal("10"),
     });
     expect(
       whole.equals(
-        new Pet({
-          name: "x",
-          photoUrls,
-          weightKg: "10.0" as unknown as Pet["weightKg"],
-        }),
+        new Pet({ name: "x", photoUrls, weightKg: new Decimal("10.0") }),
       ),
     ).toBe(true);
     expect(
       whole.equals(
-        new Pet({
-          name: "x",
-          photoUrls,
-          weightKg: "1" as unknown as Pet["weightKg"],
-        }),
+        new Pet({ name: "x", photoUrls, weightKg: new Decimal("1") }),
       ),
     ).toBe(false);
   });
@@ -3963,7 +3947,9 @@ describe("toBinary", () => {
         Pet,
       )!;
 
-      expect(pet.weightKg).toBe("12.345678901234567890123");
+      expect(pet.weightKg!.eq(new Decimal("12.345678901234567890123"))).toBe(
+        true,
+      );
       expect(ObjectSerializer.serialize(pet)).toContain(
         '"weightKg":12.345678901234567890123',
       );
@@ -3995,6 +3981,27 @@ describe("toBinary", () => {
       }
     });
 
+    test("bhv serializationobject 407 a malformed ipv4 or ipv6 address fails the decode", () => {
+      const cases: Array<[string, unknown]> = [
+        ["address4", "01.2.3.4"],
+        ["address4", "192.0.2.1/24"],
+        ["address4", " 192.0.2.1"],
+        ["address4", "[::1]"],
+        ["address4", "2001:db8::1"],
+        ["address6", "fe80::1%eth0"],
+        ["address6", "[::1]"],
+        ["address6", "2001:db8::/64"],
+        ["address6", " ::1"],
+        ["address6", "192.0.2.1"],
+        ["addresses", ["1:2:3:4:5:6:7:8:9"]],
+      ];
+      for (const [field, value] of cases) {
+        expect(() =>
+          ObjectSerializer.deserialize({ [field]: value }, NativeValues),
+        ).toThrow(SerializationError);
+      }
+    });
+
     test("bhv serializationobject 408 every listed absolute URI round-trips byte for byte", () => {
       for (const text of [
         "https://example.com",
@@ -4021,7 +4028,9 @@ describe("toBinary", () => {
     test("bhv serializationobject 410 a number keeps every digit and is written in plain notation", () => {
       const values = decode('{"amount":12.345678901234567890123}');
 
-      expect(values.amount).toBe("12.345678901234567890123");
+      expect(values.amount!.eq(new Decimal("12.345678901234567890123"))).toBe(
+        true,
+      );
       expect(ObjectSerializer.serialize(values)).toBe(
         '{"amount":12.345678901234567890123}',
       );
@@ -4030,17 +4039,27 @@ describe("toBinary", () => {
     test("bhv serializationobject 411 a string decimal is written as a JSON string and rejects a bare number", () => {
       const values = decode('{"ledger":"12.50"}');
 
-      expect(values.ledger).toBe("12.50");
+      expect(values.ledger!.eq(new Decimal("12.50"))).toBe(true);
       expect(ObjectSerializer.serialize(values)).toBe('{"ledger":"12.50"}');
       expect(() => decode('{"ledger":12.50}')).toThrow(SerializationError);
     });
 
     test("bhv serializationobject 412 a forty digit number is exact and never rounded", () => {
       const digits = "1234567890123456789012345678901234567890";
+      const values = decode(`{"amount":${digits}}`);
 
-      expect(ObjectSerializer.serialize(decode(`{"amount":${digits}}`))).toBe(
-        `{"amount":${digits}}`,
-      );
+      expect(values.amount!.eq(new Decimal(digits))).toBe(true);
+      expect(ObjectSerializer.serialize(values)).toBe(`{"amount":${digits}}`);
+    });
+
+    test("bhv serializationobject 413 a decimal field, number- or string-shaped, is the exact Decimal type and never a float", () => {
+      const values = decode('{"amount":0.1,"ledger":"0.1"}');
+
+      expect(values.amount).toBeInstanceOf(Decimal);
+      expect(values.ledger).toBeInstanceOf(Decimal);
+      expect(
+        values.amount!.plus(new Decimal("0.2")).eq(new Decimal("0.3")),
+      ).toBe(true);
     });
   });
 

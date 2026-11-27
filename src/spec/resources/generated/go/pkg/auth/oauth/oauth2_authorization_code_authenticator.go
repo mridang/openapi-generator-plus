@@ -197,6 +197,12 @@ var ErrAuthCodeEmpty = errors.New("authorization code must not be empty")
 
 // ExchangeCode exchanges an authorization code for an access token.
 func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
+	return a.exchangeCode(code, nil)
+}
+
+// exchangeCode is ExchangeCode with a check of the response's id_token, run
+// before the session is replaced. OpenID Connect uses it.
+func (a *OAuth2AuthorizationCodeAuthenticator) exchangeCode(code string, idTokenCheck func(idToken *string) error) error {
 	// Reject an empty/whitespace code before the token POST so the caller sees
 	// the precondition failure directly instead of a confusing token-endpoint
 	// error.
@@ -217,7 +223,7 @@ func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
 	}
 	/* Exchange always POSTs this code and replaces the session; the caching
 	 * GetAccessToken would return the previous token or refresh it instead. */
-	if err := a.tokenManager.Exchange(a.tokenURL, params); err != nil {
+	if err := a.tokenManager.exchange(a.tokenURL, params, idTokenCheck); err != nil {
 		return err
 	}
 	a.tokenExchanged.Store(true)

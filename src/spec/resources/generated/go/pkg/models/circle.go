@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Circle is a model class generated from the OpenAPI schema.
@@ -88,37 +90,54 @@ func (o Circle) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Circle) UnmarshalJSON(data []byte) error {
-	type Alias Circle
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "shapeType", "label", "radius"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Circle) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Circle
+	seenShapeType := false
+	seenRadius := false
+	err := readObject(dec, "Circle", func(key string) error {
+		switch key {
+		case "shapeType":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'shapeType' must not be null in Circle")
+			}
+			seenShapeType = true
+			return decodeValue(dec, &out.ShapeType)
+		case "label":
+			return decodeValue(dec, &out.Label)
+		case "radius":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'radius' must not be null in Circle")
+			}
+			seenRadius = true
+			return decodeValue(dec, &out.Radius)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["shapeType"]; !ok {
+	if !seenShapeType {
 		/* A required property that carries a default (the synthetic discriminator
 		 * default, or a schema default) is satisfied by that default when absent. */
 		var defaultShapeType string = "Circle"
-		aux.ShapeType = defaultShapeType
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'shapeType' must not be null in Circle")
+		out.ShapeType = defaultShapeType
 	}
-	if rawVal, ok := raw["radius"]; !ok {
+	if !seenRadius {
 		return fmt.Errorf("required field 'radius' is missing in Circle")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'radius' must not be null in Circle")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = Circle(*aux)
+	*o = out
 	return nil
 }

@@ -329,7 +329,8 @@ defmodule PetstoreClient.ApiErrorTest do
       PetstoreClient.Errors.ServerError,
       PetstoreClient.Errors.InternalServerError,
       PetstoreClient.Errors.NetworkError,
-      PetstoreClient.Errors.NetworkTimeoutError
+      PetstoreClient.Errors.NetworkTimeoutError,
+      PetstoreClient.Errors.ResponseTooLargeError
     ]
 
     for module <- modules do
@@ -643,6 +644,7 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.ApiError in modules
       assert PetstoreClient.Errors.BadRequestError in modules
       assert PetstoreClient.Errors.SerializationError in modules
+      assert PetstoreClient.Errors.ResponseTooLargeError in modules
     end
 
     test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
@@ -744,6 +746,14 @@ defmodule PetstoreClient.ApiErrorTest do
       refute PetstoreClient.Errors.NetworkError.network_error?(
                PetstoreClient.Errors.ApiError.exception(message: "x")
              )
+
+      too_large =
+        PetstoreClient.Errors.ResponseTooLargeError.exception(status_code: 200, limit: 1024)
+
+      assert PetstoreClient.Errors.ApiError.api_error?(too_large)
+      refute PetstoreClient.Errors.NetworkError.network_error?(too_large)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(too_large)
+      assert too_large.message == "Response body exceeds the limit of 1024 bytes"
 
       serialization = %PetstoreClient.Errors.SerializationError{message: "bad"}
       refute PetstoreClient.Errors.ApiError.api_error?(serialization)

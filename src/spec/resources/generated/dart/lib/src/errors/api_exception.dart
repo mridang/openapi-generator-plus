@@ -26,6 +26,7 @@ import 'open_api_exception.dart';
 import 'payload_too_large_exception.dart';
 import 'payment_required_exception.dart';
 import 'request_timeout_exception.dart';
+import 'response_too_large_exception.dart';
 import 'server_exception.dart';
 import 'service_unavailable_exception.dart';
 import 'stream_exception.dart';
@@ -435,7 +436,8 @@ class ApiException extends OpenAPIException {
   /// The transport knows nothing of the operation, so the API layer calls this
   /// for a failure that arrived without a response: a [NetworkTimeoutException]
   /// stays one, a [NetworkException] stays one and anything else becomes an
-  /// [ApiException] with the same fields. An error that already names its
+  /// [ApiException] with the same fields; a `ResponseTooLargeException` stays
+  /// one too. An error that already names its
   /// request, or whose type is a status-specific subclass, is returned
   /// unchanged. [path] is cut at the first `?` or `#`.
   ApiException withRequest(String method, String path) {
@@ -454,6 +456,17 @@ class ApiException extends OpenAPIException {
     if (this is StreamException) {
       return StreamException(
         message: message,
+        cause: cause,
+        requestMethod: method,
+        requestPath: stripped,
+      );
+    }
+    final self = this;
+    if (self is ResponseTooLargeException) {
+      return ResponseTooLargeException(
+        limit: self.limit,
+        statusCode: statusCode,
+        responseHeaders: responseHeaders,
         cause: cause,
         requestMethod: method,
         requestPath: stripped,

@@ -38,11 +38,12 @@ class NativeValues implements \Ds\Hashable, \Stringable
 
     /** @example 12.345678901234567 */
     #[SerializedName('amount')]
-    public readonly ?float $amount;
+    public readonly ?\Brick\Math\BigDecimal $amount;
 
     /** @example 12.50 */
+    #[\PetstoreClient\WireFormat('decimal')]
     #[SerializedName('ledger')]
-    public readonly ?float $ledger;
+    public readonly ?\Brick\Math\BigDecimal $ledger;
 
     /** @example 3600s */
     #[SerializedName('wait')]
@@ -68,8 +69,8 @@ class NativeValues implements \Ds\Hashable, \Stringable
         ?string $address6 = null,
         ?\Ds\Vector $addresses = null,
         ?string $homepage = null,
-        ?float $amount = null,
-        ?float $ledger = null,
+        ?\Brick\Math\BigDecimal $amount = null,
+        ?\Brick\Math\BigDecimal $ledger = null,
         ?\DateInterval $wait = null,
         ?\DateTime $since = null,
         ?string $host = null,
@@ -168,7 +169,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
     /**
      * Returns a copy of this model with amount replaced. This model is not changed.
      */
-    public function withAmount(?float $amount): self
+    public function withAmount(?\Brick\Math\BigDecimal $amount): self
     {
         return new self(
             address4: $this->address4,
@@ -187,7 +188,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
     /**
      * Returns a copy of this model with ledger replaced. This model is not changed.
      */
-    public function withLedger(?float $ledger): self
+    public function withLedger(?\Brick\Math\BigDecimal $ledger): self
     {
         return new self(
             address4: $this->address4,

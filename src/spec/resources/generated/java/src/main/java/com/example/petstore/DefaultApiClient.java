@@ -11,6 +11,7 @@ package com.example.petstore;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.NetworkException;
 import com.example.petstore.errors.NetworkTimeoutException;
+import com.example.petstore.errors.ResponseTooLargeException;
 import com.example.petstore.errors.SerializationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
@@ -986,8 +987,9 @@ public final class DefaultApiClient implements ApiClient {
             timeoutOverride,
             maxRetriesOverride);
     try {
+      final Long maxResponseBytes = transportOptions.getMaxResponseBytes();
       HttpResponse<byte[]> response =
-          sendHeaderPhase(call, HttpResponse.BodyHandlers.ofByteArray(), ignored -> {});
+          sendHeaderPhase(call, bufferedBodyHandler(method, maxResponseBytes), ignored -> {});
 
       /* Gap BE+BF: response header keys are normalised to lowercase so
       callers can look them up consistently regardless of the casing
@@ -1016,8 +1018,17 @@ public final class DefaultApiClient implements ApiClient {
       byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
       byte[] decompressedBytes;
       try {
-        decompressedBytes = decompressBody(bodyBytes, contentEncoding);
+        decompressedBytes =
+            decompressBody(
+                bodyBytes,
+                contentEncoding,
+                maxResponseBytes == null ? Long.MAX_VALUE : maxResponseBytes);
       } catch (IOException e) {
+        if (maxResponseBytes != null && tooLarge(e) != null) {
+          /* D138: the decoded body passed the limit, and decoding stopped there. */
+          throw new ResponseTooLargeException(
+              response.statusCode(), responseHeaders, maxResponseBytes, method, url);
+        }
         /* A corrupt Content-Encoding body is not a transport failure:
          * a response did arrive, so keep it out of NetworkException. */
         throw new ApiException(
@@ -1046,6 +1057,12 @@ public final class DefaultApiClient implements ApiClient {
        * before a response arrived. */
       throw new NetworkTimeoutException(e.toString(), e, method, url);
     } catch (IOException e) {
+      BodyTooLarge tooLarge = tooLarge(e);
+      if (tooLarge != null) {
+        /* D138: a response arrived, but its wire body passed maxResponseBytes. */
+        throw new ResponseTooLargeException(
+            tooLarge.statusCode, tooLarge.headers, tooLarge.limit, method, url);
+      }
       /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
       throw new NetworkException(e.toString(), e, method, url);
     } catch (InterruptedException e) {
@@ -1060,6 +1077,142 @@ public final class DefaultApiClient implements ApiClient {
       throw cancelled;
     } finally {
       call.closeOpenedBody();
+    }
+  }
+
+  /**
+   * The body handler of a buffered call. Without {@code maxResponseBytes} it is the plain
+   * byte-array handler; with it, every hop's body is counted as it arrives and the read is
+   * cancelled, which drops the connection, as soon as the count passes the limit (D138).
+   */
+  private static HttpResponse.BodyHandler<byte[]> bufferedBodyHandler(
+      String method, @Nullable Long maxResponseBytes) {
+    if (maxResponseBytes == null) {
+      return HttpResponse.BodyHandlers.ofByteArray();
+    }
+    final long limit = maxResponseBytes;
+    final boolean head = "HEAD".equalsIgnoreCase(method);
+    return info ->
+        new CappedBodySubscriber(
+            limit, info.statusCode(), copyResponseHeaders(info.headers()), head);
+  }
+
+  /**
+   * Raised inside the transport when a buffered body passes {@code maxResponseBytes}; the call
+   * turns it into {@link ResponseTooLargeException}. It is an {@link IOException} so it travels
+   * through the HTTP client's future, and the retry loop never retries it.
+   */
+  private static final class BodyTooLarge extends IOException {
+    @java.io.Serial private static final long serialVersionUID = 1L;
+
+    final long limit;
+    final int statusCode;
+    final transient Map<String, String> headers;
+
+    BodyTooLarge(long limit, int statusCode, Map<String, String> headers) {
+      super("Response body exceeds the limit of " + limit + " bytes");
+      this.limit = limit;
+      this.statusCode = statusCode;
+      this.headers = headers;
+    }
+  }
+
+  /** The {@link BodyTooLarge} in a failure's cause chain, if there is one. */
+  @Nullable
+  private static BodyTooLarge tooLarge(Throwable failure) {
+    Throwable current = failure;
+    for (int depth = 0; current != null && depth < 16; depth++) {
+      if (current instanceof BodyTooLarge tooLarge) {
+        return tooLarge;
+      }
+      current = current.getCause();
+    }
+    return null;
+  }
+
+  /**
+   * Collects a buffered body, counting the bytes as they arrive. A declared Content-Length over the
+   * limit fails before anything is read; otherwise the subscription is cancelled the moment the
+   * running count passes the limit, so the rest of the body is never drained.
+   */
+  private static final class CappedBodySubscriber implements HttpResponse.BodySubscriber<byte[]> {
+    private final long limit;
+    private final int statusCode;
+    private final Map<String, String> headers;
+    private final boolean head;
+    private final java.util.concurrent.CompletableFuture<byte[]> body =
+        new java.util.concurrent.CompletableFuture<>();
+    private final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+    @Nullable private java.util.concurrent.Flow.Subscription subscription;
+    private long received;
+
+    CappedBodySubscriber(long limit, int statusCode, Map<String, String> headers, boolean head) {
+      this.limit = limit;
+      this.statusCode = statusCode;
+      this.headers = headers;
+      this.head = head;
+    }
+
+    @Override
+    public java.util.concurrent.CompletionStage<byte[]> getBody() {
+      return body;
+    }
+
+    @Override
+    public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) {
+      this.subscription = subscription;
+      if (!head && statusCode != 204 && statusCode != 304 && declaredLength() > limit) {
+        fail(subscription);
+        return;
+      }
+      subscription.request(Long.MAX_VALUE);
+    }
+
+    @Override
+    public void onNext(List<java.nio.ByteBuffer> items) {
+      if (body.isDone()) {
+        return;
+      }
+      for (java.nio.ByteBuffer item : items) {
+        received += item.remaining();
+        if (received > limit) {
+          java.util.concurrent.Flow.Subscription current = subscription;
+          if (current != null) {
+            fail(current);
+          }
+          return;
+        }
+        byte[] chunk = new byte[item.remaining()];
+        item.get(chunk);
+        buffer.write(chunk, 0, chunk.length);
+      }
+    }
+
+    @Override
+    public void onError(Throwable failure) {
+      body.completeExceptionally(failure);
+    }
+
+    @Override
+    public void onComplete() {
+      body.complete(buffer.toByteArray());
+    }
+
+    private void fail(java.util.concurrent.Flow.Subscription current) {
+      current.cancel();
+      body.completeExceptionally(new BodyTooLarge(limit, statusCode, headers));
+    }
+
+    private long declaredLength() {
+      String declared = headers.get("content-length");
+      if (declared == null) {
+        return -1L;
+      }
+      try {
+        return Long.parseLong(declared.trim());
+      } catch (NumberFormatException unparseable) {
+        return -1L;
+      }
     }
   }
 
@@ -1494,6 +1647,10 @@ public final class DefaultApiClient implements ApiClient {
       } catch (HttpTimeoutException | javax.net.ssl.SSLException notRetried) {
         throw notRetried;
       } catch (IOException e) {
+        if (tooLarge(e) != null) {
+          /* D138: a body over maxResponseBytes is never retried. */
+          throw e;
+        }
         if (isTlsFailure(e) || attempt >= maxRetries || !isIdempotentMethod(current.method())) {
           throw e;
         }
@@ -1972,27 +2129,34 @@ public final class DefaultApiClient implements ApiClient {
    * <p>Supports gzip and deflate natively. Brotli and zstd are supported when their respective
    * libraries ({@code org.brotli:dec} and {@code com.github.luben:zstd-jni}) are on the classpath.
    *
+   * <p>The decoded bytes are counted as they are produced, and decoding stops with a {@link
+   * BodyTooLarge} as soon as they pass {@code limit} (D138), so a small body that inflates past it
+   * is never decoded in full.
+   *
    * @param data the raw response bytes
    * @param encoding the Content-Encoding header value
+   * @param limit the most decoded bytes to produce; {@link Long#MAX_VALUE} for no limit
    * @return the decompressed body bytes
    */
-  private static byte[] decompressBody(byte[] data, String encoding) throws IOException {
+  private static byte[] decompressBody(byte[] data, String encoding, long limit)
+      throws IOException {
     if (data.length == 0) {
       return new byte[0];
     }
     return switch (encoding.toLowerCase(Locale.ROOT)) {
       case "gzip", "x-gzip" -> {
         try (GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(data))) {
-          yield gis.readAllBytes();
+          yield readCapped(gis, limit);
         }
       }
       case "deflate" -> {
         try (InflaterInputStream iis = new InflaterInputStream(new ByteArrayInputStream(data))) {
-          yield iis.readAllBytes();
+          yield readCapped(iis, limit);
         }
       }
-      case "br" -> decompressBrotli(data);
-      case "zstd" -> decompressZstd(data);
+      case "br" -> decodeViaInputStream(data, "br", "org.brotli.dec.BrotliInputStream", limit);
+      case "zstd" ->
+          decodeViaInputStream(data, "zstd", "com.github.luben.zstd.ZstdInputStream", limit);
       case "identity", "" -> data;
       /* An unrecognised (or multi-value) Content-Encoding is a response
        * the client cannot honour. Raise rather than return the body
@@ -2003,12 +2167,26 @@ public final class DefaultApiClient implements ApiClient {
     };
   }
 
-  private static byte[] decompressBrotli(byte[] data) throws IOException {
-    return decodeViaInputStream(data, "br", "org.brotli.dec.BrotliInputStream");
-  }
-
-  private static byte[] decompressZstd(byte[] data) throws IOException {
-    return decodeViaInputStream(data, "zstd", "com.github.luben.zstd.ZstdInputStream");
+  /**
+   * Read a decoder to its end, failing with {@link BodyTooLarge} as soon as the bytes read pass
+   * {@code limit}, so a decompression bomb stops at the limit.
+   */
+  private static byte[] readCapped(InputStream in, long limit) throws IOException {
+    if (limit == Long.MAX_VALUE) {
+      return in.readAllBytes();
+    }
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    byte[] chunk = new byte[8192];
+    long total = 0;
+    int read;
+    while ((read = in.read(chunk)) >= 0) {
+      total += read;
+      if (total > limit) {
+        throw new BodyTooLarge(limit, 0, Map.of());
+      }
+      out.write(chunk, 0, read);
+    }
+    return out.toByteArray();
   }
 
   /**
@@ -2026,6 +2204,21 @@ public final class DefaultApiClient implements ApiClient {
    */
   static byte[] decodeViaInputStream(byte[] data, String encoding, String className)
       throws IOException {
+    return decodeViaInputStream(data, encoding, className, Long.MAX_VALUE);
+  }
+
+  /**
+   * Decode a body through an optional codec's {@link InputStream} class, stopping as soon as the
+   * decoded bytes pass {@code limit}.
+   *
+   * @param data the raw response bytes
+   * @param encoding the Content-Encoding token, used in messages
+   * @param className the fully-qualified name of the codec's InputStream class
+   * @param limit the most decoded bytes to produce; {@link Long#MAX_VALUE} for no limit
+   * @return the decoded body bytes
+   */
+  static byte[] decodeViaInputStream(byte[] data, String encoding, String className, long limit)
+      throws IOException {
     try {
       Class<?> codecClass = Class.forName(className);
       try (InputStream in =
@@ -2033,7 +2226,7 @@ public final class DefaultApiClient implements ApiClient {
               codecClass
                   .getConstructor(InputStream.class)
                   .newInstance(new ByteArrayInputStream(data))) {
-        return in.readAllBytes();
+        return readCapped(in, limit);
       }
     } catch (ClassNotFoundException e) {
       throw new IOException(

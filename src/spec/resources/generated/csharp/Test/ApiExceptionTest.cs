@@ -623,6 +623,7 @@ public class ApiExceptionTest
     [InlineData(typeof(InternalServerErrorException))]
     [InlineData(typeof(NetworkException))]
     [InlineData(typeof(NetworkTimeoutException))]
+    [InlineData(typeof(ResponseTooLargeException))]
     [InlineData(typeof(SerializationException))]
     [InlineData(typeof(OAuth2ServerException))]
     [InlineData(typeof(OAuth2TokenException))]

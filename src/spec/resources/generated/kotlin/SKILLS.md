@@ -477,6 +477,8 @@ The generator finds a paged operation by its names and shape. The operation must
 
 `TransportOptions.builder().maxRetries(n)` sets how many times a failed request is sent again (default 2, `0` disables). A network error before a response and a 408, 409, 429 or 5xx (not 501) answer are retried after 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After` header (seconds or HTTP date, capped at 60 s). Retries share the single end-to-end `timeout` and are never extended past it; a timeout is not retried. Each retry rebuilds the request headers, and a request whose body is a single-use `BodySource` is never retried.
 
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
 ### Cancellation
 
 Operations are `suspend` functions: cancel the calling coroutine or wrap the call in `withTimeout`, and the call raises `kotlinx.coroutines.CancellationException`. `NetworkTimeoutException` is only for the SDK's own `TransportOptions` timeout.

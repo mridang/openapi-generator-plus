@@ -57,7 +57,7 @@ public sealed class TransportOptions
     /// End-to-end request timeout in milliseconds.
     /// Covers the entire request lifecycle: connection, TLS handshake,
     /// sending the request body, and reading the response.
-    /// Defaults to <c>10000</c> ms (10 seconds). Pass <c>null</c> to disable
+    /// Defaults to <c>60000</c> ms (60 seconds). Pass <c>null</c> to disable
     /// the timeout (wait indefinitely).
     /// </summary>
     public int? Timeout { get; }
@@ -148,6 +148,18 @@ public sealed class TransportOptions
     public int? IdleTimeout { get; }
 
     /// <summary>
+    /// The most bytes the client reads for a buffered response body, or
+    /// <c>null</c> (the default) for no limit.
+    ///
+    /// Both the bytes on the wire and the decompressed bytes count: a body
+    /// that passes the limit either way, on a success, an error or a redirect
+    /// response, fails with <see cref="Errors.ResponseTooLargeException"/> as
+    /// soon as the limit is passed, and the connection is dropped. A streamed
+    /// response is read by the caller and is not limited.
+    /// </summary>
+    public long? MaxResponseBytes { get; }
+
+    /// <summary>
     /// Creates a new <see cref="TransportOptions"/> with the specified values.
     /// </summary>
     internal TransportOptions(
@@ -164,10 +176,12 @@ public sealed class TransportOptions
         HttpMessageHandler? httpMessageHandler,
         int maxRetries,
         int? idleTimeout,
+        long? maxResponseBytes,
         CancellationToken cancellationToken
     )
     {
         MaxRetries = maxRetries;
+        MaxResponseBytes = maxResponseBytes;
         IdleTimeout = idleTimeout is null or 0 ? null : idleTimeout;
         CancellationToken = cancellationToken;
         HttpClient = httpClient;
@@ -200,7 +214,7 @@ public sealed class TransportOptions
     /// </summary>
     public override string ToString()
     {
-        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)}, MaxRetries={MaxRetries}, IdleTimeout={IdleTimeout})";
+        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)}, MaxRetries={MaxRetries}, IdleTimeout={IdleTimeout}, MaxResponseBytes={MaxResponseBytes})";
     }
 
     /// <summary>
@@ -254,8 +268,9 @@ public sealed class TransportOptions
 ///   <item><description><c>FollowRedirects</c> -- <c>true</c></description></item>
 ///   <item><description><c>InjectRequestId</c> -- <c>false</c></description></item>
 ///   <item><description><c>MaxRetries</c> -- <c>2</c></description></item>
-///   <item><description><c>Timeout</c> -- <c>10000</c> (10 seconds)</description></item>
+///   <item><description><c>Timeout</c> -- <c>60000</c> (60 seconds)</description></item>
 ///   <item><description><c>IdleTimeout</c> -- <c>60000</c> (60 seconds)</description></item>
+///   <item><description><c>MaxResponseBytes</c> -- <c>null</c> (no limit)</description></item>
 ///   <item><description><c>UserAgent</c> -- a package-specific default string</description></item>
 ///   <item><description>All other fields -- <c>null</c> or empty</description></item>
 /// </list>
@@ -265,7 +280,7 @@ public sealed class TransportOptionsBuilder
     private bool _verifySsl = true;
     private string? _caCertPath;
     private string? _proxy;
-    private int? _timeout = 10000;
+    private int? _timeout = 60000;
     private bool _followRedirects = true;
     private int? _maxRedirects;
     private string? _userAgent = "PetstoreClient/1.0.0 (csharp)";
@@ -273,6 +288,7 @@ public sealed class TransportOptionsBuilder
     private bool _injectRequestId;
     private int _maxRetries = 2;
     private int? _idleTimeout = 60000;
+    private long? _maxResponseBytes;
     private CancellationToken _cancellationToken;
     private HttpClient? _httpClient;
     private HttpMessageHandler? _httpMessageHandler;
@@ -428,6 +444,28 @@ public sealed class TransportOptionsBuilder
     }
 
     /// <summary>
+    /// Set the most bytes the client reads for a buffered response body.
+    /// </summary>
+    /// <param name="maxResponseBytes">
+    /// The limit in bytes (positive), or <c>null</c> for no limit (the default).
+    /// It counts both the bytes on the wire and the decompressed bytes.
+    /// </param>
+    /// <returns>This builder.</returns>
+    /// <exception cref="ArgumentException">When <paramref name="maxResponseBytes"/> is zero or negative.</exception>
+    public TransportOptionsBuilder MaxResponseBytes(long? maxResponseBytes)
+    {
+        if (maxResponseBytes is <= 0)
+        {
+            throw new ArgumentException(
+                $"Invalid maxResponseBytes: must be a positive number of bytes (got {maxResponseBytes})",
+                nameof(maxResponseBytes)
+            );
+        }
+        _maxResponseBytes = maxResponseBytes;
+        return this;
+    }
+
+    /// <summary>
     /// Set a client-level cancellation token. Cancelling it aborts every
     /// in-flight request of the client; it is linked with each call's own token.
     /// </summary>
@@ -556,6 +594,7 @@ public sealed class TransportOptionsBuilder
             httpMessageHandler: _httpMessageHandler,
             maxRetries: _maxRetries,
             idleTimeout: _idleTimeout,
+            maxResponseBytes: _maxResponseBytes,
             cancellationToken: _cancellationToken
         );
     }

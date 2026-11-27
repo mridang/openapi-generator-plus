@@ -13,11 +13,15 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\BigNumber;
+use Brick\Math\NumberSyntax;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\Serializer\DsMapNormalizer;
 use PetstoreClient\Serializer\DsSetNormalizer;
 use PetstoreClient\Serializer\DsAwareObjectNormalizer;
 use PetstoreClient\Serializer\DsVectorNormalizer;
+use PetstoreClient\Serializer\DecimalNormalizer;
 use PetstoreClient\Serializer\DurationNormalizer;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
@@ -78,6 +82,24 @@ class ObjectSerializer
     private static int $sanitizeDepth = 0;
 
     private static ?Serializer $serializer = null;
+
+    /* The most digits a decimal is read with. A short exponent such as 1e1000000000 would
+     * otherwise expand to gigabytes of digits. */
+    private const int MAX_DECIMAL_DIGITS = 4096;
+
+    /** @var string|null the JSON text being decoded, the source of the exact digits of its numbers */
+    private static ?string $sourceText = null;
+
+    /** @var mixed the JSON text being decoded with every number kept as its digits, built on first use */
+    private static mixed $numberTexts = null;
+
+    private static bool $numberTextsBuilt = false;
+
+    /** @var string|null the per-process marker of a number-shaped decimal on its way to json_encode */
+    private static ?string $decimalMarker = null;
+
+    /** @var array<class-string, array<string, array{0: string, 1: string, 2: bool}>> the decimal and model properties of each class */
+    private static array $decimalPlans = [];
 
     /**
      * Gets the Symfony Serializer instance.
@@ -172,6 +194,9 @@ class ObjectSerializer
                  * property routed through DsAwareObjectNormalizer — serialize
                  * to the "3600s" wire form and denormalize back. */
                 new DurationNormalizer(),
+                /* A `format: decimal` value is a Brick\Math\BigDecimal. The
+                 * object normalizer would otherwise walk its internals. */
+                new DecimalNormalizer(),
                 /* A `format: date-time` model field (\DateTime) decodes only
                  * from RFC 3339 text, through the same gate as a top-level
                  * value. Registered before DateTimeNormalizer, whose decode
@@ -344,6 +369,11 @@ class ObjectSerializer
             return $data->toRfc4122();
         }
 
+        if ($data instanceof BigNumber) {
+            /* A decimal outside a model property marked as a string is a bare JSON number. */
+            return self::decimalMarker($data->toBigDecimal());
+        }
+
         if (is_array($data)) {
             foreach ($data as $property => $value) {
                 $data[$property] = self::sanitizeForSerialization($value);
@@ -363,9 +393,11 @@ class ObjectSerializer
              * strings (strcmp compares bytes, which is code point order in UTF-8) and
              * numeric order for numbers, so equal sets always give identical output. */
             $items = $data->toArray();
-            usort($items, static fn (mixed $a, mixed $b): int => is_string($a) && is_string($b)
-                ? strcmp($a, $b)
-                : $a <=> $b);
+            usort($items, static fn (mixed $a, mixed $b): int => match (true) {
+                is_string($a) && is_string($b) => strcmp($a, $b),
+                $a instanceof BigNumber && $b instanceof BigNumber => $a->compareTo($b),
+                default => $a <=> $b,
+            });
 
             return self::sanitizeForSerialization($items);
         }
@@ -477,6 +509,9 @@ class ObjectSerializer
         foreach ($normalized as $key => $item) {
             if (isset($properties[$key])) {
                 $normalized[$key] = self::flattenAdditionalProperties($properties[$key]->getValue($value), $item);
+                if (self::isDecimalString($properties[$key])) {
+                    $normalized[$key] = self::decimalMarkersAsText($normalized[$key]);
+                }
             }
         }
         /* A required property that is nullable always has its key on the wire,
@@ -705,6 +740,11 @@ class ObjectSerializer
             return $value->toRfc4122();
         }
 
+        if ($value instanceof BigNumber) {
+            /* Plain notation with every digit and the scale it was written with. */
+            return $value->toString();
+        }
+
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
@@ -770,7 +810,7 @@ class ObjectSerializer
             if ($json === false) {
                 throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
             }
-            return $json;
+            return self::writeDecimalNumbers($json);
         } catch (SerializationException $e) {
             throw $e;
         } catch (\InvalidArgumentException | \RuntimeException | \OverflowException | \JsonException $e) {
@@ -812,11 +852,17 @@ class ObjectSerializer
         if ($data === null || $data === '') {
             return null;
         }
+        $outerText = self::$sourceText;
+        $outerNumbers = self::$numberTexts;
+        $outerBuilt = self::$numberTextsBuilt;
+        self::$sourceText = is_string($data) ? $data : null;
+        self::$numberTexts = null;
+        self::$numberTextsBuilt = false;
         try {
             if (is_string($data)) {
                 self::assertJsonDepth($data);
             }
-            $decoded = self::deserializeInternal($data, $class, $httpHeaders);
+            $decoded = self::deserializeInternal($data, $class, $httpHeaders, false, is_string($data) ? [] : null);
             self::assertWireFormats($decoded, 0);
 
             return $decoded;
@@ -834,6 +880,10 @@ class ObjectSerializer
                 0,
                 $e
             );
+        } finally {
+            self::$sourceText = $outerText;
+            self::$numberTexts = $outerNumbers;
+            self::$numberTextsBuilt = $outerBuilt;
         }
     }
 
@@ -985,6 +1035,9 @@ class ObjectSerializer
      * @param bool                      $decoded     true when $data is already a decoded JSON value (a
      *                                               container element) rather than raw JSON text, so a
      *                                               string must not be JSON-decoded a second time
+     * @param list<int|string>|null     $path        where $data sits in the JSON text being decoded, so
+     *                                               a decimal can be read from its digits; null when it
+     *                                               did not come from that text
      *
      * @return mixed a single deserialized instance, an array, or a primitive
      */
@@ -992,7 +1045,8 @@ class ObjectSerializer
         mixed $data,
         string $class,
         ?array $httpHeaders = null,
-        bool $decoded = false
+        bool $decoded = false,
+        ?array $path = null
     ): mixed {
         if (null === $data) {
             return null;
@@ -1045,16 +1099,28 @@ class ObjectSerializer
                 /** @var array<array-key, mixed> $data */
                 foreach ($data as $key => $value) {
                     self::assertModelElementPresent($value, $inner);
-                    $mapItems[(string) $key] = self::deserializeInternal($value, $inner, null, true);
+                    $mapItems[(string) $key] = self::deserializeInternal(
+                        $value,
+                        $inner,
+                        null,
+                        true,
+                        $path === null ? null : [...$path, $key]
+                    );
                 }
                 return new \Ds\Map($mapItems);
             }
             /** @var array<int, mixed> $listItems */
             $listItems = [];
             /** @var array<array-key, mixed> $data */
-            foreach ($data as $value) {
+            foreach ($data as $index => $value) {
                 self::assertModelElementPresent($value, $inner);
-                $listItems[] = self::deserializeInternal($value, $inner, null, true);
+                $listItems[] = self::deserializeInternal(
+                    $value,
+                    $inner,
+                    null,
+                    true,
+                    $path === null ? null : [...$path, $index]
+                );
             }
             return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
         }
@@ -1068,9 +1134,15 @@ class ObjectSerializer
 
             $subClass = substr($class, 0, -2);
             $values = [];
-            foreach ($data as $value) {
+            foreach ($data as $index => $value) {
                 self::assertModelElementPresent($value, self::qualifySchemaName($subClass));
-                $values[] = self::deserializeInternal($value, $subClass, null, true);
+                $values[] = self::deserializeInternal(
+                    $value,
+                    $subClass,
+                    null,
+                    true,
+                    $path === null ? null : [...$path, $index]
+                );
             }
             return $values;
         }
@@ -1092,7 +1164,13 @@ class ObjectSerializer
                 /** @var array<string, mixed> $data */
                 foreach ($data as $key => $value) {
                     self::assertModelElementPresent($value, $subClass);
-                    $deserialized[$key] = self::deserializeInternal($value, $subClass, null, true);
+                    $deserialized[$key] = self::deserializeInternal(
+                        $value,
+                        $subClass,
+                        null,
+                        true,
+                        $path === null ? null : [...$path, $key]
+                    );
                 }
             }
             return $deserialized;
@@ -1251,6 +1329,25 @@ class ObjectSerializer
             return null;
         }
 
+        if ($class === BigDecimal::class) {
+            /* A `format: decimal` body or element. Raw text is read from its digits; a decoded
+             * element is read through its place in the JSON text. Either shape is accepted, since
+             * only a model property says whether the decimal travels as a number or a string. */
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+                if ($literal === null) {
+                    return null;
+                }
+                if (is_int($literal) || is_float($literal)) {
+                    return self::parseDecimalText(trim($data), false, 'value');
+                }
+
+                return self::readDecimal($literal, null, null, 'value');
+            }
+
+            return self::readDecimal($data, null, $path, 'value');
+        }
+
         if ($class === \Symfony\Component\Uid\Uuid::class) {
             if (!$decoded && is_string($data)) {
                 $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
@@ -1322,7 +1419,7 @@ class ObjectSerializer
             if (is_array($payload)) {
                 $subtype = $class::subtypeClass($payload);
                 if ($subtype !== $class) {
-                    return self::deserializeInternal($data, $subtype, $httpHeaders, $decoded);
+                    return self::deserializeInternal($data, $subtype, $httpHeaders, $decoded, $path);
                 }
             }
         }
@@ -1373,6 +1470,7 @@ class ObjectSerializer
                 self::assertPrimitiveTypes($payload, $class);
                 self::assertNoUnknownProperties($payload, $class);
                 self::assertBase64Fields($payload, $class);
+                $payload = self::liftDecimals($payload, $class, $path, 0);
                 /* Canonical #4: pass the JSON format so Symfony widens an
                  * integral JSON value to a `float` property (e.g. {"lat":5}
                  * into a `?float $lat`). validateAndDenormalize only applies
@@ -1403,6 +1501,7 @@ class ObjectSerializer
                 self::assertPrimitiveTypes($data, $class);
                 self::assertNoUnknownProperties($data, $class);
                 self::assertBase64Fields($data, $class);
+                $data = self::liftDecimals($data, $class, $path, 0);
             }
             /* Pass the JSON format so Symfony widens an integral JSON value
              * to a `float` property (Canonical #4); see the string-data
@@ -2166,6 +2265,10 @@ class ObjectSerializer
         if ($left instanceof \DateTimeInterface) {
             return $right instanceof \DateTimeInterface && $left == $right;
         }
+        if ($left instanceof BigNumber) {
+            /* Decimals compare by value, so 1.5 equals 1.50, as in the other SDKs. */
+            return $right instanceof BigNumber && $left->isEqualTo($right);
+        }
         if ($left instanceof \Ds\Set) {
             return $right instanceof \Ds\Set
                 && $left->count() === $right->count()
@@ -2228,6 +2331,313 @@ class ObjectSerializer
         }
 
         return true;
+    }
+
+    /**
+     * The marker a number-shaped decimal is encoded as, replaced by its digits once the JSON text
+     * is written (see writeDecimalNumbers). The marker starts with a NUL and a per-process nonce,
+     * so no string a caller sends can be mistaken for it.
+     *
+     * @internal
+     */
+    public static function decimalMarker(BigDecimal $decimal): string
+    {
+        return self::decimalMarkerPrefix() . $decimal->toString();
+    }
+
+    private static function decimalMarkerPrefix(): string
+    {
+        self::$decimalMarker ??= "\0" . bin2hex(random_bytes(8)) . ':';
+
+        return self::$decimalMarker;
+    }
+
+    /**
+     * Writes every decimal marker in an encoded JSON text as a bare JSON number with the
+     * decimal's digits, in plain notation.
+     */
+    private static function writeDecimalNumbers(string $json): string
+    {
+        $encodedPrefix = substr((string) json_encode(self::decimalMarkerPrefix()), 1, -1);
+        if (!str_contains($json, $encodedPrefix)) {
+            return $json;
+        }
+        $written = preg_replace(
+            '/"' . preg_quote($encodedPrefix, '/') . '(-?[0-9]+(?:\.[0-9]+)?)"/',
+            '$1',
+            $json
+        );
+        if ($written === null) {
+            throw new \RuntimeException('Failed to write a decimal as a JSON number');
+        }
+
+        return $written;
+    }
+
+    /**
+     * Turns the decimal markers in a normalized value back into the decimal's text, for a
+     * property whose decimal travels as a JSON string.
+     */
+    private static function decimalMarkersAsText(mixed $normalized): mixed
+    {
+        if (is_string($normalized) && str_starts_with($normalized, self::decimalMarkerPrefix())) {
+            return substr($normalized, strlen(self::decimalMarkerPrefix()));
+        }
+        if (is_array($normalized)) {
+            foreach ($normalized as $key => $item) {
+                $normalized[$key] = self::decimalMarkersAsText($item);
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Whether a model property holds a decimal that travels as a JSON string (a `type: string`
+     * with `format: decimal`), which the model marks with {@see WireFormat}.
+     */
+    private static function isDecimalString(\ReflectionProperty $property): bool
+    {
+        foreach ($property->getAttributes(WireFormat::class) as $mark) {
+            if ($mark->newInstance()->format === 'decimal') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Reads a decoded JSON value as a decimal. A string-shaped decimal is read only from a JSON
+     * string, a number-shaped one only from a JSON number, and a null shape takes either. A JSON
+     * number is read from its digits in the JSON text, never through the float json_decode made
+     * of it; only a value with no JSON text behind it (decoded by the caller) is read from its
+     * float, in its shortest form.
+     *
+     * @internal
+     * @param bool|null             $stringShaped true for a JSON string, false for a JSON number, null for either
+     * @param list<int|string>|null $path         where the value sits in the JSON text being decoded
+     *
+     * @throws \InvalidArgumentException when the value is not of the declared JSON type or is not a decimal
+     */
+    public static function readDecimal(mixed $value, ?bool $stringShaped, ?array $path, string $name): ?BigDecimal
+    {
+        if ($value === null || $value instanceof BigDecimal) {
+            return $value;
+        }
+        if ($value instanceof BigNumber) {
+            return $value->toBigDecimal();
+        }
+        if (is_string($value)) {
+            if ($stringShaped === false) {
+                throw new \InvalidArgumentException(
+                    "Expected a JSON number for decimal '$name' but got a quoted string"
+                );
+            }
+
+            return self::parseDecimalText($value, true, $name);
+        }
+        if (!is_int($value) && !is_float($value)) {
+            throw new \InvalidArgumentException(
+                "Expected a decimal for '$name' but got " . get_debug_type($value)
+            );
+        }
+        if ($stringShaped === true) {
+            throw new \InvalidArgumentException(
+                "Expected a JSON string for decimal '$name' but got a bare number"
+            );
+        }
+        $text = $path === null ? null : self::numberTextAt($path);
+        if ($text !== null) {
+            return self::parseDecimalText($text, false, $name);
+        }
+        if (is_int($value)) {
+            return BigDecimal::of($value);
+        }
+        if (!is_finite($value)) {
+            throw new \InvalidArgumentException("Expected a finite decimal for '$name'");
+        }
+
+        return BigDecimal::fromFloatShortest($value);
+    }
+
+    /**
+     * Reads decimal text exactly: the plain form (`-12.50`) for a decimal written as a string,
+     * and a JSON number (an exponent allowed) for one written as a number.
+     *
+     * @throws \InvalidArgumentException when the text is not a decimal
+     */
+    private static function parseDecimalText(string $text, bool $stringShaped, string $name): BigDecimal
+    {
+        $pattern = $stringShaped
+            ? '/^-?[0-9]+(?:\.[0-9]+)?$/D'
+            : '/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/D';
+        if (preg_match($pattern, $text) !== 1) {
+            throw new \InvalidArgumentException("Value for '$name' is not a decimal number: " . $text);
+        }
+        try {
+            return BigDecimal::parse($text, NumberSyntax::SCIENTIFIC, self::MAX_DECIMAL_DIGITS);
+        } catch (\Brick\Math\Exception\MathException $e) {
+            throw new \InvalidArgumentException(
+                "Value for '$name' is not a decimal this SDK reads: " . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+
+    /**
+     * The digits of the JSON number at a place in the text being decoded, or null when there is
+     * no text or no number there. The text is decoded a second time, with every number kept as
+     * its digits, the first time a decimal needs it.
+     *
+     * @param list<int|string> $path
+     */
+    private static function numberTextAt(array $path): ?string
+    {
+        if (!self::$numberTextsBuilt) {
+            self::$numberTextsBuilt = true;
+            self::$numberTexts = self::$sourceText === null ? null : self::decodeKeepingNumberText(self::$sourceText);
+        }
+        $node = self::$numberTexts;
+        foreach ($path as $key) {
+            if (!is_array($node) || !array_key_exists($key, $node)) {
+                return null;
+            }
+            $node = $node[$key];
+        }
+
+        return is_string($node) ? $node : null;
+    }
+
+    /**
+     * Decodes a JSON text with every number turned into a string of its digits, so the value at
+     * any place has the same shape as json_decode gives and a number keeps what was written.
+     */
+    private static function decodeKeepingNumberText(string $json): mixed
+    {
+        if (str_starts_with($json, "\xEF\xBB\xBF")) {
+            $json = substr($json, 3);
+        }
+        $quoted = preg_replace_callback(
+            '/"(?:[^"\\\\]++|\\\\.)*+"|-?(?:0|[1-9][0-9]*+)(?:\.[0-9]++)?(?:[eE][+-]?[0-9]++)?/',
+            static fn (array $match): string => $match[0][0] === '"' ? $match[0] : '"' . $match[0] . '"',
+            $json
+        );
+        if ($quoted === null) {
+            return null;
+        }
+
+        return json_decode($quoted, true, self::JSON_DECODE_DEPTH);
+    }
+
+    /**
+     * Replaces every decimal of a decoded model payload, and of the models nested in it, with a
+     * BigDecimal read exactly (see readDecimal), so the denormalizer never sees the float
+     * json_decode made of a decimal. A wrong JSON type fails here.
+     *
+     * @param array<array-key, mixed> $data
+     * @param list<int|string>|null   $path where the payload sits in the JSON text being decoded
+     * @return array<array-key, mixed>
+     */
+    private static function liftDecimals(array $data, string $class, ?array $path, int $depth): array
+    {
+        if ($depth > self::MAX_JSON_DEPTH) {
+            return $data;
+        }
+        foreach (self::decimalPlan($class) as $wireName => [$kind, $target, $stringShaped]) {
+            if (!array_key_exists($wireName, $data) || $data[$wireName] === null) {
+                continue;
+            }
+            $value = $data[$wireName];
+            $at = $path === null ? null : [...$path, $wireName];
+            if ($kind === 'decimal') {
+                $data[$wireName] = self::readDecimal($value, $stringShaped, $at, $wireName);
+            } elseif ($kind === 'model' && is_array($value)) {
+                $data[$wireName] = self::liftDecimals($value, self::concreteClass($target, $value), $at, $depth + 1);
+            } elseif (is_array($value)) {
+                foreach ($value as $key => $item) {
+                    $itemAt = $at === null ? null : [...$at, $key];
+                    if ($kind === 'decimals') {
+                        $value[$key] = self::readDecimal($item, $stringShaped, $itemAt, $wireName);
+                    } elseif (is_array($item)) {
+                        $value[$key] = self::liftDecimals($item, self::concreteClass($target, $item), $itemAt, $depth + 1);
+                    }
+                }
+                $data[$wireName] = $value;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * The class a nested payload decodes to: the subtype an allOf base's discriminator names, or
+     * the declared class.
+     *
+     * @param array<array-key, mixed> $payload
+     */
+    private static function concreteClass(string $class, array $payload): string
+    {
+        if (!method_exists($class, 'subtypeClass')) {
+            return $class;
+        }
+        try {
+            $subtype = (new \ReflectionMethod($class, 'subtypeClass'))->invoke(null, $payload);
+        } catch (\Throwable) {
+            return $class;
+        }
+
+        return is_string($subtype) ? $subtype : $class;
+    }
+
+    /**
+     * The properties of a model that hold decimals or other models, by wire name: the kind
+     * (`decimal`, `decimals` for a list or map of them, `model`, `models`), the model class, and
+     * whether a decimal travels as a JSON string.
+     *
+     * @return array<string, array{0: string, 1: string, 2: bool}>
+     */
+    private static function decimalPlan(string $class): array
+    {
+        if (!class_exists($class) || !str_starts_with($class, 'PetstoreClient\Models\\')) {
+            return [];
+        }
+        if (isset(self::$decimalPlans[$class])) {
+            return self::$decimalPlans[$class];
+        }
+        $plan = [];
+        foreach ((new \ReflectionClass($class))->getProperties() as $property) {
+            $type = $property->getType();
+            if (!$type instanceof \ReflectionNamedType || $type->isBuiltin() || $property->isStatic()) {
+                continue;
+            }
+            $typeName = ltrim($type->getName(), '\\');
+            $stringShaped = self::isDecimalString($property);
+            if ($typeName === BigDecimal::class) {
+                $plan[self::wireNameOf($property)] = ['decimal', '', $stringShaped];
+                continue;
+            }
+            if (str_starts_with($typeName, 'Ds\\')) {
+                $doc = (string) $property->getDocComment();
+                if (preg_match('/@var\s+\\\\?Ds\\\\(?:Vector|Set|Map)<(?:[^<>,]+,\s*)?\\\\?([A-Za-z0-9_\\\\]+)>/', $doc, $inner) !== 1) {
+                    continue;
+                }
+                $element = ltrim($inner[1], '\\');
+                if ($element === BigDecimal::class) {
+                    $plan[self::wireNameOf($property)] = ['decimals', '', $stringShaped];
+                } elseif (str_starts_with($element, 'PetstoreClient\Models\\') && class_exists($element)) {
+                    $plan[self::wireNameOf($property)] = ['models', $element, false];
+                }
+                continue;
+            }
+            if (str_starts_with($typeName, 'PetstoreClient\Models\\') && !enum_exists($typeName)) {
+                $plan[self::wireNameOf($property)] = ['model', $typeName, false];
+            }
+        }
+        self::$decimalPlans[$class] = $plan;
+
+        return $plan;
     }
 
     /**

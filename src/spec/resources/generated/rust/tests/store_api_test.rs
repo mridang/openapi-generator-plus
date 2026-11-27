@@ -18,7 +18,6 @@ use std::thread;
 use petstore::api::options::*;
 use petstore::api::*;
 use petstore::models::*;
-use petstore::OpenAPIErrorExt;
 use petstore::*;
 
 fn new_store_api_for_integration() -> StoreApi {

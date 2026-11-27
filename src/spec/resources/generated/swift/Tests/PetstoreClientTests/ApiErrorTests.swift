@@ -261,7 +261,7 @@ import Testing
       "UnauthorizedError", "ForbiddenError", "NotFoundError", "ConflictError",
       "UnprocessableEntityError", "TooManyRequestsError", "InternalServerError", "NetworkError",
       "NetworkTimeoutError", "SerializationError", "ConfigurationError", "OAuth2ServerError",
-      "OAuth2TokenError", "OAuth2AuthorizationCodeError",
+      "OAuth2TokenError", "OAuth2AuthorizationCodeError", "ResponseTooLargeError",
     ]
     let exported: [Any.Type] = [
       OpenAPIError.self, ApiError.self, ClientError.self, ServerError.self, BadRequestError.self,
@@ -270,7 +270,7 @@ import Testing
       NetworkError.self,
       NetworkTimeoutError.self, SerializationError.self, ConfigurationError.self,
       OAuth2ServerError.self,
-      OAuth2TokenError.self, OAuth2AuthorizationCodeError.self,
+      OAuth2TokenError.self, OAuth2AuthorizationCodeError.self, ResponseTooLargeError.self,
     ]
     #expect(exported.count == names.count)
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -626,6 +626,7 @@ import Testing
       SerializationError(message: "not a duration"),
       NetworkError(statusCode: 0, message: "connection refused"),
       NetworkTimeoutError(statusCode: 0, message: "timed out"),
+      ResponseTooLargeError(statusCode: 200, limit: 1024),
       OAuth2TokenError.missingAccessToken("empty access_token"),
       OAuth2ServerError(
         statusCode: 400,
@@ -652,6 +653,7 @@ import Testing
         variable: "region", value: "mars", allowed: ["us", "eu"]),
       ConfigurationError.invalidCACertificate("missing"),
       ConfigurationError.invalidTimeout(0),
+      ConfigurationError.invalidMaxResponseBytes(0),
       ConfigurationError.invalidArgument("bad"),
       ConfigurationError.invalidState("closed"),
       OAuth2AuthorizationCodeError.codeNotExchanged,

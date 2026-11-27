@@ -259,6 +259,7 @@ Every error the SDK raises derives from `OpenAPIException`; catching it handles 
       - `GatewayTimeoutException` (504)
     - `NetworkException` (no HTTP response, status 0)
       - `NetworkTimeoutException` (the request timed out, status 0)
+    - `ResponseTooLargeException` (a buffered body passed `max_response_bytes`)
 
 ```python file
 from typing import Optional
@@ -320,6 +321,8 @@ from petstore_client.transport_options import TransportOptions
 def make_transport() -> TransportOptions:
     return TransportOptions.builder().max_retries(0).build()
 ```
+
+`TransportOptions.builder().max_response_bytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### OAuth2 re-authentication and PKCE
 
@@ -413,7 +416,7 @@ The SDK applies its timeout, user agent, redirect policy and request id on top o
 
 ### Timeouts
 
-`timeout` is in milliseconds (default 10000) and is one end-to-end budget for the whole call, redirects and retries included. `None` removes it; a value below 1 raises `ValueError`; an exceeded budget raises `NetworkTimeoutException`.
+`timeout` is in milliseconds (default 60000) and is one end-to-end budget for the whole call, redirects and retries included. `None` removes it; a value below 1 raises `ValueError`; an exceeded budget raises `NetworkTimeoutException`.
 
 ### Request id
 

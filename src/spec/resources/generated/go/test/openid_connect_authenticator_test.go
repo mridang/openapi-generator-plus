@@ -12,6 +12,7 @@ package petstore_test
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	neturl "net/url"
@@ -812,8 +813,8 @@ func TestBhvAuthoidc020_OpenIdConnectAuthenticator_ExchangedTokenSurvivesRedisco
 }
 
 // F858: rediscovery rebuilds the delegate between the authorize URL and the code
-// exchange; the PKCE verifier of the pending login must survive it, and no
-// nonce is sent.
+// exchange; the PKCE verifier of the pending login must survive it, and the
+// URL carries a nonce.
 func TestBhvAuthoidc021_OpenIdConnectAuthenticator_PkceVerifierSurvivesRediscovery(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
@@ -835,8 +836,8 @@ func TestBhvAuthoidc021_OpenIdConnectAuthenticator_PkceVerifierSurvivesRediscove
 	if got := parsed.Query().Get("code_challenge_method"); got != "S256" {
 		t.Errorf("expected code_challenge_method=S256, got %q", got)
 	}
-	if strings.Contains(authorizeURL, "nonce") {
-		t.Errorf("expected no nonce, got %q", authorizeURL)
+	if parsed.Query().Get("nonce") == "" {
+		t.Errorf("expected a nonce, got %q", authorizeURL)
 	}
 	if err := authObj.ExchangeCode("the-code"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1013,8 +1014,8 @@ func (discoveryOnlyClient) SendRequestWithOptions(method, url string, headers ma
 	}, nil
 }
 
-// An OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce.
-func TestBhvMisc078_OpenIdConnectAuthenticator_AuthorizeUrlHasS256AndNoNonce(t *testing.T) {
+// An OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce.
+func TestBhvMisc078_OpenIdConnectAuthenticator_AuthorizeUrlHasS256AndANonce(t *testing.T) {
 	t.Parallel()
 	authObj := oauth.NewOpenIdConnectAuthenticator("https://issuer.example.com", "https://issuer.example.com/.well-known/openid-configuration", "my-client-id", "my-client-secret", "https://app.example.com/cb", []string{"read"})
 	authObj.SetApiClient(discoveryOnlyClient{})
@@ -1022,8 +1023,8 @@ func TestBhvMisc078_OpenIdConnectAuthenticator_AuthorizeUrlHasS256AndNoNonce(t *
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(got, "code_challenge_method=S256") || strings.Contains(got, "nonce=") {
-		t.Errorf("expected an S256 challenge and no nonce, got %q", got)
+	if !strings.Contains(got, "code_challenge_method=S256") || !strings.Contains(got, "&nonce=") {
+		t.Errorf("expected an S256 challenge and a nonce, got %q", got)
 	}
 }
 
@@ -1106,5 +1107,171 @@ func TestBhvMisc201_OpenIdConnectAuthenticator_FailedDiscoveryReportsPathWithout
 	}
 	if got, want := apiErr.RequestPath(), "/.well-known/openid-configuration"; got != want {
 		t.Errorf("expected request path %q without the query, got %q", want, got)
+	}
+}
+
+const oidcIssuerDiscovery = `{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`
+
+// oidcIDToken returns an unsigned compact JWT whose payload is claims.
+func oidcIDToken(claims map[string]any) string {
+	payload, _ := json.Marshal(claims)
+	return base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none"}`)) + "." +
+		base64.RawURLEncoding.EncodeToString(payload) + ".sig"
+}
+
+// oidcClaims returns claims that pass every check for nonce, with overrides
+// applied.
+func oidcClaims(nonce string, overrides map[string]any) map[string]any {
+	claims := map[string]any{
+		"iss":   "https://auth.example.com",
+		"aud":   "my-client-id",
+		"exp":   time.Now().Unix() + 3600,
+		"nonce": nonce,
+	}
+	for k, v := range overrides {
+		claims[k] = v
+	}
+	return claims
+}
+
+// oidcAuthenticatorReturning builds an authorization URL, then answers the
+// code exchange with the id_token that idTokenFor makes from the URL's nonce.
+func oidcAuthenticatorReturning(t *testing.T, idTokenFor func(nonce string) string) *oauth.OpenIdConnectAuthenticator {
+	t.Helper()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: oidcIssuerDiscovery, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	authorizeURL, err := authObj.BuildAuthorizationURL("s")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	parsed, err := neturl.Parse(authorizeURL)
+	if err != nil {
+		t.Fatalf("authorize URL does not parse: %v", err)
+	}
+	body, _ := json.Marshal(map[string]any{
+		"access_token": "oidc-tok",
+		"expires_in":   3600,
+		"id_token":     idTokenFor(parsed.Query().Get("nonce")),
+	})
+	client.responses = append(client.responses, fakeOIDCResponse{body: string(body), statusCode: 200})
+	return authObj
+}
+
+// requireOAuth2TokenError fails unless err is an *OAuth2TokenError with message.
+func requireOAuth2TokenError(t *testing.T, err error, message string) {
+	t.Helper()
+	var tokenErr *apierrors.OAuth2TokenError
+	if !errors.As(err, &tokenErr) {
+		t.Fatalf("expected *OAuth2TokenError, got %T: %v", err, err)
+	}
+	if tokenErr.Message() != message {
+		t.Errorf("expected %q, got %q", message, tokenErr.Message())
+	}
+}
+
+func TestBhvAuthoidc034_OpenIdConnectAuthenticator_EachAuthorizationUrlCarriesAFreshNonce(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: oidcIssuerDiscovery, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	nonces := make([]string, 2)
+	for i := range nonces {
+		authorizeURL, err := authObj.BuildAuthorizationURL("s")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		parsed, err := neturl.Parse(authorizeURL)
+		if err != nil {
+			t.Fatalf("authorize URL does not parse: %v", err)
+		}
+		nonces[i] = parsed.Query().Get("nonce")
+	}
+
+	if len(nonces[0]) != 43 || strings.Trim(nonces[0], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") != "" {
+		t.Errorf("expected a 43-character base64url nonce, got %q", nonces[0])
+	}
+	if nonces[0] == nonces[1] {
+		t.Errorf("expected a fresh nonce per URL, got %q twice", nonces[0])
+	}
+}
+
+func TestBhvAuthoidc035_OpenIdConnectAuthenticator_AnIdTokenWithValidClaimsIsAccepted(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(nonce string) string {
+		return oidcIDToken(oidcClaims(nonce, map[string]any{"aud": []string{"other", "my-client-id"}}))
+	})
+
+	if err := authObj.ExchangeCode("oidc-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if headers["Authorization"] != "Bearer oidc-tok" {
+		t.Errorf("expected Authorization 'Bearer oidc-tok', got %q", headers["Authorization"])
+	}
+}
+
+func TestBhvAuthoidc036_OpenIdConnectAuthenticator_AnIdTokenWithAnotherNonceIsRejected(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(nonce string) string {
+		return oidcIDToken(oidcClaims(nonce, map[string]any{"nonce": "replayed"}))
+	})
+
+	requireOAuth2TokenError(t, authObj.ExchangeCode("oidc-code"), "The id_token nonce does not match the authorization request")
+}
+
+func TestBhvAuthoidc037_OpenIdConnectAuthenticator_AnIdTokenFromAnotherIssuerIsRejected(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(nonce string) string {
+		return oidcIDToken(oidcClaims(nonce, map[string]any{"iss": "https://evil.example.com"}))
+	})
+
+	requireOAuth2TokenError(t, authObj.ExchangeCode("oidc-code"), "The id_token issuer does not match the discovered issuer")
+}
+
+func TestBhvAuthoidc038_OpenIdConnectAuthenticator_AnIdTokenForAnotherAudienceIsRejected(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(nonce string) string {
+		return oidcIDToken(oidcClaims(nonce, map[string]any{"aud": "other-client"}))
+	})
+
+	requireOAuth2TokenError(t, authObj.ExchangeCode("oidc-code"), "The id_token audience does not contain the client id")
+}
+
+func TestBhvAuthoidc039_OpenIdConnectAuthenticator_AnExpiredIdTokenIsRejected(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(nonce string) string {
+		return oidcIDToken(oidcClaims(nonce, map[string]any{"exp": time.Now().Unix() - 120}))
+	})
+
+	requireOAuth2TokenError(t, authObj.ExchangeCode("oidc-code"), "The id_token has expired")
+}
+
+func TestBhvAuthoidc040_OpenIdConnectAuthenticator_AMalformedIdTokenIsRejected(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(string) string { return "not-a-jwt" })
+
+	requireOAuth2TokenError(t, authObj.ExchangeCode("oidc-code"), "The id_token is malformed")
+}
+
+func TestBhvAuthoidc041_OpenIdConnectAuthenticator_ARejectedIdTokenLeavesNoSession(t *testing.T) {
+	t.Parallel()
+	authObj := oidcAuthenticatorReturning(t, func(nonce string) string {
+		return oidcIDToken(oidcClaims(nonce, map[string]any{"nonce": "replayed"}))
+	})
+	if err := authObj.ExchangeCode("oidc-code"); err == nil {
+		t.Fatal("expected the exchange to fail")
+	}
+
+	if _, err := authObj.AuthHeadersOrError(); !errors.Is(err, oauth.ErrAuthCodeNotExchanged) {
+		t.Errorf("expected ErrAuthCodeNotExchanged, got %v", err)
 	}
 }

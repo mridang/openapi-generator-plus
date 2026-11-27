@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
-use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::auth::oauth::oauth2_token_manager::{IdTokenCheck, OAuth2TokenManager};
 use crate::auth::Authenticator;
 use crate::errors::oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
 
@@ -166,6 +166,16 @@ impl OAuth2AuthorizationCodeAuthenticator {
         &self,
         code: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.exchange_code_checked(code, None).await
+    }
+
+    /// [`Self::exchange_code`] with a check of the response's `id_token`, run
+    /// before the session is replaced. OpenID Connect uses it.
+    pub(crate) async fn exchange_code_checked(
+        &self,
+        code: &str,
+        id_token_check: Option<IdTokenCheck<'_>>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         /* oauth-exchangecode-no-empty-code-guard: an empty authorization code
          * can never succeed at the token endpoint; reject it up front rather
          * than issuing a guaranteed-to-fail POST with `code=`. */
@@ -186,7 +196,7 @@ impl OAuth2AuthorizationCodeAuthenticator {
          * never served from the token cache or the refresh path, and a
          * failure leaves the previous session in place. */
         self.token_manager
-            .exchange(&self.token_url, &params, &HashMap::new())
+            .exchange_checked(&self.token_url, &params, &HashMap::new(), id_token_check)
             .await?;
         self.token_manager.clear_pkce();
         Ok(())

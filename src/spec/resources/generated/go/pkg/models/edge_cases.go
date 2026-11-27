@@ -12,6 +12,11 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/go-json-experiment/json/jsontext"
+
+	"petstore/pkg/internal/protoduration"
 )
 
 // EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
@@ -91,7 +96,7 @@ type EdgeCases struct {
 	Class           *string `json:"class,omitempty"`
 	Return          *string `json:"return,omitempty"`
 	/* RetryAfter Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
-	RetryAfter *Duration `json:"retryAfter,omitempty"`
+	RetryAfter *time.Duration `json:"retryAfter,omitempty"`
 	/* ExpiresAt Absolute expiry instant */
 	ExpiresAt *DateTime           `json:"expiresAt,omitempty"`
 	N2fa      *bool               `json:"2fa,omitempty"`
@@ -231,7 +236,7 @@ func (o EdgeCases) WithoutReturn() EdgeCases {
 }
 
 // WithRetryAfter returns a copy of the model with RetryAfter replaced; the receiver is unchanged.
-func (o EdgeCases) WithRetryAfter(value Duration) EdgeCases {
+func (o EdgeCases) WithRetryAfter(value time.Duration) EdgeCases {
 	o.RetryAfter = &value
 	return o
 }
@@ -382,16 +387,80 @@ func NewEdgeCases() *EdgeCases {
 // MarshalJSON implements the json.Marshaler interface.
 func (o EdgeCases) MarshalJSON() ([]byte, error) {
 	type Alias EdgeCases
-	return marshalJSON((Alias)(o))
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	if b, err = protoduration.EncodeFields(b, "retryAfter"); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *EdgeCases) UnmarshalJSON(data []byte) error {
-	type Alias EdgeCases
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "freeFormAny", "favoriteColor", "permissionsNote", "and", "or", "not", "class", "return", "retryAfter", "expiresAt", "2fa", "separator", "null", "true", "false", "lastError", "outcome", "cutoff", "phase", "slug"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *EdgeCases) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out EdgeCases
+	err := readObject(dec, "EdgeCases", func(key string) error {
+		switch key {
+		case "freeFormAny":
+			return decodeValue(dec, &out.FreeFormAny)
+		case "favoriteColor":
+			return decodeValue(dec, &out.FavoriteColor)
+		case "permissionsNote":
+			return decodeValue(dec, &out.PermissionsNote)
+		case "and":
+			return decodeValue(dec, &out.And)
+		case "or":
+			return decodeValue(dec, &out.Or)
+		case "not":
+			return decodeValue(dec, &out.Not)
+		case "class":
+			return decodeValue(dec, &out.Class)
+		case "return":
+			return decodeValue(dec, &out.Return)
+		case "retryAfter":
+			return decodeValue(dec, &out.RetryAfter)
+		case "expiresAt":
+			return decodeValue(dec, &out.ExpiresAt)
+		case "2fa":
+			return decodeValue(dec, &out.N2fa)
+		case "separator":
+			return decodeValue(dec, &out.Separator)
+		case "null":
+			return decodeValue(dec, &out.Null)
+		case "true":
+			return decodeValue(dec, &out.True)
+		case "false":
+			return decodeValue(dec, &out.False)
+		case "lastError":
+			return decodeValue(dec, &out.LastError)
+		case "outcome":
+			return decodeValue(dec, &out.Outcome)
+		case "cutoff":
+			return decodeValue(dec, &out.Cutoff)
+		case "phase":
+			return decodeValue(dec, &out.Phase)
+		case "slug":
+			return decodeValue(dec, &out.Slug)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	*o = EdgeCases(*aux)
+	*o = out
 	return nil
 }

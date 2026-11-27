@@ -9,7 +9,7 @@ import json
 import re
 import threading
 import time
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 from ...api_client import ApiClient
 from ...errors.oauth2_server_exception import OAuth2ServerException
@@ -46,6 +46,9 @@ class OAuth2TokenManager:
         self._refresh_token: Optional[str] = None
         self._token_expiry: Optional[float] = None
         self._exchanged = False
+        # The id_token of the last token response: None when it carried none,
+        # an empty string when its value was not a JSON string.
+        self._last_id_token: Optional[str] = None
         self._stopped = False
         self._lock = threading.Lock()
 
@@ -141,6 +144,7 @@ class OAuth2TokenManager:
         token_url: str,
         params: Dict[str, str],
         extra_headers: Optional[Dict[str, str]] = None,
+        id_token_check: Optional[Callable[[Optional[str]], None]] = None,
     ) -> str:
         """POST ``params`` verbatim to ``token_url`` and replace the session.
 
@@ -155,6 +159,11 @@ class OAuth2TokenManager:
             token_url: The OAuth2 token endpoint URL.
             params: The grant parameters, sent unchanged.
             extra_headers: Optional additional HTTP headers.
+            id_token_check: Optional check of the response's ``id_token``
+                (None when it carried none, an empty string when it was not a
+                JSON string), run before the session is committed; when it
+                raises, the previous session is restored. OpenID Connect uses
+                it to validate the id_token.
 
         Returns:
             The new access token.
@@ -177,6 +186,8 @@ class OAuth2TokenManager:
             self._token_expiry = None
             try:
                 self._fetch_token(token_url, params, extra_headers)
+                if self._access_token is not None and id_token_check is not None:
+                    id_token_check(self._last_id_token)
             except BaseException:
                 (
                     self._access_token,
@@ -297,6 +308,10 @@ class OAuth2TokenManager:
         ):
             raise OAuth2TokenException("Unsupported token_type in token response")
         self._access_token = access_token
+        id_token = token_data.get("id_token")
+        self._last_id_token = (
+            None if id_token is None else id_token if isinstance(id_token, str) else ""
+        )
         new_refresh_token = token_data.get("refresh_token")
         if isinstance(new_refresh_token, str) and new_refresh_token:
             self._refresh_token = new_refresh_token

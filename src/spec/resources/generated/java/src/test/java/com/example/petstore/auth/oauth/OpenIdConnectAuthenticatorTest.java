@@ -23,6 +23,7 @@ import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.InternalServerErrorException;
 import com.example.petstore.errors.NetworkException;
 import com.example.petstore.errors.NotFoundException;
+import com.example.petstore.errors.OAuth2TokenException;
 import com.example.petstore.errors.OpenAPIException;
 import com.example.petstore.errors.SerializationException;
 import java.util.List;
@@ -786,7 +787,7 @@ class OpenIdConnectAuthenticatorTest {
         formField(url.substring(url.indexOf('?') + 1), "code_challenge"),
         OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier));
     assertTrue(url.contains("code_challenge_method=S256"), url);
-    assertFalse(url.contains("nonce"), url);
+    assertNotNull(formField(url.substring(url.indexOf('?') + 1), "nonce"), url);
   }
 
   @Test
@@ -896,7 +897,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void bhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce() {
+  void bhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndANonce() {
     ApiClient client =
         (method, url, headers, body) ->
             new ApiHttpResponse(
@@ -915,7 +916,9 @@ class OpenIdConnectAuthenticatorTest {
         java.util.Objects.requireNonNull(formField(query, "code_challenge"))
             .matches("[A-Za-z0-9_-]{43}"),
         url);
-    assertFalse(query.contains("nonce"), url);
+    assertTrue(
+        java.util.Objects.requireNonNull(formField(query, "nonce")).matches("[A-Za-z0-9_-]{43}"),
+        url);
   }
 
   @Test
@@ -963,5 +966,159 @@ class OpenIdConnectAuthenticatorTest {
 
     assertEquals(1, gets.get(), "the call during the exchange reused the discovered configuration");
     assertTrue(url.contains("code_challenge="), url);
+  }
+
+  private static final String ISSUER_DISCOVERY_RESPONSE =
+      "{\"issuer\":\"https://auth.example.com\","
+          + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+          + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+
+  /** An unsigned compact JWT whose payload is the given claims. */
+  private static String idToken(String claims) {
+    java.util.Base64.Encoder encoder = java.util.Base64.getUrlEncoder().withoutPadding();
+    return encoder.encodeToString(
+            "{\"alg\":\"none\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        + "."
+        + encoder.encodeToString(claims.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        + ".sig";
+  }
+
+  /** Claims that pass every check for the given nonce, with one claim replaced when named. */
+  private static String claims(String nonce, String name, String value) {
+    Map<String, String> claims = new java.util.LinkedHashMap<>();
+    claims.put("iss", "\"https://auth.example.com\"");
+    claims.put("aud", "\"my-client-id\"");
+    claims.put("exp", Long.toString(java.time.Instant.now().getEpochSecond() + 3600));
+    claims.put("nonce", "\"" + nonce + "\"");
+    claims.put(name, value);
+    StringBuilder json = new StringBuilder("{");
+    for (Map.Entry<String, String> claim : claims.entrySet()) {
+      if (json.length() > 1) {
+        json.append(',');
+      }
+      json.append('"').append(claim.getKey()).append("\":").append(claim.getValue());
+    }
+    return json.append('}').toString();
+  }
+
+  /**
+   * An authenticator whose token endpoint answers with the id_token that the function builds from
+   * the nonce of the authorization URL.
+   */
+  private static OpenIdConnectAuthenticator authenticatorReturning(
+      java.util.function.Function<String, String> idTokenForNonce) {
+    AtomicReference<String> nonce = new AtomicReference<>("");
+    ApiClient client =
+        (method, url, headers, body) -> {
+          if ("GET".equals(method)) {
+            return new ApiHttpResponse(200, ISSUER_DISCOVERY_RESPONSE, Map.of());
+          }
+          return new ApiHttpResponse(
+              200,
+              "{\"access_token\":\"oidc-tok\",\"expires_in\":3600,\"id_token\":\""
+                  + idTokenForNonce.apply(nonce.get())
+                  + "\"}",
+              Map.of());
+        };
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    String url = auth.buildAuthorizationUrl("s");
+    nonce.set(
+        java.util.Objects.requireNonNull(formField(url.substring(url.indexOf('?') + 1), "nonce")));
+    return auth;
+  }
+
+  @Test
+  void bhvAuthOidc034EachAuthorizationUrlCarriesAFreshNonce() {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(200, ISSUER_DISCOVERY_RESPONSE, Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    String first = auth.buildAuthorizationUrl("s");
+    String second = auth.buildAuthorizationUrl("s");
+
+    String firstNonce = formField(first.substring(first.indexOf('?') + 1), "nonce");
+    String secondNonce = formField(second.substring(second.indexOf('?') + 1), "nonce");
+    assertTrue(java.util.Objects.requireNonNull(firstNonce).matches("[A-Za-z0-9_-]{43}"), first);
+    assertFalse(firstNonce.equals(secondNonce), second);
+  }
+
+  @Test
+  void bhvAuthOidc035AnIdTokenWithValidClaimsIsAccepted() {
+    OpenIdConnectAuthenticator auth =
+        authenticatorReturning(
+            nonce -> idToken(claims(nonce, "aud", "[\"other\",\"my-client-id\"]")));
+
+    auth.exchangeCode("oidc-code");
+
+    assertEquals("Bearer oidc-tok", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvAuthOidc036AnIdTokenWithAnotherNonceIsRejected() {
+    OpenIdConnectAuthenticator auth =
+        authenticatorReturning(nonce -> idToken(claims(nonce, "nonce", "\"replayed\"")));
+
+    OAuth2TokenException thrown =
+        assertThrowsExactly(OAuth2TokenException.class, () -> auth.exchangeCode("oidc-code"));
+
+    assertEquals(
+        "The id_token nonce does not match the authorization request", thrown.getMessage());
+  }
+
+  @Test
+  void bhvAuthOidc037AnIdTokenFromAnotherIssuerIsRejected() {
+    OpenIdConnectAuthenticator auth =
+        authenticatorReturning(
+            nonce -> idToken(claims(nonce, "iss", "\"https://evil.example.com\"")));
+
+    OAuth2TokenException thrown =
+        assertThrowsExactly(OAuth2TokenException.class, () -> auth.exchangeCode("oidc-code"));
+
+    assertEquals("The id_token issuer does not match the discovered issuer", thrown.getMessage());
+  }
+
+  @Test
+  void bhvAuthOidc038AnIdTokenForAnotherAudienceIsRejected() {
+    OpenIdConnectAuthenticator auth =
+        authenticatorReturning(nonce -> idToken(claims(nonce, "aud", "\"other-client\"")));
+
+    OAuth2TokenException thrown =
+        assertThrowsExactly(OAuth2TokenException.class, () -> auth.exchangeCode("oidc-code"));
+
+    assertEquals("The id_token audience does not contain the client id", thrown.getMessage());
+  }
+
+  @Test
+  void bhvAuthOidc039AnExpiredIdTokenIsRejected() {
+    String expired = Long.toString(java.time.Instant.now().getEpochSecond() - 120);
+    OpenIdConnectAuthenticator auth =
+        authenticatorReturning(nonce -> idToken(claims(nonce, "exp", expired)));
+
+    OAuth2TokenException thrown =
+        assertThrowsExactly(OAuth2TokenException.class, () -> auth.exchangeCode("oidc-code"));
+
+    assertEquals("The id_token has expired", thrown.getMessage());
+  }
+
+  @Test
+  void bhvAuthOidc040AMalformedIdTokenIsRejected() {
+    OpenIdConnectAuthenticator auth = authenticatorReturning(nonce -> "not-a-jwt");
+
+    OAuth2TokenException thrown =
+        assertThrowsExactly(OAuth2TokenException.class, () -> auth.exchangeCode("oidc-code"));
+
+    assertEquals("The id_token is malformed", thrown.getMessage());
+  }
+
+  @Test
+  void bhvAuthOidc041ARejectedIdTokenLeavesNoSession() {
+    OpenIdConnectAuthenticator auth =
+        authenticatorReturning(nonce -> idToken(claims(nonce, "nonce", "\"replayed\"")));
+    assertThrowsExactly(OAuth2TokenException.class, () -> auth.exchangeCode("oidc-code"));
+
+    assertThrowsExactly(IllegalStateException.class, auth::getAuthHeaders);
   }
 }

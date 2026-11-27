@@ -4,13 +4,15 @@ package options
 
 import (
 	"net/netip"
-	. "petstore/pkg/models"
+	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // GetNativeValuesOptions carries the parameters for the GetNativeValues operation.
 type GetNativeValuesOptions struct {
 	Address4  *netip.Addr
-	Delay     *Duration
-	Amount    *float64
+	Delay     *time.Duration
+	Amount    *decimal.Decimal
 	XAddress6 *netip.Addr
 }

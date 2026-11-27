@@ -83,7 +83,9 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ## Configuration
 
-`TransportOptions.builder` sets `timeout` (milliseconds, one end-to-end budget across redirects; a non-positive value raises `ArgumentError`), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id` and `max_retries`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. Every request carries an `X-Request-ID` header unless you send one.
+`TransportOptions.builder` sets `timeout` (milliseconds, one end-to-end budget across redirects; a non-positive value raises `ArgumentError`), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id`, `max_retries` and `max_response_bytes`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. Every request carries an `X-Request-ID` header unless you send one.
+
+`TransportOptions.builder.max_response_bytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
 
 ### Closing the client
 

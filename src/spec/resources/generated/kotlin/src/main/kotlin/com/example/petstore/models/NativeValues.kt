@@ -29,6 +29,7 @@ data class NativeValues(
      * Example: `192.0.2.1`
      */
     @SerialName("address4")
+    @Serializable(with = com.example.petstore.Ipv4StringSerializer::class)
     val address4: String? = null,
     /**
      * The `address6` property.
@@ -36,11 +37,13 @@ data class NativeValues(
      * Example: `2001:db8::1`
      */
     @SerialName("address6")
+    @Serializable(with = com.example.petstore.Ipv6StringSerializer::class)
     val address6: String? = null,
     /**
      * The `addresses` property.
      */
     @SerialName("addresses")
+    @Serializable(with = com.example.petstore.Ipv6StringListSerializer::class)
     val addresses: List<String>? = null,
     /**
      * The `homepage` property.

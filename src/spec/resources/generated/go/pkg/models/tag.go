@@ -11,6 +11,8 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Tag Tags are deprecated, use categories instead
@@ -84,13 +86,33 @@ func (o Tag) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Tag) UnmarshalJSON(data []byte) error {
-	type Alias Tag
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Tag) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Tag
+	err := readObject(dec, "Tag", func(key string) error {
+		switch key {
+		case "id":
+			return decodeValue(dec, &out.Id)
+		case "name":
+			return decodeValue(dec, &out.Name)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	*o = Tag(*aux)
+	*o = out
 	return nil
 }

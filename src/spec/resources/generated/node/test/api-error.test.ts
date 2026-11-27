@@ -19,6 +19,7 @@ import {
   NetworkTimeoutError,
   NotFoundError,
   OAuth2ServerError,
+  ResponseTooLargeError,
   OAuth2TokenError,
   SerializationError,
   ServerError,
@@ -182,6 +183,10 @@ describe("ApiError", () => {
         [
           "NetworkTimeoutError",
           (o: object) => new NetworkTimeoutError("boom", o),
+        ],
+        [
+          "ResponseTooLargeError",
+          (o: object) => new ResponseTooLargeError(1024, 200, null, o),
         ],
       ];
       for (const [, build] of rows) {
@@ -573,6 +578,7 @@ describe("ApiError", () => {
       "InternalServerError",
       "NetworkError",
       "NetworkTimeoutError",
+      "ResponseTooLargeError",
       "SerializationError",
       "OAuth2ServerError",
       "OAuth2TokenError",

@@ -22,10 +22,20 @@ end
 
 module Brotli
   def self.inflate: (String) -> String
+
+  class Decompressor
+    def initialize: () -> void
+    def process: (String) -> String
+  end
 end
 
 module Zstd
   def self.decompress: (String) -> String
+
+  class StreamingDecompress
+    def initialize: () -> void
+    def decompress: (String) -> String
+  end
 end
 
 # 4.8: format: time — Tod::TimeOfDay surface for HH:MM:SS values.

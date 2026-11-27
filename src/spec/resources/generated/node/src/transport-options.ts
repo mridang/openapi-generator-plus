@@ -117,6 +117,23 @@ function assertValidIdleTimeout(idleTimeout: number | null): void {
 }
 
 /**
+ * Reject a response size limit that is not a positive integer.
+ *
+ * @param maxResponseBytes the largest buffered response body in bytes, or null for no limit
+ * @throws TypeError if the value is not null and not a positive integer
+ */
+function assertValidMaxResponseBytes(maxResponseBytes: number | null): void {
+  if (
+    maxResponseBytes !== null &&
+    !(Number.isInteger(maxResponseBytes) && maxResponseBytes > 0)
+  ) {
+    throw new TypeError(
+      `Invalid maxResponseBytes: must be a positive number of bytes (got ${maxResponseBytes})`,
+    );
+  }
+}
+
+/**
  * Reject a redirect limit that is not a non-negative integer.
  *
  * @param maxRedirects redirect hop limit
@@ -221,8 +238,8 @@ export class TransportOptions {
    * End-to-end request timeout in milliseconds.
    *
    * Covers the entire request lifecycle: connection, TLS handshake, sending
-   * the request body, and reading the response. Defaults to 10000 ms
-   * (10 seconds). `null` disables the timeout (waits indefinitely).
+   * the request body, and reading the response. Defaults to 60000 ms
+   * (60 seconds). `null` disables the timeout (waits indefinitely).
    */
   public readonly timeout: number | null;
 
@@ -259,6 +276,18 @@ export class TransportOptions {
    * (60 seconds); `null` (or `0`) disables it.
    */
   public readonly idleTimeout: number | null;
+
+  /**
+   * The largest buffered response body the client reads, in bytes, or `null`
+   * (the default) for no limit.
+   *
+   * Counts both the bytes received and the bytes after decompression, so a
+   * small compressed body that inflates past the limit fails too, and
+   * decompression stops as soon as the limit is passed. A body that passes it
+   * raises `ResponseTooLargeError` with the real status. A streamed body is
+   * not counted: the caller reads it piece by piece.
+   */
+  public readonly maxResponseBytes: number | null;
 
   /** Custom User-Agent header value. */
   public readonly userAgent: string | null;
@@ -309,6 +338,7 @@ export class TransportOptions {
     maxRedirects: number | null;
     maxRetries?: number;
     idleTimeout?: number | null;
+    maxResponseBytes?: number | null;
     userAgent: string | null;
     defaultHeaders: Record<string, string>;
     injectRequestId: boolean;
@@ -328,6 +358,7 @@ export class TransportOptions {
     );
     if (options.maxRedirects != null)
       assertValidMaxRedirects(options.maxRedirects);
+    assertValidMaxResponseBytes(options.maxResponseBytes ?? null);
     this.verifySsl = options.verifySsl;
     this.caCertPath = options.caCertPath;
     this.proxy = options.proxy;
@@ -338,6 +369,7 @@ export class TransportOptions {
     const idleTimeout =
       options.idleTimeout === undefined ? 60000 : options.idleTimeout;
     this.idleTimeout = idleTimeout === 0 ? null : idleTimeout;
+    this.maxResponseBytes = options.maxResponseBytes ?? null;
     this.userAgent = options.userAgent;
     this.defaultHeaders = Object.freeze({ ...options.defaultHeaders });
     this.injectRequestId = options.injectRequestId;
@@ -372,6 +404,7 @@ export class TransportOptions {
       maxRedirects: this.maxRedirects,
       maxRetries: this.maxRetries,
       idleTimeout: this.idleTimeout,
+      maxResponseBytes: this.maxResponseBytes,
       userAgent: this.userAgent,
       defaultHeaders: redactHeaders(this.defaultHeaders),
       injectRequestId: this.injectRequestId,
@@ -402,8 +435,9 @@ export class TransportOptions {
  * - `followRedirects` -- `true`
  * - `maxRetries` -- `2` (`0` disables retries)
  * - `injectRequestId` -- `false`
- * - `timeout` -- `10000` (10 seconds)
+ * - `timeout` -- `60000` (60 seconds)
  * - `idleTimeout` -- `60000` (60 seconds; `0` or `null` disables it)
+ * - `maxResponseBytes` -- `null` (no limit)
  * - `userAgent` -- a package-specific default string
  * - All other fields -- `null` or empty
  */
@@ -411,11 +445,12 @@ export class TransportOptionsBuilder {
   private _verifySsl: boolean = true;
   private _caCertPath: string | null = null;
   private _proxy: string | null = null;
-  private _timeout: number | null = 10000;
+  private _timeout: number | null = 60000;
   private _followRedirects: boolean = true;
   private _maxRedirects: number | null = null;
   private _maxRetries: number = 2;
   private _idleTimeout: number | null = 60000;
+  private _maxResponseBytes: number | null = null;
   private _userAgent: string | null = "petstore-client/1.0.0 (node)";
   private _defaultHeaders: Record<string, string> = {};
   private _injectRequestId: boolean = false;
@@ -525,6 +560,21 @@ export class TransportOptionsBuilder {
   }
 
   /**
+   * Set the largest buffered response body the client reads, in bytes,
+   * counted as received and after decompression. A body that passes it
+   * raises `ResponseTooLargeError`.
+   *
+   * @param maxResponseBytes the limit in bytes (a positive integer), or null for no limit (the default)
+   * @returns this builder
+   * @throws TypeError if the value is not null and not a positive integer
+   */
+  maxResponseBytes(maxResponseBytes: number | null): this {
+    assertValidMaxResponseBytes(maxResponseBytes);
+    this._maxResponseBytes = maxResponseBytes;
+    return this;
+  }
+
+  /**
    * Set a custom User-Agent header value.
    *
    * @param userAgent the user agent string, or null to omit
@@ -614,6 +664,7 @@ export class TransportOptionsBuilder {
       maxRedirects: this._maxRedirects,
       maxRetries: this._maxRetries,
       idleTimeout: this._idleTimeout,
+      maxResponseBytes: this._maxResponseBytes,
       userAgent: this._userAgent,
       defaultHeaders: { ...this._defaultHeaders },
       injectRequestId: this._injectRequestId,

@@ -16,6 +16,7 @@ namespace PetstoreClient;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\ResponseTooLargeException;
 use PetstoreClient\Errors\StreamException;
 
 /**
@@ -223,10 +224,13 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                for the public surface. The joined form is not directly
                parseable for Set-Cookie; callers needing structured cookie
                access should use a transport that exposes the raw response. */
-            $responseHeaders = $this->joinedHeaders($response->headers);
+            $responseHeaders = self::joinedHeaders($response->headers);
             $contentEncoding = $response->headers['content-encoding'][0] ?? '';
+            $limit = $this->maxResponseBytes();
             try {
-                $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+                $decoded = $limit === null
+                    ? $this->decompressBody($responseBody, $contentEncoding)
+                    : $this->decompressWithin($responseBody, $contentEncoding, $limit);
             } catch (\RuntimeException $e) {
                 /* A corrupt or truncated compressed body is not a transport
                  * failure: a response did arrive, so it is an ApiException
@@ -240,6 +244,11 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                     $e
                 );
             }
+            if ($decoded === null) {
+                /* D138: the decompressed body passed the limit. */
+                throw new ResponseTooLargeException($response->statusCode, $limit ?? 0, $responseHeaders);
+            }
+            $responseBody = $decoded;
             if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
                 /* D92: the headers describe the body the caller receives, and
                  * that body is no longer encoded or the wire length. */
@@ -459,7 +468,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                         throw new ApiException(
                             $response->statusCode,
                             'Refusing to follow redirect to non-HTTP(S) URL: ' . self::withoutQuery($nextUrl),
-                            $this->joinedHeaders($response->headers)
+                            self::joinedHeaders($response->headers)
                         );
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
@@ -501,7 +510,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                         throw new ApiException(
                             $statusCode,
                             'Refusing to replay a streamed request body',
-                            $this->joinedHeaders($response->headers)
+                            self::joinedHeaders($response->headers)
                         );
                     }
                     $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
@@ -516,7 +525,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                             $statusCode,
                             'Refusing to replay request body across HTTPS->HTTP redirect: '
                             . self::withoutQuery($url) . ' -> ' . self::withoutQuery($nextUrl),
-                            $this->joinedHeaders($response->headers)
+                            self::joinedHeaders($response->headers)
                         );
                     }
 
@@ -580,7 +589,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                     throw new ApiException(
                         $response->statusCode,
                         "Too many redirects (exceeded $maxRedirects)",
-                        $this->joinedHeaders($response->headers)
+                        self::joinedHeaders($response->headers)
                     );
                 }
             }
@@ -771,7 +780,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      */
     private function wrapStream(string $method, string $url, RawStreamResponse $raw): ByteStream
     {
-        $headers = $this->joinedHeaders($raw->headers);
+        $headers = self::joinedHeaders($raw->headers);
         $encoding = strtolower(trim($raw->headers['content-encoding'][0] ?? ''));
         $identity = $encoding === '' || $encoding === 'identity';
         $status = $raw->statusCode;
@@ -1076,7 +1085,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * @param array<array-key, array<array-key, string>> $headers transport headers, name to value list
      * @return array<string, string>
      */
-    private function joinedHeaders(array $headers): array
+    private static function joinedHeaders(array $headers): array
     {
         $joined = [];
         foreach ($headers as $name => $values) {
@@ -1556,6 +1565,80 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                 "Unsupported Content-Encoding '" . $encoding . "'"
             ),
         };
+    }
+
+    /**
+     * The most bytes the transport reads for a buffered response body, raw or decompressed, or
+     * null for no limit (D138). Only the SDK's own transport applies
+     * {@see TransportOptions::$maxResponseBytes}; a supplied PSR-18 client is not limited.
+     */
+    protected function maxResponseBytes(): ?int
+    {
+        return null;
+    }
+
+    /**
+     * The error for a buffered body that passed the limit, with the real status and the
+     * lower-cased headers.
+     *
+     * @param array<array-key, array<array-key, string>> $rawHeaders transport headers, name to value list
+     */
+    protected static function responseTooLarge(
+        int $statusCode,
+        array $rawHeaders,
+        int $limit,
+    ): ResponseTooLargeException {
+        return new ResponseTooLargeException($statusCode, $limit, self::joinedHeaders($rawHeaders));
+    }
+
+    /**
+     * Decompresses a response body with a cap on the output (D138): gzip and deflate are
+     * inflated a small slice of input at a time and decoding stops as soon as the output passes
+     * the limit, so a small body that expands hugely is never inflated whole. br and zstd have no
+     * incremental decoder here and are decoded whole before the length is checked.
+     *
+     * @param string $body     the raw response body
+     * @param string $encoding the Content-Encoding header value
+     * @param int    $limit    the most decoded bytes allowed
+     * @return string|null the decompressed body, or null when it passed the limit
+     * @throws \RuntimeException when the body is corrupt or the coding is not supported
+     */
+    protected function decompressWithin(string $body, string $encoding, int $limit): ?string
+    {
+        $coding = strtolower($encoding);
+        $window = match ($coding) {
+            'gzip', 'x-gzip' => ZLIB_ENCODING_GZIP,
+            'deflate' => ZLIB_ENCODING_DEFLATE,
+            default => null,
+        };
+        if ($body === '' || $window === null) {
+            $decoded = $this->decompressBody($body, $encoding);
+
+            return strlen($decoded) > $limit ? null : $decoded;
+        }
+        $codec = $coding === 'deflate' ? 'deflate' : 'gzip';
+        $context = @inflate_init($window);
+        if ($context === false) {
+            throw new \RuntimeException("the $codec decoder could not be started");
+        }
+        $decoded = '';
+        $length = strlen($body);
+        for ($offset = 0; $offset < $length; $offset += 256) {
+            $last = $offset + 256 >= $length;
+            $piece = @inflate_add($context, substr($body, $offset, 256), $last ? ZLIB_FINISH : ZLIB_SYNC_FLUSH);
+            if ($piece === false) {
+                throw new \RuntimeException("the $codec stream is corrupt or truncated");
+            }
+            if (strlen($decoded) + strlen($piece) > $limit) {
+                return null;
+            }
+            $decoded .= $piece;
+        }
+        if (inflate_get_status($context) !== ZLIB_STREAM_END) {
+            throw new \RuntimeException("the $codec stream is corrupt or truncated");
+        }
+
+        return $decoded;
     }
 
     /**

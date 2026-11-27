@@ -27,11 +27,21 @@ pub struct NativeValues {
     )]
     pub homepage: Option<String>,
     /// Example: `12.345678901234567`
-    #[serde(rename = "amount", skip_serializing_if = "Option::is_none")]
-    pub amount: Option<f64>,
+    #[serde(
+        rename = "amount",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::decimal_number::option"
+    )]
+    pub amount: Option<rust_decimal::Decimal>,
     /// Example: `12.50`
-    #[serde(rename = "ledger", skip_serializing_if = "Option::is_none")]
-    pub ledger: Option<f64>,
+    #[serde(
+        rename = "ledger",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::decimal_string::option"
+    )]
+    pub ledger: Option<rust_decimal::Decimal>,
     /// Example: `3600s`
     #[serde(
         rename = "wait",
@@ -103,7 +113,7 @@ impl NativeValues {
     /// Returns this value with `amount` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_amount(mut self, amount: f64) -> Self {
+    pub fn with_amount(mut self, amount: rust_decimal::Decimal) -> Self {
         self.amount = Some(amount);
         self
     }
@@ -111,7 +121,7 @@ impl NativeValues {
     /// Returns this value with `ledger` replaced, every other field kept.
     /// A model is not changed in place: bind the result, or call it on a
     /// clone to keep the original.
-    pub fn with_ledger(mut self, ledger: f64) -> Self {
+    pub fn with_ledger(mut self, ledger: rust_decimal::Decimal) -> Self {
         self.ledger = Some(ledger);
         self
     }

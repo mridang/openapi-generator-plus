@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Roster is a model class generated from the OpenAPI schema.
@@ -119,43 +121,44 @@ func (o Roster) MarshalJSON() ([]byte, error) {
 	return append(b, extra[1:]...), nil
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Roster) UnmarshalJSON(data []byte) error {
-	type Alias Roster
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "label"), aux); err != nil {
-		return err
-	}
-	*o = Roster(*aux)
+	return unmarshalModel(data, o)
+}
 
-	/* Collect additional properties */
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is kept in AdditionalProperties.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Roster) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Roster
+	err := readObject(dec, "Roster", func(key string) error {
+		switch key {
+		case "label":
+			return decodeValue(dec, &out.Label)
+		}
+		/* A typed extra decodes like an element of a map of the same type:
+		 * a null is rejected unless the value schema is nullable. */
+		if dec.PeekKind() == 'n' {
+			return fmt.Errorf("additional property '%s' must not be null in Roster", key)
+		}
+		var extra Category
+		if err := decodeValue(dec, &extra); err != nil {
+			return err
+		}
+		if out.AdditionalProperties == nil {
+			out.AdditionalProperties = make(map[string]Category)
+		}
+		out.AdditionalProperties[key] = extra
+		return nil
+	})
+	if err != nil {
 		return err
 	}
-	knownFields := map[string]bool{
-		"label": true,
-	}
-	for key, val := range raw {
-		if !knownFields[key] {
-			if o.AdditionalProperties == nil {
-				o.AdditionalProperties = make(map[string]Category)
-			}
-			/* A typed extra decodes like an element of a map of the same type:
-			 * a null is rejected unless the value schema is nullable. */
-			if string(val) == "null" {
-				return fmt.Errorf("additional property '%s' must not be null in Roster", key)
-			}
-			var v Category
-			if err := json.Unmarshal(val, &v); err != nil {
-				return err
-			}
-			o.AdditionalProperties[key] = v
-		}
-	}
-	/* Gap AJ: encoding/json silently zero-inits required fields when the
-	 * value is null or missing. Reject both for required non-nullable
-	 * fields so the malformed server response surfaces at the deserialize
-	 * call instead of producing a confusing NPE later. */
+	*o = out
 	return nil
 }

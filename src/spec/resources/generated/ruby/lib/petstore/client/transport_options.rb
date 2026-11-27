@@ -89,6 +89,16 @@ module Petstore::Client
     #   is disabled (default +60_000+)
     attr_reader :idle_timeout
 
+    # The most bytes the default client reads for a buffered response body.
+    #
+    # Counts both the bytes on the wire and the decompressed bytes, for a
+    # success or an error body: as soon as either passes the limit the client
+    # drops the connection and raises {Errors::ResponseTooLargeError}. A
+    # streamed response (a binary operation) is not bounded: the caller reads
+    # it.
+    # @return [Integer, nil] the limit in bytes, or +nil+ for no limit (the default)
+    attr_reader :max_response_bytes
+
     # A caller-supplied Faraday connection used instead of a self-built one,
     # or +nil+ when the SDK builds its own. The caller owns its lifecycle: the
     # SDK never closes it. Timeouts, retries, the user agent, the redirect
@@ -99,7 +109,8 @@ module Petstore::Client
     # @api private
     def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
                    follow_redirects:, max_redirects:, user_agent:,
-                   default_headers:, inject_request_id:, max_retries: 2, connection: nil, idle_timeout: 60_000)
+                   default_headers:, inject_request_id:, max_retries: 2, connection: nil, idle_timeout: 60_000,
+                   max_response_bytes: nil)
       self.class.validate_proxy!(proxy)
       self.class.validate_max_redirects!(max_redirects)
       self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
@@ -115,6 +126,7 @@ module Petstore::Client
       @max_retries = self.class.validate_max_retries!(max_retries)
       @connection = connection
       @idle_timeout = self.class.validate_idle_timeout!(idle_timeout)
+      @max_response_bytes = self.class.validate_max_response_bytes!(max_response_bytes)
       freeze
     end
 
@@ -164,6 +176,21 @@ module Petstore::Client
       return nil if val.nil? || (val.is_a?(Numeric) && val.zero?)
 
       raise ArgumentError, "Invalid idle_timeout: must be a number of milliseconds, not negative (got #{val.inspect})" unless (val.is_a?(Integer) || val.is_a?(Float)) && val.positive?
+
+      val
+    end
+
+    # Validate a response body limit: +nil+ (no limit) or a positive whole
+    # number of bytes (D138), so the check holds for direct construction as
+    # well as for the builder.
+    # @api private
+    # @param val [Integer, nil] the limit in bytes
+    # @return [Integer, nil] +val+
+    # @raise [ArgumentError] if it is not +nil+ or a positive integer
+    def self.validate_max_response_bytes!(val)
+      return nil if val.nil?
+
+      raise ArgumentError, "Invalid maxResponseBytes: must be a positive number of bytes (got #{val})" unless val.is_a?(Integer) && val.positive?
 
       val
     end
@@ -269,7 +296,7 @@ module Petstore::Client
         "follow_redirects=#{@follow_redirects.inspect} max_redirects=#{@max_redirects.inspect} " \
         "user_agent=#{@user_agent.inspect} default_headers=#{self.class.redact_headers(@default_headers).inspect} " \
         "inject_request_id=#{@inject_request_id.inspect} max_retries=#{@max_retries.inspect} " \
-        "idle_timeout=#{@idle_timeout.inspect}>"
+        "idle_timeout=#{@idle_timeout.inspect} max_response_bytes=#{@max_response_bytes.inspect}>"
     end
     alias to_s inspect
 
@@ -279,9 +306,10 @@ module Petstore::Client
     # - +verify_ssl+ -- +true+
     # - +follow_redirects+ -- +true+
     # - +inject_request_id+ -- +false+
-    # - +timeout+ -- +10_000+ (10 seconds)
+    # - +timeout+ -- +60_000+ (60 seconds)
     # - +max_retries+ -- +2+
     # - +idle_timeout+ -- +60_000+ (60 seconds)
+    # - +max_response_bytes+ -- +nil+ (no limit)
     # - +user_agent+ -- a package-specific default string
     # - All other fields -- +nil+ or empty
     class Builder
@@ -289,7 +317,7 @@ module Petstore::Client
         @verify_ssl = true
         @ca_cert_path = nil
         @proxy = nil
-        @timeout = 10_000
+        @timeout = 60_000
         @follow_redirects = true
         @max_redirects = nil
         @user_agent = 'petstore_client/1.0.0 (ruby)'
@@ -297,6 +325,7 @@ module Petstore::Client
         @inject_request_id = false
         @max_retries = 2
         @idle_timeout = 60_000
+        @max_response_bytes = nil
         @connection = nil
       end
 
@@ -418,6 +447,16 @@ module Petstore::Client
         self
       end
 
+      # Set the most bytes the default client reads for a buffered response
+      # body (see {TransportOptions#max_response_bytes}).
+      # @param val [Integer, nil] the limit in bytes (at least 1), or +nil+ for no limit (default)
+      # @return [self]
+      # @raise [ArgumentError] if it is not +nil+ or a positive integer
+      def max_response_bytes(val)
+        @max_response_bytes = TransportOptions.validate_max_response_bytes!(val)
+        self
+      end
+
       # Build and return an immutable {TransportOptions} instance.
       # @return [TransportOptions]
       def build
@@ -433,7 +472,8 @@ module Petstore::Client
           inject_request_id: @inject_request_id,
           max_retries: @max_retries,
           connection: @connection,
-          idle_timeout: @idle_timeout
+          idle_timeout: @idle_timeout,
+          max_response_bytes: @max_response_bytes
         )
       end
     end

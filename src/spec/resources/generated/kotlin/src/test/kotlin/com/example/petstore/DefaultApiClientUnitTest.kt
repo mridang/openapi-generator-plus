@@ -2898,6 +2898,131 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName(
+            "bhvTransport094 a per-call timeout bounds the whole call, body included: a trickling body fails with the network timeout error within the budget",
+        )
+        fun bhvTransport094PerCallTimeoutBoundsTheWholeCallBodyIncluded() {
+            RawServer
+                .serve { self, socket, _, _ ->
+                    rawHead(socket, 200, "Content-Type: application/octet-stream", "Content-Length: 100000")
+                    var sent = 0
+                    do {
+                        rawBody(socket, "a".toByteArray(Charsets.ISO_8859_1))
+                        sent++
+                    } while (sent < 300 && !self.release.await(100, java.util.concurrent.TimeUnit.MILLISECONDS))
+                }.use { server ->
+                    val apiClient =
+                        DefaultApiClient(
+                            TransportOptions
+                                .builder()
+                                .timeout(60000L)
+                                .maxRetries(0)
+                                .build(),
+                        )
+                    val started = System.nanoTime()
+                    assertThrows(
+                        com.example.petstore.errors.NetworkTimeoutException::class.java,
+                        {
+                            runBlocking {
+                                kotlinx.coroutines.withContext(CallSettings(500L, 0)) {
+                                    apiClient.sendRequest("GET", server.url("/items/blob"), emptyMap(), null)
+                                }
+                            }
+                        },
+                    )
+                    apiClient.close()
+                    assertTrue(
+                        System.nanoTime() - started <
+                            java.util.concurrent.TimeUnit.SECONDS
+                                .toNanos(3),
+                        "the trickling body was cut off by the per-call timeout",
+                    )
+                }
+        }
+
+        @Test
+        @DisplayName(
+            "bhvTransport095 a buffered body over maxResponseBytes fails with the response too large error carrying the status and the limit",
+        )
+        fun bhvTransport095ABufferedBodyOverMaxResponseBytesFailsWithResponseTooLarge() {
+            val body = ByteArray(4096) { 'a'.code.toByte() }
+            RawServer
+                .serve { _, socket, _, _ ->
+                    rawHead(socket, 200, "Content-Type: application/octet-stream", "Content-Length: 4096")
+                    rawBody(socket, body)
+                }.use { server ->
+                    val limited =
+                        DefaultApiClient(
+                            TransportOptions
+                                .builder()
+                                .maxResponseBytes(1024L)
+                                .maxRetries(0)
+                                .build(),
+                        )
+                    val ex =
+                        assertThrowsExactly(
+                            com.example.petstore.errors.ResponseTooLargeException::class.java,
+                            {
+                                runBlocking { limited.sendRequest("GET", server.url("/items/blob"), emptyMap(), null) }
+                            },
+                        )
+                    limited.close()
+                    assertEquals(200, ex.statusCode)
+                    assertEquals(1024L, ex.limit)
+                    assertEquals("Response body exceeds the limit of 1024 bytes", ex.message)
+                    assertFalse(ex.isRetryable)
+                    assertEquals(1, server.hits.get())
+
+                    val unlimited = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+                    val response = runBlocking { unlimited.sendRequest("GET", server.url("/items/blob"), emptyMap(), null) }
+                    unlimited.close()
+                    assertEquals(200, response.statusCode)
+                }
+        }
+
+        @Test
+        @DisplayName("bhvTransport096 a gzip body that inflates past maxResponseBytes fails with the response too large error")
+        fun bhvTransport096AGzipBodyThatInflatesPastMaxResponseBytesFailsWithResponseTooLarge() {
+            val compressed = java.io.ByteArrayOutputStream()
+            java.util.zip
+                .GZIPOutputStream(compressed)
+                .use { it.write(ByteArray(100000)) }
+            val body = compressed.toByteArray()
+            assertTrue(body.size < 1024, "the compressed body is under the limit")
+            RawServer
+                .serve { _, socket, _, _ ->
+                    rawHead(
+                        socket,
+                        200,
+                        "Content-Type: application/octet-stream",
+                        "Content-Encoding: gzip",
+                        "Content-Length: ${body.size}",
+                    )
+                    rawBody(socket, body)
+                }.use { server ->
+                    val limited =
+                        DefaultApiClient(
+                            TransportOptions
+                                .builder()
+                                .maxResponseBytes(1024L)
+                                .maxRetries(0)
+                                .build(),
+                        )
+                    val ex =
+                        assertThrowsExactly(
+                            com.example.petstore.errors.ResponseTooLargeException::class.java,
+                            {
+                                runBlocking { limited.sendRequest("GET", server.url("/items/blob"), emptyMap(), null) }
+                            },
+                        )
+                    limited.close()
+                    assertEquals(200, ex.statusCode)
+                    assertEquals(1024L, ex.limit)
+                    assertEquals("Response body exceeds the limit of 1024 bytes", ex.message)
+                }
+        }
+
+        @Test
         @DisplayName("bhvRetries048 the default client retries a 503 over a real connection and returns the later success")
         fun bhvRetries048DefaultClientRetriesA503OverARealConnection() {
             var served = 0

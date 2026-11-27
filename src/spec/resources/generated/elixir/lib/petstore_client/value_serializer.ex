@@ -90,11 +90,12 @@ defmodule PetstoreClient.ValueSerializer do
   defp calendar_date(value), do: value
 
   # An object-valued parameter: a model struct or a map. The temporal structs
-  # are scalars (they stringify to one value), so they are not objects.
+  # and `Decimal` are scalars (they stringify to one value), so they are not objects.
   defguardp is_object(value)
             when is_map(value) and not is_struct(value, DateTime) and
                    not is_struct(value, NaiveDateTime) and not is_struct(value, Date) and
-                   not is_struct(value, Time) and not is_struct(value, Duration)
+                   not is_struct(value, Time) and not is_struct(value, Duration) and
+                   not is_struct(value, Decimal)
 
   # D47: an object-valued parameter is written by its wire names, in
   # declaration order for a model and in key order for a map. An unset property

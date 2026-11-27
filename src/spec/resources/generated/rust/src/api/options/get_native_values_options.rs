@@ -6,7 +6,7 @@ use std::time::Duration;
 pub struct GetNativeValuesOptions {
     pub address4: Option<std::net::Ipv4Addr>,
     pub delay: Option<chrono::TimeDelta>,
-    pub amount: Option<f64>,
+    pub amount: Option<rust_decimal::Decimal>,
     pub x_address6: Option<std::net::Ipv6Addr>,
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
@@ -39,7 +39,7 @@ impl GetNativeValuesOptions {
     }
 
     /// Sets the amount field.
-    pub fn amount(mut self, amount: f64) -> Self {
+    pub fn amount(mut self, amount: rust_decimal::Decimal) -> Self {
         self.amount = Some(amount);
         self
     }

@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"time"
 
-	"petstore/pkg/models"
+	"petstore/pkg/internal/protoduration"
 )
 
 // Helpers for OAS `format: time` and `format: duration`. Go's stdlib
@@ -21,9 +21,10 @@ import (
 // generated models; FormatTimeOfDay / ParseTimeOfDay convert it to and from
 // the time-of-day component of a `time.Time`.
 //
-// `format: duration` is surfaced as models.Duration, a time.Duration that
-// JSON-encodes in the protobuf-JSON google.protobuf.Duration form ("3600s").
-// MarshalDurationProtoJSON / UnmarshalDurationProtoJSON convert a plain
+// `format: duration` is surfaced as the standard library's time.Duration,
+// which the SDK writes in the protobuf-JSON google.protobuf.Duration form
+// ("3600s") in bodies and parameters alike.
+// MarshalDurationProtoJSON / UnmarshalDurationProtoJSON convert a
 // time.Duration to and from that string form.
 
 // MarshalDurationProtoJSON formats a time.Duration as a protobuf-JSON
@@ -36,7 +37,7 @@ import (
 // that preserves every non-zero nanosecond), matching the protobuf JSON
 // encoder. Negative durations carry a leading "-".
 func MarshalDurationProtoJSON(d time.Duration) string {
-	return models.Duration(d).String()
+	return protoduration.Format(d)
 }
 
 // UnmarshalDurationProtoJSON parses a protobuf-JSON google.protobuf.Duration
@@ -46,11 +47,11 @@ func MarshalDurationProtoJSON(d time.Duration) string {
 // digits) is rejected with a *SerializationError, as is a value outside the
 // range of time.Duration (about ±292 years).
 func UnmarshalDurationProtoJSON(s string) (time.Duration, error) {
-	var d models.Duration
-	if err := d.UnmarshalText([]byte(s)); err != nil {
+	d, err := protoduration.Parse(s)
+	if err != nil {
 		return 0, newSerializationError(fmt.Sprintf("invalid duration %q", s), err)
 	}
-	return time.Duration(d), nil
+	return d, nil
 }
 
 // FormatTimeOfDay returns the HH:MM:SS portion of a time.Time, matching

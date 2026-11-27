@@ -1,10 +1,12 @@
+import '../../object_serializer.dart';
+
 /// Options for the getNativeValues operation.
 class GetNativeValuesOptions {
   final String? address4;
 
   final Duration? delay;
 
-  final double? amount;
+  final Decimal? amount;
 
   final String? xAddress6;
 

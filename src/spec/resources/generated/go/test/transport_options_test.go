@@ -112,8 +112,8 @@ func TestBhvOptions038_TransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil default timeout")
 	}
-	if *opts.Timeout() != 10000 {
-		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	if *opts.Timeout() != 60000 {
+		t.Errorf("expected default timeout 60000ms, got %d", *opts.Timeout())
 	}
 }
 
@@ -457,7 +457,7 @@ func TestBhvOptions016_TransportOptions_BuilderProducesIndependentInstances(t *t
 
 func TestBhvOptions039_TransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
 	t.Parallel()
-	// Default TransportOptions ships with a 10-second (10000ms) timeout to
+	// Default TransportOptions ships with a 60-second (60000ms) timeout to
 	// match Java, Python, Node, etc. and prevent runaway requests.
 	opts, err := petstore.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -466,8 +466,8 @@ func TestBhvOptions039_TransportOptions_TimeoutDefaultIsTenThousandMilliseconds(
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil default timeout")
 	}
-	if *opts.Timeout() != 10000 {
-		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	if *opts.Timeout() != 60000 {
+		t.Errorf("expected default timeout 60000ms, got %d", *opts.Timeout())
 	}
 }
 
@@ -484,7 +484,7 @@ func TestBhvOptions036_TransportOptions_SettingTimeoutIsAccessible(t *testing.T)
 }
 
 // TestTransportOptions_NoTimeoutIsExpressible confirms "wait indefinitely" can
-// be asked for: Timeout(nil) clears the 10000ms default rather than being
+// be asked for: Timeout(nil) clears the 60000ms default rather than being
 // indistinguishable from leaving the timeout unset.
 func TestBhvOptions037_TransportOptions_NoTimeoutIsExpressible(t *testing.T) {
 	t.Parallel()
@@ -1017,6 +1017,37 @@ func TestBhvOptions068_TransportOptions_ASocksProxyIsRefusedAtConstruction(t *te
 	_, err := petstore.NewTransportOptionsBuilder().Proxy("socks5://proxy.example.com:1080").Build()
 	if !errors.Is(err, petstore.ErrInvalidProxyURL) {
 		t.Errorf("expected ErrInvalidProxyURL for a SOCKS proxy, got %v", err)
+	}
+}
+
+// The response size limit is off by default, a positive value round-trips through the builder, and zero or a negative value is refused with the canonical message.
+func TestBhvOptions069_TransportOptions_MaxResponseBytesDefaultsToNoneRoundTripsAndRefusesANonPositiveValue(t *testing.T) {
+	t.Parallel()
+	defaults, err := petstore.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.MaxResponseBytes() != nil {
+		t.Errorf("expected no MaxResponseBytes by default, got %d", *defaults.MaxResponseBytes())
+	}
+	limit := int64(1024)
+	opts, err := petstore.NewTransportOptionsBuilder().MaxResponseBytes(&limit).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.MaxResponseBytes() == nil || *opts.MaxResponseBytes() != 1024 {
+		t.Errorf("expected MaxResponseBytes 1024, got %v", opts.MaxResponseBytes())
+	}
+	for _, value := range []int64{0, -1} {
+		value := value
+		_, err := petstore.NewTransportOptionsBuilder().MaxResponseBytes(&value).Build()
+		if !errors.Is(err, petstore.ErrInvalidMaxResponseBytes) {
+			t.Fatalf("maxResponseBytes %d: expected ErrInvalidMaxResponseBytes, got %v", value, err)
+		}
+		want := fmt.Sprintf("invalid maxResponseBytes: must be a positive number of bytes (got %d)", value)
+		if err.Error() != want {
+			t.Errorf("maxResponseBytes %d: expected %q, got %q", value, want, err.Error())
+		}
 	}
 }
 

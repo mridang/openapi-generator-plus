@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // AttachPetFilesRequest is a model class generated from the OpenAPI schema.
@@ -80,29 +82,41 @@ func (o AttachPetFilesRequest) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *AttachPetFilesRequest) UnmarshalJSON(data []byte) error {
-	type Alias AttachPetFilesRequest
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "file", "caption"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *AttachPetFilesRequest) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out AttachPetFilesRequest
+	seenFile := false
+	err := readObject(dec, "AttachPetFilesRequest", func(key string) error {
+		switch key {
+		case "file":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'file' must not be null in AttachPetFilesRequest")
+			}
+			seenFile = true
+			return decodeValue(dec, &out.File)
+		case "caption":
+			return decodeValue(dec, &out.Caption)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["file"]; !ok {
+	if !seenFile {
 		return fmt.Errorf("required field 'file' is missing in AttachPetFilesRequest")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'file' must not be null in AttachPetFilesRequest")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = AttachPetFilesRequest(*aux)
+	*o = out
 	return nil
 }

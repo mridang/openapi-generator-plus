@@ -33,6 +33,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
   case invalidCACertificate(String)
   /// The timeout is not a positive number of milliseconds.
   case invalidTimeout(Int)
+  /// The response size limit is not a positive number of bytes.
+  case invalidMaxResponseBytes(Int)
   /// An argument is malformed: bad credentials, a missing required
   /// parameter, a malformed URL, or a header, cookie or multipart value
   /// holding characters that would corrupt the HTTP message.
@@ -56,6 +58,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
       return message
     case .invalidTimeout(let value):
       return "Invalid timeout: must be a positive number of milliseconds (got \(value))"
+    case .invalidMaxResponseBytes(let value):
+      return "Invalid maxResponseBytes: must be a positive number of bytes (got \(value))"
     case .invalidArgument(let reason):
       return "Invalid argument: \(reason)"
     case .invalidState(let reason):

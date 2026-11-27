@@ -177,7 +177,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
     ready for API requests.
   """
   @spec exchange_code(t(), String.t()) :: t()
-  def exchange_code(%__MODULE__{} = self, code) do
+  def exchange_code(%__MODULE__{} = self, code), do: exchange_code_checked(self, code, nil)
+
+  # Exchanges the code, handing the response's id_token to `id_token_check`
+  # before the session is replaced. OpenID Connect uses this.
+  @doc false
+  @spec exchange_code_checked(t(), String.t(), (String.t() | nil -> any()) | nil) :: t()
+  def exchange_code_checked(%__MODULE__{} = self, code, id_token_check) do
     # Reject an empty/whitespace authorization code before POSTing to the
     # token endpoint: an empty `code` would otherwise be sent verbatim and
     # surface as a confusing server-side `invalid_grant` rather than a
@@ -208,7 +214,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.exchange(
         self.token_manager,
         self.token_url,
-        params
+        params,
+        %{},
+        id_token_check
       )
 
     self

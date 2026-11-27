@@ -13,10 +13,14 @@ import Testing
 @Suite final class ObjectSerializerTests {
 
   /* A duration written to its wire string and decoded back is the same duration, across the edge values. */
-  @Test(arguments: [0.0, -1.5, 0.25, 259200.0, 1_000_000_000.0])
-  func testBhvSerialization077DurationRoundTripsThroughItsWireString(seconds: TimeInterval) throws {
-    let literal = try ObjectSerializer.encodeDuration(seconds)
-    #expect(try ObjectSerializer.decodeDuration(literal) == seconds)
+  @Test(arguments: [
+    Duration.zero, .milliseconds(-1500), .milliseconds(250), .seconds(259_200),
+    .seconds(1_000_000_000),
+    .seconds(1) + .nanoseconds(1),
+  ])
+  func testBhvSerialization077DurationRoundTripsThroughItsWireString(duration: Duration) throws {
+    let literal = try ObjectSerializer.encodeDuration(duration)
+    #expect(try ObjectSerializer.decodeDuration(literal) == duration)
   }
 
   /* A JSON null decodes to nil where the type is optional, rather than failing. */
@@ -432,8 +436,8 @@ import Testing
   /* A duration is written in the protobuf-JSON string form in a typed model. */
   @Test func testBhvSerializationobject146ADurationInAModelIsWrittenAsAString() throws {
     #expect(
-      try ObjectSerializer.serialize(EdgeCases(retryAfter: 300)).contains("\"retryAfter\":\"300s\"")
-    )
+      try ObjectSerializer.serialize(EdgeCases(retryAfter: .seconds(300))).contains(
+        "\"retryAfter\":\"300s\""))
   }
 
   /* A copy of a model holds the same nested value as the original. */
@@ -526,6 +530,16 @@ import Testing
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"ledger\":12.5}", as: NativeValues.self)
     }
+  }
+
+  /* A format: decimal field, number- or string-shaped, is the exact Foundation Decimal and never a Double. */
+  @Test func testBhvSerializationobject413ADecimalFieldIsTheExactDecimalType() throws {
+    let value = try #require(
+      try ObjectSerializer.deserialize("{\"amount\":0.1,\"ledger\":\"0.2\"}", as: NativeValues.self)
+    )
+    let amount: Decimal? = value.amount
+    let ledger: Decimal? = value.ledger
+    #expect(amount.flatMap { a in ledger.map { a + $0 } } == Decimal(string: "0.3"))
   }
 
   /* A decimal in a loosely built request body is written as a bare JSON number, not a string. */
@@ -1080,14 +1094,18 @@ import Testing
     #expect(!json.contains("2024-02-29T"))
   }
 
-  /* A protobuf-JSON duration decodes to seconds and encodes back. */
-  @Test(arguments: [("3600s", 3600.0), ("-90s", -90.0), ("3600.500s", 3600.5), ("0s", 0.0)])
-  func testBhvSerializationobject013EdgeCasesRetryAfterRoundTrips(literal: String, seconds: Double)
-    throws
-  {
+  /* A protobuf-JSON duration decodes to a Duration and encodes back. */
+  @Test(arguments: [
+    ("3600s", Duration.seconds(3600)), ("-90s", .seconds(-90)),
+    ("3600.500s", .milliseconds(3_600_500)),
+    ("0s", .zero),
+  ])
+  func testBhvSerializationobject013EdgeCasesRetryAfterRoundTrips(
+    literal: String, duration: Duration
+  ) throws {
     let json = "{\"retryAfter\":\"\(literal)\"}"
     let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
-    #expect(value.retryAfter == seconds)
+    #expect(value.retryAfter == duration)
     #expect(try ObjectSerializer.serialize(value) == json)
   }
 
@@ -1692,8 +1710,8 @@ import Testing
   @Test func testBhvSerializationobject223ProtobufDurationAcceptsTheBoundAndRejectsOnePastIt()
     throws
   {
-    #expect(try ObjectSerializer.decodeDuration("315576000000s") == 315_576_000_000)
-    #expect(try ObjectSerializer.decodeDuration("-315576000000s") == -315_576_000_000)
+    #expect(try ObjectSerializer.decodeDuration("315576000000s") == .seconds(315_576_000_000))
+    #expect(try ObjectSerializer.decodeDuration("-315576000000s") == .seconds(-315_576_000_000))
     for literal in ["315576000001s", "-315576000001s", "315576000000.000000001s"] {
       #expect(throws: SerializationError.self) {
         _ = try ObjectSerializer.decodeDuration(literal)
@@ -1703,28 +1721,29 @@ import Testing
 
   @Test func testBhvSerializationobject112DurationParseWholeSeconds() throws {
     let value = try ObjectSerializer.decodeDuration("5400s")
-    #expect(value == 5_400)
+    #expect(value == .seconds(5_400))
   }
 
   @Test func testBhvSerializationobject054DurationParseFractionalSeconds() throws {
     let value = try ObjectSerializer.decodeDuration("15.500s")
-    #expect(value == 15.5)
+    #expect(value == .milliseconds(15_500))
   }
 
   @Test func testBhvSerialization084DurationParseFractionalNanoPadding() throws {
     let value = try ObjectSerializer.decodeDuration("15.25s")
-    #expect(value == 15.25)
+    #expect(value == .milliseconds(15_250))
   }
 
   @Test func testBhvSerializationobject181ZeroDurationStringifiesAs0s() throws {
     let value = try ObjectSerializer.decodeDuration("0s")
-    #expect(value == 0)
+    #expect(value == .zero)
+    #expect(try ObjectSerializer.encodeDuration(value) == "0s")
   }
 
   @Test func testBhvSerializationobject113ANegativeProtobufDurationParsesIntoANegativeValue() throws
   {
     let value = try ObjectSerializer.decodeDuration("-300s")
-    #expect(value == -300)
+    #expect(value == .seconds(-300))
   }
 
   @Test func testBhvSerializationobject110DurationParseRejectsEmpty() {
@@ -1754,25 +1773,26 @@ import Testing
   @Test func testBhvSerializationobject158StringifyEmitsCanonicalProtobufDurationForADuration()
     throws
   {
-    #expect(try ObjectSerializer.encodeDuration(0) == "0s")
+    #expect(try ObjectSerializer.encodeDuration(.zero) == "0s")
   }
 
   @Test func testBhvSerializationobject081DurationFormatWholeSeconds() throws {
-    #expect(try ObjectSerializer.encodeDuration(3_725) == "3725s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(3_725)) == "3725s")
   }
 
   @Test func testBhvSerializationobject105NegativeDurationCarriesTheSign() throws {
-    #expect(try ObjectSerializer.encodeDuration(-300) == "-300s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(-300)) == "-300s")
   }
 
   @Test func testBhvSerializationobject106DurationFormatFractionalSeconds() throws {
-    let out = try ObjectSerializer.encodeDuration(1.5)
+    let out = try ObjectSerializer.encodeDuration(.milliseconds(1500))
     #expect(out == "1.500s")
   }
 
-  @Test func testBhvSerializationobject030DurationFormatRejectsNonFiniteAndOutOfRange() {
-    // formatProtobufDuration used to trap on these; it must throw instead.
-    for value in [TimeInterval.nan, .infinity, -.infinity, Double(Int.max), -Double(Int.max) * 2] {
+  @Test func testBhvSerializationobject030DurationFormatRejectsOutOfRange() {
+    /* A Duration past the protobuf range of plus or minus 315576000000 seconds is refused, never trapped. */
+    let pastTheBound = Duration.seconds(315_576_000_000) + .nanoseconds(1)
+    for value in [pastTheBound, .zero - pastTheBound, .seconds(Int64.max), .seconds(Int64.min)] {
       #expect(throws: SerializationError.self) {
         _ = try ObjectSerializer.encodeDuration(value)
       }
@@ -1780,7 +1800,7 @@ import Testing
   }
 
   @Test func testBhvSerializationobject073DurationRoundTripsThroughAModelBody() throws {
-    let original: TimeInterval = 86_400 + 7_200 + 180 + 4
+    let original = Duration.seconds(86_400 + 7_200 + 180 + 4)
     let literal = try ObjectSerializer.encodeDuration(original)
     let parsed = try ObjectSerializer.decodeDuration(literal)
     #expect(parsed == original)
@@ -2398,14 +2418,12 @@ import Testing
   func testBhvSerializationobject212DurationFormatNegativeSubTenThousandthNoScientificNotation()
     throws
   {
-    let out = try ObjectSerializer.encodeDuration(-0.00005)
-    #expect(out.hasPrefix("-"), "negative magnitude must keep its sign, got: \(out)")
+    let out = try ObjectSerializer.encodeDuration(.microseconds(-50))
     #expect(
-      !out.lowercased().contains("e"),
-      "negative sub-0.0001s duration must not use scientific notation, got: \(out)")
+      out == "-0.000050s", "negative sub-0.0001s duration must be fixed-point digits, got: \(out)")
     let parsed = try ObjectSerializer.decodeDuration(out)
     #expect(
-      abs(parsed - (-0.00005)) < 1e-9,
+      parsed == .microseconds(-50),
       "negative sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
   }
 
@@ -2812,13 +2830,13 @@ import Testing
 
   /* A duration's fractional seconds are written in the shortest group of three, six or nine digits. */
   @Test func testBhvSerialization046DurationFractionUsesTheShortestGroup() throws {
-    #expect(try ObjectSerializer.encodeDuration(1.25) == "1.250s")
-    #expect(try ObjectSerializer.encodeDuration(0.001) == "0.001s")
+    #expect(try ObjectSerializer.encodeDuration(.milliseconds(1250)) == "1.250s")
+    #expect(try ObjectSerializer.encodeDuration(.milliseconds(1)) == "0.001s")
   }
 
   /* A duration too large for a 64-bit nanosecond count is formatted without overflow, and an out-of-range one is refused. */
   @Test func testBhvSerialization047LargeDurationFormatsAndOutOfRangeIsRefused() throws {
-    #expect(try ObjectSerializer.encodeDuration(315_576_000_000) == "315576000000s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(315_576_000_000)) == "315576000000s")
     #expect(throws: (any Error).self) {
       _ = try ObjectSerializer.decodeDuration("315576000001s")
     }
@@ -2826,7 +2844,7 @@ import Testing
 
   /* A duration written on its own is written as its protobuf-JSON seconds string. */
   @Test func testBhvSerialization048DurationOnItsOwnIsItsSecondsString() throws {
-    #expect(try ObjectSerializer.encodeDuration(60) == "60s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(60)) == "60s")
   }
 
   /* A free-form value keeps its JSON type, so a string stays a string on decode. */
@@ -2840,9 +2858,11 @@ import Testing
     return try #require(try ObjectSerializer.deserialize(json, as: NativeValues.self))
   }
 
-  @Test func testBhvSerializationobject403DurationFieldIsTheTimeIntervalFallback() throws {
-    let wait: TimeInterval? = try decodeNativeValues("{\"wait\":\"3600s\"}").wait
-    #expect(wait == 3600)
+  @Test func testBhvSerializationobject403DurationFieldIsTheNativeDuration() throws {
+    let values = try decodeNativeValues("{\"wait\":\"3600s\"}")
+    let wait: Duration? = values.wait
+    #expect(wait == .seconds(3600))
+    #expect(try ObjectSerializer.serialize(values) == "{\"wait\":\"3600s\"}")
   }
 
   @Test func testBhvSerializationobject405Ipv4FieldIsTheAddressTextKeptUnchanged() throws {
@@ -2883,7 +2903,7 @@ import Testing
   }
 
   @Test func testBhvSerializationparam104DurationParameterIsTheProtobufForm() throws {
-    #expect(try ObjectSerializer.encodeDuration(3600) == "3600s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(3600)) == "3600s")
   }
 
   @Test func testBhvLangswift085AddressParameterIsTheTextUnchanged() {
@@ -2996,7 +3016,8 @@ import Testing
 
   /* A duration field of a model writes its fractional seconds in the wire form. */
   @Test func testBhvMisc090AModelDurationWritesItsFractionalSeconds() throws {
-    let text = try ObjectSerializer.serialize(EdgeCases(retryAfter: 3600.000001))
+    let text = try ObjectSerializer.serialize(
+      EdgeCases(retryAfter: .seconds(3600) + .microseconds(1)))
     #expect(text.contains("\"3600.000001s\""))
   }
 
@@ -3150,17 +3171,17 @@ import Testing
 
   /* A duration field with fractional seconds keeps its fraction when serialized. */
   @Test func testBhvMisc235ADurationWithFractionalSecondsKeepsItsFraction() throws {
-    #expect(try ObjectSerializer.encodeDuration(1.5) == "1.500s")
+    #expect(try ObjectSerializer.encodeDuration(.milliseconds(1500)) == "1.500s")
   }
 
   /* A duration with days is formatted as a duration string of whole seconds. */
   @Test func testBhvMisc248ADurationWithDaysIsFormattedAsADurationString() throws {
-    #expect(try ObjectSerializer.encodeDuration(172_800) == "172800s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(172_800)) == "172800s")
   }
 
   /* A negative whole-second duration string parses to a negative duration. */
   @Test func testBhvMisc246ANegativeWholeSecondDurationStringParsesToANegativeDuration() throws {
-    #expect(try ObjectSerializer.decodeDuration("-3s") == -3)
+    #expect(try ObjectSerializer.decodeDuration("-3s") == .seconds(-3))
   }
 
   /* An absent optional array field decodes to nil, not to an empty list. */
@@ -3323,14 +3344,14 @@ import Testing
 
   /* A duration is written as a protobuf seconds string: total seconds with days folded in, and a fraction only when it is non-zero. */
   @Test func testBhvSerialization086ADurationIsWrittenAsProtobufSeconds() throws {
-    #expect(try ObjectSerializer.encodeDuration(3600) == "3600s")
-    #expect(try ObjectSerializer.encodeDuration(2 * 86400 + 60) == "172860s")
-    #expect(try ObjectSerializer.encodeDuration(1.5) == "1.500s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(3600)) == "3600s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(2 * 86400 + 60)) == "172860s")
+    #expect(try ObjectSerializer.encodeDuration(.milliseconds(1500)) == "1.500s")
   }
 
   /* A very small or very precise duration is written as fixed-point decimal digits, never in scientific notation. */
   @Test func testBhvSerialization087AVerySmallDurationIsWrittenAsFixedPointDigits() throws {
-    let tiny = try ObjectSerializer.encodeDuration(0.000000001)
+    let tiny = try ObjectSerializer.encodeDuration(.nanoseconds(1))
 
     #expect(tiny == "0.000000001s")
     #expect(!tiny.contains("e"))
@@ -3447,8 +3468,8 @@ import Testing
 
   /* A protobuf duration string decodes into a duration value as a standalone value. */
   @Test func testBhvSerialization117AProtobufDurationStringDecodesToADuration() throws {
-    #expect(try ObjectSerializer.decodeDuration("1.5s") == 1.5)
-    #expect(try ObjectSerializer.decodeDuration("90s") == 90)
+    #expect(try ObjectSerializer.decodeDuration("1.5s") == .milliseconds(1500))
+    #expect(try ObjectSerializer.decodeDuration("90s") == .seconds(90))
   }
 
   /* A date-time query parameter keeps its full ISO-8601 time and offset rather than being cut to the date. */
@@ -3462,7 +3483,7 @@ import Testing
 
   /* A nanosecond-precision duration is written with a nine-digit fraction. */
   @Test func testBhvSerialization129ANanosecondDurationIsWrittenWithANineDigitFraction() throws {
-    #expect(try ObjectSerializer.encodeDuration(1.000000001) == "1.000000001s")
+    #expect(try ObjectSerializer.encodeDuration(.seconds(1) + .nanoseconds(1)) == "1.000000001s")
   }
 
   /* A failed serialize reports its detail under the canonical serialize message prefix. */

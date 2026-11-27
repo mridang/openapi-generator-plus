@@ -604,7 +604,7 @@ defmodule PetstoreClient.ValueSerializerTest do
                "2001:db8::1"
     end
 
-    test "bhv serializationparam 106 path with null style behaves like simple" do
+    test "bhv serializationparam 106 path with null style behaves like simple, and a decimal is written in plain notation" do
       null_style =
         PetstoreClient.ValueSerializer.serialize_styled(
           "id",
@@ -629,6 +629,22 @@ defmodule PetstoreClient.ValueSerializerTest do
 
       assert null_style == simple
       assert null_style == "hello%20world"
+
+      for {given, expected} <- [
+            {"1.50E+3", "1500"},
+            {"12.345678901234567890123", "12.345678901234567890123"}
+          ] do
+        assert PetstoreClient.ValueSerializer.serialize_styled(
+                 "amount",
+                 Decimal.new(given),
+                 :query,
+                 "Decimal.t()",
+                 nil,
+                 "form",
+                 true
+               ) ==
+                 expected
+      end
     end
 
     test "bhv langelixir 013 null style falls back to location-based serialization" do

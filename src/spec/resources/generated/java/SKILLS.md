@@ -393,6 +393,8 @@ class Transport {
 
 `maxRetries` (default `2`, `0` disables) retries a network error that happened before any response, and HTTP 408, 409, 429 and 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (seconds or an HTTP date, capped at 60 s). Retries share the single end-to-end `timeout` and never extend it, a thread interrupt cancels the wait, and a single-use `BodySource` is never retried.
 
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
 ### Streaming
 
 An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (try-with-resources). `readAllBytes()` reads the rest into memory and leaves the stream closed.

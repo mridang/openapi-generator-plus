@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Square is a model class generated from the OpenAPI schema.
@@ -88,37 +90,54 @@ func (o Square) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Square) UnmarshalJSON(data []byte) error {
-	type Alias Square
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "shapeType", "label", "side"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Square) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Square
+	seenShapeType := false
+	seenSide := false
+	err := readObject(dec, "Square", func(key string) error {
+		switch key {
+		case "shapeType":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'shapeType' must not be null in Square")
+			}
+			seenShapeType = true
+			return decodeValue(dec, &out.ShapeType)
+		case "label":
+			return decodeValue(dec, &out.Label)
+		case "side":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'side' must not be null in Square")
+			}
+			seenSide = true
+			return decodeValue(dec, &out.Side)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["shapeType"]; !ok {
+	if !seenShapeType {
 		/* A required property that carries a default (the synthetic discriminator
 		 * default, or a schema default) is satisfied by that default when absent. */
 		var defaultShapeType string = "Square"
-		aux.ShapeType = defaultShapeType
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'shapeType' must not be null in Square")
+		out.ShapeType = defaultShapeType
 	}
-	if rawVal, ok := raw["side"]; !ok {
+	if !seenSide {
 		return fmt.Errorf("required field 'side' is missing in Square")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'side' must not be null in Square")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = Square(*aux)
+	*o = out
 	return nil
 }

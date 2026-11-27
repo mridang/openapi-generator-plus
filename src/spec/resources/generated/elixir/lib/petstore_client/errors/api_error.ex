@@ -268,9 +268,12 @@ defmodule PetstoreClient.Errors.ApiError do
 
   @doc """
   Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other than 501,
-  the statuses the client itself retries. It looks at the status only.
+  the statuses the client itself retries. It looks at the status only, except
+  that a `ResponseTooLargeError` is never retryable: the same body would come back.
   """
   @spec retryable?(term()) :: boolean()
+  def retryable?(%PetstoreClient.Errors.ResponseTooLargeError{}), do: false
+
   def retryable?(%{status_code: status}) when is_integer(status),
     do: PetstoreClient.Api.BaseApi.retryable_status?(status)
 
@@ -380,7 +383,8 @@ defmodule PetstoreClient.Errors.ApiError do
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,
     PetstoreClient.Errors.NetworkTimeoutError,
-    PetstoreClient.Errors.StreamError
+    PetstoreClient.Errors.StreamError,
+    PetstoreClient.Errors.ResponseTooLargeError
   ]
 
   @doc """
@@ -414,7 +418,7 @@ defmodule PetstoreClient.Errors.ApiError do
   @doc """
   Returns `true` if `term` is an `ApiError` or one of the errors that
   specialise it (the 4xx and 5xx errors, the errors generated for a declared error schema,
-  `NetworkError`, `NetworkTimeoutError` and `StreamError`), `false` otherwise. Elixir exceptions have no
+  `NetworkError`, `NetworkTimeoutError`, `StreamError` and `ResponseTooLargeError`), `false` otherwise. Elixir exceptions have no
   inheritance, so this predicate expresses the hierarchy the other SDKs
   express with subclasses.
   """

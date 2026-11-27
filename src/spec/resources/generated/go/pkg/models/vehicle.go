@@ -83,37 +83,36 @@ func (o Vehicle) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *Vehicle) UnmarshalJSON(data []byte) error {
-	/* Use discriminator to determine type */
-	var disc struct {
-		VehicleType string `json:"vehicleType"`
-	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "vehicleType"), &disc); err != nil {
+	/* Read the discriminator from the top level of the object, matching its
+	 * key exactly, then decode the whole value as the variant it names. */
+	discriminator, err := readDiscriminator(data, "Vehicle", "vehicleType")
+	if err != nil {
 		return err
 	}
-	switch disc.VehicleType {
+	switch discriminator {
 	case "car":
 		var v Car
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := unmarshalValue(data, &v); err != nil {
 			return err
 		}
 		o.value = v
 		return nil
 	case "truck":
 		var v Truck
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := unmarshalValue(data, &v); err != nil {
 			return err
 		}
 		o.value = v
 		return nil
 	}
-	if disc.VehicleType == "" {
+	if discriminator == "" {
 		return fmt.Errorf("missing discriminator property %q for Vehicle", "vehicleType")
 	}
 	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
 	// previously returned nil silently, leaving the union uninitialized
 	// and producing a hard-to-debug `nil` downstream. Align by surfacing
 	// the error so callers see the malformed server response.
-	return fmt.Errorf("unknown discriminator value %q for Vehicle", disc.VehicleType)
+	return fmt.Errorf("unknown discriminator value %q for Vehicle", discriminator)
 }
 
 // ActualInstance returns the matched variant of the union type.

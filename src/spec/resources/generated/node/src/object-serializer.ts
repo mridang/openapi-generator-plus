@@ -10,6 +10,12 @@ import { plainToInstance, type ClassConstructor } from "class-transformer";
 import { Temporal } from "temporal-polyfill";
 import * as models from "./models/index.js";
 import { SerializationError } from "./errors/serialization-error.js";
+import {
+  type Decimal,
+  decimalFromText,
+  decimalText,
+  isDecimal,
+} from "./brand.js";
 
 /**
  * Number of nanoseconds in one second, as a BigInt, for exact
@@ -185,10 +191,10 @@ const JSON_NUMBER_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
  * 2.5 — Emit a `type: number` (no-format) Decimal field as an unquoted JSON
  * number while preserving its full textual precision.
  *
- * A Decimal is a branded string at runtime (arbitrary precision the IEEE-754
- * `number` type cannot hold), so letting JSON.stringify quote it would emit
- * a JSON string and a spec-conformant server validating `type: number` would
- * reject it. JSON.rawJSON (TC39 json-parse-with-source, Node >= 21 / V8 12.4)
+ * The text of a Decimal (or a numeric string a caller put in a plain
+ * request-body literal) holds digits the IEEE-754 `number` type cannot, so
+ * letting JSON.stringify quote it would emit a JSON string and a
+ * spec-conformant server validating `type: number` would reject it. JSON.rawJSON (TC39 json-parse-with-source, Node >= 21 / V8 12.4)
  * wraps already-valid JSON text so JSON.stringify writes it verbatim — and the
  * spec checks the [[IsRawJSON]] slot AFTER the replacer returns, so returning
  * this from the serialize replacer is honoured.
@@ -246,6 +252,32 @@ function decimalFieldNames(): ReadonlySet<string> {
 }
 
 /**
+ * Property names of every `type: string` decimal field across the generated
+ * models, the string-shaped counterpart of {@link decimalFieldNames}: a
+ * Decimal under one of these names in a plain request-body literal is written
+ * as a JSON string.
+ */
+let globalStringDecimalFields: ReadonlySet<string> | undefined;
+
+function stringDecimalFieldNames(): ReadonlySet<string> {
+  if (globalStringDecimalFields === undefined) {
+    const names = new Set<string>();
+    for (const exported of Object.values(models as Record<string, unknown>)) {
+      const fields = (
+        exported as { __stringDecimalFields?: unknown } | undefined
+      )?.__stringDecimalFields;
+      if (fields instanceof Set) {
+        for (const name of fields as Set<string>) {
+          names.add(name);
+        }
+      }
+    }
+    globalStringDecimalFields = names;
+  }
+  return globalStringDecimalFields;
+}
+
+/**
  * Property names of every `format: uuid` field across the generated models,
  * for plain-object request bodies (see {@link decimalFieldNames}). On such a
  * body a value is lowercased only when it already has the UUID shape, so a
@@ -297,6 +329,9 @@ function setElements(value: Set<unknown>): unknown[] {
   }
   if (elements.every((e) => typeof e === "boolean")) {
     return (elements as boolean[]).sort((a, b) => Number(a) - Number(b));
+  }
+  if (elements.every((e) => isDecimal(e))) {
+    return elements.sort((a, b) => (a as Decimal).comparedTo(b as Decimal));
   }
   return elements;
 }
@@ -661,14 +696,15 @@ function recordNumberSource(
 }
 
 /**
- * Decode a bare `type: number` field of a wire object into its Decimal text.
- * A JSON number keeps its exact source text (no float coercion); a quoted
- * string, an array, an object or a boolean is rejected. Used by the model
- * `@Transform` of such a field.
+ * Decode a bare `type: number` field of a wire object into a decimal.js
+ * Decimal. The Decimal is built from the number's exact source text, never
+ * from the double JSON.parse produced, and keeps the decimal places it was
+ * written with; a quoted string, an array, an object or a boolean is
+ * rejected. Used by the model `@Transform` of such a field.
  *
  * @param obj the wire object that holds the field
  * @param wireName the field's wire name
- * @returns the number's text, or the value itself when it is null or absent
+ * @returns the Decimal, or the value itself when it is null or absent
  * @throws SerializationError when the value is not a JSON number
  */
 export function decodePlainNumber(obj: unknown, wireName: string): unknown {
@@ -680,11 +716,17 @@ export function decodePlainNumber(obj: unknown, wireName: string): unknown {
     return raw;
   }
   if (typeof raw === "number") {
-    return (
+    const text =
       (obj as { [NUMBER_SOURCE_TEXT]?: Map<string, string> })[
         NUMBER_SOURCE_TEXT
-      ]?.get(wireName) ?? String(raw)
-    );
+      ]?.get(wireName) ?? String(raw);
+    const value = decimalFromText(text);
+    if (value === undefined) {
+      throw new SerializationError(
+        `Expected a JSON number for '${wireName}' but received ${text}`,
+      );
+    }
+    return value;
   }
   throw new SerializationError(
     `Expected a JSON number for '${wireName}' but received ${typeof raw === "string" ? "a quoted string" : typeof raw}`,
@@ -692,21 +734,32 @@ export function decodePlainNumber(obj: unknown, wireName: string): unknown {
 }
 
 /**
- * Read a `type: string` decimal field from the wire object. The value must be a JSON
- * string, which is kept as it is; a bare JSON number is not a string and is refused.
+ * Read a `type: string` decimal field from the wire object into a decimal.js
+ * Decimal. The value must be a JSON string holding a plain decimal number
+ * (digits, an optional minus and an optional fraction); a bare JSON number is
+ * not a string and is refused, and so is text that is not a decimal number.
  *
  * @param obj the wire object that holds the field
  * @param wireName the field's wire name
- * @returns the string, or the value itself when it is null or absent
- * @throws SerializationError when the value is not a JSON string
+ * @returns the Decimal, or the value itself when it is null or absent
+ * @throws SerializationError when the value is not a JSON string holding a decimal number
  */
 export function decodeStringDecimal(obj: unknown, wireName: string): unknown {
   if (obj === null || typeof obj !== "object") {
     return undefined;
   }
   const raw = (obj as Record<string, unknown>)[wireName];
-  if (raw === null || raw === undefined || typeof raw === "string") {
+  if (raw === null || raw === undefined) {
     return raw;
+  }
+  if (typeof raw === "string") {
+    const value = decimalFromText(raw, true);
+    if (value === undefined) {
+      throw new SerializationError(
+        `Expected a decimal number in the JSON string '${wireName}' but received ${JSON.stringify(raw)}`,
+      );
+    }
+    return value;
   }
   throw new SerializationError(
     `Expected a JSON string for '${wireName}' but received ${typeof raw === "number" ? "a bare number" : typeof raw}`,
@@ -759,6 +812,63 @@ export function plainDate(value: unknown, name = "date"): string {
   throw new TypeError(
     `${name} must be a YYYY-MM-DD date, got ${typeof value === "string" ? JSON.stringify(value) : String(value)}`,
   );
+}
+
+const IPV4_ADDRESS =
+  /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$/;
+
+/**
+ * Whether a `format: ipv4` value is exactly a dotted decimal address: four
+ * parts from 0 to 255 with no leading zero. The value stays a string, because
+ * the standard library has no address type.
+ *
+ * @param text the text to check
+ * @returns true for an IPv4 address
+ */
+export function isIpv4Address(text: string): boolean {
+  return IPV4_ADDRESS.test(text);
+}
+
+/**
+ * Whether a `format: ipv6` value is exactly an IPv6 address in any RFC 4291
+ * text form: hexadecimal groups of up to four digits, at most one `::` and an
+ * optional trailing dotted IPv4 part. A zone id, brackets, a prefix length or
+ * whitespace is refused.
+ *
+ * @param text the text to check
+ * @returns true for an IPv6 address
+ */
+export function isIpv6Address(text: string): boolean {
+  if (!/^[0-9A-Fa-f:.]+$/.test(text)) {
+    return false;
+  }
+  const gap = text.indexOf("::");
+  if (gap >= 0 && text.indexOf("::", gap + 1) >= 0) {
+    return false;
+  }
+  const halves = gap >= 0 ? [text.slice(0, gap), text.slice(gap + 2)] : [text];
+  let groups = 0;
+  for (let half = 0; half < halves.length; half++) {
+    if (halves[half] === "") {
+      continue;
+    }
+    const parts = halves[half].split(":");
+    for (let index = 0; index < parts.length; index++) {
+      const part = parts[index];
+      const last = half === halves.length - 1 && index === parts.length - 1;
+      if (part.includes(".")) {
+        if (!last || !isIpv4Address(part)) {
+          return false;
+        }
+        groups += 2;
+      } else if (part === "" || part.length > 4) {
+        return false;
+      } else {
+        groups += 1;
+      }
+    }
+  }
+  return gap >= 0 ? groups <= 7 : groups === 8;
 }
 
 /**
@@ -929,8 +1039,8 @@ export class ObjectSerializer {
         if (isTemporalValue(this[_key], "Duration"))
           return durationToProtoJson(this[_key] as Temporal.Duration);
         /**
-         * 2.5 — `type: number` (no format) Decimal field. The model holds it
-         * as a precision-preserving string; emit it unquoted as a JSON number
+         * 2.5 — a numeric string in a `type: number` Decimal field (a plain
+         * request-body literal may hold one in place of a Decimal); emit it unquoted as a JSON number
          * (via JSON.rawJSON) so a spec-conformant server sees a number, not a
          * quoted string. The owning model registers its no-format numeric
          * fields by property name in a static `__decimalFields` set; consult
@@ -947,6 +1057,36 @@ export class ObjectSerializer {
          * instance, so a free-form value never changes JSON type.
          */
         const propKey = propertyNameOf(this, _key);
+        /**
+         * A decimal.js Decimal. Its toJSON has already turned it into text that
+         * may carry an exponent, so read the original from the holder and write
+         * it in plain notation with every digit: as a JSON string for a
+         * `type: string` decimal field, and as a bare JSON number (through
+         * JSON.rawJSON) everywhere else. The string-shaped fields are named in
+         * the holder's `__stringDecimalFields`, or for a plain request-body
+         * literal in the registry built from every model's set.
+         */
+        const original = (this as Record<string, unknown>)[_key];
+        if (isDecimal(original)) {
+          if (!original.isFinite()) {
+            throw new SerializationError(
+              `Non-finite decimal ${original.toString()} is not permitted by RFC 8259 (JSON has no NaN or Infinity).`,
+            );
+          }
+          const text = decimalText(original);
+          const stringCtor = (this as { constructor?: unknown }).constructor as
+            { __stringDecimalFields?: ReadonlySet<string> } | undefined;
+          const ownStrings =
+            stringCtor && stringCtor.__stringDecimalFields instanceof Set
+              ? stringCtor.__stringDecimalFields
+              : undefined;
+          const quoted = ownStrings
+            ? ownStrings.has(propKey)
+            : !Array.isArray(this) &&
+              !underModel.has(this as unknown as object) &&
+              stringDecimalFieldNames().has(propKey);
+          return quoted ? text : rawDecimal(text);
+        }
         if (typeof value === "string") {
           const ctor = (this as { constructor?: unknown }).constructor as
             { __decimalFields?: ReadonlySet<string> } | undefined;
@@ -1598,6 +1738,11 @@ export class ObjectSerializer {
     }
     if (isTemporalValue(value, "Duration")) {
       return durationToProtoJson(value as Temporal.Duration);
+    }
+    /* A Decimal is written in plain notation with every digit, never with
+     * the exponent its toString switches to. */
+    if (isDecimal(value)) {
+      return decimalText(value);
     }
     return String(value);
   }

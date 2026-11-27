@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // StrictTag is a model class generated from the OpenAPI schema.
@@ -83,32 +85,33 @@ func (o StrictTag) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-// reject any JSON key not declared in the schema instead of silently dropping it.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *StrictTag) UnmarshalJSON(data []byte) error {
-	type Alias StrictTag
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name"), aux); err != nil {
-		return err
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	knownFields := map[string]bool{
-		"id":   true,
-		"name": true,
-	}
-	for key := range raw {
-		if !knownFields[key] {
-			return fmt.Errorf("unknown property '%s' on StrictTag (unevaluatedProperties:false)", key)
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is rejected (unevaluatedProperties:false).
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *StrictTag) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out StrictTag
+	err := readObject(dec, "StrictTag", func(key string) error {
+		switch key {
+		case "id":
+			return decodeValue(dec, &out.Id)
+		case "name":
+			return decodeValue(dec, &out.Name)
 		}
+		return fmt.Errorf("unknown property '%s' on StrictTag (unevaluatedProperties:false)", key)
+	})
+	if err != nil {
+		return err
 	}
-	// Gap AJ: encoding/json silently zero-inits required fields when the
-	// value is null or missing. Reject both for required non-nullable fields
-	// so a malformed server response surfaces at the deserialize call,
-	// consistent with the other model branches and the other SDKs.
-	*o = StrictTag(*aux)
+	*o = out
 	return nil
 }

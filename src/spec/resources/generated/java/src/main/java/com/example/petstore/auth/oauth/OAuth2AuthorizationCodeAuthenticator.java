@@ -239,6 +239,17 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param code the authorization code from the callback
    */
   public void exchangeCode(String code) {
+    exchangeCode(code, null);
+  }
+
+  /**
+   * Exchange an authorization code, handing the response's id_token to a check before the session
+   * is replaced. OpenID Connect uses this.
+   *
+   * @param code the authorization code from the callback
+   * @param idTokenCheck a check of the id_token, or null for none
+   */
+  void exchangeCode(String code, @Nullable java.util.function.Consumer<String> idTokenCheck) {
     /* RFC 6749 §4.1.3: the authorization code is a required parameter of
      * the token request. Reject an empty/whitespace code before the POST
      * so the caller sees a clear precondition error rather than a confusing
@@ -261,7 +272,7 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     /* RFC 6749 section 4.1.3: every exchange sends its code. exchange()
      * bypasses the token cache and the refresh grant, replaces the session
      * on success and keeps the previous one on failure. */
-    tokenManager.exchange(tokenUrl, params, Collections.emptyMap());
+    tokenManager.exchange(tokenUrl, params, Collections.emptyMap(), idTokenCheck);
   }
 
   /**

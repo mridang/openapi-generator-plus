@@ -897,7 +897,7 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
           "amount",
           options.amount,
           "query",
-          "number",
+          "Decimal",
           null,
           "form",
           true,

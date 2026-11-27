@@ -15,6 +15,7 @@ import type {
 import { ApiError } from "./errors/index.js";
 import { NetworkError } from "./errors/network-error.js";
 import { NetworkTimeoutError } from "./errors/network-timeout-error.js";
+import { ResponseTooLargeError } from "./errors/response-too-large-error.js";
 import { StreamError } from "./errors/stream-error.js";
 import type { ApiHttpResponse } from "./api-http-response.js";
 import { ApiStreamResponse } from "./api-stream-response.js";
@@ -1070,8 +1071,27 @@ export abstract class AbstractApiClient implements ApiClient {
     const contentEncoding = (response.headers.get("content-encoding") ?? "")
       .trim()
       .toLowerCase();
+    const maxResponseBytes = this.transportOptions.maxResponseBytes;
+    const tooLarge = (): ResponseTooLargeError =>
+      new ResponseTooLargeError(
+        maxResponseBytes ?? 0,
+        response.status,
+        AbstractApiClient.collectHeaders(response),
+        {
+          requestMethod: method,
+          requestPath: AbstractApiClient.requestPathOf(url),
+        },
+      );
     try {
-      responseBytes = Buffer.from(await response.arrayBuffer());
+      responseBytes =
+        maxResponseBytes == null
+          ? Buffer.from(await response.arrayBuffer())
+          : await AbstractApiClient.readLimited(
+              response,
+              method,
+              maxResponseBytes,
+              tooLarge,
+            );
       /* Gap AL: a server may advertise `Content-Encoding: gzip` (etc.) but
        * send a body that is not a valid stream for that codec (a truncated
        * or non-gzip payload). The fetch layer decodes Content-Encoding
@@ -1088,6 +1108,9 @@ export abstract class AbstractApiClient implements ApiClient {
         contentEncoding,
         response.status,
         AbstractApiClient.collectHeaders(response),
+        maxResponseBytes == null
+          ? undefined
+          : { limit: maxResponseBytes, tooLarge },
       );
     } catch (error) {
       if (AbstractApiClient.isCallerAbort(error, callerSignal)) {
@@ -1593,6 +1616,75 @@ export abstract class AbstractApiClient implements ApiClient {
     return response;
   }
 
+  /**
+   * Read a buffered body with a byte limit (D138). A declared `Content-Length`
+   * over the limit fails before any byte is read; otherwise the body is read
+   * chunk by chunk and the read stops as soon as the running count passes the
+   * limit. The fetch layer decodes a compressed body as it is read, so the
+   * chunks are the decompressed bytes and an inflating body is cut off after
+   * at most one chunk past the limit. On failure the body is cancelled, which
+   * drops the connection instead of draining it.
+   *
+   * @param response the response whose body is read
+   * @param method the HTTP method of the request
+   * @param limit the largest body in bytes
+   * @param tooLarge builds the error raised when the body passes the limit
+   * @returns the body bytes
+   */
+  private static async readLimited(
+    response: Response,
+    method: string,
+    limit: number,
+    tooLarge: () => ResponseTooLargeError,
+  ): Promise<Buffer> {
+    const declared = Number(response.headers.get("content-length"));
+    const hasBody =
+      method.toUpperCase() !== "HEAD" &&
+      response.status !== 204 &&
+      response.status !== 304;
+    if (hasBody && Number.isInteger(declared) && declared > limit) {
+      AbstractApiClient.discardBody(response);
+      throw tooLarge();
+    }
+    return AbstractApiClient.readStreamLimited(response.body, limit, tooLarge);
+  }
+
+  /**
+   * Collect a byte stream, failing as soon as the running count passes the
+   * limit; the stream is cancelled then, so nothing past the limit is read or
+   * decompressed.
+   *
+   * @param stream the stream to collect, or null for an empty body
+   * @param limit the largest total in bytes
+   * @param tooLarge builds the error raised when the total passes the limit
+   * @returns the collected bytes
+   */
+  private static async readStreamLimited(
+    stream: ReadableStream<Uint8Array> | null,
+    limit: number,
+    tooLarge: () => ResponseTooLargeError,
+  ): Promise<Buffer> {
+    if (stream == null) {
+      return Buffer.alloc(0);
+    }
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      total += value.byteLength;
+      if (total > limit) {
+        reader.cancel().catch(() => undefined);
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks, total);
+  }
+
   /** The response headers as a lower-cased map, with Set-Cookie joined from getSetCookie(). */
   static collectHeaders(response: Response): Record<string, string> {
     const responseHeaders: Record<string, string> = {};
@@ -1630,6 +1722,9 @@ export abstract class AbstractApiClient implements ApiClient {
    * @param buf the raw response bytes as read from the body
    * @param contentEncoding the lower-cased `Content-Encoding` header value
    * @param statusCode the status of the response the bytes arrived with
+   * @param responseHeaders the lower-cased response headers, for the error
+   * @param cap the `maxResponseBytes` limit on the decoded bytes and the error
+   *   raised when they pass it, or undefined for no limit
    * @returns the decoded bytes (or `buf` unchanged when no decode is needed)
    * @throws ApiError carrying `statusCode` when the declared encoding cannot
    *   be decoded
@@ -1638,14 +1733,41 @@ export abstract class AbstractApiClient implements ApiClient {
    * Decodes one zstd frame. The Node transport installs it from `node:zlib`; the
    * portable base leaves it null, which also keeps `zstd` out of the supported codings.
    */
-  static zstdDecoder: ((buf: Buffer) => Promise<Buffer>) | null = null;
+  static zstdDecoder:
+    ((buf: Buffer, maxOutputLength?: number) => Promise<Buffer>) | null = null;
 
   static async ensureDecoded(
     buf: Buffer,
     contentEncoding: string,
     statusCode = 0,
     responseHeaders: Record<string, string> | null = null,
+    cap?: { readonly limit: number; readonly tooLarge: () => ApiError },
   ): Promise<Buffer> {
+    /* The decoded bytes are capped like the received ones: decompression is
+     * read chunk by chunk and stops as soon as the output passes the limit. */
+    const collect = async (
+      stream: ReadableStream<Uint8Array>,
+    ): Promise<Buffer> => {
+      if (cap == null) {
+        return Buffer.from(await new Response(stream).arrayBuffer());
+      }
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        total += value.byteLength;
+        if (total > cap.limit) {
+          reader.cancel().catch(() => undefined);
+          throw cap.tooLarge();
+        }
+        chunks.push(value);
+      }
+      return Buffer.concat(chunks, total);
+    };
     if (contentEncoding === "" || contentEncoding === "identity") {
       return buf;
     }
@@ -1684,9 +1806,11 @@ export abstract class AbstractApiClient implements ApiClient {
           const stream = new Blob([buf])
             .stream()
             .pipeThrough(new DecompressionStream("gzip"));
-          const decoded = await new Response(stream).arrayBuffer();
-          return Buffer.from(decoded);
+          return await collect(stream);
         } catch (error) {
+          if (error instanceof ApiError) {
+            throw error;
+          }
           throw new ApiError(
             statusCode,
             `Failed to decompress ${contentEncoding} response body: ` +
@@ -1710,8 +1834,11 @@ export abstract class AbstractApiClient implements ApiClient {
           const stream = new Blob([buf])
             .stream()
             .pipeThrough(new DecompressionStream("deflate"));
-          return Buffer.from(await new Response(stream).arrayBuffer());
+          return await collect(stream);
         } catch (error) {
+          if (error instanceof ApiError) {
+            throw error;
+          }
           throw new ApiError(
             statusCode,
             "Failed to decompress deflate response body: " +
@@ -1733,9 +1860,22 @@ export abstract class AbstractApiClient implements ApiClient {
         buf[2] === 0x2f &&
         buf[3] === 0xfd
       ) {
+        let decoded: Buffer;
         try {
-          return await AbstractApiClient.zstdDecoder(buf);
+          /* One byte past the limit is enough to know it was passed; the
+           * decoder stops there instead of inflating the whole frame. */
+          decoded = await AbstractApiClient.zstdDecoder(
+            buf,
+            cap == null ? undefined : cap.limit + 1,
+          );
         } catch (error) {
+          if (
+            cap != null &&
+            (error as { code?: unknown } | null)?.code ===
+              "ERR_BUFFER_TOO_LARGE"
+          ) {
+            throw cap.tooLarge();
+          }
           throw new ApiError(
             statusCode,
             "Failed to decompress zstd response body: " +
@@ -1746,6 +1886,10 @@ export abstract class AbstractApiClient implements ApiClient {
             { cause: error },
           );
         }
+        if (cap != null && decoded.length > cap.limit) {
+          throw cap.tooLarge();
+        }
+        return decoded;
       }
     }
     return buf;

@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Reservation is a model class generated from the OpenAPI schema.
@@ -76,34 +78,49 @@ func (o Reservation) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Reservation) UnmarshalJSON(data []byte) error {
-	type Alias Reservation
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "reservationId", "quantity"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Reservation) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Reservation
+	seenReservationId := false
+	seenQuantity := false
+	err := readObject(dec, "Reservation", func(key string) error {
+		switch key {
+		case "reservationId":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'reservationId' must not be null in Reservation")
+			}
+			seenReservationId = true
+			return decodeValue(dec, &out.ReservationId)
+		case "quantity":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'quantity' must not be null in Reservation")
+			}
+			seenQuantity = true
+			return decodeValue(dec, &out.Quantity)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["reservationId"]; !ok {
+	if !seenReservationId {
 		return fmt.Errorf("required field 'reservationId' is missing in Reservation")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'reservationId' must not be null in Reservation")
 	}
-	if rawVal, ok := raw["quantity"]; !ok {
+	if !seenQuantity {
 		return fmt.Errorf("required field 'quantity' is missing in Reservation")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'quantity' must not be null in Reservation")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = Reservation(*aux)
+	*o = out
 	return nil
 }

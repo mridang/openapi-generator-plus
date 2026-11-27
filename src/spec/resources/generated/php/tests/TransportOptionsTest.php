@@ -56,9 +56,9 @@ test('bhv options 032 proxy defaults to null', function (): void {
 });
 
 test('bhv options 038 timeout defaults to ten seconds', function (): void {
-    // Per fix #27: default request timeout is 10000ms (10 seconds).
+    // Per fix #27: default request timeout is 60000ms (60 seconds).
     $opts = TransportOptions::builder()->build();
-    expect($opts->timeout)->toBe(10000);
+    expect($opts->timeout)->toBe(60000);
 });
 
 test('bhv options 037 timeout can be set to null for no timeout', function (): void {
@@ -384,9 +384,9 @@ test('bhv options 013 an invalid proxy url is rejected at build, not in the sett
     expect(fn () => $builder->build())->toThrow(\InvalidArgumentException::class);
 });
 
-test('bhv options 039 timeout defaults to 10000 milliseconds', function (): void {
+test('bhv options 039 timeout defaults to 60000 milliseconds', function (): void {
     $opts = TransportOptions::builder()->build();
-    expect($opts->timeout)->toBe(10000);
+    expect($opts->timeout)->toBe(60000);
 });
 
 test('bhv misc 026 a configuration mistake raises an error that is not an api error', function (): void {
@@ -442,4 +442,14 @@ test('bhv misc 180 the printable form shows non sensitive default header values 
 test('bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error', function (): void {
     expect(fn () => TransportOptions::builder()->timeout(0)->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+});
+
+test('bhv options 069 maxResponseBytes defaults to no limit, round trips through the builder and refuses zero and a negative value', function (): void {
+    expect(TransportOptions::builder()->build()->maxResponseBytes)->toBeNull();
+    expect(TransportOptions::builder()->maxResponseBytes(1024)->build()->maxResponseBytes)->toBe(1024);
+    expect(print_r(TransportOptions::builder()->maxResponseBytes(2048)->build(), true))->toContain('[maxResponseBytes] => 2048');
+    expect(fn () => TransportOptions::builder()->maxResponseBytes(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)');
+    expect(fn () => TransportOptions::builder()->maxResponseBytes(-5)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxResponseBytes: must be a positive number of bytes (got -5)');
 });

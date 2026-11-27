@@ -2415,6 +2415,14 @@ describe Petstore::Client::ObjectSerializer do
       _(encode(decode(%({"amount":#{digits}})))).must_equal(%({"amount":#{digits}}))
     end
 
+    it 'bhv_serializationobject_413 reads a number or string decimal field as the exact BigDecimal' do
+      values = decode('{"amount":0.1,"ledger":"0.2"}')
+
+      _(values.amount).must_be_instance_of(BigDecimal)
+      _(values.ledger).must_be_instance_of(BigDecimal)
+      _(values.amount + values.ledger).must_equal(BigDecimal('0.3'))
+    end
+
     it 'bhv_langruby_063 keeps a free-form number a Float' do
       value = Petstore::Client::ObjectSerializer.deserialize('{"x":[1.5]}', 'Object')
 

@@ -23,10 +23,10 @@ class NativeValues {
   final String? homepage;
 
   /// Example: `12.345678901234567`
-  final double? amount;
+  final Decimal? amount;
 
   /// Example: `12.50`
-  final double? ledger;
+  final Decimal? ledger;
 
   /// Example: `3600s`
   final Duration? wait;
@@ -57,21 +57,28 @@ class NativeValues {
   factory NativeValues.fromJson(Map<String, dynamic> json) {
     try {
       return NativeValues(
-        address4: json['address4'] as String?,
+        address4: json['address4'] != null
+            ? parseIpv4Address(json['address4'] as String)
+            : null,
 
-        address6: json['address6'] as String?,
+        address6: json['address6'] != null
+            ? parseIpv6Address(json['address6'] as String)
+            : null,
 
         addresses: json['addresses'] != null
-            ? deserializeArray(json['addresses'] as List, (e) => e as String)
+            ? deserializeArray(
+                json['addresses'] as List,
+                (e) => parseIpv6Address(e as String),
+              )
             : null,
 
         homepage: json['homepage'] != null
             ? parseUri(json['homepage'] as String)
             : null,
 
-        amount: readDoubleOrNull(json['amount']),
+        amount: readDecimalOrNull(json, 'amount'),
 
-        ledger: json['ledger'] as double?,
+        ledger: parseDecimalStringOrNull(json['ledger']),
 
         wait: json['wait'] != null
             ? parseProtobufDuration(json['wait'] as String)
@@ -109,7 +116,7 @@ class NativeValues {
       json['amount'] = amount;
     }
     if (ledger != null) {
-      json['ledger'] = ledger;
+      json['ledger'] = ledger?.toString();
     }
     if (wait != null) {
       json['wait'] = formatProtobufDuration(wait!);
@@ -148,8 +155,8 @@ class NativeValues {
       address6: copyField<String>(address6, this.address6),
       addresses: copyField<List<String>>(addresses, this.addresses),
       homepage: copyField<String>(homepage, this.homepage),
-      amount: copyField<double>(amount, this.amount),
-      ledger: copyField<double>(ledger, this.ledger),
+      amount: copyField<Decimal>(amount, this.amount),
+      ledger: copyField<Decimal>(ledger, this.ledger),
       wait: copyField<Duration>(wait, this.wait),
       since: copyField<DateTime>(since, this.since),
       host: copyField<String>(host, this.host),

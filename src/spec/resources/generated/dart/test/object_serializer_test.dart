@@ -4303,6 +4303,36 @@ void main() {
       );
 
       test(
+        'bhv serializationobject 407 a malformed ipv4 or ipv6 address fails the decode',
+        () {
+          for (final entry in <List<Object>>[
+            ['address4', '01.2.3.4'],
+            ['address4', '192.0.2.1/24'],
+            ['address4', ' 192.0.2.1'],
+            ['address4', '[::1]'],
+            ['address4', '2001:db8::1'],
+            ['address6', 'fe80::1%eth0'],
+            ['address6', '[::1]'],
+            ['address6', '2001:db8::/64'],
+            ['address6', ' ::1'],
+            ['address6', '192.0.2.1'],
+            [
+              'addresses',
+              ['1:2:3:4:5:6:7:8:9'],
+            ],
+          ]) {
+            final json = jsonEncode({entry[0] as String: entry[1]});
+
+            expect(
+              () => decode(json),
+              throwsA(isA<SerializationException>()),
+              reason: json,
+            );
+          }
+        },
+      );
+
+      test(
         'bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte',
         () {
           for (final text in [
@@ -4328,6 +4358,56 @@ void main() {
           const json = '{"host":"not a host!","contact":"x@"}';
 
           expect(serialize(decode(json)), equals(json));
+        },
+      );
+
+      test(
+        'bhv serializationobject 410 a number keeps every digit and is written in plain notation',
+        () {
+          const json = '{"amount":12.345678901234567890123}';
+          final values = decode(json);
+
+          expect(
+            values.amount,
+            equals(Decimal.parse('12.345678901234567890123')),
+          );
+          expect(serialize(values), equals(json));
+        },
+      );
+
+      test(
+        'bhv serializationobject 411 a string decimal is written as a JSON string and rejects a bare number',
+        () {
+          final values = decode('{"ledger":"12.50"}');
+
+          expect(values.ledger, equals(Decimal.parse('12.50')));
+          expect(serialize(values), equals('{"ledger":"12.5"}'));
+          expect(
+            () => decode('{"ledger":12.50}'),
+            throwsA(isA<SerializationException>()),
+          );
+        },
+      );
+
+      test(
+        'bhv serializationobject 412 a forty digit number is exact and never rounded',
+        () {
+          const digits = '1234567890123456789012345678901234567890';
+          final values = decode('{"amount":$digits}');
+
+          expect(values.amount, equals(Decimal.parse(digits)));
+          expect(serialize(values), equals('{"amount":$digits}'));
+        },
+      );
+
+      test(
+        'bhv serializationobject 413 a decimal field of either shape is the exact Decimal and never a double',
+        () {
+          final values = decode('{"amount":0.1,"ledger":"0.2"}');
+
+          expect(values.amount, isA<Decimal>());
+          expect(values.ledger, isA<Decimal>());
+          expect(values.amount! + values.ledger!, equals(Decimal.parse('0.3')));
         },
       );
     });

@@ -34,9 +34,9 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.proxy == nil
   end
 
-  test "bhv options 038 timeout defaults to 10_000 ms" do
+  test "bhv options 038 timeout defaults to 60_000 ms" do
     opts = PetstoreClient.TransportOptions.new()
-    assert opts.timeout == 10_000
+    assert opts.timeout == 60_000
   end
 
   test "bhv options 020 follow_redirects defaults to true" do
@@ -175,6 +175,23 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert_raise ArgumentError,
                  "Invalid timeout: must be a positive number of milliseconds (got -5)",
                  fn -> PetstoreClient.TransportOptions.new(timeout: -5) end
+  end
+
+  test "bhv options 069 max_response_bytes defaults to none, keeps a positive value and refuses the rest" do
+    assert PetstoreClient.TransportOptions.new().max_response_bytes == nil
+
+    assert PetstoreClient.TransportOptions.new(max_response_bytes: 1024).max_response_bytes ==
+             1024
+
+    for bad <- [0, -1] do
+      err =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.TransportOptions.new(max_response_bytes: bad)
+        end
+
+      assert err.message ==
+               "Invalid maxResponseBytes: must be a positive number of bytes (got #{bad})"
+    end
   end
 
   test "bhv options 051 a proxy URL with a scheme other than http or https is rejected" do
@@ -326,10 +343,10 @@ defmodule PetstoreClient.TransportOptionsTest do
 
   # TimeoutConfigTests
 
-  test "bhv options 039 timeout defaults to 10_000 ms in timeout group" do
-    # Default TransportOptions sets a 10-second timeout to prevent hanging requests.
+  test "bhv options 039 timeout defaults to 60_000 ms in timeout group" do
+    # Default TransportOptions sets a 60-second timeout to prevent hanging requests.
     opts = PetstoreClient.TransportOptions.new()
-    assert opts.timeout == 10_000
+    assert opts.timeout == 60_000
   end
 
   test "bhv options 036 setting timeout to 5000 is accessible" do

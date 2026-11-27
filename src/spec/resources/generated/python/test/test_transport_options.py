@@ -29,7 +29,7 @@ class TestTransportOptions:
 
     def test_bhv_options_038_timeout_defaults_to_ten_seconds(self) -> None:
         opts = TransportOptions.builder().build()
-        assert opts.timeout == 10000
+        assert opts.timeout == 60000
 
     def test_bhv_options_020_follow_redirects_defaults_to_true(self) -> None:
         opts = TransportOptions.builder().build()
@@ -312,9 +312,9 @@ class TestTransportOptions:
     def test_bhv_options_039_timeout_defaults_to_ten_seconds_in_timeout_group(
         self,
     ) -> None:
-        # Default TransportOptions has a 10s end-to-end timeout.
+        # Default TransportOptions has a 60s end-to-end timeout.
         opts = TransportOptions.builder().build()
-        assert opts.timeout == 10000
+        assert opts.timeout == 60000
 
     def test_bhv_options_037_timeout_can_be_explicitly_disabled(self) -> None:
         opts = TransportOptions.builder().timeout(None).build()
@@ -527,6 +527,30 @@ class TestTransportOptionsBehaviours:
         opts = TransportOptions.builder().max_retries(3).build()
 
         assert "max_retries=3" in repr(opts)
+
+    def test_bhv_options_069_max_response_bytes_defaults_to_none(self) -> None:
+        assert TransportOptions.builder().build().max_response_bytes is None
+        assert TransportOptions().max_response_bytes is None
+
+    def test_bhv_options_069_a_positive_max_response_bytes_round_trips_through_the_builder(
+        self,
+    ) -> None:
+        opts = TransportOptions.builder().max_response_bytes(1024).build()
+
+        assert opts.max_response_bytes == 1024
+        assert "max_response_bytes=1024" in repr(opts)
+
+    @pytest.mark.parametrize("value", [0, -1])
+    def test_bhv_options_069_a_non_positive_max_response_bytes_is_refused_with_the_canonical_message(
+        self, value: int
+    ) -> None:
+        message = f"Invalid maxResponseBytes: must be a positive number of bytes (got {value})"
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().max_response_bytes(value)
+        assert str(exc_info.value) == message
+        with pytest.raises(ValueError) as direct:
+            TransportOptions(max_response_bytes=value)
+        assert str(direct.value) == message
 
     def test_bhv_transport_080_a_proxy_the_client_cannot_apply_fails_construction(
         self,

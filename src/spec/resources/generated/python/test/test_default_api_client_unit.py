@@ -33,6 +33,7 @@ from petstore_client.errors import (
     ApiException,
     NetworkException,
     NetworkTimeoutException,
+    ResponseTooLargeException,
     StreamException,
 )
 from petstore_client.transport_options import TransportOptions
@@ -3565,6 +3566,36 @@ class TestRetryPolicy:
 
         assert 0 < pool.timeout.total <= 5
 
+    def test_bhv_transport_094_a_per_call_deadline_bounds_the_whole_call_so_a_trickling_body_times_out_within_the_budget(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(
+                200, "Content-Type: application/octet-stream", "Content-Length: 100000"
+            )
+            for _ in range(300):
+                if connection.server.release.wait(0.1):
+                    return
+                connection.send(b"x")
+
+        server = raw_server(script)
+        client = DefaultApiClient(TransportOptions.builder().timeout(60000).build())
+
+        started = time.monotonic()
+        with pytest.raises(NetworkTimeoutException) as raised:
+            client.send_request(
+                "GET",
+                server.url("/items/blob"),
+                {},
+                None,
+                deadline=time.monotonic() + 0.5,
+            )
+
+        assert type(raised.value) is NetworkTimeoutException
+        assert time.monotonic() - started < 3, (
+            "the trickling body held the call past its deadline"
+        )
+
     def test_bhv_misc_169_the_backoff_starts_at_half_a_second_and_doubles_up_to_eight(
         self,
     ) -> None:
@@ -3664,6 +3695,74 @@ class TestTransportBehaviours:
         assert method == "GET"
         assert url == "https://api.example.test/v1/items?limit=2"
         assert kwargs["headers"]["X-Caller"] == "a"
+
+    def test_bhv_transport_095_a_body_past_max_response_bytes_raises_response_too_large(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(
+                200, "Content-Type: text/plain", "Transfer-Encoding: chunked"
+            )
+            connection.chunk(b"x" * 4096)
+            connection.end()
+
+        server = raw_server(script)
+        client = DefaultApiClient(
+            TransportOptions.builder().max_response_bytes(1024).build()
+        )
+
+        with pytest.raises(ResponseTooLargeException) as raised:
+            client.send_request("GET", server.url("/items/blob"), {}, None)
+
+        assert type(raised.value) is ResponseTooLargeException
+        assert raised.value.status_code == 200
+        assert raised.value.limit == 1024
+        assert raised.value.message == "Response body exceeds the limit of 1024 bytes"
+
+    def test_bhv_transport_095_the_same_body_without_a_limit_is_returned_whole(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(
+                200, "Content-Type: text/plain", "Transfer-Encoding: chunked"
+            )
+            connection.chunk(b"x" * 4096)
+            connection.end()
+
+        server = raw_server(script)
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        response = client.send_request("GET", server.url("/items/blob"), {}, None)
+
+        assert response.status_code == 200
+        assert response.body == "x" * 4096
+
+    def test_bhv_transport_096_a_small_gzip_body_that_inflates_past_max_response_bytes_raises_response_too_large(
+        self, raw_server: Any
+    ) -> None:
+        payload = gzip.compress(bytes(100000))
+        assert len(payload) < 1024
+
+        def script(connection: Any) -> None:
+            connection.head(
+                200,
+                "Content-Type: text/plain",
+                "Content-Encoding: gzip",
+                f"Content-Length: {len(payload)}",
+            )
+            connection.send(payload)
+
+        server = raw_server(script)
+        client = DefaultApiClient(
+            TransportOptions.builder().max_response_bytes(1024).build()
+        )
+
+        with pytest.raises(ResponseTooLargeException) as raised:
+            client.send_request("GET", server.url("/items/blob"), {}, None)
+
+        assert type(raised.value) is ResponseTooLargeException
+        assert raised.value.status_code == 200
+        assert raised.value.limit == 1024
 
 
 class TestRelativeRedirectTargets:

@@ -23,6 +23,7 @@ import (
 
 	"cloud.google.com/go/civil"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	"fmt"
 	apierrors "petstore/pkg/errors"
@@ -55,7 +56,7 @@ func TestBhvSerializationparam104_ObjectSerializer_EncodesContentCookieAndDurati
 		}
 	})
 	t.Run("stringifyDurationIsTheProtobufForm", func(t *testing.T) {
-		if got := stringify(models.Duration(time.Hour)); got != "3600s" {
+		if got := stringify(time.Hour); got != "3600s" {
 			t.Errorf("expected 3600s, got %s", got)
 		}
 	})
@@ -1479,7 +1480,7 @@ func TestBhvErrors094_ObjectSerializer_SerializationError_SatisfiesOpenAPIError(
 	}
 }
 
-// format:duration fields are models.Duration, a time.Duration that travels on
+// format:duration fields are the standard library's time.Duration, written on
 // the wire in the protobuf-JSON form, so a Go caller gets a native duration.
 func TestBhvSerializationobject113_ObjectSerializer_Deserialize_DurationFieldIsNativeDuration(t *testing.T) {
 	t.Parallel()
@@ -1487,7 +1488,7 @@ func TestBhvSerializationobject113_ObjectSerializer_Deserialize_DurationFieldIsN
 	if err := deserialize([]byte(`{"retryAfter":"3600.5s"}`), &result); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.RetryAfter == nil || time.Duration(*result.RetryAfter) != time.Hour+500*time.Millisecond {
+	if result.RetryAfter == nil || *result.RetryAfter != time.Hour+500*time.Millisecond {
 		t.Fatalf("expected retryAfter of 1h0.5s, got %v", result.RetryAfter)
 	}
 	data, err := serialize(result)
@@ -1506,7 +1507,7 @@ func TestBhvSerializationobject112_ObjectSerializer_Deserialize_ParsesWholeSecon
 	if err := deserialize([]byte(`{"retryAfter":"3600s"}`), &result); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.RetryAfter == nil || time.Duration(*result.RetryAfter) != time.Hour {
+	if result.RetryAfter == nil || *result.RetryAfter != time.Hour {
 		t.Fatalf("expected retryAfter of 1h0m0s, got %v", result.RetryAfter)
 	}
 }
@@ -1514,7 +1515,7 @@ func TestBhvSerializationobject112_ObjectSerializer_Deserialize_ParsesWholeSecon
 // A negative Duration carries its sign on the whole value, not on one part.
 func TestBhvSerializationobject105_ObjectSerializer_Stringify_NegativeDurationCarriesTheSign(t *testing.T) {
 	t.Parallel()
-	if got := stringify(models.Duration(-1500 * time.Millisecond)); got != "-1.500s" {
+	if got := stringify(-1500 * time.Millisecond); got != "-1.500s" {
 		t.Errorf("expected -1.500s, got %q", got)
 	}
 }
@@ -1523,7 +1524,7 @@ func TestBhvSerializationobject105_ObjectSerializer_Stringify_NegativeDurationCa
 // fraction and a trailing "s".
 func TestBhvSerializationobject158_ObjectSerializer_Stringify_CanonicalProtobufDuration(t *testing.T) {
 	t.Parallel()
-	if got := stringify(models.Duration(time.Hour)); got != "3600s" {
+	if got := stringify(time.Hour); got != "3600s" {
 		t.Errorf("expected 3600s, got %q", got)
 	}
 }
@@ -1531,7 +1532,7 @@ func TestBhvSerializationobject158_ObjectSerializer_Stringify_CanonicalProtobufD
 // A Duration survives serialize then deserialize as an equivalent value.
 func TestBhvSerializationobject145_ObjectSerializer_Duration_RoundTripYieldsAnEquivalentValue(t *testing.T) {
 	t.Parallel()
-	retry := models.Duration(90*time.Second + 250*time.Millisecond)
+	retry := 90*time.Second + 250*time.Millisecond
 	data, err := serialize(models.EdgeCases{RetryAfter: &retry})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1548,12 +1549,19 @@ func TestBhvSerializationobject145_ObjectSerializer_Duration_RoundTripYieldsAnEq
 // A Duration held in a generic map is written as the protobuf-JSON string.
 func TestBhvSerializationobject146_ObjectSerializer_Serialize_DurationInsideAMapIsProtobufJSON(t *testing.T) {
 	t.Parallel()
-	data, err := serialize(map[string]any{"retryAfter": models.Duration(time.Hour)})
+	data, err := serialize(map[string]any{"retryAfter": time.Hour})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if string(data) != `{"retryAfter":"3600s"}` {
 		t.Errorf("expected the protobuf-JSON duration string, got %s", data)
+	}
+	data, err = serialize([]any{map[string][]time.Duration{"waits": {time.Second, -1500 * time.Millisecond}}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `[{"waits":["1s","-1.500s"]}]` {
+		t.Errorf("expected every nested duration in the protobuf-JSON form, got %s", data)
 	}
 }
 
@@ -3307,7 +3315,7 @@ func TestBhvSerializationobject013_ObjectSerializer_Deserialize_NegativeProtobuf
 	if err := deserialize([]byte(`{"retryAfter":"-3600.5s"}`), &model); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if model.RetryAfter == nil || time.Duration(*model.RetryAfter) != -(time.Hour+500*time.Millisecond) {
+	if model.RetryAfter == nil || *model.RetryAfter != -(time.Hour+500*time.Millisecond) {
 		t.Fatalf("expected retryAfter of -1h0.5s, got %v", model.RetryAfter)
 	}
 	data, err := serialize(model)
@@ -3430,7 +3438,7 @@ func TestBhvSerializationobject054_ObjectSerializer_Deserialize_FractionalProtob
 	if err := deserialize([]byte(`{"retryAfter":"1.5s"}`), &model); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if model.RetryAfter == nil || time.Duration(*model.RetryAfter) != 1500*time.Millisecond {
+	if model.RetryAfter == nil || *model.RetryAfter != 1500*time.Millisecond {
 		t.Errorf("expected retryAfter of 1.5s, got %v", model.RetryAfter)
 	}
 }
@@ -3501,7 +3509,7 @@ func TestBhvSerializationobject073_ObjectSerializer_Deserialize_DurationRoundTri
 // A whole-hour duration is written as whole seconds, with no fractional part.
 func TestBhvSerializationobject081_ObjectSerializer_Serialize_DurationEmitsWholeSeconds(t *testing.T) {
 	t.Parallel()
-	retry := models.Duration(time.Hour)
+	retry := time.Hour
 	data, err := serialize(models.EdgeCases{RetryAfter: &retry})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -3783,7 +3791,7 @@ func TestBhvSerializationobject212_ObjectSerializer_Stringify_SmallAndNegativeDu
 		-10 * time.Microsecond: "-0.000010s",
 	}
 	for d, want := range cases {
-		if got := stringify(models.Duration(d)); got != want {
+		if got := stringify(d); got != want {
 			t.Errorf("expected %s for %v, got %s", want, d, got)
 		}
 	}
@@ -4049,7 +4057,7 @@ func TestBhvSerialization040_ObjectSerializer_ToFormValue_CanonicalWireText(t *t
 		want  string
 	}{
 		{models.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)), "2024-01-02T03:04:05.000+00:00"},
-		{models.Duration(90 * time.Second), "90s"},
+		{90 * time.Second, "90s"},
 		{2.5, "2.5"},
 		{int64(42), "42"},
 		{true, "true"},
@@ -4078,7 +4086,7 @@ func TestBhvSerialization042_ObjectSerializer_ToPathValue_DateOnlyOrTimeStringPa
 // A duration outside a model, as a header value, is written as its protobuf-JSON seconds string.
 func TestBhvSerialization048_ObjectSerializer_ToHeaderValue_DurationIsProtobufSeconds(t *testing.T) {
 	t.Parallel()
-	if got := toHeaderValue(models.Duration(90*time.Second + 500*time.Millisecond)); got != "90.500s" {
+	if got := toHeaderValue(90*time.Second + 500*time.Millisecond); got != "90.500s" {
 		t.Errorf("expected 90.500s, got %q", got)
 	}
 }
@@ -4103,7 +4111,7 @@ func TestBhvSerialization025_ObjectSerializer_Deserialize_TypedLeavesDecodeToThe
 	if !ok || entry.Phase == nil || *entry.Phase != models.EdgeCasesPhaseEnumOnHold {
 		t.Errorf("expected the nested model's enum member, got %+v", entry)
 	}
-	if entry.RetryAfter == nil || time.Duration(*entry.RetryAfter) != time.Hour {
+	if entry.RetryAfter == nil || *entry.RetryAfter != time.Hour {
 		t.Errorf("expected the nested model's typed duration, got %v", entry.RetryAfter)
 	}
 }
@@ -4124,12 +4132,12 @@ func TestBhvSerialization071_ObjectSerializer_DeepNestingIsRefusedWithTheFixedEr
 // sub-second, multi-day and extreme values.
 func TestBhvSerialization077_ObjectSerializer_DurationRoundTripsForEveryKindOfValue(t *testing.T) {
 	t.Parallel()
-	values := []models.Duration{
+	values := []time.Duration{
 		0,
-		models.Duration(-90 * time.Second),
-		models.Duration(250 * time.Millisecond),
-		models.Duration(3*24*time.Hour + time.Nanosecond),
-		models.Duration(1<<63 - 1),
+		-90 * time.Second,
+		250 * time.Millisecond,
+		3*24*time.Hour + time.Nanosecond,
+		time.Duration(1<<63 - 1),
 	}
 	for _, v := range values {
 		retry := v
@@ -4192,7 +4200,7 @@ func TestBhvSerialization084_ObjectSerializer_FractionalSecondsParseExactly(t *t
 		if err := deserialize([]byte(`{"retryAfter":"`+wire+`"}`), &edge); err != nil {
 			t.Fatalf("%s: unexpected error: %v", wire, err)
 		}
-		if edge.RetryAfter == nil || time.Duration(*edge.RetryAfter) != want {
+		if edge.RetryAfter == nil || *edge.RetryAfter != want {
 			t.Errorf("%s: expected %v, got %v", wire, want, edge.RetryAfter)
 		}
 	}
@@ -4215,7 +4223,7 @@ func TestBhvSerialization085_ObjectSerializer_ADateTimeFieldDecodesFromIso8601(t
 // fraction only when it is non-zero.
 func TestBhvSerialization086_ObjectSerializer_ADurationIsWrittenAsProtobufSeconds(t *testing.T) {
 	t.Parallel()
-	retry := models.Duration(3*24*time.Hour + time.Millisecond)
+	retry := 3*24*time.Hour + time.Millisecond
 	data, err := serialize(models.EdgeCases{RetryAfter: &retry})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -4223,7 +4231,7 @@ func TestBhvSerialization086_ObjectSerializer_ADurationIsWrittenAsProtobufSecond
 	if !strings.Contains(string(data), `"retryAfter":"259200.001s"`) {
 		t.Errorf("expected the protobuf seconds form, got %s", data)
 	}
-	whole := models.Duration(time.Hour)
+	whole := time.Hour
 	data, err = serialize(models.EdgeCases{RetryAfter: &whole})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -4236,7 +4244,7 @@ func TestBhvSerialization086_ObjectSerializer_ADurationIsWrittenAsProtobufSecond
 // A very small or very precise duration is written as fixed-point decimal digits, never in scientific notation.
 func TestBhvSerialization087_ObjectSerializer_ASmallDurationIsNotScientific(t *testing.T) {
 	t.Parallel()
-	tiny := models.Duration(time.Nanosecond)
+	tiny := time.Nanosecond
 	data, err := serialize(models.EdgeCases{RetryAfter: &tiny})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -4546,11 +4554,11 @@ func TestBhvSerialization115_ObjectSerializer_AnIntegralNumberBecomesAFloat(t *t
 // A protobuf duration string decodes into a duration value as a standalone value.
 func TestBhvSerialization117_ObjectSerializer_AStandaloneDurationDecodes(t *testing.T) {
 	t.Parallel()
-	var d models.Duration
+	var d time.Duration
 	if err := deserialize([]byte(`"90s"`), &d); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if time.Duration(d) != 90*time.Second {
+	if d != 90*time.Second {
 		t.Errorf("expected 90s, got %v", d)
 	}
 }
@@ -4601,7 +4609,7 @@ func TestBhvMisc089_ObjectSerializer_ADateTimeIsCanonicalInAContainer(t *testing
 // A duration field of a record writes its fractional seconds in the wire form.
 func TestBhvMisc090_ObjectSerializer_ARecordDurationWritesItsFraction(t *testing.T) {
 	t.Parallel()
-	d := models.Duration(1500 * time.Millisecond)
+	d := 1500 * time.Millisecond
 	data, err := serialize(models.EdgeCases{RetryAfter: &d})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -4633,8 +4641,12 @@ func TestBhvSerializationobject403_ObjectSerializer_Deserialize_DurationFieldCon
 	if err != nil {
 		t.Fatalf("deserialize failed: %v", err)
 	}
-	if got := time.Duration(*values.Wait); got != time.Hour {
-		t.Errorf("expected one hour, got %v", got)
+	// Comparing with the typed time.Hour compiles only for a plain time.Duration field.
+	if *values.Wait != time.Hour {
+		t.Errorf("expected one hour, got %v", *values.Wait)
+	}
+	if got := encodeNativeValues(t, values); got != `{"wait":"3600s"}` {
+		t.Errorf("expected the protobuf-JSON form, got %s", got)
 	}
 }
 
@@ -4644,7 +4656,7 @@ func TestBhvSerializationobject404_ObjectSerializer_Deserialize_DurationKeepsEve
 	if err != nil {
 		t.Fatalf("deserialize failed: %v", err)
 	}
-	if got, want := time.Duration(*values.Wait), -(time.Second + 123456789*time.Nanosecond); got != want {
+	if got, want := *values.Wait, -(time.Second + 123456789*time.Nanosecond); got != want {
 		t.Errorf("expected %v, got %v", want, got)
 	}
 	if got := encodeNativeValues(t, values); got != `{"wait":"-1.123456789s"}` {
@@ -4739,6 +4751,79 @@ func TestBhvSerializationobject409_ObjectSerializer_Serialize_HostnameAndEmailAr
 	}
 	if got := encodeNativeValues(t, values); got != body {
 		t.Errorf("expected %s, got %s", body, got)
+	}
+}
+
+func TestBhvSerializationobject410_ObjectSerializer_Deserialize_DecimalNumberKeepsEveryDigitInPlainNotation(t *testing.T) {
+	t.Parallel()
+	body := `{"amount":12.345678901234567890123}`
+	values, err := decodeNativeValues(t, body)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if want := decimal.RequireFromString("12.345678901234567890123"); !values.Amount.Equal(want) {
+		t.Errorf("expected %s, got %s", want, values.Amount)
+	}
+	if got := encodeNativeValues(t, values); got != body {
+		t.Errorf("expected %s, got %s", body, got)
+	}
+}
+
+func TestBhvSerializationobject411_ObjectSerializer_Deserialize_StringDecimalIsAJsonStringAndRejectsANumber(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"ledger":"12.50"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if want := decimal.RequireFromString("12.50"); !values.Ledger.Equal(want) {
+		t.Errorf("expected %s, got %s", want, values.Ledger)
+	}
+	if got := encodeNativeValues(t, values); got != `{"ledger":"12.50"}` {
+		t.Errorf("expected the string kept as written, got %s", got)
+	}
+	_, err = decodeNativeValues(t, `{"ledger":12.50}`)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected a *SerializationError for a bare number, got %T: %v", err, err)
+	}
+}
+
+func TestBhvSerializationobject412_ObjectSerializer_Deserialize_FortyDigitNumberIsExactAndNeverRounded(t *testing.T) {
+	t.Parallel()
+	digits := "1234567890123456789012345678901234567890"
+	values, err := decodeNativeValues(t, `{"amount":`+digits+`}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if want := decimal.RequireFromString(digits); !values.Amount.Equal(want) {
+		t.Errorf("expected %s, got %s", want, values.Amount)
+	}
+	if got := encodeNativeValues(t, values); got != `{"amount":`+digits+`}` {
+		t.Errorf("expected every digit, got %s", got)
+	}
+}
+
+func TestBhvSerializationobject413_ObjectSerializer_Deserialize_DecimalFieldsAreTheExactDecimalType(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"amount":0.1,"ledger":"0.1"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	// Assigning to a decimal.Decimal compiles only when both fields are that type, never a float64.
+	var amount, ledger decimal.Decimal = *values.Amount, *values.Ledger
+	if want := decimal.New(1, -1); !amount.Equal(want) || !ledger.Equal(want) {
+		t.Errorf("expected exactly 0.1, got %s and %s", amount, ledger)
+	}
+}
+
+func TestBhvMisc088_ObjectSerializer_Deserialize_DecimalKeepsTheDecimalPlacesItWasWrittenWith(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"ledger":"1.50"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got := values.Ledger.Exponent(); got != -2 {
+		t.Errorf("expected two decimal places, got exponent %d", got)
 	}
 }
 

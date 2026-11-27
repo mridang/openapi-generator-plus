@@ -300,7 +300,7 @@ open class ApiException : OpenAPIException {
      * Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other than
      * 501, the statuses the client itself retries.
      */
-    val isRetryable: Boolean
+    open val isRetryable: Boolean
         get() =
             statusCode == 408 ||
                 statusCode == 409 ||

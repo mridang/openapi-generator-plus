@@ -287,8 +287,8 @@ class ExplodedObject {
 
 /// Returns the properties of an object-valued parameter: a [Map] as is, or the
 /// `toJson()` map of a generated model. Returns null for every other value
-/// (scalars, lists, sets, bytes, dates, durations and enums), which keep their
-/// own serialization.
+/// (scalars, lists, sets, bytes, dates, durations, decimals and enums), which
+/// keep their own serialization.
 Map<String, Object?>? parameterObject(Object? value) {
   if (value == null ||
       value is String ||
@@ -297,7 +297,8 @@ Map<String, Object?>? parameterObject(Object? value) {
       value is Iterable<Object?> ||
       value is Uint8List ||
       value is DateTime ||
-      value is Duration) {
+      value is Duration ||
+      value is Decimal) {
     return null;
   }
   if (value is Map<Object?, Object?>) {

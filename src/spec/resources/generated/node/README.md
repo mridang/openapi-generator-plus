@@ -87,7 +87,9 @@ is the way to read a response header.
 `TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
 milliseconds (a positive number) for the whole call, redirects and retries
 included. A call that exceeds it fails with `NetworkTimeoutError`. The default is
-10 seconds; `timeout(null)` waits indefinitely.
+60 seconds; `timeout(null)` waits indefinitely.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
 
 ### Automatic retries
 
@@ -498,6 +500,17 @@ npm audit --omit=dev   # or: make audit
 ## Caveats
 
 ### Decimal / `format: number` precision
+
+A bare `type: number` and a `format: decimal` value, number- or
+string-shaped, are a `Decimal` from the `decimal.js` package
+(re-exported by this SDK as `Decimal`). The value is read from the
+digits of the JSON text, never through a binary float, so
+`12.345678901234567890123` keeps every digit, and it is written back in
+plain notation (never with an exponent) with the decimal places it was
+read with. A number-shaped field travels as a bare JSON number and a
+string-shaped one as a JSON string. Use the exact operators
+(`plus`, `times`, `eq`) for prices, balances and other money-typed
+fields; build a value with `new Decimal('12.50')`.
 
 JavaScript's only number type is a 64-bit IEEE-754 float, which can
 exactly represent integers only up to `Number.MAX_SAFE_INTEGER`

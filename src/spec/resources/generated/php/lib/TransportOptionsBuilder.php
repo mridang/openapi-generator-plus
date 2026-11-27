@@ -20,8 +20,9 @@ namespace PetstoreClient;
  * - verifySsl: true
  * - followRedirects: true
  * - injectRequestId: false
- * - timeout: 10000 (10 seconds)
+ * - timeout: 60000 (60 seconds)
  * - idleTimeout: 60000 (60 seconds)
+ * - maxResponseBytes: null (no limit)
  * - userAgent: a package-specific default string
  * - All other fields: null or empty
  *
@@ -39,8 +40,8 @@ final class TransportOptionsBuilder
     /** @var string|null HTTP or HTTPS proxy URL. */
     private ?string $proxy = null;
 
-    /** @var int|null End-to-end request timeout in milliseconds. Defaults to 10000ms (10 seconds). */
-    private ?int $timeout = 10000;
+    /** @var int|null End-to-end request timeout in milliseconds. Defaults to 10000ms (60 seconds). */
+    private ?int $timeout = 60000;
 
     /** @var bool Whether to follow HTTP 3xx redirects. */
     private bool $followRedirects = true;
@@ -62,6 +63,9 @@ final class TransportOptionsBuilder
 
     /** @var int|null The longest a streamed response body may stay silent in milliseconds. Defaults to 60000ms. */
     private ?int $idleTimeout = 60000;
+
+    /** @var int|null The most bytes read for a buffered response body, or null for no limit. */
+    private ?int $maxResponseBytes = null;
 
     /**
      * Enable or disable TLS certificate verification.
@@ -225,6 +229,24 @@ final class TransportOptionsBuilder
     }
 
     /**
+     * Set the most bytes the client reads for a buffered response body.
+     *
+     * Both the bytes on the wire and the decompressed bytes count: a body that
+     * passes the limit, on a success, an error or a redirect response, fails
+     * with `ResponseTooLargeException` as soon as the limit is passed. A
+     * streamed response is not limited. build() rejects zero or a negative
+     * value with an \InvalidArgumentException.
+     *
+     * @param int|null $maxResponseBytes the limit in bytes (positive), or null for no limit (the default)
+     * @return self this builder
+     */
+    public function maxResponseBytes(?int $maxResponseBytes): self
+    {
+        $this->maxResponseBytes = $maxResponseBytes;
+        return $this;
+    }
+
+    /**
      * Build and return an immutable TransportOptions instance.
      *
      * @return TransportOptions the configured transport options
@@ -243,6 +265,7 @@ final class TransportOptionsBuilder
             injectRequestId: $this->injectRequestId,
             maxRetries: $this->maxRetries,
             idleTimeout: $this->idleTimeout,
+            maxResponseBytes: $this->maxResponseBytes,
         );
     }
 }

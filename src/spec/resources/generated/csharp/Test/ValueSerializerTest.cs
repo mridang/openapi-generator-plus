@@ -1290,31 +1290,42 @@ public class ValueSerializerTest
     [Fact]
     public void BhvSerializationparam036ExplodedFormQueryObjectExpandsToOneEntryPerProperty()
     {
-        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
-        var result = ValueSerializer.SerializeStyled(
-            "probe",
-            probe,
-            "query",
-            "object",
-            null,
-            "form",
-            true
+        var probe = new SerializerProbeModel { Name = "Rex", Count = 3 };
+        var fields = Assert.IsType<ValueSerializer.ExplodedFields>(
+            ValueSerializer.SerializeStyled("c", probe, "query", "object", null, "form", true)
         );
-        var fields = Assert.IsType<ValueSerializer.ExplodedFields>(result);
-        Assert.Contains(fields.Fields, f => f.Key == "name" && f.Value == "Rex");
-        Assert.Contains(fields.Fields, f => f.Key == "tags");
-        Assert.DoesNotContain(fields.Fields, f => f.Key == "probe");
+        Assert.Equal(
+            new List<KeyValuePair<string, string>> { new("name", "Rex"), new("count", "3") },
+            fields.Fields.ToList()
+        );
+        var map = new Dictionary<string, object?>
+        {
+            ["breed"] = "lab",
+            ["min_age"] = 3,
+            ["note"] = null,
+        };
+        var mapFields = Assert.IsType<ValueSerializer.ExplodedFields>(
+            ValueSerializer.SerializeStyled("c", map, "query", "object", null, "form", true)
+        );
+        Assert.Equal(
+            new List<KeyValuePair<string, string>> { new("breed", "lab"), new("min_age", "3") },
+            mapFields.Fields.ToList()
+        );
     }
 
     [Fact]
     public void BhvSerializationparam039FormNotExplodedObjectIsOneCommaSeparatedList()
     {
-        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
-        string flat = Assert.IsType<string>(
-            ValueSerializer.SerializeStyled("probe", probe, "query", "object", null, "form", false)
+        var probe = new SerializerProbeModel { Name = "Rex", Count = 3 };
+        Assert.Equal(
+            "name,Rex,count,3",
+            ValueSerializer.SerializeStyled("c", probe, "query", "object", null, "form", false)
         );
-        Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
-        Assert.DoesNotContain("=", flat, StringComparison.Ordinal);
+        var map = new Dictionary<string, object?> { ["breed"] = "lab", ["min_age"] = 3 };
+        Assert.Equal(
+            "breed,lab,min_age,3",
+            ValueSerializer.SerializeStyled("c", map, "query", "object", null, "form", false)
+        );
     }
 
     [Fact]
@@ -1360,11 +1371,17 @@ public class ValueSerializerTest
     [Fact]
     public void BhvSerializationparam082SimpleStyleObjectInAHeaderIsACommaList()
     {
-        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
-        string flat = Assert.IsType<string>(
+        var probe = new SerializerProbeModel { Name = "Rex", Count = 3 };
+        Assert.Equal(
+            "name,Rex,count,3",
+            ValueSerializer.SerializeStyled("c", probe, "header", "object", null, "simple", false)
+        );
+        var map = new Dictionary<string, object?> { ["breed"] = "lab", ["min_age"] = 3 };
+        Assert.Equal(
+            "breed,lab,min_age,3",
             ValueSerializer.SerializeStyled(
-                "probe",
-                probe,
+                "X-Criteria",
+                map,
                 "header",
                 "object",
                 null,
@@ -1372,7 +1389,6 @@ public class ValueSerializerTest
                 false
             )
         );
-        Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
     }
 
     [Fact]

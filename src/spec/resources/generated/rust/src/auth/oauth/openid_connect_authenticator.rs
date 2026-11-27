@@ -18,12 +18,19 @@ use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
 use crate::auth::Authenticator;
 use crate::errors::configuration_error::ConfigurationError;
+use crate::errors::oauth2_token_error::OAuth2TokenError;
 use crate::errors::serialization_error::SerializationError;
 
 /// Authenticator for OpenID Connect.
 ///
 /// Fetches the OIDC discovery document to discover the authorization and
 /// token endpoints, then delegates to an [`OAuth2AuthorizationCodeAuthenticator`].
+///
+/// Each authorization URL carries a fresh `nonce`. The code exchange validates
+/// the claims of the `id_token` in the token response: the nonce of the
+/// authorization URL, the discovered issuer, the client id in the audience and
+/// an expiry that has not passed (60 seconds of clock skew are allowed). The
+/// signature of the id_token is not verified.
 ///
 /// Implements [`HttpAwareAuthenticator`] so that both the discovery request and
 /// subsequent token exchange requests use the shared [`ApiClient`] with the
@@ -43,7 +50,15 @@ pub struct OpenIdConnectAuthenticator {
     /* Held across the discovery fetch so concurrent callers share one GET
      * (single-flight); the expiry is re-checked once it is acquired. */
     discovery_lock: tokio::sync::Mutex<()>,
+    /* The issuer named by the last discovery document, None when it named none. */
+    discovered_issuer: Mutex<Option<String>>,
+    /* The nonce of the last authorization URL built, until the code exchange
+     * uses it. */
+    pending_nonce: Mutex<Option<String>>,
 }
+
+/// Clock skew allowed when checking the expiry of an id_token, in seconds.
+const ID_TOKEN_CLOCK_SKEW_SECONDS: f64 = 60.0;
 
 const DEFAULT_DISCOVERY_MAX_AGE_SECONDS: u64 = 86400;
 
@@ -100,6 +115,8 @@ impl OpenIdConnectAuthenticator {
             delegate: Mutex::new(None),
             discovery_expiry: Mutex::new(None),
             discovery_lock: tokio::sync::Mutex::new(()),
+            discovered_issuer: Mutex::new(None),
+            pending_nonce: Mutex::new(None),
         }
     }
 
@@ -112,7 +129,12 @@ impl OpenIdConnectAuthenticator {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         self.resolve_delegate().await?;
         let delegate = self.current_delegate()?;
-        Ok(delegate.build_authorization_url(state))
+        let url = delegate.build_authorization_url(state);
+        /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to
+         * this request; the exchange checks it once. */
+        let nonce = new_nonce();
+        *self.pending_nonce.lock().unwrap() = Some(nonce.clone());
+        Ok(format!("{}&nonce={}", url, nonce))
     }
 
     /// Exchanges an authorization code for tokens using the discovered token
@@ -127,7 +149,13 @@ impl OpenIdConnectAuthenticator {
         /* The delegate's exchange_code is async; clone the shared handle so
          * the mutex is not held across the await. */
         let delegate = self.current_delegate()?;
-        delegate.exchange_code(code).await
+        let nonce = self.pending_nonce.lock().unwrap().take();
+        let issuer = self.discovered_issuer.lock().unwrap().clone();
+        let client_id = self.client_id.clone();
+        let check = move |id_token: Option<&str>| {
+            validate_id_token(id_token, nonce.as_deref(), issuer.as_deref(), &client_id)
+        };
+        delegate.exchange_code_checked(code, Some(&check)).await
     }
 
     /// Returns a shared handle to the resolved delegate. The delegate stays in
@@ -325,8 +353,98 @@ impl OpenIdConnectAuthenticator {
         let mut expiry_guard = self.discovery_expiry.lock().unwrap();
         *delegate_guard = Some(Arc::new(delegate));
         *expiry_guard = Some(new_expiry);
+        *self.discovered_issuer.lock().unwrap() = parsed
+            .get("issuer")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
         Ok(())
     }
+}
+
+/// A fresh nonce: 32 random bytes as unpadded base64url, 43 characters.
+fn new_nonce() -> String {
+    use base64::Engine as _;
+    let mut random = Vec::with_capacity(32);
+    random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+    random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&random[..32])
+}
+
+fn id_token_error(message: &str) -> Box<dyn std::error::Error + Send + Sync> {
+    Box::new(OAuth2TokenError::new(message.to_string()))
+}
+
+/// Validates the claims of the id_token of a code exchange (OpenID Connect
+/// Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+/// discovered issuer, the client id in the audience and the expiry. A response
+/// without an id_token is not checked. The payload is decoded without
+/// verifying the signature.
+fn validate_id_token(
+    id_token: Option<&str>,
+    nonce: Option<&str>,
+    issuer: Option<&str>,
+    client_id: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let Some(id_token) = id_token else {
+        return Ok(());
+    };
+    let claims = decode_id_token(id_token)?;
+    if let Some(nonce) = nonce {
+        if claims.get("nonce").and_then(|v| v.as_str()) != Some(nonce) {
+            return Err(id_token_error(
+                "The id_token nonce does not match the authorization request",
+            ));
+        }
+    }
+    let iss = claims.get("iss").and_then(|v| v.as_str());
+    if issuer.is_none() || iss != issuer {
+        return Err(id_token_error(
+            "The id_token issuer does not match the discovered issuer",
+        ));
+    }
+    let audience_matches = match claims.get("aud") {
+        Some(serde_json::Value::String(aud)) => aud == client_id,
+        Some(serde_json::Value::Array(entries)) => entries
+            .iter()
+            .any(|entry| entry.as_str() == Some(client_id)),
+        _ => false,
+    };
+    if !audience_matches {
+        return Err(id_token_error(
+            "The id_token audience does not contain the client id",
+        ));
+    }
+    let Some(exp) = claims.get("exp").and_then(|v| v.as_f64()) else {
+        return Err(id_token_error("The id_token is malformed"));
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs_f64())
+        .unwrap_or(0.0);
+    if now >= exp + ID_TOKEN_CLOCK_SKEW_SECONDS {
+        return Err(id_token_error("The id_token has expired"));
+    }
+    Ok(())
+}
+
+/// The claims of a compact JWS: the second segment, base64url-decoded JSON.
+fn decode_id_token(
+    id_token: &str,
+) -> Result<serde_json::Map<String, serde_json::Value>, Box<dyn std::error::Error + Send + Sync>> {
+    use base64::Engine as _;
+    let parts: Vec<&str> = id_token.split('.').collect();
+    if parts.len() != 3 {
+        return Err(id_token_error("The id_token is malformed"));
+    }
+    base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(parts[1].trim_end_matches('='))
+        .ok()
+        .and_then(|payload| serde_json::from_slice::<serde_json::Value>(&payload).ok())
+        .and_then(|claims| match claims {
+            serde_json::Value::Object(map) => Some(map),
+            _ => None,
+        })
+        .ok_or_else(|| id_token_error("The id_token is malformed"))
 }
 
 /// Renders a representation that redacts the client secret so credentials never

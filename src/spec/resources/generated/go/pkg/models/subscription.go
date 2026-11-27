@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Subscription is a model class generated from the OpenAPI schema.
@@ -172,33 +174,55 @@ func (o Subscription) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Subscription) UnmarshalJSON(data []byte) error {
-	type Alias Subscription
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "tier", "rank", "stage", "interval"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Subscription) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Subscription
+	seenTier := false
+	seenRank := false
+	err := readObject(dec, "Subscription", func(key string) error {
+		switch key {
+		case "tier":
+			seenTier = true
+			return decodeValue(dec, &out.Tier)
+		case "rank":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'rank' must not be null in Subscription")
+			}
+			seenRank = true
+			return decodeValue(dec, &out.Rank)
+		case "stage":
+			return decodeValue(dec, &out.Stage)
+		case "interval":
+			return decodeValue(dec, &out.Interval)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["rank"]; !ok {
-		return fmt.Errorf("required field 'rank' is missing in Subscription")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'rank' must not be null in Subscription")
-	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	if _, ok := raw["tier"]; !ok {
+	/* Rather than pre-seed optional fields that declare a schema default
+	 * before decoding, the decode records which keys it read and gives each
+	 * absent one its default here; a key that is present, null included,
+	 * keeps what it decoded to, matching the other SDKs. */
+	if !seenTier {
 		var defaultTier Tier = TierMedium
-		aux.Tier = &defaultTier
+		out.Tier = &defaultTier
 	}
-	*o = Subscription(*aux)
+	if !seenRank {
+		return fmt.Errorf("required field 'rank' is missing in Subscription")
+	}
+	*o = out
 	return nil
 }

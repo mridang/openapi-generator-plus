@@ -35,9 +35,9 @@ describe Petstore::Client::TransportOptions do
     _(opts.proxy).must_be_nil
   end
 
-  it 'bhv_options_038 timeout defaults to 10000ms' do
+  it 'bhv_options_038 timeout defaults to 60000ms' do
     opts = Petstore::Client::TransportOptions.builder.build
-    _(opts.timeout).must_equal 10_000
+    _(opts.timeout).must_equal 60_000
   end
 
   it 'bhv_options_020 follow_redirects defaults to true' do
@@ -299,10 +299,10 @@ describe Petstore::Client::TransportOptions do
 
   # TimeoutConfigTests
 
-  it 'bhv_options_039 timeout defaults to 10000ms' do
-    # Default TransportOptions applies a 10-second timeout.
+  it 'bhv_options_039 timeout defaults to 60000ms' do
+    # Default TransportOptions applies a 60-second timeout.
     opts = Petstore::Client::TransportOptions.builder.build
-    _(opts.timeout).must_equal 10_000
+    _(opts.timeout).must_equal 60_000
   end
 
   it 'bhv_options_037 timeout can be explicitly set to nil for no timeout' do
@@ -529,6 +529,31 @@ describe Petstore::Client::TransportOptions, 'builder entry point and printable 
   it 'bhv_options_067 a valid proxy URL is kept and with no proxy the proxy is unset' do
     _(Petstore::Client::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
     _(Petstore::Client::TransportOptions.builder.build.proxy).must_be_nil
+  end
+
+  it 'bhv_options_069 max_response_bytes defaults to none' do
+    _(Petstore::Client::TransportOptions.builder.build.max_response_bytes).must_be_nil
+  end
+
+  it 'bhv_options_069 a positive max_response_bytes round-trips through the builder' do
+    opts = Petstore::Client::TransportOptions.builder.max_response_bytes(1024).build
+
+    _(opts.max_response_bytes).must_equal 1024
+    _(opts.inspect).must_include 'max_response_bytes=1024'
+  end
+
+  it 'bhv_options_069 a zero or negative max_response_bytes is refused with the canonical message' do
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_response_bytes(0) }
+    _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)'
+    err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_response_bytes(-1) }
+    _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got -1)'
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::TransportOptions.new(
+        verify_ssl: true, ca_cert_path: nil, proxy: nil, timeout: nil, follow_redirects: true,
+        max_redirects: nil, user_agent: nil, default_headers: {}, inject_request_id: false, max_response_bytes: 0
+      )
+    end
+    _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)'
   end
 
   it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do

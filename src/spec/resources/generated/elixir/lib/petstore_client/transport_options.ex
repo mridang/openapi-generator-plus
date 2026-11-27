@@ -38,7 +38,7 @@ defmodule PetstoreClient.TransportOptions do
     proxy).
   * `timeout` - End-to-end request timeout in milliseconds. Covers the entire
     request lifecycle: connection, TLS handshake, sending the request body, and
-    reading the response. Defaults to 10 seconds. Set to `nil` to disable the
+    reading the response. Defaults to 60 seconds. Set to `nil` to disable the
     timeout (wait indefinitely).
   * `follow_redirects` - Whether the client follows HTTP 3xx redirects
     automatically. When `true` (the default), redirects are followed. Set to
@@ -71,6 +71,12 @@ defmodule PetstoreClient.TransportOptions do
     response headers, and this value bounds the gap between two reads of the
     body. A stalled body raises `NetworkTimeoutError`. A buffered call is
     unaffected.
+  * `max_response_bytes` - The most bytes the client reads of a buffered
+    response body, or `nil` (the default) for no limit. Both the bytes
+    received and the bytes once decompressed (gzip, deflate, br, zstd) are
+    counted, on every redirect hop that is read: the client stops as soon as
+    either count passes the limit, drops the connection and raises
+    `ResponseTooLargeError`. A streamed response is not bounded by it.
   * `req_options` - Extra options handed to `Req.new/1`, for a custom transport
     such as an `:adapter` function (a test double, an instrumented adapter) or
     a `:plug`. The SDK's own settings (timeouts, redirect policy,
@@ -93,13 +99,14 @@ defmodule PetstoreClient.TransportOptions do
           inject_request_id: boolean(),
           max_retries: non_neg_integer(),
           idle_timeout: pos_integer() | nil,
+          max_response_bytes: pos_integer() | nil,
           req_options: keyword()
         }
 
   defstruct verify_ssl: true,
             ca_cert_path: nil,
             proxy: nil,
-            timeout: 10_000,
+            timeout: 60_000,
             follow_redirects: true,
             max_redirects: nil,
             user_agent: "petstore_client/1.0.0 (elixir)",
@@ -107,6 +114,7 @@ defmodule PetstoreClient.TransportOptions do
             inject_request_id: false,
             max_retries: 2,
             idle_timeout: 60_000,
+            max_response_bytes: nil,
             req_options: []
 
   # The proxy URL may carry `user:pass@` credentials, the default headers may
@@ -177,9 +185,10 @@ defmodule PetstoreClient.TransportOptions do
     * `:verify_ssl` - `true`
     * `:follow_redirects` - `true`
     * `:inject_request_id` - `false`
-    * `:timeout` - `10_000` (10 seconds)
+    * `:timeout` - `60_000` (60 seconds)
     * `:max_retries` - `2`
     * `:idle_timeout` - `60_000` (60 seconds)
+    * `:max_response_bytes` - `nil` (no limit)
     * `:user_agent` - a package-specific default string
     * all other fields - `nil` or empty
 
@@ -196,12 +205,13 @@ defmodule PetstoreClient.TransportOptions do
     * `:inject_request_id` - Whether to auto-inject an X-Request-ID header.
     * `:max_retries` - How many times a failed call is retried (`2` by default, `0` for none).
     * `:idle_timeout` - The longest a streamed response body may stay silent, in milliseconds (`60_000` by default; `0` or `nil` disables it).
+    * `:max_response_bytes` - The most bytes read of a buffered response body, raw or decompressed, or `nil` for no limit; a body that passes it raises `ResponseTooLargeError`.
     * `:req_options` - Extra `Req.new/1` options (a custom `:adapter` or `:plug`); the SDK's own settings win. Redirect following is the SDK's job, so `redirect: true` is refused.
 
   ## Raises
 
     `ArgumentError` if `:max_retries` is not a non-negative integer, if `:idle_timeout` is negative or not an integer or `nil`, if the proxy URL is not a valid URL with an http or https scheme and a host,
-    if `:timeout` is zero or negative, if `:req_options` is not a keyword list, if it carries `redirect: true`
+    if `:timeout` is zero or negative, if `:max_response_bytes` is not a positive integer or `nil`, if `:req_options` is not a keyword list, if it carries `redirect: true`
     (the SDK manages redirects itself), or if it carries `:connect_options` or `:finch` while `proxy`, `ca_cert_path` or `verify_ssl: false` is set.
 
   """
@@ -225,6 +235,12 @@ defmodule PetstoreClient.TransportOptions do
     if is_integer(result.timeout) and result.timeout <= 0 do
       raise ArgumentError,
             "Invalid timeout: must be a positive number of milliseconds (got #{result.timeout})"
+    end
+
+    unless is_nil(result.max_response_bytes) or
+             (is_integer(result.max_response_bytes) and result.max_response_bytes > 0) do
+      raise ArgumentError,
+            "Invalid maxResponseBytes: must be a positive number of bytes (got #{inspect(result.max_response_bytes)})"
     end
 
     unless is_nil(result.max_redirects) or

@@ -18,7 +18,6 @@ use raw_server::RawServer;
 
 use petstore::api::options::*;
 use petstore::api::*;
-use petstore::errors::*;
 use petstore::models::*;
 use petstore::*;
 
@@ -3875,7 +3874,7 @@ async fn test_bhv_hooks_012_finish_gets_the_status_the_headers_and_the_same_type
     assert!(finishes[0].headers.is_some());
     assert_eq!("not_found", finishes[0].kind);
     assert_eq!(err.to_string(), finishes[0].text);
-    let received: &(dyn std::error::Error + 'static) = &*err;
+    let received: &(dyn std::error::Error + 'static) = err.as_ref();
     assert_eq!(
         address_of(received),
         finishes[0].address,
@@ -5836,7 +5835,7 @@ fn paged_api_with_headers(server: &RawServer, headers: HashMap<String, String>) 
 
 async fn names_of<S>(items: S) -> Vec<String>
 where
-    S: futures_util::Stream<Item = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> + Unpin,
+    S: futures_util::Stream<Item = Result<Pet, petstore::Error>> + Unpin,
 {
     items.map(|pet| pet.expect("an item").name).collect().await
 }
@@ -6679,7 +6678,7 @@ async fn test_bhv_pagination_023_an_error_from_a_link_driven_page_request_carrie
         .expect_err("the second page fails");
 
     let api_error = failure
-        .as_api_error()
+        .api_error()
         .unwrap_or_else(|| panic!("got: {failure}"));
     assert_eq!(500, api_error.status_code());
     assert_eq!(Some("/pet/feed"), api_error.request_path());
@@ -6899,7 +6898,7 @@ async fn test_bhv_pagination_031_the_repeated_cursor_failure_is_a_pagination_err
         .downcast_ref::<PaginationError>()
         .unwrap_or_else(|| panic!("got: {failure}"));
     is_root_error(repeated);
-    assert!(failure.as_api_error().is_none(), "it is not an API error");
+    assert!(failure.api_error().is_none(), "it is not an API error");
     assert!(
         !failure.is::<NetworkError>() && !failure.is::<NetworkTimeoutError>(),
         "it is not a network error"

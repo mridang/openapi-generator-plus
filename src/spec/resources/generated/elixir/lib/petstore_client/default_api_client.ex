@@ -217,7 +217,14 @@ defmodule PetstoreClient.DefaultApiClient do
     opts = client.transport_options
 
     {merged, serialized_body} =
-      prepare_request(client, method, headers, body, request_opts, buffered_accept_encoding())
+      prepare_request(
+        client,
+        method,
+        headers,
+        body,
+        request_opts,
+        buffered_accept_encoding(opts.max_response_bytes)
+      )
 
     # Req re-sends Authorization / Cookie / Proxy-Authorization
     # across cross-origin 3xx redirects by default, which leaks bearer
@@ -251,11 +258,16 @@ defmodule PetstoreClient.DefaultApiClient do
 
     body_binary =
       try do
-        decompress_body(response.body || "", content_encoding, response.status)
+        decompress_body(
+          response.body || "",
+          content_encoding,
+          response.status,
+          opts.max_response_bytes
+        )
       rescue
         # The response arrived, so the failure carries its real headers (never nil, which
         # means that no response arrived).
-        e in PetstoreClient.Errors.ApiError ->
+        e in [PetstoreClient.Errors.ApiError, PetstoreClient.Errors.ResponseTooLargeError] ->
           reraise %{e | response_headers: e.response_headers || headers}, __STACKTRACE__
       end
 
@@ -385,7 +397,8 @@ defmodule PetstoreClient.DefaultApiClient do
     e in [
       PetstoreClient.Errors.ApiError,
       PetstoreClient.Errors.NetworkError,
-      PetstoreClient.Errors.NetworkTimeoutError
+      PetstoreClient.Errors.NetworkTimeoutError,
+      PetstoreClient.Errors.ResponseTooLargeError
     ] ->
       reraise e, __STACKTRACE__
 
@@ -484,8 +497,12 @@ defmodule PetstoreClient.DefaultApiClient do
   # Only advertise "br" when the optional :brotli NIF is actually loaded, and
   # "zstd" when Erlang/OTP ships the :zstd module (OTP 28); otherwise a server
   # may return a body that cannot be decoded, leaving raw bytes the caller
-  # can't parse.
-  defp buffered_accept_encoding do
+  # can't parse. With `max_response_bytes` set only gzip and deflate are asked
+  # for, because only those two are inflated a piece at a time, so a body that
+  # inflates past the limit is stopped before it is inflated in full.
+  defp buffered_accept_encoding(limit) when is_integer(limit), do: stream_accept_encoding()
+
+  defp buffered_accept_encoding(_limit) do
     Enum.join(
       ["gzip", "deflate"] ++
         if(Code.ensure_loaded?(:brotli), do: ["br"], else: []) ++
@@ -544,14 +561,19 @@ defmodule PetstoreClient.DefaultApiClient do
   # explicit decompression in every other generated client. A response that
   # arrived but cannot be decompressed surfaces as a typed ApiError carrying the
   # response's real status code, never a NetworkError.
-  @spec decompress_body(binary(), String.t(), integer()) :: binary()
+  #
+  # With a `limit` (`max_response_bytes`), gzip and deflate are inflated a piece
+  # at a time and stop with ResponseTooLargeError as soon as the output passes
+  # the limit; a br or zstd body (never asked for under a limit) is checked once
+  # decoded.
+  @spec decompress_body(binary(), String.t(), integer(), pos_integer() | nil) :: binary()
   # An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
   # decompress, so it passes through unchanged for ANY declared encoding —
   # matching java/kotlin/python/ruby/php/rust, which all short-circuit an empty
   # body before the codec dispatch.
-  defp decompress_body(<<>>, _encoding, _status), do: <<>>
+  defp decompress_body(<<>>, _encoding, _status, _limit), do: <<>>
 
-  defp decompress_body(body, encoding, status) when is_binary(body) do
+  defp decompress_body(body, encoding, status, limit) when is_binary(body) do
     case encoding |> to_string() |> String.trim() |> String.downcase() do
       "" ->
         body
@@ -560,19 +582,19 @@ defmodule PetstoreClient.DefaultApiClient do
         body
 
       "gzip" ->
-        gunzip_body(body, "gzip", status)
+        gunzip_body(body, "gzip", status, limit)
 
       "x-gzip" ->
-        gunzip_body(body, "x-gzip", status)
+        gunzip_body(body, "x-gzip", status, limit)
 
       "deflate" ->
-        inflate_body(body, status)
+        inflate_body(body, status, limit)
 
       "br" ->
-        brotli_body(body, status)
+        body |> brotli_body(status) |> within_limit!(status, limit)
 
       "zstd" ->
-        zstd_body(body, status)
+        body |> zstd_body(status) |> within_limit!(status, limit)
 
       other ->
         raise PetstoreClient.Errors.ApiError,
@@ -582,7 +604,12 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   # Only gunzip when the body actually carries the gzip magic bytes (0x1F 0x8B).
-  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label, status) do
+  # Window bits 31 is gzip framing for the bounded inflater.
+  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label, status, limit)
+       when is_integer(limit),
+       do: bounded_inflate(body, 31, label, status, limit)
+
+  defp gunzip_body(<<0x1F, 0x8B, _rest::binary>> = body, label, status, _limit) do
     :zlib.gunzip(body)
   rescue
     e ->
@@ -602,7 +629,7 @@ defmodule PetstoreClient.DefaultApiClient do
   # bytes that cannot be a gzip stream, so silently returning them would pass
   # corrupt data straight to the caller as if it were the decoded payload.
   # Surface a typed ApiError instead - the decode failure must not be hidden.
-  defp gunzip_body(_body, label, status) do
+  defp gunzip_body(_body, label, status, _limit) do
     raise PetstoreClient.Errors.ApiError,
       message:
         "Failed to decompress #{label} response body: " <>
@@ -614,7 +641,10 @@ defmodule PetstoreClient.DefaultApiClient do
   # A raw (headerless) DEFLATE body is rejected, matching the other eleven SDKs
   # (java InflaterInputStream, python zlib.decompress, go zlib.NewReader, rust
   # ZlibDecoder, …), which all handle zlib-wrapped deflate only.
-  defp inflate_body(body, status) do
+  defp inflate_body(body, status, limit) when is_integer(limit),
+    do: bounded_inflate(body, 15, "deflate", status, limit)
+
+  defp inflate_body(body, status, _limit) do
     :zlib.uncompress(body)
   rescue
     e ->
@@ -627,6 +657,112 @@ defmodule PetstoreClient.DefaultApiClient do
                 cause: e
               ],
               __STACKTRACE__
+  end
+
+  # Inflates `body` a piece at a time (`:zlib.safeInflate/2` hands back a little
+  # output per call) and raises ResponseTooLargeError as soon as the output
+  # passes `limit`, so a small body that inflates to a huge one is never
+  # inflated in full. A stream that ends before its last block fails like any
+  # other undecodable body.
+  defp bounded_inflate(body, window_bits, label, status, limit) do
+    z = :zlib.open()
+
+    try do
+      :ok = :zlib.inflateInit(z, window_bits)
+      inflate_within(z, :zlib.safeInflate(z, body), [], 0, {status, limit})
+    rescue
+      e in PetstoreClient.Errors.ResponseTooLargeError ->
+        reraise e, __STACKTRACE__
+
+      e ->
+        reraise PetstoreClient.Errors.ApiError,
+                [
+                  message: "Failed to decompress #{label} response body: #{Exception.message(e)}",
+                  status_code: status,
+                  cause: e
+                ],
+                __STACKTRACE__
+    after
+      :zlib.close(z)
+    end
+  end
+
+  defp inflate_within(z, {state, output}, acc, size, {status, limit} = bound) do
+    produced = IO.iodata_length(output)
+    size = size + produced
+
+    cond do
+      size > limit ->
+        raise PetstoreClient.Errors.ResponseTooLargeError, status_code: status, limit: limit
+
+      state == :finished ->
+        IO.iodata_to_binary([acc, output])
+
+      produced == 0 ->
+        :erlang.error(:data_error)
+
+      true ->
+        inflate_within(z, :zlib.safeInflate(z, []), [acc, output], size, bound)
+    end
+  end
+
+  defp within_limit!(decoded, _status, nil), do: decoded
+
+  defp within_limit!(decoded, status, limit) do
+    if byte_size(decoded) > limit do
+      raise PetstoreClient.Errors.ResponseTooLargeError, status_code: status, limit: limit
+    end
+
+    decoded
+  end
+
+  # Reads a buffered body under `max_response_bytes`: the chunks are counted as
+  # they arrive, before any decompression, and the read stops (the connection is
+  # dropped, not drained) as soon as the count passes the limit or the declared
+  # Content-Length already does.
+  defp bounded_into(limit) do
+    fn
+      {:data, data}, {req, resp} ->
+        size = Req.Response.get_private(resp, :sdk_body_size, 0) + byte_size(data)
+
+        if size > limit or declared_length(resp) > limit do
+          {:halt, {req, Req.Response.put_private(resp, :sdk_too_large, true)}}
+        else
+          resp = Req.Response.put_private(resp, :sdk_body_size, size)
+          {:cont, {req, %{resp | body: (resp.body || "") <> data}}}
+        end
+
+      _other, acc ->
+        {:cont, acc}
+    end
+  end
+
+  defp declared_length(resp) do
+    with [value | _] <- Req.Response.get_header(resp, "content-length"),
+         {length, ""} <- Integer.parse(String.trim(value)) do
+      length
+    else
+      _ -> 0
+    end
+  end
+
+  # A hop read under `max_response_bytes` that passed it raises
+  # ResponseTooLargeError with the real status and headers. A body that came back
+  # whole (a custom adapter that does not stream) is checked by its size.
+  defp ensure_within_limit!(response, nil), do: response
+
+  defp ensure_within_limit!(response, limit) do
+    body = response.body
+
+    if Req.Response.get_private(response, :sdk_too_large, false) or
+         (is_binary(body) and byte_size(body) > limit) do
+      raise PetstoreClient.Errors.ResponseTooLargeError,
+        status_code: response.status,
+        limit: limit,
+        response_headers: normalize_headers(response.headers)
+    end
+
+    response
   end
 
   # `br` is only advertised in Accept-Encoding when the optional :brotli NIF is
@@ -1044,6 +1180,8 @@ defmodule PetstoreClient.DefaultApiClient do
   # read, as `%{status: integer, headers: map, stream: StreamBody.t()}`.
   defp send_hop(client, method, url, headers, body, deadline, call_timeout, :buffered) do
     {body, headers} = hop_body(body, headers)
+    limit = client.transport_options.max_response_bytes
+    bounded = if limit, do: [into: bounded_into(limit)], else: []
 
     # Catch inside the task so it always returns a tagged value and never
     # crashes the linked caller: Task.async links, so an uncaught raise
@@ -1058,44 +1196,16 @@ defmodule PetstoreClient.DefaultApiClient do
              url: url,
              headers: Enum.map(headers, fn {k, v} -> {k, v} end),
              body: body
-           ] ++ proxy_request_options(client, url, call_timeout)
+           ] ++ bounded ++ proxy_request_options(client, url, call_timeout)
          )}
       rescue
         exception -> {:raised, exception, __STACKTRACE__}
       end
     end
 
-    case deadline do
-      nil ->
-        case req_fun.() do
-          {:ok, result} -> result
-          {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
-        end
-
-      _deadline ->
-        total = max(deadline - System.monotonic_time(:millisecond), 0)
-
-        # Req/Finch's :receive_timeout is per-chunk inactivity
-        # (it resets on every received packet), so a slow-trickle response
-        # can run arbitrarily long without tripping it. Enforce a hard
-        # end-to-end wall-clock budget by running the call in a Task and
-        # shutting it down if it overruns the configured timeout.
-        task = Task.async(req_fun)
-
-        case Task.yield(task, total) || Task.shutdown(task) do
-          {:ok, {:ok, result}} ->
-            result
-
-          {:ok, {:raised, exception, stacktrace}} ->
-            reraise(exception, stacktrace)
-
-          nil ->
-            raise PetstoreClient.Errors.NetworkTimeoutError,
-              message:
-                "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
-              status_code: 0
-        end
-    end
+    deadline
+    |> run_hop(req_fun, client, call_timeout)
+    |> ensure_within_limit!(limit)
   end
 
   # The streaming hop: the request runs in a process of its own (see
@@ -1144,6 +1254,41 @@ defmodule PetstoreClient.DefaultApiClient do
           message:
             "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
           status_code: 0
+    end
+  end
+
+  # Runs one buffered request within what is left of the deadline.
+  defp run_hop(deadline, req_fun, client, call_timeout) do
+    case deadline do
+      nil ->
+        case req_fun.() do
+          {:ok, result} -> result
+          {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
+        end
+
+      _deadline ->
+        total = max(deadline - System.monotonic_time(:millisecond), 0)
+
+        # Req/Finch's :receive_timeout is per-chunk inactivity
+        # (it resets on every received packet), so a slow-trickle response
+        # can run arbitrarily long without tripping it. Enforce a hard
+        # end-to-end wall-clock budget by running the call in a Task and
+        # shutting it down if it overruns the configured timeout.
+        task = Task.async(req_fun)
+
+        case Task.yield(task, total) || Task.shutdown(task) do
+          {:ok, {:ok, result}} ->
+            result
+
+          {:ok, {:raised, exception, stacktrace}} ->
+            reraise(exception, stacktrace)
+
+          nil ->
+            raise PetstoreClient.Errors.NetworkTimeoutError,
+              message:
+                "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
+              status_code: 0
+        end
     end
   end
 

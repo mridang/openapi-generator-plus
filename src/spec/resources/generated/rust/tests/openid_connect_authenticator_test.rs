@@ -20,7 +20,7 @@ use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
 use petstore::{
     ApiError, ConfigurationError, InternalServerError, NetworkError, NetworkTimeoutError,
-    NotFoundError, OAuth2AuthorizationCodeError, SerializationError,
+    NotFoundError, OAuth2AuthorizationCodeError, OAuth2TokenError, SerializationError,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -1228,7 +1228,7 @@ async fn test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_c
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce() {
+async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_a_nonce() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     let mut auth = create_authenticator();
@@ -1254,7 +1254,11 @@ async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_n
         "{}",
         challenge
     );
-    assert!(!pairs.iter().any(|p| p.starts_with("nonce=")), "{}", url);
+    let nonce = pairs
+        .iter()
+        .find_map(|p| p.strip_prefix("nonce="))
+        .expect("a nonce");
+    assert_eq!(43, nonce.len(), "{}", nonce);
 }
 
 /// Once the cached discovery document's max-age has elapsed, later calls use the endpoints of the new document.
@@ -1351,5 +1355,240 @@ async fn test_bhv_misc_201_a_failed_oidc_discovery_request_reports_its_path_with
     assert_eq!(
         "API returned status code 500 for GET /.well-known/openid-configuration",
         internal.server_error().api_error().message()
+    );
+}
+
+const ISSUER_DISCOVERY: &str = r#"{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#;
+
+/// An unsigned compact JWT whose payload is `claims`.
+fn id_token(claims: &serde_json::Value) -> String {
+    use base64::Engine as _;
+    let engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    format!(
+        "{}.{}.sig",
+        engine.encode(br#"{"alg":"none"}"#),
+        engine.encode(claims.to_string().as_bytes())
+    )
+}
+
+fn now_seconds() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("a clock after 1970")
+        .as_secs() as i64
+}
+
+/// Claims that pass every check for `nonce`, with `name` set to `value`.
+fn claims(nonce: &str, name: &str, value: serde_json::Value) -> serde_json::Value {
+    let mut claims = serde_json::json!({
+        "iss": "https://auth.example.com",
+        "aud": "my-client-id",
+        "exp": now_seconds() + 3600,
+        "nonce": nonce,
+    });
+    claims[name] = value;
+    claims
+}
+
+fn nonce_of(url: &str) -> String {
+    url.split_once('?')
+        .expect("a query string")
+        .1
+        .split('&')
+        .find_map(|p| p.strip_prefix("nonce="))
+        .expect("a nonce")
+        .to_string()
+}
+
+/// Builds an authorization URL, then answers the code exchange with the
+/// id_token that `id_token_for` makes from the URL's nonce.
+async fn authenticator_returning(
+    id_token_for: impl Fn(&str) -> String,
+) -> OpenIdConnectAuthenticator {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(ISSUER_DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    let url = auth
+        .build_authorization_url("s")
+        .await
+        .expect("should succeed");
+    let body = serde_json::json!({
+        "access_token": "oidc-tok",
+        "expires_in": 3600,
+        "id_token": id_token_for(&nonce_of(&url)),
+    });
+    client.enqueue(&body.to_string(), 200);
+    auth
+}
+
+fn token_error_message(error: &BoxError) -> String {
+    error
+        .downcast_ref::<OAuth2TokenError>()
+        .expect("an OAuth2TokenError")
+        .message()
+        .to_string()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_034_each_authorization_url_carries_a_fresh_nonce() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(ISSUER_DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let first = nonce_of(
+        &auth
+            .build_authorization_url("s")
+            .await
+            .expect("should succeed"),
+    );
+    let second = nonce_of(
+        &auth
+            .build_authorization_url("s")
+            .await
+            .expect("should succeed"),
+    );
+
+    assert_eq!(43, first.len(), "{}", first);
+    assert!(
+        first
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+        "{}",
+        first
+    );
+    assert_ne!(first, second);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_035_an_id_token_with_valid_claims_is_accepted() {
+    let auth = authenticator_returning(|nonce| {
+        id_token(&claims(
+            nonce,
+            "aud",
+            serde_json::json!(["other", "my-client-id"]),
+        ))
+    })
+    .await;
+
+    auth.exchange_code("oidc-code")
+        .await
+        .expect("the exchange succeeds");
+
+    let headers = auth
+        .try_auth_headers()
+        .await
+        .expect("headers after the exchange");
+    assert_eq!("Bearer oidc-tok", headers.get("Authorization").unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_036_an_id_token_with_another_nonce_is_rejected() {
+    let auth = authenticator_returning(|nonce| {
+        id_token(&claims(nonce, "nonce", serde_json::json!("replayed")))
+    })
+    .await;
+
+    let error = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("the exchange fails");
+
+    assert_eq!(
+        "The id_token nonce does not match the authorization request",
+        token_error_message(&error)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_037_an_id_token_from_another_issuer_is_rejected() {
+    let auth = authenticator_returning(|nonce| {
+        id_token(&claims(
+            nonce,
+            "iss",
+            serde_json::json!("https://evil.example.com"),
+        ))
+    })
+    .await;
+
+    let error = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("the exchange fails");
+
+    assert_eq!(
+        "The id_token issuer does not match the discovered issuer",
+        token_error_message(&error)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_038_an_id_token_for_another_audience_is_rejected() {
+    let auth = authenticator_returning(|nonce| {
+        id_token(&claims(nonce, "aud", serde_json::json!("other-client")))
+    })
+    .await;
+
+    let error = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("the exchange fails");
+
+    assert_eq!(
+        "The id_token audience does not contain the client id",
+        token_error_message(&error)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_039_an_expired_id_token_is_rejected() {
+    let auth = authenticator_returning(|nonce| {
+        id_token(&claims(
+            nonce,
+            "exp",
+            serde_json::json!(now_seconds() - 120),
+        ))
+    })
+    .await;
+
+    let error = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("the exchange fails");
+
+    assert_eq!("The id_token has expired", token_error_message(&error));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_040_a_malformed_id_token_is_rejected() {
+    let auth = authenticator_returning(|_| "not-a-jwt".to_string()).await;
+
+    let error = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("the exchange fails");
+
+    assert_eq!("The id_token is malformed", token_error_message(&error));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoidc_041_a_rejected_id_token_leaves_no_session() {
+    let auth = authenticator_returning(|nonce| {
+        id_token(&claims(nonce, "nonce", serde_json::json!("replayed")))
+    })
+    .await;
+    auth.exchange_code("oidc-code")
+        .await
+        .expect_err("the exchange fails");
+
+    let error = auth.try_auth_headers().await.expect_err("no session");
+
+    assert!(
+        error
+            .downcast_ref::<OAuth2AuthorizationCodeError>()
+            .is_some(),
+        "{}",
+        error
     );
 }

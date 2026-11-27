@@ -11,6 +11,8 @@ package oauth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,6 +61,12 @@ func parseDiscoveryMaxAge(headers map[string]string) int {
 // Fetches the OIDC discovery document to discover the authorization and
 // token endpoints, then delegates to an OAuth2AuthorizationCodeAuthenticator.
 //
+// Each authorization URL carries a fresh nonce. The code exchange validates
+// the claims of the id_token in the token response: the nonce of the
+// authorization URL, the discovered issuer, the client id in the audience and
+// an expiry that has not passed (60 seconds of clock skew are allowed). The
+// signature of the id_token is not verified.
+//
 // Implements HttpAwareAuthenticator so that both the discovery request and
 // subsequent token exchange requests use the shared ApiClient with the same
 // transport configuration (proxy, TLS, timeouts) as regular API calls.
@@ -73,8 +81,18 @@ type OpenIdConnectAuthenticator struct {
 	apiClient        auth.ApiClient
 	delegate         *OAuth2AuthorizationCodeAuthenticator
 	discoveryExpiry  time.Time
-	mu               sync.Mutex
+	// discoveredIssuer is the issuer named by the last discovery document,
+	// empty when it named none.
+	discoveredIssuer string
+	// pendingNonce is the nonce of the last authorization URL built, until
+	// the code exchange uses it.
+	pendingNonce string
+	mu           sync.Mutex
 }
+
+// idTokenClockSkew is the clock skew allowed when checking the expiry of an
+// id_token.
+const idTokenClockSkew = 60 * time.Second
 
 // NewOpenIdConnectAuthenticator creates a new OpenID Connect authenticator.
 func NewOpenIdConnectAuthenticator(host, openIDConnectURL, clientID, clientSecret, redirectURI string, scopes []string) *OpenIdConnectAuthenticator {
@@ -144,7 +162,24 @@ func (a *OpenIdConnectAuthenticator) BuildAuthorizationURL(state string) (string
 	if err != nil {
 		return "", err
 	}
-	return delegate.BuildAuthorizationURL(state), nil
+	authorizationURL := delegate.BuildAuthorizationURL(state)
+	/* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+	 * request; the exchange checks it once. */
+	nonce := newNonce()
+	a.mu.Lock()
+	a.pendingNonce = nonce
+	a.mu.Unlock()
+	return authorizationURL + "&nonce=" + nonce, nil
+}
+
+// newNonce returns a fresh nonce: 32 random bytes as unpadded base64url, 43
+// characters.
+func newNonce() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
 // ExchangeCode exchanges an authorization code for tokens using the
@@ -159,7 +194,81 @@ func (a *OpenIdConnectAuthenticator) ExchangeCode(code string) error {
 	if err != nil {
 		return err
 	}
-	return delegate.ExchangeCode(code)
+	a.mu.Lock()
+	nonce, issuer := a.pendingNonce, a.discoveredIssuer
+	a.pendingNonce = ""
+	a.mu.Unlock()
+	return delegate.exchangeCode(code, func(idToken *string) error {
+		return validateIDToken(idToken, nonce, issuer, a.clientID, time.Now())
+	})
+}
+
+// validateIDToken checks the claims of the id_token of a code exchange
+// (OpenID Connect Core 3.1.3.7): the nonce of the authorization URL when one
+// was sent, the discovered issuer, the client id in the audience and the
+// expiry. A response without an id_token is not checked. The payload is
+// decoded without verifying the signature.
+func validateIDToken(idToken *string, nonce, issuer, clientID string, now time.Time) error {
+	if idToken == nil {
+		return nil
+	}
+	claims, err := decodeIDToken(*idToken)
+	if err != nil {
+		return err
+	}
+	if nonce != "" {
+		if claim, ok := claims["nonce"].(string); !ok || claim != nonce {
+			return errors_pkg.NewOAuth2TokenError("The id_token nonce does not match the authorization request")
+		}
+	}
+	if iss, ok := claims["iss"].(string); !ok || issuer == "" || iss != issuer {
+		return errors_pkg.NewOAuth2TokenError("The id_token issuer does not match the discovered issuer")
+	}
+	if !audienceContains(claims["aud"], clientID) {
+		return errors_pkg.NewOAuth2TokenError("The id_token audience does not contain the client id")
+	}
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return errors_pkg.NewOAuth2TokenError("The id_token is malformed")
+	}
+	if float64(now.Unix()) >= exp+idTokenClockSkew.Seconds() {
+		return errors_pkg.NewOAuth2TokenError("The id_token has expired")
+	}
+	return nil
+}
+
+// decodeIDToken returns the claims of a compact JWS: the second segment,
+// base64url-decoded JSON.
+func decodeIDToken(idToken string) (map[string]any, error) {
+	parts := strings.Split(idToken, ".")
+	if len(parts) != 3 {
+		return nil, errors_pkg.NewOAuth2TokenError("The id_token is malformed")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(parts[1], "="))
+	if err != nil {
+		return nil, errors_pkg.NewOAuth2TokenError("The id_token is malformed")
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil || claims == nil {
+		return nil, errors_pkg.NewOAuth2TokenError("The id_token is malformed")
+	}
+	return claims, nil
+}
+
+// audienceContains reports whether an aud claim, a string or an array of
+// strings, names the client id.
+func audienceContains(aud any, clientID string) bool {
+	switch value := aud.(type) {
+	case string:
+		return value == clientID
+	case []any:
+		for _, entry := range value {
+			if s, ok := entry.(string); ok && s == clientID {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // AuthHeadersOrError returns the Bearer authentication header, or the error
@@ -321,6 +430,10 @@ func (a *OpenIdConnectAuthenticator) discover(ctx context.Context) (*OAuth2Autho
 		fresh.setPKCEVerifier(a.delegate.currentPKCEVerifier())
 	}
 	a.delegate = fresh
+	a.discoveredIssuer = ""
+	if issuer, ok := discovery.Issuer.(string); ok {
+		a.discoveredIssuer = issuer
+	}
 	a.delegate.tokenManager.SetApiClient(client)
 	a.discoveryExpiry = time.Now().Add(time.Duration(parseDiscoveryMaxAge(resp.Headers)) * time.Second)
 

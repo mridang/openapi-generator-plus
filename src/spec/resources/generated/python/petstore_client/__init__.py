@@ -62,6 +62,7 @@ __all__ = [
     "NetworkException",
     "NetworkTimeoutException",
     "StreamException",
+    "ResponseTooLargeException",
     "PaginationException",
     "SerializationException",
     "OAuth2ServerException",
@@ -211,6 +212,9 @@ from petstore_client.errors import (
 from petstore_client.errors import NetworkException as NetworkException
 from petstore_client.errors import NetworkTimeoutException as NetworkTimeoutException
 from petstore_client.errors import StreamException as StreamException
+from petstore_client.errors import (
+    ResponseTooLargeException as ResponseTooLargeException,
+)
 from petstore_client.errors import PaginationException as PaginationException
 from petstore_client.errors import SerializationException as SerializationException
 from petstore_client.errors import OAuth2ServerException as OAuth2ServerException

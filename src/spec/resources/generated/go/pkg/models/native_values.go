@@ -12,8 +12,17 @@ package models
 import (
 	"encoding/json"
 	"net/netip"
+	"time"
+
+	"github.com/go-json-experiment/json/jsontext"
+
+	"petstore/pkg/internal/exactdecimal"
+
+	"petstore/pkg/internal/protoduration"
 
 	"cloud.google.com/go/civil"
+
+	"github.com/shopspring/decimal"
 )
 
 // NativeValues is a model class generated from the OpenAPI schema.
@@ -26,11 +35,11 @@ type NativeValues struct {
 	// Example: https://example.com/a
 	Homepage *string `json:"homepage,omitempty"`
 	// Example: 12.345678901234567
-	Amount *float64 `json:"amount,omitempty"`
+	Amount *decimal.Decimal `json:"amount,omitempty"`
 	// Example: 12.50
-	Ledger *float64 `json:"ledger,omitempty"`
+	Ledger *decimal.Decimal `json:"ledger,omitempty"`
 	// Example: 3600s
-	Wait *Duration `json:"wait,omitempty"`
+	Wait *time.Duration `json:"wait,omitempty"`
 	// Example: 2024-02-29
 	Since *civil.Date `json:"since,omitempty"`
 	// Example: example.com
@@ -116,7 +125,7 @@ func (o NativeValues) WithoutHomepage() NativeValues {
 }
 
 // WithAmount returns a copy of the model with Amount replaced; the receiver is unchanged.
-func (o NativeValues) WithAmount(value float64) NativeValues {
+func (o NativeValues) WithAmount(value decimal.Decimal) NativeValues {
 	o.Amount = &value
 	return o
 }
@@ -128,7 +137,7 @@ func (o NativeValues) WithoutAmount() NativeValues {
 }
 
 // WithLedger returns a copy of the model with Ledger replaced; the receiver is unchanged.
-func (o NativeValues) WithLedger(value float64) NativeValues {
+func (o NativeValues) WithLedger(value decimal.Decimal) NativeValues {
 	o.Ledger = &value
 	return o
 }
@@ -140,7 +149,7 @@ func (o NativeValues) WithoutLedger() NativeValues {
 }
 
 // WithWait returns a copy of the model with Wait replaced; the receiver is unchanged.
-func (o NativeValues) WithWait(value Duration) NativeValues {
+func (o NativeValues) WithWait(value time.Duration) NativeValues {
 	o.Wait = &value
 	return o
 }
@@ -195,25 +204,64 @@ func NewNativeValues() *NativeValues {
 // MarshalJSON implements the json.Marshaler interface.
 func (o NativeValues) MarshalJSON() ([]byte, error) {
 	type Alias NativeValues
-	return marshalJSON((Alias)(o))
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	if b, err = protoduration.EncodeFields(b, "wait"); err != nil {
+		return nil, err
+	}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b, exactdecimal.Field{Key: "amount", Value: o.Amount}, exactdecimal.Field{Key: "ledger", Value: o.Ledger, Quoted: true}); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *NativeValues) UnmarshalJSON(data []byte) error {
-	type Alias NativeValues
-	aux := &Alias{}
-	if err := checkIPField(data, "address4", false); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *NativeValues) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out NativeValues
+	err := readObject(dec, "NativeValues", func(key string) error {
+		switch key {
+		case "address4":
+			return decodeChecked(dec, &out.Address4, key, checkIPv4)
+		case "address6":
+			return decodeChecked(dec, &out.Address6, key, checkIPv6)
+		case "addresses":
+			return decodeValue(dec, &out.Addresses)
+		case "homepage":
+			return decodeChecked(dec, &out.Homepage, key, checkAbsoluteURI)
+		case "amount":
+			return decodeChecked(dec, &out.Amount, key, checkDecimalNumber)
+		case "ledger":
+			return decodeChecked(dec, &out.Ledger, key, checkDecimalString)
+		case "wait":
+			return decodeValue(dec, &out.Wait)
+		case "since":
+			return decodeValue(dec, &out.Since)
+		case "host":
+			return decodeValue(dec, &out.Host)
+		case "contact":
+			return decodeValue(dec, &out.Contact)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	if err := checkIPField(data, "address6", true); err != nil {
-		return err
-	}
-	if err := checkAbsoluteURIField(data, "homepage"); err != nil {
-		return err
-	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "address4", "address6", "addresses", "homepage", "amount", "ledger", "wait", "since", "host", "contact"), aux); err != nil {
-		return err
-	}
-	*o = NativeValues(*aux)
+	*o = out
 	return nil
 }

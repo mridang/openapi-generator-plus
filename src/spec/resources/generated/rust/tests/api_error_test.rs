@@ -20,9 +20,9 @@ use petstore::models::Category;
 use petstore::ApiError;
 use petstore::ApiErrorInfo;
 use petstore::ApiErrorKind;
+use petstore::Error;
 use petstore::ErrorFactory;
 use petstore::OpenAPIError;
-use petstore::OpenAPIErrorExt;
 use petstore::SerializationError;
 use petstore::{OAuth2AuthorizationCodeError, OAuth2ServerError, OAuth2TokenError};
 
@@ -1185,6 +1185,7 @@ fn test_bhv_langrust_073_package_root_exports_the_whole_error_tree() {
     assert_type_is_open_api_error::<petstore::NetworkError>();
     assert_type_is_open_api_error::<petstore::NetworkTimeoutError>();
     assert_type_is_open_api_error::<petstore::StreamError>();
+    assert_type_is_open_api_error::<petstore::ResponseTooLargeError>();
     assert_type_is_open_api_error::<petstore::SerializationError>();
     assert_type_is_open_api_error::<petstore::OAuth2ServerError>();
     assert_type_is_open_api_error::<petstore::OAuth2TokenError>();
@@ -1240,10 +1241,10 @@ fn test_bhv_langrust_075_network_wrappers_display_the_wrapped_api_error() {
 fn test_bhv_langrust_076_skills_error_handling_example_has_the_common_catch_arms() {
     let skills = include_str!("../SKILLS.md");
     for arm in [
-        "Err(e) if is_a::<NotFoundError>(&*e) =>",
-        "Err(e) if is_a::<ClientError>(&*e) =>",
-        "Err(e) if is_a::<ServerError>(&*e) =>",
-        "Err(e) => println!(\"Error: {e}\"),",
+        "Err(Error::NotFound(e)) =>",
+        "Some(400..=499) => println!(\"Client error: {e}\"),",
+        "Some(500..=599) => println!(\"Server error: {e}\"),",
+        "_ => println!(\"Error: {e}\"),",
     ] {
         assert!(
             skills.contains(arm),
@@ -1251,8 +1252,12 @@ fn test_bhv_langrust_076_skills_error_handling_example_has_the_common_catch_arms
         );
     }
     assert!(
-        !skills.contains("is_a::<NetworkTimeoutError>"),
+        !skills.contains("Err(Error::NetworkTimeout("),
         "SKILLS.md error example must not add an arm the other SDKs lack"
+    );
+    assert!(
+        !skills.contains("successors("),
+        "the operation error is matched by variant, so SKILLS.md needs no source-chain walk"
     );
 }
 
@@ -1298,35 +1303,36 @@ fn test_bhv_langrust_077_generic_wrappers_refuse_a_status_that_does_not_belong()
     assert!(NetworkError::try_from(refused(0)).is_ok());
 }
 
-// -- Matching SDK errors without downcasting ---------------------------------
+// -- The error every operation returns ------------------------------------
 
 #[test]
-fn test_bhv_langrust_078_boxed_error_helpers_resolve_every_http_wrapper_to_its_api_error() {
-    let boxed: Vec<(Box<dyn std::error::Error + Send + Sync>, u16)> = vec![
+fn test_bhv_langrust_078_the_operation_error_resolves_every_http_variant_to_its_api_error() {
+    let errors: Vec<(Error, u16)> = vec![
         (
-            Box::new(ApiError::new(302, "x".to_string(), None, None)),
+            Error::from(ApiError::new(302, "x".to_string(), None, None)),
             302,
         ),
-        (Box::new(client_chain(418, "x")), 418),
-        (Box::new(server_chain(503, "x")), 503),
+        (Error::from(client_chain(418, "x")), 418),
+        (Error::from(server_chain(503, "x")), 503),
         (
-            Box::new(BadRequestError::try_from(client_chain(400, "x")).expect("400")),
+            Error::from(BadRequestError::try_from(client_chain(400, "x")).expect("400")),
             400,
         ),
         (
-            Box::new(NotFoundError::try_from(client_chain(404, "x")).expect("404")),
+            Error::from(NotFoundError::try_from(client_chain(404, "x")).expect("404")),
             404,
         ),
         (
-            Box::new(InternalServerError::try_from(server_chain(500, "x")).expect("500")),
+            Error::from(InternalServerError::try_from(server_chain(500, "x")).expect("500")),
             500,
         ),
     ];
-    for (err, status) in boxed {
-        assert!(err.is_api_error(), "got: {}", err);
+    for (err, status) in errors {
         assert_eq!(
             status,
-            err.as_api_error().expect("an ApiError").status_code()
+            err.api_error().expect("an ApiError").status_code(),
+            "got: {}",
+            err
         );
         assert_eq!(
             Some(status),
@@ -1336,24 +1342,82 @@ fn test_bhv_langrust_078_boxed_error_helpers_resolve_every_http_wrapper_to_its_a
 }
 
 #[test]
-fn test_bhv_langrust_079_boxed_error_helpers_return_none_for_other_errors() {
-    let err: Box<dyn std::error::Error + Send + Sync> =
-        Box::new(SerializationError::new("failed".to_string(), None));
+fn test_bhv_langrust_079_the_operation_error_has_no_api_error_for_other_variants() {
+    let err = Error::from(SerializationError::new("failed".to_string(), None));
 
-    assert!(!err.is_api_error());
-    assert!(err.as_api_error().is_none());
+    assert!(matches!(err, Error::Serialization(_)), "got: {:?}", err);
+    assert!(err.api_error().is_none());
     assert!(err.api_error_kind().is_none());
 }
 
 #[test]
-fn test_bhv_langrust_080_boxed_error_kind_can_be_matched() {
-    let err: Box<dyn std::error::Error + Send + Sync> =
-        Box::new(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
+fn test_bhv_langrust_080_the_operation_error_kind_can_be_matched() {
+    let err = Error::from(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
 
+    assert!(matches!(err, Error::NotFound(_)), "got: {:?}", err);
     assert!(matches!(
         err.api_error_kind(),
         Some(ApiErrorKind::NotFound(_))
     ));
+}
+
+/// A boxed error is sorted into the variant that names its type, a boxed
+/// `Error` comes back as itself, and any other error lands in `Other` with its
+/// text and type intact. The enum is an error itself, so `?` lifts it into a
+/// boxed error and back without losing the variant.
+#[test]
+fn test_bhv_langrust_094_the_operation_error_sorts_a_boxed_error_into_its_variant_and_anything_else_into_other(
+) {
+    let boxed = |e: Box<dyn std::error::Error + Send + Sync>| Error::from(e);
+
+    assert!(matches!(
+        boxed(Box::new(
+            NotFoundError::try_from(client_chain(404, "x")).expect("404")
+        )),
+        Error::NotFound(_)
+    ));
+    assert!(matches!(
+        boxed(Box::new(client_chain(418, "x"))),
+        Error::Client(_)
+    ));
+    assert!(matches!(
+        boxed(Box::new(server_chain(599, "x"))),
+        Error::Server(_)
+    ));
+    assert!(matches!(
+        boxed(Box::new(ApiError::new(302, "x".to_string(), None, None))),
+        Error::Api(_)
+    ));
+    assert!(matches!(
+        boxed(Box::new(SerializationError::new("x".to_string(), None))),
+        Error::Serialization(_)
+    ));
+    assert!(matches!(
+        boxed(Box::new(petstore::ConfigurationError::InvalidArgument(
+            "x".to_string()
+        ))),
+        Error::Configuration(_)
+    ));
+
+    let other = boxed(Box::new(std::io::Error::other("boom")));
+    assert!(matches!(other, Error::Other(_)), "got: {:?}", other);
+    assert_eq!("boom", other.to_string());
+    assert!(other.is::<std::io::Error>());
+    assert!(other.api_error().is_none());
+
+    fn lift() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        Err(Error::from(
+            NotFoundError::try_from(client_chain(404, "x")).expect("404"),
+        ))?
+    }
+    let round_trip = Error::from(lift().expect_err("the error is lifted"));
+    assert!(
+        matches!(round_trip, Error::NotFound(_)),
+        "got: {:?}",
+        round_trip
+    );
+    assert_eq!(Some(404), round_trip.api_error().map(|e| e.status_code()));
+    let _: &dyn OpenAPIError = &round_trip;
 }
 /// Every error type is declared in the errors module, and the crate root
 /// re-exports the same type under its name.
@@ -1385,6 +1449,10 @@ fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
     assert_eq!(
         TypeId::of::<errors::StreamError>(),
         TypeId::of::<petstore::StreamError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::ResponseTooLargeError>(),
+        TypeId::of::<petstore::ResponseTooLargeError>()
     );
     assert_eq!(
         TypeId::of::<errors::OAuth2ServerError>(),
@@ -1440,8 +1508,10 @@ fn test_bhv_errors_074_an_error_without_a_response_renders_its_message_alone() {
 
 #[test]
 fn test_bhv_errors_076_an_error_the_sdk_did_not_raise_is_not_classified_as_one_of_its_own() {
-    use petstore::OpenAPIErrorExt;
-    let wrapped: Box<dyn std::error::Error + Send + Sync> = Box::new(std::io::Error::other("boom"));
+    let wrapped = Error::from(
+        Box::new(std::io::Error::other("boom")) as Box<dyn std::error::Error + Send + Sync>
+    );
+    assert!(matches!(wrapped, Error::Other(_)), "got: {:?}", wrapped);
     assert!(
         wrapped.api_error_kind().is_none(),
         "a foreign error must not be classified"
@@ -1464,9 +1534,8 @@ fn test_bhv_errors_079_the_first_complete_request_is_kept_and_later_attachments_
 
 #[test]
 fn test_bhv_errors_080_a_typed_http_error_is_caught_by_the_root_type_and_keeps_its_status() {
-    use petstore::OpenAPIErrorExt;
-    let err: Box<dyn std::error::Error + Send + Sync> =
-        Box::new(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
+    let err = Error::from(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
+    let _: &dyn OpenAPIError = &err;
     assert!(err.to_string().contains("404"), "{}", err);
     match err.api_error_kind() {
         Some(ApiErrorKind::NotFound(inner)) => assert_eq!(inner.status_code(), 404),
@@ -1540,16 +1609,28 @@ fn test_bhv_errors_075_a_rendered_body_cut_at_the_limit_never_splits_a_multi_byt
 #[test]
 fn test_bhv_errors_201_an_error_is_retryable_exactly_for_the_statuses_the_client_retries() {
     for status in [408u16, 409, 429, 500, 502, 503, 504, 599] {
-        let err = ApiError::from_response(status, &HashMap::new(), "", None, None);
+        let err = Error::from(ApiError::from_response(
+            status,
+            &HashMap::new(),
+            "",
+            None,
+            None,
+        ));
         assert!(
-            err.as_api_error().expect("an ApiError").is_retryable(),
+            err.api_error().expect("an ApiError").is_retryable(),
             "status {status}"
         );
     }
     for status in [400u16, 401, 403, 404, 422, 501, 302] {
-        let err = ApiError::from_response(status, &HashMap::new(), "", None, None);
+        let err = Error::from(ApiError::from_response(
+            status,
+            &HashMap::new(),
+            "",
+            None,
+            None,
+        ));
         assert!(
-            !err.as_api_error().expect("an ApiError").is_retryable(),
+            !err.api_error().expect("an ApiError").is_retryable(),
             "status {status}"
         );
     }
@@ -1623,18 +1704,15 @@ fn test_bhv_errors_203_the_error_factory_of_an_operation_is_chosen_by_exact_stat
         ("default", labelled_factory("default")),
     ];
     let message_of = |status: u16| {
-        let err = ApiError::from_response_with(
+        let err = Error::from(ApiError::from_response_with(
             status,
             &HashMap::new(),
             "{}",
             Some("GET"),
             Some("/x"),
             &factories,
-        );
-        err.as_api_error()
-            .expect("an ApiError")
-            .message()
-            .to_string()
+        ));
+        err.api_error().expect("an ApiError").message().to_string()
     };
 
     assert_eq!(message_of(404), "exact");
@@ -1819,25 +1897,30 @@ fn test_bhv_errors_204_a_body_that_does_not_match_its_declared_error_schema_leav
 ) {
     use petstore::errors::UnexpectedFailureError;
 
-    let err = UnexpectedFailureError::from_error_response(
+    let err = Error::from(UnexpectedFailureError::from_error_response(
         400,
         &HashMap::new(),
         "[1, 2",
         Some("GET"),
         Some("/x"),
-    );
-    let status_only =
-        ApiError::from_response(400, &HashMap::new(), "[1, 2", Some("GET"), Some("/x"));
+    ));
+    let status_only = Error::from(ApiError::from_response(
+        400,
+        &HashMap::new(),
+        "[1, 2",
+        Some("GET"),
+        Some("/x"),
+    ));
 
     assert!(!err.is::<UnexpectedFailureError>());
     assert_eq!(
         std::mem::discriminant(&err.api_error_kind().expect("an ApiError")),
         std::mem::discriminant(&status_only.api_error_kind().expect("an ApiError")),
     );
-    let info = err.as_api_error().expect("an ApiError");
+    let info = err.api_error().expect("an ApiError");
     assert_eq!(info.response_body(), Some("[1, 2"));
     assert_eq!(info.status_code(), 400);
-    let mut cause = std::error::Error::source(&*err);
+    let mut cause = std::error::Error::source(&err);
     let mut found = false;
     while let Some(c) = cause {
         found = found || c.is::<SerializationError>();
@@ -1853,13 +1936,13 @@ fn test_bhv_langrust_081_a_declared_error_schema_decodes_into_its_own_error_belo
     use petstore::models::UnexpectedFailure;
 
     let body = serde_json::to_string(&UnexpectedFailure::default()).expect("the model serializes");
-    let err = UnexpectedFailureError::from_error_response(
+    let err = Error::from(UnexpectedFailureError::from_error_response(
         400,
         &HashMap::new(),
         &body,
         Some("GET"),
         Some("/x?q=1"),
-    );
+    ));
 
     let typed = err
         .downcast_ref::<UnexpectedFailureError>()
@@ -1867,7 +1950,12 @@ fn test_bhv_langrust_081_a_declared_error_schema_decodes_into_its_own_error_belo
     assert_eq!(typed.error_body(), &UnexpectedFailure::default());
     assert_eq!(ApiErrorInfo::status_code(typed), 400);
     assert_eq!(ApiErrorInfo::request_path(typed), Some("/x"));
-    assert!(err.is_api_error());
+    assert!(
+        matches!(err, Error::UnexpectedFailureError(_)),
+        "got: {:?}",
+        err
+    );
+    assert!(err.api_error().is_some());
     assert_eq!(
         err.api_error_kind().map(|kind| kind.status_code()),
         Some(400)
@@ -1903,6 +1991,7 @@ fn test_bhv_misc_283_package_root_exports_the_whole_error_tree() {
     exported::<petstore::NetworkError>();
     exported::<petstore::NetworkTimeoutError>();
     exported::<petstore::StreamError>();
+    exported::<petstore::ResponseTooLargeError>();
     exported::<petstore::BadRequestError>();
     exported::<petstore::UnauthorizedError>();
     exported::<petstore::ForbiddenError>();

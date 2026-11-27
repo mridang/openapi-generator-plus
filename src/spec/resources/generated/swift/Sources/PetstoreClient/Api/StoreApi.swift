@@ -575,7 +575,7 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     if let options = options, let val = options.delay {
       queryParams["delay"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
-          "delay", value: val, location: "query", schemaType: "TimeInterval", collectionFormat: "",
+          "delay", value: val, location: "query", schemaType: "Duration", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     }
     if let options = options, let val = options.amount {

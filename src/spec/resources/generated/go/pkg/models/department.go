@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Department is a model class generated from the OpenAPI schema.
@@ -79,29 +81,41 @@ func (o Department) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Department) UnmarshalJSON(data []byte) error {
-	type Alias Department
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "name", "lead"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Department) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Department
+	seenName := false
+	err := readObject(dec, "Department", func(key string) error {
+		switch key {
+		case "name":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'name' must not be null in Department")
+			}
+			seenName = true
+			return decodeValue(dec, &out.Name)
+		case "lead":
+			return decodeValue(dec, &out.Lead)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["name"]; !ok {
+	if !seenName {
 		return fmt.Errorf("required field 'name' is missing in Department")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'name' must not be null in Department")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = Department(*aux)
+	*o = out
 	return nil
 }

@@ -40,6 +40,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
     def last_method(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_method)
     def get_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.get_count)
+
+    # Queue one more response after the ones given to new/1.
+    def push(%__MODULE__{agent: agent}, response) do
+      Agent.update(agent, fn state -> %{state | responses: state.responses ++ [response]} end)
+    end
   end
 
   # Records the options a discovery request is sent with, and answers with a valid document.
@@ -73,7 +78,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
   end
 
   defp strip_pkce(url) do
-    Regex.replace(~r/&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256\z/, url, "")
+    Regex.replace(
+      ~r/&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256&nonce=[A-Za-z0-9_-]+\z/,
+      url,
+      ""
+    )
   end
 
   describe "OpenIdConnectAuthenticator" do
@@ -568,7 +577,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       refute err.message =~ "[1, 2]"
     end
 
-    test "bhv misc 078 an OpenID Connect authorization URL carries an S256 PKCE challenge and no nonce" do
+    test "bhv misc 078 an OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce" do
       discovery =
         Jason.encode!(%{
           "issuer" => "https://auth.example.com",
@@ -588,7 +597,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       url = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
 
       assert url =~ "code_challenge_method=S256"
-      refute url =~ "nonce="
+      assert url =~ ~r/&nonce=[A-Za-z0-9_-]{43}\z/
     end
 
     test "bhv authoidc 016 a malformed discovery document raises serialization error" do
@@ -760,7 +769,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # The PKCE verifier lives in the token manager the rediscovery keeps, so a
     # code exchanged after the discovery document expired still proves the
     # challenge of the authorization URL built before it.
-    test "bhv authoidc 021 the PKCE verifier survives a rediscovery and the URL has no nonce" do
+    test "bhv authoidc 021 the PKCE verifier survives a rediscovery and the URL carries a nonce" do
       discovery = %PetstoreClient.ApiHttpResponse{
         status_code: 200,
         headers: %{"Cache-Control" => "max-age=0"},
@@ -795,7 +804,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         |> URI.decode_query()
 
       assert params["code_challenge_method"] == "S256"
-      refute Map.has_key?(params, "nonce")
+      assert byte_size(params["nonce"]) == 43
 
       PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
 
@@ -1150,5 +1159,172 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
                "https://auth.example.com/authorize-v2?"
     end
+
+    test "bhv authoidc 034 each authorization url carries a fresh nonce" do
+      fake_client = FakeApiClient.new([issuer_discovery()])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+          create_authenticator(),
+          fake_client
+        )
+
+      first =
+        nonce_of(
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth, "s")
+        )
+
+      second =
+        nonce_of(
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth, "s")
+        )
+
+      assert first =~ ~r/\A[A-Za-z0-9_-]{43}\z/
+      refute first == second
+    end
+
+    test "bhv authoidc 035 an id_token with valid claims is accepted" do
+      auth = authenticator_returning(&id_token(claims(&1, %{"aud" => ["other", "my-client-id"]})))
+
+      auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] == "Bearer oidc-tok"
+    end
+
+    test "bhv authoidc 036 an id_token with another nonce is rejected" do
+      auth = authenticator_returning(&id_token(claims(&1, %{"nonce" => "replayed"})))
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+        end
+
+      assert Exception.message(error) ==
+               "The id_token nonce does not match the authorization request"
+    end
+
+    test "bhv authoidc 037 an id_token from another issuer is rejected" do
+      auth =
+        authenticator_returning(&id_token(claims(&1, %{"iss" => "https://evil.example.com"})))
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+        end
+
+      assert Exception.message(error) ==
+               "The id_token issuer does not match the discovered issuer"
+    end
+
+    test "bhv authoidc 038 an id_token for another audience is rejected" do
+      auth = authenticator_returning(&id_token(claims(&1, %{"aud" => "other-client"})))
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+        end
+
+      assert Exception.message(error) == "The id_token audience does not contain the client id"
+    end
+
+    test "bhv authoidc 039 an expired id_token is rejected" do
+      expired = System.os_time(:second) - 120
+      auth = authenticator_returning(&id_token(claims(&1, %{"exp" => expired})))
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+        end
+
+      assert Exception.message(error) == "The id_token has expired"
+    end
+
+    test "bhv authoidc 040 a malformed id_token is rejected" do
+      auth = authenticator_returning(fn _nonce -> "not-a-jwt" end)
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+        end
+
+      assert Exception.message(error) == "The id_token is malformed"
+    end
+
+    test "bhv authoidc 041 a rejected id_token leaves no session" do
+      auth = authenticator_returning(&id_token(claims(&1, %{"nonce" => "replayed"})))
+
+      assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+      end
+
+      assert_raise RuntimeError, "Must call exchange_code() before making API requests", fn ->
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.auth_headers(auth)
+      end
+    end
+  end
+
+  defp issuer_discovery do
+    %PetstoreClient.ApiHttpResponse{
+      status_code: 200,
+      body:
+        Jason.encode!(%{
+          "issuer" => "https://auth.example.com",
+          "authorization_endpoint" => "https://auth.example.com/authorize",
+          "token_endpoint" => "https://auth.example.com/token"
+        })
+    }
+  end
+
+  defp nonce_of(url),
+    do: url |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("nonce")
+
+  # An unsigned compact JWT whose payload is the given claims.
+  defp id_token(claims) do
+    Base.url_encode64(~s({"alg":"none"}), padding: false) <>
+      "." <> Base.url_encode64(Jason.encode!(claims), padding: false) <> ".sig"
+  end
+
+  # Claims that pass every check for the given nonce, with the overrides applied.
+  defp claims(nonce, overrides) do
+    Map.merge(
+      %{
+        "iss" => "https://auth.example.com",
+        "aud" => "my-client-id",
+        "exp" => System.os_time(:second) + 3600,
+        "nonce" => nonce
+      },
+      overrides
+    )
+  end
+
+  # An authenticator that has built an authorization URL and whose token
+  # endpoint answers with the id_token built from that URL's nonce.
+  defp authenticator_returning(id_token_for_nonce) do
+    fake_client = FakeApiClient.new([issuer_discovery()])
+
+    auth =
+      PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(
+        create_authenticator(),
+        fake_client
+      )
+
+    nonce =
+      nonce_of(
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth, "s")
+      )
+
+    FakeApiClient.push(fake_client, %PetstoreClient.ApiHttpResponse{
+      status_code: 200,
+      body:
+        Jason.encode!(%{
+          "access_token" => "oidc-tok",
+          "expires_in" => 3600,
+          "id_token" => id_token_for_nonce.(nonce)
+        })
+    })
+
+    auth
   end
 end

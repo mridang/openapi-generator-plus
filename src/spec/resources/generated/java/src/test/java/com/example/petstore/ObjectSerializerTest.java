@@ -3762,6 +3762,20 @@ class ObjectSerializerTest {
       }
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+      "address4, 01.2.3.4", "address4, 192.0.2.1/24", "address4, ' 192.0.2.1'", "address4, [::1]",
+      "address4, 2001:db8::1", "address6, fe80::1%eth0", "address6, [::1]",
+          "address6, 2001:db8::/64",
+      "address6, ' ::1'", "address6, 192.0.2.1", "addresses, 1:2:3:4:5:6:7:8:9"
+    })
+    @DisplayName("bhvSerializationObject407 a malformed ipv4 or ipv6 address fails the decode")
+    void bhvSerializationObject407MalformedAddressFailsTheDecode(String field, String text) {
+      String value = "addresses".equals(field) ? "[\"" + text + "\"]" : "\"" + text + "\"";
+      assertThrows(
+          SerializationException.class, () -> decode("{\"" + field + "\":" + value + "}"), text);
+    }
+
     @Test
     @DisplayName(
         "bhvSerializationObject408 every absolute URI of the corpus round-trips byte for byte")
@@ -3815,6 +3829,17 @@ class ObjectSerializerTest {
       com.example.petstore.models.NativeValues decoded = decode("{\"amount\":" + digits + "}");
       assertEquals(new java.math.BigDecimal(digits), decoded.amount);
       assertEquals("{\"amount\":" + digits + "}", serializer.serialize(decoded));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject413 a number or string decimal field is the exact BigDecimal")
+    void bhvSerializationObject413DecimalFieldsAreBigDecimal() {
+      com.example.petstore.models.NativeValues decoded =
+          decode("{\"amount\":0.1,\"ledger\":\"0.2\"}");
+      java.math.BigDecimal amount = decoded.amount;
+      java.math.BigDecimal ledger = decoded.ledger;
+      assertEquals(new java.math.BigDecimal("0.3"), amount.add(ledger));
     }
 
     @Test

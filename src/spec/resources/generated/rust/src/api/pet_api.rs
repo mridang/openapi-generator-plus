@@ -275,13 +275,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn add_pet(
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self.add_pet_with_http_info(pet, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -291,12 +291,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for add_pet but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -305,12 +305,14 @@ impl PetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.add_pet_invoke(pet, options, "application/json").await
+        self.add_pet_invoke(pet, options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the add_pet operation. The resolved
@@ -372,13 +374,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn add_pet_photos(
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Photo>, crate::Error> {
         let result = self.add_pet_photos_with_http_info(pet_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -388,12 +390,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for add_pet_photos but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -402,13 +404,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<Photo>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * multipart/form-data, is the default
          * and this operation declares no alternative to select. */
         self.add_pet_photos_invoke(pet_id, options, "multipart/form-data")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the add_pet_photos operation. The resolved
@@ -516,7 +519,7 @@ impl PetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetTreatment, crate::Error> {
         let result = self
             .add_pet_treatment_with_http_info(pet_id, pet_treatment, options)
             .await?;
@@ -528,12 +531,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for add_pet_treatment but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -543,13 +546,14 @@ impl PetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetTreatment>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.add_pet_treatment_invoke(pet_id, pet_treatment, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the add_pet_treatment operation. The resolved
@@ -632,7 +636,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResponse, crate::Error> {
         let result = self
             .attach_pet_files_with_http_info(pet_id, options)
             .await?;
@@ -644,12 +648,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for attach_pet_files but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -658,13 +662,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ApiResponse>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * multipart/mixed, is the default
          * and this operation declares no alternative to select. */
         self.attach_pet_files_invoke(pet_id, options, "multipart/mixed")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the attach_pet_files operation. The resolved
@@ -765,13 +770,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn delete_pet(
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self.delete_pet_with_http_info(pet_id, options).await?;
         let _ = result;
         Ok(())
@@ -782,13 +787,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.delete_pet_invoke(pet_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the delete_pet operation. The resolved
@@ -913,14 +919,14 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn download_pet_document(
         &self,
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, crate::Error> {
         let result = self
             .download_pet_document_with_http_info(pet_id, document_id, options)
             .await?;
@@ -932,12 +938,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for download_pet_document but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -947,13 +953,14 @@ impl PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.download_pet_document_invoke(pet_id, document_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the download_pet_document operation. The resolved
@@ -1048,7 +1055,7 @@ impl PetApi {
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Pet>, crate::Error> {
         let result = self
             .find_pets_born_on_with_http_info(born_on, options)
             .await?;
@@ -1060,12 +1067,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for find_pets_born_on but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1074,13 +1081,14 @@ impl PetApi {
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<Pet>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.find_pets_born_on_invoke(born_on, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the find_pets_born_on operation. The resolved
@@ -1155,7 +1163,7 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     /// ### `status` — Available only
     /// Show only pets currently in stock
@@ -1170,7 +1178,7 @@ impl PetApi {
     pub async fn find_pets_by_status(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Pet>, crate::Error> {
         let result = self.find_pets_by_status_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1180,12 +1188,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for find_pets_by_status but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1194,13 +1202,14 @@ impl PetApi {
     pub async fn find_pets_by_status_with_http_info(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<Pet>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.find_pets_by_status_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the find_pets_by_status operation. The resolved
@@ -1361,7 +1370,7 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self
             .get_external_pet_info_with_http_info(pet_id, server, options)
             .await?;
@@ -1373,12 +1382,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_external_pet_info but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1388,13 +1397,14 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_external_pet_info_invoke(pet_id, server, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_external_pet_info operation. The resolved
@@ -1473,7 +1483,7 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self
             .get_multi_server_pet_info_with_http_info(pet_id, server, options)
             .await?;
@@ -1485,13 +1495,13 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_multi_server_pet_info but received none"
                     .to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1501,13 +1511,14 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_multi_server_pet_info_invoke(pet_id, server, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_multi_server_pet_info operation. The resolved
@@ -1584,13 +1595,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_avatar(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, crate::Error> {
         let result = self.get_pet_avatar_with_http_info(pet_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1600,12 +1611,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_avatar but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1614,13 +1625,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_avatar_invoke(pet_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_avatar operation. The resolved
@@ -1692,13 +1704,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<u8>, crate::Error> {
         let result = self
             .get_pet_avatar_thumbnail_with_http_info(pet_id, options)
             .await?;
@@ -1710,13 +1722,13 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_avatar_thumbnail but received none"
                     .to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1725,13 +1737,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<u8>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_avatar_thumbnail_invoke(pet_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_avatar_thumbnail operation. The resolved
@@ -1803,7 +1816,7 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     /// ### `pet_id` — Small breed ID
@@ -1821,7 +1834,7 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self
             .get_pet_by_id_with_http_info(pet_id, server, options)
             .await?;
@@ -1833,12 +1846,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_by_id but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1849,13 +1862,14 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_by_id_invoke(pet_id, server, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_by_id operation. The resolved
@@ -1933,7 +1947,7 @@ impl PetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self.get_pet_by_name_with_http_info(name, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1943,12 +1957,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_by_name but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1957,13 +1971,14 @@ impl PetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_by_name_invoke(name, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_by_name operation. The resolved
@@ -2137,7 +2152,7 @@ impl PetApi {
     pub async fn get_pet_by_note(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self.get_pet_by_note_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -2147,12 +2162,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_by_note but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2160,13 +2175,14 @@ impl PetApi {
     pub async fn get_pet_by_note_with_http_info(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_by_note_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_by_note operation. The resolved
@@ -2305,13 +2321,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_passport(
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> Result<PetPassport, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetPassport, crate::Error> {
         let result = self
             .get_pet_passport_with_http_info(pet_id, options)
             .await?;
@@ -2323,12 +2339,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_passport but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2337,13 +2353,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetPassport>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_passport_invoke(pet_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_passport operation. The resolved
@@ -2413,14 +2430,14 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_photo(
         &self,
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, crate::Error> {
         let result = self
             .get_pet_photo_with_http_info(pet_id, photo_id, options)
             .await?;
@@ -2432,12 +2449,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_photo but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2447,13 +2464,14 @@ impl PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_photo_invoke(pet_id, photo_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_photo operation. The resolved
@@ -2547,14 +2565,14 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_summary(
         &self,
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<String, crate::Error> {
         let result = self
             .get_pet_summary_with_http_info(pet_id, as_of, options)
             .await?;
@@ -2566,12 +2584,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_summary but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2581,13 +2599,14 @@ impl PetApi {
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<String>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_summary_invoke(pet_id, as_of, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_summary operation. The resolved
@@ -2772,7 +2791,7 @@ impl PetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self
             .get_pet_tag_with_http_info(pet_id, tag_name, options)
             .await?;
@@ -2784,12 +2803,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_pet_tag but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2799,13 +2818,14 @@ impl PetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_pet_tag_invoke(pet_id, tag_name, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_pet_tag operation. The resolved
@@ -3161,7 +3181,7 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self
             .get_staging_pet_info_with_http_info(pet_id, server, options)
             .await?;
@@ -3173,12 +3193,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_staging_pet_info but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -3188,13 +3208,14 @@ impl PetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_staging_pet_info_invoke(pet_id, server, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_staging_pet_info operation. The resolved
@@ -3271,7 +3292,7 @@ impl PetApi {
     pub async fn list_pet_archive(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetArchivePage, crate::Error> {
         let result = self.list_pet_archive_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -3281,12 +3302,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_archive but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -3294,13 +3315,14 @@ impl PetApi {
     pub async fn list_pet_archive_with_http_info(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetArchivePage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_archive_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_archive operation. The resolved
@@ -3395,7 +3417,7 @@ impl PetApi {
     pub async fn list_pet_catalog(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetCatalogPage, crate::Error> {
         let result = self.list_pet_catalog_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -3405,12 +3427,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_catalog but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -3418,13 +3440,14 @@ impl PetApi {
     pub async fn list_pet_catalog_with_http_info(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetCatalogPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_catalog_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_catalog operation. The resolved
@@ -3585,7 +3608,7 @@ impl PetApi {
     pub async fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetEventPage, crate::Error> {
         let result = self.list_pet_events_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -3595,12 +3618,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_events but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -3608,13 +3631,14 @@ impl PetApi {
     pub async fn list_pet_events_with_http_info(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetEventPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_events_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_events operation. The resolved
@@ -3746,7 +3770,7 @@ impl PetApi {
     pub async fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Pet>, crate::Error> {
         let result = self.list_pet_feed_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -3756,12 +3780,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_feed but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -3769,13 +3793,14 @@ impl PetApi {
     pub async fn list_pet_feed_with_http_info(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<Pet>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_feed_invoke(options, "application/json", None)
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_feed operation. The resolved
@@ -3894,6 +3919,7 @@ impl PetApi {
                         page_url.as_deref(),
                     )
                     .await
+                    .map_err(crate::Error::from)
                 })
             },
             |page: &Vec<Pet>| page.items_of(),
@@ -3906,7 +3932,7 @@ impl PetApi {
     pub async fn list_pet_matches(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetMatchPage, crate::Error> {
         let result = self.list_pet_matches_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -3916,12 +3942,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_matches but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -3929,13 +3955,14 @@ impl PetApi {
     pub async fn list_pet_matches_with_http_info(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetMatchPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_matches_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_matches operation. The resolved
@@ -4029,7 +4056,7 @@ impl PetApi {
     pub async fn list_pet_next_url(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetNextUrlPage, crate::Error> {
         let result = self.list_pet_next_url_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -4039,12 +4066,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_next_url but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -4052,13 +4079,14 @@ impl PetApi {
     pub async fn list_pet_next_url_with_http_info(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetNextUrlPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_next_url_invoke(options, "application/json", None)
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_next_url operation. The resolved
@@ -4178,6 +4206,7 @@ impl PetApi {
                         page_url.as_deref(),
                     )
                     .await
+                    .map_err(crate::Error::from)
                 })
             },
             |page: &PetNextUrlPage| page.items.items_of(),
@@ -4191,7 +4220,7 @@ impl PetApi {
     pub async fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetNotePage, crate::Error> {
         let result = self.list_pet_notes_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -4201,12 +4230,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_notes but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -4214,13 +4243,14 @@ impl PetApi {
     pub async fn list_pet_notes_with_http_info(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetNotePage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_notes_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_notes operation. The resolved
@@ -4351,7 +4381,7 @@ impl PetApi {
     pub async fn list_pet_offsets(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetOffsetPage, crate::Error> {
         let result = self.list_pet_offsets_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -4361,12 +4391,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_offsets but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -4374,13 +4404,14 @@ impl PetApi {
     pub async fn list_pet_offsets_with_http_info(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetOffsetPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_offsets_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_offsets operation. The resolved
@@ -4547,7 +4578,7 @@ impl PetApi {
     pub async fn list_pet_page_numbers(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetPageNumberPage, crate::Error> {
         let result = self.list_pet_page_numbers_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -4557,12 +4588,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pet_page_numbers but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -4570,13 +4601,14 @@ impl PetApi {
     pub async fn list_pet_page_numbers_with_http_info(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetPageNumberPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pet_page_numbers_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pet_page_numbers operation. The resolved
@@ -4743,7 +4775,7 @@ impl PetApi {
     pub async fn list_pets_after(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<PetAfterPage, crate::Error> {
         let result = self.list_pets_after_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -4753,12 +4785,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for list_pets_after but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -4766,13 +4798,14 @@ impl PetApi {
     pub async fn list_pets_after_with_http_info(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<PetAfterPage>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.list_pets_after_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the list_pets_after operation. The resolved
@@ -4937,7 +4970,7 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn set_pet_avatar(
         &self,
@@ -4946,7 +4979,7 @@ impl PetApi {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self
             .set_pet_avatar_with_http_info(pet_id, body, options, request_content_type)
             .await?;
@@ -4962,7 +4995,7 @@ impl PetApi {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * image/jpeg, is the default
@@ -4974,6 +5007,7 @@ impl PetApi {
             request_content_type.unwrap_or("image/jpeg"),
         )
         .await
+        .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the set_pet_avatar operation. The resolved
@@ -5067,14 +5101,14 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn set_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self
             .set_pet_avatar_thumbnail_with_http_info(
                 pet_id,
@@ -5092,7 +5126,7 @@ impl PetApi {
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -5104,6 +5138,7 @@ impl PetApi {
             "application/json",
         )
         .await
+        .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the set_pet_avatar_thumbnail operation. The resolved
@@ -5175,13 +5210,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn set_pet_preferences(
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResponse, crate::Error> {
         let result = self
             .set_pet_preferences_with_http_info(pet_id, options)
             .await?;
@@ -5193,12 +5228,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for set_pet_preferences but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -5207,13 +5242,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ApiResponse>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/x-www-form-urlencoded, is the default
          * and this operation declares no alternative to select. */
         self.set_pet_preferences_invoke(pet_id, options, "application/x-www-form-urlencoded")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the set_pet_preferences operation. The resolved
@@ -5322,7 +5358,7 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn update_pet(
@@ -5330,7 +5366,7 @@ impl PetApi {
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Pet, crate::Error> {
         let result = self.update_pet_with_http_info(pet_id, pet, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -5340,12 +5376,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for update_pet but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -5355,13 +5391,14 @@ impl PetApi {
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Pet>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.update_pet_invoke(pet_id, pet, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the update_pet operation. The resolved
@@ -5432,13 +5469,13 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn upload_pet_certificate(
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResponse, crate::Error> {
         let result = self
             .upload_pet_certificate_with_http_info(pet_id, options)
             .await?;
@@ -5450,12 +5487,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for upload_pet_certificate but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -5464,13 +5501,14 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ApiResponse>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * multipart/form-data, is the default
          * and this operation declares no alternative to select. */
         self.upload_pet_certificate_invoke(pet_id, options, "multipart/form-data")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the upload_pet_certificate operation. The resolved
@@ -5562,7 +5600,7 @@ impl PetApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn upload_pet_document(
         &self,
@@ -5570,7 +5608,7 @@ impl PetApi {
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResponse, crate::Error> {
         let result = self
             .upload_pet_document_with_http_info(pet_id, options, request_content_type)
             .await?;
@@ -5582,12 +5620,12 @@ impl PetApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for upload_pet_document but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -5598,7 +5636,7 @@ impl PetApi {
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ApiResponse>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * multipart/form-data, is the default
@@ -5609,6 +5647,7 @@ impl PetApi {
             request_content_type.unwrap_or("multipart/form-data"),
         )
         .await
+        .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the upload_pet_document operation. The resolved
@@ -5774,236 +5813,236 @@ pub trait PetApiTrait {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn add_pet_with_http_info(
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn add_pet_photos(
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> impl Future<Output = Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<Photo>, crate::Error>>;
     fn add_pet_photos_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, crate::Error>>;
     fn add_pet_treatment(
         &self,
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> impl Future<Output = Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetTreatment, crate::Error>>;
     fn add_pet_treatment_with_http_info(
         &self,
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, crate::Error>>;
     fn attach_pet_files(
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>>;
     fn attach_pet_files_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>>;
     fn delete_pet(
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn delete_pet_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn download_pet_document(
         &self,
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, crate::Error>>;
     fn download_pet_document_with_http_info(
         &self,
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, crate::Error>>;
     fn find_pets_born_on(
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<Pet>, crate::Error>>;
     fn find_pets_born_on_with_http_info(
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, crate::Error>>;
     #[deprecated]
     fn find_pets_by_status(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<Pet>, crate::Error>>;
     #[deprecated]
     fn find_pets_by_status_with_http_info(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, crate::Error>>;
     fn get_external_pet_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn get_external_pet_info_with_http_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn get_multi_server_pet_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn get_multi_server_pet_info_with_http_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn get_pet_avatar(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, crate::Error>>;
     fn get_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, crate::Error>>;
     fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<u8>, crate::Error>>;
     fn get_pet_avatar_thumbnail_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, crate::Error>>;
     #[deprecated]
     fn get_pet_by_id(
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     #[deprecated]
     fn get_pet_by_id_with_http_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn get_pet_by_name(
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn get_pet_by_name_with_http_info(
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn get_pet_by_note(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn get_pet_by_note_with_http_info(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn get_pet_passport(
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> impl Future<Output = Result<PetPassport, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetPassport, crate::Error>>;
     fn get_pet_passport_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetPassport>, crate::Error>>;
     fn get_pet_photo(
         &self,
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, crate::Error>>;
     fn get_pet_photo_with_http_info(
         &self,
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, crate::Error>>;
     fn get_pet_summary(
         &self,
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<String, crate::Error>>;
     fn get_pet_summary_with_http_info(
         &self,
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<String>, crate::Error>>;
     fn get_pet_tag(
         &self,
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn get_pet_tag_with_http_info(
         &self,
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn get_staging_pet_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn get_staging_pet_info_with_http_info(
         &self,
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn list_pet_archive(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetArchivePage, crate::Error>>;
     fn list_pet_archive_with_http_info(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, crate::Error>>;
     fn list_pet_catalog(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetCatalogPage, crate::Error>>;
     fn list_pet_catalog_with_http_info(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, crate::Error>>;
     fn list_pet_catalog_pages(
         &self,
         options: Option<&ListPetCatalogOptions>,
@@ -6011,11 +6050,11 @@ pub trait PetApiTrait {
     fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetEventPage, crate::Error>>;
     fn list_pet_events_with_http_info(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, crate::Error>>;
     fn list_pet_events_pages(
         &self,
         options: Option<&ListPetEventsOptions>,
@@ -6023,11 +6062,11 @@ pub trait PetApiTrait {
     fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<Pet>, crate::Error>>;
     fn list_pet_feed_with_http_info(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, crate::Error>>;
     fn list_pet_feed_pages(
         &self,
         options: Option<&ListPetFeedOptions>,
@@ -6035,19 +6074,19 @@ pub trait PetApiTrait {
     fn list_pet_matches(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetMatchPage, crate::Error>>;
     fn list_pet_matches_with_http_info(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, crate::Error>>;
     fn list_pet_next_url(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> impl Future<Output = Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetNextUrlPage, crate::Error>>;
     fn list_pet_next_url_with_http_info(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, crate::Error>>;
     fn list_pet_next_url_pages(
         &self,
         options: Option<&ListPetNextUrlOptions>,
@@ -6055,11 +6094,11 @@ pub trait PetApiTrait {
     fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetNotePage, crate::Error>>;
     fn list_pet_notes_with_http_info(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, crate::Error>>;
     fn list_pet_notes_pages(
         &self,
         options: Option<&ListPetNotesOptions>,
@@ -6067,11 +6106,11 @@ pub trait PetApiTrait {
     fn list_pet_offsets(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> impl Future<Output = Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetOffsetPage, crate::Error>>;
     fn list_pet_offsets_with_http_info(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, crate::Error>>;
     fn list_pet_offsets_pages(
         &self,
         options: Option<&ListPetOffsetsOptions>,
@@ -6079,13 +6118,11 @@ pub trait PetApiTrait {
     fn list_pet_page_numbers(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> impl Future<Output = Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetPageNumberPage, crate::Error>>;
     fn list_pet_page_numbers_with_http_info(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> impl Future<
-        Output = Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>>,
-    >;
+    ) -> impl Future<Output = Result<ApiResult<PetPageNumberPage>, crate::Error>>;
     fn list_pet_page_numbers_pages(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
@@ -6093,11 +6130,11 @@ pub trait PetApiTrait {
     fn list_pets_after(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> impl Future<Output = Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<PetAfterPage, crate::Error>>;
     fn list_pets_after_with_http_info(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, crate::Error>>;
     fn list_pets_after_pages(
         &self,
         options: Option<&ListPetsAfterOptions>,
@@ -6109,7 +6146,7 @@ pub trait PetApiTrait {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn set_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
@@ -6117,65 +6154,65 @@ pub trait PetApiTrait {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn set_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn set_pet_avatar_thumbnail_with_http_info(
         &self,
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn set_pet_preferences(
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>>;
     fn set_pet_preferences_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>>;
     fn update_pet(
         &self,
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Pet, crate::Error>>;
     fn update_pet_with_http_info(
         &self,
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>>;
     fn upload_pet_certificate(
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>>;
     fn upload_pet_certificate_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>>;
     fn upload_pet_document(
         &self,
         pet_id: i64,
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>>;
     fn upload_pet_document_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>>;
 }
 
 impl PetApiTrait for PetApi {
@@ -6183,7 +6220,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::add_pet(self, pet, options)
     }
 
@@ -6191,15 +6228,14 @@ impl PetApiTrait for PetApi {
         &self,
         pet: Pet,
         options: Option<&AddPetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::add_pet_with_http_info(self, pet, options)
     }
     fn add_pet_photos(
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> impl Future<Output = Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Photo>, crate::Error>> {
         PetApi::add_pet_photos(self, pet_id, options)
     }
 
@@ -6207,8 +6243,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&AddPetPhotosOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Photo>>, crate::Error>> {
         PetApi::add_pet_photos_with_http_info(self, pet_id, options)
     }
     fn add_pet_treatment(
@@ -6216,7 +6251,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> impl Future<Output = Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetTreatment, crate::Error>> {
         PetApi::add_pet_treatment(self, pet_id, pet_treatment, options)
     }
 
@@ -6225,15 +6260,14 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetTreatment>, crate::Error>> {
         PetApi::add_pet_treatment_with_http_info(self, pet_id, pet_treatment, options)
     }
     fn attach_pet_files(
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>> {
         PetApi::attach_pet_files(self, pet_id, options)
     }
 
@@ -6241,15 +6275,14 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&AttachPetFilesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>> {
         PetApi::attach_pet_files_with_http_info(self, pet_id, options)
     }
     fn delete_pet(
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         PetApi::delete_pet(self, pet_id, options)
     }
 
@@ -6257,7 +6290,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&DeletePetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         PetApi::delete_pet_with_http_info(self, pet_id, options)
     }
     fn download_pet_document(
@@ -6265,7 +6298,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, crate::Error>> {
         PetApi::download_pet_document(self, pet_id, document_id, options)
     }
 
@@ -6274,15 +6307,14 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, crate::Error>> {
         PetApi::download_pet_document_with_http_info(self, pet_id, document_id, options)
     }
     fn find_pets_born_on(
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Pet>, crate::Error>> {
         PetApi::find_pets_born_on(self, born_on, options)
     }
 
@@ -6290,15 +6322,14 @@ impl PetApiTrait for PetApi {
         &self,
         born_on: chrono::NaiveDate,
         options: Option<&FindPetsBornOnOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, crate::Error>> {
         PetApi::find_pets_born_on_with_http_info(self, born_on, options)
     }
     #[allow(deprecated)]
     fn find_pets_by_status(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Pet>, crate::Error>> {
         PetApi::find_pets_by_status(self, options)
     }
 
@@ -6306,8 +6337,7 @@ impl PetApiTrait for PetApi {
     fn find_pets_by_status_with_http_info(
         &self,
         options: Option<&FindPetsByStatusOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, crate::Error>> {
         PetApi::find_pets_by_status_with_http_info(self, options)
     }
     fn get_external_pet_info(
@@ -6315,7 +6345,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_external_pet_info(self, pet_id, server, options)
     }
 
@@ -6324,8 +6354,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetExternalPetInfoServer>,
         options: Option<&GetExternalPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_external_pet_info_with_http_info(self, pet_id, server, options)
     }
     fn get_multi_server_pet_info(
@@ -6333,7 +6362,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_multi_server_pet_info(self, pet_id, server, options)
     }
 
@@ -6342,15 +6371,14 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetMultiServerPetInfoServer>,
         options: Option<&GetMultiServerPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_multi_server_pet_info_with_http_info(self, pet_id, server, options)
     }
     fn get_pet_avatar(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, crate::Error>> {
         PetApi::get_pet_avatar(self, pet_id, options)
     }
 
@@ -6358,15 +6386,14 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, crate::Error>> {
         PetApi::get_pet_avatar_with_http_info(self, pet_id, options)
     }
     fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<u8>, crate::Error>> {
         PetApi::get_pet_avatar_thumbnail(self, pet_id, options)
     }
 
@@ -6374,8 +6401,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, crate::Error>> {
         PetApi::get_pet_avatar_thumbnail_with_http_info(self, pet_id, options)
     }
     #[allow(deprecated)]
@@ -6384,7 +6410,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_pet_by_id(self, pet_id, server, options)
     }
 
@@ -6394,15 +6420,14 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetPetByIdServer>,
         options: Option<&GetPetByIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_pet_by_id_with_http_info(self, pet_id, server, options)
     }
     fn get_pet_by_name(
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_pet_by_name(self, name, options)
     }
 
@@ -6410,29 +6435,27 @@ impl PetApiTrait for PetApi {
         &self,
         name: String,
         options: Option<&GetPetByNameOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_pet_by_name_with_http_info(self, name, options)
     }
     fn get_pet_by_note(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_pet_by_note(self, options)
     }
 
     fn get_pet_by_note_with_http_info(
         &self,
         options: Option<&GetPetByNoteOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_pet_by_note_with_http_info(self, options)
     }
     fn get_pet_passport(
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> impl Future<Output = Result<PetPassport, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetPassport, crate::Error>> {
         PetApi::get_pet_passport(self, pet_id, options)
     }
 
@@ -6440,8 +6463,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetPassportOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetPassport>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetPassport>, crate::Error>> {
         PetApi::get_pet_passport_with_http_info(self, pet_id, options)
     }
     fn get_pet_photo(
@@ -6449,7 +6471,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, crate::Error>> {
         PetApi::get_pet_photo(self, pet_id, photo_id, options)
     }
 
@@ -6458,8 +6480,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, crate::Error>> {
         PetApi::get_pet_photo_with_http_info(self, pet_id, photo_id, options)
     }
     fn get_pet_summary(
@@ -6467,7 +6488,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<String, crate::Error>> {
         PetApi::get_pet_summary(self, pet_id, as_of, options)
     }
 
@@ -6476,8 +6497,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         as_of: chrono::NaiveDate,
         options: Option<&GetPetSummaryOptions>,
-    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<String>, crate::Error>> {
         PetApi::get_pet_summary_with_http_info(self, pet_id, as_of, options)
     }
     fn get_pet_tag(
@@ -6485,7 +6505,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_pet_tag(self, pet_id, tag_name, options)
     }
 
@@ -6494,8 +6514,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         tag_name: String,
         options: Option<&GetPetTagOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_pet_tag_with_http_info(self, pet_id, tag_name, options)
     }
     fn get_staging_pet_info(
@@ -6503,7 +6522,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::get_staging_pet_info(self, pet_id, server, options)
     }
 
@@ -6512,38 +6531,33 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::get_staging_pet_info_with_http_info(self, pet_id, server, options)
     }
     fn list_pet_archive(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetArchivePage, crate::Error>> {
         PetApi::list_pet_archive(self, options)
     }
 
     fn list_pet_archive_with_http_info(
         &self,
         options: Option<&ListPetArchiveOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, crate::Error>> {
         PetApi::list_pet_archive_with_http_info(self, options)
     }
     fn list_pet_catalog(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetCatalogPage, crate::Error>> {
         PetApi::list_pet_catalog(self, options)
     }
 
     fn list_pet_catalog_with_http_info(
         &self,
         options: Option<&ListPetCatalogOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, crate::Error>> {
         PetApi::list_pet_catalog_with_http_info(self, options)
     }
 
@@ -6556,15 +6570,14 @@ impl PetApiTrait for PetApi {
     fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetEventPage, crate::Error>> {
         PetApi::list_pet_events(self, options)
     }
 
     fn list_pet_events_with_http_info(
         &self,
         options: Option<&ListPetEventsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, crate::Error>> {
         PetApi::list_pet_events_with_http_info(self, options)
     }
 
@@ -6577,15 +6590,14 @@ impl PetApiTrait for PetApi {
     fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Pet>, crate::Error>> {
         PetApi::list_pet_feed(self, options)
     }
 
     fn list_pet_feed_with_http_info(
         &self,
         options: Option<&ListPetFeedOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, crate::Error>> {
         PetApi::list_pet_feed_with_http_info(self, options)
     }
 
@@ -6598,30 +6610,27 @@ impl PetApiTrait for PetApi {
     fn list_pet_matches(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetMatchPage, crate::Error>> {
         PetApi::list_pet_matches(self, options)
     }
 
     fn list_pet_matches_with_http_info(
         &self,
         options: Option<&ListPetMatchesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, crate::Error>> {
         PetApi::list_pet_matches_with_http_info(self, options)
     }
     fn list_pet_next_url(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> impl Future<Output = Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetNextUrlPage, crate::Error>> {
         PetApi::list_pet_next_url(self, options)
     }
 
     fn list_pet_next_url_with_http_info(
         &self,
         options: Option<&ListPetNextUrlOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, crate::Error>> {
         PetApi::list_pet_next_url_with_http_info(self, options)
     }
 
@@ -6634,15 +6643,14 @@ impl PetApiTrait for PetApi {
     fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetNotePage, crate::Error>> {
         PetApi::list_pet_notes(self, options)
     }
 
     fn list_pet_notes_with_http_info(
         &self,
         options: Option<&ListPetNotesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, crate::Error>> {
         PetApi::list_pet_notes_with_http_info(self, options)
     }
 
@@ -6655,15 +6663,14 @@ impl PetApiTrait for PetApi {
     fn list_pet_offsets(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> impl Future<Output = Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetOffsetPage, crate::Error>> {
         PetApi::list_pet_offsets(self, options)
     }
 
     fn list_pet_offsets_with_http_info(
         &self,
         options: Option<&ListPetOffsetsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, crate::Error>> {
         PetApi::list_pet_offsets_with_http_info(self, options)
     }
 
@@ -6676,17 +6683,14 @@ impl PetApiTrait for PetApi {
     fn list_pet_page_numbers(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> impl Future<Output = Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<PetPageNumberPage, crate::Error>> {
         PetApi::list_pet_page_numbers(self, options)
     }
 
     fn list_pet_page_numbers_with_http_info(
         &self,
         options: Option<&ListPetPageNumbersOptions>,
-    ) -> impl Future<
-        Output = Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>>,
-    > {
+    ) -> impl Future<Output = Result<ApiResult<PetPageNumberPage>, crate::Error>> {
         PetApi::list_pet_page_numbers_with_http_info(self, options)
     }
 
@@ -6699,15 +6703,14 @@ impl PetApiTrait for PetApi {
     fn list_pets_after(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> impl Future<Output = Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<PetAfterPage, crate::Error>> {
         PetApi::list_pets_after(self, options)
     }
 
     fn list_pets_after_with_http_info(
         &self,
         options: Option<&ListPetsAfterOptions>,
-    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, crate::Error>> {
         PetApi::list_pets_after_with_http_info(self, options)
     }
 
@@ -6724,7 +6727,7 @@ impl PetApiTrait for PetApi {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         PetApi::set_pet_avatar(self, pet_id, body, options, request_content_type)
     }
 
@@ -6735,7 +6738,7 @@ impl PetApiTrait for PetApi {
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         PetApi::set_pet_avatar_with_http_info(self, pet_id, body, options, request_content_type)
     }
     fn set_pet_avatar_thumbnail(
@@ -6743,7 +6746,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         PetApi::set_pet_avatar_thumbnail(self, pet_id, set_pet_avatar_thumbnail_request, options)
     }
 
@@ -6752,7 +6755,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
         options: Option<&SetPetAvatarThumbnailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         PetApi::set_pet_avatar_thumbnail_with_http_info(
             self,
             pet_id,
@@ -6764,7 +6767,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>> {
         PetApi::set_pet_preferences(self, pet_id, options)
     }
 
@@ -6772,8 +6775,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&SetPetPreferencesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>> {
         PetApi::set_pet_preferences_with_http_info(self, pet_id, options)
     }
     fn update_pet(
@@ -6781,7 +6783,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> impl Future<Output = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Pet, crate::Error>> {
         PetApi::update_pet(self, pet_id, pet, options)
     }
 
@@ -6790,15 +6792,14 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         pet: Pet,
         options: Option<&UpdatePetOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Pet>, crate::Error>> {
         PetApi::update_pet_with_http_info(self, pet_id, pet, options)
     }
     fn upload_pet_certificate(
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>> {
         PetApi::upload_pet_certificate(self, pet_id, options)
     }
 
@@ -6806,8 +6807,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&UploadPetCertificateOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>> {
         PetApi::upload_pet_certificate_with_http_info(self, pet_id, options)
     }
     fn upload_pet_document(
@@ -6816,7 +6816,7 @@ impl PetApiTrait for PetApi {
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>> {
         PetApi::upload_pet_document(self, pet_id, options, request_content_type)
     }
 
@@ -6826,8 +6826,7 @@ impl PetApiTrait for PetApi {
         options: Option<&UploadPetDocumentOptions>,
 
         request_content_type: Option<&str>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>> {
         PetApi::upload_pet_document_with_http_info(self, pet_id, options, request_content_type)
     }
 }
