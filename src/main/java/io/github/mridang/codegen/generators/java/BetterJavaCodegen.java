@@ -694,6 +694,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.java"),
             new SupportingFileSpec("value_serializer.mustache", Path.of(invokerFolder, "api").toString(), "ValueSerializer.java"),
             new SupportingFileSpec("header_selector.mustache", Path.of(invokerFolder, "api").toString(), "HeaderSelector.java"),
+            new SupportingFileSpec(
+                "constraint_validator.mustache", Path.of(invokerFolder, "api").toString(), "ConstraintValidator.java"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.java"),
             new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.java"),

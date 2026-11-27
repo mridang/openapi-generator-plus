@@ -103,6 +103,7 @@ Rule: `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `
 Why: only python enforces them (natively through pydantic); java would need Bean Validation at the cost of a dependency and a second source of truth.
 Where: `models/model.mustache`, `readme.mustache`.
 Test: none by design; do not add enforcement.
+Opt-in (D189): `Configuration.builder().validateConstraints(true)` runs the package-private `api/ConstraintValidator.java` (`constraint_validator.mustache`, fed by `constraintModels`) from `BaseApi.invokeCall` before the hook and the send; it throws `IllegalArgumentException`. Tests: `BaseApiTest.ConstraintValidation` (`models706`-`models709`).
 
 ### `uniqueItems` order is left unspecified (S6, 2026-11-16)
 Rule: a `Set` is sent in the collection's natural order (`LinkedHashSet`, insertion order); do not sort. This supersedes D69, which proposed sorting.

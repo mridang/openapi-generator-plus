@@ -94,6 +94,7 @@ Rule: the client does not promise to enforce pattern, minLength, maxLength, mini
 Why: the server owns validation; only python enforces, because pydantic does it natively and cheaply. The README section is titled "Schema constraints" and sits under Caveats; `dependentRequired` stays under Not supported.
 Where: `readme.mustache`.
 Test: none (absence); the petstore declares no such keyword.
+Opt-in (D189): `Configuration.builder().validateConstraints(true)` runs the `internal object ConstraintValidator` (`constraint_validator.mustache`, fed by `constraintModels`, exact-class dispatch through a `KClass` map) from `BaseApi.runCall` before the hook and the send; it throws `IllegalArgumentException`. Tests: `BaseApiTest.ConstraintValidation` (`models706`-`models709`).
 
 ### allOf with a discriminator is a sealed interface plus flattened data classes (S4, 2026-11-16) - implemented
 Rule: the discriminated parent becomes a sealed interface, each subtype is a flattened data class that lists the common fields, and the subtype carries the discriminator. A model reused in two unions must not be re-parented: inheritance (here, the sealed interface) is only for the allOf-with-discriminator parent, and plain unions use interfaces or sealed types.

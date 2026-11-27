@@ -18,6 +18,7 @@ import '../call_hook.dart';
 import '../call_info.dart';
 import '../call_outcome.dart';
 import '../configuration.dart';
+import '../constraint_validator.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';
 import '../json_lines_stream.dart';
@@ -218,6 +219,11 @@ class BaseApi {
     bool stream = false,
     int? idleTimeout,
   }) async {
+    /* With validateConstraints on, a body that breaks a validation keyword of
+     * its schema is refused before anything is built, hooked or sent. */
+    if (config.validateConstraints && body != null) {
+      validateRequestBody(body);
+    }
     if (timeout != null && timeout < 1) {
       throw ArgumentError(
           'Invalid timeout: must be a positive number of milliseconds (got $timeout)');

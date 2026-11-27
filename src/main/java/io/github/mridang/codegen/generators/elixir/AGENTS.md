@@ -72,6 +72,8 @@ Rule: a `content: application/json` parameter in query, header, path or cookie g
 
 Rule: `pattern`, length, range, `multipleOf` and item-count keywords are not checked by the client; the model layer checks only that required properties are present and values have the declared type. The README section "Schema constraints" says so. Why: Elixir structs and typespecs carry no constraints, and the server owns validation. Where: `readme.mustache`. Test: README text only; no behaviour to test.
 
+Opt-in validation (D189): `Configuration.new(validate_constraints: true)` (struct field, default false); the validator is `{{moduleName}}.ConstraintValidator` in `constraint_validator.mustache` (`@moduledoc false`), called first in `BaseApi.invoke_api_for_result/12`; it matches the model struct exactly and raises `ArgumentError`; a pattern is compiled with `Regex.compile/2` (`"u"`) at check time and skipped when it does not compile. `BetterElixirCodegen.constraintHelperUse` sets the `elixirConstraintHas*` flags so an unused private helper is never emitted (`--warnings-as-errors`). Test: `test/api/store_api_test.mustache` (`bhv models 706` to `709`).
+
 ### uniqueItems order is unspecified (S6, 2026-11-16)
 
 Rule: `MapSet` values are sent in the `MapSet`'s own order; do not add sorting. Why: the owner decided against sorting, which supersedes the earlier "sorted" wording in F319 and F072. Where: `object_serializer.mustache` (`sanitize_for_serialization` for `%MapSet{}`), `readme.mustache`. Test: `test/object_serializer_test.mustache`.

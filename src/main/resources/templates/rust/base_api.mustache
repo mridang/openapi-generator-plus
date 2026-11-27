@@ -435,6 +435,20 @@ impl BaseApi {
         self
     }
 
+    /// Checks a request body against the validation keywords of its schema when
+    /// the configuration turns `validate_constraints` on; every operation calls
+    /// it before the body is serialized, so a refused body sends nothing and
+    /// never reaches the call hook.
+    pub(crate) fn validate_request_body(
+        &self,
+        body: &dyn std::any::Any,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if self.config.validate_constraints() {
+            crate::constraint_validator::validate_request_body(body)?;
+        }
+        Ok(())
+    }
+
     /// The credential of the first of `schemes` that the client holds, in the
     /// order the operation lists them, or `None` when it holds none of them.
     pub(crate) fn authenticator_for(&self, schemes: &[&str]) -> Option<Arc<dyn Authenticator>> {

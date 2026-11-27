@@ -52,7 +52,8 @@
     attr_reader base_url: String
     attr_reader default_headers: Hash[String, String]
     attr_reader call_hook: _CallHook?
-    def initialize: (base_url: String, default_headers: Hash[String, String], ?call_hook: _CallHook?) -> void
+    attr_reader validate_constraints: bool
+    def initialize: (base_url: String, default_headers: Hash[String, String], ?call_hook: _CallHook?, ?validate_constraints: bool) -> void
     def self.builder: () -> Configuration::Builder
     def self.default_configuration: () -> Configuration
     def inspect: () -> String
@@ -63,6 +64,7 @@
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
       def call_hook: (untyped) -> Builder
+      def validate_constraints: (bool) -> Builder
       def server: (ServerConfiguration, ?Hash[String, String]) -> Builder
       def build: () -> Configuration
     end
@@ -779,6 +781,34 @@
 
   class TraceContextUtil
     def self.inject_trace_context: (Hash[String, String]) -> void
+  end
+
+  module ConstraintValidator
+{{#constraintModels}}
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isPattern}}
+    {{#lambda.uppercase}}{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}_{{name}}{{/lambda.uppercase}}_PATTERN: Regexp?
+{{/isPattern}}
+{{/checks}}
+{{/vendorExtensions.constraintProps}}
+{{/constraintModels}}
+    def self.validate: (untyped) -> void
+{{#hasConstraintModels}}
+
+    private
+
+    def self.compile: (String) -> Regexp?
+    def self.validate_value: (untyped, String) -> void
+{{#constraintModels}}
+    def self.check_{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}: (untyped, String) -> void
+{{/constraintModels}}
+    def self.mismatch?: (Regexp?, String) -> bool
+    def self.below?: (Integer | Float, Integer | Float) -> bool
+    def self.above?: (Integer | Float, Integer | Float) -> bool
+    def self.multiple_of?: (Integer | Float, Float) -> bool
+    def self.fail_at: (String, String) -> bot
+{{/hasConstraintModels}}
   end
 
   class HeaderSelector

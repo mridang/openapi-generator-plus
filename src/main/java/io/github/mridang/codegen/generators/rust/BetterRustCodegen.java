@@ -692,6 +692,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("json_value.mustache", "src", "json_value.rs"),
                 new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
                 new SupportingFileSpec(
+                        "constraint_validator.mustache", "src", "constraint_validator.rs"),
+                new SupportingFileSpec(
                         "object_serializer.mustache", "src", "object_serializer.rs"),
                 new SupportingFileSpec("value_serializer.mustache", "src", "value_serializer.rs"),
                 new SupportingFileSpec("utils/mod.mustache", "src/utils", "mod.rs"),

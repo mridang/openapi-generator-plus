@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 
@@ -138,5 +139,22 @@ class BetterElixirCodegenTest {
     siblingNotEnum.vendorExtensions = new HashMap<>();
     siblingNotEnum.vendorExtensions.put("siblingDefaultIsEnum", false);
     assertThat(BetterElixirCodegen.hasStructDefault(siblingNotEnum)).isFalse();
+  }
+
+  @Test
+  void reportsOnlyTheConstraintHelpersTheChecksCall() {
+    final Map<String, Object> view = new HashMap<>();
+    view.put("checks", List.of(Map.of("isMinLength", true), Map.of("isMultipleOf", true)));
+    final CodegenModel model = new CodegenModel();
+    model.vendorExtensions.put("constraintProps", List.of(view));
+
+    assertThat(BetterElixirCodegen.constraintHelperUse(List.of(model)))
+        .containsEntry("elixirConstraintHasPattern", false)
+        .containsEntry("elixirConstraintHasMultipleOf", true)
+        .containsEntry("elixirConstraintHasMinSize", true)
+        .containsEntry("elixirConstraintHasMaxSize", false);
+    assertThat(BetterElixirCodegen.constraintHelperUse(null))
+        .containsEntry("elixirConstraintHasPattern", false)
+        .containsEntry("elixirConstraintHasMinSize", false);
   }
 }

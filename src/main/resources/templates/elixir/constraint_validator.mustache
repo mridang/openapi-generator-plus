@@ -1,0 +1,131 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ConstraintValidator do
+  @moduledoc false
+
+  # Checks a request body against the validation keywords of its schema
+  # (minLength, maxLength, pattern, minimum, maximum, exclusiveMinimum,
+  # exclusiveMaximum, multipleOf, minItems, maxItems, minProperties and
+  # maxProperties) and of the models it holds, before the request is sent.
+  # The base API calls it only when the configuration's `validate_constraints`
+  # is true. A list body is checked item by item; any other value that is not
+  # a model with constraints passes. The first violation raises an
+  # `ArgumentError` naming its path and rule.
+
+  @doc false
+  @spec validate!(term()) :: :ok
+  def validate!(body) when is_list(body) do
+    body
+    |> Enum.with_index()
+    |> Enum.each(fn {item, index} -> validate_value(item, "[#{index}].") end)
+  end
+
+  def validate!(body), do: validate_value(body, "")
+{{#hasConstraintModels}}
+
+  # The struct is matched exactly, so each model is checked by its own rules.
+{{#constraintModels}}
+  defp validate_value(%{{moduleName}}.Models.{{classname}}{} = value, prefix), do: check_{{classFilename}}(value, prefix)
+{{/constraintModels}}
+{{/hasConstraintModels}}
+  defp validate_value(_value, _prefix), do: :ok
+{{#constraintModels}}
+
+  # Checks the properties of a `{{moduleName}}.Models.{{classname}}` in declaration order.
+  defp check_{{classFilename}}(value, prefix) do
+{{#vendorExtensions.constraintProps}}
+    check_field(value.{{name}}, prefix <> "{{#lambda.elixirString}}{{{baseName}}}{{/lambda.elixirString}}", fn field, path ->
+{{#checks}}
+{{#isMinLength}}
+      if shorter?(length(String.to_charlist(field)), {{limit}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMinLength}}
+{{#isMaxLength}}
+      if longer?(length(String.to_charlist(field)), {{limit}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMaxLength}}
+{{#isPattern}}
+      if mismatch?("{{#lambda.elixirString}}{{{pattern}}}{{/lambda.elixirString}}", field), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isPattern}}
+{{#isMinimum}}
+      if field < {{limit}}, do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMinimum}}
+{{#isMaximum}}
+      if field > {{limit}}, do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+      if field <= {{limit}}, do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+      if field >= {{limit}}, do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+      if not multiple_of?(field, {{limitDouble}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMultipleOf}}
+{{#isMinItems}}
+      if shorter?(length(field), {{limit}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMinItems}}
+{{#isMaxItems}}
+      if longer?(length(field), {{limit}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMaxItems}}
+{{#isMinProperties}}
+      if shorter?(map_size(field), {{limit}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMinProperties}}
+{{#isMaxProperties}}
+      if longer?(map_size(field), {{limit}}), do: fail(path, "{{#lambda.elixirString}}{{{message}}}{{/lambda.elixirString}}")
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+      validate_value(field, path <> ".")
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+      field
+      |> Enum.with_index()
+      |> Enum.each(fn {item, index} -> validate_value(item, "#{path}[#{index}].") end)
+{{/hasNestedItemsModel}}
+      :ok
+    end)
+
+{{/vendorExtensions.constraintProps}}
+    :ok
+  end
+{{/constraintModels}}
+{{#hasConstraintModels}}
+
+  # Runs the checks of one property; a nil (absent) value is not checked.
+  defp check_field(nil, _path, _checks), do: :ok
+  defp check_field(field, path, checks), do: checks.(field, path)
+{{/hasConstraintModels}}
+{{#elixirConstraintHasPattern}}
+
+  # Whether a schema pattern finds no match in the text. A pattern the regular
+  # expression engine cannot compile is not enforced.
+  defp mismatch?(source, text) do
+    case Regex.compile(source, "u") do
+      {:ok, regex} -> not Regex.match?(regex, text)
+      {:error, _reason} -> false
+    end
+  end
+{{/elixirConstraintHasPattern}}
+{{#elixirConstraintHasMultipleOf}}
+
+  # Whether the value divided by the limit is a whole number, within 1e-9.
+  defp multiple_of?(value, limit) do
+    quotient = value / limit
+    abs(quotient - round(quotient)) < 1.0e-9
+  end
+{{/elixirConstraintHasMultipleOf}}
+{{#elixirConstraintHasMinSize}}
+
+  # Whether a length or a size is below its minimum.
+  defp shorter?(size, minimum), do: size < minimum
+{{/elixirConstraintHasMinSize}}
+{{#elixirConstraintHasMaxSize}}
+
+  # Whether a length or a size is above its maximum.
+  defp longer?(size, maximum), do: size > maximum
+{{/elixirConstraintHasMaxSize}}
+{{#hasConstraintModels}}
+
+  @spec fail(String.t(), String.t()) :: no_return()
+  defp fail(path, message), do: raise(ArgumentError, "Invalid request body: #{path} #{message}")
+{{/hasConstraintModels}}
+end

@@ -615,6 +615,8 @@ of its own. The SDK does not promise any particular order for them on the
 wire; when every member is a number, string or boolean it writes them in
 ascending order only so that repeated runs produce the same bytes.
 
+Constraint validation can be turned on with the `validate_constraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
+
 ### SOCKS proxies
 
 `TransportOptionsBuilder::proxy()` accepts only `http://` and `https://` URLs.

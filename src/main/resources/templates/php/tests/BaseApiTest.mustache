@@ -45,6 +45,8 @@ use {{apiPackage}}\Options\AddPetOptions;
 use {{apiPackage}}\Options\DeletePetOptions;
 use {{apiPackage}}\Options\GetPetTagOptions;
 use {{apiPackage}}\Options\SetPetPreferencesOptions;
+use {{invokerPackage}}\Models\Allowance;
+use {{invokerPackage}}\Models\AllowanceTier;
 use {{invokerPackage}}\Models\Category;
 use {{invokerPackage}}\Models\Pet;
 
@@ -3280,3 +3282,117 @@ test('bhv sse 020 an sse reconnect sends last event id only when the last event 
     expect(sentHeader($client->requests[2]['headers'], 'Last-Event-ID'))->toBe('5');
 });
 
+/** An Allowance within every constraint of its schema. */
+function validAllowance(): Allowance
+{
+    return new Allowance(
+        label: 'abc',
+        count: 5,
+        ratio: 0.5,
+        step: 10,
+        codes: new \Ds\Vector(['a']),
+        limits: new \Ds\Map(['a' => 1]),
+        tier: new AllowanceTier(level: 1, name: 'ab'),
+        parts: new \Ds\Vector([new AllowanceTier(level: 1, name: 'ab')]),
+    );
+}
+
+/**
+ * Submits a body with constraint validation on and returns what was raised and how many requests
+ * reached the transport.
+ *
+ * @return array{0: \Throwable|null, 1: int}
+ */
+function constraintRefusal(Allowance $body): array
+{
+    $client = new ScriptedApiClient();
+    $api = new StoreApi($client, new Configuration('http://localhost', validateConstraints: true));
+    $error = null;
+    try {
+        $api->submitAllowance($body);
+    } catch (\Throwable $e) {
+        $error = $e;
+    }
+
+    return [$error, count($client->requests)];
+}
+
+test('bhv models 706 constraint validation is off by default and an invalid body is sent unchanged', function (): void {
+    $client = new ScriptedApiClient();
+    $api = new StoreApi($client, new Configuration('http://localhost'));
+
+    $api->submitAllowance(validAllowance()->withLabel('a')->withCount(0));
+
+    expect($client->requests)->toHaveCount(1);
+    $sent = $client->requests[0]['body'];
+    expect(is_string($sent) && str_contains($sent, '"label":"a"') && str_contains($sent, '"count":0'))->toBeTrue();
+});
+
+test('bhv models 707 a body that breaks one validation keyword is refused before it is sent', function (\Closure $change, string $rule): void {
+    $body = $change(validAllowance());
+    assert($body instanceof Allowance);
+
+    [$error, $sends] = constraintRefusal($body);
+
+    expect($error)->not->toBeNull();
+    expect($error === null ? null : $error::class)->toBe(\InvalidArgumentException::class);
+    expect($error?->getMessage())->toBe('Invalid request body: ' . $rule);
+    expect($sends)->toBe(0);
+})->with([
+    'minLength' => [static fn (Allowance $a): Allowance => $a->withLabel('a'), 'label must be at least 2 characters long'],
+    'maxLength' => [static fn (Allowance $a): Allowance => $a->withLabel('abcdef'), 'label must be at most 5 characters long'],
+    'pattern' => [static fn (Allowance $a): Allowance => $a->withLabel('ab1'), 'label must match the pattern ^[a-z]+$'],
+    'minimum' => [static fn (Allowance $a): Allowance => $a->withCount(0), 'count must be greater than or equal to 1'],
+    'maximum' => [static fn (Allowance $a): Allowance => $a->withCount(11), 'count must be less than or equal to 10'],
+    'exclusiveMinimum' => [static fn (Allowance $a): Allowance => $a->withRatio(0.0), 'ratio must be greater than 0'],
+    'exclusiveMaximum' => [static fn (Allowance $a): Allowance => $a->withRatio(1.0), 'ratio must be less than 1'],
+    'multipleOf' => [static fn (Allowance $a): Allowance => $a->withStep(7), 'step must be a multiple of 5'],
+    'minItems' => [static fn (Allowance $a): Allowance => $a->withCodes(new \Ds\Vector()), 'codes must have at least 1 items'],
+    'maxItems' => [static fn (Allowance $a): Allowance => $a->withCodes(new \Ds\Vector(['a', 'b', 'c', 'd'])), 'codes must have at most 3 items'],
+    'minProperties' => [static fn (Allowance $a): Allowance => $a->withLimits(new \Ds\Map()), 'limits must have at least 1 properties'],
+    'maxProperties' => [static fn (Allowance $a): Allowance => $a->withLimits(new \Ds\Map(['a' => 1, 'b' => 2, 'c' => 3])), 'limits must have at most 2 properties'],
+]);
+
+test('bhv models 707 a length counts code points, so three astral characters are within a maximum of 5', function (): void {
+    [$error] = constraintRefusal(validAllowance()->withLabel("\u{1F600}\u{1F600}\u{1F600}"));
+
+    expect($error?->getMessage())->toBe('Invalid request body: label must match the pattern ^[a-z]+$');
+});
+
+test('bhv models 708 a violation inside a held model names its path', function (): void {
+    [$error, $sends] = constraintRefusal(validAllowance()->withTier(new AllowanceTier(level: -1)));
+
+    expect($error === null ? null : $error::class)->toBe(\InvalidArgumentException::class);
+    expect($error?->getMessage())->toBe('Invalid request body: tier.level must be greater than or equal to 0');
+    expect($sends)->toBe(0);
+});
+
+test('bhv models 708 a violation inside a list of models names the item index', function (): void {
+    [$error, $sends] = constraintRefusal(
+        validAllowance()->withParts(new \Ds\Vector([new AllowanceTier(level: 1), new AllowanceTier(level: -1)]))
+    );
+
+    expect($error === null ? null : $error::class)->toBe(\InvalidArgumentException::class);
+    expect($error?->getMessage())->toBe('Invalid request body: parts[1].level must be greater than or equal to 0');
+    expect($sends)->toBe(0);
+});
+
+test('bhv models 708 the first item of a list is index 0', function (): void {
+    [$error] = constraintRefusal(validAllowance()->withParts(new \Ds\Vector([new AllowanceTier(name: 'abcd')])));
+
+    expect($error?->getMessage())->toBe('Invalid request body: parts[0].name must be at most 3 characters long');
+});
+
+test('bhv models 709 a body within every constraint is sent', function (): void {
+    [$error, $sends] = constraintRefusal(validAllowance());
+
+    expect($error)->toBeNull();
+    expect($sends)->toBe(1);
+});
+
+test('bhv models 709 null and absent values are not checked', function (): void {
+    [$error, $sends] = constraintRefusal(new Allowance(tier: new AllowanceTier(), parts: new \Ds\Vector([new AllowanceTier()])));
+
+    expect($error)->toBeNull();
+    expect($sends)->toBe(1);
+});

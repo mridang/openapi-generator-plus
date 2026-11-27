@@ -66,6 +66,7 @@ The extra applications are `:logger` and `:crypto`. If a `br` response arrives a
 ## Idiom notes
 
 - Configuration is data. `Configuration.new/1` and `TransportOptions.new/1` take a keyword list, and there are no builders.
+- `Configuration.new/1` takes `validate_constraints:` (off by default, D189). When it is `true`, every request body is checked against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before anything is sent, and a body that breaks one raises `ArgumentError` (`Invalid request body: label must be at least 2 characters long`). Lengths count code points, a pattern is searched with `Regex` (unicode) and one it cannot compile is not enforced, and responses are never checked.
 - `TransportOptions` takes `max_response_bytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeError` (D138); zero, a negative value or a non-integer raises `ArgumentError` in `TransportOptions.new/1`. The body is read through a Req `into:` function that counts the bytes as they arrive and halts (dropping the connection) once they, or the declared `Content-Length`, pass the limit, and gzip and deflate are inflated a piece at a time with `:zlib.safeInflate/2`, stopping as soon as the output passes the limit. A zstd body is decoded the same way, a few input bytes at a time, and a br body through the `:brotli` decoder's streaming calls, its output counted each time the decoder hands it over (at most one brotli window), so every codec stops as soon as the output passes the limit and the client asks for the same codecs with or without a limit.
 - The API struct is the first argument of every operation. Optional trailing arguments (a server override, a content-type choice, a refresh URL) go into one `opts` keyword list.
 - A missing required option raises `ArgumentError` at call time.
@@ -150,7 +151,7 @@ result.raw_body
 - A body with a charset other than UTF-8 (such as `shift_jis` or the `iso-8859-x` family) is not decoded. Erlang's `:unicode` module does not cover it.
 - An optional nullable property cannot tell an absent key from an explicit `nil`.
 - `allOf` with a discriminator is not implemented yet.
-- Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
+- Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client unless `validate_constraints: true` is set on the configuration, which checks request bodies only.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 - Operations are blocking only, as a plain function call that blocks the calling process, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.

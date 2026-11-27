@@ -14,6 +14,7 @@ use {{invokerPackage}}\CallInfo;
 use {{invokerPackage}}\CallObserver;
 use {{invokerPackage}}\CallOutcome;
 use {{invokerPackage}}\Configuration;
+use {{invokerPackage}}\ConstraintValidator;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\EventStream;
 use {{invokerPackage}}\HeaderSelector;
@@ -696,6 +697,11 @@ class BaseApi
             throw new \InvalidArgumentException(
                 "Invalid maxRetries: must not be negative (got $maxRetries)"
             );
+        }
+        /* The opt-in constraint check runs before anything is built or sent, so
+         * a refused body never reaches the call hook or the transport. */
+        if ($this->config->validateConstraints && $body !== null) {
+            ConstraintValidator::validate($body);
         }
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             $url = $path;

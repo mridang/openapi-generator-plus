@@ -353,6 +353,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("header_selector.mustache", libPath, "header_selector.rb"),
             new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
             new SupportingFileSpec("value_serializer.mustache", libPath, "value_serializer.rb"),
+            new SupportingFileSpec("constraint_validator.mustache", libPath, "constraint_validator.rb"),
             new SupportingFileSpec("trace_context_util.mustache", libPath, "trace_context_util.rb"),
             new SupportingFileSpec("call_info.mustache", libPath, "call_info.rb"),
             new SupportingFileSpec("call_outcome.mustache", libPath, "call_outcome.rb"),

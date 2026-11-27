@@ -971,6 +971,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsPath, "oauth2_token_exception.py"),
             new SupportingFileSpec("_duration.mustache", packagePath, "_duration.py"),
             new SupportingFileSpec("_types.mustache", packagePath, "_types.py"),
+            new SupportingFileSpec("_constraint_validator.mustache", packagePath, "_constraint_validator.py"),
             new SupportingFileSpec("object_serializer.mustache", packagePath, "object_serializer.py"),
             new SupportingFileSpec("value_serializer.mustache", packagePath, "value_serializer.py"),
             new SupportingFileSpec("header_selector.mustache", packagePath, "header_selector.py"),

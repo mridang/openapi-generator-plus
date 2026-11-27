@@ -860,6 +860,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),
             new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"),
+            new SupportingFileSpec(
+                    "constraint_validator.mustache", Path.of(srcDir, "Api").toString(), "ConstraintValidator.swift"),
             new SupportingFileSpec("authenticator.mustache", Path.of(srcDir, "Auth").toString(), "Authenticator.swift"),
             new SupportingFileSpec("any_codable.mustache", srcDir, "AnyCodable.swift"),
             new SupportingFileSpec("package_swift.mustache", "", "Package.swift"),

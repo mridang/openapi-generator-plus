@@ -326,6 +326,13 @@ func decodeText(text string) (string, error) { return text, nil }
 // invokeCall is the one call loop of invokeApiForResult and invokeApiForStream.
 // A stream call returns the open response and no buffered one.
 func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpResponse, *ApiStreamResponse, error) {
+	/* With ValidateConstraints on, the body is checked before anything else:
+	 * before it is serialized, before the call hook and before any request. */
+	if params.body != nil && b.config.ValidateConstraints() {
+		if err := validateRequestBody(params.body); err != nil {
+			return nil, nil, err
+		}
+	}
 	var streamer StreamingApiClient
 	if stream {
 		var ok bool

@@ -229,7 +229,9 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
       '{{nickname}}',
       {{#lambda.tsString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.tsString}},
-      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}{{^hasFormParams}}{{#bodyParam}}{{#isModel}},
+      {{#lambda.tsString}}{{{baseType}}}{{/lambda.tsString}}{{/isModel}}{{#isArray}}{{#items.isModel}},
+      {{#lambda.tsString}}{{{items.complexType}}}{{/lambda.tsString}}{{/items.isModel}}{{/isArray}}{{/bodyParam}}{{/hasFormParams}}
     );
   }
 {{/vendorExtensions.op.streamOnly}}
@@ -408,7 +410,9 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       undefined,
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
       {{#lambda.tsString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.tsString}},
-      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}{{^hasFormParams}}{{#bodyParam}}{{#isModel}},
+      {{#lambda.tsString}}{{{baseType}}}{{/lambda.tsString}}{{/isModel}}{{#isArray}}{{#items.isModel}},
+      {{#lambda.tsString}}{{{items.complexType}}}{{/lambda.tsString}}{{/items.isModel}}{{/isArray}}{{/bodyParam}}{{/hasFormParams}}
     );
   }
 {{#vendorExtensions.op.hasPagesMethod}}

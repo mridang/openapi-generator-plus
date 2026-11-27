@@ -48,6 +48,7 @@ from ..default_api_client import (
 )
 from ..call_hook import CallInfo, CallObserver, CallOutcome
 from ..configuration import Configuration
+from .._constraint_validator import validate_request_body
 from ..object_serializer import ObjectSerializer
 from ..value_serializer import ValueSerializer, AllowReservedValue
 from ..header_selector import HeaderSelector
@@ -345,6 +346,10 @@ class BaseApi:
                 'implement send_streaming, so an operation that returns a stream cannot be '
                 'called through it'
             )
+        # The opt-in constraint check runs before anything is built or sent, so
+        # a refused body never reaches the call hook or the transport.
+        if self._config.validate_constraints and body is not None:
+            validate_request_body(body)
         if path.startswith('http://') or path.startswith('https://'):
             url = path
         else:

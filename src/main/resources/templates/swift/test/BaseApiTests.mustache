@@ -105,6 +105,7 @@ import Testing
         var responseStatusCode: Int = 200
         var responseBody: String = "{}"
         var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+        var calls = 0
 
         /// Satisfies the ApiClient requirement that carries no request options.
         func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
@@ -115,6 +116,7 @@ import Testing
         }
 
         func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+            calls += 1
             lastMethod = method
             lastURL = url
             lastHeaders = headers
@@ -130,6 +132,7 @@ import Testing
             method: String, url: String, headers: [String: String], body: Any?,
             timeout: Int?, maxRetries: Int?, idleTimeout: Int?
         ) async throws -> ApiStreamResponse {
+            calls += 1
             lastMethod = method
             lastURL = url
             lastHeaders = headers
@@ -1153,6 +1156,84 @@ import Testing
             return
         }
         #expect(mockClient.lastURL.isEmpty, "transport must NOT be called")
+    }
+
+    // MARK: - Constraint validation (D189)
+
+    /// A store API over the mock transport, with constraint validation on or off.
+    private func constraintApi(_ client: MockApiClient, validate: Bool) -> StoreApi {
+        let config = ConfigurationBuilder()
+            .baseURL("https://example.com")
+            .validateConstraints(validate)
+            .build()
+        return StoreApi(apiClient: client, config: config)
+    }
+
+    /// Checks that a call threw ConfigurationError.invalidRequestBody with the
+    /// exact message and that nothing reached the transport.
+    private func expectConstraintRefused(
+        _ client: MockApiClient, _ allowance: Allowance, _ message: String
+    ) async {
+        let error = await #expect(throws: ConfigurationError.self) {
+            try await self.constraintApi(client, validate: true).submitAllowance(allowance: allowance)
+        }
+        #expect(error == .invalidRequestBody(message))
+        #expect(error?.errorDescription == message)
+        #expect(client.calls == 0, "transport must NOT be called")
+    }
+
+    @Test func testBhvModels706ConstraintValidationIsOffByDefault() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        try await api.submitAllowance(allowance: Allowance(label: "a", count: 0))
+        #expect(mockClient.calls == 1)
+        let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(body.contains("\"label\":\"a\""), "body: \(body)")
+    }
+
+    @Test(arguments: [
+        (Allowance(label: "a"), "Invalid request body: label must be at least 2 characters long"),
+        (Allowance(label: "abcdef"), "Invalid request body: label must be at most 5 characters long"),
+        (Allowance(label: "ab1"), "Invalid request body: label must match the pattern ^[a-z]+$"),
+        (Allowance(count: 0), "Invalid request body: count must be greater than or equal to 1"),
+        (Allowance(count: 11), "Invalid request body: count must be less than or equal to 10"),
+        (Allowance(ratio: 0), "Invalid request body: ratio must be greater than 0"),
+        (Allowance(ratio: 1), "Invalid request body: ratio must be less than 1"),
+        (Allowance(step: 7), "Invalid request body: step must be a multiple of 5"),
+        (Allowance(codes: []), "Invalid request body: codes must have at least 1 items"),
+        (Allowance(codes: ["a", "b", "c", "d"]), "Invalid request body: codes must have at most 3 items"),
+        (Allowance(limits: [:]), "Invalid request body: limits must have at least 1 properties"),
+        (Allowance(limits: ["a": 1, "b": 2, "c": 3]), "Invalid request body: limits must have at most 2 properties"),
+    ])
+    func testBhvModels707ConstraintValidationRefusesEachBrokenKeyword(allowance: Allowance, message: String) async {
+        await expectConstraintRefused(MockApiClient(), allowance, message)
+    }
+
+    @Test(arguments: [
+        (
+            Allowance(tier: AllowanceTier(level: -1)),
+            "Invalid request body: tier.level must be greater than or equal to 0"
+        ),
+        (
+            Allowance(parts: [AllowanceTier(level: 0), AllowanceTier(level: -1)]),
+            "Invalid request body: parts[1].level must be greater than or equal to 0"
+        ),
+    ])
+    func testBhvModels708ConstraintValidationNamesThePathOfAHeldModel(allowance: Allowance, message: String) async {
+        await expectConstraintRefused(MockApiClient(), allowance, message)
+    }
+
+    @Test(arguments: [
+        Allowance(
+            label: "abc", count: 5, ratio: 0.5, step: 10, codes: ["a"], limits: ["a": 1],
+            tier: AllowanceTier(level: 0, name: "abc"), parts: [AllowanceTier(level: 1)]),
+        Allowance(),
+    ])
+    func testBhvModels709ConstraintValidationSendsAValidBodyAndSkipsAbsentValues(allowance: Allowance) async throws {
+        let mockClient = MockApiClient()
+        try await constraintApi(mockClient, validate: true).submitAllowance(allowance: allowance)
+        #expect(mockClient.calls == 1)
     }
 
     // MARK: - Query parameter serialization

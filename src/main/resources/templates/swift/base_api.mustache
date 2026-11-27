@@ -385,6 +385,11 @@ public class BaseApi: @unchecked Sendable {
     /// runs the hook's `start` and returns the request, ready to send. Shared by
     /// the buffered and the stream calls, so both send the same request.
     private func prepareCall(_ params: InvokeAPIParams, run: CallRun) async throws -> PreparedCall {
+        /* With validateConstraints on, the body is checked before anything
+         * else: before it is serialized, before the hook and before any send. */
+        if config.validateConstraints, let body = params.body {
+            try ConstraintValidator.validateRequestBody(body)
+        }
         var requestURL = resolveURL(params.path)
 
         /* Resolve authentication into three distinct states (the sentinel

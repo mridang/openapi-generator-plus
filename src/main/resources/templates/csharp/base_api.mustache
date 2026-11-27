@@ -452,6 +452,12 @@ public abstract class BaseApi
         {
             throw new ArgumentOutOfRangeException(nameof(maxRetries), "MaxRetries must not be negative");
         }
+        /* D189: with constraint validation on, a body that breaks a keyword of its schema is
+           refused here, before anything is encoded, the hook starts or a request is sent. */
+        if (body is not null && Config.ValidateConstraints)
+        {
+            ConstraintValidator.Validate(body);
+        }
         /* Three-state auth resolution (the no-auth sentinel disambiguates the
            two meanings null used to carry):
              - auth is the NoAuth sentinel  -> the operation is explicitly

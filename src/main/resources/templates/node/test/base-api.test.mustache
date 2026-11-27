@@ -35,7 +35,7 @@ import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFil
 import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFileExtension}}';
 import { OAuth2ClientCredentialsAuthenticator } from '../src/auth/oauth/oauth2-client-credentials-authenticator{{importFileExtension}}';
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
-import { Category, Pet, PetCatalogPage } from '../src/models/index{{importFileExtension}}';
+import { Allowance, Category, Pet, PetCatalogPage } from '../src/models/index{{importFileExtension}}';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, NetworkError, NetworkTimeoutError, SerializationError } from '../src/errors/index{{importFileExtension}}';
 import { chain } from '../src/call-hook{{importFileExtension}}';
@@ -3573,5 +3573,129 @@ describe('BaseApi paged lists', () => {
 
     expect(Object.getOwnPropertyNames(Object.getPrototypeOf(store)).filter((name) => name.endsWith('Pages'))).toEqual([]);
     expect(typeof store.exportOrdersStream).toBe('function');
+  });
+});
+
+describe('BaseApi constraint validation', () => {
+  /* A transport that counts the sends and keeps the last body; it answers 204. */
+  const countingClient = (): { client: ApiClient; sends: () => number; body: () => unknown } => {
+    let count = 0;
+    let lastBody: unknown = null;
+    const client = {
+      sendRequest: async (...args: unknown[]) => {
+        count += 1;
+        lastBody = args[3];
+        return { statusCode: 204, body: '', headers: {} };
+      },
+    } as unknown as ApiClient;
+    return { client, sends: () => count, body: () => lastBody };
+  };
+  const validating = new Configuration({ baseUrl: 'http://localhost', validateConstraints: true });
+  const valid = {
+    label: 'abc',
+    count: 5,
+    ratio: 0.5,
+    step: 10,
+    codes: ['a'],
+    limits: { a: 1 },
+    tier: { level: 1, name: 'ab' },
+    parts: [{ level: 1, name: 'ab' }],
+  };
+  const refusal = async (body: Record<string, unknown>): Promise<{ error: unknown; sends: number }> => {
+    const transport = countingClient();
+    const error = await new StoreApi(transport.client, validating)
+      .submitAllowance(body as unknown as Allowance)
+      .then(() => null, (failure: unknown) => failure);
+    return { error, sends: transport.sends() };
+  };
+
+  test('bhv models 706 constraint validation is off by default and an invalid body is sent unchanged', async () => {
+    const transport = countingClient();
+
+    await new StoreApi(transport.client, new Configuration({ baseUrl: 'http://localhost' })).submitAllowance({
+      ...valid,
+      label: 'a',
+      count: 0,
+    } as unknown as Allowance);
+
+    expect(transport.sends()).toBe(1);
+    expect(transport.body()).toBe('{"label":"a","count":0,"ratio":0.5,"step":10,"codes":["a"],"limits":{"a":1},"tier":{"level":1,"name":"ab"},"parts":[{"level":1,"name":"ab"}]}');
+  });
+
+  test.each([
+    ['minLength', { label: 'a' }, 'label must be at least 2 characters long'],
+    ['maxLength', { label: 'abcdef' }, 'label must be at most 5 characters long'],
+    ['pattern', { label: 'ab1' }, 'label must match the pattern ^[a-z]+$'],
+    ['minimum', { count: 0 }, 'count must be greater than or equal to 1'],
+    ['maximum', { count: 11 }, 'count must be less than or equal to 10'],
+    ['exclusiveMinimum', { ratio: 0 }, 'ratio must be greater than 0'],
+    ['exclusiveMaximum', { ratio: 1 }, 'ratio must be less than 1'],
+    ['multipleOf', { step: 7 }, 'step must be a multiple of 5'],
+    ['minItems', { codes: [] }, 'codes must have at least 1 items'],
+    ['maxItems', { codes: ['a', 'b', 'c', 'd'] }, 'codes must have at most 3 items'],
+    ['minProperties', { limits: {} }, 'limits must have at least 1 properties'],
+    ['maxProperties', { limits: { a: 1, b: 2, c: 3 } }, 'limits must have at most 2 properties'],
+  ])('bhv models 707 a body that breaks %s is refused before it is sent', async (_keyword, change, rule) => {
+    const { error, sends } = await refusal({ ...valid, ...change });
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(`Invalid request body: ${rule}`);
+    expect(sends).toBe(0);
+  });
+
+  test('bhv models 707 a length counts code points, so three astral characters are within a maximum of 5', async () => {
+    const { error } = await refusal({ ...valid, label: '\u{1F600}\u{1F600}\u{1F600}' });
+
+    expect((error as Error).message).toBe('Invalid request body: label must match the pattern ^[a-z]+$');
+  });
+
+  test('bhv models 708 a violation inside a held model names its path', async () => {
+    const { error, sends } = await refusal({ ...valid, tier: { level: -1 } });
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe('Invalid request body: tier.level must be greater than or equal to 0');
+    expect(sends).toBe(0);
+  });
+
+  test('bhv models 708 a violation inside a list of models names the item index', async () => {
+    const { error, sends } = await refusal({ ...valid, parts: [{ level: 1 }, { level: -1 }] });
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe('Invalid request body: parts[1].level must be greater than or equal to 0');
+    expect(sends).toBe(0);
+  });
+
+  test('bhv models 708 the first item of a list is index 0', async () => {
+    const { error } = await refusal({ ...valid, parts: [{ name: 'abcd' }] });
+
+    expect((error as Error).message).toBe('Invalid request body: parts[0].name must be at most 3 characters long');
+  });
+
+  test('bhv models 709 a body within every constraint is sent', async () => {
+    const transport = countingClient();
+
+    await new StoreApi(transport.client, validating).submitAllowance(valid as unknown as Allowance);
+
+    expect(transport.sends()).toBe(1);
+  });
+
+  test('bhv models 709 null and absent values are not checked', async () => {
+    const transport = countingClient();
+
+    await new StoreApi(transport.client, validating).submitAllowance({
+      label: null,
+      tier: { level: null },
+      parts: [null],
+    } as unknown as Allowance);
+
+    expect(transport.sends()).toBe(1);
+  });
+
+  test('bhv models 709 a model instance is checked like a plain object', async () => {
+    const transport = countingClient();
+
+    await new StoreApi(transport.client, validating).submitAllowance(new Allowance({ label: 'abc', count: 10 }));
+
+    expect(transport.sends()).toBe(1);
   });
 });

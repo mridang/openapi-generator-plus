@@ -466,6 +466,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ResponseTooLargeException.mustache", errorsFolder, "ResponseTooLargeException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
+            new SupportingFileSpec("constraint_validator.mustache", invokerFolder, "ConstraintValidator.php"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.php"),
             new SupportingFileSpec("call_observer.mustache", invokerFolder, "CallObserver.php"),
             new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.php"),
@@ -570,6 +571,112 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             sb.append(line);
         }
         return sb.toString();
+    }
+
+    /**
+     * Adds the php-only data the constraint validator (D189) needs to each entry the shared
+     * {@code ConstraintChecks} computed: {@code phpNullable} on a property whose declared PHP type
+     * admits {@code null} (the same rule as {@code model_var_type.mustache}, so the validator never
+     * compares a non-nullable property with null), and {@code phpPattern} on a pattern check, the
+     * pattern wrapped in PCRE delimiters.
+     *
+     * @param objs the processed models
+     * @return the models, unchanged
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        final Object models = additionalProperties.get("constraintModels");
+        if (!(models instanceof List)) {
+            return result;
+        }
+        // The instanceof chain of the validator tries a subclass before its parent, so a
+        // subtype is checked against its own properties too.
+        final List<CodegenModel> bySubclassFirst = new ArrayList<>();
+        for (final Object model : (List<?>) models) {
+            bySubclassFirst.add((CodegenModel) model);
+        }
+        bySubclassFirst.sort((a, b) -> Integer.compare(inheritanceDepth(b), inheritanceDepth(a)));
+        additionalProperties.put("phpConstraintModels", bySubclassFirst);
+        for (final Object model : (List<?>) models) {
+            final Object props = ((CodegenModel) model).vendorExtensions.get("constraintProps");
+            if (!(props instanceof List)) {
+                continue;
+            }
+            for (final Object item : (List<?>) props) {
+                final Map<String, Object> entry = (Map<String, Object>) item;
+                final Object prop = entry.get("prop");
+                final Object checks = entry.get("checks");
+                if (!(prop instanceof CodegenProperty) || !(checks instanceof List)) {
+                    continue;
+                }
+                entry.put("phpNullable", isPhpNullable((CodegenProperty) prop));
+                for (final Object c : (List<?>) checks) {
+                    final Map<String, Object> check = (Map<String, Object>) c;
+                    final Object pattern = check.get("pattern");
+                    if (pattern != null) {
+                        check.put("phpPattern", phpRegex(pattern.toString()));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * The number of classes a model extends.
+     *
+     * @param model the model
+     * @return 0 for a model with no parent
+     */
+    private static int inheritanceDepth(CodegenModel model) {
+        int depth = 0;
+        for (CodegenModel parent = model.parentModel; parent != null && depth < 64; parent = parent.parentModel) {
+            depth++;
+        }
+        return depth;
+    }
+
+    /**
+     * Whether the declared PHP type of a model property admits {@code null}, by the rule of
+     * {@code model_var_type.mustache}.
+     *
+     * @param prop the property
+     * @return whether the property's type is nullable
+     */
+    static boolean isPhpNullable(CodegenProperty prop) {
+        if (prop.required) {
+            return prop.isNullable && !prop.isAnyType;
+        }
+        if (prop.defaultValue == null) {
+            return !prop.isAnyType || prop.isEnum;
+        }
+        return !prop.isContainer && !prop.isEnum && prop.isNullable;
+    }
+
+    /**
+     * Wraps a pattern in the {@code /} delimiters of PCRE with the {@code u} modifier, escaping
+     * every {@code /} that is not already escaped.
+     *
+     * @param pattern the pattern as written in the schema
+     * @return the delimited pattern
+     */
+    static String phpRegex(String pattern) {
+        final StringBuilder out = new StringBuilder(pattern.length() + 4).append('/');
+        boolean escaped = false;
+        for (int i = 0; i < pattern.length(); i++) {
+            final char c = pattern.charAt(i);
+            if (escaped) {
+                escaped = false;
+            } else if (c == '\\') {
+                escaped = true;
+            } else if (c == '/') {
+                out.append('\\');
+            }
+            out.append(c);
+        }
+        return out.append("/u").toString();
     }
 
     /**

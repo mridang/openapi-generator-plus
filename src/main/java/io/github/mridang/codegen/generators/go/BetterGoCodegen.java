@@ -784,6 +784,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "default_api_client.mustache", "pkg", "default_api_client.go"),
                 new SupportingFileSpec("base_api.mustache", "pkg", "base_api.go"),
+                new SupportingFileSpec(
+                        "constraint_validator.mustache", "pkg", "constraint_validator.go"),
                 new SupportingFileSpec("request_option.mustache", "pkg", "request_option.go"),
                 new SupportingFileSpec("path_utils.mustache", "pkg", "path_utils.go"),
                 new SupportingFileSpec("authenticator.mustache", "pkg", "authenticator.go"),

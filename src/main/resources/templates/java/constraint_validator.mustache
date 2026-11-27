@@ -1,0 +1,229 @@
+{{>api_info}}
+
+package {{invokerPackage}}.api;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import javax.annotation.Nullable;
+
+/**
+ * Checks a request body against the validation keywords of its schema before it is sent, when
+ * {@link {{invokerPackage}}.Configuration#isValidateConstraints()} is on.
+ *
+ * <p>A body that is a model, or a list of models, is checked property by property in declaration
+ * order, depth first through the models it holds; the first broken keyword raises an {@link
+ * IllegalArgumentException} that names the property by its wire path. A null value is not
+ * checked, and any other body passes.
+ */
+final class ConstraintValidator {
+
+    /** The compiled patterns by their text; empty when the pattern does not compile. */
+    private static final Map<String, Optional<Pattern>> PATTERNS = new ConcurrentHashMap<>();
+
+    private ConstraintValidator() {}
+
+    /**
+     * Check a request body.
+     *
+     * @param body the request body
+     * @throws IllegalArgumentException when a value breaks a keyword of its schema
+     */
+    static void validate(@Nullable Object body) {
+        if (body instanceof Collection<?> items) {
+            int index = 0;
+            for (Object item : items) {
+                validateModel(item, "[" + index + "].");
+                index++;
+            }
+            return;
+        }
+        validateModel(body, "");
+    }
+
+    /* The exact class is matched, so a model that extends another is checked by its own rules.
+     * The helpers are package-private so that a spec without one keyword leaves none unused. */
+    static void validateModel(@Nullable Object value, String prefix) {
+        if (value == null) {
+            return;
+        }
+{{#constraintModels}}
+        if (value instanceof {{modelPackage}}.{{classname}} model
+                && value.getClass() == {{modelPackage}}.{{classname}}.class) {
+            validate{{classname}}(model, prefix);
+            return;
+        }
+{{/constraintModels}}
+    }
+
+    static void validateItems(@Nullable Collection<?> items, String prefix, String name) {
+        if (items == null) {
+            return;
+        }
+        int index = 0;
+        for (Object item : items) {
+            validateModel(item, prefix + name + "[" + index + "].");
+            index++;
+        }
+    }
+{{#constraintModels}}
+
+    private static void validate{{classname}}({{modelPackage}}.{{classname}} model, String prefix) {
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isMinLength}}
+        minLength(model.{{name}}, {{limit}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMinLength}}
+{{#isMaxLength}}
+        maxLength(model.{{name}}, {{limit}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMaxLength}}
+{{#isPattern}}
+        pattern(model.{{name}}, "{{#lambda.javaString}}{{{pattern}}}{{/lambda.javaString}}", prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isPattern}}
+{{#isMinimum}}
+        minimum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMinimum}}
+{{#isMaximum}}
+        maximum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+        exclusiveMinimum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+        exclusiveMaximum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+        multipleOf(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMultipleOf}}
+{{#isMinItems}}
+        minSize(model.{{name}}, {{limit}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMinItems}}
+{{#isMaxItems}}
+        maxSize(model.{{name}}, {{limit}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMaxItems}}
+{{#isMinProperties}}
+        minEntries(model.{{name}}, {{limit}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMinProperties}}
+{{#isMaxProperties}}
+        maxEntries(model.{{name}}, {{limit}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{message}}}{{/lambda.javaString}}");
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+        validateModel(model.{{name}}, prefix + "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}.");
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        validateItems(model.{{name}}, prefix, "{{#lambda.javaString}}{{{baseName}}}{{/lambda.javaString}}");
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+    }
+{{/constraintModels}}
+
+    static IllegalArgumentException refused(String prefix, String name, String message) {
+        return new IllegalArgumentException(
+                "Invalid request body: " + prefix + name + " " + message);
+    }
+
+    static void minLength(
+            @Nullable String value, int limit, String prefix, String name, String message) {
+        if (value != null && value.codePointCount(0, value.length()) < limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void maxLength(
+            @Nullable String value, int limit, String prefix, String name, String message) {
+        if (value != null && value.codePointCount(0, value.length()) > limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    /* A pattern is searched, not anchored; one the JDK engine cannot compile is not enforced. */
+    static void pattern(
+            @Nullable String value, String regex, String prefix, String name, String message) {
+        if (value == null) {
+            return;
+        }
+        Optional<Pattern> compiled = PATTERNS.computeIfAbsent(regex, ConstraintValidator::compile);
+        if (compiled.isPresent() && !compiled.get().matcher(value).find()) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static Optional<Pattern> compile(String regex) {
+        try {
+            return Optional.of(Pattern.compile(regex));
+        } catch (PatternSyntaxException unsupported) {
+            return Optional.empty();
+        }
+    }
+
+    static void minimum(
+            @Nullable Number value, double limit, String prefix, String name, String message) {
+        if (value != null && value.doubleValue() < limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void maximum(
+            @Nullable Number value, double limit, String prefix, String name, String message) {
+        if (value != null && value.doubleValue() > limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void exclusiveMinimum(
+            @Nullable Number value, double limit, String prefix, String name, String message) {
+        if (value != null && value.doubleValue() <= limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void exclusiveMaximum(
+            @Nullable Number value, double limit, String prefix, String name, String message) {
+        if (value != null && value.doubleValue() >= limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void multipleOf(
+            @Nullable Number value, double limit, String prefix, String name, String message) {
+        if (value == null) {
+            return;
+        }
+        double quotient = value.doubleValue() / limit;
+        if (Math.abs(quotient - Math.rint(quotient)) >= 1e-9) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void minSize(
+            @Nullable Collection<?> value, int limit, String prefix, String name, String message) {
+        if (value != null && value.size() < limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void maxSize(
+            @Nullable Collection<?> value, int limit, String prefix, String name, String message) {
+        if (value != null && value.size() > limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void minEntries(
+            @Nullable Map<?, ?> value, int limit, String prefix, String name, String message) {
+        if (value != null && value.size() < limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+
+    static void maxEntries(
+            @Nullable Map<?, ?> value, int limit, String prefix, String name, String message) {
+        if (value != null && value.size() > limit) {
+            throw refused(prefix, name, message);
+        }
+    }
+}

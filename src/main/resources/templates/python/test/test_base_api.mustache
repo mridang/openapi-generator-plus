@@ -25,6 +25,8 @@ from {{packageName}}.api.options.list_pet_feed_options import ListPetFeedOptions
 from {{packageName}}.api.options.reserve_stock_options import ReserveStockOptions
 from {{packageName}}.models.reservation import Reservation
 from {{packageName}}.models.reservation_receipt import ReservationReceipt
+from {{packageName}}.models.allowance import Allowance
+from {{packageName}}.models.allowance_tier import AllowanceTier
 from {{packageName}}.models.pet import Pet
 from {{packageName}}.models.pet_catalog_page import PetCatalogPage
 from {{packageName}}.page import Page
@@ -4468,3 +4470,118 @@ class TestPagedLists:
     async def test_bhv_pagination_032_an_operation_that_is_streamed_is_never_also_given_a_paged_method(self) -> None:
         assert not [name for name in dir(StoreApi) if name.endswith('_pages')]
         assert hasattr(StoreApi, 'export_orders_stream')
+
+
+class _CountingApiClient:
+    """Transport that counts the requests and keeps the last body; it answers 204."""
+
+    def __init__(self) -> None:
+        self.sends = 0
+        self.body: Any = None
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        self.sends += 1
+        self.body = body
+        return ApiHttpResponse(status_code=204, body='', headers={})
+
+
+def _valid_allowance() -> Allowance:
+    return Allowance(
+        label='abc',
+        count=5,
+        ratio=0.5,
+        step=10,
+        codes=['a'],
+        limits={'a': 1},
+        tier=AllowanceTier(level=1, name='ab'),
+        parts=[AllowanceTier(level=1, name='ab')],
+    )
+
+
+async def _submit_validating(body: Allowance) -> tuple[Optional[BaseException], int]:
+    client = _CountingApiClient()
+    store = StoreApi(api_client=client, config=Configuration(base_url='http://localhost', validate_constraints=True))
+    try:
+        await store.submit_allowance(body)
+    except Exception as error:
+        return error, client.sends
+    return None, client.sends
+
+
+class TestConstraintValidation:
+    async def test_bhv_models_706_constraint_validation_is_off_by_default_and_an_invalid_body_is_sent_unchanged(self) -> None:
+        client = _CountingApiClient()
+        store = StoreApi(api_client=client, config=Configuration(base_url='http://localhost'))
+
+        await store.submit_allowance(_valid_allowance().model_copy(update={'label': 'a', 'count': 0}))
+
+        assert client.sends == 1
+        import json as _json
+        sent = _json.loads(client.body)
+        assert (sent['label'], sent['count']) == ('a', 0)
+
+    @pytest.mark.parametrize(
+        'keyword, change, rule',
+        [
+            ('minLength', {'label': 'a'}, 'label must be at least 2 characters long'),
+            ('maxLength', {'label': 'abcdef'}, 'label must be at most 5 characters long'),
+            ('pattern', {'label': 'ab1'}, 'label must match the pattern ^[a-z]+$'),
+            ('minimum', {'count': 0}, 'count must be greater than or equal to 1'),
+            ('maximum', {'count': 11}, 'count must be less than or equal to 10'),
+            ('exclusiveMinimum', {'ratio': 0.0}, 'ratio must be greater than 0'),
+            ('exclusiveMaximum', {'ratio': 1.0}, 'ratio must be less than 1'),
+            ('multipleOf', {'step': 7}, 'step must be a multiple of 5'),
+            ('minItems', {'codes': []}, 'codes must have at least 1 items'),
+            ('maxItems', {'codes': ['a', 'b', 'c', 'd']}, 'codes must have at most 3 items'),
+            ('minProperties', {'limits': {}}, 'limits must have at least 1 properties'),
+            ('maxProperties', {'limits': {'a': 1, 'b': 2, 'c': 3}}, 'limits must have at most 2 properties'),
+        ],
+    )
+    async def test_bhv_models_707_a_body_that_breaks_one_validation_keyword_is_refused_before_it_is_sent(
+        self, keyword: str, change: dict[str, Any], rule: str
+    ) -> None:
+        error, sends = await _submit_validating(_valid_allowance().model_copy(update=change))
+
+        assert type(error) is ValueError, keyword
+        assert str(error) == f'Invalid request body: {rule}'
+        assert sends == 0
+
+    async def test_bhv_models_707_a_length_counts_code_points_so_three_astral_characters_are_within_a_maximum_of_5(self) -> None:
+        error, _ = await _submit_validating(_valid_allowance().model_copy(update={'label': '\U0001F600' * 3}))
+
+        assert str(error) == 'Invalid request body: label must match the pattern ^[a-z]+$'
+
+    async def test_bhv_models_708_a_violation_inside_a_held_model_names_its_path(self) -> None:
+        error, sends = await _submit_validating(_valid_allowance().model_copy(update={'tier': AllowanceTier(level=-1)}))
+
+        assert type(error) is ValueError
+        assert str(error) == 'Invalid request body: tier.level must be greater than or equal to 0'
+        assert sends == 0
+
+    async def test_bhv_models_708_a_violation_inside_a_list_of_models_names_the_item_index(self) -> None:
+        error, sends = await _submit_validating(
+            _valid_allowance().model_copy(update={'parts': [AllowanceTier(level=1), AllowanceTier(level=-1)]})
+        )
+
+        assert type(error) is ValueError
+        assert str(error) == 'Invalid request body: parts[1].level must be greater than or equal to 0'
+        assert sends == 0
+
+    async def test_bhv_models_708_the_first_item_of_a_list_is_index_0(self) -> None:
+        error, _ = await _submit_validating(_valid_allowance().model_copy(update={'parts': [AllowanceTier(name='abcd')]}))
+
+        assert str(error) == 'Invalid request body: parts[0].name must be at most 3 characters long'
+
+    async def test_bhv_models_709_a_body_within_every_constraint_is_sent(self) -> None:
+        error, sends = await _submit_validating(_valid_allowance())
+
+        assert error is None
+        assert sends == 1
+
+    async def test_bhv_models_709_null_and_absent_values_are_not_checked(self) -> None:
+        error, sends = await _submit_validating(
+            Allowance(label=None, tier=AllowanceTier(level=None), parts=[AllowanceTier()])
+        )
+
+        assert error is None
+        assert sends == 1

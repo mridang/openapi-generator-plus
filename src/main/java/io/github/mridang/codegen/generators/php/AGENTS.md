@@ -105,6 +105,7 @@ Rule: php does not enforce `pattern`, `minLength`, `maxLength`, `minimum`, `maxi
 Why: only python's pydantic enforces them natively and cheaply; php would need a validator dependency for no correctness gain.
 Where: `templates/php/readme.mustache` (the single "Schema constraints" section; the older "Numeric / string constraint validation" caveat was removed in batch 6).
 Test: README golden.
+Opt-in check (D189): `Configuration::$validateConstraints` (default false) runs `lib/ConstraintValidator.php` (`constraint_validator.mustache`, `@internal`, an `instanceof` chain over the models) from `BaseApi::invokeCall` before the call hook. `BetterPHPCodegen.postProcessAllModels` adds `phpNullable` (the nullability rule of `model_var_type.mustache`, so a non-nullable property is never compared with null under PHPStan) and `phpPattern` (the pattern in `/.../u` delimiters) to the shared check data. Test: `tests/BaseApiTest.mustache` (bhv models 706-709).
 
 ### allOf with a discriminator uses class inheritance (S4, 2026-11-16)
 Rule: php models the `allOf` plus discriminator parent as a parent class and subtypes extend it; a model reused in two unions is not re-parented (unions use interfaces and wrappers, not inheritance).

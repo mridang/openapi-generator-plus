@@ -33,6 +33,10 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
     /// parameter, a malformed URL, or a header, cookie or multipart value
     /// holding characters that would corrupt the HTTP message.
     case invalidArgument(String)
+    /// A request body breaks a validation keyword of its schema while
+    /// ``Configuration/validateConstraints`` is on. The value is the complete
+    /// message, `Invalid request body: <path> <rule>`.
+    case invalidRequestBody(String)
     /// The call was made in the wrong state: the client was closed, or an
     /// authenticator was used before its API client or access token was set.
     case invalidState(String)
@@ -55,6 +59,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
             return "Invalid maxResponseBytes: must be a positive number of bytes (got \(value))"
         case .invalidArgument(let reason):
             return "Invalid argument: \(reason)"
+        case .invalidRequestBody(let message):
+            return message
         case .invalidState(let reason):
             return "Invalid state: \(reason)"
         case .unsupported(let message):

@@ -648,6 +648,7 @@ type capturingApiClient struct {
 	capturedBody    any
 	capturedOpts    *{{packageName}}.RequestOptions
 	responseBody    string
+	calls           int
 }
 
 func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*{{packageName}}.ApiHttpResponse, error) {
@@ -655,6 +656,7 @@ func (c *capturingApiClient) SendRequest(method, url string, headers map[string]
 }
 
 func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *{{packageName}}.RequestOptions) (*{{packageName}}.ApiHttpResponse, error) {
+	c.calls++
 	c.capturedOpts = opts
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {
@@ -5021,5 +5023,133 @@ func TestBhvStreaming030_BaseApi_ATransportThatCannotStreamFailsAStreamCallNamin
 	}
 	if len(transport.sentURLs) != 1 || !strings.HasSuffix(transport.sentURLs[0], "/pet/1") {
 		t.Errorf("expected the buffered call to reach the transport, got %v", transport.sentURLs)
+	}
+}
+
+// ── Constraint validation (D189) ──
+
+// newConstraintApi builds a store API over a capturing transport, with
+// constraint validation on or off.
+func newConstraintApi(client *capturingApiClient, validate bool) *{{packageName}}.StoreApi {
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("http://localhost").
+		ValidateConstraints(validate).
+		Build()
+	return {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{})
+}
+
+// assertConstraintRefused checks that a call failed with ErrInvalidRequestBody
+// and the exact message, and that nothing reached the transport.
+func assertConstraintRefused(t *testing.T, client *capturingApiClient, err error, want string) {
+	t.Helper()
+	if !errors.Is(err, {{packageName}}.ErrInvalidRequestBody) {
+		t.Fatalf("expected ErrInvalidRequestBody, got %v", err)
+	}
+	if err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+	if client.calls != 0 {
+		t.Errorf("expected the transport not to be called, got %d calls", client.calls)
+	}
+}
+
+func TestBhvModels706_BaseApi_ConstraintValidationIsOffByDefault(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewStoreApi(client, config, nil, {{packageName}}.Credentials{})
+	allowance := models.NewAllowance().WithLabel("a").WithCount(0)
+	if err := api.SubmitAllowance(context.Background(), allowance); err != nil {
+		t.Fatalf("expected the invalid body to be sent, got %v", err)
+	}
+	if client.calls != 1 {
+		t.Errorf("expected one call to the transport, got %d", client.calls)
+	}
+	if body, _ := client.capturedBody.([]byte); !strings.Contains(string(body), `"label":"a"`) {
+		t.Errorf("expected the body to be sent unchanged, got %q", string(body))
+	}
+}
+
+func TestBhvModels707_BaseApi_ConstraintValidationRefusesEachBrokenKeyword(t *testing.T) {
+	t.Parallel()
+	base := *models.NewAllowance()
+	rows := []struct {
+		keyword   string
+		allowance models.Allowance
+		message   string
+	}{
+		{"minLength", base.WithLabel("a"), "Invalid request body: label must be at least 2 characters long"},
+		{"maxLength", base.WithLabel("abcdef"), "Invalid request body: label must be at most 5 characters long"},
+		{"pattern", base.WithLabel("ab1"), "Invalid request body: label must match the pattern ^[a-z]+$"},
+		{"minimum", base.WithCount(0), "Invalid request body: count must be greater than or equal to 1"},
+		{"maximum", base.WithCount(11), "Invalid request body: count must be less than or equal to 10"},
+		{"exclusiveMinimum", base.WithRatio(0), "Invalid request body: ratio must be greater than 0"},
+		{"exclusiveMaximum", base.WithRatio(1), "Invalid request body: ratio must be less than 1"},
+		{"multipleOf", base.WithStep(7), "Invalid request body: step must be a multiple of 5"},
+		{"minItems", base.WithCodes([]string{}), "Invalid request body: codes must have at least 1 items"},
+		{"maxItems", base.WithCodes([]string{"a", "b", "c", "d"}), "Invalid request body: codes must have at most 3 items"},
+		{"minProperties", base.WithLimits(map[string]int32{}), "Invalid request body: limits must have at least 1 properties"},
+		{"maxProperties", base.WithLimits(map[string]int32{"a": 1, "b": 2, "c": 3}), "Invalid request body: limits must have at most 2 properties"},
+	}
+	for _, row := range rows {
+		t.Run(row.keyword, func(t *testing.T) {
+			t.Parallel()
+			client := &capturingApiClient{}
+			err := newConstraintApi(client, true).SubmitAllowance(context.Background(), row.allowance)
+			assertConstraintRefused(t, client, err, row.message)
+		})
+	}
+}
+
+func TestBhvModels708_BaseApi_ConstraintValidationNamesThePathOfAHeldModel(t *testing.T) {
+	t.Parallel()
+	base := *models.NewAllowance()
+	rows := []struct {
+		name      string
+		allowance models.Allowance
+		message   string
+	}{
+		{"held model", base.WithTier(models.NewAllowanceTier().WithLevel(-1)), "Invalid request body: tier.level must be greater than or equal to 0"},
+		{"list of models", base.WithParts([]models.AllowanceTier{models.NewAllowanceTier().WithLevel(0), models.NewAllowanceTier().WithLevel(-1)}), "Invalid request body: parts[1].level must be greater than or equal to 0"},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+			client := &capturingApiClient{}
+			err := newConstraintApi(client, true).SubmitAllowance(context.Background(), row.allowance)
+			assertConstraintRefused(t, client, err, row.message)
+		})
+	}
+}
+
+func TestBhvModels709_BaseApi_ConstraintValidationSendsAValidBodyAndSkipsAbsentValues(t *testing.T) {
+	t.Parallel()
+	valid := models.NewAllowance().
+		WithLabel("abc").
+		WithCount(5).
+		WithRatio(0.5).
+		WithStep(10).
+		WithCodes([]string{"a"}).
+		WithLimits(map[string]int32{"a": 1}).
+		WithTier(models.NewAllowanceTier().WithLevel(0).WithName("abc")).
+		WithParts([]models.AllowanceTier{models.NewAllowanceTier().WithLevel(1)})
+	rows := []struct {
+		name      string
+		allowance models.Allowance
+	}{
+		{"every constraint met", valid},
+		{"every value absent", *models.NewAllowance()},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+			client := &capturingApiClient{}
+			if err := newConstraintApi(client, true).SubmitAllowance(context.Background(), row.allowance); err != nil {
+				t.Fatalf("expected the body to be sent, got %v", err)
+			}
+			if client.calls != 1 {
+				t.Errorf("expected one call to the transport, got %d", client.calls)
+			}
+		})
 	}
 }

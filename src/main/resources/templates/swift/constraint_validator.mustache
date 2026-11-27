@@ -1,0 +1,216 @@
+{{>api_info}}
+import Foundation
+
+/// The opt-in check of a request body against the validation keywords of its
+/// schema (``Configuration/validateConstraints``). Internal: ``BaseApi`` runs
+/// it before a body is serialized.
+enum ConstraintValidator {
+    /// Checks a request body against the validation keywords of its schema and
+    /// of every model it holds, depth first in declaration order, and throws
+    /// the first violation as ``ConfigurationError/invalidRequestBody(_:)``. A
+    /// body that is not a model with a keyword, or a list of one, passes.
+    static func validateRequestBody(_ body: Any) throws {
+{{#hasConstraintModels}}
+        if let validated = body as? ConstraintValidated {
+            try validated.validateConstraints(path: "")
+        }
+{{/hasConstraintModels}}
+    }
+{{#hasConstraintModels}}
+
+    /// Runs the checks of one property and throws the first violation; an
+    /// absent value is not checked.
+    static func check<Value: ConstraintReadable>(_ value: Value, path: String, checks: [ConstraintCheck]) throws {
+        guard let view = value.constraintView else {
+            return
+        }
+        for check in checks where !check.holds(view) {
+            throw ConfigurationError.invalidRequestBody("Invalid request body: \(path) \(check.rule)")
+        }
+    }
+
+    /// Appends a property's wire name to the path of its holder.
+    static func join(_ path: String, _ name: String) -> String {
+        path.isEmpty ? name : "\(path).\(name)"
+    }
+{{/hasConstraintModels}}
+}
+{{#hasConstraintModels}}
+
+/// What a check reads from a value: its text, its number or its size.
+enum ConstraintView {
+    case text(String)
+    case number(Double)
+    case size(Int)
+}
+
+/// One keyword of one property: its kind, its limit, its compiled pattern and
+/// the rule text of the message.
+struct ConstraintCheck: @unchecked Sendable {
+    /// The keyword a check enforces.
+    enum Kind {
+        case minLength
+        case maxLength
+        case pattern
+        case minimum
+        case maximum
+        case exclusiveMinimum
+        case exclusiveMaximum
+        case multipleOf
+        case minItems
+        case maxItems
+        case minProperties
+        case maxProperties
+    }
+
+    let kind: Kind
+    let limit: Double
+    /// The pattern, compiled once; nil when `NSRegularExpression` cannot
+    /// compile it, and then it is not enforced.
+    let regex: NSRegularExpression?
+    let rule: String
+
+    init(_ kind: Kind, limit: Double = 0, pattern: String? = nil, rule: String) {
+        self.kind = kind
+        self.limit = limit
+        self.regex = pattern.flatMap { try? NSRegularExpression(pattern: $0) }
+        self.rule = rule
+    }
+
+    /// Whether a view meets this check; a check that does not apply to the
+    /// kind of the value holds. Lengths count Unicode scalars.
+    func holds(_ view: ConstraintView) -> Bool {
+        switch (kind, view) {
+        case (.minLength, .text(let text)):
+            return Double(text.unicodeScalars.count) >= limit
+        case (.maxLength, .text(let text)):
+            return Double(text.unicodeScalars.count) <= limit
+        case (.pattern, .text(let text)):
+            guard let regex else {
+                return true
+            }
+            let range = NSRange(text.startIndex..<text.endIndex, in: text)
+            return regex.firstMatch(in: text, options: [], range: range) != nil
+        case (.minimum, .number(let number)):
+            return number >= limit
+        case (.maximum, .number(let number)):
+            return number <= limit
+        case (.exclusiveMinimum, .number(let number)):
+            return number > limit
+        case (.exclusiveMaximum, .number(let number)):
+            return number < limit
+        case (.multipleOf, .number(let number)):
+            let quotient = number / limit
+            return abs(quotient - quotient.rounded()) < 1e-9
+        case (.minItems, .size(let size)), (.minProperties, .size(let size)):
+            return Double(size) >= limit
+        case (.maxItems, .size(let size)), (.maxProperties, .size(let size)):
+            return Double(size) <= limit
+        default:
+            return true
+        }
+    }
+}
+
+/// A property value the checks can read. An absent (`nil`) value has no view
+/// and is not checked.
+protocol ConstraintReadable {
+    var constraintView: ConstraintView? { get }
+}
+
+extension String: ConstraintReadable {
+    var constraintView: ConstraintView? { .text(self) }
+}
+
+extension Int: ConstraintReadable {
+    var constraintView: ConstraintView? { .number(Double(self)) }
+}
+
+extension Int32: ConstraintReadable {
+    var constraintView: ConstraintView? { .number(Double(self)) }
+}
+
+extension Int64: ConstraintReadable {
+    var constraintView: ConstraintView? { .number(Double(self)) }
+}
+
+extension Double: ConstraintReadable {
+    var constraintView: ConstraintView? { .number(self) }
+}
+
+extension Float: ConstraintReadable {
+    var constraintView: ConstraintView? { .number(Double(self)) }
+}
+
+extension Array: ConstraintReadable {
+    var constraintView: ConstraintView? { .size(count) }
+}
+
+extension Set: ConstraintReadable {
+    var constraintView: ConstraintView? { .size(count) }
+}
+
+extension Dictionary: ConstraintReadable {
+    var constraintView: ConstraintView? { .size(count) }
+}
+
+extension Optional: ConstraintReadable where Wrapped: ConstraintReadable {
+    var constraintView: ConstraintView? { self.flatMap { $0.constraintView } }
+}
+
+/// A value that holds models with keywords: the model itself, an absent value
+/// or a list, whose items are checked with their index in the path.
+protocol ConstraintValidated {
+    func validateConstraints(path: String) throws
+}
+
+extension Optional: ConstraintValidated where Wrapped: ConstraintValidated {
+    func validateConstraints(path: String) throws {
+        try self?.validateConstraints(path: path)
+    }
+}
+
+extension Array: ConstraintValidated where Element: ConstraintValidated {
+    func validateConstraints(path: String) throws {
+        for (index, item) in enumerated() {
+            try item.validateConstraints(path: "\(path)[\(index)]")
+        }
+    }
+}
+{{#constraintModels}}
+
+extension {{classname}}: ConstraintValidated {
+    /// The checks of each property with a keyword, by wire name, compiled once.
+    private static let constraintChecks: [(name: String, checks: [ConstraintCheck])] = [
+{{#vendorExtensions.constraintProps}}
+{{#hasChecks}}
+        ("{{#lambda.swiftString}}{{{baseName}}}{{/lambda.swiftString}}", [
+{{#checks}}
+            ConstraintCheck(
+                .{{#isMinLength}}minLength{{/isMinLength}}{{#isMaxLength}}maxLength{{/isMaxLength}}{{#isPattern}}pattern{{/isPattern}}{{#isMinimum}}minimum{{/isMinimum}}{{#isMaximum}}maximum{{/isMaximum}}{{#isExclusiveMinimum}}exclusiveMinimum{{/isExclusiveMinimum}}{{#isExclusiveMaximum}}exclusiveMaximum{{/isExclusiveMaximum}}{{#isMultipleOf}}multipleOf{{/isMultipleOf}}{{#isMinItems}}minItems{{/isMinItems}}{{#isMaxItems}}maxItems{{/isMaxItems}}{{#isMinProperties}}minProperties{{/isMinProperties}}{{#isMaxProperties}}maxProperties{{/isMaxProperties}},
+                {{#isPattern}}pattern: "{{#lambda.swiftString}}{{{pattern}}}{{/lambda.swiftString}}",{{/isPattern}}{{^isPattern}}limit: {{{limit}}},{{/isPattern}}
+                rule: "{{#lambda.swiftString}}{{{message}}}{{/lambda.swiftString}}"),
+{{/checks}}
+        ]),
+{{/hasChecks}}
+{{/vendorExtensions.constraintProps}}
+    ]
+
+    func validateConstraints(path: String) throws {
+{{#vendorExtensions.constraintProps}}
+{{#hasChecks}}
+        try ConstraintValidator.check(
+            self.{{name}}, path: ConstraintValidator.join(path, "{{#lambda.swiftString}}{{{baseName}}}{{/lambda.swiftString}}"),
+            checks: Self.constraintChecks.first { $0.name == "{{#lambda.swiftString}}{{{baseName}}}{{/lambda.swiftString}}" }?.checks ?? [])
+{{/hasChecks}}
+{{#hasNestedModel}}
+        try self.{{name}}.validateConstraints(path: ConstraintValidator.join(path, "{{#lambda.swiftString}}{{{baseName}}}{{/lambda.swiftString}}"))
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        try self.{{name}}.validateConstraints(path: ConstraintValidator.join(path, "{{#lambda.swiftString}}{{{baseName}}}{{/lambda.swiftString}}"))
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+    }
+}
+{{/constraintModels}}
+{{/hasConstraintModels}}

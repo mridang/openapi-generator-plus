@@ -1,0 +1,260 @@
+{{>api_info}}
+
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text.RegularExpressions;
+
+namespace {{packageName}};
+
+/// <summary>
+/// Checks a request body against the validation keywords of its schema before it is sent, when
+/// <see cref="Configuration.ValidateConstraints"/> is on.
+///
+/// A body that is a model, or a list of models, is checked property by property in declaration
+/// order, depth first through the models it holds; the first broken keyword raises an
+/// <see cref="ArgumentException"/> that names the property by its wire path. A null value is not
+/// checked, and any other body passes. The helpers are internal, so a spec without one keyword
+/// leaves none unused.
+/// </summary>
+internal static class ConstraintValidator
+{
+    /* The compiled patterns by their text; null when the .NET engine cannot compile one. */
+    private static readonly ConcurrentDictionary<string, Regex?> Patterns = new(StringComparer.Ordinal);
+
+    /// <summary>Check a request body.</summary>
+    /// <param name="body">The request body.</param>
+    /// <exception cref="ArgumentException">When a value breaks a keyword of its schema.</exception>
+    internal static void Validate(object? body)
+    {
+        if (body is IEnumerable<object> items)
+        {
+            int index = 0;
+            foreach (object item in items)
+            {
+                ValidateModel(item, "[" + index.ToString(CultureInfo.InvariantCulture) + "].");
+                index++;
+            }
+            return;
+        }
+        ValidateModel(body, string.Empty);
+    }
+
+    /* The exact type is matched, so a model that extends another is checked by its own rules. */
+    internal static void ValidateModel(object? value, string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(prefix);
+        if (value is null)
+        {
+            return;
+        }
+{{#constraintModels}}
+        if (value is global::{{packageName}}.Models.{{classname}} {{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}Model && value.GetType() == typeof(global::{{packageName}}.Models.{{classname}}))
+        {
+            Validate{{classname}}({{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}Model, prefix);
+            return;
+        }
+{{/constraintModels}}
+    }
+
+    internal static void ValidateItems<T>(IEnumerable<T>? items, string prefix, string name)
+    {
+        if (items is null)
+        {
+            return;
+        }
+        int index = 0;
+        foreach (T item in items)
+        {
+            ValidateModel(item, prefix + name + "[" + index.ToString(CultureInfo.InvariantCulture) + "].");
+            index++;
+        }
+    }
+{{#constraintModels}}
+
+    private static void Validate{{classname}}(global::{{packageName}}.Models.{{classname}} model, string prefix)
+    {
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isMinLength}}
+        MinLength(model.{{name}}, {{limit}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMinLength}}
+{{#isMaxLength}}
+        MaxLength(model.{{name}}, {{limit}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMaxLength}}
+{{#isPattern}}
+        Pattern(model.{{name}}, "{{#lambda.stringLiteral}}{{{pattern}}}{{/lambda.stringLiteral}}", prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isPattern}}
+{{#isMinimum}}
+        Minimum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMinimum}}
+{{#isMaximum}}
+        Maximum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+        ExclusiveMinimum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+        ExclusiveMaximum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+        MultipleOf(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMultipleOf}}
+{{#isMinItems}}
+        MinSize(model.{{name}}, {{limit}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMinItems}}
+{{#isMaxItems}}
+        MaxSize(model.{{name}}, {{limit}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMaxItems}}
+{{#isMinProperties}}
+        MinEntries(model.{{name}}, {{limit}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMinProperties}}
+{{#isMaxProperties}}
+        MaxEntries(model.{{name}}, {{limit}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{message}}}{{/lambda.stringLiteral}}");
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+        ValidateModel(model.{{name}}, prefix + "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}.");
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        ValidateItems(model.{{name}}, prefix, "{{#lambda.stringLiteral}}{{{baseName}}}{{/lambda.stringLiteral}}");
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+    }
+{{/constraintModels}}
+
+    private static ArgumentException Refused(string prefix, string name, string message)
+    {
+        return new ArgumentException("Invalid request body: " + prefix + name + " " + message);
+    }
+
+    internal static void MinLength(string? value, int limit, string prefix, string name, string message)
+    {
+        if (value is not null && value.EnumerateRunes().Count() < limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void MaxLength(string? value, int limit, string prefix, string name, string message)
+    {
+        if (value is not null && value.EnumerateRunes().Count() > limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    /* A pattern is searched, not anchored; one the .NET engine cannot compile is not enforced. */
+    internal static void Pattern(string? value, string regex, string prefix, string name, string message)
+    {
+        if (value is null)
+        {
+            return;
+        }
+        Regex? compiled = Patterns.GetOrAdd(regex, Compile);
+        if (compiled is not null && !compiled.IsMatch(value))
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    private static Regex? Compile(string regex)
+    {
+        try
+        {
+            return new Regex(regex);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    internal static void Minimum(double? value, double limit, string prefix, string name, string message)
+    {
+        if (value < limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void Maximum(double? value, double limit, string prefix, string name, string message)
+    {
+        if (value > limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void ExclusiveMinimum(double? value, double limit, string prefix, string name, string message)
+    {
+        if (value <= limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void ExclusiveMaximum(double? value, double limit, string prefix, string name, string message)
+    {
+        if (value >= limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void MultipleOf(double? value, double limit, string prefix, string name, string message)
+    {
+        if (value is not double number)
+        {
+            return;
+        }
+        double quotient = number / limit;
+        if (Math.Abs(quotient - Math.Round(quotient)) >= 1e-9)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void MinSize<T>(IReadOnlyCollection<T>? value, int limit, string prefix, string name, string message)
+    {
+        if (value is not null && value.Count < limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void MaxSize<T>(IReadOnlyCollection<T>? value, int limit, string prefix, string name, string message)
+    {
+        if (value is not null && value.Count > limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void MinEntries<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue>? value,
+        int limit,
+        string prefix,
+        string name,
+        string message
+    )
+    {
+        if (value is not null && value.Count < limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+
+    internal static void MaxEntries<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue>? value,
+        int limit,
+        string prefix,
+        string name,
+        string message
+    )
+    {
+        if (value is not null && value.Count > limit)
+        {
+            throw Refused(prefix, name, message);
+        }
+    }
+}

@@ -134,6 +134,9 @@ module {{moduleName}}
         accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
         error_schemas: nil, spec_operation_id: nil, url_template: nil, stream: false, idle_timeout: nil
       )
+        # With validate_constraints on, a body that breaks a validation keyword
+        # of its schema is refused before anything is built, hooked or sent.
+        ::{{moduleName}}::ConstraintValidator.validate(body) if @config.validate_constraints && !body.nil?
         started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         url = if path.start_with?('http://', 'https://')
                 path

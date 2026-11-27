@@ -8090,6 +8090,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (indirectsRecursiveProperties()) {
             indirectRecursiveProperties(result);
         }
+        // D189: the models the opt-in constraint validator checks, for its supporting file.
+        final List<CodegenModel> constraintModels = ConstraintChecks.mark(result, openAPI);
+        additionalProperties.put("constraintModels", constraintModels);
+        additionalProperties.put("hasConstraintModels", !constraintModels.isEmpty());
         return result;
     }
 

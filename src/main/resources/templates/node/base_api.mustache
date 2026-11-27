@@ -18,6 +18,7 @@ import { JsonLinesStream } from '../json-lines-stream{{importFileExtension}}';
 import { SseStream } from '../sse-stream{{importFileExtension}}';
 import type { StreamOptions } from '../stream-options{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
+import { ConstraintValidator } from '../constraint-validator{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
 import { ObjectSerializer, isTemporalValue } from '../object-serializer{{importFileExtension}}';
@@ -153,6 +154,8 @@ export abstract class BaseApi {
    *   to the call hook
    * @param urlTemplate the spec path template of the operation, given to the
    *   call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -171,7 +174,8 @@ export abstract class BaseApi {
     requestOptions?: RequestOptions,
     errorSchemas?: ErrorSchemas,
     operationId = operationName,
-    urlTemplate = ''
+    urlTemplate = '',
+    bodyType?: string
   ): Promise<ApiResult<T>> {
     return this.invokeCall(
       false,
@@ -190,7 +194,8 @@ export abstract class BaseApi {
       requestOptions,
       errorSchemas,
       operationId,
-      urlTemplate
+      urlTemplate,
+      bodyType
     );
   }
 
@@ -223,6 +228,8 @@ export abstract class BaseApi {
    *   to the call hook
    * @param urlTemplate the spec path template of the operation, given to the
    *   call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns the result whose data is the open {@link ByteStream}; its raw body is empty
    * @throws TypeError if the transport cannot stream
    */
@@ -240,7 +247,8 @@ export abstract class BaseApi {
     requestOptions?: RequestOptions,
     errorSchemas?: ErrorSchemas,
     operationId = operationName,
-    urlTemplate = ''
+    urlTemplate = '',
+    bodyType?: string
   ): Promise<ApiResult<ByteStream>> {
     return this.invokeCall<ByteStream>(
       true,
@@ -259,7 +267,8 @@ export abstract class BaseApi {
       requestOptions,
       errorSchemas,
       operationId,
-      urlTemplate
+      urlTemplate,
+      bodyType
     );
   }
 
@@ -283,6 +292,8 @@ export abstract class BaseApi {
    * @param operationName the operation name, used in error messages
    * @param operationId the operation id exactly as written in the spec, given to the call hook
    * @param urlTemplate the spec path template of the operation, given to the call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns the open stream of items
    */
   protected async invokeApiForJsonLines<T>(
@@ -300,11 +311,12 @@ export abstract class BaseApi {
     errorSchemas?: ErrorSchemas,
     operationName = '',
     operationId = operationName,
-    urlTemplate = ''
+    urlTemplate = '',
+    bodyType?: string
   ): Promise<JsonLinesStream<T>> {
     const result = await this.invokeCall<ByteStream>(
       true, method, path, queryParams, headerParams, body, accepts, contentType, null, auth, rawBody, undefined,
-      operationName, streamOptions, errorSchemas, operationId, urlTemplate
+      operationName, streamOptions, errorSchemas, operationId, urlTemplate, bodyType
     );
     const decoder = (line: string): T => {
       const json = ObjectSerializer.parseJson(line);
@@ -342,6 +354,8 @@ export abstract class BaseApi {
    * @param operationName the operation name, used in error messages
    * @param operationId the operation id exactly as written in the spec, given to the call hook
    * @param urlTemplate the spec path template of the operation, given to the call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns the open stream of events
    */
   protected async invokeApiForSse<T>(
@@ -360,7 +374,8 @@ export abstract class BaseApi {
     errorSchemas?: ErrorSchemas,
     operationName = '',
     operationId = operationName,
-    urlTemplate = ''
+    urlTemplate = '',
+    bodyType?: string
   ): Promise<SseStream<T>> {
     const sseHeaders: Record<string, string> = { ...headerParams };
     const has = (headers: Readonly<Record<string, string>> | undefined, name: string): boolean =>
@@ -380,7 +395,7 @@ export abstract class BaseApi {
       }
       const result = await this.invokeCall<ByteStream>(
         true, method, path, { ...queryParams }, headers, body, accepts, contentType, null, auth, rawBody, undefined,
-        operationName, streamOptions, errorSchemas, operationId, urlTemplate
+        operationName, streamOptions, errorSchemas, operationId, urlTemplate, bodyType
       );
       return result.data as ByteStream;
     };
@@ -422,9 +437,15 @@ export abstract class BaseApi {
     requestOptions: RequestOptions | undefined,
     errorSchemas: ErrorSchemas | undefined,
     operationId: string,
-    urlTemplate: string
+    urlTemplate: string,
+    bodyType: string | undefined
   ): Promise<ApiResult<T>> {
     BaseApi.checkCallLimits(requestOptions);
+    /* The opt-in constraint check runs before anything is built or sent, so a
+     * refused body never reaches the call hook or the transport. */
+    if (this.config.validateConstraints && body != null && bodyType !== undefined) {
+      ConstraintValidator.validate(body, bodyType);
+    }
     const callTimeout = requestOptions?.timeout;
     const callMaxRetries = requestOptions?.maxRetries;
     /* Only a stream call carries an idle timeout, in its StreamOptions. */
@@ -726,6 +747,8 @@ export abstract class BaseApi {
    *   to the call hook
    * @param urlTemplate the spec path template of the operation, given to the
    *   call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -744,7 +767,8 @@ export abstract class BaseApi {
     requestOptions?: RequestOptions,
     errorSchemas?: ErrorSchemas,
     operationId = operationName,
-    urlTemplate = ''
+    urlTemplate = '',
+    bodyType?: string
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -762,7 +786,8 @@ export abstract class BaseApi {
       requestOptions,
       errorSchemas,
       operationId,
-      urlTemplate
+      urlTemplate,
+      bodyType
     );
     return result.data;
   }

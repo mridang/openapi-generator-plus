@@ -9,21 +9,23 @@ require 'test_helper'
 # steep:ignore for that one diagnostic.
 require 'socket'
 
-# An in-memory client that records the method and URL of every request. A GET
+# An in-memory client that records the method, URL and body of every request. A GET
 # or PATCH is answered with a canned memo, anything else with an empty reply of
 # the status its operation declares.
 class MemoRecordingStoreClient
-  attr_reader :methods_sent, :urls
+  attr_reader :methods_sent, :urls, :bodies
 
   def initialize
     @methods_sent = []
     @urls = []
+    @bodies = []
   end
 
-  def send_request(method, url, _headers, _body, **_kwargs)
+  def send_request(method, url, _headers, body, **_kwargs)
     verb = method.to_s
     @methods_sent << verb
     @urls << url
+    @bodies << body
     if %w[GET PATCH].include?(verb)
       return {{moduleName}}::ApiHttpResponse.new(
         status_code: 200,
@@ -880,6 +882,87 @@ describe {{moduleName}}::Api::StoreApi do
       api.trace_memo('m1')
 
       _(client.methods_sent).must_equal %w[PATCH HEAD OPTIONS TRACE]
+    end
+  end
+
+  describe 'constraint validation' do
+    def new_validating_store_api
+      client = MemoRecordingStoreClient.new
+      config = {{moduleName}}::Configuration.builder
+        .base_url('http://127.0.0.1:1')
+        .validate_constraints(true)
+        .build
+      [{{moduleName}}::Api::StoreApi.new(client, config), client]
+    end
+
+    it 'bhv_models_706 sends a body that breaks its constraints unchanged when validation is left at its default' do
+      client = MemoRecordingStoreClient.new
+      config = {{moduleName}}::Configuration.builder.base_url('http://127.0.0.1:1').build
+      api = {{moduleName}}::Api::StoreApi.new(client, config)
+
+      api.submit_allowance({{moduleName}}::Models::Allowance.new(label: 'a', count: 0))
+
+      _(config.validate_constraints).must_equal false
+      _(client.methods_sent).must_equal ['POST']
+      _(JSON.parse(client.bodies.first.to_s)).must_equal({ 'label' => 'a', 'count' => 0 })
+    end
+
+    {
+      'minLength' => [{ label: 'a' }, 'label must be at least 2 characters long'],
+      'maxLength' => [{ label: 'abcdef' }, 'label must be at most 5 characters long'],
+      'pattern' => [{ label: 'AB' }, 'label must match the pattern ^[a-z]+$'],
+      'minimum' => [{ count: 0 }, 'count must be greater than or equal to 1'],
+      'maximum' => [{ count: 11 }, 'count must be less than or equal to 10'],
+      'exclusiveMinimum' => [{ ratio: 0.0 }, 'ratio must be greater than 0'],
+      'exclusiveMaximum' => [{ ratio: 1.0 }, 'ratio must be less than 1'],
+      'multipleOf' => [{ step: 7 }, 'step must be a multiple of 5'],
+      'minItems' => [{ codes: [] }, 'codes must have at least 1 items'],
+      'maxItems' => [{ codes: %w[a b c d] }, 'codes must have at most 3 items'],
+      'minProperties' => [{ limits: {} }, 'limits must have at least 1 properties'],
+      'maxProperties' => [{ limits: { 'a' => 1, 'b' => 2, 'c' => 3 } }, 'limits must have at most 2 properties']
+    }.each do |keyword, (attributes, message)|
+      it "bhv_models_707 refuses a body that breaks #{keyword} before it is sent" do
+        api, client = new_validating_store_api
+
+        error = _ { api.submit_allowance({{moduleName}}::Models::Allowance.new(**attributes)) }.must_raise ArgumentError
+
+        _(error.class).must_equal ArgumentError
+        _(error.message).must_equal "Invalid request body: #{message}"
+        _(client.methods_sent).must_be_empty
+      end
+    end
+
+    {
+      'tier.level must be greater than or equal to 0' =>
+        { tier: {{moduleName}}::Models::AllowanceTier.new(level: -1) },
+      'tier.name must be at most 3 characters long' =>
+        { tier: {{moduleName}}::Models::AllowanceTier.new(name: 'abcd') },
+      'parts[1].level must be greater than or equal to 0' =>
+        { parts: [{{moduleName}}::Models::AllowanceTier.new(level: 0), {{moduleName}}::Models::AllowanceTier.new(level: -1)] }
+    }.each do |message, attributes|
+      it "bhv_models_708 names the path of a violation inside a held model: #{message}" do
+        api, client = new_validating_store_api
+
+        error = _ { api.submit_allowance({{moduleName}}::Models::Allowance.new(**attributes)) }.must_raise ArgumentError
+
+        _(error.class).must_equal ArgumentError
+        _(error.message).must_equal "Invalid request body: #{message}"
+        _(client.methods_sent).must_be_empty
+      end
+    end
+
+    it 'bhv_models_709 sends a body within every constraint and does not check null or absent values' do
+      api, client = new_validating_store_api
+      valid = {{moduleName}}::Models::Allowance.new(
+        label: 'abc', count: 10, ratio: 0.5, step: 15, codes: %w[a b c], limits: { 'a' => 1, 'b' => 2 },
+        tier: {{moduleName}}::Models::AllowanceTier.new(level: 0, name: 'abc'),
+        parts: [{{moduleName}}::Models::AllowanceTier.new(level: 1), {{moduleName}}::Models::AllowanceTier.new(name: nil)]
+      )
+
+      api.submit_allowance(valid)
+      api.submit_allowance({{moduleName}}::Models::Allowance.new(label: nil, tier: {{moduleName}}::Models::AllowanceTier.new))
+
+      _(client.methods_sent).must_equal %w[POST POST]
     end
   end
 end

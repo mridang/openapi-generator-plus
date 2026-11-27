@@ -703,6 +703,12 @@ public abstract class BaseApi {
             String specOperationId,
             String urlTemplate) {
 
+        /* D189: with constraint validation on, a body that breaks a keyword of its schema is
+         * refused here, before anything is encoded, the hook starts or a request is sent. */
+        if (body != null && config.isValidateConstraints()) {
+            ConstraintValidator.validate(body);
+        }
+
         String url;
         if (path.startsWith("http://") || path.startsWith("https://")) {
             url = path;

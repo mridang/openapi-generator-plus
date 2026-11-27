@@ -1,0 +1,278 @@
+{{>api_info}}
+
+/* The opt-in check of a request body against the validation keywords of its
+ * schema (`Configuration::validate_constraints`). Crate-private: the API
+ * modules call `validate_request_body` before they serialize a body. */
+{{^hasConstraintModels}}
+
+use crate::errors::configuration_error::ConfigurationError;
+
+/// Checks a request body against the validation keywords of its schema. The
+/// specification declares no model with such a keyword, so every body passes.
+pub(crate) fn validate_request_body(_body: &dyn std::any::Any) -> Result<(), ConfigurationError> {
+    Ok(())
+}
+{{/hasConstraintModels}}
+{{#hasConstraintModels}}
+
+use std::any::Any;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::sync::{LazyLock, Mutex};
+
+use regex::Regex;
+
+use crate::errors::configuration_error::ConfigurationError;
+
+/// The keyword one check enforces.
+#[derive(Clone, Copy)]
+enum Kind {
+    MinLength,
+    MaxLength,
+    Pattern,
+    Minimum,
+    Maximum,
+    ExclusiveMinimum,
+    ExclusiveMaximum,
+    MultipleOf,
+    MinItems,
+    MaxItems,
+    MinProperties,
+    MaxProperties,
+}
+
+/// One keyword of one property: its kind, its limit, its pattern and the rule
+/// text of the message.
+struct Check {
+    kind: Kind,
+    limit: f64,
+    pattern: &'static str,
+    rule: &'static str,
+}
+
+/// What a check reads from a value: its text, its number or its size.
+enum View<'a> {
+    Text(&'a str),
+    Number(f64),
+    Size(usize),
+}
+
+/// A property value the checks can read. An absent (`None`) value has no view
+/// and is not checked.
+trait Constrained {
+    fn view(&self) -> Option<View<'_>>;
+}
+
+impl Constrained for String {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Text(self))
+    }
+}
+
+macro_rules! constrained_integer {
+    ($($t:ty),*) => {
+        $(impl Constrained for $t {
+            fn view(&self) -> Option<View<'_>> {
+                Some(View::Number(*self as f64))
+            }
+        })*
+    };
+}
+
+constrained_integer!(i8, i16, i32, i64, u8, u16, u32, u64);
+
+impl Constrained for f32 {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Number(f64::from(*self)))
+    }
+}
+
+impl Constrained for f64 {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Number(*self))
+    }
+}
+
+impl<T> Constrained for Vec<T> {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Size(self.len()))
+    }
+}
+
+impl<T, S> Constrained for HashSet<T, S> {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Size(self.len()))
+    }
+}
+
+impl<T> Constrained for BTreeSet<T> {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Size(self.len()))
+    }
+}
+
+impl<K, V, S> Constrained for HashMap<K, V, S> {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Size(self.len()))
+    }
+}
+
+impl<K, V> Constrained for BTreeMap<K, V> {
+    fn view(&self) -> Option<View<'_>> {
+        Some(View::Size(self.len()))
+    }
+}
+
+impl<T: Constrained> Constrained for Option<T> {
+    fn view(&self) -> Option<View<'_>> {
+        self.as_ref().and_then(Constrained::view)
+    }
+}
+
+impl<T: Constrained> Constrained for Box<T> {
+    fn view(&self) -> Option<View<'_>> {
+        self.as_ref().view()
+    }
+}
+
+/// A value that holds models with keywords: the model itself, an absent value,
+/// a box or a list, whose items are checked with their index in the path.
+trait Validated {
+    fn validate(&self, path: &str) -> Result<(), ConfigurationError>;
+}
+
+impl<T: Validated> Validated for Option<T> {
+    fn validate(&self, path: &str) -> Result<(), ConfigurationError> {
+        match self {
+            Some(value) => value.validate(path),
+            None => Ok(()),
+        }
+    }
+}
+
+impl<T: Validated> Validated for Box<T> {
+    fn validate(&self, path: &str) -> Result<(), ConfigurationError> {
+        self.as_ref().validate(path)
+    }
+}
+
+impl<T: Validated> Validated for Vec<T> {
+    fn validate(&self, path: &str) -> Result<(), ConfigurationError> {
+        for (index, item) in self.iter().enumerate() {
+            item.validate(&format!("{}[{}]", path, index))?;
+        }
+        Ok(())
+    }
+}
+
+/// Each pattern compiled once; `None` for a pattern the `regex` crate cannot
+/// compile (a look-around, a back-reference), which is not enforced.
+static PATTERNS: LazyLock<Mutex<HashMap<&'static str, Option<Regex>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn pattern_matches(pattern: &'static str, text: &str) -> bool {
+    let compiled = {
+        let mut patterns = PATTERNS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        patterns
+            .entry(pattern)
+            .or_insert_with(|| Regex::new(pattern).ok())
+            .clone()
+    };
+    compiled.is_none_or(|regex| regex.is_match(text))
+}
+
+/// Whether a view meets one check; a check that does not apply to the kind of
+/// the value holds. Lengths count code points.
+fn holds(view: &View<'_>, check: &Check) -> bool {
+    match (check.kind, view) {
+        (Kind::MinLength, View::Text(text)) => text.chars().count() as f64 >= check.limit,
+        (Kind::MaxLength, View::Text(text)) => text.chars().count() as f64 <= check.limit,
+        (Kind::Pattern, View::Text(text)) => pattern_matches(check.pattern, text),
+        (Kind::Minimum, View::Number(number)) => *number >= check.limit,
+        (Kind::Maximum, View::Number(number)) => *number <= check.limit,
+        (Kind::ExclusiveMinimum, View::Number(number)) => *number > check.limit,
+        (Kind::ExclusiveMaximum, View::Number(number)) => *number < check.limit,
+        (Kind::MultipleOf, View::Number(number)) => {
+            let quotient = *number / check.limit;
+            (quotient - quotient.round()).abs() < 1e-9
+        }
+        (Kind::MinItems | Kind::MinProperties, View::Size(size)) => *size as f64 >= check.limit,
+        (Kind::MaxItems | Kind::MaxProperties, View::Size(size)) => *size as f64 <= check.limit,
+        _ => true,
+    }
+}
+
+/// Runs the checks of one property and returns the first violation.
+fn check<T: Constrained>(value: &T, path: &str, checks: &[Check]) -> Result<(), ConfigurationError> {
+    let Some(view) = value.view() else {
+        return Ok(());
+    };
+    for check in checks {
+        if !holds(&view, check) {
+            return Err(ConfigurationError::InvalidRequestBody(format!(
+                "Invalid request body: {} {}",
+                path, check.rule
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Appends a property's wire name to the path of its holder.
+fn join(path: &str, name: &str) -> String {
+    if path.is_empty() {
+        name.to_string()
+    } else {
+        format!("{}.{}", path, name)
+    }
+}
+{{#constraintModels}}
+
+impl Validated for crate::models::{{classname}} {
+    fn validate(&self, path: &str) -> Result<(), ConfigurationError> {
+{{#vendorExtensions.constraintProps}}
+{{#hasChecks}}
+        {
+            const CHECKS: &[Check] = &[
+{{#checks}}
+                Check {
+                    kind: Kind::{{#isMinLength}}MinLength{{/isMinLength}}{{#isMaxLength}}MaxLength{{/isMaxLength}}{{#isPattern}}Pattern{{/isPattern}}{{#isMinimum}}Minimum{{/isMinimum}}{{#isMaximum}}Maximum{{/isMaximum}}{{#isExclusiveMinimum}}ExclusiveMinimum{{/isExclusiveMinimum}}{{#isExclusiveMaximum}}ExclusiveMaximum{{/isExclusiveMaximum}}{{#isMultipleOf}}MultipleOf{{/isMultipleOf}}{{#isMinItems}}MinItems{{/isMinItems}}{{#isMaxItems}}MaxItems{{/isMaxItems}}{{#isMinProperties}}MinProperties{{/isMinProperties}}{{#isMaxProperties}}MaxProperties{{/isMaxProperties}},
+                    limit: {{#isPattern}}0.0{{/isPattern}}{{^isPattern}}{{#limitDouble}}{{{limitDouble}}}{{/limitDouble}}{{^limitDouble}}{{{limit}}}.0{{/limitDouble}}{{/isPattern}},
+                    pattern: "{{#isPattern}}{{#lambda.rustString}}{{{pattern}}}{{/lambda.rustString}}{{/isPattern}}",
+                    rule: "{{#lambda.rustString}}{{{message}}}{{/lambda.rustString}}",
+                },
+{{/checks}}
+            ];
+            check(&self.{{name}}, &join(path, "{{#lambda.rustString}}{{{baseName}}}{{/lambda.rustString}}"), CHECKS)?;
+        }
+{{/hasChecks}}
+{{#hasNestedModel}}
+        self.{{name}}.validate(&join(path, "{{#lambda.rustString}}{{{baseName}}}{{/lambda.rustString}}"))?;
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        self.{{name}}.validate(&join(path, "{{#lambda.rustString}}{{{baseName}}}{{/lambda.rustString}}"))?;
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+        Ok(())
+    }
+}
+{{/constraintModels}}
+
+/// Checks a request body against the validation keywords of its schema and of
+/// every model it holds, depth first in declaration order, and returns the
+/// first violation. A body that is not a model with a keyword, or a list of
+/// one, passes.
+pub(crate) fn validate_request_body(body: &dyn Any) -> Result<(), ConfigurationError> {
+{{#constraintModels}}
+    if let Some(model) = body.downcast_ref::<crate::models::{{classname}}>() {
+        return model.validate("");
+    }
+    if let Some(models) = body.downcast_ref::<Vec<crate::models::{{classname}}>>() {
+        return models.validate("");
+    }
+    if let Some(model) = body.downcast_ref::<Option<crate::models::{{classname}}>>() {
+        return model.validate("");
+    }
+{{/constraintModels}}
+    Ok(())
+}
+{{/hasConstraintModels}}

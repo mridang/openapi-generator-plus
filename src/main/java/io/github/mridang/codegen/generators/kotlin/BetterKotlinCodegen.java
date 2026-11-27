@@ -579,6 +579,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.kt"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.kt"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.kt"),
+            new SupportingFileSpec("constraint_validator.mustache", invokerFolder, "ConstraintValidator.kt"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.kt"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.kt"),
             new SupportingFileSpec("open_telemetry_call_hook.mustache", jvmInvokerFolder, "OpenTelemetryCallHook.kt"),

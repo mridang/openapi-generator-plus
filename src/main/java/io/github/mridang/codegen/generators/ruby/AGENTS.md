@@ -94,6 +94,7 @@ Rule: pattern, minLength, maxLength, minimum, maximum, multipleOf, minItems, max
 Why: only python enforces them natively and cheaply (pydantic); Ruby's dry-types could, but the decision is uniform.
 Where: `readme.mustache`, `models/model.mustache`.
 Test: `readme_test.mustache`.
+Opt-in validation (D189): `Configuration#validate_constraints` (builder `validate_constraints(val)`, keyword `validate_constraints:`, default false); the validator is `ConstraintValidator` in `constraint_validator.mustache` (`@api private`, signatures in `infrastructure_rbs.mustache`), called first in `BaseApi#invoke_api_for_result`; it matches the model class exactly (`instance_of?`) and raises `ArgumentError`. Test: `test/api/store_api_test.mustache` (`bhv_models_706` to `709`).
 
 ### allOf with a discriminator uses inheritance (S4)
 Rule: the allOf+discriminator parent is a base class and subtypes inherit; a model reused in two unions is not re-parented, unions use modules.

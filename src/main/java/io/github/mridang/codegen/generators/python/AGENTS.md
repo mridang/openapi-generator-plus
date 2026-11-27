@@ -116,6 +116,7 @@ Rule: the client does not promise to enforce `pattern`, length, range, `multiple
 Why: this supersedes the D55 Python line, which deleted the Field constraints; the owner chose to keep native pydantic enforcement.
 Where: `models/model.mustache` (lines with `min_length`, the `re.match` validator), `readme.mustache`.  The README has the single section "Schema constraints" (the older "Numeric / string constraint validation" section is gone) and says a constructor sends the value it was given while decoding raises `SerializationException`.
 Test: golden model tests (petstore declares no constraint, so the pattern validator is covered only by which needs a spec property).
+Opt-in check (D189): `Configuration.validate_constraints` (default False) runs the private `_constraint_validator.py` (`_constraint_validator.mustache`, dispatch on the model class through the MRO) from `BaseApi._invoke_api_for_result` before the call hook. Python needs it like the others because construction never validates (F316); decoding still validates through pydantic. Test: `test/test_base_api.mustache` (`TestConstraintValidation`, bhv models 706-709).
 
 ### Strict containers (S1, 2026-11-16)
 Rule: a response that is a container of primitives is checked element by element like a single primitive.

@@ -522,6 +522,8 @@ value that violates a constraint is sent as given and a response that violates
 one is decoded as given. Arrays declared `uniqueItems` are sent in the order of
 the collection the caller holds (insertion order of the `\Ds\Set`), not sorted.
 
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
+
 ## Not supported
 
 ### Webhooks and callbacks

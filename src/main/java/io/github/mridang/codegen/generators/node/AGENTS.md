@@ -77,6 +77,7 @@ Test: `test/value-serializer.test.mustache`, `test/base-api.test.mustache`.
 
 ### Schema constraints are not enforced (S3, D55, 2026-11-16)
 Rule: node does not enforce pattern, length, range, multipleOf or item-count keywords; the server owns validation. The README has a "Schema constraints" section.
+Opt-in check (D189): `Configuration.validateConstraints` (default false) runs `src/constraint-validator.ts` (`constraint_validator.mustache`, not in the barrel) from `BaseApi.invokeCall` before the call hook; each operation passes its body model name as the trailing `bodyType` argument, because a `DeepInput` literal has no runtime type. Test: `test/base-api.test.mustache` (bhv models 706-709).
 Why: only python enforces them, natively via pydantic; class-transformer gives no cheap equivalent.
 Where: `readme.mustache`, `models/model.mustache`.
 Test: golden README and `test/metadata.test.mustache`.

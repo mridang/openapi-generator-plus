@@ -250,6 +250,12 @@ defmodule {{moduleName}}.Api.BaseApi do
           %{optional(String.t()) => module()}
         ) :: {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
   def invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil, call \\ [], errors \\ %{}) do
+    # With validate_constraints on, a body that breaks a validation keyword of
+    # its schema is refused before anything is built, hooked or sent.
+    if Map.get(state.config, :validate_constraints) && body != nil do
+      {{moduleName}}.ConstraintValidator.validate!(body)
+    end
+
     # A call that starts after `close/1` fails with the one canonical error. A
     # call admitted before it runs to the end: the processes its authenticators
     # started are stopped when the last such call is over. A transport that is

@@ -490,6 +490,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.cs"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.cs"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.cs"),
+            new SupportingFileSpec("constraint_validator.mustache", invokerFolder, "ConstraintValidator.cs"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "ICallHook.cs"),
             new SupportingFileSpec("call_observer.mustache", invokerFolder, "ICallObserver.cs"),

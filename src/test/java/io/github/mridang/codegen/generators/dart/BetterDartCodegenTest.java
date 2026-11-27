@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 
 class BetterDartCodegenTest {
@@ -320,5 +321,29 @@ class BetterDartCodegenTest {
         .containsEntry("isDecimal", true)
         .containsEntry("isDecimalNumber", false)
         .containsEntry("isDecimalString", true);
+  }
+
+  @Test
+  void marksARequiredNonNullableConstraintPropertyAndReportsTheHelpersItsChecksUse() {
+    final CodegenProperty strict = new CodegenProperty();
+    strict.required = true;
+    final CodegenProperty requiredNullable = new CodegenProperty();
+    requiredNullable.required = true;
+    requiredNullable.isNullable = true;
+    final Map<String, Object> strictView = new HashMap<>();
+    strictView.put("prop", strict);
+    strictView.put("checks", List.of(Map.of("isPattern", true)));
+    final Map<String, Object> nullableView = new HashMap<>();
+    nullableView.put("prop", requiredNullable);
+    nullableView.put("checks", List.of(Map.of("isMaxItems", true)));
+    final CodegenModel model = new CodegenModel();
+    model.vendorExtensions.put("constraintProps", List.of(strictView, nullableView));
+
+    final boolean[] kinds = BetterDartCodegen.tagConstraintNullability(List.of(model));
+
+    assertThat(strictView).containsEntry("dartNonNull", true);
+    assertThat(nullableView).containsEntry("dartNonNull", false);
+    assertThat(kinds).containsExactly(true, false, false, true);
+    assertThat(BetterDartCodegen.tagConstraintNullability(null)).containsExactly(false, false, false, false);
   }
 }

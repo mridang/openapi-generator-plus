@@ -70,6 +70,7 @@ Rule: csharp does not enforce pattern, length, range, multipleOf or item-count k
 Why: only python enforces them natively and cheaply; csharp has no such model layer and DataAnnotations would be a second validation path.
 Where: `models/model.mustache`, `readme.mustache`.
 Test: none possible beyond the golden README.
+Opt-in (D189): `Configuration.Builder().ValidateConstraints(true)` runs the `internal static class ConstraintValidator` (`constraint_validator.mustache`, fed by `constraintModels`, exact-type dispatch) from `BaseApi.InvokeCallAsync` before the hook and the send; it throws `ArgumentException`. Tests: `BaseApiTest.BhvModels706` to `BhvModels709`.
 
 ### allOf with a discriminator uses inheritance (S4, 2026-11-16)
 Rule: the allOf parent with a discriminator is a base class and the subtypes extend it; a model reused in two unions must not be re-parented, so unions use only the parent's inheritance and nothing else.

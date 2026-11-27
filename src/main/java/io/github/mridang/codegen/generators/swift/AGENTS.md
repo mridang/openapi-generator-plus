@@ -125,6 +125,7 @@ Rule: the client does not enforce `pattern`, length, range, `multipleOf` or item
 Why: the server owns validation; a hash order is seeded per process, so it would put different bytes on the wire for one value.
 Where: `readme.mustache`, `models/model.mustache`.
 Test: none by design.
+Opt-in validation (D189, #83): `ConfigurationBuilder.validateConstraints(_:)` turns on the request body check. The validator is the internal `constraint_validator.mustache` (`Sources/<Module>/Api/ConstraintValidator.swift`): a `ConstraintValidated` conformance per model in `constraintModels` (with conditional `Optional` and `Array` conformances for held models and lists), a `ConstraintReadable` protocol that reads a property's text, number or size, and per-model static check tables whose patterns are compiled once into `NSRegularExpression`. `BaseApi.prepareCall`, shared by the buffered and the stream calls, runs it first, before the body is serialized and before the hook's `start`. The error is the new `ConfigurationError.invalidRequestBody(String)`, whose description is the whole message. ICU compiles `Pet.nickname`'s look-ahead, so Swift enforces it where go and rust skip it. Tests: `testBhvModels706`-`709` in `test/BaseApiTests.mustache`.
 
 ### Out of scope features (S11, closed issues #53, #70, #78, #88, #90)
 Rule: callbacks and webhooks, XML bodies, Link Objects and mutual TLS are not generated, and the README says so (webhooks and callbacks section; SOCKS section).

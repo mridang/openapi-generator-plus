@@ -321,4 +321,25 @@ class BetterPHPCodegenTest {
         assertEquals("ProjectNotFound", codegen.errorSchemaModelName("\\Pkg\\Models\\ProjectNotFound"));
         assertEquals("ProjectNotFound", codegen.errorSchemaModelName("ProjectNotFound"));
     }
+
+    @Test
+    void aPatternIsDelimitedWithItsSlashesEscaped() {
+        assertEquals("/^\\d+\\/[a-z]+$/u", BetterPHPCodegen.phpRegex("^\\d+/[a-z]+$"));
+        assertEquals("/a\\/b/u", BetterPHPCodegen.phpRegex("a\\/b"));
+        assertEquals("/a\\\\\\/b/u", BetterPHPCodegen.phpRegex("a\\\\/b"));
+    }
+
+    @Test
+    void aPropertyIsNullableByTheRuleOfItsDeclaredType() {
+        final CodegenProperty optional = new CodegenProperty();
+        assertTrue(BetterPHPCodegen.isPhpNullable(optional));
+        final CodegenProperty required = new CodegenProperty();
+        required.required = true;
+        assertEquals(false, BetterPHPCodegen.isPhpNullable(required));
+        required.isNullable = true;
+        assertTrue(BetterPHPCodegen.isPhpNullable(required));
+        final CodegenProperty defaulted = new CodegenProperty();
+        defaulted.defaultValue = "3";
+        assertEquals(false, BetterPHPCodegen.isPhpNullable(defaulted));
+    }
 }
