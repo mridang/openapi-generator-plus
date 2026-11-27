@@ -2672,6 +2672,37 @@ class DefaultApiClientUnitTest {
             }
         }
 
+        @Test
+        @DisplayName("bhvTransport094 a per-call timeout bounds the whole call, body included: a trickling body fails with the network timeout error within the budget")
+        fun bhvTransport094PerCallTimeoutBoundsTheWholeCallBodyIncluded() {
+            RawServer.serve { self, socket, _, _ ->
+                rawHead(socket, 200, "Content-Type: application/octet-stream", "Content-Length: 100000")
+                var sent = 0
+                do {
+                    rawBody(socket, "a".toByteArray(Charsets.ISO_8859_1))
+                    sent++
+                } while (sent < 300 && !self.release.await(100, java.util.concurrent.TimeUnit.MILLISECONDS))
+            }.use { server ->
+                val apiClient = DefaultApiClient(TransportOptions.builder().timeout(60000L).maxRetries(0).build())
+                val started = System.nanoTime()
+                assertThrows(
+                    {{invokerPackage}}.errors.NetworkTimeoutException::class.java,
+                    {
+                        runBlocking {
+                            kotlinx.coroutines.withContext(CallSettings(500L, 0)) {
+                                apiClient.sendRequest("GET", server.url("/items/blob"), emptyMap(), null)
+                            }
+                        }
+                    },
+                )
+                apiClient.close()
+                assertTrue(
+                    System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(3),
+                    "the trickling body was cut off by the per-call timeout",
+                )
+            }
+        }
+
 
         @Test
         @DisplayName("bhvRetries048 the default client retries a 503 over a real connection and returns the later success")

@@ -607,6 +607,60 @@ describe('DefaultApiClient transport-failure responseHeaders', () => {
     expect((caught as Error).constructor).toBe(NetworkTimeoutError);
   });
 
+  it('bhv transport 094 a per-call timeout bounds the whole call including a trickling body', async () => {
+    const timers = new Set<ReturnType<typeof setInterval>>();
+    const sockets = new Set<net.Socket>();
+    const trickle = net.createServer(socket => {
+      sockets.add(socket);
+      socket.on('error', () => {
+        /* the client hanging up mid-body is expected */
+      });
+      socket.once('data', () => {
+        socket.write(
+          'HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 100000\r\n\r\n'
+        );
+        let sent = 0;
+        const timer = setInterval(() => {
+          if (socket.destroyed || sent >= 100) {
+            clearInterval(timer);
+            timers.delete(timer);
+            socket.destroy();
+            return;
+          }
+          socket.write('x');
+          sent += 1;
+        }, 100);
+        timers.add(timer);
+        socket.on('close', () => {
+          clearInterval(timer);
+          timers.delete(timer);
+        });
+      });
+    });
+    await new Promise<void>(resolve => trickle.listen(0, '127.0.0.1', resolve));
+    const port = (trickle.address() as net.AddressInfo).port;
+    const client = new DefaultApiClient(TransportOptions.builder().timeout(60000).maxRetries(0).build());
+    let caught: unknown;
+    const started = Date.now();
+    try {
+      await client.sendRequest('GET', `http://127.0.0.1:${port}/trickle`, {}, null, { timeout: 500 });
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+      for (const timer of timers) {
+        clearInterval(timer);
+      }
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      await new Promise<void>(resolve => trickle.close(() => resolve()));
+    }
+    const elapsed = Date.now() - started;
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+    expect(elapsed).toBeLessThan(3000);
+  });
+
   it('bhv transport 058 a request that exceeds the timeout throws NetworkTimeoutError', async () => {
     const slow = http.createServer(() => {
       /* never respond */

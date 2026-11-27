@@ -1985,6 +1985,28 @@ import FoundationNetworking
         #expect(abs(seen[1] - 10.0) < 0.001)
     }
 
+    /* A per-call timeout bounds the whole call, body included: a body that trickles in past the budget fails within it. */
+    @Test func testBhvTransport094APerCallTimeoutBoundsTheWholeCallBodyIncluded() async throws {
+        let server = try RawServer { connection, _, _ in
+            connection.head(200, "Content-Type: application/octet-stream", "Content-Length: 100000")
+            for _ in 0..<100 {
+                if connection.server.isReleased || !connection.send("x") { break }
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+        }
+        defer { server.stop() }
+        let client = try DefaultApiClient(
+            transportOptions: try TransportOptionsBuilder().timeout(60000).maxRetries(0).build())
+        let started = Date()
+        let error = await #expect(throws: NetworkTimeoutError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: server.url("/items/blob"), headers: [:], body: nil,
+                noRedirect: false, refreshHeaders: nil, timeout: 500, maxRetries: 0)
+        }
+        #expect(error is NetworkTimeoutError)
+        #expect(Date().timeIntervalSince(started) < 3.0)
+    }
+
     /* The per-call timeout ends with its call: the next call without one takes the transport's. */
     @Test func testBhvTransport002TimeoutReachesTheTransportForThisCallOnly() async throws {
         var seen: [TimeInterval] = []

@@ -3597,6 +3597,34 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvTransport094PerCallTimeoutBoundsTheWholeCallBodyIncluded() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(
+                  socket, 200, "Content-Type: application/octet-stream", "Content-Length: 100000");
+              OutputStream out = socket.getOutputStream();
+              for (int sent = 0; sent < 300; sent++) {
+                out.write('a');
+                out.flush();
+                if (self.release.await(100, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                  return;
+                }
+              }
+            })) {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(60000).maxRetries(0).build());
+      long started = System.nanoTime();
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkTimeoutException.class,
+          () -> client.sendRequest("GET", server.url("/items/blob"), Map.of(), null, 500, null));
+      assertTrue(
+          System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(3),
+          "the trickling body was cut off by the per-call timeout");
+    }
+  }
+
+  @Test
   void bhvLangjava013RequestWithoutDefaultHeadersSendsOnlyItsOwn() throws Exception {
     var seen = new java.util.concurrent.atomic.AtomicReference<String>("unset");
     HttpServer echo = HttpServer.create(new InetSocketAddress(0), 0);

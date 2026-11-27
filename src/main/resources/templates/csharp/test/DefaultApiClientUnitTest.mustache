@@ -5078,6 +5078,41 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvTransport094APerCallTimeoutBoundsTheWholeCallBodyIncluded()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(
+                    socket, 200, "Content-Type: application/octet-stream", "Content-Length: 100000");
+                for (int sent = 0; sent < 300 && !self.IsReleased; sent++)
+                {
+                    await RawServer.WriteAsync(socket, "a");
+                    await Task.Delay(100);
+                }
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Timeout(60000).MaxRetries(0).Build());
+
+        long started = Stopwatch.GetTimestamp();
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkTimeoutException>(
+            () => client.SendRequestAsync(
+                "GET",
+                new Uri(server.Url("/items/blob")),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                null,
+                500,
+                null,
+                CancellationToken.None));
+
+        Assert.True(
+            Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(3),
+            "the trickling body was cut off by the per-call timeout");
+    }
+
+    [Fact]
     public async Task BhvRetries042ATimeoutIsNotRetried()
     {
         /* A timeout raised by the transport carries a TimeoutException inside the

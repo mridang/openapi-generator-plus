@@ -790,14 +790,25 @@ module {{moduleName}}
         raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms")
       end
 
-      dispatch(method, url, body, headers) do |request|
-        # A supplied connection has its own encoder; the request-level one keeps
-        # the query exactly as BaseApi built it.
-        request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
-        request.options.timeout = remaining
-        request.options.open_timeout = remaining
-        request.options.write_timeout = remaining
+      # The socket timeouts bound each read; the outer deadline bounds the hop as a
+      # whole, body included, so a server that trickles the body cannot hold the
+      # call past the budget one read at a time.
+      Timeout.timeout(remaining) do
+        dispatch(method, url, body, headers) do |request|
+          # A supplied connection has its own encoder; the request-level one keeps
+          # the query exactly as BaseApi built it.
+          request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
+          request.options.timeout = remaining
+          request.options.open_timeout = remaining
+          request.options.write_timeout = remaining
+        end
       end
+    rescue Timeout::Error => e
+      # The outer deadline starts before the socket timers, so it usually fires first. It carries
+      # the same cause as a socket timeout, a Faraday::TimeoutError, so a timed-out call looks the
+      # same whichever bound ended it.
+      raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms"),
+            cause: Faraday::TimeoutError.new(e)
     end
 
     # Send one hop of a streamed call: the request runs on a producer thread

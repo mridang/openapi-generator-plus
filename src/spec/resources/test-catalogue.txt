@@ -495,8 +495,8 @@ options034 | Setting proxy is supported on all platforms
 options035 | Setting proxy URL is preserved on read-back
 options036 | Setting timeout to 5000 is accessible
 options037 | Timeout can be explicitly disabled
-options038 | Timeout defaults to 10 seconds (10000 ms)
-options039 | Timeout defaults to 10000 ms (10 seconds)
+options038 | Timeout defaults to 60 seconds (60000 ms)
+options039 | Timeout defaults to 60000 ms (60 seconds)
 options040 | Timeout field is named exactly timeout
 options041 | UserAgent defaults to non-empty string
 options042 | UserAgent defaults to the published artifact name, version and language
@@ -1938,6 +1938,7 @@ transport090 | Response headers repeated on the wire are returned with every val
 transport091 | The SDK leaves a caller-supplied file or upload stream open after sending the request.
 transport092 | A caller-supplied HTTP client or connection pool receives the SDK's request.
 transport093 | A server whose certificate is signed by a CA other than the configured one is rejected with a network error.
+transport094 | A per-call timeout bounds the whole call, body included: a body that trickles in past the budget fails with the network timeout error within the budget.
 unions044 | Each variant of a union has a typed constructor or factory and a typed accessor that identify the variant the value was built from or decoded as.
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.

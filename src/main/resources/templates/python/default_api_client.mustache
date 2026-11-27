@@ -1152,6 +1152,34 @@ class DefaultApiClient:
         return response
 
     @staticmethod
+    def _read_within(response: Any, deadline: Optional[float]) -> bytes:
+        """Read the whole body before ``deadline``, the instant the call must end by.
+
+        The socket timeout is reset to what remains of the budget before every read, so
+        the budget holds for the body as a whole and not for each read on its own.
+        """
+        read1 = getattr(response, 'read1', None)
+        if deadline is None or read1 is None:
+            # No budget, or a response from a supplied pool manager that reads only as a whole.
+            return bytes(response.read())
+        handle = getattr(_ACTIVE, 'handle', None)
+        sock = handle.socket() if handle is not None else None
+        chunks: List[bytes] = []
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                DefaultApiClient._abort_response(response)
+                raise NetworkTimeoutException(
+                    message='Request timed out: the timeout budget was used up while the response body was read'
+                )
+            if sock is not None:
+                sock.settimeout(remaining)
+            chunk = read1(65536)
+            if not chunk:
+                return b''.join(chunks)
+            chunks.append(chunk)
+
+    @staticmethod
     def _wire_body(body: Any, opened: List[OpenedBody]) -> Any:
         """The body of one send as the HTTP layer takes it: a body source is opened afresh."""
         if isinstance(body, BodySource):
@@ -1179,7 +1207,12 @@ class DefaultApiClient:
         Returns:
             :class:`ApiHttpResponse` containing status code, body, and headers.
         """
-        response = self._open(method, url, headers, body, no_redirect, deadline_at)
+        # One deadline covers the header phase and the whole body read, so a server that
+        # trickles the body cannot hold the call past the budget one socket read at a time.
+        deadline = deadline_at
+        if deadline is None and self._transport_options.timeout is not None:
+            deadline = time.monotonic() + self._transport_options.timeout / 1000.0
+        response = self._open(method, url, headers, body, no_redirect, deadline)
         try:
             # The body read happens INSIDE the transport try/catch so a
             # connection-reset / read-timeout / truncated-chunked failure
@@ -1188,7 +1221,7 @@ class DefaultApiClient:
             # preserved as the cause) rather than leaking a raw urllib3
             # exception. This gives callers one error type for the whole
             # transport phase, matching Java/Swift/Ruby/PHP/Elixir.
-            raw_data = response.read()
+            raw_data = self._read_within(response, deadline)
 
             # A malformed Content-Encoding body (e.g. a server that
             # advertises `gzip` but sends truncated / non-gzip bytes) arrived

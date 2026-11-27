@@ -1916,6 +1916,42 @@ func TestBhvTransport029_DefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeo
 	}
 }
 
+// A per-call timeout is one deadline for the whole call, body included: a
+// server that sends the headers and then trickles the body one byte at a time
+// cannot hold a buffered call past the per-call budget, even when the
+// transport's own timeout is far longer.
+func TestBhvTransport094_DefaultApiClientUnit_APerCallTimeoutBoundsTheWholeCallBodyIncluded(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		_, _ = conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 100000\r\n\r\n"))
+		for sent := 0; sent < 100; sent++ {
+			time.Sleep(100 * time.Millisecond)
+			if _, err := conn.Write([]byte("x")); err != nil {
+				s.clientDropped()
+				return
+			}
+		}
+	})
+
+	timeout := 60000
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	budget := 500 * time.Millisecond
+	started := time.Now()
+	_, err = client.SendRequestWithOptions("GET", server.url("/trickle"), map[string]string{}, nil, &RequestOptions{Timeout: &budget})
+	elapsed := time.Since(started)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+	if elapsed >= 3*time.Second {
+		t.Errorf("expected the call to end within the per-call budget, took %s", elapsed)
+	}
+}
+
 // multipart-nonascii-field-name: a non-ASCII multipart field name must be
 // preserved as UTF-8 bytes in the Content-Disposition header, not transliterated
 // or stripped — matching the other SDKs. buildMultipartBody is exercised

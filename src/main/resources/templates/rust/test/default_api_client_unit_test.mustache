@@ -2128,6 +2128,39 @@ async fn test_bhv_transport_086_a_request_past_its_timeout_fails_within_its_budg
     assert!(started.elapsed() < std::time::Duration::from_secs(4), "the timeout must end the call within its budget");
 }
 
+/// A per-call timeout bounds the whole call, body included: a body that trickles
+/// in one byte at a time past the budget fails with NetworkTimeoutError within
+/// the budget, not one socket read at a time.
+#[tokio::test]
+async fn test_bhv_transport_094_a_per_call_timeout_bounds_the_whole_call_body_included() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: application/octet-stream", "Content-Length: 100000"]);
+        for _ in 0..100 {
+            if conn.write(b"x").is_err() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    });
+    let client = DefaultApiClient::new(None);
+    let started = std::time::Instant::now();
+
+    let err = client
+        .send_request_with_options(
+            "GET",
+            &server.url("/items/blob"),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new()
+                .deadline(Some(std::time::Instant::now() + std::time::Duration::from_millis(500))),
+        )
+        .await
+        .expect_err("a body that trickles past the budget must fail");
+
+    assert!(err.downcast_ref::<NetworkTimeoutError>().is_some(), "got: {}", err);
+    assert!(started.elapsed() < std::time::Duration::from_secs(3), "took {:?}", started.elapsed());
+}
+
 /// The timeout is one end-to-end budget across every redirect hop: three
 /// 400 ms hops and a 400 ms final answer exceed a 1000 ms budget even though
 /// each single request is well inside it.

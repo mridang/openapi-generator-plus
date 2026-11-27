@@ -3048,6 +3048,29 @@ class TestRetryPolicy:
         )
 
         assert 0 < pool.timeout.total <= 5
+
+    def test_bhv_transport_094_a_per_call_deadline_bounds_the_whole_call_so_a_trickling_body_times_out_within_the_budget(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Content-Type: application/octet-stream', 'Content-Length: 100000')
+            for _ in range(300):
+                if connection.server.release.wait(0.1):
+                    return
+                connection.send(b'x')
+
+        server = raw_server(script)
+        client = DefaultApiClient(TransportOptions.builder().timeout(60000).build())
+
+        started = time.monotonic()
+        with pytest.raises(NetworkTimeoutException) as raised:
+            client.send_request(
+                'GET', server.url('/items/blob'), {}, None, deadline=time.monotonic() + 0.5
+            )
+
+        assert type(raised.value) is NetworkTimeoutException
+        assert time.monotonic() - started < 3, 'the trickling body held the call past its deadline'
+
     def test_bhv_misc_169_the_backoff_starts_at_half_a_second_and_doubles_up_to_eight(self) -> None:
         assert [_retry_delay(attempt, jitter=0.0) for attempt in range(6)] == [0.5, 1.0, 2.0, 4.0, 8.0, 8.0]
 

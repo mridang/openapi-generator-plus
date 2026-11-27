@@ -2753,6 +2753,32 @@ describe 'DefaultApiClientUnit' do
     thread.join
   end
 
+  it 'bhv_transport_094 a per-call timeout bounds the whole call so a trickling body times out within the budget' do
+    port, thread = serve_once do |socket|
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 100000\r\n\r\n")
+      300.times do
+        socket.write('x')
+        sleep 0.1
+      end
+    rescue IOError, SystemCallError
+      nil
+    end
+    transport = {{moduleName}}::TransportOptions.builder.timeout(60_000).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
+      client.send_request('GET', "http://127.0.0.1:#{port}/trickle", {}, nil, timeout: 500, max_retries: 0)
+    end
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    _(err).must_be_instance_of {{moduleName}}::Errors::NetworkTimeoutError
+    _(err.status_code).must_equal 0
+    _(elapsed).must_be :<, 3.0
+    thread.kill
+    thread.join
+  end
+
   # ── F823: automatic retries with backoff ──
   #
   # The stub answers every attempt through +respond+ (called with the attempt

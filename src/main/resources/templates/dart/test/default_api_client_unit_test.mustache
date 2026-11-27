@@ -978,6 +978,67 @@ void main() {
       }
     });
 
+    test('bhv transport 094 a per-call timeout bounds the whole call including a trickling body',
+        () async {
+      final sockets = <Socket>[];
+      final timers = <Timer>[];
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((conn) {
+        sockets.add(conn);
+        var started = false;
+        conn.listen((_) {
+          if (started) return;
+          started = true;
+          conn.write('HTTP/1.1 200 OK\r\n'
+              'Content-Type: application/octet-stream\r\n'
+              'Content-Length: 100000\r\n'
+              '\r\n');
+          var sent = 0;
+          timers.add(Timer.periodic(const Duration(milliseconds: 100), (timer) {
+            if (sent >= 100) {
+              timer.cancel();
+              conn.destroy();
+              return;
+            }
+            sent += 1;
+            try {
+              conn.add(const [0x78]);
+            } on Object {
+              timer.cancel();
+            }
+          }));
+        }, onError: (Object _) {}, onDone: () {});
+        conn.done.then<void>((_) {}, onError: (Object _) {});
+      });
+
+      try {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().timeout(60000).maxRetries(0).build(),
+        );
+        final clock = Stopwatch()..start();
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/trickle',
+            {},
+            null,
+            timeout: 500,
+          ),
+          throwsA(isA<NetworkTimeoutException>()
+              .having((e) => e.runtimeType, 'runtimeType', NetworkTimeoutException)),
+        );
+        expect(clock.elapsedMilliseconds, lessThan(3000));
+      } finally {
+        for (final timer in timers) {
+          timer.cancel();
+        }
+        for (final conn in sockets) {
+          conn.destroy();
+        }
+        await server.close();
+      }
+    });
+
     test('bhv options 005 caller headers override transport default headers', () async {
       String? receivedCustom;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

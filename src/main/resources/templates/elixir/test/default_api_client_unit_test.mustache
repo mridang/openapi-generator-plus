@@ -3012,6 +3012,37 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     {{moduleName}}.ByteStream.new(response.status_code, response.headers, response.body, response.close)
   end
 
+  # Writes one byte of the body every 100 ms until the client hangs up or `left` runs out.
+  defp trickle(_socket, 0), do: :ok
+
+  defp trickle(socket, left) do
+    case RawServer.body(socket, "x") do
+      :ok ->
+        Process.sleep(100)
+        trickle(socket, left - 1)
+
+      {:error, _closed} ->
+        :ok
+    end
+  end
+
+  test "bhv transport 094 a per-call timeout bounds the whole call, body included" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Type: application/octet-stream", "Content-Length: 100000"])
+        trickle(socket, 100)
+      end)
+
+    client = DefaultApiClient.new({{moduleName}}.TransportOptions.new(timeout: 60_000, max_retries: 0))
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+      DefaultApiClient.send_request(client, :get, RawServer.url(server, "/items/blob"), %{}, nil, timeout: 500)
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 3_000
+  end
+
   test "bhv streaming 001 a binary stream delivers the bytes in order and returns before the body has ended" do
     server =
       RawServer.start(fn server, socket, _hit, _head ->
