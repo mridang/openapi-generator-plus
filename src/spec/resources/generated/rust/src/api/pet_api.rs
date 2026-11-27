@@ -1146,6 +1146,7 @@ impl PetApi {
     }
 
     /// Finds Pets by status
+    /// Response 200: Pets matching the filter
     #[deprecated]
     /// See <https://example.com/docs/filtering> Find out more about filtering
     /// * `status`: Status values that need to be considered for filter
@@ -4931,6 +4932,7 @@ impl PetApi {
 
     /// Set the pet's profile photo
     /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+    /// Response 204: Avatar stored
     /// * `request_content_type`: the request Content-Type to send, one of
     ///   `image/jpeg`, `image/png`, `application/json`; `None` sends the first declared one. Only the header changes:
     ///   the caller supplies a body the server accepts for the chosen type.
@@ -5064,6 +5066,7 @@ impl PetApi {
 
     /// Set the pet's avatar thumbnail as base64
     /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+    /// Response 204: Thumbnail updated
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///

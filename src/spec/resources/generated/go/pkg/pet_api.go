@@ -1263,6 +1263,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn civil.Da
 }
 
 // FindPetsByStatus Finds Pets by status
+// Response 200: Pets matching the filter
 // See https://example.com/docs/filtering Find out more about filtering
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -5130,6 +5131,7 @@ func (a *PetApi) ListPetsAfterPages(ctx context.Context, options *opts.ListPetsA
 
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+// Response 204: Avatar stored
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries and WithRequestContentType.
@@ -5247,6 +5249,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 
 // SetPetAvatarThumbnail Set the pet's avatar thumbnail as base64
 // Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+// Response 204: Thumbnail updated
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.

@@ -36,6 +36,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'dry-struct', '~> 1.6'
   s.add_dependency 'dry-types', '~> 1.7'
   s.add_dependency 'faraday', '~> 2.0'
+  s.add_dependency 'faraday-net_http_persistent', '~> 2.3'
   s.add_dependency 'iso8601', '~> 0.13'
   s.add_dependency 'json', '~> 2.6'
   s.add_dependency 'set', '~> 1.1'

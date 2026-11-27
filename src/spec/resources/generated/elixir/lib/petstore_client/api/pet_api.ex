@@ -2288,6 +2288,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Finds Pets by status
 
+  Response 200: Pets matching the filter
+
   **Deprecated**: This operation is deprecated.
 
   ## Parameters
@@ -6512,6 +6514,8 @@ defmodule PetstoreClient.Api.PetApi do
 
   Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 
+  Response 204: Avatar stored
+
   ## Parameters
     * `pet_id` - integer()
     * `body` - PetstoreClient.BodySource.t()
@@ -6676,6 +6680,8 @@ defmodule PetstoreClient.Api.PetApi do
   Set the pet's avatar thumbnail as base64
 
   Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+
+  Response 204: Thumbnail updated
 
   ## Parameters
     * `pet_id` - integer()

@@ -1283,6 +1283,7 @@ class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /// Finds Pets by status
+  /// Response 200: Pets matching the filter
   /// `status` Status values that need to be considered for filter
   /// `filter` Filter criteria as key-value pairs
   /// `bornAfter` Only return pets born on or after this date
@@ -3753,6 +3754,7 @@ class PetApi extends BaseApi implements PetApiInterface {
 
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+  /// Response 204: Avatar stored
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
   @override
@@ -3835,6 +3837,7 @@ class PetApi extends BaseApi implements PetApiInterface {
 
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+  /// Response 204: Thumbnail updated
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `NotFoundException` on HTTP 404.
   @override

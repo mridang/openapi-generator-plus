@@ -588,6 +588,7 @@ module Petstore::Client
       end
 
       # Finds Pets by status
+      # Response 200: Pets matching the filter
       # @param options [FindPetsByStatusOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
@@ -2232,6 +2233,7 @@ module Petstore::Client
 
       # Set the pet's profile photo
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+      # Response 204: Avatar stored
       # @param pet_id [Integer]
       # @param body [BodySource]
       # @param options [SetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
@@ -2305,6 +2307,7 @@ module Petstore::Client
 
       # Set the pet's avatar thumbnail as base64
       # Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+      # Response 204: Thumbnail updated
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
       # @param options [SetPetAvatarThumbnailOptions] per-call options: the optional timeout, headers and max_retries

@@ -431,7 +431,7 @@ public interface PetApiInterface {
   }
 
   /**
-   * Finds Pets by status
+   * Finds Pets by status Response 200: Pets matching the filter
    *
    * @param options options for query, header, form, and cookie parameters
    * @return {@code List<Pet>}
@@ -444,7 +444,7 @@ public interface PetApiInterface {
   List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options);
 
   /**
-   * Finds Pets by status
+   * Finds Pets by status Response 200: Pets matching the filter
    *
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code List<Pet>}
@@ -1850,7 +1850,8 @@ public interface PetApiInterface {
 
   /**
    * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
-   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow. Response
+   * 204: Avatar stored
    *
    * @param petId (required)
    * @param body (required)
@@ -1905,7 +1906,8 @@ public interface PetApiInterface {
 
   /**
    * Set the pet's profile photo Accepts either raw image bytes (image/jpeg or image/png) or a JSON
-   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+   * envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow. Response
+   * 204: Avatar stored
    *
    * @param petId (required)
    * @param body (required)
@@ -1954,7 +1956,7 @@ public interface PetApiInterface {
 
   /**
    * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
-   * array of candidates; the server selects the most suitable one.
+   * array of candidates; the server selects the most suitable one. Response 204: Thumbnail updated
    *
    * @param petId (required)
    * @param setPetAvatarThumbnailRequest (required)
@@ -1969,7 +1971,7 @@ public interface PetApiInterface {
 
   /**
    * Set the pet's avatar thumbnail as base64 Accepts either a single base64-encoded thumbnail or an
-   * array of candidates; the server selects the most suitable one.
+   * array of candidates; the server selects the most suitable one. Response 204: Thumbnail updated
    *
    * @param petId (required)
    * @param setPetAvatarThumbnailRequest (required)

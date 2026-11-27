@@ -159,6 +159,7 @@ paths:
       responses:
         '200':
           description: Successful operation
+          summary: Pets matching the filter
           content:
             application/json:
               schema:
@@ -345,6 +346,7 @@ paths:
       responses:
         '204':
           description: Avatar updated
+          summary: Avatar stored
         '404':
           description: Pet not found
     get:
@@ -415,7 +417,7 @@ paths:
                   description: Multiple base64-encoded candidates; server picks best
       responses:
         '204':
-          description: Thumbnail updated
+          summary: Thumbnail updated
         '404':
           description: Pet not found
     get:

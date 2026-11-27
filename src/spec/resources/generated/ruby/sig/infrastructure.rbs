@@ -635,6 +635,9 @@ module Petstore::Client
     module HeadSignal
       def request: (untyped, ?untyped) ?{ (untyped) -> untyped } -> untyped
     end
+    module StrictEof
+      def connection_for: (untyped) ?{ (untyped) -> untyped } -> untyped
+    end
     module QueryParamsEncoder
       RAW_QUERY_KEY: String
       def self.encode: (untyped) -> String?
