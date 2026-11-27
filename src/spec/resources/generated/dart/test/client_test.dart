@@ -980,6 +980,8 @@ void main() {
         expect(storeInterface, contains(' getInventoryWithHttpInfo('));
         expect(storeInterface, contains(' getMatrix('));
         expect(storeInterface, contains(' getMatrixWithHttpInfo('));
+        expect(storeInterface, contains(' getMemo('));
+        expect(storeInterface, contains(' getMemoWithHttpInfo('));
         expect(storeInterface, contains(' getNativeValues('));
         expect(storeInterface, contains(' getNativeValuesWithHttpInfo('));
         expect(storeInterface, contains(' getOrderById('));
@@ -996,12 +998,20 @@ void main() {
         expect(storeInterface, contains(' getTimestampGroupsWithHttpInfo('));
         expect(storeInterface, contains(' getTree('));
         expect(storeInterface, contains(' getTreeWithHttpInfo('));
+        expect(storeInterface, contains(' headMemo('));
+        expect(storeInterface, contains(' headMemoWithHttpInfo('));
+        expect(storeInterface, contains(' optionsMemo('));
+        expect(storeInterface, contains(' optionsMemoWithHttpInfo('));
+        expect(storeInterface, contains(' patchMemo('));
+        expect(storeInterface, contains(' patchMemoWithHttpInfo('));
         expect(storeInterface, contains(' placeOrder('));
         expect(storeInterface, contains(' placeOrderWithHttpInfo('));
         expect(storeInterface, contains(' reserveStock('));
         expect(storeInterface, contains(' reserveStockWithHttpInfo('));
         expect(storeInterface, contains(' searchStore('));
         expect(storeInterface, contains(' searchStoreWithHttpInfo('));
+        expect(storeInterface, contains(' traceMemo('));
+        expect(storeInterface, contains(' traceMemoWithHttpInfo('));
         expect(storeInterface, contains(' watchNoticesStream('));
         expect(storeInterface, contains(' watchOrdersStream('));
       },

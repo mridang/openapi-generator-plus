@@ -1608,6 +1608,16 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        /* A $ref to an enum component that declares its own default (and has
+         * none beside the reference) starts at that member as well (D60); the
+         * shared pass hands it over as siblingDefault. */
+        if (prop.defaultValue == null
+                && Boolean.TRUE.equals(prop.vendorExtensions.get("siblingDefaultIsEnum"))
+                && prop.vendorExtensions.get("siblingDefaultEnumType") != null) {
+            prop.defaultValue = prop.vendorExtensions.get("siblingDefaultEnumType") + "("
+                    + quoteEnumValue(escapeEnumStringValue(
+                            String.valueOf(prop.vendorExtensions.get("siblingDefault")))) + ")";
+        }
         // Only an inline enum's reference ({@code ModeEnum.MEDIUM}) is
         // qualified; a number default such as 1.5 also contains a dot.
         if (prop.defaultValue != null

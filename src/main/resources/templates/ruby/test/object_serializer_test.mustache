@@ -2487,6 +2487,11 @@ describe {{moduleName}}::ObjectSerializer do
       _(deserialize.call('{"rank":1}').tier).must_equal({{moduleName}}::Models::Tier::MEDIUM)
     end
 
+    it 'bhv_enums_013 a referenced enum property whose enum component declares a default starts at that member when it is absent' do
+      _({{moduleName}}::Models::Defaults.new.swatch).must_equal({{moduleName}}::Models::Swatch::GREEN)
+      _({{moduleName}}::ObjectSerializer.deserialize('{}', 'Defaults').swatch).must_equal({{moduleName}}::Models::Swatch::GREEN)
+    end
+
     it 'bhv_enums_008 encoding writes the wire value and decoding a supplied name gives the catch-all member' do
       _(JSON.parse({{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Tier::MEDIUM))).must_equal('m')
       _(deserialize.call('{"rank":1,"tier":"Medium"}').tier).must_equal({{moduleName}}::Models::Tier::UNKNOWN_DEFAULT_OPEN_API)

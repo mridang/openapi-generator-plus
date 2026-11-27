@@ -1,5 +1,12 @@
 module Petstore::Client
   module Api
+    class GetMemoServer
+      def url: () -> String
+    end
+
+    class GetMemoServerMemos < GetMemoServer
+      def url: () -> String
+    end
     interface _StoreApiInterface
       def create_account: (Models::Account account, ?Options::CreateAccountOptions? options) -> Models::Account
       def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
@@ -20,6 +27,8 @@ module Petstore::Client
       def get_inventory_with_http_info: (?Options::GetInventoryOptions? options) -> ::Petstore::Client::ApiResult[Hash[String, Integer]]
       def get_matrix: (?Options::GetMatrixOptions? options) -> Array[Array[Integer]]
       def get_matrix_with_http_info: (?Options::GetMatrixOptions? options) -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
+      def get_memo: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> Models::Memo
+      def get_memo_with_http_info: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> ::Petstore::Client::ApiResult[Models::Memo]
       def get_native_values: (?Options::GetNativeValuesOptions? options) -> Models::NativeValues
       def get_native_values_with_http_info: (?Options::GetNativeValuesOptions? options) -> ::Petstore::Client::ApiResult[Models::NativeValues]
       def get_order_by_id: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> Models::Order
@@ -36,12 +45,20 @@ module Petstore::Client
       def get_timestamp_groups_with_http_info: (?Options::GetTimestampGroupsOptions? options) -> ::Petstore::Client::ApiResult[Array[Hash[String, Time]]]
       def get_tree: (?Options::GetTreeOptions? options) -> Models::TreeNode
       def get_tree_with_http_info: (?Options::GetTreeOptions? options) -> ::Petstore::Client::ApiResult[Models::TreeNode]
+      def head_memo: (String memo_id, ?Options::HeadMemoOptions? options) -> void
+      def head_memo_with_http_info: (String memo_id, ?Options::HeadMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def options_memo: (String memo_id, ?Options::OptionsMemoOptions? options) -> void
+      def options_memo_with_http_info: (String memo_id, ?Options::OptionsMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def patch_memo: (String memo_id, Models::Memo memo, ?Options::PatchMemoOptions? options) -> Models::Memo
+      def patch_memo_with_http_info: (String memo_id, Models::Memo memo, ?Options::PatchMemoOptions? options) -> ::Petstore::Client::ApiResult[Models::Memo]
       def place_order: (Models::Order? order, ?Options::PlaceOrderOptions? options) -> Models::Order
       def place_order_with_http_info: (Models::Order? order, ?Options::PlaceOrderOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
       def reserve_stock: (?Options::ReserveStockOptions? options) -> Models::ReserveStockResponse
       def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+      def trace_memo: (String memo_id, ?Options::TraceMemoOptions? options) -> void
+      def trace_memo_with_http_info: (String memo_id, ?Options::TraceMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def watch_notices_stream: (?Options::WatchNoticesOptions? options, ?::Petstore::Client::StreamOptions? stream_options) -> ::Petstore::Client::SseStream
       def watch_orders_stream: (?Options::WatchOrdersOptions? options, ?::Petstore::Client::StreamOptions? stream_options) -> ::Petstore::Client::SseStream
     end
@@ -66,6 +83,8 @@ module Petstore::Client
       def get_inventory_with_http_info: (?Options::GetInventoryOptions? options) -> ::Petstore::Client::ApiResult[Hash[String, Integer]]
       def get_matrix: (?Options::GetMatrixOptions? options) -> Array[Array[Integer]]
       def get_matrix_with_http_info: (?Options::GetMatrixOptions? options) -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
+      def get_memo: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> Models::Memo
+      def get_memo_with_http_info: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> ::Petstore::Client::ApiResult[Models::Memo]
       def get_native_values: (?Options::GetNativeValuesOptions? options) -> Models::NativeValues
       def get_native_values_with_http_info: (?Options::GetNativeValuesOptions? options) -> ::Petstore::Client::ApiResult[Models::NativeValues]
       def get_order_by_id: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> Models::Order
@@ -82,12 +101,20 @@ module Petstore::Client
       def get_timestamp_groups_with_http_info: (?Options::GetTimestampGroupsOptions? options) -> ::Petstore::Client::ApiResult[Array[Hash[String, Time]]]
       def get_tree: (?Options::GetTreeOptions? options) -> Models::TreeNode
       def get_tree_with_http_info: (?Options::GetTreeOptions? options) -> ::Petstore::Client::ApiResult[Models::TreeNode]
+      def head_memo: (String memo_id, ?Options::HeadMemoOptions? options) -> void
+      def head_memo_with_http_info: (String memo_id, ?Options::HeadMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def options_memo: (String memo_id, ?Options::OptionsMemoOptions? options) -> void
+      def options_memo_with_http_info: (String memo_id, ?Options::OptionsMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def patch_memo: (String memo_id, Models::Memo memo, ?Options::PatchMemoOptions? options) -> Models::Memo
+      def patch_memo_with_http_info: (String memo_id, Models::Memo memo, ?Options::PatchMemoOptions? options) -> ::Petstore::Client::ApiResult[Models::Memo]
       def place_order: (Models::Order? order, ?Options::PlaceOrderOptions? options) -> Models::Order
       def place_order_with_http_info: (Models::Order? order, ?Options::PlaceOrderOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
       def reserve_stock: (?Options::ReserveStockOptions? options) -> Models::ReserveStockResponse
       def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+      def trace_memo: (String memo_id, ?Options::TraceMemoOptions? options) -> void
+      def trace_memo_with_http_info: (String memo_id, ?Options::TraceMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def watch_notices_stream: (?Options::WatchNoticesOptions? options, ?::Petstore::Client::StreamOptions? stream_options) -> ::Petstore::Client::SseStream
       def watch_orders_stream: (?Options::WatchOrdersOptions? options, ?::Petstore::Client::StreamOptions? stream_options) -> ::Petstore::Client::SseStream
     end

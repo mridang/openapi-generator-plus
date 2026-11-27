@@ -289,6 +289,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Some Swift and Elixir property names carry an escape that is not strictly required. This is not a defect: do not raise it in reviews or audits, and do not open an issue for it.
 
+## D133: A referenced enum starts at the default its component declares
+
+**Decision.** A property that is a `$ref` to an enum starts at a typed enum member when it is absent: the `default` written next to the `$ref` if there is one, otherwise the `default` the enum component declares itself. The default beside the `$ref` wins. This completes D60 for the component case, which Java, Kotlin, Python and PHP had left at null.
+
+**Consequences.** A model built without the property, or decoded from a body that leaves it out, holds that member in all twelve SDKs. A `$ref` to a schema that is not an enum takes no default from the component.
+
+## D134: A document without servers defaults to `http://localhost`
+
+**Decision.** OpenAPI says a document with no `servers` has the single server `/`, relative to the location of the document. The parser adds that server, and each SDK exposes it, but a generated SDK is not served from the document's location and cannot resolve a relative base, so the default base URL of every SDK for such a document is `http://localhost`, and the caller sets the real one.
+
+**Consequences.** A server-less document still generates a working SDK, and a call goes nowhere unexpected until the caller configures the base URL. A document without `paths` generates its models and no operations.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

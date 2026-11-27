@@ -139,6 +139,22 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>GetMemo</c> operation.</summary>
+    Task<Memo> GetMemoAsync(
+        string memoId,
+        GetMemoServer? server = null,
+        GetMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>GetMemo</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<Memo>> GetMemoWithHttpInfoAsync(
+        string memoId,
+        GetMemoServer? server = null,
+        GetMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>GetNativeValues</c> operation.</summary>
     Task<NativeValues> GetNativeValuesAsync(
         GetNativeValuesOptions? options = null,
@@ -239,6 +255,50 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>HeadMemo</c> operation.</summary>
+    Task HeadMemoAsync(
+        string memoId,
+        HeadMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>HeadMemo</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<object?>> HeadMemoWithHttpInfoAsync(
+        string memoId,
+        HeadMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>OptionsMemo</c> operation.</summary>
+    Task OptionsMemoAsync(
+        string memoId,
+        OptionsMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>OptionsMemo</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<object?>> OptionsMemoWithHttpInfoAsync(
+        string memoId,
+        OptionsMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>PatchMemo</c> operation.</summary>
+    Task<Memo> PatchMemoAsync(
+        string memoId,
+        Memo memo,
+        PatchMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>PatchMemo</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<Memo>> PatchMemoWithHttpInfoAsync(
+        string memoId,
+        Memo memo,
+        PatchMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>PlaceOrder</c> operation.</summary>
     Task<Order> PlaceOrderAsync(
         Order? order = null,
@@ -274,6 +334,20 @@ public interface IStoreApi
     /// <summary>The <c>SearchStore</c> operation with its status code, headers and body.</summary>
     Task<ApiResult<List<Order>>> SearchStoreWithHttpInfoAsync(
         SearchStoreOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>TraceMemo</c> operation.</summary>
+    Task TraceMemoAsync(
+        string memoId,
+        TraceMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>TraceMemo</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<object?>> TraceMemoWithHttpInfoAsync(
+        string memoId,
+        TraceMemoOptions? options = null,
         CancellationToken cancellationToken = default
     );
 

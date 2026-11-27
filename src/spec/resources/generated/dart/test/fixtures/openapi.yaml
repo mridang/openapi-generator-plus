@@ -1934,6 +1934,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/NativeValues'
 
+  # ─── Memos: path-item servers, every HTTP method, reusable components ─────────
+  # Servers declared on a path item apply to every operation under it that
+  # declares none of its own (#62). The parameter, response and request body
+  # come from components by $ref (#56).
+  /store/memos/{memoId}:
+    servers:
+      - url: https://memos.example.com/v1
+        description: Memos
+    parameters:
+      - $ref: '#/components/parameters/MemoId'
+    get:
+      tags: [store]
+      summary: Reads a memo from the server its path declares
+      operationId: getMemo
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/MemoFound'
+
+  # The path item is a $ref to components.pathItems (#56) and carries the
+  # PATCH, HEAD, OPTIONS and TRACE operations (#59).
+  /store/memos/{memoId}/revisions:
+    $ref: '#/components/pathItems/MemoRevisions'
+
   # ─── Transport-test endpoints ─────────────────────────────────────────────
   # Served by chasm; filtered out of SDK generation by DropInternalOperationsRule
   # (each operation carries x-internal: true). Echo, delay, compression,
@@ -3634,3 +3658,131 @@ components:
           format: int32
         message:
           type: string
+
+    # A memo, reached through the reusable components below (#56).
+    Memo:
+      type: object
+      required: [memoId]
+      properties:
+        memoId:
+          type: string
+        text:
+          type: string
+
+  # Reusable components of every kind (#56). The memo operations reference the
+  # parameter, responses, request body, header, example and path item; the link
+  # and the callback are declared but referenced by nothing, since Link Objects
+  # and callbacks are out of scope (S11).
+  parameters:
+    MemoId:
+      name: memoId
+      in: path
+      required: true
+      description: The memo to address
+      schema:
+        type: string
+
+  responses:
+    MemoFound:
+      description: The memo
+      headers:
+        X-Revision:
+          $ref: '#/components/headers/Revision'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Memo'
+          examples:
+            memo:
+              $ref: '#/components/examples/MemoExample'
+
+  requestBodies:
+    MemoPatch:
+      description: The fields of the memo to change
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Memo'
+          examples:
+            memo:
+              $ref: '#/components/examples/MemoExample'
+
+  headers:
+    Revision:
+      description: The revision of the memo
+      schema:
+        type: integer
+        format: int32
+
+  examples:
+    MemoExample:
+      summary: A short memo
+      value:
+        memoId: m1
+        text: Restock on Friday
+
+  links:
+    MemoRevisionsLink:
+      operationId: headMemo
+      parameters:
+        memoId: '$response.body#/memoId'
+
+  callbacks:
+    MemoChanged:
+      '{$request.body#/callbackUrl}':
+        post:
+          requestBody:
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Memo'
+          responses:
+            '200':
+              description: The callback was received
+
+  pathItems:
+    MemoRevisions:
+      parameters:
+        - $ref: '#/components/parameters/MemoId'
+      patch:
+        tags: [store]
+        summary: Changes a memo with a PATCH request
+        operationId: patchMemo
+        security: []
+        requestBody:
+          $ref: '#/components/requestBodies/MemoPatch'
+        responses:
+          '200':
+            $ref: '#/components/responses/MemoFound'
+      head:
+        tags: [store]
+        summary: Checks that a memo exists with a HEAD request
+        operationId: headMemo
+        security: []
+        responses:
+          '200':
+            description: The memo exists
+            headers:
+              X-Revision:
+                $ref: '#/components/headers/Revision'
+      options:
+        tags: [store]
+        summary: Lists the methods a memo accepts with an OPTIONS request
+        operationId: optionsMemo
+        security: []
+        responses:
+          '204':
+            description: The methods are listed in the Allow header
+            headers:
+              Allow:
+                schema:
+                  type: string
+      trace:
+        tags: [store]
+        summary: Echoes a memo request with a TRACE request
+        operationId: traceMemo
+        security: []
+        responses:
+          '204':
+            description: The request was traced

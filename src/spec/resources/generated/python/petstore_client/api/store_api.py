@@ -7,14 +7,16 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Mapping, Optional, Protocol
-from pydantic import AwareDatetime, StrictInt
+from pydantic import AwareDatetime, StrictInt, StrictStr
 
 from petstore_client.models.account import Account
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
 from petstore_client.models.department import Department
+from petstore_client.models.memo import Memo
 from petstore_client.models.native_values import NativeValues
 from petstore_client.models.order import Order
 from petstore_client.models.reserve_stock_response import ReserveStockResponse
@@ -44,6 +46,7 @@ from .options.get_department_options import GetDepartmentOptions
 from .options.get_grouped_categories_options import GetGroupedCategoriesOptions
 from .options.get_inventory_options import GetInventoryOptions
 from .options.get_matrix_options import GetMatrixOptions
+from .options.get_memo_options import GetMemoOptions
 from .options.get_native_values_options import GetNativeValuesOptions
 from .options.get_order_by_id_options import GetOrderByIdOptions
 from .options.get_order_by_tracking_id_options import GetOrderByTrackingIdOptions
@@ -52,11 +55,35 @@ from .options.get_swatch_options import GetSwatchOptions
 from .options.get_swatch_groups_options import GetSwatchGroupsOptions
 from .options.get_timestamp_groups_options import GetTimestampGroupsOptions
 from .options.get_tree_options import GetTreeOptions
+from .options.head_memo_options import HeadMemoOptions
+from .options.options_memo_options import OptionsMemoOptions
+from .options.patch_memo_options import PatchMemoOptions
 from .options.place_order_options import PlaceOrderOptions
 from .options.reserve_stock_options import ReserveStockOptions
 from .options.search_store_options import SearchStoreOptions
+from .options.trace_memo_options import TraceMemoOptions
 from .options.watch_notices_options import WatchNoticesOptions
 from .options.watch_orders_options import WatchOrdersOptions
+
+
+class GetMemoServer(ABC):
+    """Server type for the get_memo operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+
+
+class GetMemoServerMemos(GetMemoServer):
+    """Memos"""
+
+    def __init__(self) -> None:
+        pass
+
+    def get_url(self) -> str:
+        url = "https://memos.example.com/v1"
+        return url
 
 
 class StoreApiProtocol(Protocol):
@@ -205,6 +232,24 @@ class StoreApiProtocol(Protocol):
         """The ``get_matrix`` operation with its status code, headers and body."""
         ...
 
+    async def get_memo(
+        self,
+        memo_id: StrictStr,
+        server: Optional["GetMemoServer"] = None,
+        options: Optional[GetMemoOptions] = None,
+    ) -> Memo:
+        """The ``get_memo`` operation."""
+        ...
+
+    async def get_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        server: Optional["GetMemoServer"] = None,
+        options: Optional[GetMemoOptions] = None,
+    ) -> "ApiResult[Memo]":
+        """The ``get_memo`` operation with its status code, headers and body."""
+        ...
+
     async def get_native_values(
         self,
         options: Optional[GetNativeValuesOptions] = None,
@@ -321,6 +366,56 @@ class StoreApiProtocol(Protocol):
         """The ``get_tree`` operation with its status code, headers and body."""
         ...
 
+    async def head_memo(
+        self,
+        memo_id: StrictStr,
+        options: Optional[HeadMemoOptions] = None,
+    ) -> None:
+        """The ``head_memo`` operation."""
+        ...
+
+    async def head_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        options: Optional[HeadMemoOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``head_memo`` operation with its status code, headers and body."""
+        ...
+
+    async def options_memo(
+        self,
+        memo_id: StrictStr,
+        options: Optional[OptionsMemoOptions] = None,
+    ) -> None:
+        """The ``options_memo`` operation."""
+        ...
+
+    async def options_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        options: Optional[OptionsMemoOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``options_memo`` operation with its status code, headers and body."""
+        ...
+
+    async def patch_memo(
+        self,
+        memo_id: StrictStr,
+        memo: Memo,
+        options: Optional[PatchMemoOptions] = None,
+    ) -> Memo:
+        """The ``patch_memo`` operation."""
+        ...
+
+    async def patch_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        memo: Memo,
+        options: Optional[PatchMemoOptions] = None,
+    ) -> "ApiResult[Memo]":
+        """The ``patch_memo`` operation with its status code, headers and body."""
+        ...
+
     async def place_order(
         self,
         order: Optional[Order] = None,
@@ -363,6 +458,22 @@ class StoreApiProtocol(Protocol):
         options: Optional[SearchStoreOptions] = None,
     ) -> "ApiResult[List[Order]]":
         """The ``search_store`` operation with its status code, headers and body."""
+        ...
+
+    async def trace_memo(
+        self,
+        memo_id: StrictStr,
+        options: Optional[TraceMemoOptions] = None,
+    ) -> None:
+        """The ``trace_memo`` operation."""
+        ...
+
+    async def trace_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        options: Optional[TraceMemoOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``trace_memo`` operation with its status code, headers and body."""
         ...
 
     async def watch_notices_stream(
@@ -998,6 +1109,86 @@ class StoreApi(BaseApi):
             request_options=options,
         )
 
+    async def get_memo(
+        self,
+        memo_id: StrictStr,
+        server: Optional["GetMemoServer"] = None,
+        options: Optional[GetMemoOptions] = None,
+    ) -> Memo:
+        """Reads a memo from the server its path declares
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: Memo
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_memo_with_http_info(
+            memo_id,
+            options=options,
+            server=server,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_memo but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        server: Optional["GetMemoServer"] = None,
+        options: Optional[GetMemoOptions] = None,
+    ) -> "ApiResult[Memo]":
+        """Reads a memo from the server its path declares (with HTTP info)
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if memo_id is None or memo_id == "":
+            raise ValueError(
+                "Missing the required parameter 'memo_id' when calling StoreApi.get_memo"
+            )
+
+        path = "/store/memos/{memoId}"
+        path = path.replace(
+            "{" + "memoId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "memoId", memo_id, "path", "StrictStr", None, "simple", False
+                )
+            ),
+        )
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith("http://") or _server_url.startswith("https://"):
+                path = _server_url + path
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Memo",
+            NO_AUTH,
+            operation_name="get_memo",
+            operation_id="getMemo",
+            url_template="/store/memos/{memoId}",
+            request_options=options,
+        )
+
     async def get_native_values(
         self,
         options: Optional[GetNativeValuesOptions] = None,
@@ -1568,6 +1759,211 @@ class StoreApi(BaseApi):
             request_options=options,
         )
 
+    async def head_memo(
+        self,
+        memo_id: StrictStr,
+        options: Optional[HeadMemoOptions] = None,
+    ) -> None:
+        """Checks that a memo exists with a HEAD request
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.head_memo_with_http_info(
+            memo_id,
+            options=options,
+        )
+
+        return result.data
+
+    async def head_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        options: Optional[HeadMemoOptions] = None,
+    ) -> "ApiResult[None]":
+        """Checks that a memo exists with a HEAD request (with HTTP info)
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if memo_id is None or memo_id == "":
+            raise ValueError(
+                "Missing the required parameter 'memo_id' when calling StoreApi.head_memo"
+            )
+
+        path = "/store/memos/{memoId}/revisions"
+        path = path.replace(
+            "{" + "memoId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "memoId", memo_id, "path", "StrictStr", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "HEAD",
+            path,
+            query_params,
+            header_params,
+            body,
+            [],
+            "application/json",
+            None,
+            NO_AUTH,
+            operation_name="head_memo",
+            operation_id="headMemo",
+            url_template="/store/memos/{memoId}/revisions",
+            request_options=options,
+        )
+
+    async def options_memo(
+        self,
+        memo_id: StrictStr,
+        options: Optional[OptionsMemoOptions] = None,
+    ) -> None:
+        """Lists the methods a memo accepts with an OPTIONS request
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.options_memo_with_http_info(
+            memo_id,
+            options=options,
+        )
+
+        return result.data
+
+    async def options_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        options: Optional[OptionsMemoOptions] = None,
+    ) -> "ApiResult[None]":
+        """Lists the methods a memo accepts with an OPTIONS request (with HTTP info)
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if memo_id is None or memo_id == "":
+            raise ValueError(
+                "Missing the required parameter 'memo_id' when calling StoreApi.options_memo"
+            )
+
+        path = "/store/memos/{memoId}/revisions"
+        path = path.replace(
+            "{" + "memoId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "memoId", memo_id, "path", "StrictStr", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "OPTIONS",
+            path,
+            query_params,
+            header_params,
+            body,
+            [],
+            "application/json",
+            None,
+            NO_AUTH,
+            operation_name="options_memo",
+            operation_id="optionsMemo",
+            url_template="/store/memos/{memoId}/revisions",
+            request_options=options,
+        )
+
+    async def patch_memo(
+        self,
+        memo_id: StrictStr,
+        memo: Memo,
+        options: Optional[PatchMemoOptions] = None,
+    ) -> Memo:
+        """Changes a memo with a PATCH request
+        :param memo_id: The memo to address (required)
+        :param memo: The fields of the memo to change (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: Memo
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.patch_memo_with_http_info(
+            memo_id,
+            memo,
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for patch_memo but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def patch_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        memo: Memo,
+        options: Optional[PatchMemoOptions] = None,
+    ) -> "ApiResult[Memo]":
+        """Changes a memo with a PATCH request (with HTTP info)
+        :param memo_id: The memo to address (required)
+        :param memo: The fields of the memo to change (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if memo_id is None or memo_id == "":
+            raise ValueError(
+                "Missing the required parameter 'memo_id' when calling StoreApi.patch_memo"
+            )
+
+        if memo is None:
+            raise ValueError(
+                "Missing the required parameter 'memo' when calling StoreApi.patch_memo"
+            )
+
+        path = "/store/memos/{memoId}/revisions"
+        path = path.replace(
+            "{" + "memoId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "memoId", memo_id, "path", "StrictStr", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = memo
+        return await self._invoke_api_for_result(
+            "PATCH",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Memo",
+            NO_AUTH,
+            operation_name="patch_memo",
+            operation_id="patchMemo",
+            url_template="/store/memos/{memoId}/revisions",
+            request_options=options,
+        )
+
     async def place_order(
         self,
         order: Optional[Order] = None,
@@ -1801,6 +2197,67 @@ class StoreApi(BaseApi):
             operation_name="search_store",
             operation_id="searchStore",
             url_template="/store/search",
+            request_options=options,
+        )
+
+    async def trace_memo(
+        self,
+        memo_id: StrictStr,
+        options: Optional[TraceMemoOptions] = None,
+    ) -> None:
+        """Echoes a memo request with a TRACE request
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.trace_memo_with_http_info(
+            memo_id,
+            options=options,
+        )
+
+        return result.data
+
+    async def trace_memo_with_http_info(
+        self,
+        memo_id: StrictStr,
+        options: Optional[TraceMemoOptions] = None,
+    ) -> "ApiResult[None]":
+        """Echoes a memo request with a TRACE request (with HTTP info)
+        :param memo_id: The memo to address (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if memo_id is None or memo_id == "":
+            raise ValueError(
+                "Missing the required parameter 'memo_id' when calling StoreApi.trace_memo"
+            )
+
+        path = "/store/memos/{memoId}/revisions"
+        path = path.replace(
+            "{" + "memoId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "memoId", memo_id, "path", "StrictStr", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "TRACE",
+            path,
+            query_params,
+            header_params,
+            body,
+            [],
+            "application/json",
+            None,
+            NO_AUTH,
+            operation_name="trace_memo",
+            operation_id="traceMemo",
+            url_template="/store/memos/{memoId}/revisions",
             request_options=options,
         )
 

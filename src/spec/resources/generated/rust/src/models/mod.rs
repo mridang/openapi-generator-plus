@@ -42,6 +42,8 @@ mod medication;
 pub use medication::*;
 mod member_not_found;
 pub use member_not_found::*;
+mod memo;
+pub use memo::*;
 mod metadata;
 pub use metadata::*;
 mod model_result;

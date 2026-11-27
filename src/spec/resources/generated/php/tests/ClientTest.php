@@ -592,6 +592,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($storeListed)->toContain('getGroupedCategories')->toContain('getGroupedCategoriesWithHttpInfo');
     expect($storeListed)->toContain('getInventory')->toContain('getInventoryWithHttpInfo');
     expect($storeListed)->toContain('getMatrix')->toContain('getMatrixWithHttpInfo');
+    expect($storeListed)->toContain('getMemo')->toContain('getMemoWithHttpInfo');
     expect($storeListed)->toContain('getNativeValues')->toContain('getNativeValuesWithHttpInfo');
     expect($storeListed)->toContain('getOrderById')->toContain('getOrderByIdWithHttpInfo');
     expect($storeListed)->toContain('getOrderByTrackingId')->toContain('getOrderByTrackingIdWithHttpInfo');
@@ -600,9 +601,13 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($storeListed)->toContain('getSwatchGroups')->toContain('getSwatchGroupsWithHttpInfo');
     expect($storeListed)->toContain('getTimestampGroups')->toContain('getTimestampGroupsWithHttpInfo');
     expect($storeListed)->toContain('getTree')->toContain('getTreeWithHttpInfo');
+    expect($storeListed)->toContain('headMemo')->toContain('headMemoWithHttpInfo');
+    expect($storeListed)->toContain('optionsMemo')->toContain('optionsMemoWithHttpInfo');
+    expect($storeListed)->toContain('patchMemo')->toContain('patchMemoWithHttpInfo');
     expect($storeListed)->toContain('placeOrder')->toContain('placeOrderWithHttpInfo');
     expect($storeListed)->toContain('reserveStock')->toContain('reserveStockWithHttpInfo');
     expect($storeListed)->toContain('searchStore')->toContain('searchStoreWithHttpInfo');
+    expect($storeListed)->toContain('traceMemo')->toContain('traceMemoWithHttpInfo');
     expect($storeListed)->toContain('watchNoticesStream');
     expect($storeListed)->toContain('watchOrdersStream');
 });

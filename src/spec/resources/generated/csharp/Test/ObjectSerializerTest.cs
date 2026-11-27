@@ -3977,6 +3977,13 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvEnums013AComponentDefaultStartsAtThatMemberWhenAbsent()
+        {
+            Assert.Equal(Swatch.Green, new Defaults().Swatch);
+            Assert.Equal(Swatch.Green, _serializer.Deserialize<Defaults>("{}")!.Swatch);
+        }
+
+        [Fact]
         public void BhvEnums008OnlyTheWireValueIsOnTheWire()
         {
             Assert.Contains(
