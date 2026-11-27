@@ -226,7 +226,7 @@ class GeneratedFileLayoutTest {
     for (String name :
         Arrays.asList(
             "dsawareobjectnormalizer", "dsmapnormalizer", "dssetnormalizer", "dsvectornormalizer",
-            "durationnormalizer")) {
+            "decimalnormalizer", "durationnormalizer")) {
       allow(ALLOWED_EXTRA, "php", name, "Symfony Serializer normaliser for a PHP type it cannot handle");
     }
     allow(ALLOWED_EXTRA, "python", "duration", "python has no ISO-8601 duration type");
@@ -290,7 +290,8 @@ class GeneratedFileLayoutTest {
 
     allow(ALLOWED_FILE, "elixir", "lib/petstore_client/models/models_module.ex", "namespace module of the models");
     allow(ALLOWED_FILE, "go", "pkg/models/date_time.go", "go date-time model helper");
-    allow(ALLOWED_FILE, "go", "pkg/internal/protoduration/protoduration.go", "go protobuf-JSON duration codec, internal to the module");
+    allow(ALLOWED_EXTRA, "go", "protoduration", "go protobuf-JSON duration codec, internal to the module");
+    allow(ALLOWED_EXTRA, "go", "exactdecimal", "go exact decimal codec, internal to the module");
     allow(ALLOWED_FILE, "go", "pkg/models/json_marshal.go", "go JSON marshalling helper of the models");
     allow(ALLOWED_FILE, "go", "pkg/models/set.go", "go set type used by the models");
     allow(ALLOWED_FILE, "rust", "src/models/base64_serde.rs", "rust serde helper for base64 fields");
