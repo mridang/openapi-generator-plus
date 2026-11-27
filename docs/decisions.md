@@ -313,6 +313,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** This is a breaking change for the Rust SDK: code that downcast the boxed error now matches the variant instead, and the `ErrorExt` helpers and the source-chain walk that the generated `SKILLS.md` used to show are gone. Each variant boxes its error so that a `Result` stays small. The items of a byte, JSON Lines or event stream still fail with a boxed error, because they are read after the operation has returned; `Error::from` sorts one into its variant.
 
+## D137: The timeout is one deadline for the whole call, 60 seconds by default
+
+**Decision.** The `timeout` on each operation's existing per-call options object and the `timeout` of the transport options are one end-to-end deadline that covers connecting, TLS, every redirect hop, the retries and the whole body read of a buffered call; the per-call value replaces the transport one for that call. Python and Ruby used to apply the budget to each socket read, so a server that trickled the body could hold a call far past it: Python now resets the socket timeout to what remains of the budget before every read of the body, and Ruby bounds each hop with one deadline on top of the socket timeouts. The default goes from 10 to 60 seconds, so an ordinary upload or download no longer needs a second client (#116, owner decision).
+
+**Consequences.** A call that used to fail after 10 seconds now waits up to 60; set the transport `timeout` to keep the old budget. No method gained a parameter. Streamed calls keep D121: their timeout stops at the response headers and the idle timeout bounds the body.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -357,7 +363,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **Streaming responses and uploads (#114).** The transport contract reads a whole response and sends a whole body in all twelve SDKs, so server-sent events, JSON Lines and very large files cannot be expressed. The shape has to be chosen once for all twelve, so nothing was built in one language first. Until then you can pass your own HTTP client.
 * **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
 * **A maximum response size (#112).** No transport limits how much it reads or decompresses, so a hostile server can make a client read a very large body. The option and its default must be the same in all twelve.
-* **An end-to-end timeout that holds while the body is read (#116).** The default is a 10 second budget for the whole call, and a per-call timeout is in the options for a single call. Python and Ruby still apply the timeout per socket read, which needs a streaming reader, so a server that trickles a body can hold a call past the budget.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
 
@@ -389,7 +394,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#112](https://github.com/mridang/openapi-generator-plus/issues/112): add a maximum response size transport option.
 * [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients (built, decisions D118 to D122, D125 to D127).
 * [#115](https://github.com/mridang/openapi-generator-plus/issues/115): cover the Dart browser client and derive the keyword lists from the toolchains.
-* [#116](https://github.com/mridang/openapi-generator-plus/issues/116): add a per-call timeout and make the end-to-end timeout hold while the body is read.
 * [#117](https://github.com/mridang/openapi-generator-plus/issues/117): decode error bodies against the operation's declared error schema.
 * [#118](https://github.com/mridang/openapi-generator-plus/issues/118) and [#121](https://github.com/mridang/openapi-generator-plus/issues/121): compare the generated test suites of the twelve languages and close the gaps.
 * [#120](https://github.com/mridang/openapi-generator-plus/issues/120): build the generated documentation in every language as part of the specs.

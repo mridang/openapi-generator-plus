@@ -388,7 +388,7 @@ Where: `readme.mustache`, `skills.mustache`, `api/options.mustache`, `makefile.m
 F229 (pool `maxsize=10`, `default_api_client.mustache`, test `TestConnectionPoolSizing`), F823 and F855 (batch 9: `base_api.mustache` replay at the `invalidate_access_token` lookup), F858 PKCE (`oauth2_auth_code_authenticator.mustache:126`), F1080 (`errors.mustache:46`, `TestApiErrorRendering`), F1180 (`invalidate_access_token` is public on all four OAuth authenticators), F831 (429 is `TooManyRequestsException`; the `retryAfter` accessor is not decided).
 
 ### Not done in python, with the reason
-- F912: reading the body in chunks to check the deadline needs `response.stream`, and the unit tests' fake responses implement `read()` only; the per-read timeout still applies to a trickled body. A streamed body is read with `read1` and bounded by the idle timeout instead (see "Streaming: binary responses").
+- F912 (D137): a buffered body is read by `_read_within` with `read1`, the socket timeout reset to what remains of the deadline before every read, so a trickled body cannot outlast the budget; a response without `read1` (a supplied pool manager, the unit tests' fakes) is read whole. A streamed body is read with `read1` and bounded by the idle timeout instead (see "Streaming: binary responses").
 
 ## Decisions taken in wave 2
 
