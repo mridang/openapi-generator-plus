@@ -208,6 +208,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected boolean hasOAuth2Password;
     protected boolean hasOAuth2AuthorizationCode;
     protected boolean hasOAuth2Implicit;
+    /** A scheme declares the OpenAPI 3.2 device authorization flow (RFC 8628, D191). */
+    protected boolean hasOAuth2DeviceAuthorization;
     protected boolean hasOpenIdConnect;
     protected boolean hasAnyOAuth2;
     protected boolean generateTests;
@@ -879,6 +881,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("hasOAuth2Password", hasOAuth2Password);
         additionalProperties.put("hasOAuth2AuthorizationCode", hasOAuth2AuthorizationCode);
         additionalProperties.put("hasOAuth2Implicit", hasOAuth2Implicit);
+        additionalProperties.put("hasOAuth2DeviceAuthorization", hasOAuth2DeviceAuthorization);
         additionalProperties.put("hasOpenIdConnect", hasOpenIdConnect);
         additionalProperties.put("hasAnyOAuth2", hasAnyOAuth2);
         // Expose the (still-empty) mutable list before supporting files are
@@ -997,6 +1000,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     }
                 }
             } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                    && hasDeviceFlow(entry.getKey())) {
+                hasOAuth2DeviceAuthorization = true;
+            }
+            if (scheme.getType() == SecurityScheme.Type.OAUTH2
                     && scheme.getFlows() != null) {
                 if (scheme.getFlows().getClientCredentials() != null) {
                     hasOAuth2ClientCredentials = true;
@@ -1018,7 +1025,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 hasOAuth2ClientCredentials
                         || hasOAuth2Password
                         || hasOAuth2AuthorizationCode
-                        || hasOAuth2Implicit;
+                        || hasOAuth2Implicit
+                        || hasOAuth2DeviceAuthorization;
+    }
+
+    /** Whether the named scheme declares a device authorization flow in the raw document (D191). */
+    private boolean hasDeviceFlow(String schemeName) {
+        final RawSpecReader.RawSecurityScheme raw = rawSecuritySchemes().get(schemeName);
+        return raw != null && raw.hasDeviceFlow();
     }
 
     /** Environment variable of every credential field of every scheme (F862). */
@@ -1107,6 +1121,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         m.put("oauth2_password_authenticator", "OAuth2PasswordAuthenticator");
         m.put("oauth2_authorization_code_authenticator", "OAuth2AuthorizationCodeAuthenticator");
         m.put("oauth2_implicit_authenticator", "OAuth2ImplicitAuthenticator");
+        m.put("oauth2_device_authorization_authenticator", "OAuth2DeviceAuthorizationAuthenticator");
         m.put("openid_connect_authenticator", "OpenIdConnectAuthenticator");
         m.put("client_auth_method", "ClientAuthMethod");
         return Collections.unmodifiableMap(m);
@@ -1290,6 +1305,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     getOAuthDir(),
                     toAuthFilename("oauth2_implicit_authenticator")));
         }
+        if (hasOAuth2DeviceAuthorization) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_device_authorization_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_device_authorization_authenticator")));
+        }
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile(
                     "auth/oauth/openid_connect_authenticator.mustache",
@@ -1419,7 +1440,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     List.of("host", "apiKey"),
                     scheme.getName(), location, null, null, null, null, null);
         } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
+                && (scheme.getFlows() != null || hasDeviceFlow(schemeName))) {
             return buildOAuthSpec(schemeName, cls, scheme, warn);
         } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
             return new SchemeAuthSpec(schemeName, cls, "", "OpenIdConnectAuthenticator", true,
@@ -1576,41 +1597,54 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             String schemeName, String cls, SecurityScheme scheme, boolean warn) {
         if (warn) {
             final List<String> declared = declaredOAuthFlows(scheme);
+            if (hasDeviceFlow(schemeName)) {
+                declared.add("deviceAuthorization");
+            }
             if (declared.size() > 1) {
                 LOGGER.warn(
                         "{}", droppedOAuthFlowsMessage(schemeName, declared));
             }
         }
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
+        final var flows = scheme.getFlows() != null ? scheme.getFlows() : new io.swagger.v3.oas.models.security.OAuthFlows();
+        if (flows.getClientCredentials() != null) {
+            final var flow = flows.getClientCredentials();
             return new SchemeAuthSpec(schemeName, cls, "ClientCredentials",
                     "OAuth2ClientCredentialsAuthenticator", true,
                     List.of("host", "clientId", "clientSecret"),
                     null, null, flow.getTokenUrl(), null, null, null, flow.getScopes());
         }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
+        if (flows.getPassword() != null) {
+            final var flow = flows.getPassword();
             return new SchemeAuthSpec(schemeName, cls, "Password",
                     "OAuth2PasswordAuthenticator", true,
                     List.of("host", "clientId", "clientSecret", "username", "password"),
                     null, null, flow.getTokenUrl(), null, flow.getRefreshUrl(), null,
                     flow.getScopes());
         }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
+        if (flows.getAuthorizationCode() != null) {
+            final var flow = flows.getAuthorizationCode();
             return new SchemeAuthSpec(schemeName, cls, "AuthorizationCode",
                     "OAuth2AuthorizationCodeAuthenticator", true,
                     List.of("host", "clientId", "clientSecret", "redirectUri"),
                     null, null, flow.getTokenUrl(), flow.getAuthorizationUrl(),
                     flow.getRefreshUrl(), null, flow.getScopes());
         }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
+        if (flows.getImplicit() != null) {
+            final var flow = flows.getImplicit();
             return new SchemeAuthSpec(schemeName, cls, "Implicit",
                     "OAuth2ImplicitAuthenticator", true,
                     List.of("host", "clientId"),
                     null, null, null, flow.getAuthorizationUrl(), null, null,
                     flow.getScopes());
+        }
+        final RawSpecReader.RawSecurityScheme device = rawSecuritySchemes().get(schemeName);
+        if (device != null && device.hasDeviceFlow()) {
+            // D191: a public client; the device code is shown to the user, who approves it elsewhere.
+            return new SchemeAuthSpec(schemeName, cls, "DeviceAuthorization",
+                    "OAuth2DeviceAuthorizationAuthenticator", true,
+                    List.of("host", "clientId"),
+                    null, null, device.deviceTokenUrl(), device.deviceAuthorizationUrl(),
+                    device.deviceRefreshUrl(), null, device.deviceScopes());
         }
         LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", schemeName);
         return null;

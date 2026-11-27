@@ -543,6 +543,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
 {{#perSchemeAuthEntries}}
+{{#hasEmptyVariableBhv}}
     @Test func test{{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset() {
 {{#envVars}}
 {{#-first}}
@@ -554,6 +555,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
             _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
         }
     }
+{{/hasEmptyVariableBhv}}
 {{/perSchemeAuthEntries}}
     // MARK: - One credential per security scheme (F857)
 

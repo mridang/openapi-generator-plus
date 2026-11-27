@@ -273,11 +273,26 @@ class OAuth2TokenManager {
      */
     fun getRefreshToken(): String? = refreshToken
 
-    private suspend fun fetchToken(
-        tokenUrl: String,
+    /**
+     * POST a device authorization request (RFC 8628 section 3.1) through the same transport,
+     * encoding and error handling as a token request and return the body of the 2xx answer.
+     * A non-2xx answer is an [OAuth2ServerException].
+     *
+     * @param url the device authorization endpoint URL
+     * @param params the request parameters (client_id, scope)
+     * @return the body of the 2xx answer
+     */
+    internal suspend fun postDeviceAuthorization(url: String, params: Map<String, String>): String {
+        requireRunning()
+        return postForm(url, params)
+    }
+
+    /** POST a form-encoded OAuth2 request; a non-2xx answer is an [OAuth2ServerException]. */
+    private suspend fun postForm(
+        url: String,
         params: Map<String, String>,
         extraHeaders: Map<String, String> = emptyMap(),
-    ) {
+    ): String {
         val client =
             apiClient
                 ?: throw IllegalStateException(
@@ -317,7 +332,7 @@ class OAuth2TokenManager {
          * ApiClient honours noRedirect=true by surfacing the first 3xx
          * straight to us. A transport failure propagates unchanged as
          * NetworkException / NetworkTimeoutException. */
-        val response: ApiHttpResponse = client.sendTokenRequest("POST", tokenUrl, headers, body)
+        val response: ApiHttpResponse = client.sendTokenRequest("POST", url, headers, body)
         if (response.statusCode < 200 || response.statusCode >= 300) {
             /* Any non-2xx answer, a refused 3xx included, is an
              * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
@@ -327,9 +342,17 @@ class OAuth2TokenManager {
              * valid error object. */
             throw parseOAuth2ServerError(response.statusCode, response.body)
         }
+        return response.body
+    }
 
+    private suspend fun fetchToken(
+        tokenUrl: String,
+        params: Map<String, String>,
+        extraHeaders: Map<String, String> = emptyMap(),
+    ) {
+        val responseBody = postForm(tokenUrl, params, extraHeaders)
         val element = try {
-            json.parseToJsonElement(response.body)
+            json.parseToJsonElement(responseBody)
         } catch (_: IllegalArgumentException) {
             /* kotlinx.serialization.SerializationException extends
              * IllegalArgumentException. Neither the message nor the cause is
@@ -437,6 +460,14 @@ class OAuth2TokenManager {
         val primitive = element as? JsonPrimitive ?: return null
         return if (primitive.isString) primitive.content else null
     }
+
+    /**
+     * A lifetime in seconds read with the `expires_in` grammar (D08) and the one-year
+     * ceiling; `0` when the value is unusable. The device authorization flow reads its
+     * `expires_in` and `interval` with it.
+     */
+    internal fun parseLifetime(element: JsonElement?): Long =
+        minOf(parseExpiresIn(element), MAX_EXPIRES_IN_SECONDS)
 
     /**
      * Defensive parse of the `expires_in` field per RFC 6749 §5.1.

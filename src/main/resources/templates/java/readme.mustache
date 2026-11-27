@@ -398,6 +398,10 @@ without a credential otherwise. An operation that declares `security: []` never 
 There is no per-call override of the scheme.
 
 {{/hasClientSchemes}}
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
 ### Cookie parameters
 
 A cookie parameter is sent exactly as you give it when every character is a legal RFC 6265

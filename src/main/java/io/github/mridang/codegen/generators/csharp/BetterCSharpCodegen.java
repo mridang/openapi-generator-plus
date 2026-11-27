@@ -1032,6 +1032,17 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             + "\"), "
                             + scopes;
             namespaceSuffix = "OAuth";
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(baseClass)) {
+            superCall =
+                    "host, " + credential(envNames, "clientId") + ", new Uri(\""
+                            + spec.authorizationUrl()
+                            + "\"), new Uri(\""
+                            + spec.tokenUrl()
+                            + "\"), "
+                            + scopes
+                            + ", "
+                            + refreshArg;
+            namespaceSuffix = "OAuth";
         } else if ("OpenIdConnectAuthenticator".equals(baseClass)) {
             superCall =
                     "host, new Uri(\""

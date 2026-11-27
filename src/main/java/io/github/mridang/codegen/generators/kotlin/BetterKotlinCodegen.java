@@ -1107,6 +1107,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             return List.of("host", resolvedCredential("clientId", env),
                     "\"" + spec.authorizationUrl() + "\"", formatKotlinScopes(spec.scopes()));
         }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", resolvedCredential("clientId", env),
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    formatKotlinScopes(spec.scopes()), refreshArg);
+        }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
                     resolvedCredential("clientId", env), resolvedCredential("clientSecret", env),

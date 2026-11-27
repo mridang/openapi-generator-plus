@@ -70,6 +70,10 @@ An authenticator you build without a scheme (`Client.with_token`, or `BearerAuth
 `{{clientClassName}}.new` takes one optional credential for each security scheme of the API, named after the scheme: {{#clientSchemes}}`{{argName}}:`{{^-last}}, {{/-last}}{{/clientSchemes}}. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
 
 {{/hasClientSchemes}}
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call request_device_authorization() to get the user code and verification URI to show to the user, then poll_for_token() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
 ## Configuration

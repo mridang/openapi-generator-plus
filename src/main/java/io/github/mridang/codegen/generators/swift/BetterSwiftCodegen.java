@@ -1265,6 +1265,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())
                 && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBearerScheme"))));
         entry.put("emptyVariableBhv", EMPTY_VARIABLE_BHV.getOrDefault(className, ""));
+        /* A scheme without its own empty-variable id (the device flow) gets no such test: a
+         * test without a catalogue id fails the parity check. */
+        entry.put("hasEmptyVariableBhv", EMPTY_VARIABLE_BHV.containsKey(className));
         entry.put("envVars", ctx.get("envVars"));
         perSchemeAuthEntries.add(entry);
         additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
@@ -1502,6 +1505,13 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     + spec.authorizationUrl() + "\", tokenURL: \"" + spec.tokenUrl()
                     + "\", redirectURI: redirectUri, scopes: "
                     + formatSwiftScopes(spec.scopes()) + refreshArg;
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? ", refreshURL: \"" + spec.refreshUrl() + "\"" : "";
+            return "host: host, clientID: clientId, deviceAuthorizationURL: \""
+                    + spec.authorizationUrl() + "\", tokenURL: \"" + spec.tokenUrl()
+                    + "\", scopes: " + formatSwiftScopes(spec.scopes()) + refreshArg;
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return "host: host, clientID: clientId, authorizationURL: \""

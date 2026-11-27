@@ -287,43 +287,9 @@ public class OAuth2TokenManager {
 
     private void fetchToken(String tokenUrl, Map<String, String> params,
             Map<String, String> extraHeaders) {
-        if (apiClient == null) {
-            throw new IllegalStateException(
-                    "ApiClient has not been injected. "
-                            + "Ensure the {{clientClassName}} constructor calls setApiClient() "
-                            + "on HttpAwareAuthenticator before making API requests.");
-        }
-
-        StringJoiner body = new StringJoiner("&");
-        for (Map.Entry<String, String> entry : orderedParams(params)) {
-            body.add(formEncode(entry.getKey()) + "=" + formEncode(entry.getValue()));
-        }
-
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", "application/x-www-form-urlencoded");
-        headers.put("Accept", "application/json");
-        headers.putAll(extraHeaders);
-
-        /* Bucket 3.2: refuse to follow 307/308 (and other 3xx) redirects on
-         * OAuth2 token POSTs. The token endpoint receives the client's
-         * credentials (or refresh token) in the request body — replaying
-         * that body to an attacker-controlled Location target would leak
-         * the credential. The ApiClient honours noRedirect=true by
-         * surfacing the first 3xx straight to us. A transport failure
-         * propagates unchanged as NetworkException / NetworkTimeoutException. */
-        ApiHttpResponse response = apiClient.sendTokenRequest(
-                "POST", tokenUrl, headers, body.toString());
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            /* Any non-2xx answer, a refused 3xx included, is an
-             * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
-             * are JSON bodies with `error` (required), `error_description`,
-             * `error_uri`. Parse them into the typed fields so callers can
-             * recover. Fall back to the raw body when the response is not a
-             * valid error object. */
-            throw parseOAuth2ServerError(response.statusCode(), response.body());
-        }
+        String responseBody = postForm(tokenUrl, params, extraHeaders);
         try {
-            JsonNode json = objectMapper.readTree(response.body());
+            JsonNode json = objectMapper.readTree(responseBody);
             if (json == null || !json.isObject()) {
                 throw new OAuth2TokenException("Token response is not a JSON object");
             }
@@ -381,6 +347,65 @@ public class OAuth2TokenManager {
              * a form-encoded answer. */
             throw new OAuth2TokenException("Token response is not valid JSON");
         }
+    }
+
+    /**
+     * POST a device authorization request (RFC 8628 section 3.1) through the
+     * same transport, encoding and error handling as a token request, and
+     * return the body of the 2xx answer. A non-2xx answer is an
+     * {@link OAuth2ServerException}.
+     *
+     * @param url    the device authorization endpoint URL
+     * @param params the request parameters (client_id, scope)
+     * @return the body of the 2xx answer
+     */
+    synchronized String postDeviceAuthorization(String url, Map<String, String> params) {
+        requireRunning();
+        return postForm(url, params, Collections.emptyMap());
+    }
+
+    /**
+     * POST a form-encoded OAuth2 request and return the body of a 2xx answer;
+     * any other answer is an {@link OAuth2ServerException}.
+     */
+    private String postForm(String url, Map<String, String> params,
+            Map<String, String> extraHeaders) {
+        if (apiClient == null) {
+            throw new IllegalStateException(
+                    "ApiClient has not been injected. "
+                            + "Ensure the {{clientClassName}} constructor calls setApiClient() "
+                            + "on HttpAwareAuthenticator before making API requests.");
+        }
+
+        StringJoiner body = new StringJoiner("&");
+        for (Map.Entry<String, String> entry : orderedParams(params)) {
+            body.add(formEncode(entry.getKey()) + "=" + formEncode(entry.getValue()));
+        }
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/x-www-form-urlencoded");
+        headers.put("Accept", "application/json");
+        headers.putAll(extraHeaders);
+
+        /* Bucket 3.2: refuse to follow 307/308 (and other 3xx) redirects on
+         * OAuth2 token POSTs. The token endpoint receives the client's
+         * credentials (or refresh token) in the request body — replaying
+         * that body to an attacker-controlled Location target would leak
+         * the credential. The ApiClient honours noRedirect=true by
+         * surfacing the first 3xx straight to us. A transport failure
+         * propagates unchanged as NetworkException / NetworkTimeoutException. */
+        ApiHttpResponse response = apiClient.sendTokenRequest(
+                "POST", url, headers, body.toString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            /* Any non-2xx answer, a refused 3xx included, is an
+             * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
+             * are JSON bodies with `error` (required), `error_description`,
+             * `error_uri`. Parse them into the typed fields so callers can
+             * recover. Fall back to the raw body when the response is not a
+             * valid error object. */
+            throw parseOAuth2ServerError(response.statusCode(), response.body());
+        }
+        return response.body();
     }
 
     /**
@@ -456,7 +481,7 @@ public class OAuth2TokenManager {
      * @param node the JSON node holding {@code expires_in}
      * @return the parsed lifetime in seconds, or {@code 0} when unusable
      */
-    private static long parseExpiresIn(JsonNode node) {
+    static long parseExpiresIn(@Nullable JsonNode node) {
         if (node == null || node.isNull()) {
             return 0L;
         }

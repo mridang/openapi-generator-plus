@@ -1693,6 +1693,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return List.of("host", "clientId",
                     "\"" + spec.authorizationUrl() + "\"", formatJavaScopes(spec.scopes()));
         }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    formatJavaScopes(spec.scopes()), refreshArg);
+        }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
                     "clientId", "clientSecret", "redirectUri", "List.of()");

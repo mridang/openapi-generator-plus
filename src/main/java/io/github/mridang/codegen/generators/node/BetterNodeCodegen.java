@@ -449,7 +449,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator",
             "OAuth2ClientCredentialsAuthenticator", "OAuth2PasswordAuthenticator",
             "OAuth2AuthorizationCodeAuthenticator", "OAuth2ImplicitAuthenticator",
-            "OpenIdConnectAuthenticator");
+            "OAuth2DeviceAuthorizationAuthenticator", "OpenIdConnectAuthenticator");
 
     /** Per-scheme authenticators for the barrel: {className, path}. Filled during generation. */
     private final List<Map<String, String>> perSchemeAuthExports = new ArrayList<>();
@@ -1745,10 +1745,33 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildNodeSuperArgs(spec, envNames));
         recordOAuth2MetadataUrl(ctx);
+        recordDeviceAuthorizationScheme(spec, String.valueOf(ctx.get("className")));
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             ctx.put("typeImports", List.of(imp("CredentialProvider", "./credentials")));
         }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators of a device authorization flow, for the test template (D191). */
+    private final List<Map<String, Object>> deviceAuthorizationSchemes = new ArrayList<>();
+
+    /**
+     * Lists a device authorization scheme under {@code deviceAuthorizationSchemes} with its spec
+     * URLs and scopes as literals, so the generated test checks the wrapper passes them (D191).
+     */
+    private void recordDeviceAuthorizationScheme(SchemeAuthSpec spec, String className) {
+        if (!"OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            return;
+        }
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("deviceAuthorizationUrlLiteral",
+                toStringLiteral(Objects.toString(spec.authorizationUrl(), "")));
+        entry.put("tokenUrlLiteral", toStringLiteral(Objects.toString(spec.tokenUrl(), "")));
+        entry.put("scopeLiteral", toStringLiteral(spec.scopes() == null
+                ? "" : String.join(" ", spec.scopes().keySet())));
+        deviceAuthorizationSchemes.add(entry);
+        additionalProperties.put("deviceAuthorizationSchemes", deviceAuthorizationSchemes);
     }
 
     /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
@@ -1827,6 +1850,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("OAuth2ImplicitAuthenticator",
                     "./oauth2-implicit-authenticator"));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OAuth2DeviceAuthorizationAuthenticator",
+                    "./oauth2-device-authorization-authenticator"));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("OpenIdConnectAuthenticator",
@@ -2000,6 +2027,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", oauthArg(envNames, "clientId"),
                     "'" + spec.authorizationUrl() + "'", formatNodeScopes(spec.scopes()));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "null";
+            return List.of("host", oauthArg(envNames, "clientId"),
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    formatNodeScopes(spec.scopes()), refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "'" + spec.openIdConnectUrl() + "'",

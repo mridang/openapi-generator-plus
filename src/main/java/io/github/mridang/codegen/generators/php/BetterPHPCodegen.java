@@ -82,7 +82,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     "OAuth2ClientCredentialsAuthenticator",
                     "OAuth2PasswordAuthenticator",
                     "OAuth2AuthorizationCodeAuthenticator",
-                    "OAuth2ImplicitAuthenticator");
+                    "OAuth2ImplicitAuthenticator",
+                    "OAuth2DeviceAuthorizationAuthenticator");
 
     protected String invokerPackage = "OpenAPI\\Client";
 
@@ -1388,6 +1389,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasOAuth2DeviceAuthorization) {
+            /* PSR-4 maps one class to one file: the device authorization value (D191). */
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/device_authorization.mustache", getOAuthDir(), "DeviceAuthorization.php"));
+        }
         if (!generateTests) {
             return;
         }
@@ -1578,7 +1584,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /**
      * Records the first scheme of each OAuth2 grant the tests can build ({@code
      * oauthClientCredentialsScheme}, {@code oauthPasswordScheme}, {@code oauthAuthCodeScheme},
-     * {@code oauthImplicitScheme}):
+     * {@code oauthImplicitScheme}, {@code oauthDeviceAuthorizationScheme}):
      * its generated class, the token and authorization URLs of the spec as PHP literals, and the
      * spec scopes, so the scheme wrapper tests can assert what the wrapper sends.
      */
@@ -1597,6 +1603,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             case "OAuth2ImplicitAuthenticator":
                 key = "oauthImplicitScheme";
                 break;
+            case "OAuth2DeviceAuthorizationAuthenticator":
+                key = "oauthDeviceAuthorizationScheme";
+                break;
             default:
                 return;
         }
@@ -1608,6 +1617,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         scheme.put("authorizationUrlLiteral",
                 toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")));
         scheme.put("scopesLiteral", formatPhpScopes(spec.scopes()));
+        scheme.put("scopeLiteral", toPhpStringLiteral(spec.scopes() == null
+                ? "" : String.join(" ", spec.scopes().keySet())));
         scheme.put("hasScopes", spec.scopes() != null && !spec.scopes().isEmpty());
         additionalProperties.putIfAbsent(key, scheme);
     }
@@ -1659,6 +1670,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             final String scopes = formatPhpScopes(spec.scopes());
             return List.of("$host", "$clientId",
                     toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), scopes);
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? toPhpStringLiteral(java.util.Objects.toString(spec.refreshUrl(), "")) : "null";
+            final String scopes = formatPhpScopes(spec.scopes());
+            return List.of("$host", "$clientId",
+                    toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")),
+                    toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")), scopes, refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("$host", toPhpStringLiteral(java.util.Objects.toString(spec.openIdConnectUrl(), "")),

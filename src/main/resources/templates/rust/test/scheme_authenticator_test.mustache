@@ -45,6 +45,7 @@ fn test_bhv_auth_007_a_generic_authenticator_built_without_credentials_reads_no_
     });
 }
 {{#perSchemeAuthEntries}}
+{{#hasSchemeTests}}
 
 mod {{module}} {
     use super::*;
@@ -381,4 +382,5 @@ mod {{module}} {
 {{/bearerIdOnce}}
 {{/isBearer}}
 }
+{{/hasSchemeTests}}
 {{/perSchemeAuthEntries}}

@@ -950,6 +950,34 @@
         def access_token=: (String) -> void
       end
 {{/hasOAuth2Implicit}}
+{{#hasOAuth2DeviceAuthorization}}
+      class DeviceAuthorization < Data
+        attr_reader device_code: String
+        attr_reader user_code: String
+        attr_reader verification_uri: String
+        attr_reader verification_uri_complete: String?
+        attr_reader expires_in: Integer
+        attr_reader interval: Integer
+        def self.new: (device_code: String, user_code: String, verification_uri: String, verification_uri_complete: String?, expires_in: Integer, interval: Integer) -> DeviceAuthorization
+                    | (String, String, String, String?, Integer, Integer) -> DeviceAuthorization
+      end
+
+      class OAuth2DeviceAuthorizationAuthenticator < BaseAuthenticator
+        include HttpAwareAuthenticator
+        DEVICE_CODE_GRANT_TYPE: String
+        DEFAULT_INTERVAL_S: Integer
+        SLOW_DOWN_S: Integer
+        def initialize: (String, String, String, String, Array[String], ?refresh_url: String?) -> void
+        def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
+        def request_device_authorization: () -> DeviceAuthorization
+        def poll_for_token: (DeviceAuthorization) -> void
+        private
+        def pause: (Integer) -> void
+        def monotonic_now: () -> Float
+        def parse_device_authorization: (String) -> DeviceAuthorization
+      end
+{{/hasOAuth2DeviceAuthorization}}
 {{#hasOpenIdConnect}}
       class OpenIdConnectAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
@@ -982,6 +1010,8 @@
         def initialize: () -> void
         def get_access_token: (String, Hash[String, String], ?Hash[String, String], ?refresh_url: String?) -> String
         def exchange: (String, Hash[String, String], ?Hash[String, String]) ?{ (String?) -> void } -> String
+        def post_form: (String, Hash[String, String]) -> String
+        def lifetime_seconds: (untyped) -> Integer
         def access_token=: (String) -> void
         def invalidate_access_token: () -> void
         def mark_exchanged: () -> void
@@ -993,6 +1023,7 @@
         def try_refresh_token: (String, Hash[String, String], Hash[String, String]) -> bool
         def build_refresh_params: (String, Hash[String, String]) -> Hash[String, String]
         def fetch_token: (String, Hash[String, String], ?Hash[String, String]) -> void
+        def post_token_form: (String, Hash[String, String], Hash[String, String]) -> ApiHttpResponse
         def parse_oauth2_server_error: (Integer, String) -> ::{{moduleName}}::Errors::OAuth2ServerError
         def parse_token_response: (String?) -> Hash[String, untyped]
         def require_api_client: () -> ApiClient

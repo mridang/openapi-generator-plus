@@ -1198,6 +1198,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                     metadataUrl != null
                             && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
             entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
+            /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+            final boolean device = "OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass());
+            entry.put(
+                    "deviceTest",
+                    device && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("deviceTest"))));
+            if (device) {
+                entry.put("deviceAuthorizationUrlLiteral", toElixirStringLiteral(spec.authorizationUrl()));
+                entry.put("deviceTokenUrlLiteral", toElixirStringLiteral(spec.tokenUrl()));
+                entry.put("deviceScopes", formatElixirScopes(spec.scopes()));
+            }
             perSchemeAuthEntries.add(entry);
         }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
@@ -1276,6 +1286,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "client_id", toElixirStringLiteral(spec.authorizationUrl()),
                     formatElixirScopes(spec.scopes()));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final List<String> args = new ArrayList<>(List.of("host", "client_id",
+                    toElixirStringLiteral(spec.authorizationUrl()),
+                    toElixirStringLiteral(spec.tokenUrl()),
+                    formatElixirScopes(spec.scopes())));
+            if (spec.refreshUrl() != null) {
+                args.add("refresh_url: " + toElixirStringLiteral(spec.refreshUrl()));
+            }
+            return args;
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", toElixirStringLiteral(spec.openIdConnectUrl()),

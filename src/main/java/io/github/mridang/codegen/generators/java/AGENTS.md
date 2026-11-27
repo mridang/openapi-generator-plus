@@ -600,3 +600,4 @@ Rule: NullAway runs data-flow analysis for some constructs (a local assigned `nu
 Where: `pom.mustache`.
 
 - **D190 (security scheme 3.2 fields).** `auth/scheme_authenticator.mustache` adds a plain sentence to the doc comment of a scheme marked `deprecated: true` (`schemeDeprecated`; never a deprecation attribute) and exposes a declared `oauth2MetadataUrl` as `public static final String METADATA_URL` (`oauth2MetadataUrlLiteral`, escaped in `renderSchemeAuthenticator`). Test: `SchemeAuthenticatorTest` (`bhvAuthScheme700`).
+- **D191 (device authorization flow).** `auth/oauth/oauth2_device_authorization_authenticator.mustache` (nested record `DeviceAuthorization`; package-private `sleeper` and `monotonicNanos` seams for tests) posts through the token manager's package-private `postDeviceAuthorization` and polls through `exchange`; the wrapper's arguments come from `buildJavaSuperArgs`. Test: `OAuth2TokenManagerTest` (`bhvAuthOauthTwoDevice700`-`706`).

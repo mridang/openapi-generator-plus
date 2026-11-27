@@ -343,6 +343,10 @@ OpenID Connect) is given the client's transport, so it shares its proxy, TLS and
 timeout settings.
 
 {{/hasClientSchemes}}
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
 ## Closing the client
 
 `client.close()` is graceful and idempotent. It marks the client closed at once: a

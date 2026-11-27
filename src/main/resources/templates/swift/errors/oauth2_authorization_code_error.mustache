@@ -14,6 +14,9 @@ public enum OAuth2AuthorizationCodeError: Error, Equatable, LocalizedError {
     case codeNotExchanged
     /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
     case emptyCode
+    /// Auth headers were requested before `pollForToken(_:)` obtained a token
+    /// on the device authorization authenticator.
+    case deviceTokenNotPolled
 
     public var errorDescription: String? {
         switch self {
@@ -21,6 +24,8 @@ public enum OAuth2AuthorizationCodeError: Error, Equatable, LocalizedError {
             return "Must call exchangeCode() before making API requests"
         case .emptyCode:
             return "Authorization code must not be empty"
+        case .deviceTokenNotPolled:
+            return "Must call pollForToken() before making API requests"
         }
     }
 }

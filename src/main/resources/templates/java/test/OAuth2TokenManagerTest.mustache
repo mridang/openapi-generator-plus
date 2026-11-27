@@ -1516,4 +1516,199 @@ class OAuth2TokenManagerTest {
                 () -> manager.getAccessToken("https://auth.example.com/token", params));
         assertEquals(1, callCount.get());
     }
+{{#hasOAuth2DeviceAuthorization}}
+
+    private static final String DEVICE_URL = "https://auth.example.com/device";
+
+    /** A transport that answers with the given responses in turn and records each URL and body. */
+    private static ApiClient sequenceClient(
+            java.util.List<String> urls, java.util.List<String> bodies, ApiHttpResponse... responses) {
+        AtomicInteger next = new AtomicInteger();
+        return (method, url, headers, body) -> {
+            urls.add(url);
+            bodies.add(String.valueOf(body));
+            return responses[Math.min(next.getAndIncrement(), responses.length - 1)];
+        };
+    }
+
+    private static ApiHttpResponse answer(int status, String body) {
+        return new ApiHttpResponse(status, body, Map.of());
+    }
+
+    private static OAuth2DeviceAuthorizationAuthenticator deviceAuthenticator(
+            ApiClient client, java.util.List<Long> slept) {
+        OAuth2DeviceAuthorizationAuthenticator auth = new OAuth2DeviceAuthorizationAuthenticator(
+                "https://api.example.com", "my-client", DEVICE_URL, TOKEN_URL,
+                java.util.List.of("read", "write"));
+        auth.setApiClient(client);
+        auth.sleeper = slept::add;
+        return auth;
+    }
+
+    private static OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization deviceCode(
+            long expiresIn, long interval) {
+        return new OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization(
+                "dev-code", "USER-CODE", "https://auth.example.com/activate", null, expiresIn, interval);
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice700RequestDeviceAuthorizationPostsTheClientAndScopesAndReturnsTheFields() {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(sequenceClient(urls, bodies,
+                answer(200, "{\"device_code\":\"dc\",\"user_code\":\"UC-1\","
+                        + "\"verification_uri\":\"https://auth.example.com/activate\","
+                        + "\"verification_uri_complete\":\"https://auth.example.com/activate?user_code=UC-1\","
+                        + "\"expires_in\":600,\"interval\":7}"),
+                answer(200, "{\"device_code\":\"dc2\",\"user_code\":\"UC-2\","
+                        + "\"verification_uri\":\"https://auth.example.com/activate\",\"expires_in\":\"900\"}")),
+                new java.util.ArrayList<>());
+
+        OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization first = auth.requestDeviceAuthorization();
+        OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization second = auth.requestDeviceAuthorization();
+
+        assertEquals(java.util.List.of(DEVICE_URL, DEVICE_URL), urls);
+        assertEquals("client_id=my-client&scope=read+write", bodies.get(0));
+        assertEquals(new OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization("dc", "UC-1",
+                "https://auth.example.com/activate", "https://auth.example.com/activate?user_code=UC-1",
+                600L, 7L), first);
+        assertEquals(new OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization("dc2", "UC-2",
+                "https://auth.example.com/activate", null, 900L, 5L), second);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "not json|Device authorization response is not valid JSON",
+        "[1]|Device authorization response is not a JSON object",
+        "{\"user_code\":\"u\",\"verification_uri\":\"v\"}|Device authorization response missing or empty device_code field",
+        "{\"device_code\":\"\",\"user_code\":\"u\",\"verification_uri\":\"v\"}|Device authorization response missing or empty device_code field",
+        "{\"device_code\":\"d\",\"user_code\":7,\"verification_uri\":\"v\"}|Device authorization response missing or empty user_code field",
+        "{\"device_code\":\"d\",\"user_code\":\"u\"}|Device authorization response missing or empty verification_uri field",
+    })
+    void bhvAuthOauthTwoDevice701AnUnusableDeviceAuthorizationResponseIsATokenError(String body, String expected) {
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(
+                sequenceClient(new java.util.ArrayList<>(), new java.util.ArrayList<>(), answer(200, body)),
+                new java.util.ArrayList<>());
+
+        OAuth2TokenException failure = assertThrowsExactly(OAuth2TokenException.class,
+                auth::requestDeviceAuthorization);
+
+        assertEquals(expected, failure.getMessage());
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice701ANonSuccessDeviceAuthorizationAnswerIsAServerError() {
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(
+                sequenceClient(new java.util.ArrayList<>(), new java.util.ArrayList<>(),
+                        answer(400, "{\"error\":\"invalid_client\"}")),
+                new java.util.ArrayList<>());
+
+        OAuth2ServerException failure = assertThrowsExactly(OAuth2ServerException.class,
+                auth::requestDeviceAuthorization);
+
+        assertEquals(400, failure.getStatusCode());
+        assertEquals("invalid_client", failure.getCode());
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice702PollForTokenPostsTheDeviceCodeGrantAndKeepsPollingWhilePending() {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(sequenceClient(urls, bodies,
+                answer(400, "{\"error\":\"authorization_pending\"}"),
+                answer(400, "{\"error\":\"authorization_pending\"}"),
+                answer(200, "{\"access_token\":\"device-token\",\"expires_in\":3600}")),
+                new java.util.ArrayList<>());
+
+        auth.pollForToken(deviceCode(600, 5));
+
+        String grant = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
+                + "&client_id=my-client&device_code=dev-code";
+        assertEquals(java.util.List.of(grant, grant, grant), bodies);
+        assertEquals(java.util.List.of(TOKEN_URL, TOKEN_URL, TOKEN_URL), urls);
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice703ASlowDownAnswerAddsFiveSecondsToTheInterval() {
+        java.util.List<Long> slept = new java.util.ArrayList<>();
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(
+                sequenceClient(new java.util.ArrayList<>(), new java.util.ArrayList<>(),
+                        answer(400, "{\"error\":\"slow_down\"}"),
+                        answer(400, "{\"error\":\"authorization_pending\"}"),
+                        answer(200, "{\"access_token\":\"device-token\",\"expires_in\":3600}")),
+                slept);
+
+        auth.pollForToken(deviceCode(600, 5));
+
+        assertEquals(java.util.List.of(5L, 10L, 10L), slept);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"access_denied", "expired_token", "invalid_grant"})
+    void bhvAuthOauthTwoDevice704AnyOtherTokenErrorEndsPollingWithTheServerError(String code) {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(
+                sequenceClient(urls, new java.util.ArrayList<>(),
+                        answer(400, "{\"error\":\"authorization_pending\"}"),
+                        answer(400, "{\"error\":\"" + code + "\"}")),
+                new java.util.ArrayList<>());
+
+        OAuth2ServerException failure = assertThrowsExactly(OAuth2ServerException.class,
+                () -> auth.pollForToken(deviceCode(600, 5)));
+
+        assertEquals(code, failure.getCode());
+        assertEquals(2, urls.size());
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice704PollingPastExpiresInIsATokenError() {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        AtomicInteger seconds = new AtomicInteger();
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(
+                sequenceClient(urls, new java.util.ArrayList<>(),
+                        answer(400, "{\"error\":\"authorization_pending\"}")),
+                new java.util.ArrayList<>());
+        auth.sleeper = s -> seconds.addAndGet((int) s);
+        auth.monotonicNanos = () -> java.util.concurrent.TimeUnit.SECONDS.toNanos(seconds.get());
+
+        OAuth2TokenException failure = assertThrowsExactly(OAuth2TokenException.class,
+                () -> auth.pollForToken(deviceCode(12, 5)));
+
+        assertEquals("Device authorization expired before the user approved it", failure.getMessage());
+        assertEquals(2, urls.size());
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice705TheBearerHeaderNeedsAPolledToken() {
+        OAuth2DeviceAuthorizationAuthenticator auth = deviceAuthenticator(
+                sequenceClient(new java.util.ArrayList<>(), new java.util.ArrayList<>(),
+                        answer(200, "{\"access_token\":\"device-token\",\"expires_in\":3600}")),
+                new java.util.ArrayList<>());
+
+        IllegalStateException before = assertThrowsExactly(IllegalStateException.class, auth::getAuthHeaders);
+        auth.pollForToken(deviceCode(600, 5));
+
+        assertEquals("Must call pollForToken() before making API requests", before.getMessage());
+        assertEquals(Map.of("Authorization", "Bearer device-token"), auth.getAuthHeaders());
+    }
+
+    @Test
+    void bhvAuthOauthTwoDevice706TheSchemeWrapperPassesTheSpecUrlsAndScopes() {
+        java.util.List<String> urls = new java.util.ArrayList<>();
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        DeviceAuthDeviceAuthorizationAuthenticator auth =
+                new DeviceAuthDeviceAuthorizationAuthenticator("https://api.example.com", "my-client");
+        auth.setApiClient(sequenceClient(urls, bodies,
+                answer(200, "{\"device_code\":\"dc\",\"user_code\":\"uc\","
+                        + "\"verification_uri\":\"https://auth.example.com/activate\",\"expires_in\":600}"),
+                answer(200, "{\"access_token\":\"device-token\",\"expires_in\":3600}")));
+        auth.sleeper = s -> { };
+
+        auth.pollForToken(auth.requestDeviceAuthorization());
+
+        assertEquals(java.util.List.of("https://auth.example.com/oauth/device",
+                "https://auth.example.com/oauth/token"), urls);
+        assertEquals("client_id=my-client&scope=pets%3Aread+pets%3Awrite", bodies.get(0));
+    }
+{{/hasOAuth2DeviceAuthorization}}
 }

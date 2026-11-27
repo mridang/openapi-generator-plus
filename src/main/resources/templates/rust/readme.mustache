@@ -357,6 +357,10 @@ This API declares no security scheme, so there are no per-scheme authenticators
 and no further variables.
 {{/hasSecuritySchemeEnvVars}}
 
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call request_device_authorization() to get the user code and verification URI to show to the user, then poll_for_token() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
 ### Per-call options
 
 Every operation takes an `options` argument (`Option<&...Options>`), including an

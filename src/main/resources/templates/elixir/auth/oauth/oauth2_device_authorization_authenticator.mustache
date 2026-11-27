@@ -1,0 +1,277 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.OAuth.DeviceAuthorization do
+  @moduledoc """
+  What the device authorization endpoint (RFC 8628 section 3.2) answered.
+
+  Show `user_code` and `verification_uri` (or `verification_uri_complete` when
+  the server sent one) to the user, then pass the struct to
+  `{{moduleName}}.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator.poll_for_token/2`.
+  `expires_in` and `interval` are in seconds; `interval` is 5 when the server
+  sent none.
+  """
+
+  @enforce_keys [:device_code, :user_code, :verification_uri, :expires_in, :interval]
+  defstruct [:device_code, :user_code, :verification_uri, :verification_uri_complete, :expires_in, :interval]
+
+  @type t :: %__MODULE__{
+          device_code: String.t(),
+          user_code: String.t(),
+          verification_uri: String.t(),
+          verification_uri_complete: String.t() | nil,
+          expires_in: non_neg_integer(),
+          interval: non_neg_integer()
+        }
+end
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator do
+  @moduledoc """
+  Authenticator for the OAuth2 device authorization flow (RFC 8628), for a
+  client that cannot open a browser itself. The client is public: no client
+  secret is sent.
+
+  Implements `HttpAwareAuthenticator` so that the device authorization and
+  token requests use the shared `ApiClient` with the same transport
+  configuration (proxy, TLS, timeouts) as regular API calls.
+
+  ## Usage
+
+  1. Call `request_device_authorization/1` to get a `{{moduleName}}.Auth.OAuth.DeviceAuthorization`.
+  2. Show its user code and verification URI to the user.
+  3. Call `poll_for_token/2` with it; it returns once the user approved.
+  4. Use the authenticator normally -- tokens are managed automatically.
+
+  The authenticator never prints anything or opens a browser: showing the code
+  is the caller's job.
+  """
+
+  use {{moduleName}}.Auth.BaseAuthenticator
+  @behaviour {{moduleName}}.Auth.HttpAwareAuthenticator
+
+  alias {{moduleName}}.Auth.OAuth.DeviceAuthorization
+  alias {{moduleName}}.Auth.OAuth.OAuth2TokenManager
+
+  @device_code_grant_type "urn:ietf:params:oauth:grant-type:device_code"
+  @default_interval_s 5
+  @slow_down_s 5
+
+  @type t :: %__MODULE__{
+          host: String.t(),
+          client_id: String.t(),
+          device_authorization_url: String.t(),
+          token_url: String.t(),
+          refresh_url: String.t(),
+          scopes: [String.t()],
+          token_manager: pid() | nil,
+          sleep: (non_neg_integer() -> any()),
+          clock: (-> integer())
+        }
+
+  defstruct [
+    :host,
+    :client_id,
+    :device_authorization_url,
+    :token_url,
+    :refresh_url,
+    :scopes,
+    :token_manager,
+    :sleep,
+    :clock
+  ]
+
+  defimpl Inspect do
+    def inspect(auth, opts) do
+      Inspect.Any.inspect(%{auth | token_manager: mask(auth.token_manager), sleep: nil, clock: nil}, opts)
+    end
+
+    defp mask(nil), do: nil
+    defp mask(_value), do: "***"
+  end
+
+  @doc """
+  Create a new device authorization authenticator.
+
+  `client_id` may be `nil`; it is then read from the environment variable
+  `{{envVarPrefix}}_CLIENT_ID`. The only option is `:refresh_url` (default
+  `token_url`).
+  """
+  @spec new(String.t(), String.t() | nil, String.t(), String.t(), [String.t()], keyword()) :: t()
+  def new(host, client_id, device_authorization_url, token_url, scopes, opts \\ []) do
+    client_id = {{moduleName}}.Auth.BaseAuthenticator.credential(client_id, "CLIENT_ID")
+
+    {:ok, manager} = OAuth2TokenManager.start_link()
+
+    %__MODULE__{
+      host: host,
+      client_id: client_id,
+      device_authorization_url: device_authorization_url,
+      token_url: token_url,
+      refresh_url: Keyword.get(opts, :refresh_url, token_url),
+      scopes: scopes,
+      token_manager: manager,
+      # Test seams: the wait between two polls and the monotonic clock.
+      sleep: Keyword.get(opts, :sleep, fn seconds -> Process.sleep(seconds * 1000) end),
+      clock: Keyword.get(opts, :clock, fn -> System.monotonic_time(:millisecond) end)
+    }
+  end
+
+  @impl {{moduleName}}.Auth.HttpAwareAuthenticator
+  def set_api_client(%__MODULE__{} = self, client) do
+    OAuth2TokenManager.set_api_client(self.token_manager, client)
+    self
+  end
+
+  @doc """
+  Ask the device authorization endpoint for a device code and a user code
+  (RFC 8628 section 3.1).
+
+  Raises `{{moduleName}}.Errors.OAuth2ServerError` when the endpoint answers
+  with a non-2xx status and `{{moduleName}}.Errors.OAuth2TokenError` when it
+  answers 2xx with an unusable body.
+  """
+  @spec request_device_authorization(t()) :: DeviceAuthorization.t()
+  def request_device_authorization(%__MODULE__{} = self) do
+    params =
+      if self.scopes == [],
+        do: %{"client_id" => self.client_id},
+        else: %{"client_id" => self.client_id, "scope" => Enum.join(self.scopes, " ")}
+
+    self.token_manager
+    |> OAuth2TokenManager.post_form(self.device_authorization_url, params)
+    |> parse_device_authorization()
+  end
+
+  @doc """
+  Poll the token endpoint until the user approves the device authorization
+  (RFC 8628 section 3.4), then replace the session with the token it issued.
+
+  `authorization_pending` keeps polling and `slow_down` adds five seconds to
+  the interval. Any other error is raised as `{{moduleName}}.Errors.OAuth2ServerError`,
+  and a device code that expires first raises `{{moduleName}}.Errors.OAuth2TokenError`.
+  """
+  @spec poll_for_token(t(), DeviceAuthorization.t()) :: t()
+  def poll_for_token(%__MODULE__{} = self, %DeviceAuthorization{} = authorization) do
+    params = %{
+      "grant_type" => @device_code_grant_type,
+      "client_id" => self.client_id,
+      "device_code" => authorization.device_code
+    }
+
+    poll(self, authorization, params, authorization.interval, self.clock.())
+  end
+
+  defp poll(self, authorization, params, interval, started) do
+    if self.clock.() - started + interval * 1000 > authorization.expires_in * 1000 do
+      raise {{moduleName}}.Errors.OAuth2TokenError,
+        message: "Device authorization expired before the user approved it"
+    end
+
+    self.sleep.(interval)
+
+    result =
+      try do
+        _token = OAuth2TokenManager.exchange(self.token_manager, self.token_url, params)
+        :done
+      rescue
+        e in {{moduleName}}.Errors.OAuth2ServerError -> {:server_error, e, __STACKTRACE__}
+      end
+
+    case result do
+      :done ->
+        self
+
+      {:server_error, %{code: "authorization_pending"}, _} ->
+        poll(self, authorization, params, interval, started)
+
+      {:server_error, %{code: "slow_down"}, _} ->
+        poll(self, authorization, params, interval + @slow_down_s, started)
+
+      {:server_error, e, stacktrace} ->
+        reraise e, stacktrace
+    end
+  end
+
+  # A device authorization response that is not a JSON object, or lacks a code
+  # or the verification URI, cannot be shown to the user.
+  defp parse_device_authorization(body) do
+    parsed =
+      case Jason.decode(body) do
+        {:ok, %{} = map} ->
+          map
+
+        {:ok, _} ->
+          raise {{moduleName}}.Errors.OAuth2TokenError,
+            message: "Device authorization response is not a JSON object"
+
+        _ ->
+          raise {{moduleName}}.Errors.OAuth2TokenError,
+            message: "Device authorization response is not valid JSON"
+      end
+
+    [device_code, user_code, verification_uri] =
+      Enum.map(~w(device_code user_code verification_uri), fn field ->
+        case parsed[field] do
+          value when is_binary(value) and value != "" ->
+            value
+
+          _ ->
+            raise {{moduleName}}.Errors.OAuth2TokenError,
+              message: "Device authorization response missing or empty #{field} field"
+        end
+      end)
+
+    %DeviceAuthorization{
+      device_code: device_code,
+      user_code: user_code,
+      verification_uri: verification_uri,
+      verification_uri_complete:
+        case parsed["verification_uri_complete"] do
+          value when is_binary(value) and value != "" -> value
+          _ -> nil
+        end,
+      expires_in: OAuth2TokenManager.lifetime_seconds(parsed["expires_in"]),
+      interval:
+        case parsed["interval"] do
+          nil -> @default_interval_s
+          value -> OAuth2TokenManager.lifetime_seconds(value)
+        end
+    }
+  end
+
+  @doc """
+  Release the token manager. Idempotent. Called by `{{clientClassName}}.close/1`.
+  """
+  @impl {{moduleName}}.Auth.HttpAwareAuthenticator
+  def close(%__MODULE__{} = self) do
+    OAuth2TokenManager.stop(self.token_manager)
+  end
+
+  @doc """
+  Drop the cached access token so that the next call fetches a new one. The
+  refresh token is kept. The SDK calls this when the server answers a request
+  with 401, before it sends that request once more.
+  """
+  @spec invalidate_access_token(t()) :: :ok
+  def invalidate_access_token(%__MODULE__{} = self) do
+    OAuth2TokenManager.invalidate_access_token(self.token_manager)
+  end
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def host(%__MODULE__{} = self), do: self.host
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def auth_headers(%__MODULE__{} = self) do
+    unless OAuth2TokenManager.exchanged?(self.token_manager) do
+      raise "Must call poll_for_token() before making API requests"
+    end
+
+    params = %{
+      "grant_type" => "refresh_token",
+      "refresh_token" => OAuth2TokenManager.refresh_token(self.token_manager) || "",
+      "client_id" => self.client_id
+    }
+
+    token = OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params)
+    %{"Authorization" => "Bearer #{token}"}
+  end
+end

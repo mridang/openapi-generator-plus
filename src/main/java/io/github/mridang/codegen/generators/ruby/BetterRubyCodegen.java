@@ -976,6 +976,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasOAuth2DeviceAuthorization) {
+            /* D191: one constant per file, so the device authorization value has a file of its own. */
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/device_authorization.mustache", getOAuthDir(), "device_authorization.rb"));
+        }
         if (!generateTests) {
             return;
         }
@@ -1466,6 +1471,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             credentials.add(Map.of("name", e.getKey(), "envName", e.getValue()));
         }
         entry.put("credentials", credentials);
+        /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+        final boolean device = "OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass());
+        entry.put(
+                "deviceTest",
+                device && schemeEnvironmentEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("deviceTest"))));
+        if (device) {
+            entry.put("deviceFile", NamingConvention.SNAKE_CASE.apply(String.valueOf(ctx.get("className"))));
+            entry.put("deviceAuthorizationUrl", spec.authorizationUrl());
+            entry.put("deviceTokenUrl", spec.tokenUrl());
+            entry.put("deviceScopes", formatRubyScopes(spec.scopes()));
+        }
         entry.put("firstEnvName", credentials.isEmpty() ? "" : credentials.get(0).get("envName"));
         schemeEnvironmentEntries.add(entry);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
@@ -1621,6 +1637,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             final String scopes = formatRubyScopes(spec.scopes());
             return List.of("host", "client_id",
                     "'" + spec.authorizationUrl() + "'", scopes);
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "nil";
+            return List.of("host", "client_id",
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    formatRubyScopes(spec.scopes()),
+                    "refresh_url: " + refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "'" + spec.openIdConnectUrl() + "'",

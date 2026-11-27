@@ -87,6 +87,8 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 
 A security scheme the API marks `deprecated: true` keeps its authenticator, and the authenticator's doc comment says so (no `#[deprecated]` attribute, D190). A scheme that declares `oauth2MetadataUrl` exposes it as the associated constant `METADATA_URL` on its authenticator (for example `MachineAuthClientCredentialsAuthenticator::METADATA_URL`), which the SDK never fetches.
 
+The OAuth2 device authorization flow (D191) is `OAuth2DeviceAuthorizationAuthenticator`: `request_device_authorization().await` returns a `DeviceAuthorization` with the user code and verification URI to show, and `poll_for_token(&authorization).await` waits on the tokio timer between polls until the user approves; before that, a request fails with `OAuth2AuthorizationCodeError::DeviceTokenNotPolled`.
+
 ## Idiom notes
 
 - Every operation takes an optional trailing `options` argument (`Option<&...Options>`), even one with no parameters and no security. Besides the operation's own parameters the Options struct carries `timeout(Duration)`, `max_retries(u32)` (`0` turns retrying off) and `header(name, value)` for that one call. An Options struct for an operation with no parameters and no security has no `auth` field. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).

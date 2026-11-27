@@ -2566,6 +2566,17 @@ components:
           authorizationUrl: https://auth.example.com/authorize
           scopes:
             read: Read access
+    # The OpenAPI 3.2 device authorization flow (RFC 8628, D191, #92); swagger-models has no
+    # field for it, so the generator reads it from the raw document.
+    deviceAuth:
+      type: oauth2
+      flows:
+        deviceAuthorization:
+          deviceAuthorizationUrl: https://auth.example.com/oauth/device
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            pets:read: Read pets
+            pets:write: Write pets
     ssoAuth:
       type: openIdConnect
       openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration

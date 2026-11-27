@@ -1593,6 +1593,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
                     "redirectUri", formatGoScopes(spec.scopes()), refreshArg);
         }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    formatGoScopes(spec.scopes()), refreshArg);
+        }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId",
                     "\"" + spec.authorizationUrl() + "\"", formatGoScopes(spec.scopes()));

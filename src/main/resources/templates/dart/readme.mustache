@@ -137,6 +137,10 @@ The authorization-code flow (also through OpenID Connect) is protected with
 PKCE `S256`: `buildAuthorizationUrl` adds `code_challenge` and
 `code_challenge_method=S256`, keeps the matching verifier in the authenticator,
 and `exchangeCode` sends it as `code_verifier`.
+{{#hasOAuth2DeviceAuthorization}}
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+{{/hasOAuth2DeviceAuthorization}}
 
 ### Request id
 

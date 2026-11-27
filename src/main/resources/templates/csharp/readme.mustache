@@ -184,6 +184,10 @@ empty value counts as unset. A credential that is neither passed nor set fails t
 {{/securitySchemeEnvVars}}
 {{/hasSecuritySchemeEnvVars}}
 
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call RequestDeviceAuthorizationAsync() to get the user code and verification URI to show to the user, then PollForTokenAsync() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
 ### Response compression
 
 The client asks for `gzip, deflate, br` and decodes the response itself, so the body you read

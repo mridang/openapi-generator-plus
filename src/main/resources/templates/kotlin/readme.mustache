@@ -388,6 +388,10 @@ An operation none of whose schemes you passed a credential for uses the authenti
 credential; an operation declared with no security never sends one.
 
 {{/hasClientSchemes}}
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
 ## Closing the client
 
 `close()` is graceful and idempotent: a request already in flight finishes, the transport

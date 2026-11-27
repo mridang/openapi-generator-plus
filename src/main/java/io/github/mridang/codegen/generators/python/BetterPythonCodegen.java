@@ -1817,7 +1817,32 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         ctx.put("isBearer", bearer);
         recordSchemeAuthenticator(spec, constructorParams, bearer);
         recordOAuth2MetadataUrl(spec, ctx);
+        recordDeviceAuthorizationScheme(spec, String.valueOf(ctx.get("className")));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators of a device authorization flow, for the test template (D191). */
+    private final List<Map<String, Object>> deviceAuthorizationSchemes = new ArrayList<>();
+
+    /**
+     * Lists a device authorization scheme under {@code deviceAuthorizationSchemes} with its module,
+     * spec URLs and scopes (bodies of double-quoted strings), so the generated test checks that
+     * the wrapper passes them (D191).
+     */
+    private void recordDeviceAuthorizationScheme(SchemeAuthSpec spec, String className) {
+        if (!"OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            return;
+        }
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("module", packageName + ".auth.oauth." + NamingConvention.SNAKE_CASE.apply(className));
+        entry.put("deviceAuthorizationUrlLiteral",
+                pythonStringBody(Objects.toString(spec.authorizationUrl(), "")));
+        entry.put("tokenUrlLiteral", pythonStringBody(Objects.toString(spec.tokenUrl(), "")));
+        entry.put("scopeLiteral", pythonStringBody(spec.scopes() == null
+                ? "" : String.join(" ", spec.scopes().keySet())));
+        deviceAuthorizationSchemes.add(entry);
+        additionalProperties.put("deviceAuthorizationSchemes", deviceAuthorizationSchemes);
     }
 
     /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
@@ -1902,6 +1927,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             "OAuth2PasswordAuthenticator",            "oauth2_password_authenticator",
             "OAuth2AuthorizationCodeAuthenticator",   "oauth2_authorization_code_authenticator",
             "OAuth2ImplicitAuthenticator",            "oauth2_implicit_authenticator",
+            "OAuth2DeviceAuthorizationAuthenticator", "oauth2_device_authorization_authenticator",
             "OpenIdConnectAuthenticator",             "openid_connect_authenticator"
     );
 
@@ -2077,6 +2103,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of(
                     "host", "client_id", "\"" + spec.authorizationUrl() + "\"", scopes);
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "\"" + spec.refreshUrl() + "\"" : "None";
+            return List.of(
+                    "host",
+                    "client_id",
+                    "\"" + spec.authorizationUrl() + "\"",
+                    "\"" + spec.tokenUrl() + "\"",
+                    scopes,
+                    refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of(

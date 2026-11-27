@@ -189,6 +189,10 @@ function clientWithRotatingToken(readToken: () => Promise<string>): {{clientClas
   return {{clientClassName}}.withToken('https://api.example.com', async () => await readToken());
 }
 ```
+{{#hasOAuth2DeviceAuthorization}}
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+{{/hasOAuth2DeviceAuthorization}}
 
 {{#hasClientSchemes}}
 ### Credentials per security scheme

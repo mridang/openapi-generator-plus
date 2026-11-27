@@ -109,6 +109,10 @@ require '{{modulePath}}/auth/oauth/oauth2_authorization_code_authenticator'
 {{#hasOAuth2Implicit}}
 require '{{modulePath}}/auth/oauth/oauth2_implicit_authenticator'
 {{/hasOAuth2Implicit}}
+{{#hasOAuth2DeviceAuthorization}}
+require '{{modulePath}}/auth/oauth/device_authorization'
+require '{{modulePath}}/auth/oauth/oauth2_device_authorization_authenticator'
+{{/hasOAuth2DeviceAuthorization}}
 {{#hasOpenIdConnect}}
 require '{{modulePath}}/auth/oauth/openid_connect_authenticator'
 {{/hasOpenIdConnect}}

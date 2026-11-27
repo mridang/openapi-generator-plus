@@ -138,6 +138,10 @@ This API declares no basic, bearer, API key or OAuth 2 scheme, so no variable is
 {{/credentialSchemeEnvVars}}
 
 An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request. The base classes `BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator` and the OAuth 2 authenticators read no variable: only the generated authenticator of a scheme knows its name. The OpenID Connect authenticator takes its credentials as arguments only.
+{{#hasOAuth2DeviceAuthorization}}
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+{{/hasOAuth2DeviceAuthorization}}
 
 ### Request id
 

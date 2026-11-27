@@ -1090,6 +1090,13 @@ authoauthtwoauthcode030 | Auth headers before the code exchange fail naming the 
 errors049 | An OAuth2 server error message names the status and the error code
 authoauthtwoauthcode032 | The authorization code exchange body uses a fixed parameter order
 authoauthtwoclientcred016 | The client credentials token request body uses a fixed parameter order
+authoauthtwodevice700 | requestDeviceAuthorization posts client_id and the scopes, space separated in declared order, form encoded to the device authorization URL and returns the device code, user code, verification URI, complete verification URI, expires_in and interval, with interval 5 when the server omits it
+authoauthtwodevice701 | A device authorization response that is not JSON, not a JSON object, or lacks device_code, user_code or verification_uri fails with the OAuth2 token error and the exact message, and a non-2xx answer with the OAuth2 server error
+authoauthtwodevice702 | pollForToken posts grant_type urn:ietf:params:oauth:grant-type:device_code, client_id and device_code in that order to the token URL and keeps polling while the server answers authorization_pending
+authoauthtwodevice703 | A slow_down answer adds five seconds to the polling interval
+authoauthtwodevice704 | access_denied, expired_token or any other token error ends polling with the OAuth2 server error, and polling past expires_in ends with the OAuth2 token error Device authorization expired before the user approved it
+authoauthtwodevice705 | Before a token is obtained the authenticator refuses to authenticate with Must call pollForToken() before making API requests; after it, the bearer header carries the polled access token
+authoauthtwodevice706 | The generated per-scheme wrapper of a deviceAuthorization flow passes the spec device authorization URL, token URL and scopes in declared order
 authoauthtwoimplicit016 | An implicit access token may contain a tab
 authoauthtwopassword021 | The password grant token request body uses a fixed parameter order
 authoauthtwopassword022 | The generated password scheme wrapper sends the first grant to the declared token URL and the refresh grant to the declared refresh URL

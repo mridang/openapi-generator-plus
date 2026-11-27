@@ -12,6 +12,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+{{#hasOAuth2DeviceAuthorization}}
+	"testing/synctest"
+{{/hasOAuth2DeviceAuthorization}}
 	"time"
 
 	"{{packageName}}/pkg/auth"
@@ -1005,6 +1008,7 @@ type recordedTokenRequest struct {
 	url     string
 	headers map[string]string
 	body    string
+	at      time.Time
 }
 
 // recordingTokenClient answers token requests from a script and keeps every
@@ -1024,7 +1028,7 @@ func (c *recordingTokenClient) SendRequest(method, url string, headers map[strin
 func (c *recordingTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, _ *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	recorded := recordedTokenRequest{method: method, url: url, headers: headers}
+	recorded := recordedTokenRequest{method: method, url: url, headers: headers, at: time.Now()}
 	if b, ok := body.([]byte); ok {
 		recorded.body = string(b)
 	}
@@ -1877,3 +1881,262 @@ func TestBhvMisc185_OAuth2TokenManager_StopTwiceIsANoOpAndALaterRequestFails(t *
 		t.Error("a stopped manager must not send a token request")
 	}
 }
+{{#hasOAuth2DeviceAuthorization}}
+
+// newDeviceAuthenticator builds a device authorization authenticator against
+// the scripted client.
+func newDeviceAuthenticator(client auth.ApiClient, scopes []string) *oauth.OAuth2DeviceAuthorizationAuthenticator {
+	authObj := oauth.NewOAuth2DeviceAuthorizationAuthenticator(
+		"https://api.example.com", "device-client",
+		"https://auth.example.com/device", "https://auth.example.com/token", scopes, "")
+	authObj.SetApiClient(client)
+	return authObj
+}
+
+// The device authorization request is a form POST of the client id and the
+// scopes in declared order, and the answer is read into DeviceAuthorization,
+// with an interval of 5 seconds when the server sends none.
+func TestBhvAuthoauthtwodevice700_OAuth2TokenManager_DeviceAuthorizationRequestAndResponse(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"device_code":"dev-1","user_code":"ABCD-EFGH","verification_uri":"https://auth.example.com/activate","verification_uri_complete":"https://auth.example.com/activate?user_code=ABCD-EFGH","expires_in":1800,"interval":7}`, statusCode: 200},
+		{body: `{"device_code":"dev-2","user_code":"WXYZ","verification_uri":"https://auth.example.com/activate","expires_in":"600"}`, statusCode: 200},
+	}}
+	authObj := newDeviceAuthenticator(client, []string{"read", "write"})
+
+	first, err := authObj.RequestDeviceAuthorization()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	complete := "https://auth.example.com/activate?user_code=ABCD-EFGH"
+	want := oauth.DeviceAuthorization{
+		DeviceCode:              "dev-1",
+		UserCode:                "ABCD-EFGH",
+		VerificationURI:         "https://auth.example.com/activate",
+		VerificationURIComplete: &complete,
+		ExpiresIn:               1800,
+		Interval:                7,
+	}
+	if first.VerificationURIComplete == nil || *first.VerificationURIComplete != complete {
+		t.Fatalf("expected the complete verification URI, got %v", first.VerificationURIComplete)
+	}
+	first.VerificationURIComplete = &complete
+	if *first != want {
+		t.Errorf("expected %+v, got %+v", want, *first)
+	}
+	second, err := authObj.RequestDeviceAuthorization()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if second.Interval != 5 || second.ExpiresIn != 600 || second.VerificationURIComplete != nil {
+		t.Errorf("expected interval 5, expires_in 600 and no complete URI, got %+v", *second)
+	}
+	request := client.requests[0]
+	if request.method != "POST" || request.url != "https://auth.example.com/device" {
+		t.Errorf("expected a POST to the device authorization URL, got %s %s", request.method, request.url)
+	}
+	if request.headers["Content-Type"] != "application/x-www-form-urlencoded" {
+		t.Errorf("expected a form body, got %q", request.headers["Content-Type"])
+	}
+	if request.body != "client_id=device-client&scope=read+write" {
+		t.Errorf("expected the client id and the scopes, got %q", request.body)
+	}
+
+	unscoped := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"device_code":"d","user_code":"u","verification_uri":"v","expires_in":60}`, statusCode: 200},
+	}}
+	if _, err := newDeviceAuthenticator(unscoped, nil).RequestDeviceAuthorization(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if unscoped.requests[0].body != "client_id=device-client" {
+		t.Errorf("expected no scope parameter, got %q", unscoped.requests[0].body)
+	}
+}
+
+// An unusable device authorization answer is an *OAuth2TokenError with a fixed
+// message, and a non-2xx answer is an *OAuth2ServerError.
+func TestBhvAuthoauthtwodevice701_OAuth2TokenManager_UnusableDeviceAuthorizationResponsesAreTyped(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		body string
+		want string
+	}{
+		{`<html>ok</html>`, "Device authorization response is not valid JSON"},
+		{`["a"]`, "Device authorization response is not a JSON object"},
+		{`{"user_code":"u","verification_uri":"v"}`, "Device authorization response missing or empty device_code field"},
+		{`{"device_code":"","user_code":"u","verification_uri":"v"}`, "Device authorization response missing or empty device_code field"},
+		{`{"device_code":7,"user_code":"u","verification_uri":"v"}`, "Device authorization response missing or empty device_code field"},
+		{`{"device_code":"d","verification_uri":"v"}`, "Device authorization response missing or empty user_code field"},
+		{`{"device_code":"d","user_code":"u"}`, "Device authorization response missing or empty verification_uri field"},
+	}
+	for _, tc := range cases {
+		authObj := newDeviceAuthenticator(newFakeTokenClient(fakeResponse{body: tc.body, statusCode: 200}), nil)
+		_, err := authObj.RequestDeviceAuthorization()
+		var typed *apierrors.OAuth2TokenError
+		if !errors.As(err, &typed) {
+			t.Errorf("%q: expected *OAuth2TokenError, got %T: %v", tc.body, err, err)
+			continue
+		}
+		if typed.Error() != tc.want {
+			t.Errorf("%q: expected message %q, got %q", tc.body, tc.want, typed.Error())
+		}
+	}
+	authObj := newDeviceAuthenticator(newFakeTokenClient(fakeResponse{body: `{"error":"invalid_client"}`, statusCode: 401}), nil)
+	_, err := authObj.RequestDeviceAuthorization()
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if serverErr.StatusCode() != 401 || serverErr.Code() != "invalid_client" {
+		t.Errorf("expected status 401 and invalid_client, got %d %q", serverErr.StatusCode(), serverErr.Code())
+	}
+}
+
+// Polling posts the device code grant to the token URL and keeps polling while
+// the server answers authorization_pending.
+func TestBhvAuthoauthtwodevice702_OAuth2TokenManager_PollForTokenPostsTheDeviceCodeGrantUntilApproved(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: `{"error":"authorization_pending"}`, statusCode: 400},
+			{body: `{"error":"authorization_pending"}`, statusCode: 400},
+			{body: `{"access_token":"device-token"}`, statusCode: 200},
+		}}
+		authObj := newDeviceAuthenticator(client, nil)
+		err := authObj.PollForToken(oauth.DeviceAuthorization{DeviceCode: "dev-1", UserCode: "u", VerificationURI: "v", ExpiresIn: 600, Interval: 5})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if client.requestCount() != 3 {
+			t.Fatalf("expected three polls, got %d", client.requestCount())
+		}
+		for _, request := range client.requests {
+			if request.url != "https://auth.example.com/token" {
+				t.Errorf("expected the poll at the token URL, got %q", request.url)
+			}
+			if request.body != "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-1" {
+				t.Errorf("expected the device code grant, got %q", request.body)
+			}
+		}
+	})
+}
+
+// A slow_down answer adds five seconds to the polling interval.
+func TestBhvAuthoauthtwodevice703_OAuth2TokenManager_SlowDownAddsFiveSecondsToTheInterval(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: `{"error":"slow_down"}`, statusCode: 400},
+			{body: `{"access_token":"device-token"}`, statusCode: 200},
+		}}
+		authObj := newDeviceAuthenticator(client, nil)
+		started := time.Now()
+		err := authObj.PollForToken(oauth.DeviceAuthorization{DeviceCode: "dev-1", UserCode: "u", VerificationURI: "v", ExpiresIn: 600, Interval: 5})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		slept := []time.Duration{
+			client.requests[0].at.Sub(started),
+			client.requests[1].at.Sub(client.requests[0].at),
+		}
+		if slept[0] != 5*time.Second || slept[1] != 10*time.Second {
+			t.Errorf("expected waits of [5s 10s], got %v", slept)
+		}
+	})
+}
+
+// Any other token error ends polling with the *OAuth2ServerError, and polling
+// past expires_in ends with an *OAuth2TokenError.
+func TestBhvAuthoauthtwodevice704_OAuth2TokenManager_PollingEndsOnOtherErrorsAndOnExpiry(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		denied := newDeviceAuthenticator(newFakeTokenClient(
+			fakeResponse{body: `{"error":"authorization_pending"}`, statusCode: 400},
+			fakeResponse{body: `{"error":"access_denied"}`, statusCode: 400},
+		), nil)
+		err := denied.PollForToken(oauth.DeviceAuthorization{DeviceCode: "dev-1", UserCode: "u", VerificationURI: "v", ExpiresIn: 600, Interval: 5})
+		var serverErr *apierrors.OAuth2ServerError
+		if !errors.As(err, &serverErr) || serverErr.Code() != "access_denied" {
+			t.Fatalf("expected the access_denied *OAuth2ServerError, got %T: %v", err, err)
+		}
+
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: `{"error":"authorization_pending"}`, statusCode: 400},
+			{body: `{"error":"authorization_pending"}`, statusCode: 400},
+		}}
+		expiring := newDeviceAuthenticator(client, nil)
+		err = expiring.PollForToken(oauth.DeviceAuthorization{DeviceCode: "dev-1", UserCode: "u", VerificationURI: "v", ExpiresIn: 12, Interval: 5})
+		var tokenErr *apierrors.OAuth2TokenError
+		if !errors.As(err, &tokenErr) {
+			t.Fatalf("expected *OAuth2TokenError, got %T: %v", err, err)
+		}
+		if tokenErr.Error() != "Device authorization expired before the user approved it" {
+			t.Errorf("unexpected message %q", tokenErr.Error())
+		}
+		if client.requestCount() != 2 {
+			t.Errorf("expected two polls before expiry, got %d", client.requestCount())
+		}
+	})
+}
+
+// Before a token is obtained the authenticator refuses to authenticate; after
+// it, the bearer header carries the polled access token.
+func TestBhvAuthoauthtwodevice705_OAuth2TokenManager_AuthHeadersNeedAPolledToken(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		authObj := newDeviceAuthenticator(newFakeTokenClient(
+			fakeResponse{body: `{"access_token":"device-token","expires_in":3600}`, statusCode: 200},
+		), nil)
+		_, err := authObj.AuthHeadersOrError()
+		if !errors.Is(err, oauth.ErrDeviceTokenNotPolled) {
+			t.Fatalf("expected ErrDeviceTokenNotPolled, got %v", err)
+		}
+		if err.Error() != "must call PollForToken() before making API requests" {
+			t.Errorf("unexpected message %q", err.Error())
+		}
+		if err := authObj.PollForToken(oauth.DeviceAuthorization{DeviceCode: "dev-1", UserCode: "u", VerificationURI: "v", ExpiresIn: 600, Interval: 5}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		headers, err := authObj.AuthHeadersOrError()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if headers["Authorization"] != "Bearer device-token" {
+			t.Errorf("expected the polled token, got %q", headers["Authorization"])
+		}
+	})
+}
+
+// The per-scheme wrapper passes the spec's device authorization URL, token URL
+// and scopes in declared order.
+func TestBhvAuthoauthtwodevice706_OAuth2TokenManager_DeviceAuthWrapper_SendsTheSpecScopesAndUrls(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			{body: `{"device_code":"dev-1","user_code":"u","verification_uri":"v","expires_in":600}`, statusCode: 200},
+			{body: `{"access_token":"device-token"}`, statusCode: 200},
+		}}
+		authObj, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator("https://api.example.com", "device-client")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		authObj.SetApiClient(client)
+		authorization, err := authObj.RequestDeviceAuthorization()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if err := authObj.PollForToken(*authorization); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := client.requests[0].url; got != "https://auth.example.com/oauth/device" {
+			t.Errorf("expected the declared device authorization URL, got %q", got)
+		}
+		if got := client.requests[0].body; got != "client_id=device-client&scope=pets%3Aread+pets%3Awrite" {
+			t.Errorf("expected the declared scopes, got %q", got)
+		}
+		if got := client.requests[1].url; got != "https://auth.example.com/oauth/token" {
+			t.Errorf("expected the declared token URL, got %q", got)
+		}
+	})
+}
+{{/hasOAuth2DeviceAuthorization}}

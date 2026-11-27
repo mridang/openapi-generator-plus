@@ -1231,7 +1231,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         additionalProperties.put("credentialSchemes", credentialSchemes(read));
         additionalProperties.put("clientSchemes", clientSchemes(openAPI));
         additionalProperties.put("metadataUrlSchemes", metadataUrlSchemes);
+        additionalProperties.put("deviceSchemes", deviceSchemes);
     }
+
+    /** The first per-scheme device authorization authenticator, for authoauthtwodevice706 (D191). */
+    private final List<Map<String, Object>> deviceSchemes = new ArrayList<>();
 
     /** The first per-scheme authenticator that declares an oauth2MetadataUrl, for authscheme700. */
     private final List<Map<String, Object>> metadataUrlSchemes = new ArrayList<>();
@@ -1312,6 +1316,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 break;
             case "OAuth2ImplicitAuthenticator":
                 flow = "Implicit";
+                break;
+            case "OAuth2DeviceAuthorizationAuthenticator":
+                flow = "DeviceAuthorization";
                 break;
             default:
                 flow = "";
@@ -1836,6 +1843,31 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             + "', scopes: "
                             + scopes
                             + ", environment: environment";
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_device_authorization_authenticator.dart");
+            constructorSig = "required String host, String? clientId, "
+                    + "Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, deviceAuthorizationUrl: '"
+                            + spec.authorizationUrl()
+                            + "', tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', scopes: "
+                            + scopes
+                            + ", refreshUrl: "
+                            + refreshArg
+                            + ", environment: environment";
+            /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+            if (deviceSchemes.isEmpty()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("className", baseSchemeContext(spec).get("className"));
+                entry.put("deviceAuthorizationUrlLiteral", "'" + escapeDartString(java.util.Objects.toString(spec.authorizationUrl(), "")) + "'");
+                entry.put("tokenUrlLiteral", "'" + escapeDartString(java.util.Objects.toString(spec.tokenUrl(), "")) + "'");
+                entry.put("scopesLiteral", scopes);
+                deviceSchemes.add(entry);
+            }
         } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             imports = List.of("openid_connect_authenticator.dart");
             constructorSig =

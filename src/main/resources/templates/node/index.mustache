@@ -90,6 +90,10 @@ export { OAuth2AuthorizationCodeAuthenticator } from './auth/oauth/oauth2-author
 {{#hasOAuth2Implicit}}
 export { OAuth2ImplicitAuthenticator } from './auth/oauth/oauth2-implicit-authenticator{{importFileExtension}}';
 {{/hasOAuth2Implicit}}
+{{#hasOAuth2DeviceAuthorization}}
+export { OAuth2DeviceAuthorizationAuthenticator } from './auth/oauth/oauth2-device-authorization-authenticator{{importFileExtension}}';
+export type { DeviceAuthorization } from './auth/oauth/oauth2-device-authorization-authenticator{{importFileExtension}}';
+{{/hasOAuth2DeviceAuthorization}}
 {{#hasOpenIdConnect}}
 export { OpenIdConnectAuthenticator } from './auth/oauth/openid-connect-authenticator{{importFileExtension}}';
 {{/hasOpenIdConnect}}

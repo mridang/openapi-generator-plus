@@ -1726,6 +1726,17 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     List.of("host", "client_id", "client_secret",
                             toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
                             "redirect_uri", formatRustScopes(spec.scopes()), refreshArg);
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            // refresh_url is &str — empty string means "fall back to token_url"
+            final String refreshArg =
+                    spec.refreshUrl() != null ? toRustStringLiteral(spec.refreshUrl()) : "\"\"";
+            constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
+            // Signature: (host, client_id, device_authorization_url, token_url, scopes, refresh_url)
+            superArgs =
+                    List.of("host", "client_id",
+                            toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")),
+                            toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
+                            formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
             superArgs =
@@ -1849,6 +1860,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             entry.put("restEnvParams", new ArrayList<>(envParams.subList(1, envParams.size())));
             entry.put("secondEnvName", envParams.get(1).get("envName"));
         }
+        /* A scheme whose every test id is claimed by an earlier scheme (the device flow, which
+         * has no empty-variable id of its own) gets no test module: one without a test would
+         * leave its imports unused. */
+        entry.put(
+                "hasSchemeTests",
+                java.util.stream.Stream.of(
+                                "commonBhvOnce", "metadataUrlTest", "explicitWinsOnce", "explicitNotOverriddenOnce",
+                                "mixedOnce", "bearerIdOnce", "emptyVariableBhv", "isBasic", "isApiKey")
+                        .anyMatch(key -> Boolean.TRUE.equals(entry.get(key))));
         perSchemeAuthEntries.add(entry);
         ctx.put("superArgs", superArgs);
         // API-key schemes name an ApiKeyLocation variant in their superArgs, so
