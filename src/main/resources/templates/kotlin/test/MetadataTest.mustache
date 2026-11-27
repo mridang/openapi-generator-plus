@@ -110,6 +110,26 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("bhvEquality002 equality reaches nested models, lists and maps, and comparing with null or another type is false")
+    fun testEqualityReachesNestedModelsListsAndMaps() {
+        val serializer = ObjectSerializer()
+        val pet = "{\"name\":\"Rex\",\"photoUrls\":[\"a\"],\"category\":{\"id\":1,\"name\":\"Dogs\"}," +
+            "\"tags\":[{\"id\":2,\"name\":\"calm\"}]}"
+        val roster = "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}"
+        val first = serializer.deserialize<Pet>(pet)!!
+        val firstRoster = serializer.deserialize<Roster>(roster)!!
+
+        assertEquals(first, serializer.deserialize<Pet>(pet))
+        assertNotEquals(first, serializer.deserialize<Pet>(pet.replace("Dogs", "Cats")))
+        assertNotEquals(first, serializer.deserialize<Pet>(pet.replace("calm", "wild")))
+        assertEquals(firstRoster, serializer.deserialize<Roster>(roster))
+        assertNotEquals(firstRoster, serializer.deserialize<Roster>(roster.replace("\"x\"", "\"y\"")))
+        assertFalse(first.equals(firstRoster))
+        val absent: Any? = emptyList<Any>().firstOrNull()
+        assertFalse(first.equals(absent))
+    }
+
+    @Test
     @DisplayName("bhvModels024 default values are null")
     fun testDefaultValues() {
         val metadata = Metadata()

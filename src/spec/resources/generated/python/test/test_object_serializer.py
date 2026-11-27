@@ -2426,6 +2426,28 @@ class TestModelValueEquality:
         none_value: Any = None
         assert first != none_value
 
+    def test_bhv_equality_002_equality_reaches_nested_models_lists_and_maps_and_never_raises(
+        self,
+    ) -> None:
+        pet = '{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}'
+        roster = '{"label":"l","a":{"id":1,"name":"x"}}'
+        first = ObjectSerializer().deserialize(pet, "Pet")
+        first_roster = ObjectSerializer().deserialize(roster, "Roster")
+        assert first == ObjectSerializer().deserialize(pet, "Pet")
+        assert first != ObjectSerializer().deserialize(
+            pet.replace("Dogs", "Cats"), "Pet"
+        )
+        assert first != ObjectSerializer().deserialize(
+            pet.replace("calm", "wild"), "Pet"
+        )
+        assert first_roster == ObjectSerializer().deserialize(roster, "Roster")
+        assert first_roster != ObjectSerializer().deserialize(
+            roster.replace('"x"', '"y"'), "Roster"
+        )
+        assert first != first_roster
+        none_value: Any = None
+        assert first != none_value
+
 
 class TestTimeFormat:
     def test_bhv_serialization_092_a_time_of_day_round_trips_through_its_string_form(

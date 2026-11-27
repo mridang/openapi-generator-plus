@@ -356,7 +356,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D81 | `format: time` is `HH:mm:ss`, plus `.SSS` only when milliseconds are non-zero, truncated not rounded; go, dart, swift pass the String through. | Fixture `cutoff`, `at`. |
 | D82 | A `uniqueItems` array parameter expands exactly like an array parameter in the Set's iteration order. | S6. |
 
-### Models, validation and defaults (D54-D69, D83)
+### Models, validation and defaults (D54-D69, D83, D144)
 
 | Id | Rule | Why / forced exceptions |
 |---|---|---|
@@ -377,6 +377,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D68 | A model missing required properties cannot be built or sent (java no public no-arg constructor, node validate step, rust builder). | go zero values are forced. Open owner question; see limitations. |
 | D69 | Superseded by S6: scalar `uniqueItems` arrays are not sorted. | |
 | D83 | Bare `type: number` is exact in java, kotlin, csharp and node (plain notation, no exponent); python decodes exact and widens to float on encode (forced); the seven native-float languages are documented lossy, each README carrying a "Decimal / `format: number` precision" caveat. | FD-8. |
+| D144 | Every model has structural value equality over all fields (nested models, lists, maps, bytes, additional properties) in the language's idiom: `equals`/`Equals`/`==` where the language provides it, `Equal(*Model)` in go, `equals()` in node and php; comparing with null or another type returns false and never throws. No hash method is added for this (#154). | Tests equality001 and equality002 in all twelve; go has no hash because a model with a slice or map field is not comparable (catalogue exceptions models020, serialization021). |
 
 ### Redirects, proxy, TLS, timeouts (D70-D79)
 

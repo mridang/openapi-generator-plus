@@ -237,6 +237,22 @@ describe 'Department', 'value equality' do
     nothing = [].first
     _(first == nothing).must_equal(false)
   end
+
+  it 'bhv_equality_002 equality reaches nested models, lists and maps, and comparing with nil or another type is false' do
+    pet = '{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}'
+    roster = '{"label":"l","a":{"id":1,"name":"x"}}'
+    decode = ->(json, type) { Petstore::Client::ObjectSerializer.deserialize(json, type) }
+    first = decode.call(pet, 'Pet')
+    first_roster = decode.call(roster, 'Roster')
+    _(first).must_equal(decode.call(pet, 'Pet'))
+    _(first).wont_equal(decode.call(pet.sub('Dogs', 'Cats'), 'Pet'))
+    _(first).wont_equal(decode.call(pet.sub('calm', 'wild'), 'Pet'))
+    _(first_roster).must_equal(decode.call(roster, 'Roster'))
+    _(first_roster).wont_equal(decode.call(roster.sub('"x"', '"y"'), 'Roster'))
+    _(first == first_roster).must_equal(false)
+    nothing = [].first
+    _(first == nothing).must_equal(false)
+  end
 end
 
 describe 'generated file header' do

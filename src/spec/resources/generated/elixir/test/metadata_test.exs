@@ -166,6 +166,24 @@ defmodule PetstoreClient.Models.MetadataTest do
       refute build.("hello") == nil
     end
 
+    test "bhv equality 002 equality reaches nested models, lists and maps, and comparing with nil or another type is false" do
+      pet =
+        ~s({"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]})
+
+      roster = ~s({"label":"l","a":{"id":1,"name":"x"}})
+      decode = fn json, type -> PetstoreClient.ObjectSerializer.deserialize(json, type) end
+      first = decode.(pet, "Pet")
+      first_roster = decode.(roster, "Roster")
+
+      assert first == decode.(pet, "Pet")
+      refute first == decode.(String.replace(pet, "Dogs", "Cats"), "Pet")
+      refute first == decode.(String.replace(pet, "calm", "wild"), "Pet")
+      assert first_roster == decode.(roster, "Roster")
+      refute first_roster == decode.(String.replace(roster, ~s("x"), ~s("y")), "Roster")
+      refute first == first_roster
+      refute first == nil
+    end
+
     test "bhv models 012 inspect dumps the fields and the additional_properties map" do
       metadata = %PetstoreClient.Models.Metadata{
         created_at: ~U[2024-01-15 10:30:00Z],

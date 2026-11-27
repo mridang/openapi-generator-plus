@@ -174,6 +174,33 @@ class MetadataTest {
   }
 
   @Test
+  void bhvEquality002TestEqualityReachesNestedModelsListsAndMapsAndNeverThrows() {
+    String pet =
+        "{\"name\":\"Rex\",\"photoUrls\":[\"a\"],\"category\":{\"id\":1,\"name\":\"Dogs\"},"
+            + "\"tags\":[{\"id\":2,\"name\":\"calm\"}]}";
+    String roster = "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}";
+    Pet first = Objects.requireNonNull(serializer.deserialize(pet, Pet.class));
+    Pet same = Objects.requireNonNull(serializer.deserialize(pet, Pet.class));
+    Pet changedCategory =
+        Objects.requireNonNull(serializer.deserialize(pet.replace("Dogs", "Cats"), Pet.class));
+    Pet changedTag =
+        Objects.requireNonNull(serializer.deserialize(pet.replace("calm", "wild"), Pet.class));
+    Roster firstRoster = Objects.requireNonNull(serializer.deserialize(roster, Roster.class));
+    Roster sameRoster = Objects.requireNonNull(serializer.deserialize(roster, Roster.class));
+    Roster changedRoster =
+        Objects.requireNonNull(
+            serializer.deserialize(roster.replace("\"x\"", "\"y\""), Roster.class));
+
+    assertThat(first).isEqualTo(same);
+    assertThat(first).isNotEqualTo(changedCategory);
+    assertThat(first).isNotEqualTo(changedTag);
+    assertThat(firstRoster).isEqualTo(sameRoster);
+    assertThat(firstRoster).isNotEqualTo(changedRoster);
+    assertThat(first).isNotEqualTo(null);
+    assertThat(first).isNotEqualTo(firstRoster);
+  }
+
+  @Test
   void bhvModels010TestDeclaredPropertyWinsOverCollidingAdditionalProperty() {
     Metadata metadata =
         Metadata.builder()

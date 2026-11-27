@@ -481,6 +481,25 @@ void main() {
       expect(first == nothing, isFalse);
     });
 
+    test('bhv equality 002 equality reaches nested models, lists and maps, and comparing with null or another type is false', () {
+      const pet = '{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}';
+      const roster = '{"label":"l","a":{"id":1,"name":"x"}}';
+      Pet decodePet(String json) => Pet.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      Roster decodeRoster(String json) => Roster.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      final first = decodePet(pet);
+      final firstRoster = decodeRoster(roster);
+      final Object otherType = firstRoster;
+      final Object? nothing = null;
+
+      expect(first, equals(decodePet(pet)));
+      expect(first, isNot(equals(decodePet(pet.replaceFirst('Dogs', 'Cats')))));
+      expect(first, isNot(equals(decodePet(pet.replaceFirst('calm', 'wild')))));
+      expect(firstRoster, equals(decodeRoster(roster)));
+      expect(firstRoster, isNot(equals(decodeRoster(roster.replaceFirst('"x"', '"y"')))));
+      expect(first == otherType, isFalse);
+      expect(first == nothing, isFalse);
+    });
+
     test('bhv models 012 toString dumps the fields and the additionalProperties map', () {
       final metadata = Freeform(
         label: 'x',

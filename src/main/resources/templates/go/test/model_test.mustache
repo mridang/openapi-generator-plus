@@ -562,6 +562,47 @@ func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
 	}
 }
 
+// Equality reaches a nested model, a list element and a map value, and comparing with nil returns false.
+func TestBhvEquality002_ModelEqual_ReachesNestedModelsListsAndMaps(t *testing.T) {
+	t.Parallel()
+	pet := `{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}`
+	roster := `{"label":"l","a":{"id":1,"name":"x"}}`
+	decodePet := func(body string) *models.Pet {
+		var value models.Pet
+		if err := json.Unmarshal([]byte(body), &value); err != nil {
+			t.Fatalf("failed to deserialize Pet: %v", err)
+		}
+		return &value
+	}
+	decodeRoster := func(body string) *models.Roster {
+		var value models.Roster
+		if err := json.Unmarshal([]byte(body), &value); err != nil {
+			t.Fatalf("failed to deserialize Roster: %v", err)
+		}
+		return &value
+	}
+	first := decodePet(pet)
+	firstRoster := decodeRoster(roster)
+	if !first.Equal(decodePet(pet)) {
+		t.Error("expected two pets decoded from the same JSON to be equal")
+	}
+	if first.Equal(decodePet(strings.Replace(pet, "Dogs", "Cats", 1))) {
+		t.Error("expected a changed nested category to make the pets unequal")
+	}
+	if first.Equal(decodePet(strings.Replace(pet, "calm", "wild", 1))) {
+		t.Error("expected a changed tag in the list to make the pets unequal")
+	}
+	if !firstRoster.Equal(decodeRoster(roster)) {
+		t.Error("expected two rosters decoded from the same JSON to be equal")
+	}
+	if firstRoster.Equal(decodeRoster(strings.Replace(roster, `"x"`, `"y"`, 1))) {
+		t.Error("expected a changed map value to make the rosters unequal")
+	}
+	if first.Equal(nil) {
+		t.Error("expected a model not to equal nil")
+	}
+}
+
 func TestBhvMisc093_Model_NumericAdditionalPropertyNamesAreTopLevelKeys(t *testing.T) {
 	t.Parallel()
 	meta := models.Metadata{AdditionalProperties: map[string]string{"404": "missing", "7": "seven"}}
