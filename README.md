@@ -1,6 +1,6 @@
 # Opigen: Opinionated OpenAPI Codegen
 
-Opigen generates client SDKs from an OpenAPI 3 specification in twelve languages: Java, Kotlin, C#, Node.js / TypeScript, Python, Ruby, PHP, Go, Rust, Swift, Dart and Elixir. It is built on OpenAPI Generator, but it emits only the source a client needs (models, operations, authentication, errors and a transport) plus a manifest, a README and a `SKILLS.md` reference for each SDK, instead of a full project with its own scaffolding. The SDKs are meant to be dropped into an existing code base.
+Opigen generates client SDKs from an OpenAPI 3 specification (3.0, 3.1 or 3.2) in twelve languages: Java, Kotlin, C#, Node.js / TypeScript, Python, Ruby, PHP, Go, Rust, Swift, Dart and Elixir. It is built on OpenAPI Generator, but it emits only the source a client needs (models, operations, authentication, errors and a transport) plus a manifest, a README and a `SKILLS.md` reference for each SDK, instead of a full project with its own scaffolding. The SDKs are meant to be dropped into an existing code base.
 
 The twelve SDKs are deliberately alike. They have the same entry class, the same way to configure a transport, the same error hierarchy, the same retry and timeout behaviour and the same wire format. They differ only where a language's own idiom demands it, so a team that uses more than one language reads the same API in each.
 

@@ -300,7 +300,7 @@ Where: see the named templates in Layout.
 
 ## Known limitations and out of scope
 
-Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and loading 3.2 documents is issue #50 (the pinned swagger-parser rejects it).
+Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and 3.2 documents load through the shared parser extension (D150).
 
 Open or deferred items that touch go: F290 (the infallible `AuthHeaders()` returns an empty map on failure, forced by the interface, see Settled); F316 (a go model struct can be built with zero values and without validation, forced); classic allOf with a discriminator is #104.
 

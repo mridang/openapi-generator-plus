@@ -137,7 +137,7 @@ Test: none that pins an order.
 
 ### Out of scope (S11, S12, 2026-11-16)
 Rule: callbacks and webhooks, XML bodies and nodeType, Link Objects and mutual TLS are not generated and the README says so; OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49.
-Why: closed backlog issues #53, #70, #78, #88, #90; 3.2 loading is #50.
+Why: closed backlog issues #53, #70, #78, #88, #90; 3.2 documents load through the shared parser extension (D150).
 Where: `readme.mustache`.
 Test: none.
 

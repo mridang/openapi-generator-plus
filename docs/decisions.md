@@ -373,6 +373,30 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Java, Kotlin, Node and Dart now refuse a malformed address on decode where they used to accept any text. A language moves to the native type when its floor reaches one that keeps the text: Java and Kotlin with `InetAddress.ofLiteral` from Java 22, PHP with `\Uri\Rfc3986\Uri` from PHP 8.5.
 
+## D150: OpenAPI 3.2 documents load through a parser extension
+
+**Decision.** A document that declares `openapi: 3.2.x` loads in all twelve generators. The bundled swagger-parser (2.1.38, and 2.1.49, the newest release) returns no document for a version that does not start with `3.0` or `3.1`, and swagger-models has no field for the 3.2 additions, so upgrading is not a way out. swagger-parser asks every registered `SwaggerParserExtension` once its own reader gives up, and the generator jar registers one, `OpenApi32ParserExtension`. It reads the document as written, maps the 3.2 constructs onto their 3.1 form (the following decisions), parses the result with the stock 3.1 reader and puts `3.2.x` back as the version. A 3.0 or 3.1 document never reaches it. A 3.2 field the extension does not map is reported by the 3.1 reader as unexpected and ignored, as for any unknown field. Forking swagger-models was rejected: it is a second copy of about 150 classes to keep in step (#50).
+
+**Consequences.** The petstore fixture stays a 3.1 document because the mock server reads it. The 3.2 constructs live in a second fixture, `src/spec/resources/specs/oas32/openapi.yaml`, which no mock server serves and which has no goldens: a unit test generates all twelve SDKs from it and checks that each construct reaches the output. When swagger-parser reads 3.2 itself, the extension is deleted.
+
+## D151: `$self` is the base URI of the document
+
+**Decision.** A 3.2 document's `$self` sets the base URI that its relative references resolve against. A relative `$self` is first resolved against the location the document was read from, as the specification says; an absolute one is used as written. A reference whose target is the document itself (its `$self` URI with a fragment) becomes a local reference, so it is not fetched a second time. Without `$self` the location the document was read from stays the base (#51).
+
+**Consequences.** A document that moves its base with `$self` resolves its external references from the declared place. An external reference is inlined by swagger-parser's 3.1 reader, exactly as in a 3.1 document.
+
+## D154: A reusable Media Type Object is inlined where it is referenced
+
+**Decision.** A `$ref` to `#/components/mediaTypes/<name>` in a request body, a response, a parameter or a header is replaced by a copy of the Media Type Object it names (following a chain of such references), and `components.mediaTypes` is then removed. The operation generates exactly what the inline object generates (#57).
+
+**Consequences.** A reference to a media type that does not exist is left in place and the 3.1 reader reports it.
+
+## D158: An Example Object's `dataValue` and `serializedValue` become its value
+
+**Decision.** In a 3.2 document an Example Object's `dataValue` becomes its `value`, which is what the generated README examples and documentation read. Without a `dataValue`, a `serializedValue` under a JSON media type is parsed into the value (and kept as a string when it is not valid JSON); a `serializedValue` of a parameter, a header or a non-JSON media type is not turned into a value, because it is the serialised form and not the data. An explicit `value` always wins (#79).
+
+**Consequences.** A 3.2 example shows the same data in the generated documentation as its 3.1 spelling with `value`.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

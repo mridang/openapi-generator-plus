@@ -202,7 +202,7 @@ Rule: every API group has an interface and the client has one where the language
 - Spec gates differ from the client `Makefile`: `make build` and `make lint` run plain `mix compile`, while `ElixirLintingSpec` adds `--warnings-as-errors`. The client suite does not use `--warnings-as-errors` because it calls deprecated operations.
 - SOCKS proxies are rejected at construction (README).
 - No per-field example or description in model docs; the `@moduledoc` carries the model description, named examples and the deprecated-field note.
-- Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11). OpenAPI 3.1 and 3.2 support is tracked in epics #96 and #49 with sub-issues; loading 3.2 documents is #50.
+- Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11). OpenAPI 3.1 and 3.2 support is tracked in epics #96 and #49 with sub-issues; 3.2 documents load through the shared parser extension (D150).
 
 ## Build-breaking rules
 

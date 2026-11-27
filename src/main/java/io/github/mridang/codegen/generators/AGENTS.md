@@ -229,7 +229,7 @@ Rule: a small pure library or a version bump is acceptable when it standardises 
 Rule: callbacks and webhooks, XML bodies and XML nodeType, Link Objects, mutual TLS (closed issues #53, #70, #78, #88, #90). The README says so.
 
 ### S12 OpenAPI 3.2 and 3.1
-Rule: tracked as epics #49 (3.2) and #96 (3.1) with sub-issues; loading 3.2 documents is #50 (the pinned swagger-parser rejects 3.2).
+Rule: tracked as epics #49 (3.2) and #96 (3.1) with sub-issues; 3.2 documents load through `OpenApi32ParserExtension` (D150, the pinned swagger-parser rejects 3.2), and the decisions are in the OpenAPI 3.2 section below.
 
 ### S13 Test runner speed
 Rule: the CI test job is CPU-bound; spec parallelism is 3 (`junit-platform.properties`); linter and compiler caches live under `/root/.cache` per language (mypy, ruff, golangci-lint, RuboCop, dialyzer PLT files only); `.github` workflows are not touched from this repo (workflow issues are filed in mridang/action-runner-common #47-#50).
@@ -577,9 +577,20 @@ The checker that compared the twelve public surfaces, its allow list and the gen
 |---|---|---|
 | D143 | Go decodes with the JSON v2 API (`github.com/go-json-experiment/json`, pinned to its last Go 1.25 commit): each struct model implements `UnmarshalJSONFrom(*jsontext.Decoder)` (one shared template, `models/unmarshal_from.mustache`) and reads its object in one pass with exact-case keys and presence flags; `UnmarshalJSON` decodes through it. `deserialize` and error bodies use JSON v2 with duplicate names and invalid UTF-8 allowed and a `time.Duration` unmarshaler (`protoduration.DecodeValue`). Encoding stays on `encoding/json`. Every strictness rule is unchanged. | Issue #107, owner decision. Stdlib `encoding/json/v2` is experimental until Go 1.27 and the module's v1.27.x tags need Go 1.26. Unions read the discriminator first, then the variant. Test: `bhv langgo 133`, `134`. |
 
+### OpenAPI 3.2 (D150-D179)
+
+Where: `src/main/java/io/github/mridang/codegen/OpenApi32ParserExtension.java` (registered in `META-INF/services/io.swagger.v3.parser.core.extensions.SwaggerParserExtension`), `SpecWarnings.java`, `AbstractBetterCodegen.java`. Fixture: `src/spec/resources/specs/oas32/openapi.yaml` (3.2, never served by chasm, no goldens; the petstore stays 3.1). Test: `OpenApi32ParserExtensionTest` generates all twelve from it.
+
+| Id | Rule | Why / forced exceptions |
+|---|---|---|
+| D150 | A 3.2 document loads: swagger-parser asks the registered `OpenApi32ParserExtension` after its own reader refuses the version; it maps the 3.2 tree onto 3.1, parses it with the stock reader and restores the `3.2.x` version. Server `name` and Tag `summary`, `parent`, `kind` move to the carriers `x-oas32-name`, `x-oas32-summary`, `x-oas32-parent`, `x-oas32-kind`, which only the shared generator reads (never a template); Response `summary` is read from the raw file (`RawSpecReader`). Other 3.2 fields are reported by the 3.1 reader. | Issue #50. swagger-parser 2.1.49 still rejects 3.2; forking swagger-models was rejected. |
+| D151 | `$self` is the base URI for relative references; a relative `$self` resolves against the retrieval location; a reference to the document's own URI becomes local. | Issue #51 (OAS 3.2 "Relative References in API Description URIs"). |
+| D154 | A `$ref` to `#/components/mediaTypes/<name>` is replaced by a copy of the Media Type Object; the map is removed. | Issue #57. |
+| D158 | Example `dataValue` becomes `value`; without it a JSON media type's `serializedValue` is parsed into `value`; an explicit `value` wins; a parameter or header `serializedValue` is not turned into a value. Media type `itemSchema` becomes `schema` when there is none (D120). | Issue #79. |
+
 ## Known limitations and out of scope
 
-- Out of scope (S11): callbacks and webhooks (#53), XML bodies and `nodeType` (#70), Link Objects (#78), mutual TLS (#90), and the item closed as #88; the READMEs say so. OpenAPI 3.2 and 3.1 are epics #49 and #96; loading 3.2 documents is #50.
+- Out of scope (S11): callbacks and webhooks (#53), XML bodies and `nodeType` (#70), Link Objects (#78), mutual TLS (#90), and the item closed as #88; the READMEs say so. OpenAPI 3.2 and 3.1 are epics #49 and #96; 3.2 documents load (D150).
 - S8 (parameter order) awaits owner confirmation.
 - Open work is tracked as GitHub issues in the milestone "Rebuild: harmonised SDKs": classic allOf with a discriminator (#104), dependency audit (#105), Go single-pass decode (#107), compiled README fences and minimum runtimes (#111), streaming and binary uploads (#114, which also holds the PHP binary body type), Dart browser tests and keyword lists (#115), declared error bodies (#117) and hierarchy (#123), test comparison and harmonisation (#118, #121), docs build (#120), the API surface guard (#122), warning sweep (#124), header parameters named Accept, Content-Type or Authorization (#125), the Go date type (#126), Ruby keep-alive (#127), reserved-word escaping in swift and elixir (#128) and the audit-lead tail of TL-13 (java test NullAway and SpotBugs coverage). #106 (a default on a `$ref` enum, sibling and component) is done in the goldens of all twelve.
 - D68 (a model missing required properties cannot be built) is an open owner question (see #129): java keeps the required-property check in `build()`, and node and rust have not been confirmed to reject before dispatch.

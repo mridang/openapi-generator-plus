@@ -16,6 +16,10 @@ A run goes through these steps in order.
 4. A formatter for that language runs in a Docker container over the output.
 5. The result is checked in as a golden, and a spec builds, lints, formats and tests the golden.
 
+### Reading OpenAPI 3.2
+
+The bundled swagger-parser reads OpenAPI 3.0 and 3.1 only, and even its newest release returns no document for `openapi: 3.2.0`. The generator jar therefore registers a parser extension, `OpenApi32ParserExtension`, which swagger-parser asks once its own reader has given up, so 3.0 and 3.1 documents are read exactly as before and nothing changes on the command line. The extension reads a 3.2 document as written, maps the 3.2 constructs onto their 3.1 form and hands the result to the 3.1 reader; the document keeps `3.2.0` as its version. The mappings are: `$self` becomes the base URI that relative references resolve against, and a reference back into the document itself becomes a local one; a `$ref` to `components.mediaTypes` is replaced by the Media Type Object it names; a media type's `itemSchema` becomes its `schema` when it has none (the item of a streamed response); an Example Object's `dataValue` becomes its `value`, and without one a `serializedValue` under a JSON media type is parsed into the value; and the fields the parsed model has no room for (a server's `name`, a tag's `summary`, `parent` and `kind`, a response's `summary`) are carried to the shared generator. Any other 3.2 field is passed to the 3.1 reader, which reports it as unexpected. See decisions [D150](decisions.md#d150-openapi-32-documents-load-through-a-parser-extension) to [D158](decisions.md#d158-an-example-objects-datavalue-and-serializedvalue-become-its-value).
+
 ### Normalising the specification
 
 The normaliser is `AdvancedOpenAPINormalizer`. It first runs the stock OpenAPI Generator normalisation and then applies any of these rules whose key you passed in `--openapi-normalizer "RULE=VALUE,..."`, in this order:
@@ -154,7 +158,7 @@ An `ApiError` carries the status code, the response headers and body, and the re
 
 Each schema becomes a model, each enum a typed enum, each `oneOf` and `anyOf` a union (see [types](types.md)). A `oneOf` with no discriminator whose variants accept the same JSON type logs one generation-time warning naming the schema and the variants, and its variants keep their declaration order. The wire rules are the same everywhere: object keys are written in declaration order with `additionalProperties` after them; strings are written literally; a request body is never decoded and re-encoded when it is binary; a space is `%20` in a query string and `+` in a form body; and unknown enum values, discriminators that match nothing and malformed values are a `SerializationError`. Void responses are never decoded. The client does not enforce schema constraints such as `pattern` or `minimum`; the server owns validation.
 
-Out of scope for every SDK: callbacks and webhooks, XML bodies, Link Objects and mutual TLS. OpenAPI 3.1 and 3.2 support is tracked as separate epics, and the public API shape is fixed now so that those features are additive.
+Out of scope for every SDK: callbacks and webhooks, XML bodies, Link Objects and mutual TLS. An OpenAPI 3.2 document loads (see "Reading OpenAPI 3.2" above); the remaining 3.1 and 3.2 features are tracked as separate epics, and the public API shape is fixed now so that those features are additive.
 
 ## Where to go next
 

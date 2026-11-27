@@ -249,7 +249,7 @@ Rule: every API group has an interface and the client has one where the language
 
 ## Known limitations and out of scope
 
-Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50).
+Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; 3.2 documents load through the shared parser extension (D150).
 
 These java gaps are known:
 

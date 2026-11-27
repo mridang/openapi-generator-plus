@@ -447,7 +447,7 @@ Test: `BetterPHPCodegenTest` (every-operation flag, which fields read the enviro
 
 - Model fields of `format: byte` hold the base64 text (`?string`), with raw bytes through `getXAsBytes()` and `setXFromBytes()`; the other eleven hold native bytes. Decode validation is decided (D58) but the representation difference is deferred, so the root "native bytes in memory in all 12" sentence is false for php.
 - Deferred: schema-constraint enforcement (S3), SOCKS proxies (README), the missing `LICENSE` file, per-call cancellation (S7), webhooks, callbacks, XML, Link Objects and mutual TLS (S11, closed #53, #70, #78, #88, #90).
-- Loading OpenAPI 3.2 documents and the 3.1 and 3.2 feature backlog are tracked as epics #49 (3.2) and #96 (3.1); loading 3.2 is #50 (the pinned swagger-parser rejects it).
+- Loading OpenAPI 3.2 documents and the 3.1 and 3.2 feature backlog are tracked as epics #49 (3.2) and #96 (3.1); 3.2 documents load through the shared parser extension (D150).
 - Pending in the golden although decided: S1, D17, D20, D47, D54, D74, D81. D73, D77 and the batch 6 items below are done in the templates and wait for golden regeneration.
 - Not run by a spec: the warnings-fatal phpDocumentor docs build (`make docs`, deferred).
 - Typed `int64` values above 2^53 lose precision through Symfony's `float` step (README caveat; not fixable without changing the wire layer).

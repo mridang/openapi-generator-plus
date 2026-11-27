@@ -407,7 +407,7 @@ Test: `base_api_test` (pagination 007, 008, 023, 027).
 
 Cancellation has no per-call handle in dart today (see S7 above). Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only; `shift_jis` and the other multi-byte or iso-8859-x labels fall back to lenient UTF-8, because dart has no multi-charset stdlib (partial). Repeated multipart scalar parts carry `content-type: text/plain; charset=utf-8` (deferred, low priority). Bare `number` is a lossy `double` (`format: decimal` is an exact `Decimal`). A top-level response body that is a single bare decimal number is read from its double, because the source text is recorded per holding map or list. `format: byte` and `binary` map to `Uint8List`. SOCKS proxies are rejected. The warnings-fatal `make docs` target exists in the generated Makefile but no spec runs it (deferred). Model reuse across oneOf unions is under S4 (intended, not landed); allOf inheritance has landed.
 
-Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): callbacks and webhooks, XML bodies and XML `nodeType`, Link Objects, mutual TLS; the README says so under "Not supported". OpenAPI 3.2 and 3.1 support is tracked in epics #49 (3.2) and #96 (3.1) with sub-issues in #50-#100; loading 3.2 documents is #50, because the pinned swagger-parser rejects 3.2.
+Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): callbacks and webhooks, XML bodies and XML `nodeType`, Link Objects, mutual TLS; the README says so under "Not supported". OpenAPI 3.2 and 3.1 support is tracked in epics #49 (3.2) and #96 (3.1) with sub-issues in #50-#100; 3.2 documents load through the shared parser extension (D150).
 
 ## Build-breaking rules
 

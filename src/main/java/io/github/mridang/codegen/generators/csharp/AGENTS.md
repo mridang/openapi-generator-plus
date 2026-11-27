@@ -307,7 +307,7 @@ Rule: every API group has an interface and the client has one where the language
 - The docfx build is not run by any spec, and the Makefile target vocabulary is not yet agreed across the twelve.
 - A required-property check before dispatch for models missing required fields is deferred (D68).
 - OAuth2 authenticator `ToString` omits `refreshUrl` and is not harmonised; the sync `GetAuthHeaders` throws on OAuth flows, which the other languages should copy (is open for node, dart, go and rust).
-- OpenAPI 3.1 and 3.2 support is tracked in epics #49 (3.2) and #96 (3.1); loading 3.2 documents is issue #50 because the pinned swagger-parser rejects it. Out of scope: callbacks, webhooks, XML, Link Objects, mutual TLS (issues #53, #70, #78, #88, #90).
+- OpenAPI 3.1 and 3.2 support is tracked in epics #49 (3.2) and #96 (3.1); 3.2 documents load through the shared parser extension (D150). Out of scope: callbacks, webhooks, XML, Link Objects, mutual TLS (issues #53, #70, #78, #88, #90).
 
 ## Build-breaking rules
 

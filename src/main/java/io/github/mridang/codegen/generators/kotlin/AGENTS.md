@@ -307,7 +307,7 @@ Rule: every API group has an interface and the client has one where the language
 - OAuth percent-encoding of `~ * ! ' ( )` in the token body, the Basic header and the authorize URL still follows the stdlib encoder in kotlin (D52 covers query and form bodies only); that is a latent, deferred item.
 - The per-model oneOf/anyOf no-match message for kotlin is `No anyOf variant of <X> matched the response body`; it differs from the other eleven and is documented, not harmonised.
 - The debug string field sets of the OAuth2 authenticators differ per language, not harmonised.
-- OpenAPI 3.1 and 3.2 features follow the epics #96 (3.1) and #49 (3.2); loading 3.2 documents is #50 because the pinned swagger-parser rejects it. SOCKS proxies are not supported (the README says so).
+- OpenAPI 3.1 and 3.2 features follow the epics #96 (3.1) and #49 (3.2); 3.2 documents load through the shared parser extension (D150). SOCKS proxies are not supported (the README says so).
 - F287 (constructor shape drift, `refreshUrl` position) is done for kotlin; F332 (binary responses stream-typed) is done for kotlin.
 - Redirect refusals, the too-many-redirects message, `Invalid timeout` and the serializer messages now use the D16, D77 and D15 wording.
 - Not classified: D68 (a model missing required properties cannot be built) is marked "Needs user" for java, node and rust and "already canonical" for kotlin; the owner has not decided it.

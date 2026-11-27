@@ -274,7 +274,7 @@ Rule: every API group has an interface and the client has one where the language
 - No per-call cancellation handle; a timeout is the only bound (S7 realisation above).
 - No SOCKS proxy: `proxy` accepts `http://` and `https://` only.
 - Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11, closed issues #53, #70, #78, #88, #90); the README says so.
-- OpenAPI 3.2 and 3.1 loading is tracked in epics #49 and #96, 3.2 documents in #50.
+- OpenAPI 3.2 and 3.1 features are tracked in epics #49 and #96; 3.2 documents load through the shared parser extension (D150).
 - A `BigDecimal` keeps no trailing zero, so `parse_json` reads through `ScaledDecimal` and `parse_decimal_string` through `scaled_decimal`, which record the decimal places of the text in `WRITTEN_SCALE` (an `ObjectSpace::WeakMap`, identity keys); `decimal_to_plain` pads back to them, so `12.50` stays `12.50` (misc088).
 - Connection reuse is open for ruby: Faraday's default `net_http` adapter opens a connection per request; keep-alive would need `net_http_persistent`, an owner decision. The misleading code comment was removed.
 - `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (parked).

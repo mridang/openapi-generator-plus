@@ -328,7 +328,7 @@ Limits: a decimal inside a `oneOf` or `anyOf` member, or in a body decoded by th
 
 ## Known limitations and out of scope
 
-Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and loading 3.2 documents is issue #50 (the pinned swagger-parser rejects it).
+Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and 3.2 documents load through the shared parser extension (D150).
 
 SOCKS proxies are rejected at construction (only `http://` and `https://`); enabling them needs extra reqwest features in all twelve. The SDK ships no `LICENSE` file.
 

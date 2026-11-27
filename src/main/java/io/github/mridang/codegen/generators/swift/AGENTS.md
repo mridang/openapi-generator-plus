@@ -417,7 +417,7 @@ Where the id, offset and page-number runtime lives: `ofCursor(..., hasMore:)`, `
 - Declared-charset decoding is lenient UTF-8 with a fallback; windows-1252, shift_jis and iso-8859-x bodies can decode as mojibake (open for swift).
 - The required date parameter guard has no petstore fixture (needs a spec change). Generated tests no longer compare non-optional values to `nil` or test always-true casts. `swift build -strict-concurrency=complete` (`make analyse`) is run by no spec; test sources get weaker strictness than sources (deferred).
 - The API surface harmonisation of `ConfigurationError` is parked.
-- Out of scope: webhooks, callbacks, XML, Link Objects, mutual TLS (S11). OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49; loading 3.2 is #50.
+- Out of scope: webhooks, callbacks, XML, Link Objects, mutual TLS (S11). OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49; 3.2 documents load through the shared parser extension (D150).
 
 ## Build-breaking rules
 
