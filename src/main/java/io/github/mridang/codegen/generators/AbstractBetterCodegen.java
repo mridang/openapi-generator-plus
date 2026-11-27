@@ -797,7 +797,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         putInfoMetadata(openAPI.getInfo());
         responseSummaries = RawSpecReader.responseSummaries(getInputSpec());
-        System.err.println("DBG76 spec=" + getInputSpec() + " n=" + responseSummaries.size());
         computeSchemeEnvVars(openAPI);
         // Webhooks are out of scope (S11); the stock generator would write each one into an API
         // class as an ordinary operation and overwrite the untagged operations of the document.
@@ -7044,7 +7043,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
         }
-        System.err.println("DBG76 key=" + httpMethod + " " + path + " known=" + responseSummaries.keySet());
         final Map<String, String> summaries =
                 responseSummaries.get(httpMethod.toUpperCase(Locale.ROOT) + " " + path);
         if (summaries != null) {
