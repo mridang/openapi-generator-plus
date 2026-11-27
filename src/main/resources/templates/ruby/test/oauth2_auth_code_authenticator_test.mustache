@@ -81,13 +81,6 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     URI.decode_www_form(URI(url).query.to_s).to_h
   end
 
-  it 'bhv_misc_078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce' do
-    params = pkce_challenge_of(auth.build_authorization_url('s'))
-    _(params['code_challenge_method']).must_equal 'S256'
-    _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
-    _(params).wont_include 'nonce'
-  end
-
   it 'bhv_authoauthtwoauthcode_023 adds an S256 code challenge to the authorization URL and no nonce' do
     params = pkce_challenge_of(auth.build_authorization_url('s'))
     _(params['code_challenge_method']).must_equal 'S256'

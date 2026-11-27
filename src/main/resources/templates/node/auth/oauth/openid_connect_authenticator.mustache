@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import type { ApiClient } from '../../api-client{{importFileExtension}}';
-import { ApiError, SerializationError } from '../../errors/index{{importFileExtension}}';
+import { ApiError, OAuth2TokenError, SerializationError } from '../../errors/index{{importFileExtension}}';
 import type { HttpAwareAuthenticator } from '../http-aware-authenticator{{importFileExtension}}';
 import { OAuth2AuthorizationCodeAuthenticator, type PkceState } from './oauth2-authorization-code-authenticator{{importFileExtension}}';
 import { OAuth2TokenManager } from './oauth2-token-manager{{importFileExtension}}';
@@ -11,6 +11,12 @@ import { OAuth2TokenManager } from './oauth2-token-manager{{importFileExtension}
  *
  * Fetches the OIDC discovery document to discover the authorization and
  * token endpoints, then delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
+ *
+ * Each authorization URL carries a fresh `nonce`. The code exchange validates
+ * the claims of the `id_token` in the token response: the nonce of the
+ * authorization URL, the discovered issuer, the client id in the audience and
+ * an expiry that has not passed (60 seconds of clock skew are allowed). The
+ * signature of the id_token is not verified.
  *
  * Implements {@link HttpAwareAuthenticator} so that both the discovery
  * request and subsequent token exchange requests use the shared
@@ -33,12 +39,18 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private readonly tokenManager = new OAuth2TokenManager();
   /* The PKCE verifier of the last authorization URL outlives rediscovery too. */
   private readonly pkce: PkceState = { verifier: null };
+  /* The issuer named by the last discovery document, null when it named none. */
+  private discoveredIssuer: string | null = null;
+  /* The nonce of the last authorization URL built, until the exchange uses it. */
+  private pendingNonce: string | null = null;
 
   /** RFC 8414 recommended default max-age for OIDC discovery documents. */
   private static readonly DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
   private static readonly MAX_AGE_PATTERN = /max-age=(\d+)/i;
   /** Longest discovery max-age (one year, in seconds) a server may claim. */
   private static readonly MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000;
+  /** Clock skew (seconds) allowed when checking the expiry of an id_token. */
+  private static readonly ID_TOKEN_CLOCK_SKEW_SECONDS = 60;
 
   /**
    * Create a new OpenID Connect authenticator.
@@ -194,6 +206,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     );
     delegate.setApiClient(this.apiClient);
     this.delegate = delegate;
+    this.discoveredIssuer = typeof discovery.issuer === 'string' ? discovery.issuer : null;
     this.discoveryExpiry =
       Date.now() +
       OpenIdConnectAuthenticator.parseMaxAge(response.headers) * 1000;
@@ -271,7 +284,12 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    */
   async buildAuthorizationUrl(state?: string): Promise<string> {
     const delegate = await this.getDelegate();
-    return delegate.buildAuthorizationUrl(state);
+    const url = delegate.buildAuthorizationUrl(state);
+    /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+     * request; the exchange checks it once. 32 random bytes, base64url. */
+    const nonce = Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    this.pendingNonce = nonce;
+    return `${url}&nonce=${nonce}`;
   }
 
   /**
@@ -281,7 +299,67 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    */
   async exchangeCode(code: string): Promise<void> {
     const delegate = await this.getDelegate();
-    await delegate.exchangeCode(code);
+    const nonce = this.pendingNonce;
+    this.pendingNonce = null;
+    const issuer = this.discoveredIssuer;
+    await delegate.exchangeCodeCheckingIdToken(code, (idToken) => this.validateIdToken(idToken, nonce, issuer));
+  }
+
+  /**
+   * Validate the claims of the id_token of a code exchange (OpenID Connect
+   * Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+   * discovered issuer, the client id in the audience and the expiry. A
+   * response without an id_token is not checked. The payload is decoded
+   * without verifying the signature.
+   *
+   * @throws OAuth2TokenError if a claim does not hold
+   */
+  private validateIdToken(idToken: string | null, nonce: string | null, issuer: string | null): void {
+    if (idToken === null) {
+      return;
+    }
+    const claims = OpenIdConnectAuthenticator.decodeIdToken(idToken);
+    if (nonce !== null && claims.nonce !== nonce) {
+      throw new OAuth2TokenError('The id_token nonce does not match the authorization request');
+    }
+    if (issuer === null || typeof claims.iss !== 'string' || claims.iss !== issuer) {
+      throw new OAuth2TokenError('The id_token issuer does not match the discovered issuer');
+    }
+    const aud = claims.aud;
+    const audienceMatches =
+      aud === this.clientId || (Array.isArray(aud) && aud.some((entry) => entry === this.clientId));
+    if (!audienceMatches) {
+      throw new OAuth2TokenError('The id_token audience does not contain the client id');
+    }
+    const exp = claims.exp;
+    if (typeof exp !== 'number' || !Number.isFinite(exp)) {
+      throw new OAuth2TokenError('The id_token is malformed');
+    }
+    if (Date.now() / 1000 >= exp + OpenIdConnectAuthenticator.ID_TOKEN_CLOCK_SKEW_SECONDS) {
+      throw new OAuth2TokenError('The id_token has expired');
+    }
+  }
+
+  /**
+   * The claims of a compact JWS: the second segment, base64url-decoded JSON.
+   *
+   * @throws OAuth2TokenError if the id_token is not a decodable JWT
+   */
+  private static decodeIdToken(idToken: string): Record<string, unknown> {
+    const parts = idToken.split('.');
+    if (parts.length !== 3 || !/^[A-Za-z0-9_-]*$/.test(parts[1])) {
+      throw new OAuth2TokenError('The id_token is malformed');
+    }
+    let claims: unknown;
+    try {
+      claims = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.from(parts[1], 'base64url')));
+    } catch {
+      throw new OAuth2TokenError('The id_token is malformed');
+    }
+    if (claims == null || typeof claims !== 'object' || Array.isArray(claims)) {
+      throw new OAuth2TokenError('The id_token is malformed');
+    }
+    return claims as Record<string, unknown>;
   }
 
   /**

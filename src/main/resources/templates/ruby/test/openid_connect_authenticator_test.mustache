@@ -607,6 +607,13 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)).must_equal challenge
   end
 
+  it 'bhv_misc_078 an OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce' do
+    params = query_of(oidc_authenticator(FakeOidcClient.new([discovery_response])).build_authorization_url('s'))
+    _(params['code_challenge_method']).must_equal 'S256'
+    _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(params['nonce']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+  end
+
   it 'bhv_authoidc_015 drops the cached access token on invalidate_access_token and refreshes' do
     refreshed = { status: 200, body: { 'access_token' => 'oidc_tok2', 'expires_in' => 3600 } }
     client = FakeOidcClient.new([discovery_response, token_response, refreshed])
@@ -676,5 +683,93 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
       auth.build_authorization_url
       _(discovery_requests(client).length).must_equal 1
     end
+  end
+
+  def query_of(url)
+    URI.decode_www_form(URI(url).query.to_s).to_h
+  end
+
+  # An unsigned compact JWT whose payload is the given claims.
+  def id_token(claims)
+    parts = [{ 'alg' => 'none' }, claims].map { |part| Base64.urlsafe_encode64(part.to_json, padding: false) }
+    (parts + ['sig']).join('.')
+  end
+
+  # Claims that pass every check for the given nonce, with the overrides applied.
+  def claims(nonce, overrides = {})
+    { 'iss' => 'https://auth.example.com', 'aud' => 'my_client_id',
+      'exp' => Time.now.to_i + 3600, 'nonce' => nonce }.merge(overrides)
+  end
+
+  # An authenticator whose token endpoint answers with the id_token the block
+  # builds from the nonce of the authorization URL.
+  def authenticator_returning
+    discovery = { status: 200, body: discovery_response[:body].merge('issuer' => 'https://auth.example.com') }
+    client = FakeOidcClient.new([discovery])
+    auth = oidc_authenticator(client)
+    nonce = query_of(auth.build_authorization_url('s'))['nonce']
+    client.instance_variable_set(:@responses, [{ status: 200, body: { 'access_token' => 'oidc_tok', 'expires_in' => 3600,
+                                                                         'id_token' => yield(nonce) } }])
+    auth
+  end
+
+  it 'bhv_authoidc_034 each authorization URL carries a fresh nonce' do
+    auth = oidc_authenticator(FakeOidcClient.new([discovery_response]))
+
+    first = query_of(auth.build_authorization_url('s'))['nonce']
+    second = query_of(auth.build_authorization_url('s'))['nonce']
+
+    _(first).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(second).wont_equal first
+  end
+
+  it 'bhv_authoidc_035 accepts an id_token with the nonce, the discovered issuer, the client id and a future expiry' do
+    auth = authenticator_returning { |nonce| id_token(claims(nonce, 'aud' => %w[other my_client_id])) }
+
+    auth.exchange_code('oidc_code_123')
+
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer oidc_tok'
+  end
+
+  it 'bhv_authoidc_036 rejects an id_token whose nonce differs from the authorization URL' do
+    auth = authenticator_returning { |nonce| id_token(claims(nonce, 'nonce' => 'replayed')) }
+
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) { auth.exchange_code('oidc_code_123') }
+    _(err.message).must_equal 'The id_token nonce does not match the authorization request'
+  end
+
+  it 'bhv_authoidc_037 rejects an id_token whose issuer differs from the discovered issuer' do
+    auth = authenticator_returning { |nonce| id_token(claims(nonce, 'iss' => 'https://evil.example.com')) }
+
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) { auth.exchange_code('oidc_code_123') }
+    _(err.message).must_equal 'The id_token issuer does not match the discovered issuer'
+  end
+
+  it 'bhv_authoidc_038 rejects an id_token whose audience does not contain the client id' do
+    auth = authenticator_returning { |nonce| id_token(claims(nonce, 'aud' => 'other_client')) }
+
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) { auth.exchange_code('oidc_code_123') }
+    _(err.message).must_equal 'The id_token audience does not contain the client id'
+  end
+
+  it 'bhv_authoidc_039 rejects an id_token that expired beyond the clock skew' do
+    auth = authenticator_returning { |nonce| id_token(claims(nonce, 'exp' => Time.now.to_i - 120)) }
+
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) { auth.exchange_code('oidc_code_123') }
+    _(err.message).must_equal 'The id_token has expired'
+  end
+
+  it 'bhv_authoidc_040 rejects an id_token that is not a decodable JWT' do
+    auth = authenticator_returning { |_nonce| 'not-a-jwt' }
+
+    err = assert_raises({{moduleName}}::Errors::OAuth2TokenError) { auth.exchange_code('oidc_code_123') }
+    _(err.message).must_equal 'The id_token is malformed'
+  end
+
+  it 'bhv_authoidc_041 leaves no session behind when the id_token is rejected' do
+    auth = authenticator_returning { |nonce| id_token(claims(nonce, 'nonce' => 'replayed')) }
+    assert_raises({{moduleName}}::Errors::OAuth2TokenError) { auth.exchange_code('oidc_code_123') }
+
+    assert_raises(RuntimeError) { auth.auth_headers }
   end
 end

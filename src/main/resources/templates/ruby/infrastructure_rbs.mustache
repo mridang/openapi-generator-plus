@@ -903,6 +903,7 @@
         def invalidate_access_token: () -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
+        def exchange_code_checking_id_token: (String) ?{ (String?) -> void } -> void
       end
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Implicit}}
@@ -919,6 +920,7 @@
         include HttpAwareAuthenticator
         DEFAULT_DISCOVERY_MAX_AGE_SECONDS: Integer
         MAX_DISCOVERY_MAX_AGE_SECONDS: Integer
+        ID_TOKEN_CLOCK_SKEW_SECONDS: Integer
         def initialize: (String, String, String, String, String, Array[String]) -> void
         attr_writer api_client: ApiClient?
         def build_authorization_url: (?String?) -> String
@@ -931,6 +933,9 @@
         def validate_discovery!: (Hash[String, untyped], untyped, untyped) -> void
         def secure_endpoint?: (String) -> bool
         def parse_discovery: (String?) -> Hash[String, untyped]
+        def validate_id_token: (String?, String?, String?) -> void
+        def decode_id_token: (String) -> Hash[String, untyped]
+        def audience_contains?: (untyped) -> bool
       end
 {{/hasOpenIdConnect}}
 
@@ -941,7 +946,7 @@
         attr_reader refresh_token: String?
         def initialize: () -> void
         def get_access_token: (String, Hash[String, String], ?Hash[String, String], ?refresh_url: String?) -> String
-        def exchange: (String, Hash[String, String], ?Hash[String, String]) -> String
+        def exchange: (String, Hash[String, String], ?Hash[String, String]) ?{ (String?) -> void } -> String
         def access_token=: (String) -> void
         def invalidate_access_token: () -> void
         def mark_exchanged: () -> void

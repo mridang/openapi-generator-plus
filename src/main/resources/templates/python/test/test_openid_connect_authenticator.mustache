@@ -14,12 +14,15 @@ from {{packageName}}.auth.oauth.openid_connect_authenticator import OpenIdConnec
 from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
 from {{packageName}}.errors.not_found_exception import NotFoundException
 from {{packageName}}.errors import ApiException, SerializationException
+from {{packageName}}.errors.oauth2_token_exception import OAuth2TokenException
 from {{packageName}}.api_http_response import ApiHttpResponse
 
 
-def _without_pkce(url: str) -> str:
-    """The authorization URL without its trailing PKCE challenge parameters."""
-    return re.sub(r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$', '', url)
+def _without_pkce_and_nonce(url: str) -> str:
+    """The authorization URL without its trailing PKCE challenge and nonce."""
+    return re.sub(
+        r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256&nonce=[A-Za-z0-9_-]{43}$', '', url
+    )
 
 
 def _create_authenticator() -> OpenIdConnectAuthenticator:
@@ -644,7 +647,7 @@ class TestOidcAuthorizationUrl:
     def test_bhv_authoidc_022_the_authorization_url_always_requests_the_openid_scope_once(self) -> None:
         auth, _ = _create_authenticator_with_discovery()
 
-        assert _without_pkce(auth.build_authorization_url()) == (
+        assert _without_pkce_and_nonce(auth.build_authorization_url()) == (
             "https://auth.example.com/authorize?response_type=code"
             "&client_id=oidc_client"
             "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
@@ -664,7 +667,7 @@ class TestSsoAuthWrapper:
         mock_client = _discovery_client(None)
         auth.set_api_client(mock_client)
 
-        assert _without_pkce(auth.build_authorization_url()) == (
+        assert _without_pkce_and_nonce(auth.build_authorization_url()) == (
             "https://auth.example.com/authorize?response_type=code&client_id=cid"
             "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=openid"
         )
@@ -728,14 +731,14 @@ class TestOidcPkceAndInvalidation:
         # second build reuses it and sends no new discovery request.
         assert len(discovery_requests) == 0
 
-    def test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce(self) -> None:
+    def test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_a_nonce(self) -> None:
         auth, _ = _create_authenticator_with_discovery()
 
         params = parse_qs(urlparse(auth.build_authorization_url()).query)
 
         assert params['code_challenge_method'] == ['S256']
         assert re.fullmatch(r'[A-Za-z0-9_-]{43}', params['code_challenge'][0])
-        assert 'nonce' not in params
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', params['nonce'][0])
 
     def test_bhv_authoidc_021_a_rediscovery_that_names_new_endpoints_keeps_the_verifier(self) -> None:
         from unittest.mock import patch
@@ -779,6 +782,7 @@ class TestOidcPkceAndInvalidation:
         digest = hashlib.sha256(verifier.encode('ascii')).digest()
         challenge = base64.urlsafe_b64encode(digest).rstrip(b'=').decode('ascii')
         assert challenge == params['code_challenge'][0]
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', params['nonce'][0])
 
     def test_bhv_auth_002_invalidating_before_any_discovery_does_nothing(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
@@ -811,3 +815,113 @@ class TestOidcPkceAndInvalidation:
 
         assert auth.get_auth_headers() == {'Authorization': 'Bearer t2'}
         assert 'refresh_token=r1' in mock_client.send_request.call_args[0][3]
+
+
+def _id_token(claims: dict[str, Any]) -> str:
+    """An unsigned compact JWT whose payload is the given claims."""
+
+    def encode(value: dict[str, Any]) -> str:
+        return base64.urlsafe_b64encode(json.dumps(value).encode('utf-8')).rstrip(b'=').decode('ascii')
+
+    return f"{encode({'alg': 'none'})}.{encode(claims)}.sig"
+
+
+def _claims(nonce: str, **overrides: Any) -> dict[str, Any]:
+    """Claims that pass every check for the given nonce, with the overrides applied."""
+    claims: dict[str, Any] = {
+        'iss': 'https://auth.example.com',
+        'aud': 'oidc_client',
+        'exp': int(time.time()) + 3600,
+        'nonce': nonce,
+    }
+    claims.update(overrides)
+    return claims
+
+
+def _authenticator_returning(id_token_for_nonce: Any) -> OpenIdConnectAuthenticator:
+    """An authenticator whose token endpoint answers with the id_token built from the URL's nonce."""
+    auth, mock_client = _create_authenticator_with_discovery()
+    nonce = parse_qs(urlparse(auth.build_authorization_url('s')).query)['nonce'][0]
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps({
+            'access_token': 'oidc-tok',
+            'expires_in': 3600,
+            'id_token': id_token_for_nonce(nonce),
+        }),
+        headers={'content-type': 'application/json'},
+    )
+    return auth
+
+
+class TestOidcIdTokenValidation:
+
+    def test_bhv_authoidc_034_each_authorization_url_carries_a_fresh_nonce(self) -> None:
+        auth, _ = _create_authenticator_with_discovery()
+
+        first = parse_qs(urlparse(auth.build_authorization_url('s')).query)['nonce'][0]
+        second = parse_qs(urlparse(auth.build_authorization_url('s')).query)['nonce'][0]
+
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', first)
+        assert first != second
+
+    def test_bhv_authoidc_035_an_id_token_with_valid_claims_is_accepted(self) -> None:
+        auth = _authenticator_returning(
+            lambda nonce: _id_token(_claims(nonce, aud=['other', 'oidc_client']))
+        )
+
+        auth.exchange_code('oidc-code')
+
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer oidc-tok'
+
+    def test_bhv_authoidc_036_an_id_token_with_another_nonce_is_rejected(self) -> None:
+        auth = _authenticator_returning(lambda nonce: _id_token(_claims(nonce, nonce='replayed')))
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token nonce does not match the authorization request'
+
+    def test_bhv_authoidc_037_an_id_token_from_another_issuer_is_rejected(self) -> None:
+        auth = _authenticator_returning(
+            lambda nonce: _id_token(_claims(nonce, iss='https://evil.example.com'))
+        )
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token issuer does not match the discovered issuer'
+
+    def test_bhv_authoidc_038_an_id_token_for_another_audience_is_rejected(self) -> None:
+        auth = _authenticator_returning(lambda nonce: _id_token(_claims(nonce, aud='other-client')))
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token audience does not contain the client id'
+
+    def test_bhv_authoidc_039_an_expired_id_token_is_rejected(self) -> None:
+        auth = _authenticator_returning(
+            lambda nonce: _id_token(_claims(nonce, exp=int(time.time()) - 120))
+        )
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token has expired'
+
+    def test_bhv_authoidc_040_a_malformed_id_token_is_rejected(self) -> None:
+        auth = _authenticator_returning(lambda nonce: 'not-a-jwt')
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token is malformed'
+
+    def test_bhv_authoidc_041_a_rejected_id_token_leaves_no_session(self) -> None:
+        auth = _authenticator_returning(lambda nonce: _id_token(_claims(nonce, nonce='replayed')))
+        with pytest.raises(OAuth2TokenException):
+            auth.exchange_code('oidc-code')
+
+        with pytest.raises(RuntimeError):
+            auth.get_auth_headers()
