@@ -929,7 +929,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task BhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce()
+    public async Task BhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndANonce()
     {
         var client = new FakeApiClient();
         client.Enqueue(
@@ -943,6 +943,148 @@ public class OpenIdConnectAuthenticatorTest
 
         Assert.Equal("S256", query["code_challenge_method"]);
         Assert.Matches("^[A-Za-z0-9_-]{43}$", query["code_challenge"]!);
-        Assert.Null(query["nonce"]);
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", query["nonce"]!);
+    }
+
+    private const string IssuerDiscovery =
+        "{\"issuer\":\"https://auth.example.com\","
+            + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+
+    private static string Base64Url(string text)
+    {
+        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    /* An unsigned compact JWT whose payload is the given claims. */
+    private static string IdToken(string claims)
+    {
+        return Base64Url("{\"alg\":\"none\"}") + "." + Base64Url(claims) + ".sig";
+    }
+
+    /* Claims that pass every check for the given nonce, with one claim replaced when named. */
+    private static string Claims(string nonce, string name = "", string value = "")
+    {
+        var claims = new List<KeyValuePair<string, string>>
+        {
+            new("iss", "\"https://auth.example.com\""),
+            new("aud", "\"my-client-id\""),
+            new("exp", (DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 3600).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new("nonce", "\"" + nonce + "\""),
+        };
+        int at = claims.FindIndex(c => c.Key == name);
+        if (at >= 0)
+        {
+            claims[at] = new(name, value);
+        }
+        return "{" + string.Join(",", claims.Select(c => "\"" + c.Key + "\":" + c.Value)) + "}";
+    }
+
+    /* An authenticator that has built an authorization URL and whose token endpoint
+       answers with the id_token that the function builds from the URL's nonce. */
+    private static async Task<OpenIdConnectAuthenticator> AuthenticatorReturning(Func<string, string> idTokenForNonce)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(IssuerDiscovery);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        string nonce = System.Web.HttpUtility.ParseQueryString(url.Query)["nonce"]!;
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600,\"id_token\":\"" + idTokenForNonce(nonce) + "\"}");
+        return auth;
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc034EachAuthorizationUrlCarriesAFreshNonce()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(IssuerDiscovery);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri first = await auth.BuildAuthorizationUrlAsync("s");
+        Uri second = await auth.BuildAuthorizationUrlAsync("s");
+
+        string? firstNonce = System.Web.HttpUtility.ParseQueryString(first.Query)["nonce"];
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", firstNonce!);
+        Assert.NotEqual(firstNonce, System.Web.HttpUtility.ParseQueryString(second.Query)["nonce"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc035AnIdTokenWithValidClaimsIsAccepted()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "aud", "[\"other\",\"my-client-id\"]")));
+
+        await auth.ExchangeCodeAsync("oidc-code");
+
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc036AnIdTokenWithAnotherNonceIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "nonce", "\"replayed\"")));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token nonce does not match the authorization request", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc037AnIdTokenFromAnotherIssuerIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "iss", "\"https://evil.example.com\"")));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token issuer does not match the discovered issuer", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc038AnIdTokenForAnotherAudienceIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "aud", "\"other-client\"")));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token audience does not contain the client id", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc039AnExpiredIdTokenIsRejected()
+    {
+        string expired = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 120).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "exp", expired)));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token has expired", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc040AMalformedIdTokenIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(_ => "not-a-jwt");
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token is malformed", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc041ARejectedIdTokenLeavesNoSession()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "nonce", "\"replayed\"")));
+        await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
     }
 }

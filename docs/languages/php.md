@@ -181,6 +181,7 @@ try {
 - Operations are blocking only, as a plain method call, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 - An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- The OpenID Connect authenticator sends a fresh nonce with each authorization URL and checks the `id_token` claims (nonce, issuer, audience, expiry with 60 seconds of clock skew) on the code exchange, but it does not verify the token's signature, by decision D140. Signature checking can be added later without changing the public API, because the discovery document already names the provider's `jwks_uri`.
 
 ## Under review
 

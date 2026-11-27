@@ -180,7 +180,18 @@ public class OAuth2AuthorizationCodeAuthenticator
     /// Exchanges an authorization code for an access token.
     /// </summary>
     /// <param name="code">The authorization code from the callback.</param>
-    public async Task ExchangeCodeAsync(string code)
+    public Task ExchangeCodeAsync(string code)
+    {
+        return ExchangeCodeAsync(code, null);
+    }
+
+    /// <summary>
+    /// Exchanges an authorization code, handing the response's id_token to a
+    /// check before the session is kept. OpenID Connect uses this.
+    /// </summary>
+    /// <param name="code">The authorization code from the callback.</param>
+    /// <param name="idTokenCheck">A check of the id_token, or null for none.</param>
+    internal async Task ExchangeCodeAsync(string code, Action<string?>? idTokenCheck)
     {
         /* Reject an empty/whitespace authorization code before issuing the
          * token POST: an empty code is a programmer/precondition error that
@@ -210,7 +221,7 @@ public class OAuth2AuthorizationCodeAuthenticator
         /* Always POST the authorization_code grant: the exchange bypasses
          * the token cache and the refresh path, replaces the session on
          * success and keeps the previous session when the code is rejected. */
-        _ = await _tokenManager.ExchangeAsync(_tokenUrl, parameters).ConfigureAwait(false);
+        _ = await _tokenManager.ExchangeAsync(_tokenUrl, parameters, idTokenCheck: idTokenCheck).ConfigureAwait(false);
         _tokenExchanged = true;
         _pkceVerifier = null;
     }

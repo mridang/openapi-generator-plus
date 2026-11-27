@@ -193,12 +193,17 @@ class OAuth2TokenManager {
      * @param tokenUrl the OAuth2 token endpoint URL
      * @param params the token request parameters, sent unchanged
      * @param extraHeaders additional headers to include on the token request
+     * @param idTokenCheck a check of the response's `id_token` (null when it carried
+     *   none, an empty string when it was not a JSON string), run before the session
+     *   is kept; when it throws, the previous session is restored. OpenID Connect
+     *   uses it to validate the id_token.
      * @return the new access token
      */
     suspend fun exchange(
         tokenUrl: String,
         params: Map<String, String>,
         extraHeaders: Map<String, String> = emptyMap(),
+        idTokenCheck: ((String?) -> Unit)? = null,
     ): String =
         refreshMutex.withLock {
             requireRunning()
@@ -210,7 +215,9 @@ class OAuth2TokenManager {
             refreshToken = null
             try {
                 fetchToken(tokenUrl, params, extraHeaders)
-                accessToken ?: throw OAuth2TokenException("Token fetch did not return an access token")
+                val token = accessToken ?: throw OAuth2TokenException("Token fetch did not return an access token")
+                idTokenCheck?.invoke(lastIdToken)
+                token
             } catch (e: Throwable) {
                 accessToken = previousAccess
                 tokenExpiryMs = previousExpiry
@@ -241,6 +248,11 @@ class OAuth2TokenManager {
 
     @Volatile
     private var exchanged: Boolean = false
+
+    /** The id_token of the last token response: null when it carried none, an
+     *  empty string when its value was not a JSON string. */
+    @Volatile
+    private var lastIdToken: String? = null
 
     /**
      * Record that an authorization code was exchanged for this session. The
@@ -353,6 +365,12 @@ class OAuth2TokenManager {
             throw OAuth2TokenException("Unsupported token_type in token response")
         }
         this.accessToken = accessTokenElement.content
+        val idTokenElement = jsonObject["id_token"]
+        this.lastIdToken = when {
+            idTokenElement == null || idTokenElement is JsonNull -> null
+            idTokenElement is JsonPrimitive && idTokenElement.isString -> idTokenElement.content
+            else -> ""
+        }
         if (jsonObject.containsKey("refresh_token")) {
             // Require a JSON string (like access_token above): contentOrNull would
             // otherwise return the text of a numeric/boolean refresh_token, which
