@@ -423,7 +423,7 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 ## D158: An Example Object's `dataValue` and `serializedValue` become its value
 
-**Decision.** In a 3.2 document an Example Object's `dataValue` becomes its `value`, which is what the generated README examples and documentation read. Without a `dataValue`, a `serializedValue` under a JSON media type is parsed into the value (and kept as a string when it is not valid JSON); a `serializedValue` of a parameter, a header or a non-JSON media type is not turned into a value, because it is the serialised form and not the data. An explicit `value` always wins (#79).
+**Decision.** In a 3.2 document an Example Object's `dataValue` becomes its `value`, which is what the generator reads, so a parameter example written with `dataValue` is printed in the generated operation documentation exactly like one written with `value`. Without a `dataValue`, a `serializedValue` under a JSON media type is parsed into the value (and kept as a string when it is not valid JSON); a `serializedValue` of a parameter, a header or a non-JSON media type is not turned into a value, because it is the serialised form and not the data. An explicit `value` always wins (#79).
 
 **Consequences.** A 3.2 example shows the same data in the generated documentation as its 3.1 spelling with `value`.
 

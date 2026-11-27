@@ -79,6 +79,16 @@ paths:
       tags:
         - accounts
       operationId: streamLedgers
+      parameters:
+        - name: prefix
+          in: query
+          description: Only the ledger books whose code starts with this text
+          schema:
+            type: string
+          examples:
+            opening:
+              summary: Opening books
+              dataValue: OPEN-
       responses:
         '200':
           description: Every ledger book, one per line

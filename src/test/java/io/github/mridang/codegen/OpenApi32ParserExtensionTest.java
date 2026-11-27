@@ -176,7 +176,9 @@ class OpenApi32ParserExtensionTest {
         assertAll(
                 () -> assertEquals("OPEN-1", opening.get("code")),
                 () -> assertEquals("CLOSE-9", closing.get("code")),
-                () -> assertEquals("An opening balance", openingExample.getSummary()));
+                () -> assertEquals("An opening balance", openingExample.getSummary()),
+                () -> assertEquals("OPEN-", nn(nn(nn(api.getPaths().get("/ledgers/stream")).getGet()
+                        .getParameters().get(0).getExamples()).get("opening")).getValue()));
     }
 
     @Test
