@@ -81,7 +81,7 @@ Every 3.1 and 3.2 construct, what happens today, and the plan. "Shared" means on
 | C22 | media type `itemSchema` | 3.2 | cannot load | the loader sets `schema` to the item schema (the streaming design types `T` as the schema of the media type) and carries `x-oas32-sequential`; behaviour is the streaming design's `<op>Stream` | #68 |
 | C23 | sequential media types (`application/jsonl`, `application/x-ndjson`, `application/json-seq`, `text/event-stream`) | 3.2 | `OnlyAllowJsonRule` strips them | exactly `docs/design/streaming.md`; this plan adds only the `itemSchema` mapping and the `ONLY_ALLOW_JSON` exemption it already lists | #71, #72 |
 | C24 | response media type chosen among several | 3.0 | `effectiveMediaType` picks the first (`AbstractBetterCodegen.java:3645`) | new per-call choice; needs its own design (R9) | #73; done as D167 (per-call Accept) |
-| C25 | `prefixEncoding`, `itemEncoding` (ordered multipart) | 3.2 | cannot load | carriers; needs its own multipart design (R9) | #69 |
+| C25 | `prefixEncoding`, `itemEncoding` (ordered multipart) | 3.2 | cannot load | carriers; needs its own multipart design (R9) | #69; deferred, D172 |
 | C26 | Encoding Object `headers`; `style`, `explode`, `allowReserved` | 3.0 | contentType only | needs its own design (R9) | #74, #75; done as D165 (style, explode) and D166 (contentType, headers) |
 | C27 | Response Object `summary` | 3.2 | cannot load | carrier; docs only; a response with no `description` is accepted; shared | #76 |
 | C28 | response `headers` as typed fields | 3.0 | raw map only (`ApiHttpResponse.headers`) | needs its own design (R9) | #77; done as D168 |
@@ -151,6 +151,21 @@ oasdocs002 | A deprecated security scheme is marked deprecated in the README and
 Not in the catalogue because they are generator behaviour, not SDK behaviour (they are unit tests, section 7): loading a 3.2 document, dropping webhooks, inlining a path item reference, the verb marker on a carrier operation, every warning, the `licenseId` default, the rules for `const`, `type: "null"`, type arrays and `oneOf` of constants.
 
 `oasparam001` to `oasparam003`, `oasserver001`, `oasserver002` and `oasoperation010` are 3.2 or 3.2-adjacent: their transport-level assertions use the in-process stub that the `DefaultApiClientUnitTest` templates already use (java: `java/test/DefaultApiClientUnitTest.mustache:1950` asserts `isIdempotentMethod("QUERY")` without a server), not chasm.
+
+### 3.4 The unverified inventory rows (issue #67)
+
+Each row was checked against the code and against SDKs generated in all twelve languages from a 3.2 probe document (a path-item parameter overridden by an operation parameter, a 200 response without a description, a `default` response, a request body description, two security requirements, and a security scheme that is a `$ref` to another).
+
+| Row | Result |
+|---|---|
+| `param.rules.unique` | Confirmed: an operation parameter replaces the path-item parameter of the same name and location (the operation's description wins; the other operation keeps the path-item one). Done by the stock `DefaultGenerator` merge. |
+| `param.rules.percent-encoding` | Confirmed: covered by the D52 goldens and the `serializationparam` tests in all twelve. |
+| `reqbody.description` | Confirmed: rendered on the operation in all twelve. |
+| `resp.description` | Confirmed: a 3.2 response without `description` generates in all twelve (the field is not read for code). |
+| `resp.default` | Confirmed for code: a `default` response maps to the error contract (`ApiError` base, declared schema per D123); its description is not documented, as for other responses. |
+| `rule.security.requirement-or` | Confirmed: the requirements of an operation are alternatives (`securityAlternatives`), each tried as in the auth decisions. |
+| `sec.ref` | Was a crash: a security scheme that is a `$ref` reached the generators with no type and failed generation in every language. Fixed (D171): it is replaced by a copy of its target. |
+| `sec.description` | Not rendered: a security scheme's description reaches no generated file. Left open; it needs a doc line in the authenticator template of all twelve. |
 
 ## 4. The shared generator changes
 

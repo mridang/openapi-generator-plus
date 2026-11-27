@@ -1595,4 +1595,32 @@ class AbstractBetterCodegenTest {
                 () -> assertEquals(List.of(Map.of("name", "x-audience", "value", "internal")),
                         deco.get("exposedExtensions")));
     }
+
+    @Test
+    @DisplayName("a security scheme that references another becomes a copy of it, keeping its own description")
+    void aSecuritySchemeReferenceBecomesACopyOfItsTarget() {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths: {}",
+                "components:",
+                "  securitySchemes:",
+                "    Key: {type: apiKey, in: header, name: X-Key, description: The key}",
+                "    Alias: {$ref: '#/components/securitySchemes/Key', description: Same key}",
+                "    Chain: {$ref: '#/components/securitySchemes/Alias'}",
+                "    Loop: {$ref: '#/components/securitySchemes/Loop'}"));
+        AbstractBetterCodegen.inlineSecuritySchemeReferences(api);
+        final Map<String, io.swagger.v3.oas.models.security.SecurityScheme> schemes =
+                Objects.requireNonNull(api.getComponents().getSecuritySchemes());
+        final io.swagger.v3.oas.models.security.SecurityScheme alias = Objects.requireNonNull(schemes.get("Alias"));
+        final io.swagger.v3.oas.models.security.SecurityScheme chain = Objects.requireNonNull(schemes.get("Chain"));
+        assertAll(
+                () -> assertEquals(io.swagger.v3.oas.models.security.SecurityScheme.Type.APIKEY, alias.getType()),
+                () -> assertEquals("X-Key", alias.getName()),
+                () -> assertEquals("Same key", alias.getDescription()),
+                () -> assertNull(alias.get$ref()),
+                () -> assertEquals("X-Key", chain.getName()),
+                () -> assertEquals("#/components/securitySchemes/Loop",
+                        Objects.requireNonNull(schemes.get("Loop")).get$ref()));
+    }
 }

@@ -499,6 +499,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The golden generation lists `x-audience`, which the petstore `getMemo` carries; `OpenApi32ParserExtensionTest` checks all twelve render it from the 3.2 fixture.
 
+## D171: A security scheme that references another is a copy of it
+
+**Decision.** A security scheme in `components.securitySchemes` that is a `$ref` to another scheme there is replaced, before generation, by a copy of the scheme it names, following a chain and keeping a `description` written beside the reference; a reference that loops or names no scheme is left as it is. The parser keeps such an entry with no type, and every one of the twelve generators failed on it (#67, row `sec.ref`).
+
+**Consequences.** The referencing name gets its own authenticator, exactly like a scheme written out in full. The other unverified rows of the 3.2 inventory are recorded in `docs/design/openapi-31-32.md` (section 3.4); the security scheme description is still not rendered.
+
+## D172: Positional multipart parts (`prefixEncoding`, `itemEncoding`) are deferred
+
+**Decision.** The 3.2 `prefixEncoding` and `itemEncoding` describe the parts of a multipart body whose schema is an array: unnamed parts in order, each with its own encoding. The SDKs build multipart bodies only from an object schema (one named part per property), so supporting them needs a new request body kind (an ordered list of unnamed parts, with per-position encoding) in all twelve transports, a new public argument shape, and a fixture that only a 3.2 document can hold, while the petstore must stay 3.1 for the mock server. The per-part machinery it would use (a part's Content-Type and headers) exists since D166. The work is left open in #69 rather than built half-way (#69).
+
+**Consequences.** A 3.2 document that declares them still loads; the keywords are reported by the 3.1 reader and ignored, and such a body is generated as it was before.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

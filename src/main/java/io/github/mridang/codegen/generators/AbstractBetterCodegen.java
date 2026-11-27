@@ -6375,6 +6375,47 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * A security scheme in {@code components} that is a {@code $ref} to another one is replaced
+     * by a copy of the scheme it names (following a chain, stopping at a cycle), keeping a
+     * {@code description} written beside the reference. The parser keeps such an entry with no
+     * type, which every generator would otherwise fail on (#67, {@code sec.ref}).
+     */
+    static void inlineSecuritySchemeReferences(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+        final Map<String, SecurityScheme> schemes = openAPI.getComponents().getSecuritySchemes();
+        final String prefix = "#/components/securitySchemes/";
+        for (final Map.Entry<String, SecurityScheme> entry : schemes.entrySet()) {
+            final SecurityScheme reference = entry.getValue();
+            if (reference == null || reference.get$ref() == null) {
+                continue;
+            }
+            SecurityScheme target = reference;
+            final Set<String> visited = new HashSet<>();
+            while (target != null && target.get$ref() != null && target.get$ref().startsWith(prefix)
+                    && visited.add(target.get$ref())) {
+                target = schemes.get(target.get$ref().substring(prefix.length()));
+            }
+            if (target == null || target.get$ref() != null) {
+                continue;
+            }
+            final SecurityScheme copy = new SecurityScheme()
+                    .type(target.getType())
+                    .description(reference.getDescription() != null
+                            ? reference.getDescription() : target.getDescription())
+                    .name(target.getName())
+                    .in(target.getIn())
+                    .scheme(target.getScheme())
+                    .bearerFormat(target.getBearerFormat())
+                    .flows(target.getFlows())
+                    .openIdConnectUrl(target.getOpenIdConnectUrl());
+            copy.setExtensions(target.getExtensions());
+            entry.setValue(copy);
+        }
+    }
+
+    /**
      * Decodes HTML entities in human-facing doc text across the whole spec,
      * after any normalizer has run and before models/operations are built.
      *
@@ -6397,6 +6438,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     @Override
     public void preprocessOpenAPI(OpenAPI openAPI) {
+        if (openAPI != null) {
+            inlineSecuritySchemeReferences(openAPI);
+        }
         super.preprocessOpenAPI(openAPI);
         if (openAPI == null) {
             return;
