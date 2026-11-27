@@ -165,6 +165,7 @@ A list whose page body carries the next URL in a property (a next URL list) is f
 
 ## Known limits
 
+- The OpenID Connect authenticator checks the nonce, issuer, audience and expiry of the `id_token` but does not verify its signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 - There is no per-call cancellation handle, so the call hook is never told of a cancelled call and the recipe has no `cancelled` error type.
 - Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only. Other charsets such as `shift_jis` fall back to lenient UTF-8, because Dart has no multi-charset standard library.
 - Bare `number` is a lossy `double` (`format: decimal` is an exact `Decimal`), and `int64` beyond 2^53 is lossy on the web.

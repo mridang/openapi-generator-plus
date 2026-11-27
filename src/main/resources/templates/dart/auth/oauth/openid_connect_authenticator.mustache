@@ -1,9 +1,12 @@
 {{>api_info}}
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
 
 import '../../api_client.dart';
 import '../../environment.dart';
 import '../../errors/api_exception.dart';
+import '../../errors/oauth2_token_exception.dart';
 import '../../object_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
@@ -14,6 +17,12 @@ import 'oauth2_authorization_code_authenticator.dart';
 /// Fetches the OIDC discovery document to discover the authorization and
 /// token endpoints, then delegates to an
 /// [OAuth2AuthorizationCodeAuthenticator].
+///
+/// Each authorization URL carries a fresh `nonce`. The code exchange validates
+/// the claims of the `id_token` in the token response: the nonce of the
+/// authorization URL, the discovered issuer, the client id in the audience and
+/// an expiry that has not passed (60 seconds of clock skew are allowed). The
+/// signature of the id_token is not verified.
 ///
 /// Implements [HttpAwareAuthenticator] so that both the discovery request and
 /// subsequent token exchange requests use the shared [ApiClient] with the
@@ -31,6 +40,17 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   String _authorizationEndpoint = '';
   String _tokenEndpoint = '';
   DateTime _discoveryExpiry = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// The issuer named by the last discovery document, or null when it named
+  /// none.
+  String? _discoveredIssuer;
+
+  /// The nonce of the last authorization URL built, until the code exchange
+  /// uses it.
+  String? _pendingNonce;
+
+  /// Clock skew allowed when checking the expiry of an id_token.
+  static const int _idTokenClockSkewSeconds = 60;
 
   /// RFC 8414 recommended default max-age for OIDC discovery documents.
   static const int _defaultDiscoveryMaxAgeSeconds = 86400;
@@ -79,14 +99,86 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   /// Builds the authorization URL using the discovered authorization endpoint.
   Future<String> buildAuthorizationUrl([String state = '']) async {
     final delegate = await _resolveDelegate();
-    return delegate.buildAuthorizationUrl(state);
+    final url = delegate.buildAuthorizationUrl(state);
+    /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+     * request; the exchange checks it once. */
+    final nonce = _newNonce();
+    _pendingNonce = nonce;
+    return '$url&nonce=$nonce';
   }
 
   /// Exchanges an authorization code for tokens using the discovered token
   /// endpoint.
   Future<void> exchangeCode(String code) async {
     final delegate = await _resolveDelegate();
-    await delegate.exchangeCode(code);
+    final nonce = _pendingNonce;
+    _pendingNonce = null;
+    final issuer = _discoveredIssuer;
+    await delegate.exchangeCode(code,
+        idTokenCheck: (idToken) => _validateIdToken(idToken, nonce, issuer));
+  }
+
+  /// Validates the claims of the id_token of a code exchange (OpenID Connect
+  /// Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+  /// discovered issuer, the client id in the audience and the expiry. A
+  /// response without an id_token is not checked. The payload is decoded
+  /// without verifying the signature.
+  void _validateIdToken(String? idToken, String? nonce, String? issuer) {
+    if (idToken == null) {
+      return;
+    }
+    final claims = _decodeIdToken(idToken);
+    if (nonce != null && claims['nonce'] != nonce) {
+      throw OAuth2TokenException(
+          'The id_token nonce does not match the authorization request');
+    }
+    final iss = claims['iss'];
+    if (issuer == null || iss is! String || iss != issuer) {
+      throw OAuth2TokenException(
+          'The id_token issuer does not match the discovered issuer');
+    }
+    final aud = claims['aud'];
+    final audienceMatches = aud is String
+        ? aud == _clientId
+        : aud is List && aud.any((entry) => entry is String && entry == _clientId);
+    if (!audienceMatches) {
+      throw OAuth2TokenException(
+          'The id_token audience does not contain the client id');
+    }
+    final exp = claims['exp'];
+    if (exp is! num) {
+      throw OAuth2TokenException('The id_token is malformed');
+    }
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (now >= exp + _idTokenClockSkewSeconds) {
+      throw OAuth2TokenException('The id_token has expired');
+    }
+  }
+
+  /// The claims of a compact JWS: the second segment, base64url-decoded JSON.
+  static Map<String, dynamic> _decodeIdToken(String idToken) {
+    final parts = idToken.split('.');
+    if (parts.length != 3) {
+      throw OAuth2TokenException('The id_token is malformed');
+    }
+    try {
+      final decoded = jsonDecode(
+          utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } on FormatException {
+      /* Falls through to the malformed error below. */
+    }
+    throw OAuth2TokenException('The id_token is malformed');
+  }
+
+  /// A fresh nonce: 32 random bytes as unpadded base64url, 43 characters.
+  static String _newNonce() {
+    final random = Random.secure();
+    final bytes =
+        Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
+    return base64Url.encode(bytes).replaceAll('=', '');
   }
 
   /// Drops the cached access token of the discovered delegate (none before the
@@ -226,6 +318,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
 
     final expiry = DateTime.now()
         .add(Duration(seconds: _parseMaxAge(response.headers)));
+    _discoveredIssuer = issuer is String ? issuer : null;
 
     /* A re-fetched document that names the same endpoints keeps the existing
      * delegate: replacing it would drop the exchanged tokens it holds and the

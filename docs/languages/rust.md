@@ -179,6 +179,7 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 ## Known limits
 
+- The OpenID Connect authenticator checks the nonce, issuer, audience and expiry of the `id_token` but does not verify its signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 - An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
 
 - A `number` with no format, `float` or `double` is a binary float (`f32`, `f64`) and loses exactness; use `format: decimal` for money.

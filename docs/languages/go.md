@@ -167,6 +167,7 @@ An operation whose success response is `application/x-ndjson`, `application/json
 
 ## Known limits
 
+- The OpenID Connect authenticator checks the nonce, issuer, audience and expiry of the `id_token` but does not verify its signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 - `format: time` is a plain string, so it is not validated. `format: date` is a `civil.Date` and is validated when it is decoded.
 - A bare `type: number` (no format) is `float64` and loses exactness; `format: decimal` is the exact `decimal.Decimal`.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
