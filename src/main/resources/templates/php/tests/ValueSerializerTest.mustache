@@ -374,8 +374,17 @@ test('bhv serializationparam 087 simple scalar path is url encoded', function ()
 
 // -- serializeStyled: null style falls back to location default --
 
-test('bhv serializationparam 106 path with null style behaves like simple', function (): void {
+test('bhv serializationparam 106 path with null style behaves like simple, and a decimal parameter is written in plain notation', function (): void {
     expect(ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false))->toBe('5');
+    expect(ValueSerializer::serializeStyled(
+        'amount',
+        \Brick\Math\BigDecimal::of('1234567890123456789012.50'),
+        'query',
+        '\Brick\Math\BigDecimal',
+        null,
+        'form',
+        true
+    ))->toBe('1234567890123456789012.50');
 });
 
 test('bhv serializationparam 105 a form scalar serializes styled as its own value, and an address parameter is its text unchanged', function (): void {

@@ -1,6 +1,9 @@
 {{>api_info}}
 import 'dart:convert';
+import 'dart:math' show Random;
 import 'dart:typed_data';
+
+import 'package:decimal/decimal.dart';
 
 import 'errors/serialization_exception.dart';
 import 'iso8601_duration.dart';
@@ -8,6 +11,9 @@ import 'iso8601_duration.dart';
  * SDK error; re-exported here so the models that raise it keep importing one
  * file. */
 export 'errors/serialization_exception.dart';
+/* `format: decimal` is the exact Decimal of package:decimal; re-exported so the
+ * models and the package barrel name it without a second import. */
+export 'package:decimal/decimal.dart' show Decimal;
 export 'iso8601_duration.dart'
     show
         formatProtobufDuration,
@@ -61,6 +67,203 @@ int? readInt32OrNull(Object? value) => value == null ? null : readInt32(value);
 
 /// As [readInt64], with `null` staying `null`.
 int? readInt64OrNull(Object? value) => value == null ? null : readInt64(value);
+
+/// Reads the `format: decimal` number under [key] of [json] as an exact
+/// [Decimal].
+///
+/// The digits come from the source text of the JSON number, recorded by
+/// [parseJson], so they never pass through a binary double: every digit of
+/// `12.345678901234567890123` is kept. A quoted string, a boolean or any other
+/// non-number raises a [SerializationException].
+Decimal readDecimal(Map<String, dynamic> json, String key) =>
+    _decimalFromNumber(json[key], _numberSources[json]?[key], key);
+
+/// As [readDecimal], with a missing or `null` value staying `null`.
+Decimal? readDecimalOrNull(Map<String, dynamic> json, String key) =>
+    json[key] == null ? null : readDecimal(json, key);
+
+/// Reads [value], one element of a container of `format: decimal` numbers, as
+/// an exact [Decimal]. The source text is the one [deserializeArray] or
+/// [deserializeMap] recorded for the element being read.
+Decimal readDecimalValue(Object? value) =>
+    _decimalFromNumber(value, _pendingNumberSource, null);
+
+Decimal _decimalFromNumber(Object? value, String? source, String? key) {
+  if (value is! num) {
+    final field = key == null ? '' : " for '$key'";
+    throw SerializationException(
+      'Expected a JSON number$field, got ${value.runtimeType}',
+    );
+  }
+  if (!value.isFinite) {
+    throw SerializationException('Number is outside the range of a double');
+  }
+  return Decimal.parse(source ?? value.toString());
+}
+
+/// The text a `type: string` decimal may hold: an optional minus sign, digits
+/// and an optional fraction. No exponent, sign, blank or locale separator.
+final RegExp _decimalText = RegExp(r'^-?[0-9]+(\.[0-9]+)?$');
+
+/// Reads [value], a `type: string` value with `format: decimal`, as an exact
+/// [Decimal].
+///
+/// Only a JSON string is accepted: a bare JSON number is refused, as is text
+/// that is not a plain decimal number. Both raise a [SerializationException].
+Decimal parseDecimalString(Object? value) {
+  if (value is! String) {
+    throw SerializationException(
+      'Expected a decimal as a JSON string, got ${value.runtimeType}',
+    );
+  }
+  if (!_decimalText.hasMatch(value)) {
+    throw SerializationException('Not a decimal number: $value');
+  }
+  return Decimal.parse(value);
+}
+
+/// As [parseDecimalString], with `null` staying `null`.
+Decimal? parseDecimalStringOrNull(Object? value) =>
+    value == null ? null : parseDecimalString(value);
+
+/// The source text of the JSON numbers whose text a Dart `num` does not
+/// reproduce (`12.345678901234567890123`, `1.50`, a forty-digit integer),
+/// keyed by the map or list that holds them and then by key or index.
+final Expando<Map<Object, String>> _numberSources =
+    Expando<Map<Object, String>>('numberSources');
+
+/// The source text of the container element being read, set by
+/// [deserializeArray] and [deserializeMap] around each element so that
+/// [readDecimalValue] can read it. Decoding is synchronous, so the value
+/// belongs to exactly one element at a time.
+String? _pendingNumberSource;
+
+/// Cheap pre-check: only a document with a fraction, an exponent or a long run
+/// of digits can hold a number whose text a `num` does not reproduce.
+final RegExp _inexactNumberHint = RegExp(r'[0-9][.eE]|[0-9]{16}');
+
+/// Records, for [decoded] (the result of `jsonDecode(text)`), the source text
+/// of every number that its decoded `num` does not reproduce.
+void _recordNumberSources(String text, Object? decoded) {
+  if (!_inexactNumberHint.hasMatch(text)) return;
+  _NumberSourceWalker(text).value(decoded);
+}
+
+/// Walks JSON text that `jsonDecode` already accepted, in step with the value
+/// it decoded to, and records number source texts in [_numberSources].
+class _NumberSourceWalker {
+  _NumberSourceWalker(this._text);
+
+  final String _text;
+  int _at = 0;
+
+  /// Walks one value. Returns the text of a scalar token (a number or a
+  /// literal), or null for a string, an object or an array.
+  String? value(Object? decoded) {
+    _skipWhitespace();
+    final c = _text.codeUnitAt(_at);
+    if (c == 0x7B) {
+      _object(decoded is Map ? decoded : null);
+      return null;
+    }
+    if (c == 0x5B) {
+      _array(decoded is List ? decoded : null);
+      return null;
+    }
+    if (c == 0x22) {
+      _string();
+      return null;
+    }
+    final start = _at;
+    while (_at < _text.length && !_endsToken(_text.codeUnitAt(_at))) {
+      _at++;
+    }
+    return _text.substring(start, _at);
+  }
+
+  void _object(Map<dynamic, dynamic>? holder) {
+    _at++;
+    _skipWhitespace();
+    if (_text.codeUnitAt(_at) == 0x7D) {
+      _at++;
+      return;
+    }
+    while (true) {
+      _skipWhitespace();
+      final key = _string();
+      _skipWhitespace();
+      _at++;
+      final child = holder?[key];
+      final token = value(child);
+      if (holder != null) _record(holder, key, token, child);
+      _skipWhitespace();
+      if (_text.codeUnitAt(_at++) == 0x7D) return;
+    }
+  }
+
+  void _array(List<dynamic>? holder) {
+    _at++;
+    _skipWhitespace();
+    if (_text.codeUnitAt(_at) == 0x5D) {
+      _at++;
+      return;
+    }
+    var index = 0;
+    while (true) {
+      final child =
+          holder != null && index < holder.length ? holder[index] : null;
+      final token = value(child);
+      if (holder != null) _record(holder, index, token, child);
+      index++;
+      _skipWhitespace();
+      if (_text.codeUnitAt(_at++) == 0x5D) return;
+    }
+  }
+
+  /// Reads a string token and returns its decoded text.
+  String _string() {
+    final start = _at;
+    var escaped = false;
+    _at++;
+    while (true) {
+      final c = _text.codeUnitAt(_at++);
+      if (c == 0x5C) {
+        escaped = true;
+        _at++;
+      } else if (c == 0x22) {
+        break;
+      }
+    }
+    final raw = _text.substring(start, _at);
+    return escaped
+        ? jsonDecode(raw) as String
+        : raw.substring(1, raw.length - 1);
+  }
+
+  void _record(Object holder, Object key, String? token, Object? decoded) {
+    if (token == null || decoded is! num || token == decoded.toString()) {
+      return;
+    }
+    (_numberSources[holder] ??= <Object, String>{})[key] = token;
+  }
+
+  void _skipWhitespace() {
+    while (_at < _text.length) {
+      final c = _text.codeUnitAt(_at);
+      if (c != 0x20 && c != 0x09 && c != 0x0A && c != 0x0D) return;
+      _at++;
+    }
+  }
+
+  static bool _endsToken(int c) =>
+      c == 0x2C ||
+      c == 0x7D ||
+      c == 0x5D ||
+      c == 0x20 ||
+      c == 0x09 ||
+      c == 0x0A ||
+      c == 0x0D;
+}
 
 /// Marker type of [copyUnset].
 class _CopyUnset {
@@ -125,12 +328,41 @@ class UuidValue {
 /// Serialize an object to a JSON string.
 ///
 /// Throws [SerializationException] if serialization fails.
+///
+/// A [Decimal] is written as a bare JSON number in plain notation with every
+/// digit it holds. `jsonEncode` can only write a double for a number, so each
+/// [Decimal] is first written as a string carrying a random per-call marker and
+/// the quotes around it are then removed. The marker is random, so a caller's
+/// own string cannot be mistaken for it.
 String serialize(Object? object) {
   try {
-    return jsonEncode(_withSortedMapKeys(object), toEncodable: _encodeNonJsonValue);
+    String? marker;
+    final text = jsonEncode(
+      _withSortedMapKeys(object),
+      toEncodable: (Object? value) {
+        if (value is Decimal) {
+          marker ??= _decimalMarker();
+          return '$marker$value';
+        }
+        return _encodeNonJsonValue(value);
+      },
+    );
+    final used = marker;
+    if (used == null) return text;
+    return text.replaceAllMapped(
+      RegExp('"${RegExp.escape(used)}(-?[0-9]+(?:\\.[0-9]+)?)"'),
+      (match) => match[1]!,
+    );
   } catch (e) {
     throw SerializationException('Failed to serialize object to JSON: $e', e);
   }
+}
+
+/// A fresh marker for [serialize]: a prefix and 24 random hex digits.
+String _decimalMarker() {
+  final random = Random.secure();
+  final digits = List.generate(24, (_) => random.nextInt(16).toRadixString(16));
+  return 'decimal-${digits.join()}:';
 }
 
 /// Returns [value] with every plain map rebuilt in ascending key order, so a map
@@ -228,7 +460,9 @@ dynamic parseJson(String data) {
     );
   }
   try {
-    return jsonDecode(data);
+    final decoded = jsonDecode(data);
+    _recordNumberSources(data, decoded);
+    return decoded;
   } catch (e) {
     if (e is SerializationException) rethrow;
     throw SerializationException('Failed to deserialize JSON: $e', e);
@@ -300,19 +534,30 @@ List<T> deserializeArray<T>(Object? json, T Function(dynamic) deserializeElement
       'Expected JSON array, got ${json.runtimeType}',
     );
   }
-  return json
-      .map((item) => _deserializeElement(item, deserializeElement))
-      .toList();
+  final sources = _numberSources[json];
+  return [
+    for (var i = 0; i < json.length; i++)
+      _deserializeElement(json[i], deserializeElement, sources?[i]),
+  ];
 }
 
 /// Applies [deserializeElement] to one element of a container. A cast or type
 /// failure inside it becomes a [SerializationException], as at the top level.
-T _deserializeElement<T>(Object? item, T Function(dynamic) deserializeElement) {
+/// [source] is the element's number source text, if one was recorded.
+T _deserializeElement<T>(
+  Object? item,
+  T Function(dynamic) deserializeElement, [
+  String? source,
+]) {
+  final saved = _pendingNumberSource;
+  _pendingNumberSource = source;
   try {
     return deserializeElement(item);
   } catch (e) {
     if (e is SerializationException) rethrow;
     throw SerializationException('Failed to deserialize element: $e', e);
+  } finally {
+    _pendingNumberSource = saved;
   }
 }
 
@@ -331,6 +576,7 @@ List<E> wireList<E>(Iterable<Object?> source, Iterable<E> encoded) {
 /// point. Other values compare equal, so their order is kept.
 int _compareWireValues(Object? a, Object? b) {
   if (a is num && b is num) return a.compareTo(b);
+  if (a is Decimal && b is Decimal) return a.compareTo(b);
   if (a is String && b is String) return _compareCodePoints(a, b);
   return 0;
 }
@@ -366,8 +612,12 @@ Map<String, T> deserializeMap<T>(Object? json, T Function(dynamic) deserializeVa
       'Expected JSON object, got ${json.runtimeType}',
     );
   }
+  final sources = _numberSources[json];
   return json.map(
-    (k, v) => MapEntry(k as String, _deserializeElement(v, deserializeValue)),
+    (k, v) => MapEntry(
+      k as String,
+      _deserializeElement(v, deserializeValue, sources?[k]),
+    ),
   );
 }
 
@@ -575,8 +825,9 @@ bool _isIpv6Address(String text) {
 ///
 /// Booleans produce lowercase `true`/`false`. A [DateTime] is formatted with
 /// [formatDateTimeOffset] and a [Duration] with the protobuf-JSON duration
-/// form. A [Uint8List] (`format: byte`) is standard-alphabet RFC 4648 base64
-/// with padding. Null returns the empty string. All other values use
+/// form. A [Decimal] is written in plain notation with every digit. A
+/// [Uint8List] (`format: byte`) is standard-alphabet RFC 4648 base64 with
+/// padding. Null returns the empty string. All other values use
 /// `toString()`.
 String stringify(Object? value) {
   if (value == null) return '';
@@ -588,6 +839,7 @@ String stringify(Object? value) {
   if (value is String) return value;
   if (value is int) return value.toString();
   if (value is double) return value.toString();
+  if (value is Decimal) return value.toString();
 
   return value.toString();
 }

@@ -15,7 +15,8 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | OpenAPI | Dart type | Notes |
 |---|---|---|
 | `integer`, `int32`, `int64` | `int` | Exact on the Dart VM. On Flutter web and dart2js, `int` is a double, so integers above 2^53 lose precision. The generated README documents this. |
-| `number` with any format, including `decimal` | `double` | Money loses exact decimal representation: `0.1 + 0.2` is `0.30000000000000004`. The README advises the `decimal` package or passing values as strings. |
+| `number` with no format, `float`, `double` | `double` | Money loses exact decimal representation: `0.1 + 0.2` is `0.30000000000000004`. The README advises `format: decimal` for money. |
+| `decimal`, on a `type: number` or a `type: string` | `Decimal` from the `decimal` package, exported by the SDK | Exact. The digits are read from the source text of the response, never through a `double`, and a number is written back as a bare JSON number in plain notation. The string form is read only from a JSON string and written back as one. A `Decimal` keeps no trailing zero, so `"12.50"` is written back as `"12.5"`. |
 | `boolean` | `bool` | |
 | `string` | `String` | |
 | `string` with `format: date` | `DateTime` | Dart has no date-only type. The value is written as `YYYY-MM-DD` from the `DateTime`'s own year, month and day, so use a UTC value to be sure the day does not shift. |
@@ -38,7 +39,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 
 ## Dependencies
 
-Runtime dependencies are `collection` (`^1.18.0`), `http` (`^1.2.0`), `http_parser` (`^4.0.0`) and `mime` (`^1.0.0`). JSON handling is `dart:convert`. The SDK keeps the dependency list this short on purpose, which is why `UuidValue` is its own class rather than a dependency on `package:uuid`.
+Runtime dependencies are `collection` (`^1.18.0`), `decimal` (`^3.2.0`, for `format: decimal`), `http` (`^1.2.0`), `http_parser` (`^4.0.0`) and `mime` (`^1.0.0`). JSON handling is `dart:convert`. The SDK keeps the dependency list this short on purpose, which is why `UuidValue` is its own class rather than a dependency on `package:uuid`.
 
 Development dependencies are `lints`, `test`, `coverage`, `junitreport`, `opentelemetry` and `testcontainers_core`.
 
@@ -165,7 +166,7 @@ A list whose page body carries the next URL in a property (a next URL list) is f
 
 - There is no per-call cancellation handle, so the call hook is never told of a cancelled call and the recipe has no `cancelled` error type.
 - Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only. Other charsets such as `shift_jis` fall back to lenient UTF-8, because Dart has no multi-charset standard library.
-- Bare `number` is a lossy `double`, and `int64` beyond 2^53 is lossy on the web.
+- Bare `number` is a lossy `double` (`format: decimal` is an exact `Decimal`), and `int64` beyond 2^53 is lossy on the web.
 - A multipart upload is fully buffered. A raw binary upload is sent as it is read, except in the browser, where `fetch` cannot stream a request body and the transport collects the body first, and where a file path is not available.
 - A union holding a value that is not one of its variants fails to serialize with a `SerializationException` naming the union. A string result under a binary content type is the decoded body. A deadline that passes while credentials are being obtained is a `NetworkTimeoutException` and the request is never sent.
 - SOCKS proxies are rejected.

@@ -1,6 +1,6 @@
 # Dart SDK generator
 
-This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart package from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options class per operation, plain model classes with `fromJson`/`toJson`, an authenticator per security scheme, the `...Exception` hierarchy, and the `package:test` suite, README, SKILLS.md and analyzer config that ship with it. HTTP goes through `package:http` (`http.Client`), split behind a conditional import into `default_api_client_io.dart` (`dart:io`, proxy, TLS, manual gzip/deflate) and `default_api_client_web.dart` (browser fetch, so it compiles to WebAssembly); JSON uses `dart:convert`, with `collection`, `http_parser` and `mime` as the only other runtime dependencies. Tests run with `package:test` (`dart test`, coverage via `coverage`, JUnit via `junitreport`, containers via `testcontainers_core`). The floor is Dart 3.11 (`sdk: '>=3.11.0 <4.0.0'` in `pubspec.mustache`); specs and the formatter run in the digest-pinned `dart:stable` image.
+This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart package from an OpenAPI document: a `Client` entry class, `Configuration` and `TransportOptions` builders, one API class per tag with an Options class per operation, plain model classes with `fromJson`/`toJson`, an authenticator per security scheme, the `...Exception` hierarchy, and the `package:test` suite, README, SKILLS.md and analyzer config that ship with it. HTTP goes through `package:http` (`http.Client`), split behind a conditional import into `default_api_client_io.dart` (`dart:io`, proxy, TLS, manual gzip/deflate) and `default_api_client_web.dart` (browser fetch, so it compiles to WebAssembly); JSON uses `dart:convert`, with `collection`, `decimal`, `http_parser` and `mime` as the only other runtime dependencies. Tests run with `package:test` (`dart test`, coverage via `coverage`, JUnit via `junitreport`, containers via `testcontainers_core`). The floor is Dart 3.11 (`sdk: '>=3.11.0 <4.0.0'` in `pubspec.mustache`); specs and the formatter run in the digest-pinned `dart:stable` image.
 
 ## Read first
 
@@ -47,6 +47,7 @@ This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart packag
 | uniqueItems | `Set<T>` in models | Native set type; order is unspecified (S6) |
 | Binary, UUID, duration | `BodySource` for a raw binary request body, `Uint8List` for a multipart file part and a `format: byte` value, `ByteStream` for a binary success response, an SDK-owned `UuidValue`, an SDK-owned `Iso8601Duration` | `package:uuid` and an ISO-8601 duration codec are not in the stdlib, and `UuidValue` and `Iso8601Duration` are allowed as extra types |
 | `format: number` | Native `double` | Settled and documented; see the decision below |
+| `format: decimal` | `Decimal` from `package:decimal`, number- and string-shaped | Exact, read from the number's source text (#157); see the decision below |
 | Optional server description | Non-nullable empty string, not `null` | Same sentinel as go, rust and swift; metadata only, never on the wire |
 | Tracing | `TraceContextUtil.propagator` is a registration hook | Dart cannot detect an optional OpenTelemetry dependency at runtime |
 | Call hook and telemetry | `CallHook`, `CallObserver`, `CallInfo`, `CallOutcome` and `chainCallHooks` (`call_hook`, `call_info`, `call_outcome`), run by a private `_CallRun` in `base_api.mustache`; no OpenTelemetry adapter, only a README recipe (`call_hook_recipe.mustache`) that `test/call_hook_recipe_test.mustache` includes, so the text a user copies is the text under test | The `opentelemetry` package has no histogram, its SDK counter is a no-op and pub has no optional dependency, so the recipe passes the count and the duration to functions the user supplies; there is no cancellation, so no `cancelled` error type (catalogue exception `hooks015`) |
@@ -129,7 +130,7 @@ Where: `models/model.mustache`, `object_serializer.mustache`, `readme.mustache`.
 Test: `object_serializer_test.mustache`.
 
 ### Dependencies (S10)
-Rule: a small pure-Dart package or a version bump is fine when it standardises behaviour cleanly; never a dependency that needs a native binary. Runtime dependencies today are `collection`, `http`, `http_parser`, `mime`.
+Rule: a small pure-Dart package or a version bump is fine when it standardises behaviour cleanly; never a dependency that needs a native binary. Runtime dependencies today are `collection`, `decimal`, `http`, `http_parser`, `mime`.
 Why: native binaries break `dart compile wasm` and container images.
 Where: `pubspec.mustache`, `dev_dependencies.mustache`.
 Test: `DartWasmSpec`, `DartClientSpec`.
@@ -256,10 +257,16 @@ Where: `api/api.mustache`.
 Test: `test/api/*`.
 
 ### `format: number` is native `double` (D83, Forced divergences)
-Rule: bare `number` decodes to `double`; the README ("Decimal / `format: number` precision") says it is lossy and how to opt in.
-Why: dart has no stdlib decimal; `package:decimal` would add a dependency and risk the unquoted-number wire form. Do not align it to a decimal.
+Rule: a bare `number` with no format decodes to `double`; the README ("Decimal / `format: number` precision") says it is lossy. Only `format: decimal` is exact (next entry).
+Why: the owner decision of #157 covers `format: decimal`; a bare number stays the language's float.
 Where: `readme.mustache`, `BetterDartCodegen.java` type mapping.
 Test: `object_serializer_test.mustache`.
+
+### `format: decimal` is `Decimal` from `package:decimal` (#157)
+Rule: a `format: decimal` value is `Decimal` (re-exported from `object_serializer.dart` and the package barrel), whether the schema is `type: number` or `type: string`. The number-shaped form never passes through a double: `parseJson` walks the text `jsonDecode` accepted and records, per holding map or list, the source text of every number whose decoded `num` does not reproduce it (`_numberSources`, an `Expando`); `readDecimal`/`readDecimalOrNull` read a model field from it and `readDecimalValue` reads a container element through the source `deserializeArray`/`deserializeMap` set for it. `serialize` writes a `Decimal` as a bare JSON number in plain notation: `jsonEncode` only writes doubles, so the `toEncodable` hook writes the value as a string behind a random per-call marker and the quotes are then removed. The string-shaped form is read only from a JSON string matching `^-?[0-9]+(\.[0-9]+)?$` (`parseDecimalString`; a bare number fails) and written back as a JSON string. Query, path and header values use `Decimal.toString()` (plain notation). A `Decimal` keeps every digit but not trailing zeros, so `"12.50"` is written back as `"12.5"` (as Ruby's `BigDecimal`). A `format: decimal` default is dropped, because `Decimal` has no const constructor. A schema named `Decimal` is prefixed `ModelDecimal` (D45).
+Why: owner decision on #157: exact decimals in all twelve SDKs, decoded without going through a float.
+Where: `object_serializer.mustache` (readers, `_NumberSourceWalker`, `serialize`), `models/model.mustache`, `deserialize_arg.mustache`, `BetterDartCodegen.tagDecimal` and `getSchemaType`, `pubspec.mustache`.
+Test: `object_serializer_test.mustache` ids serializationobject 410 to 413.
 
 ### Forced: optional server description is an empty string (Forced divergences)
 Rule: `ServerConfiguration` and `ServerVariable` keep a non-nullable `description` defaulting to `''`.
@@ -398,7 +405,7 @@ Test: `base_api_test` (pagination 007, 008, 023, 027).
 
 ## Known limitations and out of scope
 
-Cancellation has no per-call handle in dart today (see S7 above). Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only; `shift_jis` and the other multi-byte or iso-8859-x labels fall back to lenient UTF-8, because dart has no multi-charset stdlib (partial). Repeated multipart scalar parts carry `content-type: text/plain; charset=utf-8` (deferred, low priority). Bare `number` is a lossy `double`. `format: byte` and `binary` map to `Uint8List`. SOCKS proxies are rejected. The warnings-fatal `make docs` target exists in the generated Makefile but no spec runs it (deferred). Model reuse across oneOf unions is under S4 (intended, not landed); allOf inheritance has landed.
+Cancellation has no per-call handle in dart today (see S7 above). Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only; `shift_jis` and the other multi-byte or iso-8859-x labels fall back to lenient UTF-8, because dart has no multi-charset stdlib (partial). Repeated multipart scalar parts carry `content-type: text/plain; charset=utf-8` (deferred, low priority). Bare `number` is a lossy `double` (`format: decimal` is an exact `Decimal`). A top-level response body that is a single bare decimal number is read from its double, because the source text is recorded per holding map or list. `format: byte` and `binary` map to `Uint8List`. SOCKS proxies are rejected. The warnings-fatal `make docs` target exists in the generated Makefile but no spec runs it (deferred). Model reuse across oneOf unions is under S4 (intended, not landed); allOf inheritance has landed.
 
 Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): callbacks and webhooks, XML bodies and XML `nodeType`, Link Objects, mutual TLS; the README says so under "Not supported". OpenAPI 3.2 and 3.1 support is tracked in epics #49 (3.2) and #96 (3.1) with sub-issues in #50-#100; loading 3.2 documents is #50, because the pinned swagger-parser rejects 3.2.
 

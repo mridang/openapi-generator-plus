@@ -300,16 +300,17 @@ Where: `models/model.mustache`, `BetterPHPCodegen.toDefaultValue`.
 Test: `ObjectSerializerTest`, petstore `Defaults` model golden.
 
 ### Own files and names forced by PSR-4 and `\Exception` (R-forced-files)
-Rule: `ConfigurationBuilder`, `ServerVariable`, `NoAuth`, `Psr18ApiClient`, `RawHttpResponse`, `PreciseDuration` and the Ds and URI normalizers are separate public classes; the OAuth2 error code is `errorCode`, with `statusCode` held in `OAuth2ServerException`'s own property (its `getCode()` is 0, while `ApiException` passes `statusCode` to the parent as `$code`); the composer package name carries the `openapi/` vendor.
+Rule: `ConfigurationBuilder`, `ServerVariable`, `NoAuth`, `Psr18ApiClient`, `RawHttpResponse`, `PreciseDuration` and the Ds, URI, duration and decimal normalizers are separate public classes; the OAuth2 error code is `errorCode`, with `statusCode` held in `OAuth2ServerException`'s own property (its `getCode()` is 0, while `ApiException` passes `statusCode` to the parent as `$code`); the composer package name carries the `openapi/` vendor.
 Why: PSR-4 one class per file, `\Exception::$code` is `int`, Composer needs `vendor/package`.
 Where: `BetterPHPCodegen.registerAuthSupportingFiles`, `errors/OAuth2ServerException.mustache`, `composer.mustache`.
 Test: `PhpStaticAnalysisSpec` (`composer dump-autoload --optimize --strict-psr`).
 
-### `format: number` is a PHP float (R-number)
-Rule: bare `number` and `decimal` map to `float`; the README "Decimal / `format: number` precision" caveat states the loss; Symfony also routes `int64` through `float` above 2^53 (documented, same caveat).
-Why: stdlib JSON numbers are floats; switching to strings or BCMath changes the unquoted-number wire form and fails strict mock servers (verified with Chasm). Do not align to a decimal type.
-Where: `BetterPHPCodegen` type mapping, `readme.mustache`.
-Test: README golden, `ObjectSerializerTest`.
+### `format: decimal` is `Brick\Math\BigDecimal`; a bare number is a float (R-number)
+Rule: `format: decimal`, number- or string-shaped, maps to `\Brick\Math\BigDecimal` (`brick/math`, #157); a bare `number`, `float` and `double` stay `float`, and the README "Decimal / `format: number` precision" section states the loss for them. Symfony also routes `int64` through `float` above 2^53 (documented, same section).
+How: `json_decode` makes a float of every fraction, so the digits come from the JSON text. `ObjectSerializer::deserialize()` keeps the text; `liftDecimals()` walks a model payload by a per-class plan (decimal, list or map of decimals, nested model; an allOf base resolves to its subtype) and swaps each decimal for a `BigDecimal` before Symfony denormalizes, reading a number's digits from a second decode of the text in which every number is quoted (`decodeKeepingNumberText()`, built on first use and addressed by the payload path). A string decimal (`#[WireFormat('decimal')]`, from `vendorExtensions.isDecimalString`) is read only from a JSON string, a number decimal only from a JSON number, both with a bounded `BigDecimal::parse` (4096 digits). On encode `DecimalNormalizer` emits a per-process NUL-prefixed marker that `serialize()` replaces with the bare digits after `json_encode`; `flattenAdditionalProperties()` turns the marker back into text for a string decimal. `stringify()` writes `toString()` (plain notation, scale kept). `valuesEqual()` compares decimals by value.
+Limits: a decimal reached without the JSON text (a payload the caller decoded, a oneOf or anyOf variant, a typed additionalProperties value) is read from its float in the shortest form; a model in a deepObject query parameter goes through `json_decode` and loses digits.
+Where: `BetterPHPCodegen` (`DECIMAL_TYPE`, `getSchemaType`, `toDefaultValue`), `object_serializer.mustache`, `serializer/decimal_normalizer.mustache`, `models/model.mustache`, `composer.mustache`, `readme.mustache`.
+Test: `ObjectSerializerTest` serializationobject 410 to 413, `ValueSerializerTest` serializationparam 106.
 
 ### Security comment only on `security: []` (R-no-auth-comment)
 Rule: the "explicitly unauthenticated, pass the no-auth sentinel" comment appears only on `vendorExtensions.op.securityNone` operations; inherited-auth operations say they inherit the global requirement and pass `null`.

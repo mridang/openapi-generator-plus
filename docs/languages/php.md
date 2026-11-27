@@ -30,7 +30,8 @@ The floor is written once, in `composer.json`, and PHPStan is configured with `p
 | `integer`, `format: int32` | `int` | |
 | `integer`, `format: int64` | `int` | see Known limits |
 | `integer`, no format | `int` | PHP integers are 64-bit on 64-bit builds |
-| `number`, any format | `float` | including `format: decimal`, so money values lose exact decimal representation |
+| `number`, `format: decimal`, and `string`, `format: decimal` | `Brick\Math\BigDecimal` | from `brick/math`; read from the digits of the JSON text, never through a `float`, and written back in plain notation, as a JSON number or a JSON string as the schema says |
+| `number`, no format, `float` or `double` | `float` | a binary float, so money values lose exact decimal representation |
 | `boolean` | `bool` | |
 | `array` | `\Ds\Vector` | from `php-ds`, with element types in PHPDoc |
 | `array` with `uniqueItems` | `\Ds\Set` | sent in insertion order, not sorted |
@@ -51,6 +52,7 @@ Model properties are `readonly`.
 | `symfony/serializer`, `symfony/property-access`, `symfony/property-info`, `phpdocumentor/reflection-docblock` | JSON decoding into typed models |
 | `symfony/mime` | multipart bodies |
 | `symfony/uid` | the UUID type |
+| `brick/math` | `BigDecimal`, the exact type of `format: decimal` |
 | `php-ds/php-ds` | `\Ds\Vector`, `\Ds\Set` and `\Ds\Map`; installing the PECL `ext-ds` replaces the userland classes with native ones |
 | `psr/http-client`, `psr/http-factory`, `psr/http-message` | the `Psr18ApiClient` adapter for your own HTTP client |
 | `ext-brotli`, `ext-zstd` (suggested) | decoding `br` and `zstd` responses; without them only `gzip` and `deflate` are advertised |
@@ -164,7 +166,7 @@ try {
 ## Known limits
 
 - The generated README states that the Symfony serializer takes `int64` values through `float`, so values above 2^53 may lose precision on 64-bit PHP. See Under review.
-- `number` values, including `format: decimal`, are `float`, so `0.1 + 0.2` is not exact. Use BCMath on the raw value when you need exact arithmetic.
+- A bare `number` (and `format: float` or `double`) is a `float`, so `0.1 + 0.2` is not exact. `format: decimal` is an exact `BigDecimal`.
 - `date` and `date-time` are mutable `\DateTime` objects, which can be changed in place even inside a `readonly` model.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory; a raw binary request body is a `BodySource` and is sent as it is read. A binary response is a `ByteStream`, and a JSON Lines or server-sent events response is a stream returned by a `...Stream` method; see Streaming.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked by the SDK; the model layer checks only declared types, required properties and base64 for `format: byte`.
@@ -184,7 +186,6 @@ These are proposals from a review of the type mapping against current PHP. None 
 
 - Map `date` and `date-time` to `\DateTimeImmutable` instead of `\DateTime`. The review says this needs no floor change, but it needs a golden regeneration and updates to the `withX()` methods and tests.
 - Settle the `int64` caveat with a test: round-trip ids of 2^62 and 2^63-1 through the response decoder. If they survive, remove the README caveat; if not, fix the decoder so `int64` never goes through `float`.
-- Map decimals to `\BcMath\Number`. This needs `ext-bcmath` and would raise the floor from 8.3 to 8.4, so it waits for that floor. Until then the type stays `float`.
 - Map `format: uri` to `\Uri\Rfc3986\Uri` only once the floor reaches 8.5. Until then it stays `string`.
 - Keep `\DateTimeImmutable` for `time` and `\DateInterval` for durations: the review found no newer PHP type for either.
 

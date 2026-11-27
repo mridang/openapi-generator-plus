@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.media.NumberSchema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.security.OAuthFlow;
 import io.swagger.v3.oas.models.security.OAuthFlows;
 import io.swagger.v3.oas.models.security.SecurityScheme;
@@ -271,5 +273,52 @@ class BetterDartCodegenTest {
     final String source = new BetterDartCodegen().generateOptionsFileContent(op, List.of(), "AddThingOptions");
 
     assertThat(source).doesNotContain("Authenticator").contains("final int? timeout;");
+  }
+
+  @Test
+  void aDecimalOfEitherShapeIsTheExactDecimal() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    codegen.setOpenAPI(new OpenAPI());
+
+    assertThat(codegen.getTypeDeclaration(new NumberSchema().format("decimal"))).isEqualTo("Decimal");
+    assertThat(codegen.getTypeDeclaration(new StringSchema().format("decimal"))).isEqualTo("Decimal");
+    assertThat(codegen.getTypeDeclaration(new NumberSchema())).isEqualTo("double");
+    assertThat(codegen.toModelName("Decimal")).isEqualTo("ModelDecimal");
+  }
+
+  @Test
+  void aDecimalDefaultIsDroppedBecauseDecimalHasNoConstConstructor() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    codegen.setOpenAPI(new OpenAPI());
+
+    assertThat(codegen.toDefaultValue(new NumberSchema()._default(new java.math.BigDecimal("1.5")).format("decimal")))
+        .isNull();
+  }
+
+  @Test
+  void tagsTheShapeOfADecimalAndOfItsContainerLeaves() {
+    final CodegenProperty number = new CodegenProperty();
+    number.dataType = "Decimal";
+    number.openApiType = "number";
+    final CodegenProperty string = new CodegenProperty();
+    string.dataType = "Decimal";
+    string.openApiType = "string";
+    final CodegenProperty list = new CodegenProperty();
+    list.dataType = "List<Decimal>";
+    list.openApiType = "array";
+    list.items = string;
+
+    BetterDartCodegen.tagDecimal(number);
+    BetterDartCodegen.tagDecimal(list);
+
+    assertThat(number.vendorExtensions)
+        .containsEntry("isDecimal", true)
+        .containsEntry("isDecimalNumber", true)
+        .containsEntry("isDecimalString", false);
+    assertThat(list.vendorExtensions).containsEntry("isDecimal", false);
+    assertThat(string.vendorExtensions)
+        .containsEntry("isDecimal", true)
+        .containsEntry("isDecimalNumber", false)
+        .containsEntry("isDecimalString", true);
   }
 }

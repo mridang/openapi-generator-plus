@@ -381,7 +381,17 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/items}}{{/returnProperty}}
 {{/isMap}}
 {{^isMap}}
+{{#returnProperty}}
+{{#vendorExtensions.isDecimalNumber}}
+      deserialize: (body) => readDecimalValue(deserializeRaw(body)),
+{{/vendorExtensions.isDecimalNumber}}
+{{#vendorExtensions.isDecimalString}}
+      deserialize: (body) => parseDecimalString(deserializeRaw(body)),
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimal}}
       deserialize: (body) => deserializeRaw(body) as {{{returnType}}},
+{{/vendorExtensions.isDecimal}}
+{{/returnProperty}}
 {{/isMap}}
 {{/returnTypeIsPrimitive}}
 {{^returnTypeIsPrimitive}}

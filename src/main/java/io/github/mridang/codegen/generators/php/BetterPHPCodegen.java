@@ -52,6 +52,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterPHPCodegen.class);
     private static final String SRC_BASE_PATH = "lib";
     private static final String API_DIR_NAME = "Api";
+
+    /** The exact decimal type a {@code format: decimal} value has, number- or string-shaped. */
+    static final String DECIMAL_TYPE = "\\Brick\\Math\\BigDecimal";
+
     private static final String MODEL_DIR_NAME = "Models";
 
     /** Scheme constructor parameters that carry a secret and must stay out of stack traces. */
@@ -102,7 +106,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("float", "float");
         typeMapping.put("double", "float");
         typeMapping.put("number", "float");
-        typeMapping.put("decimal", "float");
+        /* `format: decimal` is exact: brick/math's BigDecimal, read from the digits of the JSON
+         * text and never through a float (#157). The number-shaped form is mapped in
+         * getSchemaType, because the base generator types it as a plain number. */
+        typeMapping.put("decimal", DECIMAL_TYPE);
         typeMapping.put("boolean", "bool");
         typeMapping.put("string", "string");
         typeMapping.put("byte", "string");
@@ -150,6 +157,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                                 "\\DateTime",
                                 "\\DateTimeImmutable",
                                 "\\DateInterval",
+                                DECIMAL_TYPE,
                                 "\\SplFileObject",
                                 "\\Symfony\\Component\\Uid\\Uuid",
                                 "\\Ds\\Vector",
@@ -421,6 +429,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.php"),
             new SupportingFileSpec("precise_duration.mustache", invokerFolder, "PreciseDuration.php"),
             new SupportingFileSpec("serializer/duration_normalizer.mustache", serializerFolder, "DurationNormalizer.php"),
+            new SupportingFileSpec("serializer/decimal_normalizer.mustache", serializerFolder, "DecimalNormalizer.php"),
             new SupportingFileSpec("serializer/ds_vector_normalizer.mustache", serializerFolder, "DsVectorNormalizer.php"),
             new SupportingFileSpec("serializer/ds_set_normalizer.mustache", serializerFolder, "DsSetNormalizer.php"),
             new SupportingFileSpec("serializer/ds_map_normalizer.mustache", serializerFolder, "DsMapNormalizer.php"),
@@ -1077,6 +1086,15 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Whether a schema is a {@code type: number} with {@code format: decimal}, which the base
+     * generator types as a plain number.
+     */
+    @SuppressWarnings("rawtypes")
+    static boolean isDecimalNumber(@Nullable Schema schema) {
+        return schema != null && "decimal".equals(schema.getFormat()) && ModelUtils.isNumberSchema(schema);
+    }
+
+    /**
      * Overrides the base class because PHP needs special
      * handling for {@code anyOf}/{@code oneOf} composed schemas
      * (returns the raw type) and routes non-primitives through
@@ -1091,6 +1109,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
         if (type == null) {
             return "UNKNOWN_OPENAPI_TYPE";
+        }
+
+        if (isDecimalNumber(schema)) {
+            return DECIMAL_TYPE;
         }
 
         if ((schema.getAnyOf() != null && !schema.getAnyOf().isEmpty())
@@ -1165,6 +1187,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
+        if (unaliased != null && "decimal".equals(unaliased.getFormat())) {
+            /* A BigDecimal is an object and PHP allows no static call in a default. */
+            return null;
+        }
         if (ModelUtils.isBooleanSchema(unaliased)
                 || ModelUtils.isNumberSchema(unaliased)
                 || ModelUtils.isIntegerSchema(unaliased)) {
