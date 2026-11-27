@@ -134,7 +134,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("float", "float32");
         typeMapping.put("double", "float64");
         typeMapping.put("number", "float64");
-        typeMapping.put("decimal", "float64");
+        // format:decimal maps to decimal.Decimal from github.com/shopspring/decimal,
+        // an arbitrary-precision decimal (#157, D135). A number-shaped decimal is
+        // read from the digits of the JSON number and written back as a bare
+        // number in plain notation; a string-shaped one travels as a JSON string.
+        // getSchemaType maps a `type: number, format: decimal` the same way.
+        typeMapping.put("decimal", "decimal.Decimal");
         // format:date maps to civil.Date from cloud.google.com/go/civil, a
         // calendar date whose text form is YYYY-MM-DD. Parsing rejects a value
         // that is not a real date (2024-02-30), so no caller can send one.
@@ -185,7 +190,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "uuid.UUID",
                                 "civil.Date",
                                 "netip.Addr",
-                                "time.Duration"));
+                                "time.Duration",
+                                "decimal.Decimal"));
 
         reservedWords = loadReservedWords("/reserved-words/go.txt");
 
@@ -785,6 +791,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "pkg/internal/protoduration",
                         "protoduration.go"),
                 new SupportingFileSpec(
+                        "internal/exactdecimal.mustache",
+                        "pkg/internal/exactdecimal",
+                        "exactdecimal.go"),
+                new SupportingFileSpec(
                         "models/date_time.mustache", "pkg/models", "date_time.go"));
     }
 
@@ -818,6 +828,17 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (resolved != null && isDecimalFormat(resolved)) {
+            if (resolved.getDefault() == null) {
+                return null;
+            }
+            final Object value = resolved.getDefault();
+            final String text =
+                    value instanceof java.math.BigDecimal
+                            ? ((java.math.BigDecimal) value).toPlainString()
+                            : String.valueOf(value);
+            return "decimal.RequireFromString(\"" + goStringBody(text) + "\")";
+        }
         if (ModelUtils.isIntegerSchema(resolved)
                 || ModelUtils.isNumberSchema(resolved)
                 || ModelUtils.isBooleanSchema(resolved)) {
@@ -949,6 +970,38 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Maps a {@code type: number, format: decimal} schema to {@code decimal.Decimal},
+     * the type the string form already gets through the {@code decimal} mapping.
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        /* A number written as a decimal is the same exact decimal.Decimal as the string form. */
+        if ("float64".equals(type) && schema != null && isDecimalFormat(schema)) {
+            return "decimal.Decimal";
+        }
+        return type;
+    }
+
+    /**
+     * Whether a schema is a {@code format: decimal} number or string, the
+     * exact-decimal format that maps to {@code decimal.Decimal} (D135).
+     *
+     * @param schema the schema to check
+     * @return true for {@code format: decimal}
+     */
+    @SuppressWarnings("rawtypes")
+    private static boolean isDecimalFormat(final Schema schema) {
+        return "decimal".equals(schema.getFormat())
+                && ("number".equals(schema.getType())
+                        || "string".equals(schema.getType())
+                        || (schema.getTypes() != null
+                                && (schema.getTypes().contains("number")
+                                        || schema.getTypes().contains("string"))));
+    }
+
+    /**
      * Resolves a reference to a component schema through {@link #toModelName}
      * so a reference uses the same name its type is declared with. A model
      * keeps its own name (Error stays Error: it does not clash with the
@@ -975,6 +1028,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 Map.entry("type:netip.Addr", "hasNetipImport"),
                 Map.entry("type:civil.Date", "hasCivilImport"),
                 Map.entry("type:time.Duration", "hasDurationImport"),
+                Map.entry("type:decimal.Decimal", "hasDecimalImport"),
                 Map.entry("type:[]byte", "hasByteFields"),
                 Map.entry("oneOfAnyOf", "hasFmtImport"),
                 Map.entry("isEnum", "hasFmtImport"),
@@ -995,6 +1049,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "type:netip.Addr", "hasNetipImport",
                 "type:civil.Date", "hasCivilImport",
                 "type:time.Duration", "hasTimeImport",
+                "type:decimal.Decimal", "hasDecimalImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport");
     }
@@ -1022,6 +1077,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasNetipImport = false;
         boolean hasCivilImport = false;
         boolean hasTimeImport = false;
+        boolean hasDecimalImport = false;
         boolean hasIntEnum = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -1110,13 +1166,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 hasCivilImport = true;
             } else if (dataType != null && dataType.contains("time.Duration")) {
                 hasTimeImport = true;
+            } else if (dataType != null && dataType.contains("decimal.Decimal")) {
+                hasDecimalImport = true;
             } else if (!p.isPrimitiveType
                     && dataType != null
                     && !goPrimitives.contains(baseType)
                     && !baseType.startsWith("map[")
                     && !baseType.equals("uuid.UUID")
                     && !baseType.equals("civil.Date")
-                    && !baseType.equals("time.Duration")) {
+                    && !baseType.equals("time.Duration")
+                    && !baseType.equals("decimal.Decimal")) {
                 hasModelImport = true;
             }
         }
@@ -1145,6 +1204,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasTimeImport) {
             context.put("hasTimeImport", true);
+        }
+        if (hasDecimalImport) {
+            context.put("hasDecimalImport", true);
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }
@@ -1535,6 +1597,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
                 markDurationFields(modelsMap, model);
+                markDecimalFields(modelsMap, model);
                 if (Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
                     final Set<String> variants = new LinkedHashSet<>();
                     for (final CodegenDiscriminator.MappedModel mapped :
@@ -1586,6 +1649,58 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             model.vendorExtensions.put("hasDurationAdditionalProperties", true);
             modelsMap.put("hasProtoDurationImport", true);
         }
+    }
+
+    /**
+     * Marks each property whose Go type holds a {@code decimal.Decimal} (alone or
+     * in a list or map) with {@code isDecimalField}, a string-shaped one also with
+     * {@code isDecimalString}, and the model with {@code hasDecimalFields}.
+     * shopspring writes a decimal as a quoted string without its trailing zeros
+     * and reads one from a number or a string alike, so the model template checks
+     * the JSON shape of these keys on decode and writes their exact text on
+     * encode (D135). The file then imports the internal codec, flagged as
+     * {@code hasExactDecimalImport}. Enums and unions are left unmarked.
+     *
+     * @param modelsMap the file context of the model
+     * @param model the model to mark
+     */
+    private static void markDecimalFields(final ModelsMap modelsMap, final CodegenModel model) {
+        if (model.isEnum
+                || (model.oneOf != null && !model.oneOf.isEmpty())
+                || (model.anyOf != null && !model.anyOf.isEmpty())) {
+            return;
+        }
+        boolean any = false;
+        for (final CodegenProperty property : model.vars) {
+            final boolean decimal =
+                    property.dataType != null && property.dataType.contains("decimal.Decimal");
+            property.vendorExtensions.put("isDecimalField", decimal);
+            property.vendorExtensions.put(
+                    "isDecimalString", decimal && isStringShaped(property));
+            any |= decimal;
+        }
+        if (any) {
+            model.vendorExtensions.put("hasDecimalFields", true);
+            modelsMap.put("hasExactDecimalImport", true);
+        }
+        if (any || Boolean.TRUE.equals(model.vendorExtensions.get("hasDurationFields"))) {
+            model.vendorExtensions.put("hasRewrittenFields", true);
+        }
+    }
+
+    /**
+     * Whether a decimal property travels as a JSON string ({@code type: string,
+     * format: decimal}), looking through a list or map to its items.
+     *
+     * @param property the decimal property
+     * @return true when its scalar values are JSON strings
+     */
+    private static boolean isStringShaped(final CodegenProperty property) {
+        CodegenProperty scalar = property;
+        while (scalar.items != null) {
+            scalar = scalar.items;
+        }
+        return "string".equals(scalar.openApiType);
     }
 
     /**

@@ -22,7 +22,7 @@
 | `byte_stream.mustache`, `api_stream_response.mustache`, `api_client.mustache` (`StreamingApiClient`) | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), the second transport interface | streaming types |
 | `event_stream.mustache`, `sse_stream.mustache`, `json_lines_stream.mustache`, `server_sent_event.mustache`, `request_option.mustache` (the stream options), `api/operation_prelude.mustache` | the line reader and SSE parser, `SseStream[T]` and `JsonLinesStream[T]` (both with `All() iter.Seq2`), `ServerSentEvent[T]`, the stream call options, and the request preparation shared by a buffered and a stream operation method | `<Op>Stream` methods |
 | `base_api.mustache`, `api/api.mustache`, `api/options.mustache` | request assembly, response decoding, per-operation methods and `opts.*Options` structs | an operation signature or request/response handling |
-| `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache`, `path_utils.mustache`, `models/`, `internal/protoduration.mustache` | JSON and parameter encoding, models, `Set`, `DateTime`, the protobuf-JSON duration codec | models and wire encoding |
+| `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache`, `path_utils.mustache`, `models/`, `internal/protoduration.mustache`, `internal/exactdecimal.mustache` | JSON and parameter encoding, models, `Set`, `DateTime`, the protobuf-JSON duration codec, the exact-decimal codec | models and wire encoding |
 | `configuration.mustache`, `client.mustache`, `servers.mustache`, `server_configuration.mustache` | `Configuration` and builder, `Client` facade, server tables | client construction |
 | `call_hook.mustache`, `otelhook.mustache` | the call hook types (`pkg/call_hook.go`) and the OpenTelemetry adapter (`pkg/otelhook`); `base_api.mustache` calls the hook, `configuration.mustache` and `client.mustache` carry it | hook and telemetry behaviour |
 | `readme.mustache`, `skills.mustache`, `go_mod.mustache`, `makefile.mustache`, `golangci.mustache`, `dev_dependencies.mustache` | README, SKILLS.md, module manifest, tool block and lint config | README sections, dependencies, lint |
@@ -44,7 +44,7 @@
 | Support types | generic `Set[T]`, `DateTime`, `civil.Date` (`format: date`, D130), plain `time.Duration` for `format: duration` (D133: each model rewrites its duration keys and `serialize`/`deserialize` rewrite a bare duration, list or map through the internal `protoduration` package, because `encoding/json` writes nanoseconds), `iso8601` helpers, a `TraceContextPropagatorFunc` hook | stdlib gaps; no optional import to detect OpenTelemetry |
 | Zero values | a model struct can be built without its required properties; decode enforces them | the zero-value struct is forced |
 | Immutability | `ApiResult.headers` is a `maps.Clone` and documented "do not mutate" | Go has no immutable map |
-| Numbers | `format: number` is `float64`, documented lossy | no stdlib decimal |
+| Numbers | a bare `type: number` is `float64`, documented lossy; `format: decimal` (number or string) is `decimal.Decimal` from `github.com/shopspring/decimal` (D135) | no stdlib decimal |
 | Optional description | `ServerConfiguration`/`ServerVariable` description is an empty string when absent | empty-string sentinel shared with rust, swift and dart; metadata only |
 | Naming | initialisms in upper case (`URL`, `ID`, `HTTP`) | Effective Go |
 
@@ -114,8 +114,14 @@ Why: one seam for editing, observing and tracing; a nested module would need a v
 Where: `base_api.mustache`, `api/api.mustache`, `call_hook.mustache`, `configuration.mustache`, `client.mustache`, `otelhook.mustache`, `go_mod.mustache`.
 Test: `test/base_api_test.mustache` (hooks), `test/client_test.mustache`, `test/configuration_test.mustache`, `test/call_hook_test.mustache`, `test/otelhook_test.mustache`.
 
+### Exact decimals (D135, #157)
+Rule: `format: decimal` is `decimal.Decimal` from `github.com/shopspring/decimal` in every model field, list, map, parameter and options field; a bare `type: number` stays `float64`. shopspring reads a decimal from its JSON text (never through a `float64`) but accepts a number and a string alike and writes a quoted string without its trailing zeros, so each model checks the JSON shape of its decimal keys on decode (`exactdecimal.CheckField`: a `number` decimal must be a bare JSON number, a `string` decimal a JSON string holding a plain decimal) and rewrites them on encode (`exactdecimal.EncodeFields`) with `exactdecimal.Text`: plain notation, every digit and trailing zero kept. Never set the global `decimal.MarshalJSONWithoutQuotes`, which would change the caller's own decimals. `stringify` writes a decimal parameter with the same `Text`, and `isTemporalScalar` treats a decimal as a scalar. A decimal outside a model (a bare body) is written as shopspring writes it.
+Why: issue #157, owner decision: exact decimals in all twelve SDKs, Go through shopspring.
+Where: `internal/exactdecimal.mustache`, `models/model.mustache`, `object_serializer.mustache`, `go_mod.mustache`, `BetterGoCodegen` (`getSchemaType`, `markDecimalFields`, `toDefaultValue`).
+Test: `test/object_serializer_test.mustache` (serializationobject410 to 413).
+
 ### Dependencies (S10)
-Rule: a small pure module or a version bump is acceptable when it standardises behaviour; never a module that needs a native binary (cgo). `brotli`, `klauspost/compress` and `google/uuid` are accepted; the tool block pins `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`.
+Rule: a small pure module or a version bump is acceptable when it standardises behaviour; never a module that needs a native binary (cgo). `brotli`, `klauspost/compress`, `google/uuid` and `shopspring/decimal` are accepted; the tool block pins `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`.
 Why: a native-binary dependency makes the client harder to install and test.
 Where: `go_mod.mustache`, `dev_dependencies.mustache`.
 Test: `GoBuildSpec`, `GoWasmSpec`.

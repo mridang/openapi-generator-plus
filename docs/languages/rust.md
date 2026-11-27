@@ -27,7 +27,8 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `integer` with no format | `i64` | |
 | `number` / `float` | `f32` | |
 | `number` / `double`, `number` with no format | `f64` | |
-| `number` / `decimal` | `f64` | Lossy for exact decimal values such as money. |
+| `number` / `decimal` | `rust_decimal::Decimal` | Exact (D135). Read from the digits of the JSON number, never through an `f64`, and written back as a bare JSON number in plain notation. A value with more digits than `Decimal` holds (28 significant digits) fails with `SerializationError` instead of being rounded. |
+| `string` / `decimal` | `rust_decimal::Decimal` | Exact (D135). Read only from a JSON string (a bare number fails with `SerializationError`) and written back as a JSON string that keeps its scale, so `"12.50"` stays `"12.50"`. |
 | `boolean` | `bool` | |
 | `array` | `Vec<T>` | |
 | `array` with `uniqueItems` | `std::collections::HashSet<T>` | Written in sorted order by a serde adapter so the bytes are stable. |
@@ -48,8 +49,9 @@ Runtime dependencies, from the generated `Cargo.toml`:
 |---|---|---|
 | `reqwest` | 0.12 | HTTP, with `json`, `multipart`, `http2`, `charset` and `rustls-tls-native-roots` |
 | `tokio` | 1 | Async runtime |
-| `serde`, `serde_repr`, `serde_json` | 1, 0.1, 1 | JSON. `serde_json` uses `unbounded_depth` and `preserve_order` |
+| `serde`, `serde_repr`, `serde_json` | 1, 0.1, 1 | JSON. `serde_json` uses `unbounded_depth`, `preserve_order` and `raw_value` (the source text of a decimal number) |
 | `chrono` | 0.4 | Dates and times |
+| `rust_decimal` | 1 | `format: decimal`, with `std` and `serde` only |
 | `uuid` | 1 | The `uuid` type |
 | `base64` | 0.22 | `byte` fields |
 | `flate2`, `brotli`, `zstd` | 1, 7, 0.13 | Decoding gzip, deflate, `br` and `zstd` responses |
@@ -178,7 +180,8 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 - An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
 
-- `format: decimal` and `number` are `f64` and lose exactness.
+- A `number` with no format, `float` or `double` is a binary float (`f32`, `f64`) and loses exactness; use `format: decimal` for money.
+- A `format: decimal` value holds at most 28 significant digits (the limit of `rust_decimal`); a longer value fails to decode rather than being rounded. A decimal inside a `oneOf` or `anyOf` member, or in a response with a repeated key, passes through `serde_json::Value`, which holds a number as an `f64`, so only about 17 significant digits survive there. A `uniqueItems` set or a map of decimals uses `rust_decimal`'s own serde form, which writes a JSON string.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory. Only a raw binary request body and a binary, a JSON Lines and a server-sent events response is a stream.
 - Typed maps (`HashMap`) do not keep key order, while `JsonValue` does.
 - An optional nullable property cannot tell an absent key from an explicit `null`. Both are `None`.
@@ -196,7 +199,6 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
-- Exact decimals through `rust_decimal` or `bigdecimal`, with a serde adapter. This adds a dependency. The review advises against turning on `serde_json`'s `arbitrary_precision` feature globally.
 - `url::Url` for `uri`. It is already in the dependency tree through `reqwest`, but it normalises on parse, so values would not round trip byte for byte.
 - `#[non_exhaustive]` on generated enums, so a new server value is not a breaking change for callers who match on them.
 - Edition 2024, which 1.85 already supports.

@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+	"github.com/shopspring/decimal"
 	errors_pkg "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/internal/exactdecimal"
 	"{{packageName}}/pkg/internal/protoduration"
 	"{{packageName}}/pkg/models"
 )
@@ -399,6 +401,14 @@ func stringify(value any) string {
 			return ""
 		}
 		return protoduration.Format(*v)
+	case decimal.Decimal:
+		/* Plain notation with every digit, trailing zeros included (never 1.2E+3). */
+		return exactdecimal.Text(v)
+	case *decimal.Decimal:
+		if v == nil {
+			return ""
+		}
+		return exactdecimal.Text(*v)
 	case models.DateTime:
 		return v.String()
 	case *models.DateTime:
@@ -450,14 +460,15 @@ func stringify(value any) string {
 }
 
 // isTemporalScalar reports whether a struct value is a date-time (time.Time or
-// a type defined on it, such as DateTime) or a calendar date (civil.Date). Both
-// are written as scalars.
+// a type defined on it, such as DateTime), a calendar date (civil.Date) or a
+// decimal (decimal.Decimal). All are written as scalars.
 func isTemporalScalar(rv reflect.Value) bool {
 	if rv.Kind() != reflect.Struct {
 		return false
 	}
 	return rv.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) ||
-		rv.Type() == reflect.TypeOf(civil.Date{})
+		rv.Type() == reflect.TypeOf(civil.Date{}) ||
+		rv.Type() == reflect.TypeOf(decimal.Decimal{})
 }
 
 // toPathValue converts a value to a string suitable for use as a URL path parameter.

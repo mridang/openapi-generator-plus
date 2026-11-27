@@ -491,16 +491,19 @@ go test ./...
 
 ### Decimal / `format: number` precision
 
-Go's `encoding/json` parses JSON numbers into `float64` by default
-when the target type is `any`, and into `float64` for `float`
-typed fields. `format: decimal` / `format: number` values are
-therefore stored as `float64`, so monetary values lose exact decimal
-representation. `0.1 + 0.2` in Go is `0.30000000000000004`.
+`format: decimal` fields and parameters are typed as `decimal.Decimal`
+from `github.com/shopspring/decimal`. The digits are read from the
+JSON text without passing through a `float64`, so exact decimal values
+survive deserialization unchanged, and they are written back with every
+digit and trailing zero: a `type: number` decimal as a bare JSON number
+in plain notation, a `type: string` decimal as a JSON string. You can
+safely do arithmetic on prices, balances, and other money-typed fields
+using `decimal.Decimal`'s exact operators.
 
-Do not do arithmetic on prices, balances, or other money-typed
-fields. If you need exact decimal arithmetic, parse the raw response
-body yourself and use `math/big.Rat` or a third-party decimal
-library.
+A bare `type: number` with no format, `format: float` and
+`format: double` are `float64` (or `float32`), which **cannot**
+represent every decimal fraction exactly (`0.1 + 0.2` is
+`0.30000000000000004`). Do not use a float-typed field for money.
 
 `format: int64` is unaffected — Go's `int64` natively represents the
 full 64-bit range without precision loss.

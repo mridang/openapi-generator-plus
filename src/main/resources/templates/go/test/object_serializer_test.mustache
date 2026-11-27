@@ -14,6 +14,7 @@ import (
 
 	"cloud.google.com/go/civil"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 
 	apierrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
@@ -4745,6 +4746,79 @@ func TestBhvSerializationobject409_ObjectSerializer_Serialize_HostnameAndEmailAr
 	}
 	if got := encodeNativeValues(t, values); got != body {
 		t.Errorf("expected %s, got %s", body, got)
+	}
+}
+
+func TestBhvSerializationobject410_ObjectSerializer_Deserialize_DecimalNumberKeepsEveryDigitInPlainNotation(t *testing.T) {
+	t.Parallel()
+	body := `{"amount":12.345678901234567890123}`
+	values, err := decodeNativeValues(t, body)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if want := decimal.RequireFromString("12.345678901234567890123"); !values.Amount.Equal(want) {
+		t.Errorf("expected %s, got %s", want, values.Amount)
+	}
+	if got := encodeNativeValues(t, values); got != body {
+		t.Errorf("expected %s, got %s", body, got)
+	}
+}
+
+func TestBhvSerializationobject411_ObjectSerializer_Deserialize_StringDecimalIsAJsonStringAndRejectsANumber(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"ledger":"12.50"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if want := decimal.RequireFromString("12.50"); !values.Ledger.Equal(want) {
+		t.Errorf("expected %s, got %s", want, values.Ledger)
+	}
+	if got := encodeNativeValues(t, values); got != `{"ledger":"12.50"}` {
+		t.Errorf("expected the string kept as written, got %s", got)
+	}
+	_, err = decodeNativeValues(t, `{"ledger":12.50}`)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected a *SerializationError for a bare number, got %T: %v", err, err)
+	}
+}
+
+func TestBhvSerializationobject412_ObjectSerializer_Deserialize_FortyDigitNumberIsExactAndNeverRounded(t *testing.T) {
+	t.Parallel()
+	digits := "1234567890123456789012345678901234567890"
+	values, err := decodeNativeValues(t, `{"amount":`+digits+`}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if want := decimal.RequireFromString(digits); !values.Amount.Equal(want) {
+		t.Errorf("expected %s, got %s", want, values.Amount)
+	}
+	if got := encodeNativeValues(t, values); got != `{"amount":`+digits+`}` {
+		t.Errorf("expected every digit, got %s", got)
+	}
+}
+
+func TestBhvSerializationobject413_ObjectSerializer_Deserialize_DecimalFieldsAreTheExactDecimalType(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"amount":0.1,"ledger":"0.1"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	// Assigning to a decimal.Decimal compiles only when both fields are that type, never a float64.
+	var amount, ledger decimal.Decimal = *values.Amount, *values.Ledger
+	if want := decimal.New(1, -1); !amount.Equal(want) || !ledger.Equal(want) {
+		t.Errorf("expected exactly 0.1, got %s and %s", amount, ledger)
+	}
+}
+
+func TestBhvMisc088_ObjectSerializer_Deserialize_DecimalKeepsTheDecimalPlacesItWasWrittenWith(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"ledger":"1.50"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got := values.Ledger.Exponent(); got != -2 {
+		t.Errorf("expected two decimal places, got exponent %d", got)
 	}
 }
 

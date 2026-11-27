@@ -816,11 +816,18 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_serializationparam_106_path_with_null_style_behaves_like_simple() {
+    fn test_bhv_serializationparam_106_path_with_null_style_behaves_like_simple_and_a_decimal_is_plain() {
         let null_style = super::serialize_styled("id", Some("5"), None, "path", "string", "", "", false);
         let simple = super::serialize_styled("id", Some("5"), None, "path", "string", "", "simple", false);
         assert_eq!(unwrap_single(null_style), "5");
         assert_eq!(unwrap_single(simple), "5");
+        let digits = "12345678901234567890.12345678";
+        let decimal = rust_decimal::Decimal::from_str_exact(digits).expect("exact");
+        assert_eq!(crate::object_serializer::stringify(&decimal), digits);
+        assert_eq!(
+            crate::object_serializer::stringify(&rust_decimal::Decimal::from_str_exact("0.00000001").expect("exact")),
+            "0.00000001"
+        );
     }
 
     #[test]

@@ -27,7 +27,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `integer` with no format | `int64` | |
 | `number` / `float` | `float32` | |
 | `number` / `double`, `number` with no format | `float64` | |
-| `number` / `decimal` | `float64` | Lossy for exact decimal values such as money. This is documented in the generated README. |
+| `number` / `decimal`, `string` / `decimal` | `decimal.Decimal` (`github.com/shopspring/decimal`) | Exact (D135). The digits are read from the JSON text, never through a `float64`. A `number` decimal is written as a bare JSON number in plain notation with every digit and trailing zero it holds; a `string` decimal is read only from a JSON string and written back as one. A bare `number` with no format stays a lossy `float64`. |
 | `boolean` | `bool` | |
 | `array` | `[]T` | |
 | `array` with `uniqueItems` | `models.Set[T]` | Slice-backed, `T` is `comparable`. Scalar members are written sorted so the bytes are stable. |
@@ -46,6 +46,7 @@ Runtime modules, from the generated `go.mod`:
 | `github.com/andybalholm/brotli` | v1.2.1 | Decoding `br` responses |
 | `github.com/klauspost/compress` | v1.18.6 | Decoding `zstd` responses |
 | `github.com/google/uuid` | v1.6.0 | The `uuid` type |
+| `github.com/shopspring/decimal` | v1.6.0 | The `decimal.Decimal` type for `format: decimal` (pure Go, arbitrary precision) |
 | `cloud.google.com/go` | v0.121.4 | The `civil.Date` type for `format: date` (the `civil` package imports only the standard library) |
 | `go.opentelemetry.io/otel`, `otel/metric` and `otel/trace` | v1.47.0 | Trace-context propagation, and the `pkg/otelhook` adapter (the core package imports none of them) |
 
@@ -166,7 +167,7 @@ An operation whose success response is `application/x-ndjson`, `application/json
 ## Known limits
 
 - `format: time` is a plain string, so it is not validated. `format: date` is a `civil.Date` and is validated when it is decoded.
-- `format: decimal` and `number` are `float64` and lose exactness.
+- A bare `type: number` (no format) is `float64` and loses exactness; `format: decimal` is the exact `decimal.Decimal`.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
 - `allOf` with a discriminator is not implemented yet. Only `oneOf` with a discriminator is.
 - A multipart request body and a JSON, text or form response body are read whole into memory. A raw binary request body and a binary, JSON Lines or server-sent events response are streams.

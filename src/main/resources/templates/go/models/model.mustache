@@ -12,6 +12,10 @@ import (
 {{#hasDurationImport}}
 	"time"
 {{/hasDurationImport}}
+{{#hasExactDecimalImport}}
+
+	"{{packageName}}/pkg/internal/exactdecimal"
+{{/hasExactDecimalImport}}
 {{#hasProtoDurationImport}}
 
 	"{{packageName}}/pkg/internal/protoduration"
@@ -24,6 +28,10 @@ import (
 
 	"cloud.google.com/go/civil"
 {{/hasCivilImport}}
+{{#hasDecimalImport}}
+
+	"github.com/shopspring/decimal"
+{{/hasDecimalImport}}
 )
 
 {{#models}}
@@ -426,6 +434,12 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 {{/vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasDecimalFields}}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b{{#vars}}{{#vendorExtensions.isDecimalField}}, exactdecimal.Field{Key: "{{baseName}}", Value: o.{{name}}{{#vendorExtensions.isDecimalString}}, Quoted: true{{/vendorExtensions.isDecimalString}}}{{/vendorExtensions.isDecimalField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDecimalFields}}
 	extras := withoutDeclaredKeys(o.AdditionalProperties{{#vars}}, "{{baseName}}"{{/vars}})
 	if len(extras) == 0 {
 		return b, nil
@@ -475,6 +489,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUuid}}
+{{#vendorExtensions.isDecimalField}}
+	if err := exactdecimal.CheckField(data, "{{baseName}}", {{#vendorExtensions.isDecimalString}}true{{/vendorExtensions.isDecimalString}}{{^vendorExtensions.isDecimalString}}false{{/vendorExtensions.isDecimalString}}); err != nil {
+		return err
+	}
+{{/vendorExtensions.isDecimalField}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -571,17 +590,28 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
-{{#vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasRewrittenFields}}
 	b, err := marshalJSON((Alias)(o))
 	if err != nil {
 		return nil, err
 	}
+{{#vendorExtensions.hasDurationFields}}
 	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
-	return protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+	if b, err = protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}}); err != nil {
+		return nil, err
+	}
 {{/vendorExtensions.hasDurationFields}}
-{{^vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasDecimalFields}}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b{{#vars}}{{#vendorExtensions.isDecimalField}}, exactdecimal.Field{Key: "{{baseName}}", Value: o.{{name}}{{#vendorExtensions.isDecimalString}}, Quoted: true{{/vendorExtensions.isDecimalString}}}{{/vendorExtensions.isDecimalField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDecimalFields}}
+	return b, nil
+{{/vendorExtensions.hasRewrittenFields}}
+{{^vendorExtensions.hasRewrittenFields}}
 	return marshalJSON((Alias)(o))
-{{/vendorExtensions.hasDurationFields}}
+{{/vendorExtensions.hasRewrittenFields}}
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -611,6 +641,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUuid}}
+{{#vendorExtensions.isDecimalField}}
+	if err := exactdecimal.CheckField(data, "{{baseName}}", {{#vendorExtensions.isDecimalString}}true{{/vendorExtensions.isDecimalString}}{{^vendorExtensions.isDecimalString}}false{{/vendorExtensions.isDecimalString}}); err != nil {
+		return err
+	}
+{{/vendorExtensions.isDecimalField}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -684,17 +719,28 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
-{{#vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasRewrittenFields}}
 	b, err := marshalJSON((Alias)(o))
 	if err != nil {
 		return nil, err
 	}
+{{#vendorExtensions.hasDurationFields}}
 	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
-	return protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+	if b, err = protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}}); err != nil {
+		return nil, err
+	}
 {{/vendorExtensions.hasDurationFields}}
-{{^vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasDecimalFields}}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b{{#vars}}{{#vendorExtensions.isDecimalField}}, exactdecimal.Field{Key: "{{baseName}}", Value: o.{{name}}{{#vendorExtensions.isDecimalString}}, Quoted: true{{/vendorExtensions.isDecimalString}}}{{/vendorExtensions.isDecimalField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDecimalFields}}
+	return b, nil
+{{/vendorExtensions.hasRewrittenFields}}
+{{^vendorExtensions.hasRewrittenFields}}
 	return marshalJSON((Alias)(o))
-{{/vendorExtensions.hasDurationFields}}
+{{/vendorExtensions.hasRewrittenFields}}
 }
 
 {{#hasRequired}}
@@ -727,6 +773,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUuid}}
+{{#vendorExtensions.isDecimalField}}
+	if err := exactdecimal.CheckField(data, "{{baseName}}", {{#vendorExtensions.isDecimalString}}true{{/vendorExtensions.isDecimalString}}{{^vendorExtensions.isDecimalString}}false{{/vendorExtensions.isDecimalString}}); err != nil {
+		return err
+	}
+{{/vendorExtensions.isDecimalField}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -834,6 +885,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/isUuid}}
+{{#vendorExtensions.isDecimalField}}
+	if err := exactdecimal.CheckField(data, "{{baseName}}", {{#vendorExtensions.isDecimalString}}true{{/vendorExtensions.isDecimalString}}{{^vendorExtensions.isDecimalString}}false{{/vendorExtensions.isDecimalString}}); err != nil {
+		return err
+	}
+{{/vendorExtensions.isDecimalField}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
