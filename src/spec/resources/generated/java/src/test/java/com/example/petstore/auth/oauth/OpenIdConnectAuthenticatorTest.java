@@ -80,10 +80,10 @@ class OpenIdConnectAuthenticatorTest {
     String url = auth.buildAuthorizationUrl("");
 
     assertFalse(url.contains("state"), url);
+    /* Each URL carries its own PKCE challenge and nonce, so everything else must match. */
     assertEquals(
-        auth.buildAuthorizationUrl(null)
-            .replaceAll("&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", ""),
-        url.replaceAll("&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", ""));
+        auth.buildAuthorizationUrl(null).replaceAll("&(code_challenge|nonce)=[A-Za-z0-9_-]+", ""),
+        url.replaceAll("&(code_challenge|nonce)=[A-Za-z0-9_-]+", ""));
   }
 
   @Test

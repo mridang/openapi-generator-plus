@@ -1107,13 +1107,14 @@ public final class DefaultApiClient implements ApiClient {
 
     final long limit;
     final int statusCode;
-    final transient Map<String, String> headers;
+    /* A serializable copy, so the exception keeps its headers if it is ever serialized. */
+    final java.util.LinkedHashMap<String, String> headers;
 
     BodyTooLarge(long limit, int statusCode, Map<String, String> headers) {
       super("Response body exceeds the limit of " + limit + " bytes");
       this.limit = limit;
       this.statusCode = statusCode;
-      this.headers = headers;
+      this.headers = new java.util.LinkedHashMap<>(headers);
     }
   }
 

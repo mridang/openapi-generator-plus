@@ -3208,9 +3208,18 @@ class ObjectSerializerTest {
 
         @org.junit.jupiter.params.ParameterizedTest
         @org.junit.jupiter.params.provider.CsvSource({
-            "address4, 01.2.3.4", "address4, 192.0.2.1/24", "address4, ' 192.0.2.1'", "address4, [::1]",
-            "address4, 2001:db8::1", "address6, fe80::1%eth0", "address6, [::1]", "address6, 2001:db8::/64",
-            "address6, ' ::1'", "address6, 192.0.2.1", "addresses, 1:2:3:4:5:6:7:8:9"})
+            "address4, 01.2.3.4",
+            "address4, 192.0.2.1/24",
+            "address4, ' 192.0.2.1'",
+            "address4, [::1]",
+            "address4, 2001:db8::1",
+            "address6, fe80::1%eth0",
+            "address6, [::1]",
+            "address6, 2001:db8::/64",
+            "address6, ' ::1'",
+            "address6, 192.0.2.1",
+            "addresses, 1:2:3:4:5:6:7:8:9"
+        })
         @DisplayName("bhvSerializationObject407 a malformed ipv4 or ipv6 address fails the decode")
         void bhvSerializationObject407MalformedAddressFailsTheDecode(String field, String text) {
             String value = "addresses".equals(field) ? "[\"" + text + "\"]" : "\"" + text + "\"";
