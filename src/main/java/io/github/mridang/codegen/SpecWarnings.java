@@ -1,5 +1,6 @@
 package io.github.mridang.codegen;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.Json31;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -169,6 +170,7 @@ public final class SpecWarnings {
      * the method field, {@code query}, or {@code additionalOperations/<METHOD>} for an operation
      * the 3.2 loader moved into a path item of its own.
      */
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP method names are ASCII")
     private static Map<String, Operation> operations(String key, PathItem item) {
         Map<String, Operation> operations = new java.util.LinkedHashMap<>();
         for (Map.Entry<PathItem.HttpMethod, Operation> op : item.readOperationsMap().entrySet()) {
