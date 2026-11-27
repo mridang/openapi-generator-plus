@@ -438,6 +438,12 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D123 | A paged operation gets `<op>Pages` (C# `<Operation>PagesAsync`) with the base method's parameters, returning a paginator with `items()` and `pages()` and no page wrapper as the primary type; `pages()` yields `Page<T>` (items, next cursor, the `...WithHttpInfo` result). Lazy, each page an ordinary buffered call, cursor type follows the request parameter, a repeated cursor raises the new `PaginationError`, no `maxItems`, no collect-all, re-iteration restarts, Elixir raises. Supersedes F1100 as first written and the C# "Batch 7 follow-up" note. | Every mature SDK offers both views; AWS Go and Soto stop silently on a repeated token, which truncates data. Design: `docs/design/pagination.md`. |
 | D124 | Detection is a Java rule that computes a generator-owned model; templates never read an `x-*` key. Only a GET with one 2xx JSON response, one array property and exactly one match is eligible. Tiers 1 (token cursor) and 3 (`Link` header, same origin) ship first; tiers 2 (id cursor), 4 (offset or page) and 5 (next URL in the body) later behind the override. Vendor extensions are read as hints by the Java generator, an explicit generator option overrides hints and inference, and a cursor in a POST body or a non-`Link` header is out of v1 (HTTP QUERY, RFC 10008, is the later path). | No benchmarked generator infers freely; an ambiguous spec leaves the manual call (#163). |
 
+### Dates and dependencies (D130-D132)
+
+| Id | Rule | Why / forced exceptions |
+|---|---|---|
+| D130 | Go's `format: date` is `civil.Date` from `cloud.google.com/go/civil` in every parameter, option, form field, array and model field: text `YYYY-MM-DD` both ways, decoding refuses a value that is not a real date, and a zero date is refused as a missing path parameter. `format: time` stays a string. | Go was the last SDK that typed a date as a bare string (F875, #126, owner decision). `civil` imports only the standard library, so it adds no transitive code. |
+
 ### Forced divergences (FD): do not align these away
 
 Each is required by a named language feature; collapsing it reintroduces a bug. Where: the language template named in the language file.

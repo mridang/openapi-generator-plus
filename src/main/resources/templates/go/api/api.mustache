@@ -17,6 +17,10 @@ import (
 
 	"github.com/google/uuid"
 {{/hasUuidImport}}
+{{#hasCivilImport}}
+
+	"cloud.google.com/go/civil"
+{{/hasCivilImport}}
 
 	. "{{packageName}}/pkg/models"
 {{#optionsImports}}

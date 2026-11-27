@@ -13,39 +13,16 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	errors_pkg "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 )
 
-const dateOnlyFormat = "2006-01-02"
-
-// stringifyDate formats a value as a date-only string (YYYY-MM-DD).
-//
-// Used for `format: date` path/query/header/cookie parameters so the wire value
-// matches what the spec asks for (date-only) rather than a full RFC 3339
-// datetime with offset.
-func stringifyDate(value any) string {
-	if value == nil {
-		return ""
-	}
-	switch v := value.(type) {
-	case time.Time:
-		return v.Format(dateOnlyFormat)
-	case *time.Time:
-		if v == nil {
-			return ""
-		}
-		return v.Format(dateOnlyFormat)
-	case string:
-		return v
-	case *string:
-		if v == nil {
-			return ""
-		}
-		return *v
-	default:
-		return fmt.Sprintf("%v", v)
-	}
+// stringifyDate formats a `format: date` value as YYYY-MM-DD, the text form of
+// civil.Date. Used for path parameters so the wire value is the date alone,
+// never a date-time with a time and an offset.
+func stringifyDate(value civil.Date) string {
+	return value.String()
 }
 
 // newSerializationError constructs a SerializationError with fixed state.
@@ -357,9 +334,14 @@ func stringify(value any) string {
 }
 
 // isTemporalScalar reports whether a struct value is a date-time (time.Time or
-// a type defined on it, such as DateTime), which is written as a scalar.
+// a type defined on it, such as DateTime) or a calendar date (civil.Date). Both
+// are written as scalars.
 func isTemporalScalar(rv reflect.Value) bool {
-	return rv.Kind() == reflect.Struct && rv.Type().ConvertibleTo(reflect.TypeOf(time.Time{}))
+	if rv.Kind() != reflect.Struct {
+		return false
+	}
+	return rv.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) ||
+		rv.Type() == reflect.TypeOf(civil.Date{})
 }
 
 // toPathValue converts a value to a string suitable for use as a URL path parameter.

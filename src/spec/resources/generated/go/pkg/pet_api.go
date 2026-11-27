@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"strings"
 
+	"cloud.google.com/go/civil"
+
 	. "petstore/pkg/models"
 	opts "petstore/pkg/options"
 )
@@ -216,8 +218,8 @@ type PetApiInterface interface {
 	DeletePetWithHTTPInfo(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) (*ApiResult[any], error)
 	DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ByteStream, error)
 	DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ApiResult[ByteStream], error)
-	FindPetsBornOn(ctx context.Context, bornOn string, callOptions ...RequestOption) ([]Pet, error)
-	FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, callOptions ...RequestOption) (*ApiResult[[]Pet], error)
+	FindPetsBornOn(ctx context.Context, bornOn civil.Date, callOptions ...RequestOption) ([]Pet, error)
+	FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn civil.Date, callOptions ...RequestOption) (*ApiResult[[]Pet], error)
 	FindPetsByStatus(ctx context.Context, options *opts.FindPetsByStatusOptions, callOptions ...RequestOption) ([]Pet, error)
 	FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts.FindPetsByStatusOptions, callOptions ...RequestOption) (*ApiResult[[]Pet], error)
 	GetExternalPetInfo(ctx context.Context, petId int64, server GetExternalPetInfoServer, callOptions ...RequestOption) (*Pet, error)
@@ -238,8 +240,8 @@ type PetApiInterface interface {
 	GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[PetPassport], error)
 	GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ByteStream, error)
 	GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ApiResult[ByteStream], error)
-	GetPetSummary(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (string, error)
-	GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (*ApiResult[string], error)
+	GetPetSummary(ctx context.Context, petId int64, asOf civil.Date, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (string, error)
+	GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf civil.Date, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (*ApiResult[string], error)
 	GetPetTag(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions, callOptions ...RequestOption) (*Pet, error)
 	GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions, callOptions ...RequestOption) (*ApiResult[Pet], error)
 	GetStagingPetInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer, callOptions ...RequestOption) (*Pet, error)
@@ -1120,7 +1122,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
 //
 // GET /pet/born-on/{bornOn}
-func (a *PetApi) FindPetsBornOn(ctx context.Context, bornOn string, callOptions ...RequestOption) ([]Pet, error) {
+func (a *PetApi) FindPetsBornOn(ctx context.Context, bornOn civil.Date, callOptions ...RequestOption) ([]Pet, error) {
 	var empty []Pet
 	result, err := a.FindPetsBornOnWithHTTPInfo(ctx, bornOn, callOptions...)
 	if err != nil {
@@ -1136,7 +1138,7 @@ func (a *PetApi) FindPetsBornOn(ctx context.Context, bornOn string, callOptions 
 }
 
 // FindPetsBornOnWithHTTPInfo performs the FindPetsBornOn operation and returns the full API result.
-func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
+func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn civil.Date, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}
@@ -1331,7 +1333,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 	}
 	if options != nil && options.BornAfter != nil {
 		{
-			styledValue, styledErr := serializeStyledChecked("bornAfter", options.BornAfter, "query", "string", "", "form", true)
+			styledValue, styledErr := serializeStyledChecked("bornAfter", options.BornAfter, "query", "civil.Date", "", "form", true)
 			if styledErr != nil {
 				return nil, styledErr
 			}
@@ -1351,7 +1353,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 	headerParams := make(map[string]string)
 	if options != nil && options.ReportDate != nil {
 		{
-			styledValue, styledErr := serializeStyledChecked("Report-Date", options.ReportDate, "header", "string", "", "simple", false)
+			styledValue, styledErr := serializeStyledChecked("Report-Date", options.ReportDate, "header", "civil.Date", "", "simple", false)
 			if styledErr != nil {
 				return nil, styledErr
 			}
@@ -2785,7 +2787,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 //   - HTTP 404: *NotFoundError
 //
 // GET /pet/{petId}/summary/{asOf}
-func (a *PetApi) GetPetSummary(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (string, error) {
+func (a *PetApi) GetPetSummary(ctx context.Context, petId int64, asOf civil.Date, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (string, error) {
 	var empty string
 	result, err := a.GetPetSummaryWithHTTPInfo(ctx, petId, asOf, options, callOptions...)
 	if err != nil {
@@ -2801,7 +2803,7 @@ func (a *PetApi) GetPetSummary(ctx context.Context, petId int64, asOf string, op
 }
 
 // GetPetSummaryWithHTTPInfo performs the GetPetSummary operation and returns the full API result.
-func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (_ *ApiResult[string], callErr error) {
+func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf civil.Date, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (_ *ApiResult[string], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}
@@ -2848,7 +2850,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 	queryParams := make(map[string]any)
 	if options != nil && options.Days != nil {
 		{
-			styledValue, styledErr := serializeStyledChecked("days", options.Days, "query", "[]string", "multi", "form", true)
+			styledValue, styledErr := serializeStyledChecked("days", options.Days, "query", "[]civil.Date", "multi", "form", true)
 			if styledErr != nil {
 				return nil, styledErr
 			}

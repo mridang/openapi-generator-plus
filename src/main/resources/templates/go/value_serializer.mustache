@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+
+	"cloud.google.com/go/civil"
 )
 
 // serializeValue serializes a value for use in an HTTP request parameter.
@@ -407,6 +409,9 @@ func requirePathParam(paramName string, value any) error {
 		rv = rv.Elem()
 	}
 	if rv.Kind() == reflect.String && rv.String() == "" {
+		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	if d, ok := value.(civil.Date); ok && d.IsZero() {
 		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
 	}
 	if rv.Kind() == reflect.String && (rv.String() == "." || rv.String() == "..") {

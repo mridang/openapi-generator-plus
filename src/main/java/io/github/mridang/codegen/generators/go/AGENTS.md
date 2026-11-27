@@ -41,7 +41,7 @@
 | Optional parameters | an `opts.<Op>Options` struct per operation; required file or reader fields are pointers or interfaces checked for nil at call time | struct fields cannot be required |
 | Inheritance | `BaseAuthenticator` is an embedded empty struct; no implementation inheritance for models | embedding, not subclassing |
 | Unions | oneOf is a struct holding an `any` value with `MarshalJSON` and `UnmarshalJSON` that tries each variant in declaration order or dispatches on the discriminator | no sum types |
-| Support types | generic `Set[T]`, `DateTime`, `Duration` (ISO-8601 and protobuf forms), `iso8601` helpers, a `TraceContextPropagatorFunc` hook | stdlib gaps; no optional import to detect OpenTelemetry |
+| Support types | generic `Set[T]`, `DateTime`, `Duration` (ISO-8601 and protobuf forms), `civil.Date` (`format: date`, D130), `iso8601` helpers, a `TraceContextPropagatorFunc` hook | stdlib gaps; no optional import to detect OpenTelemetry |
 | Zero values | a model struct can be built without its required properties; decode enforces them | the zero-value struct is forced |
 | Immutability | `ApiResult.headers` is a `maps.Clone` and documented "do not mutate" | Go has no immutable map |
 | Numbers | `format: number` is `float64`, documented lossy | no stdlib decimal |
@@ -310,7 +310,7 @@ The audit's own proposal was the default wherever no owner decision existed.
 - Trace propagator (race part): `traceContextPropagator` is an `atomic.Pointer`, so `SetTraceContextPropagator` may run while requests are in flight. Per-operation spans and metrics are not added. `InjectTraceContext(ctx, headers)` takes the call context and hands it to the propagator, so a span carried by the operation's `ctx` reaches `traceparent` and `tracestate` (F06, #131); the other eleven read the ambient context (D101). Tests: the span cases of `trace_context_util_test` pass the span through the call context, and `TestBhvTracing013`, `015` and `016` in `base_api_test` drive an operation under a real span. Test: `TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree` (the suite runs with `-race`).
 - F844 is already conforming: this file exists.
 
-Deferred from batch 6 and not landed since: the `models.Date` type for `format: date` (#126), single-pass model decode (#107) and a response size limit option (#112). The rest of that list, a per-call content type, the context-aware auth method, named inline parameter enums, values instead of pointers, typed union constructors and accessors, the per-group interface, exported enum value lists and the operation doc comment layout, landed in the later batches described below.
+Deferred from batch 6 and not landed since: single-pass model decode (#107) and a response size limit option (#112). The rest of that list, a per-call content type, the context-aware auth method, named inline parameter enums, values instead of pointers, typed union constructors and accessors, the per-group interface, exported enum value lists and the operation doc comment layout, landed in the later batches described below.
 
 ## Decisions taken in batch 7
 
@@ -390,7 +390,7 @@ The "Skipped" lists of batches 6, 7, 9 and 10 above are history: every id implem
 ### Already satisfied or forced
 - **F1087.** go keeps its floor: `go.mod` says `go 1.25`, which is not newer than the oldest non-end-of-life Go.
 - **F1178, F1082.** java and node only.
-- **F875.** Not done: `format: date` stays a validated plain string. A `models.Date` type changes the type of every date parameter, option and model field and is not among the owner decisions; it needs one (#126).
+- **F875.** Done (D130, #126): `format: date` is `civil.Date` from `cloud.google.com/go/civil` in every parameter, option, form field and model field. Its text is `YYYY-MM-DD`, decoding refuses a value that is not a real date, and a zero date is refused as a missing path parameter. `format: time` stays a string.
 
 ### Shared, not go
 - **Shared, not go.** The petstore spec names a security scheme it never declares (#121), and the wording of the request-context message differs in python, csharp and dart. The go public API added above (With/Without copies, typed union accessors, `All<Enum>Values`, `RequestOption`, `<Group>ApiInterface`, the request context on `ApiError`, the context-aware authenticator, the `callOptions` parameter) is the shape the other languages are compared against.

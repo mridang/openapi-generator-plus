@@ -30,6 +30,8 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
+
 	petstore "petstore/pkg"
 	"petstore/pkg/auth"
 	pkgerrors "petstore/pkg/errors"
@@ -401,7 +403,7 @@ func TestBhvOperations017_PetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t 
 	defer server.Close()
 
 	api := newPetApiForMock(t, server)
-	result, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc"})
+	result, err := api.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2024, Month: 1, Day: 15}, &options.GetPetSummaryOptions{Session: "abc"})
 	if err != nil {
 		t.Fatalf("GetPetSummary failed: %v", err)
 	}
@@ -1056,8 +1058,8 @@ func TestBhvOperations057_PetApi_GetPetSummarySendsTheMatrixDateDateArrayAndSess
 	defer server.Close()
 	api := newPetApiForMock(t, server)
 
-	days := []string{"2024-01-15", "2024-02-01"}
-	if _, err := api.GetPetSummary(context.Background(), int64(7), "2024-01-15", &options.GetPetSummaryOptions{
+	days := []civil.Date{{Year: 2024, Month: 1, Day: 15}, {Year: 2024, Month: 2, Day: 1}}
+	if _, err := api.GetPetSummary(context.Background(), int64(7), civil.Date{Year: 2024, Month: 1, Day: 15}, &options.GetPetSummaryOptions{
 		Session: "abc",
 		Days:    &days,
 	}); err != nil {
@@ -1663,7 +1665,7 @@ func TestBhvOperations050_PetApi_RequiredHeaderAndCookieAreRefusedBeforeAnyReque
 		t.Errorf("unexpected message %q", err.Error())
 	}
 
-	_, err = api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{})
+	_, err = api.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2024, Month: 1, Day: 1}, &options.GetPetSummaryOptions{})
 	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
 		t.Fatalf("expected ErrMissingRequiredParameter for the cookie, got %v", err)
 	}
@@ -1686,7 +1688,7 @@ func TestBhvOperations056_PetApi_GetPetSummaryRefusesAnEmptyRequiredCookieBefore
 	defer server.Close()
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-15", &options.GetPetSummaryOptions{Session: ""})
+	_, err := api.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2024, Month: 1, Day: 15}, &options.GetPetSummaryOptions{Session: ""})
 	if !errors.Is(err, petstore.ErrMissingRequiredParameter) {
 		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
 	}
@@ -2981,8 +2983,8 @@ func TestBhvOperations162_PetApi_ADateOnlyParameterIsSentAsABareDate(t *testing.
 	}
 	defer func() { _ = client.Close() }()
 
-	days := []string{"2026-01-03"}
-	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), "2026-01-02", &options.GetPetSummaryOptions{Session: "s", Days: &days}); err != nil {
+	days := []civil.Date{{Year: 2026, Month: 1, Day: 3}}
+	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2026, Month: 1, Day: 2}, &options.GetPetSummaryOptions{Session: "s", Days: &days}); err != nil {
 		t.Fatalf("GetPetSummary failed: %v", err)
 	}
 	if !strings.HasSuffix(gotPath, ";asOf=2026-01-02") || strings.Contains(gotPath, "T") {
@@ -2992,7 +2994,7 @@ func TestBhvOperations162_PetApi_ADateOnlyParameterIsSentAsABareDate(t *testing.
 		t.Errorf("expected a bare date in the query, got %q", gotQuery)
 	}
 
-	reportDate := "2026-01-04"
+	reportDate := civil.Date{Year: 2026, Month: 1, Day: 4}
 	if _, err := client.Pet.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{ReportDate: &reportDate}); err != nil {
 		t.Fatalf("FindPetsByStatus failed: %v", err)
 	}
@@ -3017,7 +3019,7 @@ func TestBhvOperations165_PetApi_APathParameterUsesTheDeclaredStyle(t *testing.T
 	}
 	defer func() { _ = client.Close() }()
 
-	if _, err := client.Pet.GetPetSummary(context.Background(), int64(7), "2026-01-02", &options.GetPetSummaryOptions{Session: "s"}); err != nil {
+	if _, err := client.Pet.GetPetSummary(context.Background(), int64(7), civil.Date{Year: 2026, Month: 1, Day: 2}, &options.GetPetSummaryOptions{Session: "s"}); err != nil {
 		t.Fatalf("GetPetSummary failed: %v", err)
 	}
 	if !strings.HasSuffix(gotPath, "/pet/7/summary/;asOf=2026-01-02") {
@@ -3039,7 +3041,7 @@ func TestBhvSerialization128_PetApi_AStringResponseIsReturnedUnchanged(t *testin
 	}
 	defer func() { _ = client.Close() }()
 
-	got, err := client.Pet.GetPetSummary(context.Background(), int64(1), "2026-01-02", &options.GetPetSummaryOptions{Session: "s"})
+	got, err := client.Pet.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2026, Month: 1, Day: 2}, &options.GetPetSummaryOptions{Session: "s"})
 	if err != nil || got != "hello world" {
 		t.Errorf("expected the text returned unchanged, got %q %v", got, err)
 	}
@@ -3082,7 +3084,7 @@ func TestBhvMisc004_PetApi_AMissingRequiredOptionsFieldIsNamed(t *testing.T) {
 	}
 	defer func() { _ = client.Close() }()
 
-	_, err = client.Pet.GetPetSummary(context.Background(), int64(1), "2026-01-02", &options.GetPetSummaryOptions{})
+	_, err = client.Pet.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2026, Month: 1, Day: 2}, &options.GetPetSummaryOptions{})
 	if err == nil || !strings.Contains(err.Error(), "session") {
 		t.Errorf("expected an argument error naming session, got %v", err)
 	}
@@ -3106,7 +3108,7 @@ func TestBhvMisc007_PetApi_AMissingPathParameterIsNamedAndNothingIsSent(t *testi
 	}
 	defer func() { _ = client.Close() }()
 
-	_, err = client.Pet.GetPetSummary(context.Background(), int64(1), "", nil)
+	_, err = client.Pet.GetPetSummary(context.Background(), int64(1), civil.Date{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "asOf") {
 		t.Errorf("expected an error naming asOf, got %v", err)
 	}
@@ -3133,7 +3135,7 @@ func TestBhvMisc008_PetApi_ARequiredCookieIsSentInTheCookieHeader(t *testing.T) 
 	}
 	defer func() { _ = client.Close() }()
 
-	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), "2026-01-02", &options.GetPetSummaryOptions{Session: "abc123"}); err != nil {
+	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2026, Month: 1, Day: 2}, &options.GetPetSummaryOptions{Session: "abc123"}); err != nil {
 		t.Fatalf("GetPetSummary failed: %v", err)
 	}
 	if !strings.Contains(gotCookie, "session=abc123") {
@@ -3178,7 +3180,7 @@ func TestBhvMisc010_PetApi_AnOptionsObjectWithRequiredFieldsIsRequired(t *testin
 	}
 	defer func() { _ = client.Close() }()
 
-	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), "2026-01-02", nil); err == nil {
+	if _, err := client.Pet.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2026, Month: 1, Day: 2}, nil); err == nil {
 		t.Error("expected a call without the required options to be refused")
 	}
 }
@@ -3453,7 +3455,7 @@ func TestBhvMisc176_PetApi_ARequiredCookieParamIsSentInTheCookieHeaderWithItsVal
 	defer server.Close()
 	api := newPetApiForMock(t, server)
 
-	if _, err := api.GetPetSummary(context.Background(), int64(7), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc123"}); err != nil {
+	if _, err := api.GetPetSummary(context.Background(), int64(7), civil.Date{Year: 2024, Month: 1, Day: 15}, &options.GetPetSummaryOptions{Session: "abc123"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if cookie != "session=abc123" {

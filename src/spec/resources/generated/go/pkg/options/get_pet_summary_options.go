@@ -2,10 +2,14 @@
 
 package options
 
+import (
+	"cloud.google.com/go/civil"
+)
+
 // GetPetSummaryOptions carries the parameters for the GetPetSummary operation.
 type GetPetSummaryOptions struct {
 	/* Session Session token: \"a<b>\" & it's required */
 	Session string
 	/* Days Extra dates to summarise */
-	Days *[]string
+	Days *[]civil.Date
 }
