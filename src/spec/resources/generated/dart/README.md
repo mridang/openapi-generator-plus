@@ -9,7 +9,7 @@ Pets, owners and orders for integration tests
 - **Contact:** Petstore API support
 - **Contact email:** support@example.com
 - **Contact URL:** https://example.com/support
-- **License:** Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0.html)
+- **License:** Apache 2.0 (https://spdx.org/licenses/Apache-2.0.html)
 - **Terms of service:** https://example.com/terms
 
 - Homepage: <https://acme.example.com/petstore>

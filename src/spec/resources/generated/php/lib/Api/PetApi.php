@@ -724,7 +724,6 @@ class PetApi extends BaseApi implements PetApiInterface
 
     /**
      * Finds Pets by status
-     * Response 200: Pets matching the filter
      * @param FindPetsByStatusOptions|null $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
@@ -3338,7 +3337,6 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-     * Response 204: Avatar stored
      * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\Errors\ApiException
@@ -3429,7 +3427,6 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Set the pet's avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-     * Response 204: Thumbnail updated
      * @param SetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded

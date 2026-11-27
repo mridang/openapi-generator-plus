@@ -1114,9 +1114,6 @@ public class PetApi : BaseApi, IPetApi
     /// <summary>
     /// Finds Pets by status
     /// </summary>
-    /// <remarks>
-    /// <para>Response 200: Pets matching the filter</para>
-    /// </remarks>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns><![CDATA[List<Pet>]]></returns>
@@ -1161,9 +1158,6 @@ public class PetApi : BaseApi, IPetApi
     /// <summary>
     /// Finds Pets by status (with HTTP info)
     /// </summary>
-    /// <remarks>
-    /// <para>Response 200: Pets matching the filter</para>
-    /// </remarks>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
@@ -4211,9 +4205,6 @@ public class PetApi : BaseApi, IPetApi
     /// Set the pet's profile photo
     /// </summary>
     /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
-    /// <remarks>
-    /// <para>Response 204: Avatar stored</para>
-    /// </remarks>
     /// <param name="petId"></param>
     /// <param name="body"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
@@ -4243,9 +4234,6 @@ public class PetApi : BaseApi, IPetApi
     /// Set the pet's profile photo (with HTTP info)
     /// </summary>
     /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
-    /// <remarks>
-    /// <para>Response 204: Avatar stored</para>
-    /// </remarks>
     /// <param name="petId"></param>
     /// <param name="body"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
@@ -4325,9 +4313,6 @@ public class PetApi : BaseApi, IPetApi
     /// Set the pet's avatar thumbnail as base64
     /// </summary>
     /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
-    /// <remarks>
-    /// <para>Response 204: Thumbnail updated</para>
-    /// </remarks>
     /// <param name="petId"></param>
     /// <param name="setPetAvatarThumbnailRequest"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
@@ -4354,9 +4339,6 @@ public class PetApi : BaseApi, IPetApi
     /// Set the pet's avatar thumbnail as base64 (with HTTP info)
     /// </summary>
     /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
-    /// <remarks>
-    /// <para>Response 204: Thumbnail updated</para>
-    /// </remarks>
     /// <param name="petId"></param>
     /// <param name="setPetAvatarThumbnailRequest"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>

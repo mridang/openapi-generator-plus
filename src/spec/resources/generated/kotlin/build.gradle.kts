@@ -23,7 +23,7 @@ publishing {
                 licenses {
                     license {
                         name.set("Apache-2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.html")
+                        url.set("https://spdx.org/licenses/Apache-2.0.html")
                     }
                 }
                 organization {

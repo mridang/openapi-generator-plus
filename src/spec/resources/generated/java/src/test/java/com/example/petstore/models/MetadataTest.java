@@ -321,7 +321,7 @@ class MetadataTest {
         Pattern.compile("<license>\\s*<name>(.*?)</name>\\s*<url>(.*?)</url>").matcher(contents);
     assertThat(matcher.find()).as("pom.xml must declare a license name and url").isTrue();
     assertThat(matcher.group(1)).isEqualTo("Apache-2.0");
-    assertThat(matcher.group(2)).isEqualTo("https://www.apache.org/licenses/LICENSE-2.0.html");
+    assertThat(matcher.group(2)).isEqualTo("https://spdx.org/licenses/Apache-2.0.html");
   }
 
   @Test

@@ -631,7 +631,6 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   }
 
   /// Finds Pets by status
-  /// Response 200: Pets matching the filter
   /// See https://example.com/docs/filtering Find out more about filtering
   ///
   /// - Parameters:
@@ -2428,7 +2427,6 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
 
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-  /// Response 204: Avatar stored
   ///
   /// - Parameters:
   ///   - petId: The petId path parameter.
@@ -2511,7 +2509,6 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
 
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-  /// Response 204: Thumbnail updated
   ///
   /// - Parameters:
   ///   - petId: The petId path parameter.

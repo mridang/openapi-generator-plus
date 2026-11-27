@@ -11,7 +11,6 @@ info:
   license:
     name: Apache 2.0
     identifier: Apache-2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
   version: 1.0.0
 tags:
   - name: pet
@@ -159,7 +158,6 @@ paths:
       responses:
         '200':
           description: Successful operation
-          summary: Pets matching the filter
           content:
             application/json:
               schema:
@@ -346,7 +344,6 @@ paths:
       responses:
         '204':
           description: Avatar updated
-          summary: Avatar stored
         '404':
           description: Pet not found
     get:
@@ -417,7 +414,7 @@ paths:
                   description: Multiple base64-encoded candidates; server picks best
       responses:
         '204':
-          summary: Thumbnail updated
+          description: Thumbnail updated
         '404':
           description: Pet not found
     get:
