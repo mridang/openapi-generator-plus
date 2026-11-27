@@ -445,6 +445,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A form-content querystring parameter needs no template change. Supporting another media type later is additive: a new argument kind with its own encoder.
 
+## D162: Path templates and server URLs are checked against the 3.2 grammar
+
+**Decision.** The specification warning pass (D142) checks every path and every server URL (top level, path item and operation) against the grammars that OpenAPI 3.2 states, for documents of every version. A path must start with `/`, have no empty segment, write its literals in RFC 3986 path characters or percent-encoded octets, and close every `{name}` without nesting or repeating it; each operation must declare a path parameter, on itself or its path item, for every name in its path. A server URL must not contain a space, a control character, `"`, `<`, `>`, `\`, `^`, `` ` `` or `|`, may use `%` only for a percent-encoded octet, closes every `{name}` without nesting or repeating it, and declares each name in `variables`; a variable's `enum` is not empty and holds its `default`. Each problem is a warning with its JSON pointer and the reason; with `strictSpec` set the run fails instead. The generator still generates a lenient document as before, so nothing that generated today stops generating (#94).
+
+**Consequences.** A typo such as `/items/{id` or a server variable missing from `variables` is reported where it is written, instead of surfacing as a broken URL in twelve SDKs.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

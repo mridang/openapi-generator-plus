@@ -167,4 +167,97 @@ class SpecWarningsTest {
         assertTrue(SpecWarnings.collect(spec).isEmpty());
         assertTrue(SpecWarnings.isSupportedDialect("https://spec.openapis.org/oas/3.2/dialect/2025-09-17"));
     }
+
+    private static List<String> messages(OpenAPI spec) {
+        return SpecWarnings.collect(spec).stream().map(SpecWarnings.Warning::toString)
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    private static Operation operationWithPathParameter(String name) {
+        return new Operation().addParametersItem(
+            new io.swagger.v3.oas.models.parameters.PathParameter().name(name));
+    }
+
+    @Test
+    @DisplayName("Accepts path templates the OpenAPI 3.2 grammar allows")
+    void validPathTemplatesAreAccepted() {
+        for (String path : List.of("/", "/items", "/items/", "/items/{id}", "/items/{id}.json",
+            "/a-b_c~d/%20x/{id}:archive", "/items;v=1/@me")) {
+            List<String> names = new java.util.ArrayList<>();
+            assertEquals(null, SpecWarnings.templateProblem(path, names), path);
+        }
+    }
+
+    @Test
+    @DisplayName("Reports a path template that breaks the OpenAPI 3.2 grammar, with its reason")
+    void invalidPathTemplatesAreReported() {
+        Map<String, String> cases = new java.util.LinkedHashMap<>();
+        cases.put("items", "it must start with '/'");
+        cases.put("/items//{id}", "it has an empty segment");
+        cases.put("/items/{id", "the expression at '{id' is not closed");
+        cases.put("/items/{a{b}}", "the expression at '{a{b}}' is not closed");
+        cases.put("/items/id}", "it has a '}' that closes no expression");
+        cases.put("/items/{}", "it has an empty expression '{}'");
+        cases.put("/{id}/x/{id}", "the expression '{id}' appears more than once");
+        cases.put("/items/a b", "the character ' ' must be percent-encoded");
+        cases.put("/items/%zz", "'%' must start a percent-encoded octet");
+        cases.put("/items?q", "the character '?' must be percent-encoded");
+        cases.forEach((path, reason) ->
+            assertEquals(reason, SpecWarnings.templateProblem(path, new java.util.ArrayList<>()), path));
+    }
+
+    @Test
+    @DisplayName("Lists an invalid path and a template expression no path parameter declares")
+    void pathTemplateWarningsCarryThePointer() {
+        OpenAPI spec = new OpenAPI()
+            .path("/items/{id", new PathItem().get(new Operation()))
+            .path("/items/{id}/{part}", new PathItem().get(operationWithPathParameter("id")));
+
+        assertEquals(List.of(
+            "#/paths/~1items~1{id: the path template '/items/{id' is not valid: the expression at"
+                + " '{id' is not closed",
+            "#/paths/~1items~1{id}~1{part}/get: the path template expression '{part}' has no path"
+                + " parameter named 'part'"), messages(spec));
+    }
+
+    @Test
+    @DisplayName("A path parameter declared on the path item counts for each of its operations")
+    void pathItemParametersCount() {
+        OpenAPI spec = new OpenAPI().path("/items/{id}", new PathItem()
+            .addParametersItem(new io.swagger.v3.oas.models.parameters.PathParameter().name("id"))
+            .get(new Operation()));
+
+        assertTrue(SpecWarnings.collect(spec).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Lists a server URL that breaks the OpenAPI 3.2 grammar and an undeclared variable")
+    void serverUrlWarningsCarryThePointer() {
+        io.swagger.v3.oas.models.servers.ServerVariables variables =
+            new io.swagger.v3.oas.models.servers.ServerVariables();
+        variables.addServerVariable("region", new io.swagger.v3.oas.models.servers.ServerVariable()
+            ._default("eu")._enum(List.of("us", "ap")));
+        OpenAPI spec = new OpenAPI()
+            .addServersItem(new io.swagger.v3.oas.models.servers.Server().url("https://{region}.example.com/{version}")
+                .variables(variables))
+            .addServersItem(new io.swagger.v3.oas.models.servers.Server().url("https://example.com/a b"))
+            .addServersItem(new io.swagger.v3.oas.models.servers.Server().url("https://{host}/{host}"));
+
+        assertEquals(List.of(
+            "#/servers/0/url: the server variable '{version}' is not declared in variables",
+            "#/servers/0/variables/region/default: the default 'eu' is not one of the enum values",
+            "#/servers/1/url: the server URL 'https://example.com/a b' is not valid: the character"
+                + " 'U+0020' is not allowed",
+            "#/servers/2/url: the server URL 'https://{host}/{host}' is not valid: the variable"
+                + " '{host}' appears more than once"), messages(spec));
+    }
+
+    @Test
+    @DisplayName("Accepts server URLs the OpenAPI 3.2 grammar allows")
+    void validServerUrlsAreAccepted() {
+        for (String url : List.of("/", "https://api.example.com/v1", "http://localhost:8080/{base}",
+            "https://example.com/caf%C3%A9", "https://例え.jp/")) {
+            assertEquals(null, SpecWarnings.serverUrlProblem(url, new java.util.ArrayList<>()), url);
+        }
+    }
 }
