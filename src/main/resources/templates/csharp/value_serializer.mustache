@@ -340,7 +340,7 @@ internal static class ValueSerializer
 
     /* A dictionary is an object-valued parameter like a model: its keys are
      * the wire names, in the dictionary's own order, and a null entry is left
-     * out. A nested dictionary has no styled form and is refused. */
+     * out. A nested dictionary or list has no styled form and is refused. */
     private static List<KeyValuePair<string, string>>? DictionaryFields(string paramName, object value)
     {
         if (value is not IDictionary dictionary)
@@ -350,10 +350,10 @@ internal static class ValueSerializer
         List<KeyValuePair<string, string>> fields = [];
         foreach (DictionaryEntry entry in dictionary)
         {
-            if (entry.Value is IDictionary)
+            if (entry.Value is IDictionary || (entry.Value is IEnumerable && entry.Value is not string && entry.Value is not byte[]))
             {
                 throw new SerializationException(
-                    "Parameter '" + paramName + "' holds a nested object, which a styled parameter cannot carry");
+                    "Parameter '" + paramName + "' holds a nested object or array, which a styled parameter cannot carry");
             }
             if (entry.Value is null)
             {
@@ -386,10 +386,10 @@ internal static class ValueSerializer
         }
         foreach (System.Text.Json.JsonProperty property in document.RootElement.EnumerateObject())
         {
-            if (property.Value.ValueKind == System.Text.Json.JsonValueKind.Object)
+            if (property.Value.ValueKind is System.Text.Json.JsonValueKind.Object or System.Text.Json.JsonValueKind.Array)
             {
                 throw new SerializationException(
-                    "Property '" + property.Name + "' holds a nested object, which a styled parameter cannot carry");
+                    "Property '" + property.Name + "' holds a nested object or array, which a styled parameter cannot carry");
             }
             fields.Add(
                 new KeyValuePair<string, string>(

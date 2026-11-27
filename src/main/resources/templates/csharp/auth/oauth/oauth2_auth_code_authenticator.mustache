@@ -16,7 +16,7 @@ namespace {{packageName}}.Auth.OAuth;
 /// <list type="number">
 ///   <item><description>Call <see cref="BuildAuthorizationUrl"/> to get the authorization URL.</description></item>
 ///   <item><description>Redirect the user to that URL.</description></item>
-///   <item><description>After the callback, call <see cref="ExchangeCodeAsync"/> with the auth code.</description></item>
+///   <item><description>After the callback, call <see cref="ExchangeCodeAsync(string)"/> with the auth code.</description></item>
 ///   <item><description>Use the authenticator normally -- tokens are managed automatically.</description></item>
 /// </list>
 /// </summary>

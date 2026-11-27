@@ -1572,6 +1572,23 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
         Assert.Throws<SerializationException>(() =>
             ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true)
         );
+        var listed = new Dictionary<string, object?>
+        {
+            {
+                "tags",
+                new List<string> { "a", "b" }
+            },
+        };
+        Assert.Throws<SerializationException>(() =>
+            ValueSerializer.SerializeStyled("c", listed, "query", "object", null, "form", true)
+        );
+        var model = new PetNotePage
+        {
+            Rows = new List<string> { "a", "b" },
+        };
+        Assert.Throws<SerializationException>(() =>
+            ValueSerializer.SerializeStyled("c", model, "query", "PetNotePage", null, "form", true)
+        );
     }
 
     [Fact]
