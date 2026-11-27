@@ -848,6 +848,31 @@ import Testing
     #expect(AnyHashable(tag) != AnyHashable(PetstoreClient.Category(id: 3, name: "Birds")))
   }
 
+  /* Equality reaches a nested model, a list element and a map value, and a model of another type is never equal. */
+  @Test func testBhvEquality002EqualityReachesNestedModelsListsAndMaps() throws {
+    let pet =
+      "{\"name\":\"Rex\",\"photoUrls\":[\"a\"],\"category\":{\"id\":1,\"name\":\"Dogs\"},"
+      + "\"tags\":[{\"id\":2,\"name\":\"calm\"}]}"
+    let roster = "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}"
+    func decodePet(_ json: String) throws -> PetstoreClient.Pet? {
+      try ObjectSerializer.deserialize(Data(json.utf8), as: PetstoreClient.Pet.self)
+    }
+    func decodeRoster(_ json: String) throws -> PetstoreClient.Roster? {
+      try ObjectSerializer.deserialize(Data(json.utf8), as: PetstoreClient.Roster.self)
+    }
+    let first = try #require(try decodePet(pet))
+    let firstRoster = try #require(try decodeRoster(roster))
+    #expect(try decodePet(pet) == first)
+    #expect(try decodePet(pet.replacingOccurrences(of: "Dogs", with: "Cats")) != first)
+    #expect(try decodePet(pet.replacingOccurrences(of: "calm", with: "wild")) != first)
+    #expect(try decodeRoster(roster) == firstRoster)
+    #expect(
+      try decodeRoster(roster.replacingOccurrences(of: "\"x\"", with: "\"y\"")) != firstRoster)
+    #expect(AnyHashable(first) != AnyHashable(firstRoster))
+    let nothing: PetstoreClient.Pet? = nil
+    #expect(first != nothing)
+  }
+
   @Test func testBhvSerializationobject088SerializeIncludesFieldsSetToDefaultValues() throws {
     let category = PetstoreClient.Category(id: 0, name: "")
     let json = try ObjectSerializer.serialize(category)

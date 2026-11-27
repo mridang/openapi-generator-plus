@@ -301,6 +301,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A server-less document still generates a working SDK, and a call goes nowhere unexpected until the caller configures the base URL. A document without `paths` generates its models and no operations.
 
+## D144: Every model has structural value equality
+
+**Decision.** Two models with the same contents compare as equal in all twelve SDKs, each in its language's idiom: `equals` in Java and Kotlin, `Equals` and `==` on a C# record, `==` in Python (pydantic), Ruby (`Dry::Struct`), Dart, Swift (`Equatable`), Rust (`PartialEq`) and Elixir (struct equality), `Equal(other *Model)` in Go, and an `equals()` method in Node and PHP, where `==` compares by identity or loosely. Equality covers every field, nested models, lists, sets, maps, byte arrays and additional properties included, and it never throws: comparing with `null` or a value of another type returns false. Wrappers of `oneOf` and `anyOf` follow the same rule (D24). No hash method is added for this: Go and Node have no use for one, and the languages that hash already provide it (#154).
+
+**Consequences.** A Go or Node caller compares models with `Equal` or `equals()` instead of `reflect.DeepEqual` or a JSON round trip, and a PHP caller uses `equals()` instead of `==`. Every SDK carries the tests `equality001` and `equality002`, which fail without the method.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

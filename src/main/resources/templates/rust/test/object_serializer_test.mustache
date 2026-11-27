@@ -341,6 +341,24 @@ fn test_bhv_equality_001_models_compare_by_value() {
     assert_eq!(absent, absent.clone());
 }
 
+#[test]
+fn test_bhv_equality_002_equality_reaches_nested_models_lists_and_maps() {
+    use {{packageName}}::models::{Pet, Roster};
+
+    let pet = r#"{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}"#;
+    let roster = r#"{"label":"l","a":{"id":1,"name":"x"}}"#;
+    let decode_pet = |json: &str| serde_json::from_str::<Pet>(json).expect("failed to deserialize Pet");
+    let decode_roster = |json: &str| serde_json::from_str::<Roster>(json).expect("failed to deserialize Roster");
+    let first = decode_pet(pet);
+    let first_roster = decode_roster(roster);
+
+    assert_eq!(first, decode_pet(pet));
+    assert_ne!(first, decode_pet(&pet.replace("Dogs", "Cats")));
+    assert_ne!(first, decode_pet(&pet.replace("calm", "wild")));
+    assert_eq!(first_roster, decode_roster(roster));
+    assert_ne!(first_roster, decode_roster(&roster.replace("\"x\"", "\"y\"")));
+}
+
 // F867: a `format: password` property is shown as `***` in the Debug output,
 // and the wire form still carries the value.
 #[test]

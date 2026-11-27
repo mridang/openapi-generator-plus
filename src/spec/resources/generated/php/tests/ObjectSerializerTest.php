@@ -1825,6 +1825,35 @@ test('bhv equality 001 two models built from the same values are equal and a cha
     ))->toBeTrue();
 });
 
+test('bhv equality 002 equality reaches nested models, lists and maps and never throws', function (): void {
+    $pet = '{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}';
+    $roster = '{"label":"l","a":{"id":1,"name":"x"}}';
+    $decodePet = static function (string $json): Pet {
+        $model = ObjectSerializer::deserialize($json, Pet::class);
+        assert($model instanceof Pet);
+
+        return $model;
+    };
+    $decodeRoster = static function (string $json): \PetstoreClient\Models\Roster {
+        $model = ObjectSerializer::deserialize($json, \PetstoreClient\Models\Roster::class);
+        assert($model instanceof \PetstoreClient\Models\Roster);
+
+        return $model;
+    };
+
+    $first = $decodePet($pet);
+    $firstRoster = $decodeRoster($roster);
+
+    expect($first->equals($decodePet($pet)))->toBeTrue();
+    expect($first->equals($decodePet(str_replace('Dogs', 'Cats', $pet))))->toBeFalse();
+    expect($first->equals($decodePet(str_replace('calm', 'wild', $pet))))->toBeFalse();
+    expect($firstRoster->equals($decodeRoster($roster)))->toBeTrue();
+    expect($firstRoster->equals($decodeRoster(str_replace('"x"', '"y"', $roster))))->toBeFalse();
+    expect($first->equals($firstRoster))->toBeFalse();
+    expect($first->equals('Pet'))->toBeFalse();
+    expect($first->equals(null))->toBeFalse();
+});
+
 test('bhv serializationobject 005 vaults differing in one byte array are told apart on every shape', function (): void {
     $base = ObjectSerializer::serialize(
         new BinaryVault(seal: "\x01", shards: new \Ds\Vector(["\x02"]), labels: new \Ds\Map(['a' => "\x03"]))

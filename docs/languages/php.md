@@ -194,4 +194,5 @@ Trace context: a request carries the span active in the context of the call, nev
 
 - A call takes no cancellation signal (S7). To cancel a call that runs in a `Fiber`, throw into the fiber (`Fiber::throw()`): the exception reaches the caller unchanged, is never wrapped in the SDK error or reported as a timeout, and the hook's `finish` receives it. A cancel during a retry wait stops the retrying.
 - `OAuth2TokenManager::stop()` drops the held tokens; a later token request throws `OAuth2TokenException` with a fixed message, and stopping again does nothing.
+- Every model has `equals(mixed $other): bool`, a structural comparison of every property, nested models, `\Ds\Vector`, `\Ds\Set`, `\Ds\Map` and date-times included (D144); `null` or a value of another class is never equal and never throws. Use it instead of `==`, which compares loosely.
 - Every model implements `\Ds\Hashable`, so a `\Ds\Set` or `\Ds\Map` stores equal models once.

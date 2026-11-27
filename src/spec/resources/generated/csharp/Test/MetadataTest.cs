@@ -512,6 +512,36 @@ public class MetadataTest
     }
 
     [Fact]
+    public void BhvEquality002EqualityReachesNestedModelsListsAndMapsAndNeverThrows()
+    {
+        const string pet =
+            "{\"name\":\"Rex\",\"photoUrls\":[\"a\"],\"category\":{\"id\":1,\"name\":\"Dogs\"},"
+            + "\"tags\":[{\"id\":2,\"name\":\"calm\"}]}";
+        const string roster = "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}";
+        var first = _serializer.Deserialize<Pet>(pet);
+        var firstRoster = _serializer.Deserialize<Roster>(roster);
+
+        Assert.Equal(first, _serializer.Deserialize<Pet>(pet));
+        Assert.NotEqual(
+            first,
+            _serializer.Deserialize<Pet>(pet.Replace("Dogs", "Cats", StringComparison.Ordinal))
+        );
+        Assert.NotEqual(
+            first,
+            _serializer.Deserialize<Pet>(pet.Replace("calm", "wild", StringComparison.Ordinal))
+        );
+        Assert.Equal(firstRoster, _serializer.Deserialize<Roster>(roster));
+        Assert.NotEqual(
+            firstRoster,
+            _serializer.Deserialize<Roster>(
+                roster.Replace("\"x\"", "\"y\"", StringComparison.Ordinal)
+            )
+        );
+        Assert.False(first!.Equals(firstRoster));
+        Assert.False(first.Equals(NoObject()));
+    }
+
+    [Fact]
     public void BhvModels012ToStringRendersAdditionalPropertiesEntries()
     {
         var metadata = new Metadata
