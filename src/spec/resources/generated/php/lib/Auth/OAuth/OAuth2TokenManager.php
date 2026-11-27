@@ -211,7 +211,8 @@ final class OAuth2TokenManager
         $this->tokenExpiry = null;
         try {
             $this->fetchToken($tokenUrl, $params, $extraHeaders);
-            if ($this->accessToken === null) {
+            $token = $this->accessToken;
+            if ($token === null) {
                 throw new OAuth2TokenException('Token fetch did not return an access token');
             }
             if ($idTokenCheck instanceof \Closure) {
@@ -225,7 +226,7 @@ final class OAuth2TokenManager
         }
         $this->exchanged = true;
 
-        return $this->accessToken;
+        return $token;
     }
 
     /**

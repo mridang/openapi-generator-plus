@@ -271,7 +271,7 @@ final class ValueSerializer
 
         /* A model, a \Ds\Map or an associative array is an object-valued parameter. */
         $isMap = $value instanceof \Ds\Map || (is_array($value) && $value !== [] && !array_is_list($value));
-        if ($isMap || (is_object($value) && self::isObjectValue($value))) {
+        if ((is_array($value) || is_object($value)) && ($isMap || (is_object($value) && self::isObjectValue($value)))) {
             return self::serializeObjectStyled($paramName, $value, $location, $style, $explode)
                 ?? self::serialize($value, $location, $schemaType, $collectionFormat);
         }
@@ -288,8 +288,9 @@ final class ValueSerializer
          * serialize differently (e.g. form+explode: 'blue' vs ['blue']). */
         $isList = is_array($value);
         if ($isList) {
+            $objectValued = !array_is_list($value);
             foreach ($value as $key => $item) {
-                self::assertScalarLeaf($paramName, $item, (string) $key);
+                self::assertScalarLeaf($paramName, $item, (string) $key, $objectValued);
             }
         }
 
@@ -401,7 +402,7 @@ final class ValueSerializer
             if ($item === null) {
                 continue;
             }
-            self::assertScalarLeaf($paramName, $item, (string) $key);
+            self::assertScalarLeaf($paramName, $item, (string) $key, true);
             $map[(string) $key] = ObjectSerializer::stringify($item);
         }
         $encode = $location === 'path'
@@ -533,7 +534,7 @@ final class ValueSerializer
             if ($val === null) {
                 continue;
             }
-            self::assertScalarLeaf($paramName, $val, (string) $key);
+            self::assertScalarLeaf($paramName, $val, (string) $key, true);
             $result[$paramName . '[' . $key . ']'] = ObjectSerializer::stringify($val);
         }
 
@@ -542,16 +543,18 @@ final class ValueSerializer
 
     /**
      * Refuses a nested object or map as a leaf of a styled or deepObject
-     * parameter. No OAS style writes one, so it would otherwise reach the wire
-     * as a JSON blob. A list, an enum, a date, a stringable or a collection
-     * is a scalar leaf and is written as before.
+     * parameter, and a list as a property of an object-valued one. No OAS
+     * style writes either, so it would otherwise reach the wire as a JSON
+     * blob. An enum, a date or a stringable is a scalar leaf and is written
+     * as before.
      *
-     * @throws SerializationException when the leaf is a nested object or map
+     * @throws SerializationException when the leaf is a nested object, map or list
      */
-    private static function assertScalarLeaf(string $paramName, mixed $leaf, string $key): void
+    private static function assertScalarLeaf(string $paramName, mixed $leaf, string $key, bool $objectValued): void
     {
-        $nested = (is_array($leaf) && !array_is_list($leaf))
-            || (is_object($leaf) && self::isObjectValue($leaf));
+        $nested = (is_array($leaf) && ($objectValued || !array_is_list($leaf)))
+            || (is_object($leaf) && self::isObjectValue($leaf))
+            || ($objectValued && $leaf instanceof \Ds\Collection);
         if ($nested) {
             throw new SerializationException(
                 "Parameter '$paramName' has a nested value under '$key', which cannot be written in this style"

@@ -2380,6 +2380,36 @@ test('bhv transport 096 a gzip body that inflates past maxResponseBytes fails wi
         expect($e->limit)->toBe(1024);
         expect($e->getMessage())->toBe('Response body exceeds the limit of 1024 bytes');
     }
+
+    /* br and zstd are checked while they decode: 160 MiB of output would pass the memory limit
+     * of the test process if either were decoded whole first. */
+    $chunk = str_repeat("\0", 1024 * 1024);
+    $brotli = brotli_compress_init(1);
+    $zstd = zstd_compress_init(1);
+    if ($brotli === false || $zstd === false) {
+        throw new \RuntimeException('The br and zstd encoders could not be started');
+    }
+    $bodies = ['br' => '', 'zstd' => ''];
+    for ($i = 0; $i < 160; $i++) {
+        $bodies['br'] .= (string) brotli_compress_add($brotli, $chunk, $i === 159 ? BROTLI_FINISH : BROTLI_PROCESS);
+        $bodies['zstd'] .= (string) zstd_compress_add($zstd, $chunk, $i === 159);
+    }
+    unset($chunk);
+    foreach ($bodies as $coding => $body) {
+        $stubbed = new StubbedDefaultApiClient(
+            new MockHttpClient(new MockResponse($body, [
+                'http_code' => 200,
+                'response_headers' => ['Content-Encoding' => $coding],
+            ])),
+            TransportOptions::builder()->maxResponseBytes(1024)->maxRetries(0)->build(),
+        );
+        try {
+            $stubbed->sendRequest('GET', 'http://example.com/' . $coding, [], null);
+            test()->fail("Expected the inflated $coding body to raise ResponseTooLargeException");
+        } catch (ResponseTooLargeException $e) {
+            expect($e->limit)->toBe(1024);
+        }
+    }
 });
 
 test('bhv retries 018 maxRetries 0 sends a failing request once', function (): void {

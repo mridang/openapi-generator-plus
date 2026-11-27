@@ -734,6 +734,10 @@ namespace {
     test('bhv serialization 018 a nested object inside an object-valued parameter is refused', function (): void {
         expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['inner' => ['deeper' => 1]]))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['tags' => ['a', 'b']]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        expect(fn () => ValueSerializer::serializeStyled('criteria', ['tags' => [1, 2]], 'query', 'object', null, 'form', false))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
     });
 
     test('bhv serialization 019 a null entry in a parameter map is left out of the output', function (): void {

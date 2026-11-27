@@ -163,7 +163,7 @@ test('bhv authoidc 018 empty state is omitted', function (): void {
 
     expect($url)->not->toContain('state');
     // Each URL carries its own PKCE challenge, so everything else must match.
-    $withoutChallenge = static fn (string $u): string => (string) preg_replace('/code_challenge=[^&]*/', '', $u);
+    $withoutChallenge = static fn (string $u): string => (string) preg_replace('/(code_challenge|nonce)=[^&]*/', '', $u);
     expect($withoutChallenge($url))->toBe($withoutChallenge($authenticator->buildAuthorizationUrl()));
 });
 

@@ -246,7 +246,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             }
             if ($decoded === null) {
                 /* D138: the decompressed body passed the limit. */
-                throw new ResponseTooLargeException($response->statusCode, $limit ?? 0, $responseHeaders);
+                throw new ResponseTooLargeException($response->statusCode, $limit, $responseHeaders);
             }
             $responseBody = $decoded;
             if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
@@ -1594,8 +1594,8 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
     /**
      * Decompresses a response body with a cap on the output (D138): gzip and deflate are
      * inflated a small slice of input at a time and decoding stops as soon as the output passes
-     * the limit, so a small body that expands hugely is never inflated whole. br and zstd have no
-     * incremental decoder here and are decoded whole before the length is checked.
+     * the limit, so a small body that expands hugely is never inflated whole. br and zstd are
+     * decoded the same way through the incremental decoders of ext-brotli and ext-zstd.
      *
      * @param string $body     the raw response body
      * @param string $encoding the Content-Encoding header value
@@ -1611,6 +1611,26 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             'deflate' => ZLIB_ENCODING_DEFLATE,
             default => null,
         };
+        if ($body !== '' && $coding === 'br' && function_exists('brotli_uncompress_init')) {
+            $brotli = @brotli_uncompress_init();
+            if ($brotli === false) {
+                throw new \RuntimeException('the br decoder could not be started');
+            }
+
+            return $this->decodeIncrementally($body, $limit, 'br', static fn (string $piece, bool $last): string|false => @brotli_uncompress_add(
+                $brotli,
+                $piece,
+                $last ? BROTLI_FINISH : BROTLI_PROCESS
+            ));
+        }
+        if ($body !== '' && $coding === 'zstd' && function_exists('zstd_uncompress_init')) {
+            $zstd = @zstd_uncompress_init();
+            if ($zstd === false) {
+                throw new \RuntimeException('the zstd decoder could not be started');
+            }
+
+            return $this->decodeIncrementally($body, $limit, 'zstd', static fn (string $piece, bool $last): string|false => @zstd_uncompress_add($zstd, $piece));
+        }
         if ($body === '' || $window === null) {
             $decoded = $this->decompressBody($body, $encoding);
 
@@ -1636,6 +1656,40 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         }
         if (inflate_get_status($context) !== ZLIB_STREAM_END) {
             throw new \RuntimeException("the $codec stream is corrupt or truncated");
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Decodes a br or zstd body a small slice of input at a time and stops as soon as the output
+     * passes the limit.
+     *
+     * @param string                              $body  the raw response body
+     * @param int                                 $limit the most decoded bytes allowed
+     * @param string                              $codec the coding name, for the error
+     * @param \Closure(string, bool): (string|false) $add   feeds one slice to the decoder, true for the last
+     * @return string|null the decompressed body, or null when it passed the limit
+     * @throws \RuntimeException when the body is corrupt or truncated
+     */
+    private function decodeIncrementally(
+        string $body,
+        int $limit,
+        string $codec,
+        \Closure $add,
+    ): ?string {
+        $decoded = '';
+        $length = strlen($body);
+        /* Small slices: a few bytes of br or zstd can stand for megabytes of output. */
+        for ($offset = 0; $offset < $length; $offset += 16) {
+            $piece = $add(substr($body, $offset, 16), $offset + 16 >= $length);
+            if ($piece === false) {
+                throw new \RuntimeException("the $codec stream is corrupt or truncated");
+            }
+            if (strlen($decoded) + strlen($piece) > $limit) {
+                return null;
+            }
+            $decoded .= $piece;
         }
 
         return $decoded;
