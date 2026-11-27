@@ -468,6 +468,14 @@ go build ./...
 go test ./...
 ```
 
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a dependency has a known vulnerability (`govulncheck`, only the vulnerable code the module actually calls).
+
 ## Module
 
 - Module: `{{packageName}}`

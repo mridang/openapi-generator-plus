@@ -420,11 +420,6 @@
             <version>${jackson-version}</version>
         </dependency>
         <dependency>
-            <groupId>org.openapitools</groupId>
-            <artifactId>jackson-databind-nullable</artifactId>
-            <version>${jackson-databind-nullable-version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-api</artifactId>
             <version>${opentelemetry-version}</version>
@@ -441,12 +436,6 @@
             <artifactId>zstd-jni</artifactId>
             <version>1.5.6-4</version>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.annotation</groupId>
-            <artifactId>jakarta.annotation-api</artifactId>
-            <version>${jakarta-annotation-version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.opentelemetry</groupId>
@@ -498,9 +487,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson-version>2.19.4</jackson-version>
         <jackson-databind-version>2.19.4</jackson-databind-version>
-        <jackson-databind-nullable-version>0.2.6</jackson-databind-nullable-version>
         <opentelemetry-version>1.62.0</opentelemetry-version>
-        <jakarta-annotation-version>3.0.0</jakarta-annotation-version>
         <junit-version>6.1.0</junit-version>
         <error-prone-version>2.41.0</error-prone-version>
         <nullaway-version>0.12.10</nullaway-version>

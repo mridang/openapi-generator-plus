@@ -277,6 +277,14 @@ client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'token
 
 The gem follows semantic versioning (`{{gemVersion}}` today). The supported Ruby versions are the ones that still receive security fixes (`>= 3.2` today); dropping an end-of-life Ruby is a minor release.
 
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a dependency has a known vulnerability (`bundle-audit check --update`, every locked gem).
+
 ## Gem
 
 - Name: `{{gemName}}`

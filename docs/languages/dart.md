@@ -39,7 +39,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 
 ## Dependencies
 
-Runtime dependencies are `collection` (`^1.18.0`), `decimal` (`^3.2.0`, for `format: decimal`), `http` (`^1.2.0`), `http_parser` (`^4.0.0`) and `mime` (`^1.0.0`). JSON handling is `dart:convert`. The SDK keeps the dependency list this short on purpose, which is why `UuidValue` is its own class rather than a dependency on `package:uuid`.
+Runtime dependencies are `collection` (`^1.18.0`), `decimal` (`^2.3.3`, for `format: decimal`; held on 2.x so the dependency set resolves alongside the `junitreport` dev dependency), `http` (`^1.2.0`), `http_parser` (`^4.0.0`) and `mime` (`^1.0.0`). JSON handling is `dart:convert`. The SDK keeps the dependency list this short on purpose, which is why `UuidValue` is its own class rather than a dependency on `package:uuid`.
 
 Development dependencies are `lints`, `test`, `coverage`, `junitreport`, `opentelemetry` and `testcontainers_core`.
 

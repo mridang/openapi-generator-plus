@@ -45,7 +45,7 @@ Response decompression for `br` and `zstd` is an optional extra: `pip install <p
 
 The OpenTelemetry call hook is a second optional extra: `pip install <project-name>[opentelemetry]` installs `opentelemetry-api` (1.20.0 or newer), the API package only and never the SDK. The core package never imports it; only `<package>/opentelemetry_call_hook.py` does, so importing the client works without it.
 
-The development group in the manifest adds pytest, `pytest-asyncio`, mypy, ruff, sphinx and the test containers library. These are not needed at runtime.
+The development group in the manifest adds pytest, `pytest-asyncio`, mypy, ruff, sphinx, `pip-audit` (run by `make audit`, D181), the test containers library and `docker`, which the test bootstrap imports itself. These are not needed at runtime.
 
 ## Options
 

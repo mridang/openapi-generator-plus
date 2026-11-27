@@ -372,6 +372,14 @@ The package version follows semantic versioning; the clients, Options objects, m
 - Repeated response headers are joined into one value with `, ` in `headers` and `response_headers` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
 - `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.
 
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a dependency has a known vulnerability (`pip-audit --skip-editable`, every installed distribution).
+
 ## Package
 
 - Name: `{{projectName}}`

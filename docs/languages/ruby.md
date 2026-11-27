@@ -46,7 +46,7 @@ Response decompression for `br` and `zstd` is optional. The `Gemfile` puts `brot
 
 The generated `Gemfile` also pins `bigdecimal` to 3.1.3, so Bundler uses the precompiled copy that ships with the Ruby base image instead of compiling a newer one on Alpine. That pin applies to the SDK's own tests, not to the gemspec.
 
-Development tools (minitest, RuboCop, Steep, YARD, SimpleCov) are in the `development` and `test` groups only. The tests of the OpenTelemetry recipe add `opentelemetry-sdk` (~> 1.5) and `opentelemetry-metrics-sdk` (~> 0.12) to the same groups. The SDK itself depends on no OpenTelemetry gem.
+Development tools (minitest, RuboCop, Steep, YARD, SimpleCov, and `bundler-audit` for `make audit`, D181) are in the `development` and `test` groups only. The tests of the OpenTelemetry recipe add `opentelemetry-sdk` (~> 1.5) and `opentelemetry-metrics-sdk` (~> 0.12) to the same groups. The SDK itself depends on no OpenTelemetry gem.
 
 ## Options
 

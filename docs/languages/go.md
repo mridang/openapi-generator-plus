@@ -51,7 +51,7 @@ Runtime modules, from the generated `go.mod`:
 | `cloud.google.com/go` | v0.121.4 | The `civil.Date` type for `format: date` (the `civil` package imports only the standard library) |
 | `go.opentelemetry.io/otel`, `otel/metric` and `otel/trace` | v1.47.0 | Trace-context propagation, and the `pkg/otelhook` adapter (the core package imports none of them) |
 
-HTTP is the standard library. Other requirements in the manifest are for the generated tests and tooling (`testcontainers-go`, the OpenTelemetry SDK, and a `tool` block with `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`). Dependencies that need cgo are not accepted.
+HTTP is the standard library. Other requirements in the manifest are for the generated tests and tooling (`testcontainers-go`, the OpenTelemetry SDK, and a `tool` block with `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`). `make audit` runs `govulncheck` at a pinned version through `go run`, so it is not in the manifest (D181). Dependencies that need cgo are not accepted.
 
 ## Options
 

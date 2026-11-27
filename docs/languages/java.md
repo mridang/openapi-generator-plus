@@ -51,11 +51,10 @@ A schema named `Error` is generated as `ModelError`, because `Error` would shado
 |---|---|
 | `jackson-core`, `jackson-annotations`, `jackson-databind` 2.19.4 | JSON encoding and decoding |
 | `jackson-datatype-jsr310` 2.19.4 | `java.time` support in Jackson |
-| `jackson-databind-nullable` 0.2.6 | the nullable support type used by the models |
 | `jsr305` 3.0.2 | `@Nullable` annotations, checked by NullAway at build time |
 | `opentelemetry-api` 1.62.0 (optional) | W3C trace context on outgoing requests, and the `OpenTelemetryCallHook` adapter, when OpenTelemetry is on the class path |
 | `org.brotli:dec` 0.1.2 and `zstd-jni` 1.5.6-4 (optional) | decoding `br` and `zstd` responses; without them only `gzip` and `deflate` are advertised |
-| `spotbugs-annotations`, `jakarta.annotation-api` (provided scope) | compile-time annotations only |
+| `spotbugs-annotations` (provided scope) | compile-time annotations only |
 
 HTTP is the JDK's own `java.net.http.HttpClient`, so there is no HTTP library to depend on. The generated project also wires Spotless (google-java-format), Checkstyle, SpotBugs, JaCoCo, Error Prone and NullAway, and tests run on JUnit with AssertJ and Testcontainers; none of those are runtime dependencies. The generator only accepts dependencies that are pure JVM libraries: `zstd-jni` is the one native-code exception and is optional.
 
