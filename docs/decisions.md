@@ -301,6 +301,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Java, Kotlin, Node and Dart now refuse a malformed address on decode where they used to accept any text. A language moves to the native type when its floor reaches one that keeps the text: Java and Kotlin with `InetAddress.ofLiteral` from Java 22, PHP with `\Uri\Rfc3986\Uri` from PHP 8.5.
 
+## D135: A decimal is an exact decimal type in all twelve SDKs
+
+**Decision.** A `format: decimal` value, whether the schema is a `type: number` or a `type: string`, is an exact decimal type in every SDK: Java and Kotlin `BigDecimal`, C# `decimal`, Python `Decimal`, Ruby `BigDecimal` (the `bigdecimal` gem), Elixir `Decimal`, Swift `Foundation.Decimal`, Go `shopspring/decimal`, Rust `rust_decimal`, Node decimal.js, Dart the `decimal` package and PHP `brick/math`. The digits are decoded from the JSON text without passing through a float and are encoded back exactly, as a bare JSON number in plain notation for a `type: number` and as a JSON string for a `type: string`. Node reads the source text through the `JSON.parse` reviver, and Dart and PHP, whose JSON decoders return a float, read it with a small number-preserving reader of their own (#157, owner decision, following D133 and D134).
+
+**Consequences.** Go, Rust, Dart, PHP and Elixir change the public type of a decimal field and parameter from a float to the decimal type, and Node's `Decimal` changes from a branded string to the decimal.js class; these are breaking changes for those SDKs. A value the decimal type cannot hold fails the decode with the `SerializationError` instead of being rounded (C# and Rust about 28 digits, Swift 38). Ruby and Dart keep no trailing zero, so `12.50` is written back as `12.5`. A bare `type: number` with no format is unchanged (D83).
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

@@ -3268,6 +3268,15 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationObject413 a number or string decimal field is the exact BigDecimal")
+        void bhvSerializationObject413DecimalFieldsAreBigDecimal() {
+            {{modelPackage}}.NativeValues decoded = decode("{\"amount\":0.1,\"ledger\":\"0.2\"}");
+            java.math.BigDecimal amount = decoded.amount;
+            java.math.BigDecimal ledger = decoded.ledger;
+            assertEquals(new java.math.BigDecimal("0.3"), amount.add(ledger));
+        }
+
+        @Test
         @DisplayName("bhvSerializationParam104 a duration parameter is written in the protobuf form")
         void bhvSerializationParam104DurationParameter() {
             assertEquals("3600s", ObjectSerializer.stringify(Duration.ofHours(1)));

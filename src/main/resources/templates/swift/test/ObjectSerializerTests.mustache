@@ -491,6 +491,15 @@ import Testing
         }
     }
 
+    /* A format: decimal field, number- or string-shaped, is the exact Foundation Decimal and never a Double. */
+    @Test func testBhvSerializationobject413ADecimalFieldIsTheExactDecimalType() throws {
+        let value = try #require(
+            try ObjectSerializer.deserialize("{\"amount\":0.1,\"ledger\":\"0.2\"}", as: NativeValues.self))
+        let amount: Decimal? = value.amount
+        let ledger: Decimal? = value.ledger
+        #expect(amount.flatMap { a in ledger.map { a + $0 } } == Decimal(string: "0.3"))
+    }
+
     /* A decimal in a loosely built request body is written as a bare JSON number, not a string. */
     @Test func testBhvMisc087ADecimalInALooseBodyIsWrittenAsABareNumber() throws {
         let amount = try #require(Decimal(string: "12.5"))

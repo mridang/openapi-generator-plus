@@ -1433,6 +1433,7 @@ serializationobject409 | A format: hostname or email value is kept as given and 
 serializationobject410 | A type: number field keeps all 25 digits of 12.345678901234567890123 from decode to encode and writes them as a bare JSON number in plain notation where the language has an exact decimal
 serializationobject411 | A type: string field with format decimal decodes a quoted number into the native decimal, writes it back as a JSON string, and rejects a bare JSON number
 serializationobject412 | A type: number value the native decimal cannot hold fails with the SDK serialization error and is never rounded
+serializationobject413 | A format: decimal field, number- or string-shaped, is the language's exact decimal type and never a binary float
 operations157 | A null required nullable query parameter is sent as the key with an empty value / A binary request body is sent as its exact raw bytes with no multipart encoding, whatever the binary input type. / A null required nullable query parameter is sent as the key with an empty value
 operations158 | Every null required nullable query parameter is sent as an empty value in declaration order / A header supplied on an individual call is sent with that call. / Every null required nullable query parameter is sent as an empty value in declaration order
 operations159 | A non-null required nullable query parameter is sent with its value / A call that returns a value raises a typed API error when a success response arrives with an empty body. / A non-null required nullable query parameter is sent with its value

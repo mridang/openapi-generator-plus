@@ -126,7 +126,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("double", "LaxFloat");
         // A bare `type: number` (no `format`) is a decimal-precision surface
         // per the typed-everywhere policy: decimal.Decimal in Python (matching
-        // BigDecimal in Java/Kotlin and branded Decimal in Node). `format:
+        // BigDecimal in Java/Kotlin and decimal.js Decimal in Node). `format:
         // float`/`format: double` keep StrictFloat above for IEEE-754 fields.
         // JsonNumber is the branded Decimal alias from `<pkg>._types`: it
         // decodes to a full-precision Decimal but serializes UNQUOTED (a JSON

@@ -425,7 +425,7 @@ DecimalStr = Annotated[
 # Bare `type: number` (no `format`) fields. The OpenAPI spec types these as a
 # JSON NUMBER, so they must travel on the wire UNQUOTED (`1.5`, not `"1.5"`).
 # Decode keeps `decimal.Decimal` for arbitrary-precision fidelity (matching
-# BigDecimal in Java/Kotlin and the branded Decimal in Node), but pydantic's
+# BigDecimal in Java/Kotlin and the decimal.js Decimal in Node), but pydantic's
 # default Decimal serializer emits a JSON STRING, which violates `type: number`
 # and diverges from the SDKs that emit a bare number. The validator rebuilds the
 # Decimal from the source digits (no float rounding) and rejects a quoted string;

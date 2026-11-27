@@ -3266,6 +3266,15 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject413 a number or string decimal field is the exact BigDecimal")
+        fun decimalFieldsAreBigDecimal() {
+            val decoded = decode("{\"amount\":0.1,\"ledger\":\"0.2\"}")
+            val amount: java.math.BigDecimal? = decoded.amount
+            val ledger: java.math.BigDecimal? = decoded.ledger
+            assertEquals(java.math.BigDecimal("0.3"), amount?.add(ledger))
+        }
+
+        @Test
         @DisplayName("bhvSerializationparam104 a duration parameter is written in the protobuf form and a cookie keeps only the unreserved set literal")
         fun durationParameter() {
             assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
