@@ -77,6 +77,37 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
     /** The carrier of a Tag Object's {@code kind}. */
     public static final String TAG_KIND = "x-oas32-kind";
 
+    /**
+     * The carrier of the HTTP method of an operation the 3.1 model has no field for: one declared
+     * under a path item's {@code query} field or in its {@code additionalOperations} map. It sits
+     * on the Operation Object, which is moved into a path item of its own (see
+     * {@link #resourcePath}).
+     */
+    public static final String OPERATION_METHOD = "x-oas32-method";
+
+    /**
+     * The carrier, on the root of the document, of the problems this loader found and left out of
+     * the parsed document; {@link SpecWarnings} reports each one with its pointer. Each entry is a
+     * map with a {@code pointer} and a {@code message}.
+     */
+    public static final String LOADER_WARNINGS = "x-oas32-warnings";
+
+    /**
+     * Separates the path from the method in the key of a path item that holds one operation the
+     * 3.1 model cannot place. A space is never part of a path template (D159), so the key never
+     * clashes with a real path.
+     */
+    private static final String METHOD_SEPARATOR = " ";
+
+    /**
+     * The custom method names the SDKs can send: upper-case letters, digits and underscores,
+     * starting with a letter. Ruby and Elixir write the method as a bare symbol or atom, and
+     * several HTTP libraries upper-case the method they are given, so a method outside this set
+     * could not be sent exactly as written in every language (D160).
+     */
+    private static final java.util.regex.Pattern CUSTOM_METHOD =
+            java.util.regex.Pattern.compile("[A-Z][A-Z0-9_]*");
+
     /** The version the converted document is read as. */
     private static final String READ_AS_VERSION = "3.1.1";
 
@@ -185,6 +216,11 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
     static void toParsable(final ObjectNode root, @Nullable final String base) {
         root.put("openapi", READ_AS_VERSION);
         root.remove("$self");
+        final ArrayNode warnings = root.arrayNode();
+        relocateOperations(root, warnings);
+        if (!warnings.isEmpty()) {
+            root.set(LOADER_WARNINGS, warnings);
+        }
         if (base != null) {
             localiseSelfReferences(root, locationUri(base));
         }
@@ -208,6 +244,173 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
             }
         }
         dropResponseSummaries(root);
+    }
+
+    /**
+     * Returns the path a path-item key stands for: the key itself, or, for the key of a path item
+     * that holds an operation of a method the 3.1 model has no field for, the key without the
+     * method.
+     *
+     * @param key a key of the {@code paths} map
+     * @return the path template the key names
+     */
+    public static String resourcePath(final String key) {
+        final int separator = key.indexOf(METHOD_SEPARATOR);
+        return separator < 0 ? key : key.substring(0, separator);
+    }
+
+    /**
+     * Returns the HTTP method an operation was declared with when the 3.1 model has no field for
+     * it ({@code QUERY}, or a method of {@code additionalOperations}), or null for an operation
+     * of one of the eight fields the model knows.
+     *
+     * @param operation the parsed operation, or null
+     * @return the method exactly as declared, or null
+     */
+    @Nullable public static String declaredMethod(@Nullable final io.swagger.v3.oas.models.Operation operation) {
+        if (operation == null || operation.getExtensions() == null) {
+            return null;
+        }
+        final Object method = operation.getExtensions().get(OPERATION_METHOD);
+        return method instanceof String ? (String) method : null;
+    }
+
+    /**
+     * Moves every operation the 3.1 model has no field for into a path item of its own (D159,
+     * D160). The 3.1 Path Item holds one operation per fixed method, and the generator reads
+     * operations from those fields only, so an operation under {@code query} or in
+     * {@code additionalOperations} goes into the {@code post} field of a new path item keyed
+     * {@code "<path> <METHOD>"}, right after its own path item, carrying its method in
+     * {@link #OPERATION_METHOD} and a copy of the path item's {@code summary},
+     * {@code description}, {@code servers} and {@code parameters}. A path item that is a local
+     * reference to {@code components.pathItems} contributes the operations of its target. An
+     * {@code additionalOperations} entry whose method is a fixed field of the path item, or is
+     * not a method the SDKs can send (see {@link #CUSTOM_METHOD}), is left out and reported.
+     *
+     * @param root the document as written, changed in place
+     * @param warnings the list the problems are added to
+     */
+    static void relocateOperations(final ObjectNode root, final ArrayNode warnings) {
+        final JsonNode paths = root.get("paths");
+        final JsonNode components = root.get("components");
+        final JsonNode pathItems = components == null ? null : components.get("pathItems");
+        if (paths instanceof ObjectNode) {
+            final ObjectNode rebuilt = root.objectNode();
+            final Iterator<Map.Entry<String, JsonNode>> entries = paths.properties().iterator();
+            boolean changed = false;
+            while (entries.hasNext()) {
+                final Map.Entry<String, JsonNode> entry = entries.next();
+                rebuilt.set(entry.getKey(), entry.getValue());
+                if (!(entry.getValue() instanceof ObjectNode)) {
+                    continue;
+                }
+                final ObjectNode item = (ObjectNode) entry.getValue();
+                final ObjectNode source = referencedPathItem(item, pathItems);
+                final Map<String, ObjectNode> extras = new java.util.LinkedHashMap<>();
+                if (source != null) {
+                    extras.putAll(extraOperations(source, refPointer(item), warnings));
+                }
+                extras.putAll(extraOperations(item, "#/paths/" + escape(entry.getKey()), warnings));
+                for (final Map.Entry<String, ObjectNode> extra : extras.entrySet()) {
+                    final ObjectNode synthetic = root.objectNode();
+                    copyShared(source, synthetic);
+                    copyShared(item, synthetic);
+                    extra.getValue().put(OPERATION_METHOD, extra.getKey());
+                    synthetic.set("post", extra.getValue());
+                    rebuilt.set(entry.getKey() + METHOD_SEPARATOR + extra.getKey(), synthetic);
+                    changed = true;
+                }
+                item.remove("query");
+                item.remove("additionalOperations");
+            }
+            if (changed) {
+                root.set("paths", rebuilt);
+            }
+        }
+        if (pathItems instanceof ObjectNode) {
+            final Iterator<Map.Entry<String, JsonNode>> items = pathItems.properties().iterator();
+            while (items.hasNext()) {
+                final JsonNode item = items.next().getValue();
+                if (item instanceof ObjectNode) {
+                    ((ObjectNode) item).remove("query");
+                    ((ObjectNode) item).remove("additionalOperations");
+                }
+            }
+        }
+    }
+
+    /** The target of a path item that is a local reference to {@code components.pathItems}. */
+    @Nullable private static ObjectNode referencedPathItem(
+            final ObjectNode item, @Nullable final JsonNode pathItems) {
+        final JsonNode ref = item.get("$ref");
+        final String prefix = "#/components/pathItems/";
+        if (pathItems == null || ref == null || !ref.isTextual() || !ref.asText().startsWith(prefix)) {
+            return null;
+        }
+        final JsonNode target = pathItems.get(
+                ref.asText().substring(prefix.length()).replace("~1", "/").replace("~0", "~"));
+        return target instanceof ObjectNode ? (ObjectNode) target : null;
+    }
+
+    private static String refPointer(final ObjectNode item) {
+        return item.get("$ref").asText();
+    }
+
+    /**
+     * The operations of a path item that the 3.1 model has no field for, keyed by their method in
+     * declaration order: {@code query} first, then each entry of {@code additionalOperations}.
+     */
+    private static Map<String, ObjectNode> extraOperations(
+            final ObjectNode item, final String pointer, final ArrayNode warnings) {
+        final Map<String, ObjectNode> extras = new java.util.LinkedHashMap<>();
+        final JsonNode query = item.get("query");
+        if (query instanceof ObjectNode) {
+            extras.put("QUERY", ((ObjectNode) query).deepCopy());
+        }
+        final JsonNode additional = item.get("additionalOperations");
+        if (additional instanceof ObjectNode) {
+            final Iterator<Map.Entry<String, JsonNode>> methods = additional.properties().iterator();
+            while (methods.hasNext()) {
+                final Map.Entry<String, JsonNode> method = methods.next();
+                final String at = pointer + "/additionalOperations/" + escape(method.getKey());
+                if (!(method.getValue() instanceof ObjectNode)) {
+                    continue;
+                }
+                if (OPERATION_FIELDS.contains(method.getKey().toLowerCase(Locale.ROOT))) {
+                    warn(warnings, at, "the method '" + method.getKey() + "' has its own field in"
+                            + " the path item and must not be in additionalOperations; the"
+                            + " operation is ignored");
+                } else if (!CUSTOM_METHOD.matcher(method.getKey()).matches()) {
+                    warn(warnings, at, "the method '" + method.getKey() + "' is not supported:"
+                            + " a custom method must be upper-case letters, digits and"
+                            + " underscores, starting with a letter; the operation is ignored");
+                } else {
+                    extras.put(method.getKey(), ((ObjectNode) method.getValue()).deepCopy());
+                }
+            }
+        }
+        return extras;
+    }
+
+    /** Copies the fields a path item shares with all its operations. */
+    private static void copyShared(@Nullable final ObjectNode from, final ObjectNode into) {
+        if (from == null) {
+            return;
+        }
+        for (final String field : List.of("summary", "description", "servers", "parameters")) {
+            final JsonNode value = from.get(field);
+            if (value != null) {
+                into.set(field, value.deepCopy());
+            }
+        }
+    }
+
+    private static void warn(final ArrayNode warnings, final String pointer, final String message) {
+        warnings.addObject().put("pointer", pointer).put("message", message);
+    }
+
+    private static String escape(final String segment) {
+        return segment.replace("~", "~0").replace("/", "~1");
     }
 
     /** Replaces every reference that resolves to this document with its local fragment. */

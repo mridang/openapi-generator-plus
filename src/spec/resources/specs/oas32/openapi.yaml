@@ -15,6 +15,8 @@ openapi: 3.2.0
 #   - tags nest through parent and carry a summary and a kind (#80)
 #   - examples use dataValue and serializedValue (#79)
 #   - a JSON Lines response declares its item through itemSchema (D120)
+#   - a path item declares a QUERY operation with a request body (#60)
+#   - a path item declares a custom LINK method in additionalOperations (#61)
 $self: shared/openapi.yaml
 jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 info:
@@ -96,6 +98,35 @@ paths:
             application/jsonl:
               itemSchema:
                 $ref: 'common.yaml#/components/schemas/Ledger'
+  /ledgers/search:
+    summary: Ledger search
+    query:
+      tags:
+        - accounts
+      operationId: searchLedgers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'common.yaml#/components/schemas/Ledger'
+      responses:
+        '200':
+          description: The ledger books that match
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'common.yaml#/components/schemas/Ledger'
+    additionalOperations:
+      LINK:
+        tags:
+          - accounts
+        operationId: linkLedgers
+        responses:
+          '204':
+            description: Linked
 components:
   parameters:
     LedgerCode:

@@ -792,11 +792,12 @@ func isRetryableTransportError(err error) bool {
 }
 
 // isIdempotentMethod reports whether a request may be sent again after its
-// connection dropped without changing server state (RFC 9110 section 9.2.2).
-// A POST or PATCH is sent once, because the server may already have acted on it.
+// connection dropped without changing server state (RFC 9110 section 9.2.2, plus
+// QUERY, which is safe and idempotent). A POST or PATCH is sent once, because the
+// server may already have acted on it.
 func isIdempotentMethod(method string) bool {
 	switch strings.ToUpper(method) {
-	case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE":
+	case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY":
 		return true
 	}
 	return false

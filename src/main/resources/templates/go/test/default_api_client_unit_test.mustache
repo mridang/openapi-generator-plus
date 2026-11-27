@@ -3143,6 +3143,26 @@ func retryScriptCall(client *retryScriptClient, authenticator Authenticator, par
 	return err
 }
 
+// A dropped connection is retried only for an idempotent method: a POST or a
+// PATCH is sent exactly once, and QUERY, which is safe, is sent again.
+func TestBhvMisc161_DefaultApiClientUnit_ANonIdempotentRequestIsSentExactlyOnceWhenTheConnectionDropsAndQueryIsRetried(t *testing.T) {
+	t.Parallel()
+	for method, want := range map[string]int{"POST": 1, "PATCH": 1, "QUERY": 2} {
+		client := &retryScriptClient{maxRetries: 1, replies: []retryScriptReply{
+			{err: pkgerrors.NewNetworkError("connection reset", errors.New("reset"))},
+		}}
+		params := retryScriptParams()
+		params.method = method
+
+		if err := retryScriptCall(client, nil, params); err == nil {
+			t.Errorf("%s: expected an error", method)
+		}
+		if got := len(client.attempts); got != want {
+			t.Errorf("%s: expected %d attempts, got %d", method, want, got)
+		}
+	}
+}
+
 // A 503 is sent again until it succeeds.
 func TestBhvRetries038_DefaultApiClientUnit_A503IsSentAgainUntilItSucceeds(t *testing.T) {
 	t.Parallel()

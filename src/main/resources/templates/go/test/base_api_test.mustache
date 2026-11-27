@@ -3919,19 +3919,6 @@ func newDroppingServer(t *testing.T) *scriptedServer {
 	return srv
 }
 
-func TestBhvMisc161_BaseApi_ANonIdempotentRequestIsSentExactlyOnceWhenTheConnectionDrops(t *testing.T) {
-	t.Parallel()
-	srv := newDroppingServer(t)
-	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(2) }, nil)
-
-	if err := addPetCall(api); err == nil {
-		t.Error("expected an error")
-	}
-	if got := srv.hits.Load(); got != 1 {
-		t.Errorf("expected one request, got %d", got)
-	}
-}
-
 func TestBhvMisc162_BaseApi_AnIdempotentRequestIsSentAgainExactlyOnceWhenTheConnectionDrops(t *testing.T) {
 	t.Parallel()
 	srv := newDroppingServer(t)

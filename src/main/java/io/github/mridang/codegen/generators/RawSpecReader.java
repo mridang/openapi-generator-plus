@@ -28,7 +28,7 @@ public final class RawSpecReader {
 
     /** The path-item fields that hold an operation object. */
     private static final String[] OPERATION_FIELDS = {
-        "get", "put", "post", "delete", "options", "head", "patch", "trace"
+        "get", "put", "post", "delete", "options", "head", "patch", "trace", "query"
     };
 
     private RawSpecReader() {}
@@ -64,6 +64,20 @@ public final class RawSpecReader {
                 if (!byCode.isEmpty()) {
                     summaries.put(
                             field.toUpperCase(Locale.ROOT) + " " + pathItem.getKey(), byCode);
+                }
+            }
+            final JsonNode additional = pathItem.getValue().get("additionalOperations");
+            if (additional != null && additional.isObject()) {
+                final Iterator<Map.Entry<String, JsonNode>> methods = additional.properties().iterator();
+                while (methods.hasNext()) {
+                    final Map.Entry<String, JsonNode> method = methods.next();
+                    final Map<String, String> byCode = method.getValue().isObject()
+                            ? summariesOf(method.getValue().get("responses"))
+                            : Map.of();
+                    if (!byCode.isEmpty()) {
+                        summaries.put(method.getKey().toUpperCase(Locale.ROOT) + " "
+                                + pathItem.getKey(), byCode);
+                    }
                 }
             }
         }

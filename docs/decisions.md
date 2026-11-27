@@ -427,6 +427,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A 3.2 example shows the same data in the generated documentation as its 3.1 spelling with `value`.
 
+## D159: A QUERY operation is generated like any other operation
+
+**Decision.** An operation declared under a 3.2 path item's `query` field is generated in all twelve SDKs as an ordinary operation sent with the method `QUERY`, with its request body, parameters, responses and documentation. The parsed model has a field for the eight methods of OpenAPI 3.1 only, so the 3.2 loader (D150) moves the operation into a path item of its own, keyed by the path and the method, which carries a copy of the path item's summary, description, servers and parameters; the shared generator reads the method from the operation and the path from the key, so nothing of the internal key reaches an SDK. Every transport already sends a custom method with its body, and QUERY is safe and idempotent in all twelve (RFC 10008): a connection that drops before a response is retried for QUERY as for GET (go was missing QUERY in its idempotent set and now has it). The normaliser's method filter matches the operation as `query` (#60).
+
+**Consequences.** The petstore stays a 3.1 document, so the operation is generated from the 3.2 fixture by the 3.2 unit test; the transport behaviour is covered by the existing tests `misc041` (a custom method keeps its body) and `misc161` (QUERY is retried after a dropped connection) in all twelve.
+
+## D160: A custom method in `additionalOperations` is generated with its name
+
+**Decision.** Each entry of a 3.2 path item's `additionalOperations` is generated in all twelve SDKs as an operation sent with exactly the method name written as its key, through the same mechanism as QUERY (D159). The name must be upper-case letters, digits and underscores starting with a letter, such as `LINK` or `PURGE`: Ruby and Elixir write the method as a bare symbol or atom, and Faraday, Elixir's transport and the Fetch standard upper-case or normalise what they are given, so a method outside that set could not be sent byte for byte in every language. A key outside it (`purge`, `M-SEARCH`), and a key that names a method the path item has a field for (`POST`, `QUERY`, in any case, which the specification forbids), is left out and reported by the specification warning pass (D142) with its JSON pointer; with `strictSpec` set the run fails instead (#61).
+
+**Consequences.** A spec with a lower-case or hyphenated custom method generates every other operation and tells the user which one was dropped and why.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

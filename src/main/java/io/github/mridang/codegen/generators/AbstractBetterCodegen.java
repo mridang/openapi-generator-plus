@@ -7077,12 +7077,24 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public CodegenOperation fromOperation(
             String path, String httpMethod, Operation operation, List<Server> servers) {
-        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        // D159, D160: a QUERY operation or one of additionalOperations sits in a path item of its
+        // own, keyed "<path> <METHOD>", with its method carried on the operation.
+        final String declaredMethod = OpenApi32ParserExtension.declaredMethod(operation);
+        final String resourcePath =
+                declaredMethod == null ? path : OpenApi32ParserExtension.resourcePath(path);
+        final String method = declaredMethod == null ? httpMethod : declaredMethod;
+        final CodegenOperation op = super.fromOperation(resourcePath, method, operation, servers);
+        if (declaredMethod != null) {
+            op.httpMethod = declaredMethod;
+            if (op.vendorExtensions != null) {
+                op.vendorExtensions.remove(OpenApi32ParserExtension.OPERATION_METHOD);
+            }
+        }
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
         }
         final Map<String, String> summaries =
-                responseSummaries.get(httpMethod.toUpperCase(Locale.ROOT) + " " + path);
+                responseSummaries.get(method.toUpperCase(Locale.ROOT) + " " + resourcePath);
         if (summaries != null) {
             if (op.vendorExtensions == null) {
                 op.vendorExtensions = new HashMap<>();

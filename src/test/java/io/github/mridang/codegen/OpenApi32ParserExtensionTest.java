@@ -71,7 +71,8 @@ class OpenApi32ParserExtensionTest {
         assertAll(
                 () -> assertEquals("3.2.0", api.getOpenapi()),
                 () -> assertEquals("Ledger Fixture", api.getInfo().getTitle()),
-                () -> assertEquals(3, api.getPaths().size()));
+                () -> assertEquals(4, api.getPaths().keySet().stream()
+                        .map(OpenApi32ParserExtension::resourcePath).distinct().count()));
     }
 
     @Test
@@ -229,6 +230,70 @@ class OpenApi32ParserExtensionTest {
                 () -> assertEquals("The code of the ledger book to read", parameter.getDescription()));
     }
 
+    @Test
+    @DisplayName("a QUERY operation and a custom method get path items of their own after their path")
+    void extraMethodsAreRelocated() throws URISyntaxException {
+        final OpenAPI api = parse(fixturePath());
+        final List<String> keys = List.copyOf(api.getPaths().keySet());
+        final int search = keys.indexOf("/ledgers/search");
+        final io.swagger.v3.oas.models.Operation query =
+                nn(api.getPaths().get("/ledgers/search QUERY")).getPost();
+        final io.swagger.v3.oas.models.Operation link =
+                nn(api.getPaths().get("/ledgers/search LINK")).getPost();
+        assertAll(
+                () -> assertEquals(List.of("/ledgers/search QUERY", "/ledgers/search LINK"),
+                        keys.subList(search + 1, search + 3)),
+                () -> assertEquals("QUERY", OpenApi32ParserExtension.declaredMethod(query)),
+                () -> assertNotNull(query.getRequestBody(), "the QUERY body was dropped"),
+                () -> assertEquals("LINK", OpenApi32ParserExtension.declaredMethod(link)),
+                () -> assertEquals("Ledger search",
+                        nn(api.getPaths().get("/ledgers/search QUERY")).getSummary()),
+                () -> assertEquals("/ledgers/search",
+                        OpenApi32ParserExtension.resourcePath("/ledgers/search QUERY")),
+                () -> assertNull(OpenApi32ParserExtension.declaredMethod(
+                        nn(api.getPaths().get("/ledgers")).getPost())));
+    }
+
+    @Test
+    @DisplayName("a fixed method or an unsendable name in additionalOperations is left out and reported")
+    void badAdditionalOperationsAreReported(@TempDir final Path dir) throws IOException {
+        final Path spec = dir.resolve("openapi.yaml");
+        Files.writeString(spec, "openapi: 3.2.0\n"
+                + "info: {title: T, version: '1'}\n"
+                + "paths:\n"
+                + "  /items:\n"
+                + "    additionalOperations:\n"
+                + "      POST: {responses: {'204': {description: OK}}}\n"
+                + "      purge: {responses: {'204': {description: OK}}}\n"
+                + "      M-SEARCH: {responses: {'204': {description: OK}}}\n"
+                + "      PURGE: {responses: {'204': {description: OK}}}\n"
+                + "  /things:\n"
+                + "    $ref: '#/components/pathItems/Things'\n"
+                + "components:\n"
+                + "  pathItems:\n"
+                + "    Things:\n"
+                + "      query: {responses: {'200': {description: OK}}}\n", StandardCharsets.UTF_8);
+        final OpenAPI api = parse(spec.toString());
+        final List<String> warnings = SpecWarnings.collect(api).stream()
+                .map(SpecWarnings.Warning::toString)
+                .filter(warning -> warning.contains("additionalOperations"))
+                .collect(Collectors.toList());
+        assertAll(
+                () -> assertEquals(List.of("/items", "/items PURGE", "/things", "/things QUERY"),
+                        List.copyOf(api.getPaths().keySet())),
+                () -> assertEquals(List.of(
+                        "#/paths/~1items/additionalOperations/POST: the method 'POST' has its own"
+                                + " field in the path item and must not be in additionalOperations;"
+                                + " the operation is ignored",
+                        "#/paths/~1items/additionalOperations/purge: the method 'purge' is not"
+                                + " supported: a custom method must be upper-case letters, digits"
+                                + " and underscores, starting with a letter; the operation is ignored",
+                        "#/paths/~1items/additionalOperations/M-SEARCH: the method 'M-SEARCH' is not"
+                                + " supported: a custom method must be upper-case letters, digits"
+                                + " and underscores, starting with a letter; the operation is ignored"),
+                        warnings));
+    }
+
     @TestFactory
     @DisplayName("every SDK generates from the 3.2 fixture")
     Stream<DynamicTest> everySdkGeneratesFromTheFixture() {
@@ -248,7 +313,15 @@ class OpenApi32ParserExtensionTest {
                             () -> assertTrue(all.contains("Account audits"),
                                     "the tag summary is missing"),
                             () -> assertTrue(all.contains("It belongs to the accounts API group."),
-                                    "the tag parent is missing"));
+                                    "the tag parent is missing"),
+                            () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
+                                    .contains("searchledgers") && all.contains("QUERY"),
+                                    "the QUERY operation is missing"),
+                            () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
+                                    .contains("linkledgers") && all.contains("LINK"),
+                                    "the LINK operation is missing"),
+                            () -> assertFalse(all.contains("search QUERY") || all.contains("search LINK"),
+                                    "the internal path-item key leaked into the SDK"));
                 }));
     }
 

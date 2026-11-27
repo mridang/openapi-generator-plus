@@ -111,6 +111,7 @@ public final class SpecWarnings {
     public static List<Warning> collect(OpenAPI openAPI) {
         Map<String, Object> root = toMap(openAPI);
         List<Warning> warnings = new ArrayList<>();
+        loaderWarnings(openAPI, warnings);
         checkDialect(openAPI.getJsonSchemaDialect(), "#/jsonSchemaDialect", warnings);
         walk(root, root, "#", false, warnings);
         walkDialects(Json31.mapper().convertValue(openAPI, Map.class), "#", false, warnings);
@@ -132,6 +133,25 @@ public final class SpecWarnings {
             }
         }
         return false;
+    }
+
+    /** Lists what the OpenAPI 3.2 loader left out of the document, with the pointer it gave. */
+    private static void loaderWarnings(OpenAPI openAPI, List<Warning> warnings) {
+        Object carried = openAPI.getExtensions() == null
+            ? null
+            : openAPI.getExtensions().get(OpenApi32ParserExtension.LOADER_WARNINGS);
+        if (!(carried instanceof List)) {
+            return;
+        }
+        for (Object entry : (List<?>) carried) {
+            if (entry instanceof Map) {
+                Object pointer = ((Map<?, ?>) entry).get("pointer");
+                Object message = ((Map<?, ?>) entry).get("message");
+                if (pointer instanceof String && message instanceof String) {
+                    warnings.add(new Warning((String) pointer, (String) message));
+                }
+            }
+        }
     }
 
     private static void checkDialect(@Nullable Object dialect, String pointer, List<Warning> warnings) {
