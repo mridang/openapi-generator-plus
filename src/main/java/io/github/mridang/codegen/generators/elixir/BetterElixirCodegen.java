@@ -54,6 +54,22 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
 
+    /**
+     * Types a {@code type: number} with {@code format: decimal} as the exact
+     * {@code Decimal.t()} (D135); the shared mapping gives every other number
+     * {@code float()}, and the base generator does not resolve that format to
+     * {@code decimal} for a number.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if ("float()".equals(type) && schema != null && "decimal".equals(schema.getFormat())) {
+            return "Decimal.t()";
+        }
+        return type;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String errorSchemaTemplate() {

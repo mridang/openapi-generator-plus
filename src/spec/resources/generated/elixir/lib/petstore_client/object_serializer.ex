@@ -170,7 +170,10 @@ defmodule PetstoreClient.ObjectSerializer do
       # Jason keeps the FIRST of a duplicated object key; every other SDK keeps
       # the last. Decode objects in document order and fold them into maps so
       # the last occurrence wins.
-      with {:ok, decoded} <- Jason.decode(data, objects: :ordered_objects, floats: floats) do
+      # Jason names the float mode :native; :floats is this module's name for it.
+      jason_floats = if floats == :decimals, do: :decimals, else: :native
+
+      with {:ok, decoded} <- Jason.decode(data, objects: :ordered_objects, floats: jason_floats) do
         {:ok, last_key_wins(decoded)}
       end
     end
@@ -791,7 +794,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, type) when type in ["String", "String.t()"],
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected String, got #{inspect(data)}"
+        message: "Expected String, got #{shown(data)}"
       )
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"] and is_integer(data),
@@ -800,7 +803,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, type) when type in ["Integer", "integer()"],
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected Integer, got #{inspect(data)}"
+        message: "Expected Integer, got #{shown(data)}"
       )
 
   def convert_to_type(data, type) when type in ["Float", "float()"] and is_float(data), do: data
@@ -831,7 +834,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, type) when type in ["Decimal", "Decimal.t()"],
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected a JSON number for a decimal, got #{inspect(data)}"
+        message: "Expected a JSON number for a decimal, got #{shown(data)}"
       )
 
   # format: decimal on a `type: string` - the same `Decimal`, read only from a
@@ -850,13 +853,13 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "DecimalString"),
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected a JSON string for a decimal, got #{inspect(data)}"
+        message: "Expected a JSON string for a decimal, got #{shown(data)}"
       )
 
   def convert_to_type(data, type) when type in ["Float", "float()"],
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected Float/Integer, got #{inspect(data)}"
+        message: "Expected Float/Integer, got #{shown(data)}"
       )
 
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"] and is_boolean(data),
@@ -865,7 +868,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"],
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected Boolean, got #{inspect(data)}"
+        message: "Expected Boolean, got #{shown(data)}"
       )
 
   def convert_to_type(data, "Object"), do: floats(data)
@@ -887,7 +890,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "ByteArray"),
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected base64 String for ByteArray, got #{inspect(data)}"
+        message: "Expected base64 String for ByteArray, got #{shown(data)}"
       )
 
   # `format: byte` leaves carried inside a typespec descriptor
@@ -911,7 +914,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "binary()"),
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected base64 String for binary(), got #{inspect(data)}"
+        message: "Expected base64 String for binary(), got #{shown(data)}"
       )
 
   # format: uuid - RFC 4122 canonical 8-4-4-4-12 hex form, case
@@ -932,7 +935,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "UUID"),
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected UUID String, got #{inspect(data)}"
+        message: "Expected UUID String, got #{shown(data)}"
       )
 
   # format: uri - an absolute RFC 3986 URI: a scheme, a colon, then no
@@ -953,7 +956,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def convert_to_type(data, "URI"),
     do:
       raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected URI String, got #{inspect(data)}"
+        message: "Expected URI String, got #{shown(data)}"
       )
 
   def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] and is_list(data),
@@ -1221,13 +1224,13 @@ defmodule PetstoreClient.ObjectSerializer do
   @spec raise_not_a_list(term()) :: no_return()
   defp raise_not_a_list(data) do
     raise PetstoreClient.Errors.SerializationError,
-      message: "Expected a list for array type, got #{inspect(data)}"
+      message: "Expected a list for array type, got #{shown(data)}"
   end
 
   @spec raise_not_a_map(term()) :: no_return()
   defp raise_not_a_map(data) do
     raise PetstoreClient.Errors.SerializationError,
-      message: "Expected a JSON object for map type, got #{inspect(data)}"
+      message: "Expected a JSON object for map type, got #{shown(data)}"
   end
 
   @spec raise_unparseable(term(), String.t()) :: no_return()
@@ -1652,6 +1655,11 @@ defmodule PetstoreClient.ObjectSerializer do
       decimal
     end
   end
+
+  # A value in an error message: a number read as a Decimal shows as the
+  # number it was written as, like any other value.
+  defp shown(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+  defp shown(data), do: inspect(data)
 
   # A value that is not decoded into a decimal field keeps the binary float it
   # had before decimals were read from the JSON text: every `Decimal` that

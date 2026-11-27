@@ -531,10 +531,10 @@ defmodule {{moduleName}}.DefaultApiClient do
   # arrived but cannot be decompressed surfaces as a typed ApiError carrying the
   # response's real status code, never a NetworkError.
   #
-  # With a `limit` (`max_response_bytes`), gzip and deflate are inflated a piece
-  # at a time and stop with ResponseTooLargeError as soon as the output passes
-  # the limit; a br or zstd body (never asked for under a limit) is checked once
-  # decoded.
+  # With a `limit` (`max_response_bytes`), gzip, deflate and zstd are decoded a
+  # piece at a time and stop with ResponseTooLargeError as soon as the output
+  # passes the limit; a br body (never asked for under a limit, and the optional
+  # :brotli library has no incremental decoder here) is checked once decoded.
   @spec decompress_body(binary(), String.t(), integer(), pos_integer() | nil) :: binary()
   # An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
   # decompress, so it passes through unchanged for ANY declared encoding —
@@ -550,7 +550,7 @@ defmodule {{moduleName}}.DefaultApiClient do
       "x-gzip" -> gunzip_body(body, "x-gzip", status, limit)
       "deflate" -> inflate_body(body, status, limit)
       "br" -> body |> brotli_body(status) |> within_limit!(status, limit)
-      "zstd" -> body |> zstd_body(status) |> within_limit!(status, limit)
+      "zstd" -> zstd_body(body, status, limit)
       other ->
         raise {{moduleName}}.Errors.ApiError,
           message: "Unsupported Content-Encoding '#{other}'",
@@ -746,13 +746,23 @@ defmodule {{moduleName}}.DefaultApiClient do
 
   # `zstd` is only advertised in Accept-Encoding when Erlang/OTP ships the
   # :zstd module (OTP 28 and later), so a server should never send it
-  # otherwise; guard anyway.
-  defp zstd_body(body, status) do
+  # otherwise; guard anyway. Under a limit the body is decoded 16 input bytes
+  # at a time (a few bytes of zstd can stand for megabytes) and the decoding
+  # stops with ResponseTooLargeError as soon as the output passes the limit.
+  defp zstd_body(body, status, limit) do
     if Code.ensure_loaded?(:zstd) do
       try do
         # Called through apply/3 so the module still compiles on an older OTP.
-        :zstd |> apply(:decompress, [body]) |> IO.iodata_to_binary()
+        if is_integer(limit) do
+          {:ok, context} = apply(:zstd, :context, [:decompress])
+          zstd_within(context, body, [], 0, {status, limit})
+        else
+          :zstd |> apply(:decompress, [body]) |> IO.iodata_to_binary()
+        end
       rescue
+        e in {{moduleName}}.Errors.ResponseTooLargeError ->
+          reraise e, __STACKTRACE__
+
         e ->
           reraise {{moduleName}}.Errors.ApiError,
                   [
@@ -767,6 +777,48 @@ defmodule {{moduleName}}.DefaultApiClient do
         message: "Received a zstd-encoded response but the zstd library is unavailable",
         status_code: status
     end
+  end
+
+  defp zstd_within(context, input, acc, size, {status, limit} = bound) do
+    {piece, rest} =
+      if byte_size(input) > 16,
+        do: {binary_part(input, 0, 16), binary_part(input, 16, byte_size(input) - 16)},
+        else: {input, <<>>}
+
+    {output, rest, done?} =
+      case rest do
+        <<>> ->
+          case apply(:zstd, :finish, [context, piece]) do
+            {:done, output} -> {output, <<>>, true}
+            {:continue, remainder, output} -> {output, remainder, false}
+            # A stream that ends before its last frame gives nothing more.
+            {:continue, output} -> {zstd_progress!(output), <<>>, false}
+          end
+
+        _ ->
+          case apply(:zstd, :stream, [context, piece]) do
+            {:continue, remainder, output} -> {output, remainder <> rest, false}
+            {:continue, output} -> {output, rest, false}
+          end
+      end
+
+    size = size + IO.iodata_length(output)
+
+    cond do
+      size > limit ->
+        raise {{moduleName}}.Errors.ResponseTooLargeError, status_code: status, limit: limit
+
+      done? ->
+        IO.iodata_to_binary([acc, output])
+
+      true ->
+        zstd_within(context, rest, [acc, output], size, bound)
+    end
+  end
+
+  defp zstd_progress!(output) do
+    if IO.iodata_length(output) == 0, do: :erlang.error(:data_error)
+    output
   end
 
   @doc """

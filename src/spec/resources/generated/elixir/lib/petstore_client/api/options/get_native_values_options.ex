@@ -14,7 +14,7 @@ defmodule PetstoreClient.Api.Options.GetNativeValuesOptions do
   @type t :: %__MODULE__{
           address4: :inet.ip4_address() | nil,
           delay: Duration.t() | nil,
-          amount: float() | nil,
+          amount: Decimal.t() | nil,
           x_address6: :inet.ip6_address() | nil,
           timeout: pos_integer() | nil,
           headers: %{optional(String.t()) => String.t()} | nil,
