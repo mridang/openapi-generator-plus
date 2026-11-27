@@ -139,7 +139,7 @@ module Petstore::Client
         # @param code [String] the authorization code from the callback
         # @yieldparam id_token [String, nil] the id_token of the token response
         # @return [void]
-        def exchange_code_checking_id_token(code, &id_token_check)
+        def exchange_code_checking_id_token(code, &)
           # Reject an empty/blank authorization code before issuing the token
           # POST: an empty code can only ever produce a server-side error, so
           # fail fast with a clear ArgumentError instead.
@@ -156,7 +156,7 @@ module Petstore::Client
           params['code_verifier'] = verifier if verifier
           # Always POST the new code (never the cache or the refresh path);
           # a rejected code keeps the previous session.
-          @token_manager.exchange(@token_url, params, &id_token_check)
+          @token_manager.exchange(@token_url, params, &)
           @token_manager.mark_exchanged
           @pkce_verifier = nil
         end

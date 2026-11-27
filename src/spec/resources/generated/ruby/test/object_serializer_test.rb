@@ -2405,8 +2405,14 @@ describe Petstore::Client::ObjectSerializer do
       model = decode('{"ledger":"12.50"}')
 
       _(model.ledger).must_equal(BigDecimal('12.5'))
-      _(encode(model)).must_equal('{"ledger":"12.5"}')
+      _(encode(model)).must_equal('{"ledger":"12.50"}')
       assert_raises(Petstore::Client::Errors::SerializationError) { decode('{"ledger":12.50}') }
+    end
+
+    it 'bhv_misc_088 a decimal decoded from text keeps the decimal places it was written with' do
+      _(encode(decode('{"amount":12.50}'))).must_equal('{"amount":12.50}')
+      _(encode(decode('{"ledger":"1.50"}'))).must_equal('{"ledger":"1.50"}')
+      _(decode('{"amount":12.50}').amount).must_equal(BigDecimal('12.5'))
     end
 
     it 'bhv_serializationobject_412 reads a forty digit number exactly and never rounds it' do

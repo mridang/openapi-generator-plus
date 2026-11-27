@@ -14,7 +14,7 @@ A review of the type mapping (see "Under review") found that Ruby 3.2 reached en
 |---|---|---|
 | `integer`, `int32`, `int64` | `Integer` | Ruby integers have arbitrary precision, so 64-bit values are exact. |
 | `number` with `format: float` or `double` | `Float` | |
-| `number` with no format, `format: decimal` | `BigDecimal` | Read from the JSON text with `decimal_class: BigDecimal` and written as a bare JSON number in plain notation. A `BigDecimal` keeps no trailing zero, so `12.50` is written `12.5`. A `type: string` decimal is read from a JSON string only and written as a JSON string. An untyped or free-form number is still a `Float`. |
+| `number` with no format, `format: decimal` | `BigDecimal` | Read from the JSON text with `decimal_class: BigDecimal` and written as a bare JSON number in plain notation. A decoded `BigDecimal` is written back with the decimal places it was read with, so `12.50` stays `12.50`. A `type: string` decimal is read from a JSON string only and written as a JSON string. An untyped or free-form number is still a `Float`. |
 | `string` with `format: ipv4` or `ipv6` | `IPAddr` | Read from the plain address text only (a prefix length, a zone id, brackets, a leading zero and the wrong family fail with `SerializationError`) and written in canonical text, RFC 5952 for IPv6. |
 | `boolean` | `true` or `false` | |
 | `string` | `String` | |
@@ -142,7 +142,7 @@ end
 ## Known limits
 
 - A model never validates when it is constructed: a value of the wrong type, or an inline enum string the spec does not list, is held as given (a required property still has to be present and not `nil`). Decoding is where the check happens: a wrong type fails the decode with `SerializationError`, and an unknown enum value decodes to the catch-all member `UNKNOWN_DEFAULT_OPEN_API` (D117). See the type mapping above.
-- A `BigDecimal` keeps no trailing zero, so a decimal read as `12.50` is written back as `12.5`.
+- A `BigDecimal` keeps no trailing zero of its own, so the SDK remembers the decimal places of each decoded value in a weak side table and writes `12.50` back as `12.50`; a `BigDecimal` you build yourself is written as it is.
 - An overflowing double literal such as `1e400` decodes to Infinity.
 - Faraday's default `net_http` adapter opens a connection per request. Connection reuse would need `net_http_persistent`, which is an open decision.
 - SOCKS proxies are not supported; `proxy` accepts `http://` and `https://` only.

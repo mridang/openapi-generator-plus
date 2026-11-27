@@ -342,7 +342,8 @@ The gem follows semantic versioning (`1.0.0` today). The supported Ruby versions
 (stdlib `bigdecimal`). A typed field is read from the JSON text with
 `decimal_class: BigDecimal`, so no digit passes through a binary float, and it
 is written back as a bare JSON number in plain notation with no exponent. A
-`BigDecimal` keeps no trailing zero, so `12.50` is written as `12.5`. A
+decoded value keeps the decimal places it was read with, so `12.50` is written
+as `12.50`. A
 `type: string` decimal is read from a JSON string only and written as a JSON
 string. A number in an untyped or free-form value is still a `Float`, and
 `format: float` / `format: double` map to `Float`, which **cannot** represent

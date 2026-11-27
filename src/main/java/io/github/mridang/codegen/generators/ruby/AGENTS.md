@@ -46,7 +46,7 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | Builders | Setter parameter is named `val`; `Configuration` and `TransportOptions` keyword constructors take every value, defaults come from the builder | Positional setter style; the builder supplies defaults |
 | Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | Ruby lets a class share its namespace's name |
 | Servers list | `Servers::ALL` | Constant naming |
-| Numbers | `format: number` and `decimal` are `BigDecimal` (exact, plain notation, no trailing zero kept); `ipv4`/`ipv6` are `IPAddr`; `Integer` is arbitrary precision so int64 is exact | typed fields are parsed with `decimal_class: BigDecimal`, an untyped number stays `Float` (D83, D95, D96) |
+| Numbers | `format: number` and `decimal` are `BigDecimal` (exact, plain notation, decoded decimal places kept in `WRITTEN_SCALE`); `ipv4`/`ipv6` are `IPAddr`; `Integer` is arbitrary precision so int64 is exact | typed fields are parsed with `decimal_class: BigDecimal`, an untyped number stays `Float` (D83, D95, D96) |
 | Binary responses | `ByteStream` (D119) responding to `read`, `each`, `read_all` and `close` | The response is read as consumed |
 | Binary request bodies | `BodySource` (D121) with `of`, `of_file`, `from_factory`, `once` and `from` | A raw binary body is sent as it is read; a multipart part stays an `IO`/`StringIO` |
 | Paged lists | `<operation>_pages` returning an `Enumerable` `Paginator` with `items` and `pages` (`Enumerator`s) and `Page` values (D123, D124) | Ruby's lazy sequence is an `Enumerator`; the cursor lives in the Options object whose `copy_with` gives each page its own |
@@ -275,7 +275,7 @@ Rule: every API group has an interface and the client has one where the language
 - No SOCKS proxy: `proxy` accepts `http://` and `https://` only.
 - Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11, closed issues #53, #70, #78, #88, #90); the README says so.
 - OpenAPI 3.2 and 3.1 loading is tracked in epics #49 and #96, 3.2 documents in #50.
-- A `BigDecimal` keeps no trailing zero, so `12.50` is written `12.5`.
+- A `BigDecimal` keeps no trailing zero, so `parse_json` reads through `ScaledDecimal` and `parse_decimal_string` through `scaled_decimal`, which record the decimal places of the text in `WRITTEN_SCALE` (an `ObjectSpace::WeakMap`, identity keys); `decimal_to_plain` pads back to them, so `12.50` stays `12.50` (misc088).
 - Connection reuse is open for ruby: Faraday's default `net_http` adapter opens a connection per request; keep-alive would need `net_http_persistent`, an owner decision. The misleading code comment was removed.
 - `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (parked).
 - An overflowing double literal such as `1e400` decodes to Infinity (parked).

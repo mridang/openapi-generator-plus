@@ -73,3 +73,13 @@ module Faraday
     def proxy=: ((String | Hash[Symbol, untyped])?) -> void
   end
 end
+
+# ObjectSpace::WeakMap is core Ruby, but the RBS core set the type checker loads
+# does not declare it; ObjectSerializer::WRITTEN_SCALE uses only these methods.
+module ObjectSpace
+  class WeakMap[K, V]
+    def initialize: () -> void
+    def []: (K) -> V?
+    def []=: (K, V) -> V
+  end
+end

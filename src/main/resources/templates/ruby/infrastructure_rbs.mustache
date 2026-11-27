@@ -728,6 +728,11 @@
     MAX_JSON_DEPTH: Integer
     EXACT_NUMBER_TOKEN: String
     EXACT_NUMBER_PREFIX: String
+    WRITTEN_SCALE: ObjectSpace::WeakMap[BigDecimal, Integer]
+    module ScaledDecimal
+      def self.try_convert: (String) -> BigDecimal
+    end
+    def self.scaled_decimal: (String) -> BigDecimal
     PROTOBUF_DURATION_REGEX: Regexp
     PROTOBUF_DURATION_MAX_SECONDS: Integer
     UUID_REGEX: Regexp
