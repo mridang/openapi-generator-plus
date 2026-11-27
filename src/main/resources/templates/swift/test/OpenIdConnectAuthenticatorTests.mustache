@@ -938,8 +938,13 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         #expect(error == .invalidResponse("The id_token has expired"))
     }
 
-    @Test func testBhvAuthoidc040AMalformedIdTokenIsRejected() async throws {
-        let (auth, _) = try await authenticatorReturning { _ in "not-a-jwt" }
+    @Test(arguments: ["not-a-jwt", "boolean-exp"])
+    func testBhvAuthoidc040AMalformedIdTokenIsRejected(_ shape: String) async throws {
+        let (auth, _) = try await authenticatorReturning { nonce in
+            shape == "boolean-exp"
+                ? Self.idToken(Self.claims(nonce: nonce, replacing: "exp", with: "true"))
+                : "not-a-jwt"
+        }
 
         let error = await #expect(throws: OAuth2TokenError.self) {
             try await auth.exchangeCode("oidc-code")
