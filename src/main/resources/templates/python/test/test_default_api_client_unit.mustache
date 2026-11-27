@@ -3236,9 +3236,11 @@ class TestDeadlineAndCancellationClassification:
         client.send_request("GET", "https://example.com/x", {}, None)
 
         # One urllib3 Timeout carries the configured budget as its overall
-        # total and as the connect phase, so neither phase outlives it.
-        assert pool.timeout.total == 2.0
-        assert pool.timeout.connect_timeout == 2.0
+        # total and as the connect phase, so neither phase outlives it. The
+        # budget is measured from the start of the call, so what is left of it
+        # when the request goes out is a hair under the configured value.
+        assert 1.9 < pool.timeout.total <= 2.0
+        assert pool.timeout.connect_timeout == pool.timeout.total
 
     def test_bhv_transport_068_a_call_with_an_already_cancelled_handle_sends_nothing(self) -> None:
         from {{packageName}}.default_api_client import RequestHandle

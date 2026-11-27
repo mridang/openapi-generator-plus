@@ -957,7 +957,7 @@ def _id_token(claims: dict[str, Any]) -> str:
     return f"{encode({'alg': 'none'})}.{encode(claims)}.sig"
 
 
-def _claims(nonce: str, **overrides: Any) -> dict[str, Any]:
+def _claims(nonce: str, /, **overrides: Any) -> dict[str, Any]:
     """Claims that pass every check for the given nonce, with the overrides applied."""
     claims: dict[str, Any] = {
         "iss": "https://auth.example.com",

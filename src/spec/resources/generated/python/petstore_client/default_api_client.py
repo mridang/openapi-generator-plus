@@ -1205,6 +1205,16 @@ class DefaultApiClient:
         return response
 
     @staticmethod
+    def _live_socket(sock: Optional[Any]) -> Optional[Any]:
+        """Return ``sock`` when it is still open, else None."""
+        if sock is None:
+            return None
+        try:
+            return sock if sock.fileno() >= 0 else None
+        except (OSError, AttributeError):
+            return None
+
+    @staticmethod
     def _read_within(
         response: Any, deadline: Optional[float], limit: Optional[int] = None
     ) -> bytes:
@@ -1228,7 +1238,13 @@ class DefaultApiClient:
             # No budget and no limit, or a response from a supplied pool manager that reads only as a whole.
             return bytes(response.read())
         handle = getattr(_ACTIVE, "handle", None)
-        sock = handle.socket() if handle is not None else None
+        sock = DefaultApiClient._live_socket(
+            getattr(getattr(response, "connection", None), "sock", None)
+        )
+        if sock is None and handle is not None:
+            # A response that ended the connection leaves only the handle holding its socket; a
+            # socket kept from an earlier attempt of a retried call is closed and is skipped.
+            sock = DefaultApiClient._live_socket(handle.socket())
         chunks: List[bytes] = []
         total = 0
         while True:
@@ -1239,6 +1255,9 @@ class DefaultApiClient:
                     raise NetworkTimeoutException(
                         message="Request timed out: the timeout budget was used up while the response body was read"
                     )
+                # The read that ends a closed connection closes its socket, so the next
+                # pass finds it gone; there is nothing left to bound then.
+                sock = DefaultApiClient._live_socket(sock)
                 if sock is not None:
                     sock.settimeout(remaining)
             chunk = read1(65536 if limit is None else min(65536, limit + 1 - total))
