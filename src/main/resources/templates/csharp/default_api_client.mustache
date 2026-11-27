@@ -1673,8 +1673,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     )
     {
         MultipartFormDataContent multipart = new();
-        foreach (KeyValuePair<string, object> part in formParts)
+        foreach (KeyValuePair<string, object> wrappedPart in formParts)
         {
+            /* allowReserved has no effect on a multipart body: the value is
+               unwrapped and sent unchanged. */
+            KeyValuePair<string, object> part =
+                wrappedPart.Value is ValueSerializer.AllowReservedValue reserved
+                    ? new KeyValuePair<string, object>(wrappedPart.Key, reserved.Value)
+                    : wrappedPart;
             if (part.Value is byte[] || part.Value is string || part.Value is Stream)
             {
                 AddMultipartField(multipart, part.Key, part.Value, serializer);

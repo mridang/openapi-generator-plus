@@ -405,6 +405,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
             {{vendorExtensions.isExplodeStr}},
         );
 {{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.pathAllowReserved}}
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -413,6 +414,15 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
             '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
             '%2B' => '+',
         ]);
+{{/vendorExtensions.param.pathAllowReserved}}
+{{#vendorExtensions.param.pathAllowReserved}}
+{{#vendorExtensions.param.queryContent}}
+        $pathValue = ValueSerializer::encodePathSegment($pathValue);
+{{/vendorExtensions.param.queryContent}}
+        /* OAS allowReserved: the value is path-encoded once, then its
+         * reserved characters are turned back into their literal form. */
+        $pathValue = ValueSerializer::allowReservedInPath($pathValue);
+{{/vendorExtensions.param.pathAllowReserved}}
         $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
 {{/pathParams}}
 {{#servers}}
@@ -545,6 +555,13 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
         $cookieParts = [];
 {{#cookieParams}}
 {{#required}}
+{{#vendorExtensions.param.cookieStyle}}
+        $cookiePair = ValueSerializer::cookiePairs('{{baseName}}', $options->{{paramName}}, {{vendorExtensions.isExplodeStr}});
+        if ($cookiePair !== '') {
+            $cookieParts[] = $cookiePair;
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         /** @var string $cookieValue */
 {{#vendorExtensions.param.queryContent}}
         $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
@@ -563,9 +580,17 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
             );
         }
         $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/vendorExtensions.param.cookieStyle}}
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+{{#vendorExtensions.param.cookieStyle}}
+            $cookiePair = ValueSerializer::cookiePairs('{{baseName}}', $options->{{paramName}}, {{vendorExtensions.isExplodeStr}});
+            if ($cookiePair !== '') {
+                $cookieParts[] = $cookiePair;
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
             /** @var string $cookieValue */
 {{#vendorExtensions.param.queryContent}}
             $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
@@ -584,6 +609,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
                 );
             }
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/vendorExtensions.param.cookieStyle}}
         }
 {{/required}}
 {{/cookieParams}}
@@ -591,6 +617,15 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{/hasCookieParams}}
 {{#hasFormParams}}
         $requestBody = [];
+{{! OAS allowReserved on a form-urlencoded field (its Encoding Object): the field is
+    recorded under a form: prefix in the same set, so the form encoder keeps its reserved
+    characters literal while a query parameter of the same name is unaffected. A multipart
+    body ignores the set. }}
+{{#formParams}}
+{{#vendorExtensions.param.formAllowReserved}}
+        $allowReservedKeys['form:{{baseName}}'] = true;
+{{/vendorExtensions.param.formAllowReserved}}
+{{/formParams}}
 {{#formParams}}
 {{#required}}
         $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};

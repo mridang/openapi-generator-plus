@@ -5370,13 +5370,61 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public CodegenParameter fromParameter(Parameter parameter, Set<String> imports) {
         final CodegenParameter cp = super.fromParameter(parameter, imports);
-        if (parameter != null && Boolean.TRUE.equals(parameter.getAllowReserved())) {
+        final Parameter resolved = parameter == null
+                ? null
+                : org.openapitools.codegen.utils.ModelUtils.getReferencedParameter(openAPI, parameter);
+        if (resolved != null && Boolean.TRUE.equals(resolved.getAllowReserved())) {
             if (cp.vendorExtensions == null) {
                 cp.vendorExtensions = new HashMap<>();
             }
             cp.vendorExtensions.put("allowReserved", true);
         }
+        // D163: OpenAPI 3.2 `style: cookie`, carried by the 3.2 loader because the parser's
+        // style enum has no such value.
+        if (cp.isCookieParam && resolved != null && resolved.getExtensions() != null
+                && OpenApi32ParserExtension.COOKIE_STYLE.equals(
+                        resolved.getExtensions().get(OpenApi32ParserExtension.PARAMETER_STYLE))) {
+            cp.style = OpenApi32ParserExtension.COOKIE_STYLE;
+            if (cp.vendorExtensions == null) {
+                cp.vendorExtensions = new HashMap<>();
+            }
+            cp.vendorExtensions.put("cookieStyle", true);
+            cp.vendorExtensions.remove(OpenApi32ParserExtension.PARAMETER_STYLE);
+        }
         return cp;
+    }
+
+    /**
+     * Marks each form field whose Encoding Object declares {@code allowReserved: true} (D164), so
+     * the form encoder keeps the reserved characters of that field literal. Only an
+     * {@code application/x-www-form-urlencoded} body is affected: the specification gives
+     * {@code allowReserved} no effect in a multipart body.
+     */
+    @Override
+    public List<CodegenParameter> fromRequestBodyToFormParameters(
+            io.swagger.v3.oas.models.parameters.RequestBody body, Set<String> imports) {
+        final List<CodegenParameter> params = super.fromRequestBodyToFormParameters(body, imports);
+        final io.swagger.v3.oas.models.parameters.RequestBody resolved =
+                org.openapitools.codegen.utils.ModelUtils.getReferencedRequestBody(openAPI, body);
+        if (resolved == null || resolved.getContent() == null) {
+            return params;
+        }
+        final io.swagger.v3.oas.models.media.MediaType form =
+                resolved.getContent().get("application/x-www-form-urlencoded");
+        if (form == null || form.getEncoding() == null) {
+            return params;
+        }
+        for (final CodegenParameter param : params) {
+            final io.swagger.v3.oas.models.media.Encoding encoding =
+                    form.getEncoding().get(param.baseName);
+            if (encoding != null && Boolean.TRUE.equals(encoding.getAllowReserved())) {
+                if (param.vendorExtensions == null) {
+                    param.vendorExtensions = new HashMap<>();
+                }
+                param.vendorExtensions.put("allowReserved", true);
+            }
+        }
+        return params;
     }
 
     /**
@@ -5389,6 +5437,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 p.vendorExtensions == null ? null : p.vendorExtensions.get("param");
         return decorator instanceof Map
                 && Boolean.TRUE.equals(((Map<?, ?>) decorator).get("queryRequiredNullable"));
+    }
+
+    /** Whether the document under generation declares OpenAPI 3.2. */
+    private boolean isOpenApi32Document() {
+        return openAPI != null && openAPI.getOpenapi() != null
+                && openAPI.getOpenapi().trim().startsWith("3.2.");
     }
 
     /** Runs {@link #populateParameterDecorators} over every entry of a list. */
@@ -5486,6 +5540,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put(
                 "allowReserved",
                 Boolean.TRUE.equals(param.vendorExtensions.get("allowReserved")));
+        // D163: a cookie parameter written with the OpenAPI 3.2 `style: cookie`.
+        d.put("cookieStyle", Boolean.TRUE.equals(param.vendorExtensions.get("cookieStyle")));
+        // D164: allowReserved on a path parameter (OpenAPI 3.2 only; 3.0 and 3.1 restrict it to
+        // query parameters) and on a form-urlencoded field through its Encoding Object.
+        final boolean allowReserved = Boolean.TRUE.equals(param.vendorExtensions.get("allowReserved"));
+        d.put("pathAllowReserved", allowReserved && param.isPathParam && isOpenApi32Document());
+        d.put("formAllowReserved", allowReserved && param.isFormParam);
 
         // P2 / P3 — Path serialisation kind + encoding requirement
         d.put("pathSerialisationKind", derivePathSerialisationKind(param));

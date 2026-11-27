@@ -1533,6 +1533,23 @@ func TestBhvOperations156_BaseApi_FormBodyFieldsKeepTheDeclaredOrder(t *testing.
 	}
 }
 
+// A form-urlencoded field whose encoding sets allowReserved keeps the reserved characters literal.
+func TestBhvSerializationwire501_BaseApi_FormFieldWithAllowReservedKeepsReservedLiteral(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	route := "v1.0/beta:rc1 a#b"
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "rex", Route: &route})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if wire := string(body); wire != "nickname=rex&route=v1.0/beta:rc1%20a%23b" {
+		t.Errorf("expected the route field with reserved characters literal, got %q", wire)
+	}
+}
+
 // A form-urlencoded body declares its content type exactly, with no charset parameter.
 func TestBhvSerialization010_BaseApi_BodyIsSentWithTheDeclaredContentTypeOnly(t *testing.T) {
 	t.Parallel()

@@ -53,7 +53,12 @@
         path = path.replace('{' + '{{baseName}}' + '}', ValueSerializer.encode_content('{{baseName}}', self._object_serializer.serialize({{paramName}}), 'path'))
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.pathAllowReserved}}
+        path = path.replace('{' + '{{baseName}}' + '}', ValueSerializer.allow_reserved_in_path(str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}}))))
+{{/vendorExtensions.param.pathAllowReserved}}
+{{^vendorExtensions.param.pathAllowReserved}}
         path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{vendorExtensions.isExplodeStrCap}})))
+{{/vendorExtensions.param.pathAllowReserved}}
 {{/vendorExtensions.param.queryContent}}
 {{/pathParams}}
 {{#servers}}
@@ -103,6 +108,14 @@
 {{#hasCookieParams}}
         cookie_parts = []
 {{#cookieParams}}
+{{#vendorExtensions.param.cookieStyle}}
+        if options is not None and options.{{paramName}} is not None:
+            # OpenAPI 3.2 style: cookie; the pairs are validated as cookie-octets.
+            cookie_pair = ValueSerializer.cookie_pairs('{{baseName}}', options.{{paramName}}, {{vendorExtensions.isExplodeStrCap}})
+            if cookie_pair:
+                cookie_parts.append(cookie_pair)
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         if options is not None and options.{{paramName}} is not None:
             # RFC 6265 — operation cookie values are interpolated straight into
             # the Cookie request header, so they must pass the same cookie-octet
@@ -122,6 +135,7 @@
                     "RFC 6265 cookie-octet set; percent-encode the value before passing it"
                 )
             cookie_parts.append(f'{{baseName}}={cookie_value}')
+{{/vendorExtensions.param.cookieStyle}}
 {{/cookieParams}}
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)
@@ -131,11 +145,11 @@
 {{#formParams}}
 {{#required}}
         if options is not None:
-            body['{{baseName}}'] = options.{{paramName}}
+            body['{{baseName}}'] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybe_allow_reserved(options.{{paramName}}, True){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}{{/vendorExtensions.param.formAllowReserved}}
 {{/required}}
 {{^required}}
         if options is not None and options.{{paramName}} is not None:
-            body['{{baseName}}'] = options.{{paramName}}
+            body['{{baseName}}'] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybe_allow_reserved(options.{{paramName}}, True){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}{{/vendorExtensions.param.formAllowReserved}}
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

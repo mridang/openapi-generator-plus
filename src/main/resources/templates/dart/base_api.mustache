@@ -1160,9 +1160,20 @@ class BaseApi {
       if (body is Map<String, Object?>) {
         final parts = <String>[];
         for (final entry in body.entries) {
-          final value = entry.value;
+          var value = entry.value;
           /* A null field is dropped entirely rather than emitted as `key=`. */
           if (value == null) continue;
+          /* OAS allowReserved on the field's Encoding Object: the value keeps
+           * the query-legal reserved characters literal, exactly as a query
+           * parameter with allowReserved does. */
+          var allowReserved = false;
+          if (value is AllowReservedValue) {
+            value = value.value;
+            allowReserved = true;
+          }
+          final encode = allowReserved
+              ? encodeQueryAllowingReserved
+              : _encodeFormComponent;
           final encodedKey = _encodeFormComponent(entry.key);
           if (value is List && value is! Uint8List) {
             /* Array values emit a REPEATED key (`tags=a&tags=b`), never a
@@ -1170,11 +1181,11 @@ class BaseApi {
             for (final item in value) {
               if (item == null) continue;
               _requireFormScalar(entry.key, item as Object);
-              parts.add('$encodedKey=${_encodeFormComponent(stringify(item))}');
+              parts.add('$encodedKey=${encode(stringify(item))}');
             }
           } else {
             _requireFormScalar(entry.key, value);
-            parts.add('$encodedKey=${_encodeFormComponent(stringify(value))}');
+            parts.add('$encodedKey=${encode(stringify(value))}');
           }
         }
         return Uint8List.fromList(utf8.encode(parts.join('&')));
@@ -1219,7 +1230,10 @@ class BaseApi {
 
     for (final entry in formFields.entries) {
       final name = entry.key;
-      final value = entry.value;
+      /* allowReserved has no effect on a multipart body: the value is sent
+       * unchanged. */
+      final raw = entry.value;
+      final value = raw is AllowReservedValue ? raw.value : raw;
       if (value is List && value is! List<int>) {
         for (final item in value) {
           _appendMultipartField(parts, boundary, name, item);

@@ -3345,3 +3345,7 @@ servers031 | An operation under a path item that declares its own servers is sen
 operations166 | A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method
 servers501 | A server keeps the name it was built with, and a server built without a name has none
 servers502 | Looking up a server by a name no server has fails with the argument error that lists the known names
+serializationparam501 | A style: cookie value is written as RFC 6265 pairs and never percent-encoded: a scalar as name=value, an array as name=a,b or, exploded, name=a; name=b, and an object as name=k1,v1,k2,v2 or, exploded, k1=v1; k2=v2
+serializationparam502 | A style: cookie value holding a character outside the RFC 6265 cookie-octet set, such as a space, a semicolon or a comma inside an item, is refused with the error that names the parameter
+serializationparam503 | A path value with allowReserved keeps '/' and the other path-legal reserved characters literal, and still percent-encodes '?', '#', '[', ']', '%' and a space
+serializationwire501 | A form-urlencoded field whose Encoding Object sets allowReserved keeps the query-legal reserved characters literal, while the other fields of the form are encoded as before

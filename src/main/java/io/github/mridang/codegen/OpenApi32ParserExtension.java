@@ -114,6 +114,15 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
      */
     public static final String PARAMETER_IN = "x-oas32-in";
 
+    /**
+     * The carrier of a cookie parameter's 3.2 {@code style: cookie}, which the parser's style enum
+     * cannot hold (D163).
+     */
+    public static final String PARAMETER_STYLE = "x-oas32-style";
+
+    /** The 3.2 cookie style. */
+    public static final String COOKIE_STYLE = "cookie";
+
     /** The only media type a querystring parameter is read with. */
     private static final String FORM_MEDIA_TYPE = "application/x-www-form-urlencoded";
 
@@ -503,10 +512,15 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
 
     /**
      * Rewrites one querystring parameter in place; returns false when it is left out. Any other
-     * parameter is not changed and is kept.
+     * parameter is kept, with a {@code style: cookie} moved to {@link #PARAMETER_STYLE} (D163).
      */
     private static boolean rewriteQueryString(
             final ObjectNode parameter, final String pointer, final ArrayNode warnings) {
+        final JsonNode style = parameter.get("style");
+        if (style != null && COOKIE_STYLE.equals(style.asText())) {
+            parameter.remove("style");
+            parameter.put(PARAMETER_STYLE, COOKIE_STYLE);
+        }
         final JsonNode in = parameter.get("in");
         if (in == null || !"querystring".equals(in.asText())) {
             return true;

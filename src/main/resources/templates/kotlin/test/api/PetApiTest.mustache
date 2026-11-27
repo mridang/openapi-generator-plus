@@ -2144,6 +2144,35 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationwire501 an allowReserved form field keeps reserved characters literal on the wire")
+        fun bhvSerializationwire501AllowReservedFormFieldKeepsReservedLiteral() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "rex",
+                        route = "v1.0/beta:rc1 a#b",
+                    ),
+                )
+            }
+
+            assertEquals("nickname=rex&route=v1.0/beta:rc1%20a%23b", capturedBody)
+        }
+
+        @Test
         @DisplayName("bhvOptions054 an operation accepts per-call request options alongside its other arguments")
         fun testSetPetPreferencesAcceptsPerCallHeaders() {
             var capturedTrace: String? = null

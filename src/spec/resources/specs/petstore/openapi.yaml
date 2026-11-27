@@ -647,6 +647,13 @@ paths:
                 snooze:
                   type: string
                   format: duration
+                # D164: the Encoding Object below sets allowReserved, so the
+                # reserved characters of this field are sent literally.
+                route:
+                  type: string
+            encoding:
+              route:
+                allowReserved: true
       responses:
         '200':
           description: Successful operation

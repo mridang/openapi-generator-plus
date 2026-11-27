@@ -71,7 +71,7 @@ class OpenApi32ParserExtensionTest {
         assertAll(
                 () -> assertEquals("3.2.0", api.getOpenapi()),
                 () -> assertEquals("Ledger Fixture", api.getInfo().getTitle()),
-                () -> assertEquals(5, api.getPaths().keySet().stream()
+                () -> assertEquals(6, api.getPaths().keySet().stream()
                         .map(OpenApi32ParserExtension::resourcePath).distinct().count()));
     }
 
@@ -362,6 +362,20 @@ class OpenApi32ParserExtensionTest {
                 () -> assertFalse(api.getComponents().getParameters().containsKey("Path")));
     }
 
+    @Test
+    @DisplayName("style: cookie reaches the model through its carrier and the parameter keeps form")
+    void cookieStyleIsCarried() throws URISyntaxException {
+        final OpenAPI api = parse(fixturePath());
+        final Parameter region =
+                nn(api.getPaths().get("/ledgers/files/{filePath}")).getGet().getParameters().get(1);
+        assertAll(
+                () -> assertEquals("cookie", region.getIn()),
+                () -> assertEquals(Parameter.StyleEnum.FORM, region.getStyle()),
+                () -> assertEquals(false, region.getExplode()),
+                () -> assertEquals(OpenApi32ParserExtension.COOKIE_STYLE,
+                        region.getExtensions().get(OpenApi32ParserExtension.PARAMETER_STYLE)));
+    }
+
     @TestFactory
     @DisplayName("every SDK generates from the 3.2 fixture")
     Stream<DynamicTest> everySdkGeneratesFromTheFixture() {
@@ -392,7 +406,13 @@ class OpenApi32ParserExtensionTest {
                                     "the internal path-item key leaked into the SDK"),
                             () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
                                     .contains("filterledgers") && all.contains("LedgerFilter"),
-                                    "the querystring operation or its model is missing"));
+                                    "the querystring operation or its model is missing"),
+                            () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
+                                    .contains("cookiepairs"),
+                                    "the style: cookie parameter is not written as cookie pairs"),
+                            () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
+                                    .contains("allowreservedinpath"),
+                                    "the allowReserved path parameter keeps no reserved character"));
                 }));
     }
 

@@ -2380,6 +2380,19 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serializationwire 501 a form field whose encoding allows reserved keeps them literal" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.SetPetPreferencesOptions{nickname: "rex", route: "v1.0/beta:rc1 a#b"}
+    _result = {{moduleName}}.Api.PetApi.set_pet_preferences(api, 1, options)
+
+    assert BodyCapturingApiClient.captured_body(name) == "nickname=rex&route=v1.0/beta:rc1%20a%23b"
+
+    Agent.stop(name)
+  end
+
   # Behavior #3: a space in a form-body value encodes as `+`, not %20
   # (form-urlencoded media type).
   test "bhv serializationwire 012 form body encodes space as plus, not percent-20" do

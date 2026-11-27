@@ -1038,11 +1038,23 @@ func serializeBodyOrdered(body any, contentType string, rawBody bool, order []st
 			 *    `+` for spaces (HTML form-encoding), matching every other SDK.
 			 * url.Values.Encode also sorts keys for deterministic output. */
 			var pairs []string
-			add := func(k, v string) {
+			add := func(k, v string, allowReserved bool) {
+				if allowReserved {
+					pairs = append(pairs, url.QueryEscape(k)+"="+encodeQueryAllowingReserved(v))
+					return
+				}
 				pairs = append(pairs, url.QueryEscape(k)+"="+url.QueryEscape(v))
 			}
 			for _, k := range orderedKeys(params, order) {
 				v := params[k]
+				/* OAS allowReserved in the field's Encoding Object: the value
+				 * keeps the RFC 3986 reserved characters literal, exactly as a
+				 * query parameter with allowReserved does. */
+				allowReserved := false
+				if reserved, ok := v.(allowReservedValue); ok {
+					v = reserved.value
+					allowReserved = true
+				}
 				if v == nil {
 					continue
 				}
@@ -1052,11 +1064,11 @@ func serializeBodyOrdered(body any, contentType string, rawBody bool, order []st
 				}
 				if items, isArray := toStringSlice(v); isArray {
 					for _, item := range items {
-						add(k, item)
+						add(k, item, allowReserved)
 					}
 					continue
 				}
-				add(k, stringify(v))
+				add(k, stringify(v), allowReserved)
 			}
 			return []byte(strings.Join(pairs, "&")), nil
 		}
@@ -1145,6 +1157,11 @@ func buildMultipartBodyOrdered(formFields map[string]any, boundary string, order
 
 	for _, name := range orderedKeys(formFields, order) {
 		value := formFields[name]
+		/* allowReserved has no effect on a multipart part: the value is sent
+		 * unchanged. */
+		if reserved, ok := value.(allowReservedValue); ok {
+			value = reserved.value
+		}
 		if value == nil {
 			continue
 		}

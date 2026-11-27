@@ -814,6 +814,17 @@ describe('PetApi form-urlencoded body serialization', () => {
     }
   });
 
+  test('bhv serializationwire 501 an allowReserved form field keeps reserved characters literal', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'rex', route: 'v1.0/beta:rc1 a#b' };
+      await api.setPetPreferences(1, options);
+      expect(getCapture().body).toBe('nickname=rex&route=v1.0/beta:rc1%20a%23b');
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 075 set_pet_preferences serialises the date-time form field in the canonical form', async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {

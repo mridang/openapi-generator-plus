@@ -441,7 +441,7 @@ fn scalar_param_text(name: &str, value: &serde_json::Value) -> Result<String, Se
 /// `(name, value)` pairs in declaration order, leaving out null properties.
 /// Returns `None` for a value that is not an object. A map has no declared
 /// order, so its keys are sorted.
-fn object_param_pairs<T: Serialize + 'static>(
+pub fn object_param_pairs<T: Serialize + 'static>(
     value: &T,
 ) -> Result<Option<Vec<(String, String)>>, SerializationError> {
     if scalar_override(value).is_some() {
@@ -1028,7 +1028,7 @@ pub fn serialize_extras<V: Serialize, S: serde::Serializer>(
 /// than a number array, `format: time` is [`format_time`], and `format: duration`
 /// is the protobuf-JSON string of `crate::proto_duration::format` (chrono's own
 /// serde form is a `{secs, nanos}` struct).
-fn scalar_override<T: 'static>(value: &T) -> Option<String> {
+pub fn scalar_override<T: 'static>(value: &T) -> Option<String> {
     use base64::Engine as _;
     let any = value as &dyn std::any::Any;
     if let Some(bytes) = any.downcast_ref::<Vec<u8>>() {

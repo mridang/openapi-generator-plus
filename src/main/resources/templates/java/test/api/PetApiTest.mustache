@@ -1087,6 +1087,18 @@ class PetApiTest {
     }
 
     @Test
+    void bhvSerializationWire501AnAllowReservedFormFieldKeepsReservedCharactersLiteral() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("rex").route("v1.0/beta:rc1 a#b"));
+
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody.toString()).isEqualTo("nickname=rex&route=v1.0/beta:rc1%20a%23b");
+    }
+
+    @Test
     void bhvOperations073SetPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
         // A request body declared `type: string, format: binary` with a declared
         // Content-Type of image/jpeg must ride the wire as the RAW bytes, with the

@@ -62,7 +62,7 @@
         a%252Fb). Encode once, in the serializer. A format date value is cut
         to its date part first and then styled like any other value, so a
         matrix or label style still applies. }}
-    path = path.replace(`{${'{{baseName}}'}}`, () => {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}});
+    path = path.replace(`{${'{{baseName}}'}}`, () => {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}{{#vendorExtensions.param.pathAllowReserved}}ValueSerializer.allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}}{{/vendorExtensions.param.queryContent}});
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -109,6 +109,15 @@
 {{#hasCookieParams}}
     const cookieParts: string[] = [];
 {{#cookieParams}}
+{{#vendorExtensions.param.cookieStyle}}
+    if (options?.{{paramName}} != null) {
+      const {{paramName}}CookiePairs = ValueSerializer.cookiePairs('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, {{isExplode}});
+      if ({{paramName}}CookiePairs !== '') {
+        cookieParts.push({{paramName}}CookiePairs);
+      }
+    }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
     if (options?.{{paramName}} != null) {
       const {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}ValueSerializer.encodeCookieComponent(ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}`${ ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) }`{{/vendorExtensions.param.queryContent}};
       /* F840: a cookie value is sent exactly as given when every character is
@@ -124,6 +133,7 @@
       }
       cookieParts.push(`{{baseName}}=${ {{paramName}}CookieValue }`);
     }
+{{/vendorExtensions.param.cookieStyle}}
 {{/cookieParams}}
     if (cookieParts.length > 0) {
       headerParams['Cookie'] = cookieParts.join('; ');
@@ -133,7 +143,7 @@
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
     if (options?.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}};
+      formBody['{{baseName}}'] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{/vendorExtensions.param.formAllowReserved}}{{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, 'form', '{{{dataType}}}', null, 'form', true), true){{/vendorExtensions.param.formAllowReserved}};
     }
 {{/formParams}}
 {{#vendorExtensions.op.hasContentTypeSelector}}

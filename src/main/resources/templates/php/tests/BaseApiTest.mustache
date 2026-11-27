@@ -1261,6 +1261,17 @@ test('bhv serialization 040 form urlencoded body renders date-time, enum and num
     );
 });
 
+test('bhv serializationwire 501 an allowReserved form field keeps its reserved characters literal', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->setPetPreferences(7, new SetPetPreferencesOptions(nickname: 'rex', route: 'v1.0/beta:rc1 a#b'));
+    } catch (\Exception $e) {
+        /* Response deserialization may fail; only the captured body matters. */
+    }
+    expect($client->capturedBody)->toBe('nickname=rex&route=v1.0/beta:rc1%20a%23b');
+});
+
 test('bhv serializationwire 014 form urlencoded body rejects a nested map field', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');

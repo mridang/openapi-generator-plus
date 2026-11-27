@@ -2354,6 +2354,38 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 501 a form field with allowReserved keeps the reserved characters literal', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"ok"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.setPetPreferences(
+          1,
+          const SetPetPreferencesOptions(
+            nickname: 'rex',
+            route: 'v1.0/beta:rc1 a#b',
+          ),
+        );
+
+        expect(receivedBody, equals('nickname=rex&route=v1.0/beta:rc1%20a%23b'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv operations 075 form date-time field uses the canonical stringify form', () async {
       final client = _CapturingApiClient();
       final api = PetApi(

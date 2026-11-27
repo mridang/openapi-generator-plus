@@ -410,7 +410,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = "{{{path}}}"
 {{#pathParams}}
 {{=<% %>=}}
-    path = String.replace(path, "{<%baseName%>}", <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string()<%/vendorExtensions.param.queryContent%>)
+    path = String.replace(path, "{<%baseName%>}", <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string()<%#vendorExtensions.param.pathAllowReserved%> |> <%moduleName%>.ValueSerializer.allow_reserved_in_path()<%/vendorExtensions.param.pathAllowReserved%><%/vendorExtensions.param.queryContent%>)
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -503,6 +503,20 @@ defmodule {{moduleName}}.Api.{{classname}} do
     cookie_parts = []
 {{#cookieParams}}
 {{=<% %>=}}
+<%#vendorExtensions.param.cookieStyle%>
+    # OpenAPI 3.2 style: cookie; cookie_pairs/4 writes the name=value pairs and
+    # applies the RFC 6265 cookie-octet check to every item, key and value.
+    cookie_parts =
+      if not is_nil(options) and not is_nil(options.<%paramName%>) do
+        case <%moduleName%>.ValueSerializer.cookie_pairs("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/items.isUuid%><%^items.isUuid%>options.<%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, <%isExplode%>, "<%& dataType%>") do
+          "" -> cookie_parts
+          pairs -> cookie_parts ++ [pairs]
+        end
+      else
+        cookie_parts
+      end
+<%/vendorExtensions.param.cookieStyle%>
+<%^vendorExtensions.param.cookieStyle%>
     cookie_parts =
       if not is_nil(options) and not is_nil(options.<%paramName%>) do
         # RFC 6265 — operation-level cookie params are interpolated raw into the
@@ -523,6 +537,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       else
         cookie_parts
       end
+<%/vendorExtensions.param.cookieStyle%>
 <%={{ }}=%>
 {{/cookieParams}}
     header_params = if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
@@ -536,10 +551,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
     than a plain text part. A string is indistinguishable from raw bytes at
     runtime in Elixir, so binary-ness must be tagged here at generation time. }}
 {{#required}}
-    request_body = request_body ++ [{"{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}}]
+    request_body = request_body ++ [{"{{baseName}}", {{#vendorExtensions.param.formAllowReserved}}{{moduleName}}.ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}}]
 {{/required}}
 {{^required}}
-    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: request_body ++ [{"{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}}], else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: request_body ++ [{"{{baseName}}", {{#vendorExtensions.param.formAllowReserved}}{{moduleName}}.ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}}], else: request_body
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

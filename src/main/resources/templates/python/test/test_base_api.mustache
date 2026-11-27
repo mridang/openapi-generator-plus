@@ -1777,6 +1777,15 @@ class TestDateOnlyParamsSerializeWithoutTime:
         assert 'renewalDate=2024-01-01' in body, body
         assert 'renewalDate=2024-01-01T' not in body, body
 
+    async def test_bhv_serializationwire_501_an_allow_reserved_form_field_keeps_reserved_characters(self) -> None:
+        client = CapturingApiClient()
+        api = PetApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        try:
+            await api.set_pet_preferences(1, SetPetPreferencesOptions(nickname='rex', route='v1.0/beta:rc1 a#b'))
+        except Exception:
+            pass  # Response handling may fail; we only care about the captured request
+        assert str(client.captured_body) == 'nickname=rex&route=v1.0/beta:rc1%20a%23b'
+
 
 class TestHeaderFlowThrough:
 

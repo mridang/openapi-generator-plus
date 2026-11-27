@@ -18,6 +18,8 @@ openapi: 3.2.0
 #   - a path item declares a QUERY operation with a request body (#60)
 #   - a path item declares a custom LINK method in additionalOperations (#61)
 #   - a querystring parameter carries the whole query as form pairs (#63)
+#   - a cookie parameter uses style: cookie (#65)
+#   - a path parameter allows reserved characters (#66)
 $self: shared/openapi.yaml
 jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 info:
@@ -144,6 +146,29 @@ paths:
       responses:
         '204':
           description: Filtered
+  /ledgers/files/{filePath}:
+    get:
+      tags:
+        - accounts
+      operationId: readLedgerFile
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          allowReserved: true
+          schema:
+            type: string
+        - name: region
+          in: cookie
+          style: cookie
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '204':
+          description: Read
 components:
   schemas:
     LedgerFilter:

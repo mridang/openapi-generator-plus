@@ -103,7 +103,7 @@
                 "{{{path}}}"{{/-first}}
                         .replace(
                                 "{" + "{{baseName}}" + "}",
-                                {{#vendorExtensions.param.queryContent}}ValueSerializer.serializeContent("{{baseName}}", {{{paramName}}}, "path") as String{{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String{{/vendorExtensions.param.queryContent}}){{/pathParams}}{{#pathParams}}{{#-last}}{{/-last}}{{/pathParams}}
+                                {{#vendorExtensions.param.pathAllowReserved}}ValueSerializer.allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}{{#vendorExtensions.param.queryContent}}ValueSerializer.serializeContent("{{baseName}}", {{{paramName}}}, "path") as String{{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String{{/vendorExtensions.param.queryContent}}{{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}}){{/pathParams}}{{#pathParams}}{{#-last}}{{/-last}}{{/pathParams}}
 {{#servers}}
 {{#-first}}
         if (server != null) {
@@ -182,6 +182,13 @@
 {{^required}}
         if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
 {{/required}}
+{{#vendorExtensions.param.cookieStyle}}
+            val {{paramName}}Pairs = ValueSerializer.cookiePairs("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, {{isExplode}})
+            if ({{paramName}}Pairs.isNotEmpty()) {
+                cookieParts.add({{paramName}}Pairs)
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
             // RFC 6265 — validate the assembled cookie name/value before it is
             // joined into the Cookie header, exactly as the auth-cookie path in
             // BaseApi does. A CR/LF or other control character in the serialized
@@ -201,6 +208,7 @@
                 "Cookie value for '$cookieName' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
             }
             cookieParts.add("$cookieName=$cookieValue")
+{{/vendorExtensions.param.cookieStyle}}
 {{#required}}
         }
 {{/required}}
@@ -216,11 +224,11 @@
         val formBody = mutableMapOf<String, Any?>()
 {{#formParams}}
 {{#required}}
-        formBody["{{baseName}}"] = options.{{paramName}}
+        formBody["{{baseName}}"] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}, true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}{{/vendorExtensions.param.formAllowReserved}}
 {{/required}}
 {{^required}}
         if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
-            formBody["{{baseName}}"] = options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}{{/vendorExtensions.param.formAllowReserved}}
         }
 {{/required}}
 {{/formParams}}

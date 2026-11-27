@@ -463,7 +463,13 @@ impl {{classname}} {
              * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
              * serializer output directly — re-encoding here would double-encode
              * (a space would become %2520, a slash %252F). */
+<%#vendorExtensions.param.pathAllowReserved%>
+            /* allowReserved: the reserved characters go into the path literally. */
+            path = path.replace("{<%baseName%>}", &value_serializer::allow_reserved_in_path(&v));
+<%/vendorExtensions.param.pathAllowReserved%>
+<%^vendorExtensions.param.pathAllowReserved%>
             path = path.replace("{<%baseName%>}", &v);
+<%/vendorExtensions.param.pathAllowReserved%>
         }
 <%/vendorExtensions.param.queryContent%>
 <%={{ }}=%>
@@ -803,6 +809,15 @@ impl {{classname}} {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
         }
 {{/isString}}
+{{#vendorExtensions.param.cookieStyle}}
+        /* OpenAPI 3.2 `style: cookie`: cookie_pairs writes the whole fragment
+         * and rejects anything outside the RFC 6265 cookie-octet set. */
+        let v = value_serializer::cookie_pairs("{{baseName}}", Some(&opts.{{paramName}}), {{isExplode}})?;
+        if !v.is_empty() {
+            cookie_parts.push(v);
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
             {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(&opts.{{paramName}})?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/vendorExtensions.param.queryContent}},
@@ -837,10 +852,19 @@ impl {{classname}} {
             }
             cookie_parts.push(format!("{{baseName}}={}", v));
         }
+{{/vendorExtensions.param.cookieStyle}}
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
+{{#vendorExtensions.param.cookieStyle}}
+                /* OpenAPI 3.2 `style: cookie`: see the required branch. */
+                let v = value_serializer::cookie_pairs("{{baseName}}", Some(val), {{isExplode}})?;
+                if !v.is_empty() {
+                    cookie_parts.push(v);
+                }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
                     {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(val)?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(val)){{/vendorExtensions.param.queryContent}},
@@ -874,6 +898,7 @@ impl {{classname}} {
                     }
                     cookie_parts.push(format!("{{baseName}}={}", v));
                 }
+{{/vendorExtensions.param.cookieStyle}}
             }
         }
 {{/required}}
@@ -1008,8 +1033,10 @@ impl {{classname}} {
         /* application/x-www-form-urlencoded. The body is an ordered list of
          * [key, value] pairs (spec-declaration order). Array values are emitted
          * as repeated keys by serialize_body; null/absent optional fields are
-         * omitted entirely; spaces are encoded as `+`. */
-        let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
+         * omitted entirely; spaces are encoded as `+`. The third element marks
+         * a field whose Encoding Object sets allowReserved: its value keeps the
+         * reserved characters literal. */
+        let mut form_pairs: Vec<(String, serde_json::Value, bool)> = Vec::new();
         if let Some(opts) = options {
 {{#formParams}}
 {{#required}}
@@ -1018,11 +1045,11 @@ impl {{classname}} {
                 return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
             }
 {{/isString}}
-            form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?));
+            form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
 {{/required}}
 {{^required}}
             if let Some(ref val) = opts.{{paramName}} {
-                form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
             }
 {{/required}}
 {{/formParams}}

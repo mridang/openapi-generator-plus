@@ -71,11 +71,11 @@ Every 3.1 and 3.2 construct, what happens today, and the plan. "Shared" means on
 | C12 | path item `summary`, `description` | 3.1 | ignored | an operation with no summary or notes inherits them in `preprocessOpenAPI`; no template change; shared | #58 |
 | C13 | `PATCH`, `HEAD`, `OPTIONS`, `TRACE` | 3.0 | generated (run, java); fixture marks its patch operations `x-internal` | add non-internal operations to the petstore fixture and goldens; tests | #59 |
 | C14 | path-level `servers` | 3.0 | generated (run, java) | test only | #62 |
-| C15 | `QUERY` method | 3.2 | cannot load | carrier operation (section 5.2), method string `QUERY`; per language: the empty-body verb set | #60 |
-| C16 | `additionalOperations` | 3.2 | cannot load | same carrier with the exact-case token; per language: case-preservation check | #61 |
-| C17 | parameter `in: querystring` | 3.2 | `in` is a free string, no code reads it | rewrite to `in: query` plus carrier; the shared decorator marks the parameter `isQueryString`; the request builder writes the serialised `content` after `?` with no `name=`; mixing it with query parameters fails generation; per language: `base_api` query builder | #63 |
-| C18 | parameter `style: cookie` | 3.2 | not in `Parameter.StyleEnum`; cookie params use form | carrier; per language: cookie serialiser writes `name=value` pairs without percent-encoding | #65 |
-| C19 | `allowReserved` on path and form encodings | 3.0, 3.2 | query only (fixture `revision`) | extend the existing query rule to path parameters; per language: `value_serializer` path branch | #66 |
+| C15 | `QUERY` method | 3.2 | cannot load | carrier operation (section 5.2), method string `QUERY`; per language: the empty-body verb set | #60; done as D159 |
+| C16 | `additionalOperations` | 3.2 | cannot load | same carrier with the exact-case token; per language: case-preservation check | #61; done as D160 (upper-case tokens only, R5) |
+| C17 | parameter `in: querystring` | 3.2 | `in` is a free string, no code reads it | rewrite to `in: query` plus carrier; the shared decorator marks the parameter `isQueryString`; the request builder writes the serialised `content` after `?` with no `name=`; mixing it with query parameters fails generation; per language: `base_api` query builder | #63; done as D161 (form content only, mixing warns) |
+| C18 | parameter `style: cookie` | 3.2 | not in `Parameter.StyleEnum`; cookie params use form | carrier; per language: cookie serialiser writes `name=value` pairs without percent-encoding | #65; done as D163 |
+| C19 | `allowReserved` on path and form encodings | 3.0, 3.2 | query only (fixture `revision`) | extend the existing query rule to path parameters; per language: `value_serializer` path branch | #66; done as D164 |
 | C20 | Example Object `dataValue`, `serializedValue`; parameter and media-type examples | 3.2 | schema examples only | carriers read in the shared doc builder; docs only, no runtime code; shared | #64, #79 |
 | C21 | `components.mediaTypes` and `$ref` to a media type | 3.2 | cannot load | the loader inlines each reference and drops the map; shared | #57 |
 | C22 | media type `itemSchema` | 3.2 | cannot load | the loader sets `schema` to the item schema (the streaming design types `T` as the schema of the media type) and carries `x-oas32-sequential`; behaviour is the streaming design's `<op>Stream` | #68 |
@@ -88,7 +88,7 @@ Every 3.1 and 3.2 construct, what happens today, and the plan. "Shared" means on
 | C29 | Reference Object `summary` and `description` | 3.1 | a schema `$ref` keeps the sibling `description` (run, python); other reference kinds not verified | docs only; shared | #81 |
 | C30 | Tag `summary`, `parent`, `kind` | 3.2 | cannot load | carriers consumed by `injectTagMetadata` (`AbstractBetterCodegen.java:~4903`); docs and API grouping only; shared | #80 |
 | C31 | Server `name` | 3.2 | cannot load | carrier `x-oas32-name`; `processServers` adds `serverName`; per language: `name` accessor and a lookup by name (section 6) | #55 |
-| C32 | server URL and path template syntax | 3.2 | not validated (`processServers`) | fail generation with a clear message on an invalid template; shared | #94 |
+| C32 | server URL and path template syntax | 3.2 | not validated (`processServers`) | fail generation with a clear message on an invalid template; shared | #94; done as D162 (warnings, `strictSpec` fails) |
 | C33 | HTTP schemes beyond basic and bearer (digest, negotiate) | 3.1 | warning F1061 only | keep the warning, and say in the README that a caller supplies the header through the existing custom `Authenticator`; digest and negotiate are challenge-response and are not generated; needs owner approval of the decline | #89 |
 | C34 | security scheme `deprecated` | 3.2 | cannot load | carrier; the doc builder marks the scheme in README and SKILLS; per language: the doc token only | #91 |
 | C35 | `oauth2MetadataUrl` | 3.2 | cannot load | carrier; read by the OAuth2 authenticators as the discovery URL when no token URL is given; per language: oauth classes | #91 |

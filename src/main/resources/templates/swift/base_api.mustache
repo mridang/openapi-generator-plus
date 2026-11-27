@@ -1000,8 +1000,18 @@ public class BaseApi: @unchecked Sendable {
                     }
                     return value is String || isMultipartPrimitive(value) || value is Decimal
                 }
+                /* A field whose Encoding Object sets `allowReserved: true` arrives
+                 * wrapped; its values keep the RFC 3986 reserved characters literal
+                 * through the query allow-reserved encoder, which writes a space as
+                 * `%20`. The key is encoded as for every other field. */
+                func reservedEncode(_ s: String) -> String {
+                    return s.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowedReserved) ?? s
+                }
                 var parts: [String] = []
-                for (rawKey, rawValue) in params {
+                for (rawKey, field) in params {
+                    let reserved = field as? ValueSerializer.AllowReservedValue
+                    let rawValue = reserved?.value ?? field
+                    let encodeValue: (String) -> String = reserved == nil ? formEncode : reservedEncode
                     let elements: [Any] = (rawValue as? [Any]) ?? [rawValue]
                     if !elements.allSatisfy({ isFormScalar($0) }) {
                         throw SerializationError(
@@ -1015,10 +1025,10 @@ public class BaseApi: @unchecked Sendable {
                      * skipped rather than sent as an empty value. */
                     if let items = ObjectSerializer.toStringList(rawValue) {
                         for item in items {
-                            parts.append("\(key)=\(formEncode(item))")
+                            parts.append("\(key)=\(encodeValue(item))")
                         }
                     } else {
-                        parts.append("\(key)=\(formEncode(ObjectSerializer.stringify(rawValue)))")
+                        parts.append("\(key)=\(encodeValue(ObjectSerializer.stringify(rawValue)))")
                     }
                 }
                 return parts.joined(separator: "&").data(using: .utf8)
@@ -1078,7 +1088,9 @@ public class BaseApi: @unchecked Sendable {
     static func buildMultipartBody(ordered formFields: OrderedParams<Any>, boundary: String) throws -> Data {
         var body = Data()
 
-        for (name, value) in formFields {
+        for (name, field) in formFields {
+            /* allowReserved has no effect on a multipart part: the value is sent unchanged. */
+            let value = (field as? ValueSerializer.AllowReservedValue)?.value ?? field
             if let list = value as? [Any] {
                 for item in list {
                     try appendMultipartField(&body, boundary: boundary, name: name, value: item)

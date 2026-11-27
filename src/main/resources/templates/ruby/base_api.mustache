@@ -746,7 +746,9 @@ module {{moduleName}}
         return body if body.is_a?(::{{moduleName}}::BodySource)
 
         if content_type == 'multipart/form-data'
-          body
+          # allowReserved has no effect on a multipart body: each part is sent
+          # unchanged.
+          body.is_a?(Hash) ? body.transform_values { |value| unwrap_allow_reserved(value) } : body
         elsif raw_body || content_type&.start_with?('image/') ||
               content_type == 'application/octet-stream'
           # A format: binary body (raw_body) is the caller's bytes under
@@ -770,6 +772,10 @@ module {{moduleName}}
           # scalar goes through ObjectSerializer.stringify for the canonical
           # wire form, and nil array elements are skipped.
           pairs = body.compact.flat_map do |key, value|
+            # A field whose Encoding Object sets allowReserved keeps the RFC
+            # 3986 reserved characters literal, as an allowReserved query value.
+            allow_reserved = value.is_a?(::{{moduleName}}::ValueSerializer::AllowReservedValue)
+            value = unwrap_allow_reserved(value)
             items = value.is_a?(Array) || value.is_a?(Set) ? value.to_a : [value]
             items.compact.map do |item|
               # A model, map or nested array has no defined form encoding (the
@@ -780,15 +786,30 @@ module {{moduleName}}
                       "form-urlencoded field #{key} must be a scalar or array of scalars"
               end
 
-              [key.to_s, ::{{moduleName}}::ObjectSerializer.stringify(item)]
+              [key.to_s, ::{{moduleName}}::ObjectSerializer.stringify(item), allow_reserved]
             end
           end
-          # encode_www_form keeps '*' literal and escapes '~' to %7E; the other
-          # SDKs (and the OAuth2 token body) keep '~' and escape '*'.
-          URI.encode_www_form(pairs).gsub('%7E', '~').gsub('*', '%2A')
+          # encode_www_form_component keeps '*' literal and escapes '~' to %7E;
+          # the other SDKs (and the OAuth2 token body) keep '~' and escape '*'.
+          pairs.map do |key, text, reserved|
+            encoded = reserved ? ::{{moduleName}}::ValueSerializer.encode_query_allowing_reserved(text) : encode_form_component(text)
+            "#{encode_form_component(key)}=#{encoded}"
+          end.join('&')
         else
           ::{{moduleName}}::ObjectSerializer.serialize(body)
         end
+      end
+
+      # Percent-encode one form-urlencoded key or value as URI.encode_www_form
+      # does, keeping '~' literal and escaping '*'.
+      def encode_form_component(text)
+        URI.encode_www_form_component(text).gsub('%7E', '~').gsub('*', '%2A')
+      end
+
+      # The value an {::{{moduleName}}::ValueSerializer::AllowReservedValue}
+      # carries, or +value+ itself when it is not wrapped.
+      def unwrap_allow_reserved(value)
+        value.is_a?(::{{moduleName}}::ValueSerializer::AllowReservedValue) ? value.value : value
       end
 
       # Extract the single binary part from a multipart form-parts Hash so it

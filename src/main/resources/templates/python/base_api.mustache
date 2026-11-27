@@ -22,7 +22,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import quote, urlencode, urlsplit, urlunsplit
+from urllib.parse import quote, quote_plus, urlencode, urlsplit, urlunsplit
 
 import urllib3
 from pydantic import BaseModel
@@ -536,7 +536,16 @@ class BaseApi:
             serialized_body = None
             if body is not None:
                 if is_multipart:
-                    serialized_body = body
+                    # allowReserved has no effect on a multipart body: a value
+                    # wrapped for the form-urlencoded encoder is sent unchanged.
+                    serialized_body = (
+                        {
+                            part_name: part_value.value if isinstance(part_value, AllowReservedValue) else part_value
+                            for part_name, part_value in body.items()
+                        }
+                        if isinstance(body, dict)
+                        else body
+                    )
                 elif raw_body:
                     # The operation's body is format: binary. Whatever declared
                     # Content-Type the caller selected (application/json included),
@@ -575,14 +584,21 @@ class BaseApi:
                     # through ObjectSerializer so bools render as `true`/`false`
                     # and enums/dates use their wire form, matching the other
                     # SDKs. None-valued fields are omitted, and None elements
-                    # inside an array are skipped. urlencode(..., doseq=True)
-                    # then percent-encodes with `quote_plus`, so a space becomes
+                    # inside an array are skipped. Each key and value is then
+                    # percent-encoded with `quote_plus`, so a space becomes
                     # `+` (HTML form encoding), not `%20`.
                     # A model, map or array of objects has no defined form encoding
                     # (no OAS encoding style is emitted), so it is rejected rather
                     # than sent as its Python repr.
-                    form_pairs: List[tuple[str, str]] = []
+                    # A field wrapped in AllowReservedValue (its Encoding Object
+                    # sets allowReserved: true) keeps the RFC 3986 reserved
+                    # characters literal, like an allowReserved query value; its
+                    # key and every other field are encoded as above.
+                    form_pairs: List[tuple[str, str, bool]] = []
                     for form_key, form_value in body.items():
+                        form_reserved = isinstance(form_value, AllowReservedValue)
+                        if isinstance(form_value, AllowReservedValue):
+                            form_value = form_value.value
                         if form_value is None:
                             continue
                         if isinstance(form_value, (BaseModel, dict)) or (
@@ -596,10 +612,23 @@ class BaseApi:
                             for form_item in form_value:
                                 if form_item is None:
                                     continue
-                                form_pairs.append((form_key, self._object_serializer.stringify(form_item)))
+                                form_pairs.append(
+                                    (form_key, self._object_serializer.stringify(form_item), form_reserved)
+                                )
                         else:
-                            form_pairs.append((form_key, self._object_serializer.stringify(form_value)))
-                    serialized_body = urlencode(form_pairs, doseq=True)
+                            form_pairs.append(
+                                (form_key, self._object_serializer.stringify(form_value), form_reserved)
+                            )
+                    serialized_body = '&'.join(
+                        quote_plus(pair_key)
+                        + '='
+                        + (
+                            ValueSerializer.encode_query_allowing_reserved(pair_text)
+                            if pair_reserved
+                            else quote_plus(pair_text)
+                        )
+                        for pair_key, pair_text, pair_reserved in form_pairs
+                    )
                 else:
                     serialized_body = self._object_serializer.serialize(body)
             if isinstance(serialized_body, BodySource):

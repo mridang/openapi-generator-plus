@@ -1701,6 +1701,22 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
+    # A form field whose Encoding Object sets allowReserved keeps the RFC 3986
+    # reserved characters literal and still encodes a space and a '#'.
+    it 'bhv_serializationwire_501 keeps the reserved characters of an allowReserved form field literal' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'rex', route: 'v1.0/beta:rc1 a#b'
+        )
+        api.set_pet_preferences(1, options)
+        _(captured.pop).must_equal 'nickname=rex&route=v1.0/beta:rc1%20a%23b'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
     # from the body entirely; only the required `nickname` is sent.
     it 'bhv_langruby_005 omits absent optional form properties' do
