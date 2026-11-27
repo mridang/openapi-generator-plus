@@ -501,6 +501,17 @@ npm audit --omit=dev   # or: make audit
 
 ### Decimal / `format: number` precision
 
+A bare `type: number` and a `format: decimal` value, number- or
+string-shaped, are a `Decimal` from the `decimal.js` package
+(re-exported by this SDK as `Decimal`). The value is read from the
+digits of the JSON text, never through a binary float, so
+`12.345678901234567890123` keeps every digit, and it is written back in
+plain notation (never with an exponent) with the decimal places it was
+read with. A number-shaped field travels as a bare JSON number and a
+string-shaped one as a JSON string. Use the exact operators
+(`plus`, `times`, `eq`) for prices, balances and other money-typed
+fields; build a value with `new Decimal('12.50')`.
+
 JavaScript's only number type is a 64-bit IEEE-754 float, which can
 exactly represent integers only up to `Number.MAX_SAFE_INTEGER`
 (2^53 − 1 = 9 007 199 254 740 991). API responses containing a

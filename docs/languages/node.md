@@ -15,7 +15,7 @@ The package runs on Node and on runtimes that have only `fetch`: Deno, Bun, Clou
 | OpenAPI | TypeScript type | Notes |
 |---|---|---|
 | `integer`, `int32`, `int64`, `number` with `format: float` or `double` | `number` | A JavaScript number is a double, so integers above 2^53 - 1 are rounded by `JSON.parse`. The generated README documents this. |
-| `number` with no format, `format: decimal` | `Decimal` (a branded string) | Decoding reads the source text of the number with the `JSON.parse` reviver and keeps every digit; encoding writes it as a bare JSON number in plain notation. A `type: string` decimal is read from a JSON string only (a bare number is refused) and written as a JSON string. |
+| `number` with no format, `format: decimal` (number- or string-shaped) | `Decimal` from `decimal.js` | Exact arithmetic (`plus`, `times`, `eq`). Decoding builds the value from the source text of the number, which the `JSON.parse` reviver reads (Node 22 floor), never from a double, and keeps every digit and the decimal places it was written with (`12.50` is written back as `12.50`); a value you build or compute is written with the places it needs. Encoding writes plain notation, never an exponent: a bare JSON number through `JSON.rawJSON`, or a JSON string for a `type: string` decimal, which is read from a JSON string holding a plain decimal number only (a bare number or other text is refused). A `format: decimal` parameter is a `Decimal` too (D135). |
 | `boolean` | `boolean` | |
 | `string` | `string` | |
 | `string` with `format: date` | `string` | A plain `YYYY-MM-DD` string, because a `Date` would carry a time and a zone the wire value never had. |
@@ -41,7 +41,7 @@ A branded string is a `string` with a compile-time tag, so a plain string does n
 
 ## Dependencies
 
-Runtime dependencies are `class-transformer` (`^0.5`), `reflect-metadata` (`^0.2`) and `temporal-polyfill` (`^0.3`). `undici` (`^6`) is an optional dependency used by the Node transport. `@opentelemetry/api` (`^1.0.0`) is an optional peer dependency, used for trace propagation and by the OpenTelemetry adapter when you install it.
+Runtime dependencies are `class-transformer` (`^0.5`), `decimal.js` (`^10.6`), `reflect-metadata` (`^0.2`) and `temporal-polyfill` (`^0.3`). `undici` (`^6`) is an optional dependency used by the Node transport. `@opentelemetry/api` (`^1.0.0`) is an optional peer dependency, used for trace propagation and by the OpenTelemetry adapter when you install it.
 
 The package uses legacy `experimentalDecorators`, because class-transformer needs them. It leaves `emitDecoratorMetadata` off, because turning it on causes temporal-dead-zone errors when models import each other in a cycle.
 
@@ -145,7 +145,7 @@ try {
 
 ## Known limits
 
-- `Decimal` decode is lossy until a reviver that reads the source text lands. int64 values beyond 2^53 are not preserved.
+- int64 values beyond 2^53 are not preserved. A `Decimal` you build yourself with `new Decimal('12.50')` drops the trailing zero (decimal.js keeps no scale) and is written as `12.5`; only a decoded value keeps the places it was written with.
 - The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory. Only a raw binary request body and a binary, JSON Lines or server-sent events response are streams.
 - An optional nullable property cannot tell "absent" from "null" on the way out: both are left out of the request body.

@@ -23,7 +23,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | `templates/node/body_source.mustache` | `BodySource` (the raw binary request body: replayable or single use) and `OpenedBody` | upload types |
 | `templates/node/event_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache` | the line splitter and SSE parser, `ServerSentEvent`, `StreamOptions`, `JsonLinesStream`, `SseStream` | JSON Lines and SSE behaviour |
 | `templates/node/object_serializer.mustache`, `value_serializer.mustache`, `base_api.mustache` | JSON decode and encode, path, query, header and form encoding, multipart | serialization |
-| `templates/node/models/model.mustache`, `deserialize_arg.mustache`, `brand.mustache`, `deep_input.mustache` | model classes, branded `UUID`/`URI`/`Email`/`Decimal`, `DeepInput` request types | models |
+| `templates/node/models/model.mustache`, `deserialize_arg.mustache`, `brand.mustache`, `deep_input.mustache` | model classes, branded `UUID`/`URI`/`Email`, the decimal.js `Decimal` re-export and its text helpers, `DeepInput` request types | models |
 | `templates/node/api/*.mustache`, `client.mustache`, `configuration.mustache`, `server_configuration.mustache`, `servers.mustache` | per-tag API classes, Options classes, facade, builder | operation surface, server variants |
 | `templates/node/test/**` | the emitted Jest tests (extend these; never add a test file) | generated tests |
 | `templates/node/readme.mustache`, `skills.mustache`, `typedoc.mustache` | README, SKILLS.md, typedoc config | docs |
@@ -34,7 +34,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 
 | Topic | What this language does | Why |
 |---|---|---|
-| Format types | `UUID`, `URI`, `Email`, `Decimal` are branded string aliases; unions of primitives (`Array<Buffer> \| Buffer`) are plain aliases with no wrapper class; enums of some operations are literal unions | TypeScript has no nominal types. |
+| Format types | `UUID`, `URI`, `Email` are branded string aliases and `Decimal` is decimal.js's class (D135); unions of primitives (`Array<Buffer> \| Buffer`) are plain aliases with no wrapper class; enums of some operations are literal unions | TypeScript has no nominal types. |
 | `format: ipv4`, `ipv6` (D134) | plain `string`, checked in `__validate` with `isIpv4Address`/`isIpv6Address` from the object serializer, list elements included; a malformed address fails the decode | the standard library has no address type |
 | Construction | `Configuration` and `TransportOptions` take one options object plus a fluent builder | named-argument idiom of TypeScript |
 | Error construction | every `*Error` takes the ES2022 `{ cause }` bag as its last argument | that is the signature of `Error` itself |
@@ -47,7 +47,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | Scheme credentials | the client takes `new Client({ <scheme>: authenticator, ..., authenticator })`, one optional credential per distinct security scheme in an object, or a single authenticator | the other SDKs use named arguments or a Credentials struct; TypeScript has no named arguments, so the object is the named-argument idiom |
 | Missing-parameter error | `TypeError` with a double-quoted message string | the message embeds `'<param>'`, so a single-quoted literal is a syntax error |
 | Dates and times | `Date` for date-time, `Temporal.PlainDate`/`PlainTime` from `temporal-polyfill` | no native date-only or time-only type |
-| Decimals | branded `Decimal`; decode keeps the number text via `JSON.rawJSON`/reviver source | JS numbers are binary doubles |
+| Decimals | decimal.js `Decimal`; decode builds it from the reviver's source text, encode writes plain notation via `JSON.rawJSON` | JS numbers are binary doubles |
 
 ## Settled decisions (do not re-open in review)
 
@@ -144,11 +144,11 @@ Why: the CI test job is CPU-bound; workflow issues are filed in mridang/action-r
 Where: `NodeSpec.getCacheEnv`.
 Test: the spec run itself.
 
-### `format: number` is a branded Decimal that is lossy on decode (D83)
-Rule: bare `type: number` is the branded `Decimal`. Encode keeps the text through `JSON.rawJSON` (an unquoted JSON number); decode currently uses a plain `JSON.parse`, so the text of an already rounded double is kept. The README carries the precision caveat. Do not change the type to a native `number`.
-Why: this is documented; making decode lossless with a `JSON.parse` reviver using `context.source` is open, not decided as forced. Node also accepts any string for a `Decimal`.
-Where: `object_serializer.mustache`, `models/model.mustache`, `readme.mustache`.
-Test: `test/object-serializer.test.mustache`.
+### `type: number` and `format: decimal` are decimal.js `Decimal` (D83, D135)
+Rule: a bare `type: number` and a `format: decimal` field or parameter, number- or string-shaped, are the `Decimal` class of `decimal.js`, re-exported from `brand.ts`. Decode builds it from the number's source text, recorded by the `JSON.parse` reviver (`context.source`, always present at the Node 22 floor), never from the double; a string-shaped field accepts only a JSON string holding a plain decimal number. Encode reads the Decimal from the holder in the replacer (its `toJSON` has already run and may give an exponent) and writes `decimalText`: plain notation with every digit, a bare JSON number through `JSON.rawJSON`, or a JSON string for a field in `__stringDecimalFields`. decimal.js keeps no scale, so `decimalFromText` records the written places of a decoded value in a `WeakMap` and `12.50` is written back as `12.50`; a value the caller builds is written with the places it needs. Never call `Decimal.set`: the global configuration belongs to the caller.
+Why: the owner chose decimal.js in #157 so callers get exact arithmetic; the branded string kept the digits but offered none.
+Where: `brand.mustache`, `object_serializer.mustache`, `value_serializer.mustache`, `deep_input.mustache`, `models/model.mustache`, `readme.mustache`, `BetterNodeCodegen.java` (`postProcessModelProperty`, `fromParameter`). Test: `serializationobject410` to `413`, `serializationparam106`, `models018`.
+Test: `serializationobject410` to `413`, `serializationparam106`, `models018`, `misc088` in `test/object-serializer.test.mustache` and `test/value-serializer.test.mustache`.
 
 ### Model names that collide get the `Model` prefix (D45)
 Rule: node already prefixes colliding names (`ModelError`); the reserved set is `languageSpecificPrimitives`, and `getModelNameCollisionPrefix()` returns `Model`.
