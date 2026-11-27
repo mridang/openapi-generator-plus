@@ -59,6 +59,10 @@ import javax.annotation.Nullable;
  * <p>The parsed document keeps {@code openapi: 3.2.x} as its version. Everything else in the
  * document is read by the 3.1 reader, which reports each field it does not know.
  */
+@SuppressFBWarnings(
+        value = {"PATH_TRAVERSAL_IN", "IMPROPER_UNICODE"},
+        justification = "The location is the input specification the generator was asked to read;"
+                + " scheme and media type names are ASCII")
 public final class OpenApi32ParserExtension implements SwaggerParserExtension {
 
     /** The carrier of a Server Object's {@code name}. */
@@ -446,8 +450,8 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
     }
 
     @SuppressFBWarnings(
-            value = {"PATH_TRAVERSAL_IN", "URLCONNECTION_SSRF_FD"},
-            justification = "The location is the input specification the generator was asked to read")
+            value = "REC_CATCH_EXCEPTION",
+            justification = "RemoteUrl.urlToString declares Exception; any failure means not read")
     @Nullable private static String readContent(
             final String location, final List<AuthorizationValue> auth) {
         try {
