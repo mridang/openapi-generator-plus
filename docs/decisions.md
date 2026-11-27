@@ -385,6 +385,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A document that moves its base with `$self` resolves its external references from the declared place. An external reference is inlined by swagger-parser's 3.1 reader, exactly as in a 3.1 document.
 
+## D152: A JSON Schema dialect other than the OpenAPI one is read as the OpenAPI dialect, with a warning
+
+**Decision.** The schemas are read in the OpenAPI dialect, which extends JSON Schema 2020-12. `jsonSchemaDialect` and a schema's `$schema` are accepted silently when they name the OpenAPI 3.1 or 3.2 dialect (`https://spec.openapis.org/oas/3.1/dialect/...`, `https://spec.openapis.org/oas/3.2/dialect/...`) or JSON Schema 2020-12 (`https://json-schema.org/draft/2020-12/schema`). Any other dialect, such as draft-07, is reported by the specification warning pass (D142) with its JSON pointer, and its schemas are still read as the OpenAPI dialect; with `strictSpec` set the run fails instead. Rewriting older dialects keyword by keyword was declined: the keywords whose meaning changed between drafts (`items` as an array, `dependencies`, `$recursiveRef`) are the ones the generators do not use (#52).
+
+**Consequences.** Nothing changes for a document in the OpenAPI dialect. A document in another dialect generates as before and now says so.
+
 ## D154: A reusable Media Type Object is inlined where it is referenced
 
 **Decision.** A `$ref` to `#/components/mediaTypes/<name>` in a request body, a response, a parameter or a header is replaced by a copy of the Media Type Object it names (following a chain of such references), and `components.mediaTypes` is then removed. The operation generates exactly what the inline object generates (#57).

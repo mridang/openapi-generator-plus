@@ -1,7 +1,9 @@
 package io.github.mridang.codegen;
 
 import io.swagger.v3.core.util.Json;
+import io.swagger.v3.core.util.Json31;
 import io.swagger.v3.oas.models.OpenAPI;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 
 import java.net.URLDecoder;
@@ -14,7 +16,8 @@ import java.util.Set;
 /**
  * The warning pass of the shared normaliser. It lists every {@code $ref} that does not resolve
  * inside the document, and every construct the generators do not realise (callbacks, webhooks,
- * Link Objects and the {@code xml} object). Each warning carries the JSON pointer of the place
+ * Link Objects and the {@code xml} object), and every JSON Schema dialect other than the
+ * OpenAPI dialect that {@code jsonSchemaDialect} or a schema's {@code $schema} selects. Each warning carries the JSON pointer of the place
  * where it was found, so the position can be read straight from the specification.
  * <p>
  * Warnings are only logged by default, so the run stays lenient. When the caller asks for
@@ -48,6 +51,15 @@ public final class SpecWarnings {
         "callbacks", "callbacks are not supported and are ignored",
         "links", "Link Objects are not supported and are ignored",
         "xml", "the xml object is not supported and is ignored");
+
+    /**
+     * The dialects the schemas are read in: the OpenAPI dialects of 3.1 and 3.2 and plain JSON
+     * Schema 2020-12, which the OpenAPI dialect extends. A dialect is matched by prefix.
+     */
+    private static final List<String> SUPPORTED_DIALECTS = List.of(
+        "https://spec.openapis.org/oas/3.1/dialect/",
+        "https://spec.openapis.org/oas/3.2/dialect/",
+        "https://json-schema.org/draft/2020-12/schema");
 
     private SpecWarnings() {
     }
@@ -99,8 +111,56 @@ public final class SpecWarnings {
     public static List<Warning> collect(OpenAPI openAPI) {
         Map<String, Object> root = toMap(openAPI);
         List<Warning> warnings = new ArrayList<>();
+        checkDialect(openAPI.getJsonSchemaDialect(), "#/jsonSchemaDialect", warnings);
         walk(root, root, "#", false, warnings);
+        walkDialects(Json31.mapper().convertValue(openAPI, Map.class), "#", false, warnings);
         return warnings;
+    }
+
+    /**
+     * Whether the generators read schemas of the given dialect as written. Any other dialect is
+     * read as the OpenAPI dialect, which is what a warning says.
+     *
+     * @param dialect The URI of the dialect.
+     * @return true for the OpenAPI 3.1 and 3.2 dialects and JSON Schema 2020-12.
+     */
+    public static boolean isSupportedDialect(String dialect) {
+        String trimmed = dialect.trim();
+        for (String supported : SUPPORTED_DIALECTS) {
+            if (trimmed.startsWith(supported)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void checkDialect(@Nullable Object dialect, String pointer, List<Warning> warnings) {
+        if (dialect instanceof String && !isSupportedDialect((String) dialect)) {
+            warnings.add(new Warning(pointer, "the JSON Schema dialect '" + dialect
+                + "' is not supported; the schemas are read as the OpenAPI dialect"
+                + " (JSON Schema 2020-12)"));
+        }
+    }
+
+    /** Lists the {@code $schema} of every schema; the 3.0 mapper of {@link #toMap} drops it. */
+    @SuppressWarnings("unchecked")
+    private static void walkDialects(Object node, String pointer, boolean nameKeyed,
+                                     List<Warning> warnings) {
+        if (node instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) node;
+            if (!nameKeyed) {
+                checkDialect(map.get("$schema"), child(pointer, "$schema"), warnings);
+            }
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                walkDialects(entry.getValue(), child(pointer, entry.getKey()),
+                    !nameKeyed && NAME_KEYED.contains(entry.getKey()), warnings);
+            }
+        } else if (node instanceof List) {
+            List<Object> list = (List<Object>) node;
+            for (int i = 0; i < list.size(); i++) {
+                walkDialects(list.get(i), pointer + "/" + i, false, warnings);
+            }
+        }
     }
 
     /**

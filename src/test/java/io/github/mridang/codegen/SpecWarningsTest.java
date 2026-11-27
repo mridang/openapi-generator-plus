@@ -127,4 +127,44 @@ class SpecWarningsTest {
 
         SpecWarnings.check(openAPI, true, logger);
     }
+
+    @Test
+    @DisplayName("Lists a jsonSchemaDialect other than the OpenAPI dialect")
+    void foreignDocumentDialectIsListed() {
+        OpenAPI spec = specWithResponseSchema("#/components/schemas/Pet")
+            .jsonSchemaDialect("http://json-schema.org/draft-07/schema#");
+
+        List<SpecWarnings.Warning> warnings = SpecWarnings.collect(spec);
+
+        assertEquals(1, warnings.size());
+        assertEquals("#/jsonSchemaDialect", warnings.get(0).getPointer());
+        assertTrue(warnings.get(0).getMessage().contains(
+            "the JSON Schema dialect 'http://json-schema.org/draft-07/schema#' is not supported"));
+    }
+
+    @Test
+    @DisplayName("Lists a schema whose $schema selects a dialect other than the OpenAPI dialect")
+    void foreignSchemaDialectIsListed() {
+        Schema<?> schema = new Schema<>().type("object");
+        schema.set$schema("https://json-schema.org/draft/2019-09/schema");
+        OpenAPI spec = new OpenAPI().components(new Components().addSchemas("Widget", schema));
+
+        List<SpecWarnings.Warning> warnings = SpecWarnings.collect(spec);
+
+        assertEquals(1, warnings.size());
+        assertEquals("#/components/schemas/Widget/$schema", warnings.get(0).getPointer());
+    }
+
+    @Test
+    @DisplayName("Accepts the OpenAPI 3.1 and 3.2 dialects and JSON Schema 2020-12")
+    void openApiDialectsAreAccepted() {
+        Schema<?> schema = new Schema<>().type("object");
+        schema.set$schema("https://json-schema.org/draft/2020-12/schema");
+        OpenAPI spec = new OpenAPI()
+            .jsonSchemaDialect("https://spec.openapis.org/oas/3.1/dialect/base")
+            .components(new Components().addSchemas("Widget", schema));
+
+        assertTrue(SpecWarnings.collect(spec).isEmpty());
+        assertTrue(SpecWarnings.isSupportedDialect("https://spec.openapis.org/oas/3.2/dialect/2025-09-17"));
+    }
 }
