@@ -603,8 +603,8 @@ exported by this package, whether the schema is a `type: number` or a
 through a `double`, so `12.345678901234567890123` keeps every digit, and a
 number is written back as a bare JSON number in plain notation. A
 `type: string` decimal is read only from a JSON string and written back as
-one. A `Decimal` does not keep trailing zeros, so `"12.50"` is written back
-as `"12.5"`.
+one. A decoded `Decimal` is written back with the decimal places it was
+read with, so `"12.50"` stays `"12.50"`.
 
 A bare `type: number` with no format is still stored as a `double`, so
 it loses exact decimal representation: `0.1 + 0.2` is

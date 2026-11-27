@@ -116,7 +116,7 @@ class NativeValues {
       json['amount'] = amount;
     }
     if (ledger != null) {
-      json['ledger'] = ledger?.toString();
+      json['ledger'] = ledger == null ? null : decimalText(ledger!);
     }
     if (wait != null) {
       json['wait'] = formatProtobufDuration(wait!);

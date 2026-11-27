@@ -287,7 +287,6 @@ swift | misc110 | The Swift decoder reads a calendar-date field as a plain Strin
 java | misc075 | Java's client Builder takes one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists
 dart | misc085 | the trackingId field is typed UuidValue, which holds only a parsed canonical uuid, so a non-canonical value cannot be built into an Order or passed to the call; a malformed wire value is refused by the decoder (serializationobject048)
 dart | misc087 | Dart's number is a binary double with no decimal type, so a decimal field is written by double formatting and not as the exact decimal text this promise needs (serializationobject002)
-dart | misc088 | A format: decimal value is a Decimal of the decimal package, which is a rational number and keeps no scale, so the decimal places it was written with are not kept, like Ruby BigDecimal
 csharp | misc178 | the C# client builds every multipart body as MultipartFormDataContent, which always writes multipart/form-data, and ignores any content type a caller declares for a dictionary body, so no other declared multipart type can reach the transport
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 kotlin | misc075 | The scheme constructor takes one optional parameter per declared scheme, so a credential cannot be keyed to an undeclared scheme; the compiler refuses it

@@ -4281,6 +4281,24 @@ void main() {
       );
 
       test(
+        'bhv misc 088 a decimal decoded from text keeps the decimal places it was written with',
+        () {
+          expect(
+            serialize(decode('{"amount":12.50}')),
+            equals('{"amount":12.50}'),
+          );
+          expect(
+            serialize(decode('{"ledger":"1.50"}')),
+            equals('{"ledger":"1.50"}'),
+          );
+          expect(
+            decode('{"amount":12.50}').amount,
+            equals(Decimal.parse('12.5')),
+          );
+        },
+      );
+
+      test(
         'bhv serializationobject 405 an ipv4 field is the address text and is kept unchanged',
         () {
           expect(
@@ -4381,7 +4399,7 @@ void main() {
           final values = decode('{"ledger":"12.50"}');
 
           expect(values.ledger, equals(Decimal.parse('12.50')));
-          expect(serialize(values), equals('{"ledger":"12.5"}'));
+          expect(serialize(values), equals('{"ledger":"12.50"}'));
           expect(
             () => decode('{"ledger":12.50}'),
             throwsA(isA<SerializationException>()),

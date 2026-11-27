@@ -101,7 +101,32 @@ Decimal _decimalFromNumber(Object? value, String? source, String? key) {
   if (!value.isFinite) {
     throw SerializationException('Number is outside the range of a double');
   }
-  return Decimal.parse(source ?? value.toString());
+  return _scaledDecimal(source ?? value.toString());
+}
+
+/// The number of decimal places each decoded [Decimal] was written with, so
+/// `12.50` is written back as `12.50`. A [Decimal] is a rational number and
+/// keeps no scale of its own; a value built in code has no entry and is
+/// written with the places it needs.
+final Expando<int> _writtenScale = Expando<int>('decimalScale');
+
+/// Parses [text], a JSON number or a plain decimal string, and records the
+/// decimal places it was written with when it is in plain notation.
+Decimal _scaledDecimal(String text) {
+  final value = Decimal.parse(text);
+  if (!text.contains(RegExp('[eE]'))) {
+    final point = text.indexOf('.');
+    _writtenScale[value] = point < 0 ? 0 : text.length - point - 1;
+  }
+  return value;
+}
+
+/// The wire text of [value]: plain notation with every digit, and the decimal
+/// places it was decoded with.
+String decimalText(Decimal value) {
+  final scale = _writtenScale[value];
+  if (scale == null || scale <= value.scale) return value.toString();
+  return value.toStringAsFixed(scale);
 }
 
 /// The text a `type: string` decimal may hold: an optional minus sign, digits
@@ -122,7 +147,7 @@ Decimal parseDecimalString(Object? value) {
   if (!_decimalText.hasMatch(value)) {
     throw SerializationException('Not a decimal number: $value');
   }
-  return Decimal.parse(value);
+  return _scaledDecimal(value);
 }
 
 /// As [parseDecimalString], with `null` staying `null`.
@@ -346,7 +371,7 @@ String serialize(Object? object) {
       toEncodable: (Object? value) {
         if (value is Decimal) {
           marker ??= _decimalMarker();
-          return '$marker$value';
+          return '$marker${decimalText(value)}';
         }
         return _encodeNonJsonValue(value);
       },
@@ -865,7 +890,7 @@ String stringify(Object? value) {
   if (value is String) return value;
   if (value is int) return value.toString();
   if (value is double) return value.toString();
-  if (value is Decimal) return value.toString();
+  if (value is Decimal) return decimalText(value);
 
   return value.toString();
 }

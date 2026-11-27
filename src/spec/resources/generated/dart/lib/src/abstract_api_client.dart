@@ -1016,8 +1016,9 @@ abstract class AbstractApiClient
           received += chunk.length;
           if (received > maxBytes) {
             unawaited(subscription.cancel());
-            if (!done.isCompleted)
+            if (!done.isCompleted) {
               done.completeError(const _BodyLimitExceeded());
+            }
             return;
           }
         }

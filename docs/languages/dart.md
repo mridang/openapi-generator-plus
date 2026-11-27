@@ -16,7 +16,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 |---|---|---|
 | `integer`, `int32`, `int64` | `int` | Exact on the Dart VM. On Flutter web and dart2js, `int` is a double, so integers above 2^53 lose precision. The generated README documents this. |
 | `number` with no format, `float`, `double` | `double` | Money loses exact decimal representation: `0.1 + 0.2` is `0.30000000000000004`. The README advises `format: decimal` for money. |
-| `decimal`, on a `type: number` or a `type: string` | `Decimal` from the `decimal` package, exported by the SDK | Exact. The digits are read from the source text of the response, never through a `double`, and a number is written back as a bare JSON number in plain notation. The string form is read only from a JSON string and written back as one. A `Decimal` keeps no trailing zero, so `"12.50"` is written back as `"12.5"`. |
+| `decimal`, on a `type: number` or a `type: string` | `Decimal` from the `decimal` package, exported by the SDK | Exact. The digits are read from the source text of the response, never through a `double`, and a number is written back as a bare JSON number in plain notation. The string form is read only from a JSON string and written back as one. A decoded `Decimal` is written back with the decimal places it was read with, so `"12.50"` stays `"12.50"`. |
 | `boolean` | `bool` | |
 | `string` | `String` | |
 | `string` with `format: date` | `DateTime` | Dart has no date-only type. The value is written as `YYYY-MM-DD` from the `DateTime`'s own year, month and day, so use a UTC value to be sure the day does not shift. |
