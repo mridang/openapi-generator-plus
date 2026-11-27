@@ -29,7 +29,7 @@ class TestTransportOptions:
 
     def test_bhv_options_038_timeout_defaults_to_ten_seconds(self) -> None:
         opts = TransportOptions.builder().build()
-        assert opts.timeout == 10000
+        assert opts.timeout == 60000
 
     def test_bhv_options_020_follow_redirects_defaults_to_true(self) -> None:
         opts = TransportOptions.builder().build()
@@ -273,9 +273,9 @@ class TestTransportOptions:
     # TimeoutConfigTests
 
     def test_bhv_options_039_timeout_defaults_to_ten_seconds_in_timeout_group(self) -> None:
-        # Default TransportOptions has a 10s end-to-end timeout.
+        # Default TransportOptions has a 60s end-to-end timeout.
         opts = TransportOptions.builder().build()
-        assert opts.timeout == 10000
+        assert opts.timeout == 60000
 
     def test_bhv_options_037_timeout_can_be_explicitly_disabled(self) -> None:
         opts = TransportOptions.builder().timeout(None).build()

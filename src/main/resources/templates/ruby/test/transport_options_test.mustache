@@ -35,9 +35,9 @@ describe {{moduleName}}::TransportOptions do
     _(opts.proxy).must_be_nil
   end
 
-  it 'bhv_options_038 timeout defaults to 10000ms' do
+  it 'bhv_options_038 timeout defaults to 60000ms' do
     opts = {{moduleName}}::TransportOptions.builder.build
-    _(opts.timeout).must_equal 10_000
+    _(opts.timeout).must_equal 60_000
   end
 
   it 'bhv_options_020 follow_redirects defaults to true' do
@@ -299,10 +299,10 @@ describe {{moduleName}}::TransportOptions do
 
   # TimeoutConfigTests
 
-  it 'bhv_options_039 timeout defaults to 10000ms' do
-    # Default TransportOptions applies a 10-second timeout.
+  it 'bhv_options_039 timeout defaults to 60000ms' do
+    # Default TransportOptions applies a 60-second timeout.
     opts = {{moduleName}}::TransportOptions.builder.build
-    _(opts.timeout).must_equal 10_000
+    _(opts.timeout).must_equal 60_000
   end
 
   it 'bhv_options_037 timeout can be explicitly set to nil for no timeout' do

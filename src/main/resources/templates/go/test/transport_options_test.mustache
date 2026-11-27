@@ -104,8 +104,8 @@ func TestBhvOptions038_TransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil default timeout")
 	}
-	if *opts.Timeout() != 10000 {
-		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	if *opts.Timeout() != 60000 {
+		t.Errorf("expected default timeout 60000ms, got %d", *opts.Timeout())
 	}
 }
 
@@ -449,7 +449,7 @@ func TestBhvOptions016_TransportOptions_BuilderProducesIndependentInstances(t *t
 
 func TestBhvOptions039_TransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
 	t.Parallel()
-	// Default TransportOptions ships with a 10-second (10000ms) timeout to
+	// Default TransportOptions ships with a 60-second (60000ms) timeout to
 	// match Java, Python, Node, etc. and prevent runaway requests.
 	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if err != nil {
@@ -458,8 +458,8 @@ func TestBhvOptions039_TransportOptions_TimeoutDefaultIsTenThousandMilliseconds(
 	if opts.Timeout() == nil {
 		t.Fatal("expected non-nil default timeout")
 	}
-	if *opts.Timeout() != 10000 {
-		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	if *opts.Timeout() != 60000 {
+		t.Errorf("expected default timeout 60000ms, got %d", *opts.Timeout())
 	}
 }
 
@@ -476,7 +476,7 @@ func TestBhvOptions036_TransportOptions_SettingTimeoutIsAccessible(t *testing.T)
 }
 
 // TestTransportOptions_NoTimeoutIsExpressible confirms "wait indefinitely" can
-// be asked for: Timeout(nil) clears the 10000ms default rather than being
+// be asked for: Timeout(nil) clears the 60000ms default rather than being
 // indistinguishable from leaving the timeout unset.
 func TestBhvOptions037_TransportOptions_NoTimeoutIsExpressible(t *testing.T) {
 	t.Parallel()

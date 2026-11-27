@@ -40,7 +40,7 @@ class TransportOptions {
   /// End-to-end request timeout in milliseconds.
   ///
   /// Covers the entire request lifecycle: connection, TLS handshake, sending
-  /// the request body, and reading the response. Defaults to 10 seconds. Set
+  /// the request body, and reading the response. Defaults to 60 seconds. Set
   /// to null to disable the timeout (wait indefinitely).
   final int? timeout;
 
@@ -172,7 +172,7 @@ class TransportOptions {
 /// - `followRedirects` -- true
 /// - `injectRequestId` -- false
 /// - `maxRetries` -- 2
-/// - `timeout` -- 10000 (10 seconds)
+/// - `timeout` -- 60000 (60 seconds)
 /// - `idleTimeout` -- 60000 (60 seconds)
 /// - `userAgent` -- a package-specific default string
 /// - All other fields -- null or empty
@@ -190,8 +190,8 @@ class TransportOptionsBuilder {
   bool _verifySsl = true;
   String? _caCertPath;
   String? _proxy;
-  {{! Default to 10 seconds end-to-end timeout. Override via [timeout]. }}
-  int? _timeout = 10000;
+  {{! Default to 60 seconds end-to-end timeout. Override via [timeout]. }}
+  int? _timeout = 60000;
   bool _followRedirects = true;
   int? _maxRedirects;
   String? _userAgent = '{{userAgentDefault}}';

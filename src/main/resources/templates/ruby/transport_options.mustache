@@ -284,7 +284,7 @@ module {{moduleName}}
     # - +verify_ssl+ -- +true+
     # - +follow_redirects+ -- +true+
     # - +inject_request_id+ -- +false+
-    # - +timeout+ -- +10_000+ (10 seconds)
+    # - +timeout+ -- +60_000+ (60 seconds)
     # - +max_retries+ -- +2+
     # - +idle_timeout+ -- +60_000+ (60 seconds)
     # - +user_agent+ -- a package-specific default string
@@ -294,7 +294,7 @@ module {{moduleName}}
         @verify_ssl = true
         @ca_cert_path = nil
         @proxy = nil
-        @timeout = 10_000
+        @timeout = 60_000
         @follow_redirects = true
         @max_redirects = nil
         @user_agent = '{{userAgentDefault}}'

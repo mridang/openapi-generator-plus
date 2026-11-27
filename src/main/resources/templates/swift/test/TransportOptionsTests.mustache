@@ -24,9 +24,9 @@ import FoundationNetworking
         #expect(opts.proxy == nil)
     }
 
-    @Test func testBhvOptions038TimeoutDefaultsTo10Seconds() throws {
+    @Test func testBhvOptions038TimeoutDefaultsTo60Seconds() throws {
         let opts = try TransportOptionsBuilder().build()
-        #expect(opts.timeout == 10000)
+        #expect(opts.timeout == 60000)
     }
 
     @Test func testBhvOptions020FollowRedirectsDefaultsToTrue() throws {
@@ -405,11 +405,11 @@ import FoundationNetworking
 
     // TimeoutConfigTests
 
-    @Test func testBhvOptions039TimeoutDefaultsTo10000ms() throws {
-        // Default TransportOptions applies a 10-second (10000 ms) request timeout
+    @Test func testBhvOptions039TimeoutDefaultsTo60000ms() throws {
+        // Default TransportOptions applies a 60-second (60000 ms) request timeout
         // so that no SDK call blocks forever when the server stalls.
         let opts = try TransportOptionsBuilder().build()
-        #expect(opts.timeout == 10000)
+        #expect(opts.timeout == 60000)
     }
 
     @Test func testBhvOptions036SettingTimeoutIsAccessible() throws {

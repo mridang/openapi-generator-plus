@@ -32,9 +32,9 @@ defmodule {{moduleName}}.TransportOptionsTest do
     assert opts.proxy == nil
   end
 
-  test "bhv options 038 timeout defaults to 10_000 ms" do
+  test "bhv options 038 timeout defaults to 60_000 ms" do
     opts = {{moduleName}}.TransportOptions.new()
-    assert opts.timeout == 10_000
+    assert opts.timeout == 60_000
   end
 
   test "bhv options 020 follow_redirects defaults to true" do
@@ -318,10 +318,10 @@ defmodule {{moduleName}}.TransportOptionsTest do
 
   # TimeoutConfigTests
 
-  test "bhv options 039 timeout defaults to 10_000 ms in timeout group" do
-    # Default TransportOptions sets a 10-second timeout to prevent hanging requests.
+  test "bhv options 039 timeout defaults to 60_000 ms in timeout group" do
+    # Default TransportOptions sets a 60-second timeout to prevent hanging requests.
     opts = {{moduleName}}.TransportOptions.new()
-    assert opts.timeout == 10_000
+    assert opts.timeout == 60_000
   end
 
   test "bhv options 036 setting timeout to 5000 is accessible" do

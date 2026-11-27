@@ -32,7 +32,7 @@ defmodule {{moduleName}}.TransportOptions do
     proxy).
   * `timeout` - End-to-end request timeout in milliseconds. Covers the entire
     request lifecycle: connection, TLS handshake, sending the request body, and
-    reading the response. Defaults to 10 seconds. Set to `nil` to disable the
+    reading the response. Defaults to 60 seconds. Set to `nil` to disable the
     timeout (wait indefinitely).
   * `follow_redirects` - Whether the client follows HTTP 3xx redirects
     automatically. When `true` (the default), redirects are followed. Set to
@@ -93,7 +93,7 @@ defmodule {{moduleName}}.TransportOptions do
   defstruct verify_ssl: true,
             ca_cert_path: nil,
             proxy: nil,
-            timeout: 10_000,
+            timeout: 60_000,
             follow_redirects: true,
             max_redirects: nil,
             user_agent: "{{userAgentDefault}}",
@@ -170,7 +170,7 @@ defmodule {{moduleName}}.TransportOptions do
     * `:verify_ssl` - `true`
     * `:follow_redirects` - `true`
     * `:inject_request_id` - `false`
-    * `:timeout` - `10_000` (10 seconds)
+    * `:timeout` - `60_000` (60 seconds)
     * `:max_retries` - `2`
     * `:idle_timeout` - `60_000` (60 seconds)
     * `:user_agent` - a package-specific default string

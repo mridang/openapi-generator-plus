@@ -200,12 +200,12 @@ class TransportOptions:
     ``None`` means direct connections (no proxy).
     """
 
-    timeout: Optional[int] = 10000
+    timeout: Optional[int] = 60000
     """End-to-end request timeout in milliseconds.
 
     Covers the entire request lifecycle: connection, TLS handshake,
     sending the request body, and reading the response. Defaults to
-    10 seconds. Set to ``None`` to disable the timeout (wait
+    60 seconds. Set to ``None`` to disable the timeout (wait
     indefinitely).
     """
 
@@ -310,7 +310,7 @@ class TransportOptionsBuilder:
     - ``verify_ssl`` -- ``True``
     - ``follow_redirects`` -- ``True``
     - ``inject_request_id`` -- ``False``
-    - ``timeout`` -- ``10000`` (10 seconds)
+    - ``timeout`` -- ``60000`` (60 seconds)
     - ``max_retries`` -- ``2``
     - ``idle_timeout`` -- ``60000`` (60 seconds)
     - ``user_agent`` -- a package-specific default string
@@ -329,7 +329,7 @@ class TransportOptionsBuilder:
         self._verify_ssl: bool = True
         self._ca_cert_path: Optional[str] = None
         self._proxy: Optional[str] = None
-        self._timeout: Optional[int] = 10000
+        self._timeout: Optional[int] = 60000
         self._follow_redirects: bool = True
         self._max_redirects: Optional[int] = None
         self._user_agent: Optional[str] = '{{userAgentDefault}}'

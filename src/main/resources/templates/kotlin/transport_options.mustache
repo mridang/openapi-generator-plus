@@ -33,7 +33,7 @@ import io.ktor.client.plugins.pluginOrNull
  *   `"http://proxy.corp.example.com:3128"`. `null` means direct connections.
  * @property timeout End-to-end request timeout in milliseconds. Covers the entire request
  *   lifecycle: connection, TLS handshake, sending the request body, and reading the response.
- *   Defaults to 10000 ms (10 seconds) when the builder does not set a value. `null` means no
+ *   Defaults to 60000 ms (60 seconds) when the builder does not set a value. `null` means no
  *   timeout.
  * @property followRedirects Whether the client follows HTTP 3xx redirects automatically: `true` to
  *   follow redirects (default), `false` to return the redirect response as-is.
@@ -103,7 +103,7 @@ class TransportOptions private constructor(
      * - `verifySsl` - `true`
      * - `followRedirects` - `true`
      * - `injectRequestId` - `false`
-     * - `timeout` - `10000` (10 seconds)
+     * - `timeout` - `60000` (60 seconds)
      * - `maxRetries` - `2`
      * - `idleTimeout` - `60000` (60 seconds)
      * - `userAgent` - a package-specific default string

@@ -111,7 +111,7 @@ const DefaultIdleTimeout = 60000
 //   - followRedirects: true
 //   - injectRequestID: false
 //   - maxRetries: 2 (DefaultMaxRetries); call MaxRetries(0) to disable retries
-//   - timeout: 10000 (10 seconds); call Timeout with an explicit value to
+//   - timeout: 60000 (60 seconds); call Timeout with an explicit value to
 //     override it, or with nil for no timeout
 //   - idleTimeout: 60000 (60 seconds); call IdleTimeout with an explicit value
 //     to override it, or with nil or a pointer to 0 for none
@@ -119,7 +119,7 @@ const DefaultIdleTimeout = 60000
 //     nil to omit it
 //   - all other fields: nil or empty
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
-	defaultTimeout := 10000
+	defaultTimeout := 60000
 	defaultIdleTimeout := DefaultIdleTimeout
 	defaultUserAgent := "{{userAgentDefault}}"
 	return &TransportOptionsBuilder{
@@ -155,7 +155,7 @@ func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
 // Timeout returns the end-to-end request timeout in milliseconds.
 //
 // Covers the entire request lifecycle: connection, TLS handshake, sending the
-// request body, and reading the response. Defaults to 10000 ms (10 seconds)
+// request body, and reading the response. Defaults to 60000 ms (60 seconds)
 // when the builder does not set a value. Returns nil for no timeout (wait
 // indefinitely); a set value is always positive.
 func (t *TransportOptions) Timeout() *int { return t.timeout }

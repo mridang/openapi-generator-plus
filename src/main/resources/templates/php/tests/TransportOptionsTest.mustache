@@ -56,9 +56,9 @@ test('bhv options 032 proxy defaults to null', function (): void {
 });
 
 test('bhv options 038 timeout defaults to ten seconds', function (): void {
-    // Per fix #27: default request timeout is 10000ms (10 seconds).
+    // Per fix #27: default request timeout is 60000ms (60 seconds).
     $opts = TransportOptions::builder()->build();
-    expect($opts->timeout)->toBe(10000);
+    expect($opts->timeout)->toBe(60000);
 });
 
 test('bhv options 037 timeout can be set to null for no timeout', function (): void {
@@ -384,9 +384,9 @@ test('bhv options 013 an invalid proxy url is rejected at build, not in the sett
     expect(fn () => $builder->build())->toThrow(\InvalidArgumentException::class);
 });
 
-test('bhv options 039 timeout defaults to 10000 milliseconds', function (): void {
+test('bhv options 039 timeout defaults to 60000 milliseconds', function (): void {
     $opts = TransportOptions::builder()->build();
-    expect($opts->timeout)->toBe(10000);
+    expect($opts->timeout)->toBe(60000);
 });
 
 test('bhv misc 026 a configuration mistake raises an error that is not an api error', function (): void {

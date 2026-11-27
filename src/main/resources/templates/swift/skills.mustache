@@ -444,7 +444,7 @@ Each scheme authenticator takes its credentials as optional arguments and reads 
 
 ### Raw responses, timeouts and request ids
 
-Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 10000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
+Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 60000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
 
 ## Hooks and telemetry
 

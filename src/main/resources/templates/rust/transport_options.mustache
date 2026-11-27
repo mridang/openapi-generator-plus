@@ -51,7 +51,7 @@ pub struct TransportOptions {
     ///
     /// Covers the entire request lifecycle: connection, TLS handshake,
     /// sending the request body, and reading the response. Defaults to
-    /// 10000 ms (10 seconds) when the builder does not set a value. `None`
+    /// 60000 ms (60 seconds) when the builder does not set a value. `None`
     /// means no timeout.
     timeout: Option<i64>,
 
@@ -257,7 +257,7 @@ impl TransportOptions {
 /// - `follow_redirects`: `true`
 /// - `inject_request_id`: `false`
 /// - `max_retries`: `2`
-/// - `timeout`: `10000` (10 seconds)
+/// - `timeout`: `60000` (60 seconds)
 /// - `idle_timeout`: `60000` (60 seconds)
 /// - `user_agent`: a package-specific default string
 /// - all other fields: `None` or empty
@@ -284,10 +284,10 @@ impl TransportOptionsBuilder {
             ca_cert_path: None,
             proxy: None,
             proxy_error: None,
-            /* Default 10-second end-to-end timeout (10_000 ms). Callers can
+            /* Default 60-second end-to-end timeout (60_000 ms). Callers can
              * override it via `TransportOptionsBuilder::timeout`, which takes
              * `None` for no timeout; `Some(0)` is a zero-millisecond deadline. */
-            timeout: Some(10_000),
+            timeout: Some(60_000),
             follow_redirects: true,
             max_redirects: None,
             user_agent: Some("{{userAgentDefault}}".to_string()),

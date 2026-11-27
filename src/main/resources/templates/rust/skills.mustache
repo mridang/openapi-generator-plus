@@ -597,7 +597,7 @@ The SDK adds no cancellation parameter: drop the future to cancel a call, or wra
 
 ### Raw responses, timeouts and the request id
 
-Each operation has a `..._with_http_info` variant returning `ApiResult<T>` (`status_code()`, `data()`, `raw_body()`, `headers()`). `timeout` is one end-to-end budget in milliseconds (default 10000). `inject_request_id(true)` adds an `X-Request-ID` header to each request unless you set one.
+Each operation has a `..._with_http_info` variant returning `ApiResult<T>` (`status_code()`, `data()`, `raw_body()`, `headers()`). `timeout` is one end-to-end budget in milliseconds (default 60000). `inject_request_id(true)` adds an `X-Request-ID` header to each request unless you set one.
 
 ## API Methods
 

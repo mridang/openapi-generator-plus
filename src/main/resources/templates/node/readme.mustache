@@ -88,7 +88,7 @@ is the way to read a response header.
 `TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
 milliseconds (a positive number) for the whole call, redirects and retries
 included. A call that exceeds it fails with `NetworkTimeoutError`. The default is
-10 seconds; `timeout(null)` waits indefinitely.
+60 seconds; `timeout(null)` waits indefinitely.
 
 ### Automatic retries
 

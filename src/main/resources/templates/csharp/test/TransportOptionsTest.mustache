@@ -33,14 +33,14 @@ public class TransportOptionsTest
     public void BhvOptions038TimeoutDefaultsToTenSeconds()
     {
         var opts = TransportOptions.Builder().Build();
-        Assert.Equal(10000, opts.Timeout);
+        Assert.Equal(60000, opts.Timeout);
     }
 
     [Fact]
-    public void BhvOptions039TimeoutDefaultsTo10000Milliseconds()
+    public void BhvOptions039TimeoutDefaultsTo60000Milliseconds()
     {
         var opts = TransportOptions.Builder().Build();
-        Assert.Equal(10000, opts.Timeout);
+        Assert.Equal(60000, opts.Timeout);
     }
 
     [Fact]

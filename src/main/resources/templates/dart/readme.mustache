@@ -98,7 +98,7 @@ way to read a response header.
 ### Timeouts
 
 `TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
-milliseconds for the whole call, redirects included; the default is 10 seconds
+milliseconds for the whole call, redirects included; the default is 60 seconds
 and `null` waits indefinitely. A call that exceeds it fails with
 `NetworkTimeoutException`.
 

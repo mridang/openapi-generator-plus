@@ -202,8 +202,8 @@ export class TransportOptions {
    * End-to-end request timeout in milliseconds.
    *
    * Covers the entire request lifecycle: connection, TLS handshake, sending
-   * the request body, and reading the response. Defaults to 10000 ms
-   * (10 seconds). `null` disables the timeout (waits indefinitely).
+   * the request body, and reading the response. Defaults to 60000 ms
+   * (60 seconds). `null` disables the timeout (waits indefinitely).
    */
   public readonly timeout: number | null;
 
@@ -375,7 +375,7 @@ export class TransportOptions {
  * - `followRedirects` -- `true`
  * - `maxRetries` -- `2` (`0` disables retries)
  * - `injectRequestId` -- `false`
- * - `timeout` -- `10000` (10 seconds)
+ * - `timeout` -- `60000` (60 seconds)
  * - `idleTimeout` -- `60000` (60 seconds; `0` or `null` disables it)
  * - `userAgent` -- a package-specific default string
  * - All other fields -- `null` or empty
@@ -384,7 +384,7 @@ export class TransportOptionsBuilder {
   private _verifySsl: boolean = true;
   private _caCertPath: string | null = null;
   private _proxy: string | null = null;
-  private _timeout: number | null = 10000;
+  private _timeout: number | null = 60000;
   private _followRedirects: boolean = true;
   private _maxRedirects: number | null = null;
   private _maxRetries: number = 2;

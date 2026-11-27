@@ -115,9 +115,9 @@ void main() {
       expect(opts.proxy, isNull);
     });
 
-    test('bhv options 039 timeout defaults to 10000 ms (10 seconds)', () {
+    test('bhv options 039 timeout defaults to 60000 ms (60 seconds)', () {
       final opts = TransportOptionsBuilder().build();
-      expect(opts.timeout, equals(10000));
+      expect(opts.timeout, equals(60000));
     });
 
     test('bhv options 020 followRedirects defaults to true', () {
@@ -406,10 +406,10 @@ void main() {
   });
 
   group('TransportOptions', () {
-    test('bhv options 038 timeout defaults to 10000 ms (10 seconds)', () {
-      // Default TransportOptions applies a 10-second end-to-end request timeout.
+    test('bhv options 038 timeout defaults to 60000 ms (60 seconds)', () {
+      // Default TransportOptions applies a 60-second end-to-end request timeout.
       final opts = TransportOptionsBuilder().build();
-      expect(opts.timeout, equals(10000));
+      expect(opts.timeout, equals(60000));
     });
 
     test('bhv options 036 setting timeout to 5000 is accessible', () {

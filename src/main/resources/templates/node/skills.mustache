@@ -464,7 +464,7 @@ async function {{nickname}}Cancelled(client: {{clientClassName}}, authenticator:
 
 ### Raw responses, timeouts and the request id
 
-Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in positive milliseconds (default 10000; `null` waits indefinitely). `TransportOptions.builder().injectRequestId(true)` adds an `X-Request-ID` header to each request unless you set one.
+Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in positive milliseconds (default 60000; `null` waits indefinitely). `TransportOptions.builder().injectRequestId(true)` adds an `X-Request-ID` header to each request unless you set one.
 
 ### Hooks and telemetry
 
