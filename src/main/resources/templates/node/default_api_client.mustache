@@ -170,12 +170,23 @@ export class DefaultApiClient extends AbstractApiClient {
   }
 }
 
-/* Installs the zstd decoder from node:zlib where the running Node build provides one. */
+/* Installs the zstd decoder from node:zlib where the running Node build provides one.
+ * With a `maxOutputLength` the decoder stops once its output passes that many
+ * bytes and fails with `ERR_BUFFER_TOO_LARGE`, so a `maxResponseBytes` cap never
+ * inflates the whole frame first. */
 if ('zstdDecompress' in zlib) {
-  AbstractApiClient.zstdDecoder = (buf: Buffer) =>
+  AbstractApiClient.zstdDecoder = (buf: Buffer, maxOutputLength?: number) =>
     new Promise<Buffer>((resolve, reject) => {
       (zlib as unknown as {
-        zstdDecompress(input: Buffer, callback: (error: Error | null, result: Buffer) => void): void;
-      }).zstdDecompress(buf, (error, result) => (error ? reject(error) : resolve(result)));
+        zstdDecompress(
+          input: Buffer,
+          options: { maxOutputLength?: number },
+          callback: (error: Error | null, result: Buffer) => void
+        ): void;
+      }).zstdDecompress(
+        buf,
+        maxOutputLength == null ? {} : { maxOutputLength },
+        (error, result) => (error ? reject(error) : resolve(result))
+      );
     });
 }

@@ -503,3 +503,22 @@ describe('TransportOptions misc proxy schemes', () => {
     );
   });
 });
+
+describe('TransportOptions maxResponseBytes', () => {
+  test('bhv options 069 maxResponseBytes defaults to none, keeps a positive value and refuses zero and negatives', () => {
+    expect(TransportOptions.builder().build().maxResponseBytes).toBeNull();
+    expect(new TransportOptions({ ...directOptions }).maxResponseBytes).toBeNull();
+    expect(TransportOptions.builder().maxResponseBytes(1024).build().maxResponseBytes).toBe(1024);
+    expect(TransportOptions.builder().maxResponseBytes(1024).build().toString()).toContain('"maxResponseBytes":1024');
+    expect(new TransportOptions({ ...directOptions, maxResponseBytes: 2048 }).maxResponseBytes).toBe(2048);
+    expect(TransportOptions.builder().maxResponseBytes(1024).maxResponseBytes(null).build().maxResponseBytes).toBeNull();
+    for (const value of [0, -1]) {
+      expect(() => TransportOptions.builder().maxResponseBytes(value)).toThrow(
+        new TypeError(`Invalid maxResponseBytes: must be a positive number of bytes (got ${value})`)
+      );
+      expect(() => new TransportOptions({ ...directOptions, maxResponseBytes: value })).toThrow(
+        new TypeError(`Invalid maxResponseBytes: must be a positive number of bytes (got ${value})`)
+      );
+    }
+  });
+});

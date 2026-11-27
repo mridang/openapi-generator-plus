@@ -1,0 +1,29 @@
+{{>api_info}}
+import 'api_exception.dart';
+
+/// Exception for a buffered response whose body, as received or once
+/// decompressed, passed `TransportOptions.maxResponseBytes`. A response did
+/// arrive, so it carries the real status code and the response headers; the
+/// body is empty because the client stopped reading it. It is never retried.
+class ResponseTooLargeException extends ApiException {
+  /// The limit in bytes the body passed.
+  final int limit;
+
+  /// Creates the exception for a body that passed [limit] bytes.
+  ResponseTooLargeException({
+    required this.limit,
+    required super.statusCode,
+    super.responseHeaders,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(
+          message: 'Response body exceeds the limit of $limit bytes',
+          responseBody: '',
+        );
+
+  /// Repeating the request returns the same oversized body, so it is never
+  /// retryable.
+  @override
+  bool get isRetryable => false;
+}

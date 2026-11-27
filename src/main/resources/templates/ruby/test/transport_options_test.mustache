@@ -531,6 +531,31 @@ describe {{moduleName}}::TransportOptions, 'builder entry point and printable fo
     _({{moduleName}}::TransportOptions.builder.build.proxy).must_be_nil
   end
 
+  it 'bhv_options_069 max_response_bytes defaults to none' do
+    _({{moduleName}}::TransportOptions.builder.build.max_response_bytes).must_be_nil
+  end
+
+  it 'bhv_options_069 a positive max_response_bytes round-trips through the builder' do
+    opts = {{moduleName}}::TransportOptions.builder.max_response_bytes(1024).build
+
+    _(opts.max_response_bytes).must_equal 1024
+    _(opts.inspect).must_include 'max_response_bytes=1024'
+  end
+
+  it 'bhv_options_069 a zero or negative max_response_bytes is refused with the canonical message' do
+    err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.max_response_bytes(0) }
+    _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)'
+    err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.max_response_bytes(-1) }
+    _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got -1)'
+    err = assert_raises(ArgumentError) do
+      {{moduleName}}::TransportOptions.new(
+        verify_ssl: true, ca_cert_path: nil, proxy: nil, timeout: nil, follow_redirects: true,
+        max_redirects: nil, user_agent: nil, default_headers: {}, inject_request_id: false, max_response_bytes: 0
+      )
+    end
+    _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)'
+  end
+
   it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do
     _(proc {
       {{moduleName}}::TransportOptions.builder.timeout(0).build

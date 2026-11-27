@@ -4506,4 +4506,54 @@ describe 'DefaultApiClientUnit' do
   ensure
     server&.close
   end
+
+  it 'bhv_transport_095 a body past max_response_bytes raises ResponseTooLargeError with the status and the limit' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'x' * 4096)
+      RawHttp.finish(socket)
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.max_response_bytes(1024).build)
+    error = assert_raises({{moduleName}}::Errors::ResponseTooLargeError) do
+      client.send_request('GET', server.url('/items/blob'), {}, nil)
+    end
+    _(error.class).must_equal {{moduleName}}::Errors::ResponseTooLargeError
+    _(error.status_code).must_equal 200
+    _(error.limit).must_equal 1024
+    _(error.detail_message).must_equal 'Response body exceeds the limit of 1024 bytes'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_transport_095 the same body without a limit is returned whole' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'x' * 4096)
+      RawHttp.finish(socket)
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.build)
+    response = client.send_request('GET', server.url('/items/blob'), {}, nil)
+    _(response.status_code).must_equal 200
+    _(response.body).must_equal 'x' * 4096
+  ensure
+    server&.close
+  end
+
+  it 'bhv_transport_096 a small gzip body that inflates past max_response_bytes raises ResponseTooLargeError' do
+    payload = Zlib.gzip("\0" * 100_000)
+    _(payload.bytesize).must_be :<, 1024
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Content-Encoding: gzip', "Content-Length: #{payload.bytesize}")
+      socket.write(payload)
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.max_response_bytes(1024).build)
+    error = assert_raises({{moduleName}}::Errors::ResponseTooLargeError) do
+      client.send_request('GET', server.url('/items/blob'), {}, nil)
+    end
+    _(error.class).must_equal {{moduleName}}::Errors::ResponseTooLargeError
+    _(error.status_code).must_equal 200
+    _(error.limit).must_equal 1024
+  ensure
+    server&.close
+  end
 end

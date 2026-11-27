@@ -616,5 +616,28 @@ void main() {
       );
     });
   });
+
+  group('TransportOptions maxResponseBytes', () {
+    test('bhv options 069 maxResponseBytes defaults to none, keeps a positive value and refuses zero and negatives', () {
+      expect(TransportOptionsBuilder().build().maxResponseBytes, isNull);
+      expect(TransportOptionsBuilder().maxResponseBytes(1024).build().maxResponseBytes, equals(1024));
+      expect(TransportOptionsBuilder().maxResponseBytes(1024).build().toString(),
+          contains('maxResponseBytes: 1024'));
+      expect(
+        TransportOptionsBuilder().maxResponseBytes(1024).maxResponseBytes(null).build().maxResponseBytes,
+        isNull,
+      );
+      for (final value in [0, -1]) {
+        expect(
+          () => TransportOptionsBuilder().maxResponseBytes(value),
+          throwsA(isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            equals('Invalid maxResponseBytes: must be a positive number of bytes (got $value)'),
+          )),
+        );
+      }
+    });
+  });
 }
 {{/generateTests}}

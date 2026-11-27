@@ -66,6 +66,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - The entry class is `Client` inside the module, for example `Petstore::Client::Client`.
 - Operations, variables and files use snake_case; enum constants are upper case. Every file opens with the compact form `module A::B`, and each file declares exactly the constant its path names.
 - `Configuration` and `TransportOptions` are built with builders whose setters take a parameter named `val`.
+- `TransportOptions` takes `max_response_bytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeError` (D138). `DefaultApiClient` reads a buffered body through Faraday's `on_data` and counts it as it arrives, then counts the decoded size by feeding the decoder 256 compressed bytes at a time, so decoding stops once the limit is passed; raising inside the read leaves it unfinished, which drops the connection instead of draining it.
 - `Exception#cause` is Ruby's built-in chaining, so `ApiError`, `NetworkError` and `NetworkTimeoutError` take no `cause` argument.
 - The server list is the constant `Servers::ALL`.
 - There is no per-call cancellation handle. A timeout is the only bound on a call.

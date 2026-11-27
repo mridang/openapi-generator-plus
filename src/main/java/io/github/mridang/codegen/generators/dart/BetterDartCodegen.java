@@ -463,6 +463,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/network_exception.mustache", errorsDir, "network_exception.dart"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsDir, "network_timeout_exception.dart"),
             new SupportingFileSpec("errors/stream_exception.mustache", errorsDir, "stream_exception.dart"),
+            new SupportingFileSpec("errors/response_too_large_exception.mustache", errorsDir, "response_too_large_exception.dart"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsDir, "serialization_exception.dart"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsDir, "oauth2_server_exception.dart"),
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsDir, "oauth2_token_exception.dart"),

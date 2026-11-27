@@ -343,6 +343,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/network_error.mustache", errorsPath, "network_error.rb"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsPath, "network_timeout_error.rb"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsPath, "stream_error.rb"),
+            new SupportingFileSpec("errors/response_too_large_error.mustache", errorsPath, "response_too_large_error.rb"),
             new SupportingFileSpec("errors/pagination_error.mustache", errorsPath, "pagination_error.rb"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsPath, "serialization_error.rb"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsPath, "oauth2_server_error.rb"),

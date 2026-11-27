@@ -964,6 +964,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/network_exception.mustache", errorsPath, "network_exception.py"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsPath, "network_timeout_exception.py"),
             new SupportingFileSpec("errors/stream_exception.mustache", errorsPath, "stream_exception.py"),
+            new SupportingFileSpec("errors/response_too_large_exception.mustache", errorsPath, "response_too_large_exception.py"),
             new SupportingFileSpec("errors/pagination_exception.mustache", errorsPath, "pagination_exception.py"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsPath, "serialization_exception.py"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsPath, "oauth2_server_exception.py"),

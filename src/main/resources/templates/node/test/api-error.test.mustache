@@ -14,6 +14,7 @@ import {
   NetworkTimeoutError,
   NotFoundError,
   OAuth2ServerError,
+  ResponseTooLargeError,
   OAuth2TokenError,
   SerializationError,
   ServerError,
@@ -97,7 +98,8 @@ describe('ApiError', () => {
       ['GatewayTimeoutError', (o: object) => new GatewayTimeoutError('boom', null, null, null, o)],
       ['InternalServerError', (o: object) => new InternalServerError('boom', null, null, null, o)],
       ['NetworkError', (o: object) => new NetworkError('boom', o)],
-      ['NetworkTimeoutError', (o: object) => new NetworkTimeoutError('boom', o)]
+      ['NetworkTimeoutError', (o: object) => new NetworkTimeoutError('boom', o)],
+      ['ResponseTooLargeError', (o: object) => new ResponseTooLargeError(1024, 200, null, o)]
       ];
       for (const [, build] of rows) {
         const err = build({ requestMethod: 'GET', requestPath: '/items/7' });
@@ -365,6 +367,7 @@ describe('ApiError', () => {
       'InternalServerError',
       'NetworkError',
       'NetworkTimeoutError',
+      'ResponseTooLargeError',
       'SerializationError',
       'OAuth2ServerError',
       'OAuth2TokenError',

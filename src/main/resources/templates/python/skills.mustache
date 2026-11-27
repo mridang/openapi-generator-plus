@@ -269,6 +269,7 @@ Every error the SDK raises derives from `{{errorPrefix}}Exception`; catching it 
       - `GatewayTimeoutException` (504)
     - `NetworkException` (no HTTP response, status 0)
       - `NetworkTimeoutException` (the request timed out, status 0)
+    - `ResponseTooLargeException` (a buffered body passed `max_response_bytes`)
 
 {{#apiInfo}}
 {{#apis}}
@@ -357,6 +358,8 @@ from {{packageName}}.transport_options import TransportOptions
 def make_transport() -> TransportOptions:
     return TransportOptions.builder().max_retries(0).build()
 ```
+
+`TransportOptions.builder().max_response_bytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### OAuth2 re-authentication and PKCE
 

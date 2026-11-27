@@ -102,6 +102,8 @@ milliseconds for the whole call, redirects included; the default is 60 seconds
 and `null` waits indefinitely. A call that exceeds it fails with
 `NetworkTimeoutException`.
 
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
 ### Automatic retries
 
 `TransportOptions.builder().maxRetries(n)` sets how many times a failed call is

@@ -407,6 +407,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/network-error.mustache", "src/errors", "network-error.ts"),
             new SupportingFileSpec("errors/network-timeout-error.mustache", "src/errors", "network-timeout-error.ts"),
             new SupportingFileSpec("errors/stream-error.mustache", "src/errors", "stream-error.ts"),
+            new SupportingFileSpec("errors/response-too-large-error.mustache", "src/errors", "response-too-large-error.ts"),
             new SupportingFileSpec("errors/serialization-error.mustache", "src/errors", "serialization-error.ts"),
             new SupportingFileSpec("errors/oauth2-server-error.mustache", "src/errors", "oauth2-server-error.ts"),
             new SupportingFileSpec("errors/oauth2-token-error.mustache", "src/errors", "oauth2-token-error.ts"),
