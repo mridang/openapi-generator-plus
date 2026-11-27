@@ -1446,6 +1446,18 @@ func TestBhvSerialization018_ValueSerializer_SerializeDeepObject_NestedObjectIsR
 	if !errors.As(err, &serErr) {
 		t.Errorf("expected *SerializationError for a nested array, got %T: %v", err, err)
 	}
+	_, err = serializeStyledChecked("criteria", &taggedCriteria{Tags: []string{"a", "b"}}, "query", "taggedCriteria", "", "form", true)
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a model with an array property, got %T: %v", err, err)
+	}
+	_, err = serializeStyledChecked("criteria", map[string]any{"tags": []int{1, 2}}, "query", "object", "", "form", false)
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a map with an array entry, got %T: %v", err, err)
+	}
+}
+
+type taggedCriteria struct {
+	Tags []string `json:"tags,omitempty"`
 }
 
 // An unset property of a model, or a null entry in a parameter map, is left out of the output.
