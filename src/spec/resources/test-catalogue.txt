@@ -222,6 +222,7 @@ config014 | Default configuration is stateless
 config015 | Inspect masks sensitive default headers
 config016 | Invalid server variable enum value throws
 equality001 | Two models built from the same values are equal, and a change in any nested value makes them unequal
+equality002 | Equality reaches every nested value: models decoded from the same JSON are equal, a change inside a nested model, a list element or a map value makes them unequal, and comparing with null or another type returns false without throwing
 errors001 | Escapes control characters in the rendered body
 errors002 | Every status exception carries the request context
 errors003 | Every status-specific error accepts an optional cause

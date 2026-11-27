@@ -51,6 +51,7 @@ import {
   PetWithOwner,
   StrictTag,
   Ledger,
+  Roster,
   Tag,
   RequiredNullable,
   Tier,
@@ -3480,6 +3481,29 @@ describe("model value-equality", () => {
     expect(build("Dogs", "http://example.com/a.jpg").equals(undefined)).toBe(
       false,
     );
+  });
+
+  test("bhv equality 002 equality reaches nested models, lists and maps, and comparing with null or another type is false", () => {
+    const pet =
+      '{"name":"Rex","photoUrls":["a"],"category":{"id":1,"name":"Dogs"},"tags":[{"id":2,"name":"calm"}]}';
+    const roster = '{"label":"l","a":{"id":1,"name":"x"}}';
+    const decodePet = (json: string): Pet =>
+      ObjectSerializer.deserialize(JSON.parse(json), Pet) as Pet;
+    const decodeRoster = (json: string): Roster =>
+      ObjectSerializer.deserialize(JSON.parse(json), Roster) as Roster;
+    const first = decodePet(pet);
+    const firstRoster = decodeRoster(roster);
+    expect(first.equals(decodePet(pet))).toBe(true);
+    expect(first.equals(decodePet(pet.replace("Dogs", "Cats")))).toBe(false);
+    expect(first.equals(decodePet(pet.replace("calm", "wild")))).toBe(false);
+    expect(firstRoster.equals(decodeRoster(roster))).toBe(true);
+    expect(firstRoster.equals(decodeRoster(roster.replace('"x"', '"y"')))).toBe(
+      false,
+    );
+    expect(first.equals(firstRoster)).toBe(false);
+    expect(first.equals("Pet")).toBe(false);
+    expect(first.equals(null)).toBe(false);
+    expect(first.equals(undefined)).toBe(false);
   });
 
   test("bhv serializationobject 005 a differing byte inside a map VALUE makes them unequal", () => {
