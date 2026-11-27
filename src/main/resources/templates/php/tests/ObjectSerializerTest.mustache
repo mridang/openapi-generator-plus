@@ -2760,6 +2760,50 @@ test('bhv serializationobject 409 a hostname and an email are kept as given', fu
     expect(ObjectSerializer::serialize($values))->toBe($json);
 });
 
+test('bhv serializationobject 410 a number decimal keeps every digit and is written in plain notation', function (): void {
+    $json = '{"amount":12.345678901234567890123}';
+    $values = ObjectSerializer::deserialize($json, NativeValues::class);
+    assert($values instanceof NativeValues);
+
+    expect($values->amount?->toString())->toBe('12.345678901234567890123');
+    expect(ObjectSerializer::serialize($values))->toBe($json);
+});
+
+test('bhv serializationobject 411 a string decimal is written as a JSON string and rejects a bare number', function (): void {
+    $values = ObjectSerializer::deserialize('{"ledger":"12.50"}', NativeValues::class);
+    assert($values instanceof NativeValues);
+
+    expect($values->ledger?->toString())->toBe('12.50');
+    expect(ObjectSerializer::serialize($values))->toBe('{"ledger":"12.50"}');
+    expect(fn () => ObjectSerializer::deserialize('{"ledger":12.50}', NativeValues::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 412 a forty digit number is exact and never rounded', function (): void {
+    $digits = '1234567890123456789012345678901234567890';
+    $values = ObjectSerializer::deserialize('{"amount":' . $digits . '}', NativeValues::class);
+    assert($values instanceof NativeValues);
+
+    expect($values->amount?->toString())->toBe($digits);
+    expect(ObjectSerializer::serialize($values))->toBe('{"amount":' . $digits . '}');
+});
+
+test('bhv serializationobject 413 a number or string decimal field is the exact BigDecimal and never a float', function (): void {
+    $values = ObjectSerializer::deserialize('{"amount":0.1,"ledger":"0.2"}', NativeValues::class);
+    assert($values instanceof NativeValues);
+
+    expect($values->amount)->toBeInstanceOf(\Brick\Math\BigDecimal::class);
+    expect($values->ledger)->toBeInstanceOf(\Brick\Math\BigDecimal::class);
+    expect($values->amount?->plus($values->ledger ?? 0)->toString())->toBe('0.3');
+});
+
+test('bhv misc 088 a decimal decoded from text keeps the decimal places it was written with', function (): void {
+    $values = ObjectSerializer::deserialize('{"ledger":"1.50"}', NativeValues::class);
+    assert($values instanceof NativeValues);
+
+    expect($values->ledger?->getScale())->toBe(2);
+});
+
 // -- enum member names and descriptions --
 
 function enumModelSource(string $name): string

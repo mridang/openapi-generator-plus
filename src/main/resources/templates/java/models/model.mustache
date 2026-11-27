@@ -1173,6 +1173,18 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vendorExtensions.isDecimalString}}
     @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = {{invokerPackage}}.ObjectSerializer.StringDecimalDeserializer.class)
 {{/vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isIpv4}}
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = {{invokerPackage}}.ObjectSerializer.Ipv4StringDeserializer.class)
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = {{invokerPackage}}.ObjectSerializer.Ipv6StringDeserializer.class)
+{{/vendorExtensions.isIpv6}}
+{{#vendorExtensions.isIpv4Items}}
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(contentUsing = {{invokerPackage}}.ObjectSerializer.Ipv4StringDeserializer.class)
+{{/vendorExtensions.isIpv4Items}}
+{{#vendorExtensions.isIpv6Items}}
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(contentUsing = {{invokerPackage}}.ObjectSerializer.Ipv6StringDeserializer.class)
+{{/vendorExtensions.isIpv6Items}}
     public Builder {{vendorExtensions.builderName}}({{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{vendorExtensions.builderName}}) {
       this.{{name}} = {{#isByteArray}}{{vendorExtensions.builderName}} == null ? null : {{vendorExtensions.builderName}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{vendorExtensions.builderName}} == null
           ? null

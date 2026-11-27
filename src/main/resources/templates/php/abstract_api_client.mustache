@@ -4,6 +4,7 @@ namespace {{invokerPackage}};
 use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\NetworkException;
 use {{invokerPackage}}\Errors\NetworkTimeoutException;
+use {{invokerPackage}}\Errors\ResponseTooLargeException;
 use {{invokerPackage}}\Errors\StreamException;
 
 /**
@@ -214,8 +215,11 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                access should use a transport that exposes the raw response. */
             $responseHeaders = self::joinedHeaders($response->headers);
             $contentEncoding = $response->headers['content-encoding'][0] ?? '';
+            $limit = $this->maxResponseBytes();
             try {
-                $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+                $decoded = $limit === null
+                    ? $this->decompressBody($responseBody, $contentEncoding)
+                    : $this->decompressWithin($responseBody, $contentEncoding, $limit);
             } catch (\RuntimeException $e) {
                 /* A corrupt or truncated compressed body is not a transport
                  * failure: a response did arrive, so it is an ApiException
@@ -229,6 +233,11 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                     $e
                 );
             }
+            if ($decoded === null) {
+                /* D138: the decompressed body passed the limit. */
+                throw new ResponseTooLargeException($response->statusCode, $limit, $responseHeaders);
+            }
+            $responseBody = $decoded;
             if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
                 /* D92: the headers describe the body the caller receives, and
                  * that body is no longer encoded or the wire length. */
@@ -1547,6 +1556,144 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             default => throw new \RuntimeException(
                 "Unsupported Content-Encoding '" . $encoding . "'"),
         };
+    }
+
+    /**
+     * The most bytes the transport reads for a buffered response body, raw or decompressed, or
+     * null for no limit (D138). Only the SDK's own transport applies
+     * {@see TransportOptions::$maxResponseBytes}; a supplied PSR-18 client is not limited.
+     */
+    protected function maxResponseBytes(): ?int
+    {
+        return null;
+    }
+
+    /**
+     * The error for a buffered body that passed the limit, with the real status and the
+     * lower-cased headers.
+     *
+     * @param array<array-key, array<array-key, string>> $rawHeaders transport headers, name to value list
+     */
+    protected static function responseTooLarge(
+        int $statusCode,
+        array $rawHeaders,
+        int $limit,
+    ): ResponseTooLargeException {
+        return new ResponseTooLargeException($statusCode, $limit, self::joinedHeaders($rawHeaders));
+    }
+
+    /**
+     * Decompresses a response body with a cap on the output (D138): gzip and deflate are
+     * inflated a small slice of input at a time and decoding stops as soon as the output passes
+     * the limit, so a small body that expands hugely is never inflated whole. br and zstd are
+     * decoded the same way through the incremental decoders of ext-brotli and ext-zstd.
+     *
+     * @param string $body     the raw response body
+     * @param string $encoding the Content-Encoding header value
+     * @param int    $limit    the most decoded bytes allowed
+     * @return string|null the decompressed body, or null when it passed the limit
+     * @throws \RuntimeException when the body is corrupt or the coding is not supported
+     */
+    protected function decompressWithin(string $body, string $encoding, int $limit): ?string
+    {
+        $coding = strtolower($encoding);
+        $window = match ($coding) {
+            'gzip', 'x-gzip' => ZLIB_ENCODING_GZIP,
+            'deflate' => ZLIB_ENCODING_DEFLATE,
+            default => null,
+        };
+        if ($body !== '' && $coding === 'br' && function_exists('brotli_uncompress_init')) {
+            $brotli = @brotli_uncompress_init();
+            if ($brotli === false) {
+                throw new \RuntimeException('the br decoder could not be started');
+            }
+
+            return self::decodeIncrementally(
+                $body,
+                $limit,
+                'br',
+                static fn (string $piece, bool $last): string|false => @brotli_uncompress_add(
+                    $brotli,
+                    $piece,
+                    $last ? BROTLI_FINISH : BROTLI_PROCESS
+                ),
+            );
+        }
+        if ($body !== '' && $coding === 'zstd' && function_exists('zstd_uncompress_init')) {
+            $zstd = @zstd_uncompress_init();
+            if ($zstd === false) {
+                throw new \RuntimeException('the zstd decoder could not be started');
+            }
+
+            return self::decodeIncrementally(
+                $body,
+                $limit,
+                'zstd',
+                static fn (string $piece, bool $last): string|false => @zstd_uncompress_add($zstd, $piece),
+            );
+        }
+        if ($body === '' || $window === null) {
+            $decoded = $this->decompressBody($body, $encoding);
+
+            return strlen($decoded) > $limit ? null : $decoded;
+        }
+        $codec = $coding === 'deflate' ? 'deflate' : 'gzip';
+        $context = @inflate_init($window);
+        if ($context === false) {
+            throw new \RuntimeException("the $codec decoder could not be started");
+        }
+        $decoded = '';
+        $length = strlen($body);
+        for ($offset = 0; $offset < $length; $offset += 256) {
+            $last = $offset + 256 >= $length;
+            $piece = @inflate_add($context, substr($body, $offset, 256), $last ? ZLIB_FINISH : ZLIB_SYNC_FLUSH);
+            if ($piece === false) {
+                throw new \RuntimeException("the $codec stream is corrupt or truncated");
+            }
+            if (strlen($decoded) + strlen($piece) > $limit) {
+                return null;
+            }
+            $decoded .= $piece;
+        }
+        if (inflate_get_status($context) !== ZLIB_STREAM_END) {
+            throw new \RuntimeException("the $codec stream is corrupt or truncated");
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Decodes a br or zstd body a small slice of input at a time and stops as soon as the output
+     * passes the limit.
+     *
+     * @param string                              $body  the raw response body
+     * @param int                                 $limit the most decoded bytes allowed
+     * @param string                              $codec the coding name, for the error
+     * @param \Closure(string, bool): (string|false) $add   feeds one slice to the decoder, true for the last
+     * @return string|null the decompressed body, or null when it passed the limit
+     * @throws \RuntimeException when the body is corrupt or truncated
+     */
+    private static function decodeIncrementally(
+        string $body,
+        int $limit,
+        string $codec,
+        \Closure $add,
+    ): ?string {
+        $decoded = '';
+        $length = strlen($body);
+        /* Small slices: a few bytes of br or zstd can stand for megabytes of output. */
+        for ($offset = 0; $offset < $length; $offset += 16) {
+            $piece = $add(substr($body, $offset, 16), $offset + 16 >= $length);
+            if ($piece === false) {
+                throw new \RuntimeException("the $codec stream is corrupt or truncated");
+            }
+            if (strlen($decoded) + strlen($piece) > $limit) {
+                return null;
+            }
+            $decoded .= $piece;
+        }
+
+        return $decoded;
     }
 
     /**

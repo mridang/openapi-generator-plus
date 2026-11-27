@@ -520,6 +520,8 @@ func addPetWithCancel(client *petstore.Client, pet models.Pet, options *opts.Add
 
 Each operation has a `...WithHTTPInfo` variant returning `*ApiResult[T]` (`StatusCode`, `Data`, `RawBody`, `Headers`). `Timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
 
+`NewTransportOptionsBuilder().MaxResponseBytes(&n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
+
 ### Credentials
 
 `NewClientWithToken(host, accessToken, transportOptions)` resolves each credential once, when the client is built: the argument wins, then `SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL` for the host and `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` for the token; an empty value counts as unset, and a credential that cannot be resolved returns `ErrMissingCredential`. `NewClientWithTokenProvider(host, provider, transportOptions)` takes a `func(ctx context.Context) (string, error)` that runs for every request.

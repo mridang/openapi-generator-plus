@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-json-experiment/json/jsontext"
+
 	"github.com/google/uuid"
 )
 
@@ -223,22 +225,53 @@ func (o Order) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Order) UnmarshalJSON(data []byte) error {
-	type Alias Order
-	aux := &Alias{}
-	/* json.Unmarshal leaves a struct field untouched when its key is absent
-	 * from the payload, so we pre-seed optional fields that declare a schema
-	 * default before decoding: a present value overwrites the default while an
-	 * absent one keeps it, matching the default-application of the other SDKs. */
-	var defaultStatus OrderStatusEnum = "placed"
-	aux.Status = &defaultStatus
-	if err := checkUuidField(data, "trackingId"); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Order) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Order
+	seenStatus := false
+	err := readObject(dec, "Order", func(key string) error {
+		switch key {
+		case "id":
+			return decodeValue(dec, &out.Id)
+		case "petId":
+			return decodeValue(dec, &out.PetId)
+		case "quantity":
+			return decodeValue(dec, &out.Quantity)
+		case "trackingId":
+			return decodeChecked(dec, &out.TrackingId, key, checkUuid)
+		case "shipDate":
+			return decodeValue(dec, &out.ShipDate)
+		case "status":
+			seenStatus = true
+			return decodeValue(dec, &out.Status)
+		case "complete":
+			return decodeValue(dec, &out.Complete)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "petId", "quantity", "trackingId", "shipDate", "status", "complete"), aux); err != nil {
-		return err
+	/* Rather than pre-seed optional fields that declare a schema default
+	 * before decoding, the decode records which keys it read and gives each
+	 * absent one its default here; a key that is present, null included,
+	 * keeps what it decoded to, matching the other SDKs. */
+	if !seenStatus {
+		var defaultStatus OrderStatusEnum = "placed"
+		out.Status = &defaultStatus
 	}
-	*o = Order(*aux)
+	*o = out
 	return nil
 }

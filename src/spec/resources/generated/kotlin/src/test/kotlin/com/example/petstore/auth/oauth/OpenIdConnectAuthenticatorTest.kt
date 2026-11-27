@@ -314,8 +314,8 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce")
-    fun bhvMisc078AuthorizationUrlCarriesAnS256ChallengeAndNoNonce() {
+    @DisplayName("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce")
+    fun bhvMisc078AuthorizationUrlCarriesAnS256ChallengeAndANonce() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"))
 
@@ -325,7 +325,7 @@ class OpenIdConnectAuthenticatorTest {
         val query = runBlocking { auth.buildAuthorizationUrl() }.substringAfter('?')
         assertTrue(query.contains("code_challenge_method=S256"))
         assertTrue(Regex("code_challenge=[A-Za-z0-9_-]{43}(&|$)").containsMatchIn(query))
-        assertFalse(query.contains("nonce="))
+        assertTrue(Regex("(^|&)nonce=[A-Za-z0-9_-]{43}(&|$)").containsMatchIn(query), query)
     }
 
     @Test
@@ -584,7 +584,7 @@ class OpenIdConnectAuthenticatorTest {
         assertEquals(2, client.getCount, "the stale document is fetched again before the exchange")
         val challenge = Regex("code_challenge=([^&]+)").find(url)!!.groupValues[1]
         assertTrue(url.contains("code_challenge_method=S256"), url)
-        assertFalse(url.contains("nonce"), url)
+        assertTrue(Regex("[?&]nonce=[A-Za-z0-9_-]{43}(&|$)").containsMatchIn(url), url)
         val verifier = Regex("code_verifier=([^&]+)").find(client.lastBody.orEmpty())?.groupValues?.get(1)
         assertNotNull(verifier, client.lastBody)
         assertEquals(challenge, OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier!!))
@@ -839,5 +839,164 @@ class OpenIdConnectAuthenticatorTest {
         auth.setApiClient(client)
         val ex = assertThrows(ApiException::class.java) { runBlocking { auth.buildAuthorizationUrl() } }
         assertEquals("/.well-known/openid-configuration", ex.requestPath)
+    }
+
+    /** The value of a query parameter of a URL. */
+    private fun queryParam(
+        url: String,
+        name: String,
+    ): String? =
+        url
+            .substringAfter('?')
+            .split('&')
+            .firstOrNull { it.startsWith("$name=") }
+            ?.substringAfter('=')
+
+    /** An unsigned compact JWT whose payload is the given claims. */
+    private fun idToken(claims: String): String {
+        val encoder =
+            java.util.Base64
+                .getUrlEncoder()
+                .withoutPadding()
+        return encoder.encodeToString("""{"alg":"none"}""".toByteArray()) + "." +
+            encoder.encodeToString(claims.toByteArray()) + ".sig"
+    }
+
+    /** Claims that pass every check for the given nonce, with one claim replaced when named. */
+    private fun claims(
+        nonce: String,
+        name: String = "",
+        value: String = "",
+    ): String {
+        val claims =
+            linkedMapOf(
+                "iss" to "\"https://auth.example.com\"",
+                "aud" to "\"my-client-id\"",
+                "exp" to
+                    (
+                        java.time.Instant
+                            .now()
+                            .epochSecond + 3600
+                    ).toString(),
+                "nonce" to "\"$nonce\"",
+            )
+        if (name.isNotEmpty()) {
+            claims[name] = value
+        }
+        return claims.entries.joinToString(",", "{", "}") { "\"${it.key}\":${it.value}" }
+    }
+
+    /**
+     * An authenticator that has built an authorization URL and whose token endpoint
+     * answers with the id_token that the function builds from the URL's nonce.
+     */
+    private fun authenticatorReturning(idTokenForNonce: (String) -> String): OpenIdConnectAuthenticator {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        val url = runBlocking { auth.buildAuthorizationUrl("s") }
+        val nonce = queryParam(url, "nonce")!!
+        client.enqueue("""{"access_token":"oidc-tok","expires_in":3600,"id_token":"${idTokenForNonce(nonce)}"}""")
+        return auth
+    }
+
+    @Test
+    fun bhvAuthoidc034EachAuthorizationUrlCarriesAFreshNonce() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val first = queryParam(runBlocking { auth.buildAuthorizationUrl("s") }, "nonce")
+        val second = queryParam(runBlocking { auth.buildAuthorizationUrl("s") }, "nonce")
+
+        assertTrue(Regex("[A-Za-z0-9_-]{43}").matches(first.orEmpty()), first)
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun bhvAuthoidc035AnIdTokenWithValidClaimsIsAccepted() {
+        val auth = authenticatorReturning { idToken(claims(it, "aud", """["other","my-client-id"]""")) }
+
+        runBlocking { auth.exchangeCode("oidc-code") }
+
+        assertEquals("Bearer oidc-tok", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthoidc036AnIdTokenWithAnotherNonceIsRejected() {
+        val auth = authenticatorReturning { idToken(claims(it, "nonce", "\"replayed\"")) }
+
+        val thrown =
+            assertThrows(com.example.petstore.errors.OAuth2TokenException::class.java) {
+                runBlocking { auth.exchangeCode("oidc-code") }
+            }
+
+        assertEquals("The id_token nonce does not match the authorization request", thrown.message)
+    }
+
+    @Test
+    fun bhvAuthoidc037AnIdTokenFromAnotherIssuerIsRejected() {
+        val auth = authenticatorReturning { idToken(claims(it, "iss", "\"https://evil.example.com\"")) }
+
+        val thrown =
+            assertThrows(com.example.petstore.errors.OAuth2TokenException::class.java) {
+                runBlocking { auth.exchangeCode("oidc-code") }
+            }
+
+        assertEquals("The id_token issuer does not match the discovered issuer", thrown.message)
+    }
+
+    @Test
+    fun bhvAuthoidc038AnIdTokenForAnotherAudienceIsRejected() {
+        val auth = authenticatorReturning { idToken(claims(it, "aud", "\"other-client\"")) }
+
+        val thrown =
+            assertThrows(com.example.petstore.errors.OAuth2TokenException::class.java) {
+                runBlocking { auth.exchangeCode("oidc-code") }
+            }
+
+        assertEquals("The id_token audience does not contain the client id", thrown.message)
+    }
+
+    @Test
+    fun bhvAuthoidc039AnExpiredIdTokenIsRejected() {
+        val expired =
+            (
+                java.time.Instant
+                    .now()
+                    .epochSecond - 120
+            ).toString()
+        val auth = authenticatorReturning { idToken(claims(it, "exp", expired)) }
+
+        val thrown =
+            assertThrows(com.example.petstore.errors.OAuth2TokenException::class.java) {
+                runBlocking { auth.exchangeCode("oidc-code") }
+            }
+
+        assertEquals("The id_token has expired", thrown.message)
+    }
+
+    @Test
+    fun bhvAuthoidc040AMalformedIdTokenIsRejected() {
+        val auth = authenticatorReturning { "not-a-jwt" }
+
+        val thrown =
+            assertThrows(com.example.petstore.errors.OAuth2TokenException::class.java) {
+                runBlocking { auth.exchangeCode("oidc-code") }
+            }
+
+        assertEquals("The id_token is malformed", thrown.message)
+    }
+
+    @Test
+    fun bhvAuthoidc041ARejectedIdTokenLeavesNoSession() {
+        val auth = authenticatorReturning { idToken(claims(it, "nonce", "\"replayed\"")) }
+        assertThrows(com.example.petstore.errors.OAuth2TokenException::class.java) {
+            runBlocking { auth.exchangeCode("oidc-code") }
+        }
+
+        assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
     }
 }

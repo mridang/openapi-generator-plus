@@ -26,6 +26,7 @@ import {
   OpenAPIError,
   NetworkError,
   NetworkTimeoutError,
+  ResponseTooLargeError,
   StreamError,
 } from "../src/errors/index.js";
 import { ClientError } from "../src/errors/client-error.js";
@@ -816,6 +817,70 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
       await new Promise<void>((resolve) => slow.close(() => resolve()));
     }
     expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+  });
+
+  it("bhv transport 094 a per-call timeout bounds the whole call including a trickling body", async () => {
+    const timers = new Set<ReturnType<typeof setInterval>>();
+    const sockets = new Set<net.Socket>();
+    const trickle = net.createServer((socket) => {
+      sockets.add(socket);
+      socket.on("error", () => {
+        /* the client hanging up mid-body is expected */
+      });
+      socket.once("data", () => {
+        socket.write(
+          "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 100000\r\n\r\n",
+        );
+        let sent = 0;
+        const timer = setInterval(() => {
+          if (socket.destroyed || sent >= 100) {
+            clearInterval(timer);
+            timers.delete(timer);
+            socket.destroy();
+            return;
+          }
+          socket.write("x");
+          sent += 1;
+        }, 100);
+        timers.add(timer);
+        socket.on("close", () => {
+          clearInterval(timer);
+          timers.delete(timer);
+        });
+      });
+    });
+    await new Promise<void>((resolve) =>
+      trickle.listen(0, "127.0.0.1", resolve),
+    );
+    const port = (trickle.address() as net.AddressInfo).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().timeout(60000).maxRetries(0).build(),
+    );
+    let caught: unknown;
+    const started = Date.now();
+    try {
+      await client.sendRequest(
+        "GET",
+        `http://127.0.0.1:${port}/trickle`,
+        {},
+        null,
+        { timeout: 500 },
+      );
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+      for (const timer of timers) {
+        clearInterval(timer);
+      }
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      await new Promise<void>((resolve) => trickle.close(() => resolve()));
+    }
+    const elapsed = Date.now() - started;
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+    expect(elapsed).toBeLessThan(3000);
   });
 
   it("bhv transport 058 a request that exceeds the timeout throws NetworkTimeoutError", async () => {
@@ -6985,6 +7050,85 @@ describe("DefaultApiClient uploads", () => {
       expect(followed.statusCode).toBe(200);
       expect(landed).toHaveLength(1);
       expect((await landed[0]!).bytes.equals(data)).toBe(true);
+    }
+  });
+});
+
+describe("DefaultApiClient maxResponseBytes", () => {
+  async function serving(
+    body: Buffer,
+    headers: Record<string, string>,
+  ): Promise<{ url: string; close: () => Promise<void> }> {
+    const srv = http.createServer((_req, res) => {
+      res.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        ...headers,
+      });
+      res.end(body);
+    });
+    await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+    const port = (srv.address() as net.AddressInfo).port;
+    return {
+      url: `http://127.0.0.1:${port}/payload`,
+      close: () =>
+        new Promise<void>((resolve) => {
+          srv.closeAllConnections();
+          srv.close(() => resolve());
+        }),
+    };
+  }
+
+  it("bhv transport 095 a body larger than maxResponseBytes fails with ResponseTooLargeError and no limit reads it", async () => {
+    const target = await serving(Buffer.alloc(4096, 0x61), {});
+    const limited = new DefaultApiClient(
+      TransportOptions.builder().maxResponseBytes(1024).maxRetries(0).build(),
+    );
+    const unlimited = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    try {
+      const error = await limited.sendRequest("GET", target.url, {}, null).then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect(error).toBeInstanceOf(ResponseTooLargeError);
+      expect((error as ResponseTooLargeError).message).toBe(
+        "Response body exceeds the limit of 1024 bytes",
+      );
+      expect((error as ResponseTooLargeError).statusCode).toBe(200);
+      expect((error as ResponseTooLargeError).limit).toBe(1024);
+      expect((error as ResponseTooLargeError).isRetryable).toBe(false);
+      const response = await unlimited.sendRequest("GET", target.url, {}, null);
+      expect(response.statusCode).toBe(200);
+      expect(Buffer.from(response.body, "base64").length).toBe(4096);
+    } finally {
+      await limited.close();
+      await unlimited.close();
+      await target.close();
+    }
+  });
+
+  it("bhv transport 096 a small gzip body that inflates past maxResponseBytes fails with ResponseTooLargeError", async () => {
+    const compressed = zlib.gzipSync(Buffer.alloc(100000, 0));
+    expect(compressed.length).toBeLessThan(1024);
+    const target = await serving(compressed, { "Content-Encoding": "gzip" });
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxResponseBytes(1024).maxRetries(0).build(),
+    );
+    try {
+      const error = await client.sendRequest("GET", target.url, {}, null).then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect(error).toBeInstanceOf(ResponseTooLargeError);
+      expect((error as ResponseTooLargeError).message).toBe(
+        "Response body exceeds the limit of 1024 bytes",
+      );
+      expect((error as ResponseTooLargeError).statusCode).toBe(200);
+      expect((error as ResponseTooLargeError).limit).toBe(1024);
+    } finally {
+      await client.close();
+      await target.close();
     }
   });
 });

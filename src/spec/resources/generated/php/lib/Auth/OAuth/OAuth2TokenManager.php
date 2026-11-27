@@ -66,6 +66,12 @@ final class OAuth2TokenManager
     private ?float $tokenExpiry = null;
 
     /**
+     * @var string|null The id_token of the last token response: null when it
+     *     carried none, an empty string when its value was not a JSON string.
+     */
+    private ?string $lastIdToken = null;
+
+    /**
      * Inject the shared API client for making token requests.
      *
      * @param ApiClient $apiClient the shared API client instance
@@ -180,13 +186,22 @@ final class OAuth2TokenManager
      * @param string                $tokenUrl     the OAuth2 token endpoint URL
      * @param array<string, string> $params       the token request parameters
      * @param array<string, string> $extraHeaders additional HTTP headers
+     * @param (\Closure(?string): void)|null $idTokenCheck a check of the response's
+     *     id_token (null when it carried none, an empty string when it was not a
+     *     JSON string), run before the session is kept; when it throws, the
+     *     previous session is restored. OpenID Connect uses it to validate the
+     *     id_token.
      * @return string the new access token
      *
      * @throws \LogicException if no API client has been injected
      * @throws OpenAPIException if the token request fails
      */
-    public function exchange(string $tokenUrl, array $params, array $extraHeaders = []): string
-    {
+    public function exchange(
+        string $tokenUrl,
+        array $params,
+        array $extraHeaders = [],
+        ?\Closure $idTokenCheck = null
+    ): string {
         $this->assertNotStopped();
         $previousAccessToken = $this->accessToken;
         $previousRefreshToken = $this->refreshToken;
@@ -196,8 +211,12 @@ final class OAuth2TokenManager
         $this->tokenExpiry = null;
         try {
             $this->fetchToken($tokenUrl, $params, $extraHeaders);
-            if ($this->accessToken === null) {
+            $token = $this->accessToken;
+            if ($token === null) {
                 throw new OAuth2TokenException('Token fetch did not return an access token');
+            }
+            if ($idTokenCheck instanceof \Closure) {
+                $idTokenCheck($this->lastIdToken);
             }
         } catch (\Throwable $e) {
             $this->accessToken = $previousAccessToken;
@@ -207,7 +226,7 @@ final class OAuth2TokenManager
         }
         $this->exchanged = true;
 
-        return $this->accessToken;
+        return $token;
     }
 
     /**
@@ -329,6 +348,8 @@ final class OAuth2TokenManager
             throw new OAuth2TokenException('Unsupported token_type in token response');
         }
         $this->accessToken = $responseBody['access_token'];
+        $idToken = $responseBody['id_token'] ?? null;
+        $this->lastIdToken = $idToken === null ? null : (is_string($idToken) ? $idToken : '');
         if (isset($responseBody['refresh_token']) && is_string($responseBody['refresh_token']) && $responseBody['refresh_token'] !== '') {
             $this->refreshToken = $responseBody['refresh_token'];
         }

@@ -29,6 +29,7 @@ from {{packageName}}.errors import (
     ApiException,
     NetworkException,
     NetworkTimeoutException,
+    ResponseTooLargeException,
     StreamException,
 )
 from {{packageName}}.transport_options import TransportOptions, _is_sensitive_header
@@ -61,6 +62,24 @@ _ADMITTED: contextvars.ContextVar[Optional['DefaultApiClient']] = contextvars.Co
 """The client whose in-flight call the current task (and its worker threads) belongs to."""
 
 _CLOSED_MESSAGE = 'ApiClient has been closed and can no longer send requests'
+
+_DECODE_INPUT_CHUNK = 256
+"""Compressed bytes fed to a decoder at a time when it has no output limit of its own."""
+
+
+class _BodyTooLarge(Exception):
+    """Raised inside the body read when ``max_response_bytes`` is passed; the caller turns it
+    into :class:`ResponseTooLargeException` with the response's status and headers."""
+
+
+def _too_large(response: Any, limit: int) -> ResponseTooLargeException:
+    """The error for a buffered body that passed ``limit``, after the connection was dropped."""
+    DefaultApiClient._abort_response(response)
+    return ResponseTooLargeException(
+        limit=limit,
+        status_code=response.status,
+        response_headers=_lower_headers(response.headers),
+    )
 
 
 class RequestHandle:
@@ -1152,6 +1171,66 @@ class DefaultApiClient:
         return response
 
     @staticmethod
+    def _live_socket(sock: Optional[Any]) -> Optional[Any]:
+        """Return ``sock`` when it is still open, else None."""
+        if sock is None:
+            return None
+        try:
+            return sock if sock.fileno() >= 0 else None
+        except (OSError, AttributeError):
+            return None
+
+    @staticmethod
+    def _read_within(response: Any, deadline: Optional[float], limit: Optional[int] = None) -> bytes:
+        """Read the whole body before ``deadline``, the instant the call must end by.
+
+        The socket timeout is reset to what remains of the budget before every read, so
+        the budget holds for the body as a whole and not for each read on its own.
+
+        With a ``limit`` (``max_response_bytes``) the bytes on the wire are counted as they
+        arrive and the read stops as soon as the count passes it: at most ``limit + 1`` bytes
+        are read. The connection is dropped, not drained.
+
+        Raises:
+            ResponseTooLargeException: If the body passes ``limit``.
+        """
+        read1 = getattr(response, 'read1', None)
+        if read1 is None and limit is not None:
+            # A response from a supplied pool manager without read1 still reads in bounded pieces.
+            read1 = response.read
+        if (deadline is None and limit is None) or read1 is None:
+            # No budget and no limit, or a response from a supplied pool manager that reads only as a whole.
+            return bytes(response.read())
+        handle = getattr(_ACTIVE, 'handle', None)
+        sock = DefaultApiClient._live_socket(getattr(getattr(response, 'connection', None), 'sock', None))
+        if sock is None and handle is not None:
+            # A response that ended the connection leaves only the handle holding its socket; a
+            # socket kept from an earlier attempt of a retried call is closed and is skipped.
+            sock = DefaultApiClient._live_socket(handle.socket())
+        chunks: List[bytes] = []
+        total = 0
+        while True:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    DefaultApiClient._abort_response(response)
+                    raise NetworkTimeoutException(
+                        message='Request timed out: the timeout budget was used up while the response body was read'
+                    )
+                # The read that ends a closed connection closes its socket, so the next
+                # pass finds it gone; there is nothing left to bound then.
+                sock = DefaultApiClient._live_socket(sock)
+                if sock is not None:
+                    sock.settimeout(remaining)
+            chunk = read1(65536 if limit is None else min(65536, limit + 1 - total))
+            if not chunk:
+                return b''.join(chunks)
+            total += len(chunk)
+            if limit is not None and total > limit:
+                raise _too_large(response, limit)
+            chunks.append(chunk)
+
+    @staticmethod
     def _wire_body(body: Any, opened: List[OpenedBody]) -> Any:
         """The body of one send as the HTTP layer takes it: a body source is opened afresh."""
         if isinstance(body, BodySource):
@@ -1179,7 +1258,12 @@ class DefaultApiClient:
         Returns:
             :class:`ApiHttpResponse` containing status code, body, and headers.
         """
-        response = self._open(method, url, headers, body, no_redirect, deadline_at)
+        # One deadline covers the header phase and the whole body read, so a server that
+        # trickles the body cannot hold the call past the budget one socket read at a time.
+        deadline = deadline_at
+        if deadline is None and self._transport_options.timeout is not None:
+            deadline = time.monotonic() + self._transport_options.timeout / 1000.0
+        response = self._open(method, url, headers, body, no_redirect, deadline)
         try:
             # The body read happens INSIDE the transport try/catch so a
             # connection-reset / read-timeout / truncated-chunked failure
@@ -1188,7 +1272,8 @@ class DefaultApiClient:
             # preserved as the cause) rather than leaking a raw urllib3
             # exception. This gives callers one error type for the whole
             # transport phase, matching Java/Swift/Ruby/PHP/Elixir.
-            raw_data = response.read()
+            limit = self._transport_options.max_response_bytes
+            raw_data = self._read_within(response, deadline, limit)
 
             # A malformed Content-Encoding body (e.g. a server that
             # advertises `gzip` but sends truncated / non-gzip bytes) arrived
@@ -1205,7 +1290,10 @@ class DefaultApiClient:
                     response_headers=_lower_headers(response.headers),
                 )
             try:
-                decompressed = self._decompress_body(raw_data, content_encoding)
+                decompressed = self._decompress_body(raw_data, content_encoding, limit)
+            except _BodyTooLarge:
+                assert limit is not None
+                raise _too_large(response, limit) from None
             except ApiException:
                 raise
             except Exception as e:
@@ -1343,7 +1431,7 @@ class DefaultApiClient:
             parsed_next = urlsplit(next_url)
             scheme = (parsed_next.scheme or '').lower()
             if scheme not in ('http', 'https'):
-                self._release_response(response)
+                self._release_response(response, self._transport_options.max_response_bytes)
                 raise ApiException(
                     status_code=response.status,
                     message=f'Refusing to follow redirect to non-HTTP(S) URL: {_redact_query(next_url)}',
@@ -1366,7 +1454,7 @@ class DefaultApiClient:
                 and self._is_https_to_http_downgrade(current_url, next_url)
                 and response.status in (301, 302, 307, 308)
             ):
-                self._release_response(response)
+                self._release_response(response, self._transport_options.max_response_bytes)
                 raise ApiException(
                     status_code=response.status,
                     message=(
@@ -1397,7 +1485,7 @@ class DefaultApiClient:
                     # The one stream was read to its end by the request that was just sent, so
                     # there is nothing to send again, and it is never buffered to make that
                     # possible.
-                    self._release_response(response)
+                    self._release_response(response, self._transport_options.max_response_bytes)
                     raise ApiException(
                         status_code=response.status,
                         message='Refusing to replay a streamed request body',
@@ -1430,7 +1518,7 @@ class DefaultApiClient:
 
             # Read and release the prior response before issuing the
             # follow-up so urllib3 returns the connection to the pool.
-            self._release_response(response)
+            self._release_response(response, self._transport_options.max_response_bytes)
 
             hop_kwargs = dict(request_kwargs)
             if deadline is not None:
@@ -1468,7 +1556,7 @@ class DefaultApiClient:
             and response.headers
             and response.headers.get('location')
         ):
-            self._release_response(response)
+            self._release_response(response, self._transport_options.max_response_bytes)
             raise ApiException(
                 status_code=response.status,
                 message=f'Too many redirects (exceeded {max_redirects})',
@@ -1478,16 +1566,36 @@ class DefaultApiClient:
         return response
 
     @staticmethod
-    def _release_response(response: Any) -> None:
+    def _release_response(response: Any, limit: Optional[int] = None) -> None:
         """Drain a redirect response and hand its connection back to the pool.
 
         The follow-up requests are made with ``preload_content=False``, so a
         3xx response keeps its connection checked out until the body is read
         and the connection released. This runs for every hop that is followed
         and for every redirect that is refused, so no refusal leaks one.
+
+        With a ``limit`` (``max_response_bytes``) the redirect body is read like
+        any buffered body: one past the limit is not read on, its connection is
+        dropped instead of being returned to the pool, and the call fails.
+
+        Raises:
+            ResponseTooLargeException: If the redirect body passes ``limit``.
         """
+        if limit is None:
+            try:
+                response.read()
+            finally:
+                response.release_conn()
+            return
         try:
-            response.read()
+            drained = 0
+            while True:
+                chunk = response.read(min(65536, limit + 1 - drained))
+                if not chunk:
+                    break
+                drained += len(chunk)
+                if drained > limit:
+                    raise _too_large(response, limit)
         finally:
             response.release_conn()
 
@@ -1722,7 +1830,7 @@ class DefaultApiClient:
             return part.encode('utf-8')
 
     @staticmethod
-    def _decompress_body(data: bytes, encoding: str) -> bytes:
+    def _decompress_body(data: bytes, encoding: str, limit: Optional[int] = None) -> bytes:
         """Decompress response body based on Content-Encoding header.
 
         Supports gzip and deflate natively. Brotli and zstd are supported
@@ -1731,12 +1839,18 @@ class DefaultApiClient:
         Args:
             data: Raw response bytes.
             encoding: Content-Encoding header value.
+            limit: The most decompressed bytes allowed (``max_response_bytes``), or ``None``.
 
         Returns:
             Decompressed bytes.
+
+        Raises:
+            _BodyTooLarge: If the decompressed body passes ``limit``; decoding stops there.
         """
         if not data:
             return data
+        if limit is not None and encoding not in ('', 'identity'):
+            return DefaultApiClient._decompress_capped(data, encoding, limit)
         if encoding in ('gzip', 'x-gzip'):
             return gzip.decompress(data)
         if encoding == 'deflate':
@@ -1759,4 +1873,80 @@ class DefaultApiClient:
         # client cannot honour. Raise — the caller re-raises it as an
         # ApiException carrying the response status (matching csharp/elixir and
         # the documented contract) rather than returning still-encoded bytes.
+        raise ValueError(f"Unsupported Content-Encoding '{encoding}'")
+
+    @staticmethod
+    def _decompress_capped(data: bytes, encoding: str, limit: int) -> bytes:
+        """Decode ``data`` incrementally, stopping as soon as the output passes ``limit``.
+
+        gzip and deflate ask zlib for at most the bytes still allowed; brotli uses its output
+        limit where the installed version has one; otherwise the input is fed in small pieces
+        and the output is counted after each, so a body that inflates past the limit is never
+        decoded in full.
+
+        Raises:
+            _BodyTooLarge: If the decompressed body passes ``limit``.
+            ValueError: If the body is truncated or the encoding is not supported.
+        """
+        chunks: List[bytes] = []
+        total = 0
+
+        def take(chunk: bytes) -> None:
+            nonlocal total
+            total += len(chunk)
+            if total > limit:
+                raise _BodyTooLarge()
+            chunks.append(chunk)
+
+        if encoding in ('gzip', 'x-gzip', 'deflate'):
+            # wbits 31 reads a gzip member, 15 a zlib stream; gzip members may follow each other.
+            wbits = 15 if encoding == 'deflate' else 31
+            pending = data
+            while pending:
+                decoder = zlib.decompressobj(wbits)
+                while pending and not decoder.eof:
+                    take(decoder.decompress(pending, limit + 1 - total))
+                    pending = decoder.unconsumed_tail
+                while not decoder.eof:
+                    # The input is all in; what remains is output zlib still holds back.
+                    out = decoder.decompress(b'', limit + 1 - total)
+                    if not out:
+                        break
+                    take(out)
+                if not decoder.eof:
+                    raise ValueError(
+                        'Compressed file ended before the end-of-stream marker was reached'
+                    )
+                pending = decoder.unused_data if encoding != 'deflate' else b''
+                if pending and not pending.strip(b'\x00'):
+                    pending = b''
+            return b''.join(chunks)
+        if encoding == 'br' and _brotli is not None:
+            br_decoder = _brotli.Decompressor()
+            try:
+                take(br_decoder.process(data, output_buffer_limit=limit + 1 - total))
+                while not br_decoder.is_finished():
+                    out = br_decoder.process(b'', output_buffer_limit=limit + 1 - total)
+                    if not out:
+                        break
+                    take(out)
+            except TypeError:
+                # A brotli without an output limit: feed the input in small pieces instead.
+                chunks.clear()
+                total = 0
+                br_decoder = _brotli.Decompressor()
+                for start in range(0, len(data), _DECODE_INPUT_CHUNK):
+                    take(br_decoder.process(data[start:start + _DECODE_INPUT_CHUNK]))
+            if not br_decoder.is_finished():
+                raise ValueError('Truncated brotli stream')
+            return b''.join(chunks)
+        if encoding == 'zstd' and _zstandard is not None:
+            zstd_stream = _zstandard.ZstdDecompressor().decompressobj()
+            for start in range(0, len(data), _DECODE_INPUT_CHUNK):
+                take(zstd_stream.decompress(data[start:start + _DECODE_INPUT_CHUNK]))
+                if zstd_stream.eof:
+                    break
+            if not zstd_stream.eof:
+                raise ValueError('Truncated zstd frame')
+            return b''.join(chunks)
         raise ValueError(f"Unsupported Content-Encoding '{encoding}'")

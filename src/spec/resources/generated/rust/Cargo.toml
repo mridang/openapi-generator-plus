@@ -44,7 +44,9 @@ upper_case_acronyms = "allow"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_repr = "0.1"
-serde_json = { version = "1", features = ["unbounded_depth", "preserve_order"] }
+# `raw_value` lets a `format: decimal` number be read from, and written as, its
+# exact source text instead of passing through an `f64`.
+serde_json = { version = "1", features = ["unbounded_depth", "preserve_order", "raw_value"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream", "http2", "charset", "rustls-tls-native-roots"] }
 flate2 = "1"
 brotli = "7"
@@ -57,6 +59,7 @@ base64 = "0.22"
 sha2 = "0.10"
 uuid = { version = "1", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1", default-features = false, features = ["std", "serde"] }
 regex = "1"
 urlencoding = "2"
 encoding_rs = "0.8"

@@ -7,6 +7,7 @@
 
 import { ObjectSerializer, plainDate } from "./object-serializer.js";
 import { SerializationError } from "./errors/serialization-error.js";
+import { isDecimal } from "./brand.js";
 
 /**
  * Serializes parameter values for HTTP requests based on their location and format.
@@ -359,7 +360,7 @@ export class ValueSerializer {
   /**
    * Whether a parameter value is an object (a model or a free-form map) that
    * the OAS style rules expand into name and value pairs, as opposed to a
-   * scalar-like value (a `Date`, a byte array or a Temporal value).
+   * scalar-like value (a `Date`, a byte array, a Decimal or a Temporal value).
    */
   private static isObjectValue(value: unknown): value is object {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -368,7 +369,8 @@ export class ValueSerializer {
     if (
       value instanceof Date ||
       value instanceof ArrayBuffer ||
-      ArrayBuffer.isView(value)
+      ArrayBuffer.isView(value) ||
+      isDecimal(value)
     ) {
       return false;
     }

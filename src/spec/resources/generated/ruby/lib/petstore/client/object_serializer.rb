@@ -52,6 +52,22 @@ module Petstore::Client
     # payload would exhaust it. All twelve SDKs use the same cap.
     MAX_JSON_DEPTH = 1000
 
+    # The number of decimal places each decoded BigDecimal was written with, so
+    # 12.50 is written back as 12.50. A BigDecimal keeps no trailing zero of
+    # its own; a value built in code has no entry and is written as it is. The
+    # map holds its keys weakly and compares them by identity.
+    WRITTEN_SCALE = ObjectSpace::WeakMap.new
+
+    # The decimal_class JSON.parse reads a fraction or exponent through: a
+    # BigDecimal that remembers the decimal places of its text.
+    module ScaledDecimal
+      # @param text [String] the number as written
+      # @return [BigDecimal] the decimal
+      def self.try_convert(text)
+        ObjectSerializer.scaled_decimal(text)
+      end
+    end
+
     # The values the catch-all member of a generated enum holds; neither has a wire form.
     CATCH_ALL_ENUM_VALUES = ['__unknown_default_open_api__', -9_223_372_036_854_775_808].freeze
 
@@ -84,7 +100,7 @@ module Petstore::Client
       # digit passes through a binary float. Only typed decoding asks for it.
       # @type var options: Hash[Symbol, untyped]
       options = { symbolize_names: symbolize_names, allow_nan: false, max_nesting: MAX_JSON_DEPTH }
-      options[:decimal_class] = BigDecimal if decimal
+      options[:decimal_class] = ScaledDecimal if decimal
       JSON.parse(json_string, **options)
     rescue JSON::ParserError => e
       raise Errors::SerializationError.new("Failed to deserialize JSON: #{e.message}", e)
@@ -148,8 +164,27 @@ module Petstore::Client
     def self.decimal_to_plain(value)
       raise Errors::SerializationError, "#{value} is not a finite JSON number" unless value.finite?
 
-      text = value.to_s('F')
-      text.delete_suffix('.0')
+      text = value.to_s('F').delete_suffix('.0')
+      scale = WRITTEN_SCALE[value]
+      point = text.index('.')
+      places = point ? text.length - point - 1 : 0
+      return text if scale.nil? || scale <= places
+
+      "#{text}#{'.' if places.zero?}#{'0' * (scale - places)}"
+    end
+
+    # A BigDecimal read from +text+ that remembers the decimal places it was
+    # written with, when the text is in plain notation.
+    #
+    # @param text [String] a number or a decimal string
+    # @return [BigDecimal] the decimal
+    def self.scaled_decimal(text)
+      value = BigDecimal(text)
+      unless text.match?(/[eE]/)
+        point = text.index('.')
+        WRITTEN_SCALE[value] = point ? text.length - point - 1 : 0
+      end
+      value
     end
 
     # The text of an IP address: dotted decimal for IPv4, the RFC 5952 form for
@@ -224,7 +259,7 @@ module Petstore::Client
     def self.parse_decimal_string(value)
       raise Errors::SerializationError, "Expected a decimal JSON string, got #{value.inspect}" unless value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\z/)
 
-      BigDecimal(value)
+      scaled_decimal(value)
     end
 
     # Convert every BigDecimal inside an untyped value back to a Float, so a
@@ -644,7 +679,7 @@ module Petstore::Client
         # quoted number is not a JSON number.
         raise ArgumentError, "Expected a JSON number, got #{data.class}: #{data.inspect}" unless data.is_a?(BigDecimal) || data.is_a?(Integer) || data.is_a?(Float)
 
-        number = BigDecimal(data.to_s)
+        number = data.is_a?(BigDecimal) ? data : BigDecimal(data.to_s)
         raise ArgumentError, "Expected a finite number, got #{data.inspect}" unless number.finite?
 
         number

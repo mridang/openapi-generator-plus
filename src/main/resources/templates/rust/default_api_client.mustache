@@ -17,7 +17,7 @@ use crate::api_client::{
 };
 use crate::errors::api_error::{ApiError, TransportFailure};
 use crate::errors::configuration_error::ConfigurationError;
-use crate::errors::{NetworkError, NetworkTimeoutError, StreamError};
+use crate::errors::{NetworkError, NetworkTimeoutError, ResponseTooLargeError, StreamError};
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_stream_response::{ApiStreamResponse, BodyStream};
 use crate::body_source::BodySource;
@@ -567,7 +567,7 @@ impl ApiClient for DefaultApiClient {
         let options = options.clone();
 
         Box::pin(async move {
-            let (response, deadline) = self
+            let (mut response, deadline) = self
                 .dispatch(method, url, headers, body, options, false)
                 .await?;
             let status_code = response.status().as_u16();
@@ -593,16 +593,50 @@ impl ApiClient for DefaultApiClient {
              * deadline that `timeout` arms produces NetworkTimeoutError here
              * too and everything else produces NetworkError. Both carry
              * status 0. */
-            let raw_bytes = response.bytes().await.map_err(|e| transport_error_before(e, deadline))?;
+            /* D138: with `max_response_bytes` set, the body is read chunk by
+             * chunk and the read stops as soon as it passes the limit; a
+             * declared Content-Length past it fails before anything is read.
+             * Returning drops the response, which aborts the connection
+             * instead of draining the rest. */
+            let limit = self.transport_options.max_response_bytes();
+            let raw_bytes: Vec<u8> = match limit {
+                None => response
+                    .bytes()
+                    .await
+                    .map_err(|e| transport_error_before(e, deadline))?
+                    .to_vec(),
+                Some(limit) => {
+                    if response.content_length().is_some_and(|length| length > limit) {
+                        return Err(too_large(status_code, resp_headers, limit));
+                    }
+                    let mut read = Vec::new();
+                    while let Some(chunk) = response
+                        .chunk()
+                        .await
+                        .map_err(|e| transport_error_before(e, deadline))?
+                    {
+                        read.extend_from_slice(&chunk);
+                        if exceeds(read.len(), limit) {
+                            return Err(too_large(status_code, resp_headers, limit));
+                        }
+                    }
+                    read
+                }
+            };
             /* A body that arrived but cannot be decompressed is not a network
              * failure: the server answered, so it is an ApiError carrying the
-             * real status code. */
+             * real status code. The decoder stops one byte past the limit, so
+             * a small body that inflates hugely is never inflated in full. */
             let content_encoding = resp_headers
                 .get("content-encoding")
                 .cloned()
                 .unwrap_or_default();
-            let resp_bytes = match decompress_body(&content_encoding, &raw_bytes) {
+            let max_output = limit.map(|limit| limit.saturating_add(1));
+            let resp_bytes = match decompress_body(&content_encoding, &raw_bytes, max_output) {
                 Ok(Some(decoded)) => {
+                    if let Some(limit) = limit.filter(|limit| exceeds(decoded.len(), *limit)) {
+                        return Err(too_large(status_code, resp_headers, limit));
+                    }
                     /* D92: the returned headers describe the body the caller
                      * receives, so the two that described the compressed body
                      * are dropped. */
@@ -610,7 +644,7 @@ impl ApiClient for DefaultApiClient {
                     resp_headers.remove("content-length");
                     decoded
                 }
-                Ok(None) => raw_bytes.to_vec(),
+                Ok(None) => raw_bytes,
                 Err(e) => {
                     return Err(Box::new(ApiError::with_source(
                         status_code,
@@ -689,11 +723,44 @@ impl ApiClient for DefaultApiClient {
     }
 }
 
+/// Whether `read` bytes are more than the `max_response_bytes` limit.
+fn exceeds(read: usize, limit: u64) -> bool {
+    u64::try_from(read).unwrap_or(u64::MAX) > limit
+}
+
+/// The error of a buffered response whose body passed `max_response_bytes`.
+fn too_large(
+    status_code: u16,
+    headers: HashMap<String, String>,
+    limit: u64,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    Box::new(ResponseTooLargeError::new(status_code, headers, limit))
+}
+
+/// Reads a decoder to its end, or only its first `max_output` bytes when a cap
+/// is given, so the decoder stops there instead of inflating the whole body.
+fn read_decoded(
+    mut decoder: impl std::io::Read,
+    max_output: Option<u64>,
+    decoded: &mut Vec<u8>,
+) -> std::io::Result<()> {
+    use std::io::Read;
+    match max_output {
+        Some(cap) => decoder.take(cap).read_to_end(decoded)?,
+        None => decoder.read_to_end(decoded)?,
+    };
+    Ok(())
+}
+
 /// Decodes a fully read response body according to its `Content-Encoding`.
 /// Returns `Ok(None)` when the body is not encoded, and an error when it is
-/// encoded but corrupt.
-fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option<Vec<u8>>> {
-    use std::io::Read;
+/// encoded but corrupt. With `max_output` the decoded bytes stop at that many,
+/// and the caller tells a body that reached it from one that ended there.
+fn decompress_body(
+    content_encoding: &str,
+    raw: &[u8],
+    max_output: Option<u64>,
+) -> std::io::Result<Option<Vec<u8>>> {
     /* A bodiless response (HEAD, 204, 304) may still name an encoding. */
     if raw.is_empty() {
         return Ok(None);
@@ -701,17 +768,20 @@ fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option
     let mut decoded = Vec::new();
     match content_encoding.trim().to_ascii_lowercase().as_str() {
         "gzip" | "x-gzip" => {
-            flate2::read::MultiGzDecoder::new(raw).read_to_end(&mut decoded)?;
+            read_decoded(flate2::read::MultiGzDecoder::new(raw), max_output, &mut decoded)?;
         }
         "deflate" => {
-            flate2::read::ZlibDecoder::new(raw).read_to_end(&mut decoded)?;
+            read_decoded(flate2::read::ZlibDecoder::new(raw), max_output, &mut decoded)?;
         }
         "br" => {
-            brotli::Decompressor::new(raw, 4096).read_to_end(&mut decoded)?;
+            read_decoded(brotli::Decompressor::new(raw, 4096), max_output, &mut decoded)?;
         }
-        "zstd" => {
-            decoded = zstd::stream::decode_all(raw)?;
-        }
+        "zstd" => match max_output {
+            Some(_) => {
+                read_decoded(zstd::stream::read::Decoder::with_buffer(raw)?, max_output, &mut decoded)?;
+            }
+            None => decoded = zstd::stream::decode_all(raw)?,
+        },
         "" | "identity" => return Ok(None),
         /* An unrecognised (or multi-value) Content-Encoding is a response the
          * client cannot honour. Return an error — the caller wraps it in an
@@ -744,7 +814,7 @@ pub(crate) fn body_text(bytes: &[u8], content_type: &str) -> String {
 /// encoded body dropped as the buffered path does.
 pub(crate) fn error_body_text(raw: &[u8], headers: &mut HashMap<String, String>) -> String {
     let encoding = headers.get("content-encoding").cloned().unwrap_or_default();
-    let bytes = match decompress_body(&encoding, raw) {
+    let bytes = match decompress_body(&encoding, raw, None) {
         Ok(Some(decoded)) => {
             headers.remove("content-encoding");
             headers.remove("content-length");

@@ -547,7 +547,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{! depth instead of one level deep. A primitive `Map<String, X>` value }}
       {{! that is itself primitive still casts; deserializeArray returns a }}
       {{! List which `.toSet()` narrows for uniqueItems. }}
-      {{name}}: deserializeArray(json['{{baseName}}'] as List, {{#items}}{{>deserialize_arg}}{{/items}}){{#uniqueItems}}.toSet(){{/uniqueItems}},
+      {{name}}: deserializeArray(json['{{baseName}}'] as List, {{#vendorExtensions.isIpv4Items}}(e) => parseIpv4Address(e as String){{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}(e) => parseIpv6Address(e as String){{/vendorExtensions.isIpv6Items}}{{^vendorExtensions.isIpv4Items}}{{^vendorExtensions.isIpv6Items}}{{#items}}{{>deserialize_arg}}{{/items}}{{/vendorExtensions.isIpv6Items}}{{/vendorExtensions.isIpv4Items}}){{#uniqueItems}}.toSet(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -560,12 +560,17 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map((k, v) => MapEntry(k, decodeBase64(v as String))),
 {{/items.isByteArray}}
 {{^items.isByteArray}}
+{{#items.vendorExtensions.isDecimal}}
+      {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}),
+{{/items.vendorExtensions.isDecimal}}
+{{^items.vendorExtensions.isDecimal}}
 {{#items.isPrimitiveType}}
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
 {{/items.isPrimitiveType}}
 {{^items.isPrimitiveType}}
       {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}),
 {{/items.isPrimitiveType}}
+{{/items.vendorExtensions.isDecimal}}
 {{/items.isByteArray}}
 {{/isMap}}
 {{^isMap}}
@@ -586,7 +591,13 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#vendorExtensions.isDuration}}
       {{name}}: parseProtobufDuration(json['{{baseName}}'] as String),
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalNumber}}
+      {{name}}: readDecimal(json, '{{baseName}}'),
+{{/vendorExtensions.isDecimalNumber}}
+{{#vendorExtensions.isDecimalString}}
+      {{name}}: parseDecimalString(json['{{baseName}}']),
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimal}}
 {{! A `double`-typed field (type:number, or format:float / format:double) must
     accept an integral JSON value (e.g. 5 vs 5.0): `as double` throws on an int,
     so coerce via num.toDouble(). `number`, `float` and `double` all map to the
@@ -617,14 +628,14 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: readInt64(json['{{baseName}}']),
 {{/isLong}}
 {{^isLong}}
-      {{name}}: json['{{baseName}}'] as {{{dataType}}},
+      {{name}}: {{#vendorExtensions.isIpv4}}parseIpv4Address({{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}parseIpv6Address({{/vendorExtensions.isIpv6}}json['{{baseName}}'] as {{{dataType}}}{{#vendorExtensions.isIpv4}}){{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}){{/vendorExtensions.isIpv6}},
 {{/isLong}}
 {{/isInteger}}
 {{/isUri}}
 {{/isDouble}}
 {{/isFloat}}
 {{/isNumber}}
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDecimal}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
@@ -681,7 +692,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#isArray}}
       {{! recursive-container-deserialize (optional): same recursive descent as }}
       {{! the required branch, guarded for an absent/null key. }}
-      {{name}}: json['{{baseName}}'] != null ? deserializeArray(json['{{baseName}}'] as List, {{#items}}{{>deserialize_arg}}{{/items}}){{#uniqueItems}}.toSet(){{/uniqueItems}} : null,
+      {{name}}: json['{{baseName}}'] != null ? deserializeArray(json['{{baseName}}'] as List, {{#vendorExtensions.isIpv4Items}}(e) => parseIpv4Address(e as String){{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}(e) => parseIpv6Address(e as String){{/vendorExtensions.isIpv6Items}}{{^vendorExtensions.isIpv4Items}}{{^vendorExtensions.isIpv6Items}}{{#items}}{{>deserialize_arg}}{{/items}}{{/vendorExtensions.isIpv6Items}}{{/vendorExtensions.isIpv4Items}}){{#uniqueItems}}.toSet(){{/uniqueItems}} : null,
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -695,12 +706,17 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, decodeBase64(v as String))),
 {{/items.isByteArray}}
 {{^items.isByteArray}}
+{{#items.vendorExtensions.isDecimal}}
+      {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}) : null,
+{{/items.vendorExtensions.isDecimal}}
+{{^items.vendorExtensions.isDecimal}}
 {{#items.isPrimitiveType}}
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
 {{/items.isPrimitiveType}}
 {{^items.isPrimitiveType}}
       {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}) : null,
 {{/items.isPrimitiveType}}
+{{/items.vendorExtensions.isDecimal}}
 {{/items.isByteArray}}
 {{/isMap}}
 {{^isMap}}
@@ -721,7 +737,13 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#vendorExtensions.isDuration}}
       {{name}}: json['{{baseName}}'] != null ? parseProtobufDuration(json['{{baseName}}'] as String) : null,
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalNumber}}
+      {{name}}: readDecimalOrNull(json, '{{baseName}}'),
+{{/vendorExtensions.isDecimalNumber}}
+{{#vendorExtensions.isDecimalString}}
+      {{name}}: parseDecimalStringOrNull(json['{{baseName}}']),
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimal}}
 {{#defaultValue}}
       /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit
@@ -758,7 +780,17 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: readInt64OrNull(json['{{baseName}}']),
 {{/isLong}}
 {{^isLong}}
+{{#vendorExtensions.isIpv4}}
+      {{name}}: json['{{baseName}}'] != null ? parseIpv4Address(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+      {{name}}: json['{{baseName}}'] != null ? parseIpv6Address(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isIpv6}}
+{{^vendorExtensions.isIpv4}}
+{{^vendorExtensions.isIpv6}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/vendorExtensions.isIpv6}}
+{{/vendorExtensions.isIpv4}}
 {{/isLong}}
 {{/isInteger}}
 {{/isUri}}
@@ -766,7 +798,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/isFloat}}
 {{/isNumber}}
 {{/defaultValue}}
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDecimal}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
@@ -840,9 +872,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#vendorExtensions.isDuration}}
     json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => formatProtobufDuration(e)));
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => decimalText(e)));
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
     json['{{baseName}}'] = wireList({{name}}, {{name}});
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
     json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => e.toJson()));
@@ -873,9 +908,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#items.vendorExtensions.isDuration}}
     json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
 {{/items.vendorExtensions.isDuration}}
-{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}
+{{#items.vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, decimalText(v)));
+{{/items.vendorExtensions.isDecimalString}}
+{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}{{^items.vendorExtensions.isDecimalString}}
     json['{{baseName}}'] = {{name}};
-{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
+{{/items.vendorExtensions.isDecimalString}}{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
 {{/isMap}}
 {{^isMap}}
 {{#isPrimitiveType}}
@@ -891,9 +929,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#vendorExtensions.isDuration}}
     json['{{baseName}}'] = formatProtobufDuration({{name}});
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = decimalText({{name}});
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
     json['{{baseName}}'] = {{name}};
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
     json['{{baseName}}'] = {{name}}.toJson();
@@ -934,9 +975,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#vendorExtensions.isDuration}}
       json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => formatProtobufDuration(e)));
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => decimalText(e)));
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
       json['{{baseName}}'] = wireListOrNull({{name}}, {{name}});
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
       json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => e.toJson()));
@@ -967,9 +1011,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#items.vendorExtensions.isDuration}}
       json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
 {{/items.vendorExtensions.isDuration}}
-{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}
+{{#items.vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, decimalText(v)));
+{{/items.vendorExtensions.isDecimalString}}
+{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}{{^items.vendorExtensions.isDecimalString}}
       json['{{baseName}}'] = {{name}};
-{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
+{{/items.vendorExtensions.isDecimalString}}{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
 {{/isMap}}
 {{^isMap}}
 {{#isPrimitiveType}}
@@ -985,9 +1032,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#vendorExtensions.isDuration}}
       json['{{baseName}}'] = formatProtobufDuration({{name}}!);
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = {{name}} == null ? null : decimalText({{name}}!);
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
       json['{{baseName}}'] = {{name}};
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
       json['{{baseName}}'] = {{name}}?.toJson();

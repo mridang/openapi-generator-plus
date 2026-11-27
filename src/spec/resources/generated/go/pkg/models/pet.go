@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Pet is a model class generated from the OpenAPI schema.
@@ -299,37 +301,71 @@ func (o Pet) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Pet) UnmarshalJSON(data []byte) error {
-	type Alias Pet
-	aux := &Alias{}
-	if err := checkAbsoluteURIField(data, "homepageUrl"); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Pet) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Pet
+	seenName := false
+	seenPhotoUrls := false
+	err := readObject(dec, "Pet", func(key string) error {
+		switch key {
+		case "id":
+			return decodeValue(dec, &out.Id)
+		case "name":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'name' must not be null in Pet")
+			}
+			seenName = true
+			return decodeValue(dec, &out.Name)
+		case "category":
+			return decodeValue(dec, &out.Category)
+		case "photoUrls":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'photoUrls' must not be null in Pet")
+			}
+			seenPhotoUrls = true
+			return decodeValue(dec, &out.PhotoUrls)
+		case "tags":
+			return decodeValue(dec, &out.Tags)
+		case "status":
+			return decodeValue(dec, &out.Status)
+		case "location":
+			return decodeValue(dec, &out.Location)
+		case "homepageUrl":
+			return decodeChecked(dec, &out.HomepageUrl, key, checkAbsoluteURI)
+		case "thumbnailRef":
+			return decodeValue(dec, &out.ThumbnailRef)
+		case "linkTemplate":
+			return decodeValue(dec, &out.LinkTemplate)
+		case "ownerEmail":
+			return decodeValue(dec, &out.OwnerEmail)
+		case "weightKg":
+			return decodeValue(dec, &out.WeightKg)
+		case "nickname":
+			return decodeValue(dec, &out.Nickname)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name", "category", "photoUrls", "tags", "status", "location", "homepageUrl", "thumbnailRef", "linkTemplate", "ownerEmail", "weightKg", "nickname"), aux); err != nil {
-		return err
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["name"]; !ok {
+	if !seenName {
 		return fmt.Errorf("required field 'name' is missing in Pet")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'name' must not be null in Pet")
 	}
-	if rawVal, ok := raw["photoUrls"]; !ok {
+	if !seenPhotoUrls {
 		return fmt.Errorf("required field 'photoUrls' is missing in Pet")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'photoUrls' must not be null in Pet")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = Pet(*aux)
+	*o = out
 	return nil
 }

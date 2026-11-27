@@ -31,9 +31,9 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testBhvOptions038TimeoutDefaultsTo10Seconds() throws {
+  @Test func testBhvOptions038TimeoutDefaultsTo60Seconds() throws {
     let opts = try TransportOptionsBuilder().build()
-    #expect(opts.timeout == 10000)
+    #expect(opts.timeout == 60000)
   }
 
   @Test func testBhvOptions020FollowRedirectsDefaultsToTrue() throws {
@@ -298,6 +298,25 @@ import Testing
         == "Invalid timeout: must be a positive number of milliseconds (got \(timeout))")
   }
 
+  /* maxResponseBytes is off by default, keeps a positive value, and refuses zero and a negative value with the canonical message. */
+  @Test func testBhvOptions069MaxResponseBytesDefaultsToNoneKeepsAPositiveValueAndRefusesTheRest()
+    throws
+  {
+    #expect(try TransportOptionsBuilder().build().maxResponseBytes == nil)
+    let opts = try TransportOptionsBuilder().maxResponseBytes(1024).build()
+    #expect(opts.maxResponseBytes == 1024)
+    #expect(opts.description.contains("maxResponseBytes: 1024"))
+    for value in [0, -1] {
+      let error = #expect(throws: ConfigurationError.self) {
+        try TransportOptionsBuilder().maxResponseBytes(value).build()
+      }
+      #expect(error == ConfigurationError.invalidMaxResponseBytes(value))
+      #expect(
+        error?.errorDescription
+          == "Invalid maxResponseBytes: must be a positive number of bytes (got \(value))")
+    }
+  }
+
   @Test func testBhvOptions014ProxySchemeIsMatchedCaseInsensitively() throws {
     let opts = try TransportOptionsBuilder().proxy("HTTP://proxy.example.com:8080").build()
     #expect(opts.proxy?.host == "proxy.example.com")
@@ -430,11 +449,11 @@ import Testing
 
   // TimeoutConfigTests
 
-  @Test func testBhvOptions039TimeoutDefaultsTo10000ms() throws {
-    // Default TransportOptions applies a 10-second (10000 ms) request timeout
+  @Test func testBhvOptions039TimeoutDefaultsTo60000ms() throws {
+    // Default TransportOptions applies a 60-second (60000 ms) request timeout
     // so that no SDK call blocks forever when the server stalls.
     let opts = try TransportOptionsBuilder().build()
-    #expect(opts.timeout == 10000)
+    #expect(opts.timeout == 60000)
   }
 
   @Test func testBhvOptions036SettingTimeoutIsAccessible() throws {

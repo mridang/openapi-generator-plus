@@ -198,7 +198,7 @@ impl {{classname}} {
         request_content_type: Option<&str>,
 {{/consumes.1}}
         stream_options: Option<&StreamOptions>,
-    ) -> Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<{{{returnType}}}, crate::Error> {
         self.{{operationId}}_invoke(
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}            {{paramName}},
@@ -215,6 +215,7 @@ impl {{classname}} {
             stream_options,
         )
         .await
+        .map_err(crate::Error::from)
     }
 {{/vendorExtensions.op.streamOnly}}
 {{^vendorExtensions.op.streamOnly}}
@@ -251,7 +252,7 @@ impl {{classname}} {
 {{#vendorExtensions.op.hasErrorResponses}}
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
 {{#vendorExtensions.op.errorResponses}}
     /// * HTTP {{status}}: {{#hasSchema}}[`{{{schemaClassName}}}`](crate::errors::{{{schemaClassName}}}), a {{{statusClassName}}} with a [`{{{schemaName}}}`](crate::models::{{{schemaName}}}) body{{/hasSchema}}{{^hasSchema}}[`{{{statusClassName}}}`](crate::errors::{{{statusClassName}}}){{/hasSchema}}
 {{/vendorExtensions.op.errorResponses}}
@@ -272,7 +273,7 @@ impl {{classname}} {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, crate::Error> {
         let result = self.{{operationId}}_with_http_info(
 {{#vendorExtensions.op.signatureArgs}}
 {{^isServer}}{{^isOptions}}            {{paramName}},
@@ -292,12 +293,12 @@ impl {{classname}} {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for {{operationId}} but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
 {{/returnType}}
 {{^returnType}}
@@ -321,7 +322,7 @@ impl {{classname}} {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * {{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}, is the default
@@ -349,6 +350,7 @@ impl {{classname}} {
 {{/vendorExtensions.op.pagination.isUrlPaged}}
         )
         .await
+        .map_err(crate::Error::from)
     }
 
 {{/vendorExtensions.op.streamOnly}}
@@ -1355,6 +1357,7 @@ impl {{classname}} {
                         page_url.as_deref(),
                     )
                     .await
+                    .map_err(crate::Error::from)
                 })
             },
 {{#vendorExtensions.op.pagination.itemsFromBody}}
@@ -1396,7 +1399,7 @@ pub trait {{classname}}Trait {
         request_content_type: Option<&str>,
 {{/consumes.1}}
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<{{{returnType}}}, crate::Error>>;
 {{/vendorExtensions.op.streamOnly}}
 {{^vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
@@ -1413,7 +1416,7 @@ pub trait {{classname}}Trait {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, crate::Error>>;
 {{#isDeprecated}}
     #[deprecated]
 {{/isDeprecated}}
@@ -1428,7 +1431,7 @@ pub trait {{classname}}Trait {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, crate::Error>>;
 {{#vendorExtensions.op.hasPagesMethod}}
 {{#isDeprecated}}
     #[deprecated]
@@ -1467,7 +1470,7 @@ impl {{classname}}Trait for {{classname}} {
         request_content_type: Option<&str>,
 {{/consumes.1}}
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<{{{returnType}}}, crate::Error>> {
         {{classname}}::{{vendorExtensions.op.streamMethodName}}(
             self,
 {{#vendorExtensions.op.signatureArgs}}
@@ -1497,7 +1500,7 @@ impl {{classname}}Trait for {{classname}} {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, crate::Error>> {
         {{classname}}::{{operationId}}(
             self,
 {{#vendorExtensions.op.signatureArgs}}
@@ -1525,7 +1528,7 @@ impl {{classname}}Trait for {{classname}} {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, crate::Error>> {
         {{classname}}::{{operationId}}_with_http_info(
             self,
 {{#vendorExtensions.op.signatureArgs}}

@@ -974,12 +974,12 @@ class StoreApi extends BaseApi implements StoreApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->amount !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->amount instanceof \Brick\Math\BigDecimal) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'amount', ValueSerializer::serializeStyled(
                 'amount',
                 $options->amount,
                 'query',
-                'float',
+                \Brick\Math\BigDecimal::class,
                 null,
                 'form',
                 true,

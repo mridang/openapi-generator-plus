@@ -549,6 +549,7 @@ class ApiExceptionTest {
                 com.example.petstore.errors.InternalServerErrorException::class.java,
                 com.example.petstore.errors.NetworkException::class.java,
                 com.example.petstore.errors.NetworkTimeoutException::class.java,
+                com.example.petstore.errors.ResponseTooLargeException::class.java,
                 SerializationException::class.java,
                 com.example.petstore.errors.OAuth2ServerException::class.java,
                 com.example.petstore.errors.OAuth2TokenException::class.java,

@@ -2128,6 +2128,110 @@ async fn test_bhv_transport_086_a_request_past_its_timeout_fails_within_its_budg
     assert!(started.elapsed() < std::time::Duration::from_secs(4), "the timeout must end the call within its budget");
 }
 
+/// A per-call timeout bounds the whole call, body included: a body that trickles
+/// in one byte at a time past the budget fails with NetworkTimeoutError within
+/// the budget, not one socket read at a time.
+#[tokio::test]
+async fn test_bhv_transport_094_a_per_call_timeout_bounds_the_whole_call_body_included() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: application/octet-stream", "Content-Length: 100000"]);
+        for _ in 0..100 {
+            if conn.write(b"x").is_err() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    });
+    let client = DefaultApiClient::new(None);
+    let started = std::time::Instant::now();
+
+    let err = client
+        .send_request_with_options(
+            "GET",
+            &server.url("/items/blob"),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new()
+                .deadline(Some(std::time::Instant::now() + std::time::Duration::from_millis(500))),
+        )
+        .await
+        .expect_err("a body that trickles past the budget must fail");
+
+    assert!(err.downcast_ref::<NetworkTimeoutError>().is_some(), "got: {}", err);
+    assert!(started.elapsed() < std::time::Duration::from_secs(3), "took {:?}", started.elapsed());
+}
+
+/// A buffered body larger than max_response_bytes fails with
+/// ResponseTooLargeError carrying the real status and the limit, and the same
+/// body is read in full when no limit is set.
+#[tokio::test]
+async fn test_bhv_transport_095_a_body_past_max_response_bytes_fails_with_response_too_large() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: text/plain", "Transfer-Encoding: chunked"]);
+        let _ = conn.chunk(&"x".repeat(4096));
+        let _ = conn.end();
+    });
+    let bounded = TransportOptionsBuilder::new()
+        .max_response_bytes(Some(1024))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+
+    let err = DefaultApiClient::new(Some(bounded))
+        .send_request("GET", &server.url("/items"), &HashMap::new(), None)
+        .await
+        .expect_err("a body past the limit must fail");
+
+    let too_large = err
+        .downcast_ref::<ResponseTooLargeError>()
+        .unwrap_or_else(|| panic!("expected a ResponseTooLargeError, got: {err}"));
+    assert_eq!(200, too_large.api_error().status_code());
+    assert_eq!(1024, too_large.limit());
+    assert_eq!("Response body exceeds the limit of 1024 bytes", too_large.api_error().message());
+
+    let unbounded = TransportOptionsBuilder::new()
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let resp = DefaultApiClient::new(Some(unbounded))
+        .send_request("GET", &server.url("/items"), &HashMap::new(), None)
+        .await
+        .expect("without a limit the body must be read in full");
+    assert_eq!("x".repeat(4096), resp.body());
+}
+
+/// A gzip body that is small on the wire but inflates past max_response_bytes
+/// fails with ResponseTooLargeError: the decompressed bytes count too.
+#[tokio::test]
+async fn test_bhv_transport_096_a_compressed_body_that_inflates_past_max_response_bytes_fails_with_response_too_large() {
+    use std::io::Write as _;
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(&[0u8; 100_000]).expect("compress the body");
+    let compressed = encoder.finish().expect("finish the gzip body");
+    assert!(compressed.len() < 1024, "the gzip body must be under 1024 bytes, got {}", compressed.len());
+    let length = format!("Content-Length: {}", compressed.len());
+    let server = RawServer::serve(move |conn| {
+        let _ = conn.head(200, &["Content-Type: application/octet-stream", "Content-Encoding: gzip", length.as_str()]);
+        let _ = conn.write(&compressed);
+    });
+    let transport = TransportOptionsBuilder::new()
+        .max_response_bytes(Some(1024))
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+
+    let err = DefaultApiClient::new(Some(transport))
+        .send_request("GET", &server.url("/items"), &HashMap::new(), None)
+        .await
+        .expect_err("a body that inflates past the limit must fail");
+
+    let too_large = err
+        .downcast_ref::<ResponseTooLargeError>()
+        .unwrap_or_else(|| panic!("expected a ResponseTooLargeError, got: {err}"));
+    assert_eq!(200, too_large.api_error().status_code());
+    assert_eq!(1024, too_large.limit());
+}
+
 /// The timeout is one end-to-end budget across every redirect hop: three
 /// 400 ms hops and a 400 ms final answer exceed a 1000 ms budget even though
 /// each single request is well inside it.

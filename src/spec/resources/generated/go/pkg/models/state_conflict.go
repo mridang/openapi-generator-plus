@@ -11,6 +11,8 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // StateConflict is a model class generated from the OpenAPI schema.
@@ -82,13 +84,33 @@ func (o StateConflict) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *StateConflict) UnmarshalJSON(data []byte) error {
-	type Alias StateConflict
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "code", "message"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *StateConflict) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out StateConflict
+	err := readObject(dec, "StateConflict", func(key string) error {
+		switch key {
+		case "code":
+			return decodeValue(dec, &out.Code)
+		case "message":
+			return decodeValue(dec, &out.Message)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	*o = StateConflict(*aux)
+	*o = out
 	return nil
 }

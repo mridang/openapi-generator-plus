@@ -1626,8 +1626,8 @@ import Testing
 
   /* A duration fraction is never trimmed below three digits, so 1.5 seconds is written 1.500s and never 1.5s. */
   @Test func testBhvMisc256AFractionIsNeverTrimmedBelowThreeDigits() throws {
-    #expect(try ObjectSerializer.encodeDuration(1.5) == "1.500s")
-    #expect(try ObjectSerializer.encodeDuration(1.1) == "1.100s")
+    #expect(try ObjectSerializer.encodeDuration(.milliseconds(1500)) == "1.500s")
+    #expect(try ObjectSerializer.encodeDuration(.milliseconds(1100)) == "1.100s")
   }
 
   @Test func testBhvRetries003MultipartPartsKeepDeclarationOrder() throws {

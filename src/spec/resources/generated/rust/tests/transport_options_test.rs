@@ -43,12 +43,12 @@ fn test_bhv_options_032_transport_options_proxy_defaults_to_null() {
 
 #[test]
 fn test_bhv_options_038_transport_options_timeout_defaults_to_10_seconds() {
-    /* Cross-language parity: a 10s end-to-end timeout (10_000 ms) is the
+    /* Cross-language parity: a 60s end-to-end timeout (60_000 ms) is the
      * default for every SDK. Callers can override or disable per request. */
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
-    assert_eq!(opts.timeout(), Some(10_000), "expected 10s default timeout");
+    assert_eq!(opts.timeout(), Some(60_000), "expected 60s default timeout");
 }
 
 #[test]
@@ -602,7 +602,7 @@ fn test_bhv_options_039_transport_options_timeout_defaults_to_10_seconds_timeout
     let opts = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
-    assert_eq!(opts.timeout(), Some(10_000), "expected default 10s timeout");
+    assert_eq!(opts.timeout(), Some(60_000), "expected default 60s timeout");
 }
 
 #[test]
@@ -614,7 +614,7 @@ fn test_bhv_options_036_transport_options_setting_timeout_is_accessible() {
     assert_eq!(opts.timeout(), Some(5000), "expected timeout to be 5000");
 }
 
-/// "No timeout" must be expressible: `timeout(None)` clears the 10_000 ms
+/// "No timeout" must be expressible: `timeout(None)` clears the 60_000 ms
 /// default rather than being indistinguishable from leaving it unset.
 #[test]
 fn test_bhv_options_037_transport_options_no_timeout_is_expressible() {
@@ -995,6 +995,37 @@ fn test_bhv_misc_134_a_zero_timeout_is_refused_at_build_with_a_configuration_err
         matches!(result, Err(ConfigurationError::InvalidTimeout(0))),
         "expected InvalidTimeout(0), got {:?}",
         result
+    );
+}
+
+/* D138: the response size limit is off by default, a positive value round-trips
+ * through the builder, and zero is refused with the canonical message (a
+ * negative value cannot be written: the limit is a u64). */
+#[test]
+fn test_bhv_options_069_max_response_bytes_defaults_to_none_round_trips_and_refuses_zero() {
+    let defaults = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
+    assert_eq!(None, defaults.max_response_bytes());
+
+    let opts = TransportOptionsBuilder::new()
+        .max_response_bytes(Some(1024))
+        .build()
+        .expect("valid transport options");
+    assert_eq!(Some(1024), opts.max_response_bytes());
+
+    let err = TransportOptionsBuilder::new()
+        .max_response_bytes(Some(0))
+        .build()
+        .expect_err("a zero limit must be refused");
+    assert!(
+        matches!(err, ConfigurationError::InvalidMaxResponseBytes(0)),
+        "got {:?}",
+        err
+    );
+    assert_eq!(
+        "Invalid maxResponseBytes: must be a positive number of bytes (got 0)",
+        err.to_string()
     );
 }
 

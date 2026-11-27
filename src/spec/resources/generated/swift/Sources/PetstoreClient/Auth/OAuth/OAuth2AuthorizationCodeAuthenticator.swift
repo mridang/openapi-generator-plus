@@ -157,6 +157,12 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
 
   /// Exchanges an authorization code for an access token.
   public func exchangeCode(_ code: String) async throws {
+    try await exchangeCode(code, idTokenCheck: nil)
+  }
+
+  /// Exchanges an authorization code, handing the response's `id_token` to
+  /// `idTokenCheck` before the session is replaced. OpenID Connect uses this.
+  func exchangeCode(_ code: String, idTokenCheck: ((String?) throws -> Void)?) async throws {
     /* Reject an empty or whitespace-only authorization code before
      * posting to the token endpoint: an empty `code` is a caller
      * mistake that would otherwise surface as a confusing server-side
@@ -180,7 +186,7 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     /* Always POST the authorization_code grant and replace the session:
      * never a cached token or the stored refresh token. A failed exchange
      * keeps the previous session. */
-    try await tokenManager.exchange(tokenURL: tokenURL, params: params)
+    try await tokenManager.exchange(tokenURL: tokenURL, params: params, idTokenCheck: idTokenCheck)
     pkceLock.withLock {
       if pkceVerifier == verifier {
         pkceVerifier = nil

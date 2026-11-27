@@ -773,6 +773,7 @@ class ApiExceptionTest {
             com.example.petstore.errors.InternalServerErrorException.class,
             com.example.petstore.errors.NetworkException.class,
             com.example.petstore.errors.NetworkTimeoutException.class,
+            com.example.petstore.errors.ResponseTooLargeException.class,
             SerializationException.class,
             com.example.petstore.errors.OAuth2ServerException.class,
             com.example.petstore.errors.OAuth2TokenException.class);
@@ -873,6 +874,7 @@ class ApiExceptionTest {
             com.example.petstore.errors.InternalServerErrorException.class,
             com.example.petstore.errors.NetworkException.class,
             com.example.petstore.errors.NetworkTimeoutException.class,
+            com.example.petstore.errors.ResponseTooLargeException.class,
             SerializationException.class,
             com.example.petstore.errors.OAuth2ServerException.class,
             com.example.petstore.errors.OAuth2TokenException.class);

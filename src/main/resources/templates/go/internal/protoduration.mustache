@@ -1,0 +1,255 @@
+{{>api_info}}
+// Package protoduration converts a time.Duration to and from the protobuf-JSON
+// google.protobuf.Duration string ("3600s"), the one wire form of an OAS
+// `format: duration` value in every SDK. A `format: duration` value is a plain
+// time.Duration in the generated code; encoding/json writes a time.Duration as
+// int64 nanoseconds, so the models and the serializer rewrite those numbers
+// into this string form on the way out. On the way in the JSON v2 decoder
+// reads the string straight into a time.Duration through DecodeValue.
+package protoduration
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"math"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	jsonv2 "github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
+)
+
+// pattern is the google.protobuf.Duration JSON grammar: an optional sign, an
+// integer second count, an optional fractional part of up to nine digits, and
+// a trailing "s".
+var pattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
+
+// Format writes d in the protobuf-JSON form, e.g. "3600s", "1.500s" or
+// "3600.000000001s". The fractional part is trimmed to 3, 6, or 9 digits (the
+// smallest width that preserves every non-zero nanosecond), matching the
+// protobuf JSON encoder. Negative durations carry a leading "-".
+func Format(d time.Duration) string {
+	totalNanos := int64(d)
+	sign := ""
+	if totalNanos < 0 {
+		sign = "-"
+	}
+	// Split before negating: -math.MinInt64 does not fit in an int64.
+	secs := totalNanos / int64(time.Second)
+	nanos := totalNanos % int64(time.Second)
+	if secs < 0 {
+		secs = -secs
+	}
+	if nanos < 0 {
+		nanos = -nanos
+	}
+	if nanos == 0 {
+		return fmt.Sprintf("%s%ds", sign, secs)
+	}
+	frac := fmt.Sprintf("%09d", nanos)
+	if strings.HasSuffix(frac, "000000") {
+		frac = frac[:3]
+	} else if strings.HasSuffix(frac, "000") {
+		frac = frac[:6]
+	}
+	return fmt.Sprintf("%s%d.%ss", sign, secs, frac)
+}
+
+// Parse reads a protobuf-JSON duration. The accepted grammar is
+// -?\d+(\.\d{1,9})?s; anything else (an ISO-8601 "PT1H", a bare number, or a
+// fractional part wider than nine digits) is rejected, as is a value outside
+// the range of time.Duration (about ±292 years).
+func Parse(s string) (time.Duration, error) {
+	if !pattern.MatchString(s) {
+		return 0, fmt.Errorf(
+			"protobuf-JSON duration: %q is not a decimal number of seconds suffixed with \"s\" (e.g. \"3600s\")",
+			s,
+		)
+	}
+	neg := false
+	body := s[:len(s)-1]
+	if body[0] == '-' {
+		neg = true
+		body = body[1:]
+	}
+	secsStr := body
+	fracStr := ""
+	if dot := strings.IndexByte(body, '.'); dot >= 0 {
+		secsStr = body[:dot]
+		fracStr = body[dot+1:]
+	}
+	secs, err := strconv.ParseInt(secsStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("protobuf-JSON duration: %q is out of range: %w", s, err)
+	}
+	var nanos int64
+	if fracStr != "" {
+		padded := fracStr + strings.Repeat("0", 9-len(fracStr))
+		nanos, err = strconv.ParseInt(padded, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("protobuf-JSON duration: bad fraction %q: %w", fracStr, err)
+		}
+	}
+	// secs*1e9 wraps silently past about 9.2e9 seconds, so check the bound
+	// before multiplying.
+	if secs > (math.MaxInt64-nanos)/int64(time.Second) {
+		return 0, fmt.Errorf("protobuf-JSON duration: %q is out of range for time.Duration", s)
+	}
+	total := secs*int64(time.Second) + nanos
+	if neg {
+		total = -total
+	}
+	return time.Duration(total), nil
+}
+
+// EncodeJSON rewrites every number in a JSON document that encoding/json wrote
+// for a time.Duration, a list of them or a map of them (int64 nanoseconds) into
+// the protobuf-JSON string. A null stays null.
+func EncodeJSON(data []byte) ([]byte, error) {
+	return rewrite(data, encodeLeaf)
+}
+
+// EncodeFields applies EncodeJSON to the value of each named top-level key of a
+// JSON object, keeping every key in place and in order.
+func EncodeFields(data []byte, keys ...string) ([]byte, error) {
+	return rewriteFields(data, keys, EncodeJSON)
+}
+
+// DecodeValue reads one JSON value into a time.Duration: a protobuf-JSON
+// string such as "3600s". A number or a boolean where a duration string
+// belongs is refused, as is a string that is not a protobuf-JSON duration; a
+// null leaves the duration unchanged. The decoders register it for
+// time.Duration with json.UnmarshalFunc, so a duration on its own or in a
+// model, list or map is read in the same pass as the rest of the document.
+func DecodeValue(data []byte, d *time.Duration) error {
+	switch jsontext.Value(data).Kind() {
+	case 'n':
+		return nil
+	case '"':
+		var text string
+		if err := jsonv2.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		parsed, err := Parse(text)
+		if err != nil {
+			return err
+		}
+		*d = parsed
+		return nil
+	default:
+		return fmt.Errorf("protobuf-JSON duration: %s is not a string such as \"3600s\"", data)
+	}
+}
+
+func encodeLeaf(value any) (any, error) {
+	number, ok := value.(json.Number)
+	if !ok {
+		return value, nil
+	}
+	nanos, err := number.Int64()
+	if err != nil {
+		return nil, fmt.Errorf("protobuf-JSON duration: %s is not a nanosecond count: %w", number, err)
+	}
+	return Format(time.Duration(nanos)), nil
+}
+
+func rewrite(data []byte, leaf func(any) (any, error)) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var value any
+	if err := dec.Decode(&value); err != nil {
+		return nil, err
+	}
+	converted, err := walk(value, leaf)
+	if err != nil {
+		return nil, err
+	}
+	return marshal(converted)
+}
+
+func walk(value any, leaf func(any) (any, error)) (any, error) {
+	switch v := value.(type) {
+	case nil:
+		return nil, nil
+	case []any:
+		for i, item := range v {
+			converted, err := walk(item, leaf)
+			if err != nil {
+				return nil, err
+			}
+			v[i] = converted
+		}
+		return v, nil
+	case map[string]any:
+		for key, item := range v {
+			converted, err := walk(item, leaf)
+			if err != nil {
+				return nil, err
+			}
+			v[key] = converted
+		}
+		return v, nil
+	default:
+		return leaf(v)
+	}
+}
+
+func rewriteFields(data []byte, keys []string, convert func([]byte) ([]byte, error)) ([]byte, error) {
+	if len(keys) == 0 {
+		return data, nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	start, err := dec.Token()
+	if err != nil {
+		return data, nil
+	}
+	if delim, ok := start.(json.Delim); !ok || delim != '{' {
+		return data, nil
+	}
+	var out bytes.Buffer
+	out.WriteByte('{')
+	for first := true; dec.More(); first = false {
+		token, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, _ := token.(string)
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return nil, err
+		}
+		if slices.Contains(keys, key) {
+			if value, err = convert(value); err != nil {
+				return nil, err
+			}
+		}
+		name, err := marshal(key)
+		if err != nil {
+			return nil, err
+		}
+		if !first {
+			out.WriteByte(',')
+		}
+		out.Write(name)
+		out.WriteByte(':')
+		out.Write(value)
+	}
+	out.WriteByte('}')
+	return out.Bytes(), nil
+}
+
+// marshal writes compact JSON with HTML escaping off, like the models and the
+// serializer, so '<', '>' and '&' reach the wire literally.
+func marshal(value any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}

@@ -171,9 +171,9 @@ void main() {
       expect(opts.proxy, isNull);
     });
 
-    test('bhv options 039 timeout defaults to 10000 ms (10 seconds)', () {
+    test('bhv options 039 timeout defaults to 60000 ms (60 seconds)', () {
       final opts = TransportOptionsBuilder().build();
-      expect(opts.timeout, equals(10000));
+      expect(opts.timeout, equals(60000));
     });
 
     test('bhv options 020 followRedirects defaults to true', () {
@@ -547,10 +547,10 @@ void main() {
   });
 
   group('TransportOptions', () {
-    test('bhv options 038 timeout defaults to 10000 ms (10 seconds)', () {
-      // Default TransportOptions applies a 10-second end-to-end request timeout.
+    test('bhv options 038 timeout defaults to 60000 ms (60 seconds)', () {
+      // Default TransportOptions applies a 60-second end-to-end request timeout.
       final opts = TransportOptionsBuilder().build();
-      expect(opts.timeout, equals(10000));
+      expect(opts.timeout, equals(60000));
     });
 
     test('bhv options 036 setting timeout to 5000 is accessible', () {
@@ -824,6 +824,48 @@ void main() {
             ),
           ),
         );
+      },
+    );
+  });
+
+  group('TransportOptions maxResponseBytes', () {
+    test(
+      'bhv options 069 maxResponseBytes defaults to none, keeps a positive value and refuses zero and negatives',
+      () {
+        expect(TransportOptionsBuilder().build().maxResponseBytes, isNull);
+        expect(
+          TransportOptionsBuilder()
+              .maxResponseBytes(1024)
+              .build()
+              .maxResponseBytes,
+          equals(1024),
+        );
+        expect(
+          TransportOptionsBuilder().maxResponseBytes(1024).build().toString(),
+          contains('maxResponseBytes: 1024'),
+        );
+        expect(
+          TransportOptionsBuilder()
+              .maxResponseBytes(1024)
+              .maxResponseBytes(null)
+              .build()
+              .maxResponseBytes,
+          isNull,
+        );
+        for (final value in [0, -1]) {
+          expect(
+            () => TransportOptionsBuilder().maxResponseBytes(value),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals(
+                  'Invalid maxResponseBytes: must be a positive number of bytes (got $value)',
+                ),
+              ),
+            ),
+          );
+        }
       },
     );
   });

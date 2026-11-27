@@ -1550,7 +1550,7 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 	}
 	if options != nil && options.Delay != nil {
 		{
-			styledValue, styledErr := serializeStyledChecked("delay", options.Delay, "query", "Duration", "", "form", true)
+			styledValue, styledErr := serializeStyledChecked("delay", options.Delay, "query", "time.Duration", "", "form", true)
 			if styledErr != nil {
 				return nil, styledErr
 			}
@@ -1559,7 +1559,7 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 	}
 	if options != nil && options.Amount != nil {
 		{
-			styledValue, styledErr := serializeStyledChecked("amount", options.Amount, "query", "float64", "", "form", true)
+			styledValue, styledErr := serializeStyledChecked("amount", options.Amount, "query", "decimal.Decimal", "", "form", true)
 			if styledErr != nil {
 				return nil, styledErr
 			}

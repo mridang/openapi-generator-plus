@@ -12,6 +12,7 @@ use Symfony\Component\Mime\Part\TextPart;
 use Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * Default {@see ApiClient} transport, backed by the Symfony HTTP client.
@@ -450,11 +451,19 @@ class DefaultApiClient extends AbstractApiClient
             $options['max_duration'] = $remaining;
         }
 
+        $limit = $this->maxResponseBytes();
+        if ($limit !== null) {
+            /* D138: the body is read chunk by chunk below rather than buffered by the client. */
+            $options['buffer'] = false;
+        }
+
         try {
             $response = $this->client->request($method, $url, $options);
             $statusCode = $response->getStatusCode();
-            $responseBody = $response->getContent(false);
             $rawHeaders = $response->getHeaders(false);
+            $responseBody = $limit === null
+                ? $response->getContent(false)
+                : $this->readWithin($response, $statusCode, $rawHeaders, $limit);
 
             return new RawHttpResponse($statusCode, $responseBody, $rawHeaders);
         } catch (TimeoutExceptionInterface $e) {
@@ -472,6 +481,46 @@ class DefaultApiClient extends AbstractApiClient
             /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
             throw new NetworkException("API Request failed: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
         }
+    }
+
+    /**
+     * The SDK's own transport applies {@see TransportOptions::$maxResponseBytes}.
+     */
+    protected function maxResponseBytes(): ?int
+    {
+        return $this->transportOptions->maxResponseBytes;
+    }
+
+    /**
+     * Reads a buffered body chunk by chunk and stops as soon as more than $limit bytes have
+     * arrived (D138): a declared Content-Length over the limit fails before anything is read, and
+     * a body that passes it cancels the request, which drops the connection instead of draining
+     * the rest.
+     *
+     * @param array<string, list<string>> $rawHeaders the response headers, name to value list
+     * @throws \{{invokerPackage}}\Errors\ResponseTooLargeException when the body passes the limit
+     */
+    private function readWithin(ResponseInterface $response, int $statusCode, array $rawHeaders, int $limit): string
+    {
+        $declared = $rawHeaders['content-length'][0] ?? null;
+        if ($declared !== null && ctype_digit($declared) && (int) $declared > $limit) {
+            $response->cancel();
+            throw self::responseTooLarge($statusCode, $rawHeaders, $limit);
+        }
+        $body = '';
+        foreach ($this->client->stream($response) as $chunk) {
+            $data = $chunk->getContent();
+            if (strlen($body) + strlen($data) > $limit) {
+                $response->cancel();
+                throw self::responseTooLarge($statusCode, $rawHeaders, $limit);
+            }
+            $body .= $data;
+            if ($chunk->isLast()) {
+                break;
+            }
+        }
+
+        return $body;
     }
 
     /**

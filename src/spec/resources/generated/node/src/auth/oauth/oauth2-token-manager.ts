@@ -38,6 +38,9 @@ export class OAuth2TokenManager {
   private inflightRefresh: Promise<string> | null = null;
   private exchanged = false;
   private stopped = false;
+  /* The id_token of the last token response: null when it carried none, an
+   * empty string when its value was not a JSON string. */
+  private lastIdToken: string | null = null;
 
   /**
    * Stop the token manager. Any later token request fails with an ApiError
@@ -147,6 +150,10 @@ export class OAuth2TokenManager {
    * @param tokenUrl the OAuth2 token endpoint URL
    * @param params the token request parameters, sent unchanged
    * @param extraHeaders headers sent with the token request
+   * @param idTokenCheck a check of the response's id_token (null when it
+   *   carried none, an empty string when it was not a JSON string), run before
+   *   the session is committed; when it throws, the previous session is
+   *   restored. OpenID Connect uses it to validate the id_token.
    * @returns the new access token
    * @throws OAuth2ServerError if the token endpoint answers with a non-2xx status
    * @throws OAuth2TokenError if the token endpoint answers 2xx with an unusable body
@@ -155,6 +162,7 @@ export class OAuth2TokenManager {
     tokenUrl: string,
     params: Record<string, string>,
     extraHeaders: Record<string, string> = {},
+    idTokenCheck: ((idToken: string | null) => void) | null = null,
   ): Promise<string> {
     while (this.inflightRefresh) {
       try {
@@ -176,6 +184,9 @@ export class OAuth2TokenManager {
       this.tokenExpiry = null;
       try {
         await this.fetchToken(tokenUrl, params, extraHeaders);
+        if (idTokenCheck !== null) {
+          idTokenCheck(this.lastIdToken);
+        }
         this.exchanged = true;
         return this.accessToken!;
       } catch (error) {
@@ -336,6 +347,12 @@ export class OAuth2TokenManager {
       throw new OAuth2TokenError("Unsupported token_type in token response");
     }
     this.accessToken = accessTokenValue;
+    const idToken = json.id_token;
+    if (idToken === undefined || idToken === null) {
+      this.lastIdToken = null;
+    } else {
+      this.lastIdToken = typeof idToken === "string" ? idToken : "";
+    }
     /* No expires_in means no expiry: a stale expiry from an earlier response
      * must not make every following call refresh again. */
     this.tokenExpiry = null;

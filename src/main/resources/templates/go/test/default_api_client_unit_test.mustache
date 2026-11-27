@@ -1916,6 +1916,116 @@ func TestBhvTransport029_DefaultApiClientUnit_BodyReadTimeoutReturnsNetworkTimeo
 	}
 }
 
+// A per-call timeout is one deadline for the whole call, body included: a
+// server that sends the headers and then trickles the body one byte at a time
+// cannot hold a buffered call past the per-call budget, even when the
+// transport's own timeout is far longer.
+func TestBhvTransport094_DefaultApiClientUnit_APerCallTimeoutBoundsTheWholeCallBodyIncluded(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		_, _ = conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 100000\r\n\r\n"))
+		for sent := 0; sent < 100; sent++ {
+			time.Sleep(100 * time.Millisecond)
+			if _, err := conn.Write([]byte("x")); err != nil {
+				s.clientDropped()
+				return
+			}
+		}
+	})
+
+	timeout := 60000
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	budget := 500 * time.Millisecond
+	started := time.Now()
+	_, err = client.SendRequestWithOptions("GET", server.url("/trickle"), map[string]string{}, nil, &RequestOptions{Timeout: &budget})
+	elapsed := time.Since(started)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+	if elapsed >= 3*time.Second {
+		t.Errorf("expected the call to end within the per-call budget, took %s", elapsed)
+	}
+}
+
+// A buffered body larger than MaxResponseBytes fails with a
+// *ResponseTooLargeError carrying the real status and the limit, and the same
+// body is read in full when no limit is set.
+func TestBhvTransport095_DefaultApiClientUnit_ABodyPastMaxResponseBytesFailsWithResponseTooLarge(t *testing.T) {
+	t.Parallel()
+	payload := strings.Repeat("x", 4096)
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Type: text/plain", "Transfer-Encoding: chunked")
+		_ = rawChunk(conn, payload)
+		rawEnd(conn)
+	})
+
+	limit := int64(1024)
+	bounded, err := NewTransportOptionsBuilder().MaxResponseBytes(&limit).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(bounded).SendRequest("GET", server.url("/items"), map[string]string{}, nil)
+	var tooLarge *pkgerrors.ResponseTooLargeError
+	if !errors.As(err, &tooLarge) {
+		t.Fatalf("expected *ResponseTooLargeError, got %T: %v", err, err)
+	}
+	if tooLarge.StatusCode() != 200 || tooLarge.Limit() != 1024 {
+		t.Errorf("expected status 200 and limit 1024, got %d and %d", tooLarge.StatusCode(), tooLarge.Limit())
+	}
+	if tooLarge.Msg() != "Response body exceeds the limit of 1024 bytes" {
+		t.Errorf("unexpected message %q", tooLarge.Msg())
+	}
+
+	unbounded, err := NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := NewDefaultApiClient(unbounded).SendRequest("GET", server.url("/items"), map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the body to be read without a limit, got %v", err)
+	}
+	if response.Body != payload {
+		t.Errorf("expected the 4096-byte body, got %d bytes", len(response.Body))
+	}
+}
+
+// A gzip body that is small on the wire but inflates past MaxResponseBytes
+// fails with a *ResponseTooLargeError: the decompressed bytes count too.
+func TestBhvTransport096_DefaultApiClientUnit_ACompressedBodyThatInflatesPastMaxResponseBytesFailsWithResponseTooLarge(t *testing.T) {
+	t.Parallel()
+	var sink bytes.Buffer
+	compressor := gzip.NewWriter(&sink)
+	_, _ = compressor.Write(make([]byte, 100000))
+	_ = compressor.Close()
+	compressed := sink.Bytes()
+	if len(compressed) >= 1024 {
+		t.Fatalf("expected the gzip body to be under 1024 bytes, got %d", len(compressed))
+	}
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Type: application/octet-stream", "Content-Encoding: gzip", fmt.Sprintf("Content-Length: %d", len(compressed)))
+		_, _ = conn.Write(compressed)
+	})
+
+	limit := int64(1024)
+	transport, err := NewTransportOptionsBuilder().MaxResponseBytes(&limit).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("GET", server.url("/items"), map[string]string{}, nil)
+	var tooLarge *pkgerrors.ResponseTooLargeError
+	if !errors.As(err, &tooLarge) {
+		t.Fatalf("expected *ResponseTooLargeError, got %T: %v", err, err)
+	}
+	if tooLarge.StatusCode() != 200 || tooLarge.Limit() != 1024 {
+		t.Errorf("expected status 200 and limit 1024, got %d and %d", tooLarge.StatusCode(), tooLarge.Limit())
+	}
+}
+
 // multipart-nonascii-field-name: a non-ASCII multipart field name must be
 // preserved as UTF-8 bytes in the Content-Disposition header, not transliterated
 // or stripped — matching the other SDKs. buildMultipartBody is exercised

@@ -12,6 +12,7 @@ import {
 } from "../src/value-serializer.js";
 import { SerializationError } from "../src/errors/serialization-error.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
+import { Decimal } from "../src/brand.js";
 import { Temporal } from "temporal-polyfill";
 
 describe("ValueSerializer", () => {
@@ -791,6 +792,22 @@ describe("ValueSerializer", () => {
       expect(ObjectSerializer.stringify("12.345678901234567890123")).toBe(
         "12.345678901234567890123",
       );
+      expect(
+        ObjectSerializer.stringify(
+          new Decimal("1234567890123456789012345678901234567890"),
+        ),
+      ).toBe("1234567890123456789012345678901234567890");
+      expect(
+        ValueSerializer.serializeStyled(
+          "amount",
+          new Decimal("0.0000001"),
+          "query",
+          "Decimal",
+          null,
+          "form",
+          true,
+        ),
+      ).toBe("0.0000001");
     });
 
     test("bhv serializationparam 109 an unknown style falls back to plain value serialization", () => {

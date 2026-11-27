@@ -11,6 +11,8 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // PetAfterPage is a model class generated from the OpenAPI schema.
@@ -97,13 +99,35 @@ func (o PetAfterPage) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *PetAfterPage) UnmarshalJSON(data []byte) error {
-	type Alias PetAfterPage
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "data", "has_more", "last_id"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *PetAfterPage) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out PetAfterPage
+	err := readObject(dec, "PetAfterPage", func(key string) error {
+		switch key {
+		case "data":
+			return decodeValue(dec, &out.Data)
+		case "has_more":
+			return decodeValue(dec, &out.HasMore)
+		case "last_id":
+			return decodeValue(dec, &out.LastId)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	*o = PetAfterPage(*aux)
+	*o = out
 	return nil
 }

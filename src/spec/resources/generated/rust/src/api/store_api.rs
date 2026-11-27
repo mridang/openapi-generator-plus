@@ -97,7 +97,7 @@ impl StoreApi {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> Result<Account, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Account, crate::Error> {
         let result = self.create_account_with_http_info(account, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -107,12 +107,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for create_account but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -121,13 +121,14 @@ impl StoreApi {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Account>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.create_account_invoke(account, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the create_account operation. The resolved
@@ -182,14 +183,14 @@ impl StoreApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn delete_order(
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self.delete_order_with_http_info(order_id, options).await?;
         let _ = result;
         Ok(())
@@ -200,13 +201,14 @@ impl StoreApi {
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.delete_order_invoke(order_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the delete_order operation. The resolved
@@ -284,9 +286,10 @@ impl StoreApi {
         options: Option<&ExportOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<JsonLinesStream<Order>, crate::Error> {
         self.export_orders_invoke(options, "application/json", stream_options)
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the export_orders operation. The resolved
@@ -346,7 +349,7 @@ impl StoreApi {
     pub async fn get_audit_trail(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResponse, crate::Error> {
         let result = self.get_audit_trail_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -356,12 +359,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_audit_trail but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -369,13 +372,14 @@ impl StoreApi {
     pub async fn get_audit_trail_with_http_info(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ApiResponse>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_audit_trail_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_audit_trail operation. The resolved
@@ -437,7 +441,7 @@ impl StoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> Result<Category, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Category, crate::Error> {
         let result = self
             .get_by_swatch_with_http_info(path_swatch, options)
             .await?;
@@ -449,12 +453,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_by_swatch but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -463,13 +467,14 @@ impl StoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Category>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_by_swatch_invoke(path_swatch, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_by_swatch operation. The resolved
@@ -590,7 +595,7 @@ impl StoreApi {
     pub async fn get_defaults(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> Result<Defaults, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Defaults, crate::Error> {
         let result = self.get_defaults_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -600,12 +605,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_defaults but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -613,12 +618,14 @@ impl StoreApi {
     pub async fn get_defaults_with_http_info(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Defaults>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_defaults_invoke(options, "application/json").await
+        self.get_defaults_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_defaults operation. The resolved
@@ -672,7 +679,7 @@ impl StoreApi {
     pub async fn get_department(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> Result<Department, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Department, crate::Error> {
         let result = self.get_department_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -682,12 +689,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_department but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -695,13 +702,14 @@ impl StoreApi {
     pub async fn get_department_with_http_info(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Department>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_department_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_department operation. The resolved
@@ -755,10 +763,7 @@ impl StoreApi {
     pub async fn get_grouped_categories(
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
-    ) -> Result<
-        Vec<std::collections::HashMap<String, Category>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<Vec<std::collections::HashMap<String, Category>>, crate::Error> {
         let result = self.get_grouped_categories_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -768,12 +773,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_grouped_categories but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -781,16 +786,14 @@ impl StoreApi {
     pub async fn get_grouped_categories_with_http_info(
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
-    ) -> Result<
-        ApiResult<Vec<std::collections::HashMap<String, Category>>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, Category>>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_grouped_categories_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_grouped_categories operation. The resolved
@@ -849,8 +852,7 @@ impl StoreApi {
     pub async fn get_inventory(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
-    {
+    ) -> Result<std::collections::HashMap<String, i32>, crate::Error> {
         let result = self.get_inventory_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -860,12 +862,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_inventory but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -873,15 +875,14 @@ impl StoreApi {
     pub async fn get_inventory_with_http_info(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> Result<
-        ApiResult<std::collections::HashMap<String, i32>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<ApiResult<std::collections::HashMap<String, i32>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_inventory_invoke(options, "application/json").await
+        self.get_inventory_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_inventory operation. The resolved
@@ -940,7 +941,7 @@ impl StoreApi {
     pub async fn get_matrix(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Vec<i32>>, crate::Error> {
         let result = self.get_matrix_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -950,12 +951,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_matrix but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -963,12 +964,14 @@ impl StoreApi {
     pub async fn get_matrix_with_http_info(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<Vec<i32>>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_matrix_invoke(options, "application/json").await
+        self.get_matrix_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_matrix operation. The resolved
@@ -1027,7 +1030,7 @@ impl StoreApi {
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> Result<Memo, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Memo, crate::Error> {
         let result = self
             .get_memo_with_http_info(memo_id, server, options)
             .await?;
@@ -1039,12 +1042,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_memo but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1054,13 +1057,14 @@ impl StoreApi {
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Memo>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_memo_invoke(memo_id, server, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_memo operation. The resolved
@@ -1159,7 +1163,7 @@ impl StoreApi {
     pub async fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> Result<NativeValues, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<NativeValues, crate::Error> {
         let result = self.get_native_values_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1169,12 +1173,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_native_values but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1182,13 +1186,14 @@ impl StoreApi {
     pub async fn get_native_values_with_http_info(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<NativeValues>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_native_values_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_native_values operation. The resolved
@@ -1276,7 +1281,7 @@ impl StoreApi {
                     Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
-                    "f64",
+                    "rust_decimal::Decimal",
                     "",
                     "form",
                     true,
@@ -1350,14 +1355,14 @@ impl StoreApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Order, crate::Error> {
         let result = self
             .get_order_by_id_with_http_info(order_id, options)
             .await?;
@@ -1369,12 +1374,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_order_by_id but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1383,13 +1388,14 @@ impl StoreApi {
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Order>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_order_by_id_invoke(order_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_order_by_id operation. The resolved
@@ -1460,7 +1466,7 @@ impl StoreApi {
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Order, crate::Error> {
         let result = self
             .get_order_by_tracking_id_with_http_info(tracking_id, options)
             .await?;
@@ -1472,13 +1478,13 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_order_by_tracking_id but received none"
                     .to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1487,13 +1493,14 @@ impl StoreApi {
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Order>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_order_by_tracking_id_invoke(tracking_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_order_by_tracking_id operation. The resolved
@@ -1569,7 +1576,7 @@ impl StoreApi {
     pub async fn get_stock_item(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> Result<StockItem, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<StockItem, crate::Error> {
         let result = self.get_stock_item_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1579,12 +1586,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_stock_item but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1592,13 +1599,14 @@ impl StoreApi {
     pub async fn get_stock_item_with_http_info(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<StockItem>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_stock_item_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_stock_item operation. The resolved
@@ -1682,7 +1690,7 @@ impl StoreApi {
     pub async fn get_swatch(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> Result<Swatch, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Swatch, crate::Error> {
         let result = self.get_swatch_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1692,12 +1700,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_swatch but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1705,12 +1713,14 @@ impl StoreApi {
     pub async fn get_swatch_with_http_info(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Swatch>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_swatch_invoke(options, "application/json").await
+        self.get_swatch_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_swatch operation. The resolved
@@ -1764,10 +1774,7 @@ impl StoreApi {
     pub async fn get_swatch_groups(
         &self,
         options: Option<&GetSwatchGroupsOptions>,
-    ) -> Result<
-        Vec<std::collections::HashMap<String, Swatch>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<Vec<std::collections::HashMap<String, Swatch>>, crate::Error> {
         let result = self.get_swatch_groups_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1777,12 +1784,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_swatch_groups but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1790,16 +1797,14 @@ impl StoreApi {
     pub async fn get_swatch_groups_with_http_info(
         &self,
         options: Option<&GetSwatchGroupsOptions>,
-    ) -> Result<
-        ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<ApiResult<Vec<std::collections::HashMap<String, Swatch>>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.get_swatch_groups_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_swatch_groups operation. The resolved
@@ -1858,10 +1863,8 @@ impl StoreApi {
     pub async fn get_timestamp_groups(
         &self,
         options: Option<&GetTimestampGroupsOptions>,
-    ) -> Result<
-        Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
-        Box<dyn std::error::Error + Send + Sync>,
-    > {
+    ) -> Result<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>, crate::Error>
+    {
         let result = self.get_timestamp_groups_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1871,12 +1874,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_timestamp_groups but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1886,7 +1889,7 @@ impl StoreApi {
         options: Option<&GetTimestampGroupsOptions>,
     ) -> Result<
         ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
-        Box<dyn std::error::Error + Send + Sync>,
+        crate::Error,
     > {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
@@ -1894,6 +1897,7 @@ impl StoreApi {
          * and this operation declares no alternative to select. */
         self.get_timestamp_groups_invoke(options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_timestamp_groups operation. The resolved
@@ -1950,7 +1954,7 @@ impl StoreApi {
     pub async fn get_tree(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> Result<TreeNode, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<TreeNode, crate::Error> {
         let result = self.get_tree_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1960,12 +1964,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for get_tree but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -1973,12 +1977,14 @@ impl StoreApi {
     pub async fn get_tree_with_http_info(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<TreeNode>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.get_tree_invoke(options, "application/json").await
+        self.get_tree_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the get_tree operation. The resolved
@@ -2034,7 +2040,7 @@ impl StoreApi {
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self.head_memo_with_http_info(memo_id, options).await?;
         let _ = result;
         Ok(())
@@ -2045,13 +2051,14 @@ impl StoreApi {
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.head_memo_invoke(memo_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the head_memo operation. The resolved
@@ -2145,7 +2152,7 @@ impl StoreApi {
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self.options_memo_with_http_info(memo_id, options).await?;
         let _ = result;
         Ok(())
@@ -2156,13 +2163,14 @@ impl StoreApi {
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.options_memo_invoke(memo_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the options_memo operation. The resolved
@@ -2258,7 +2266,7 @@ impl StoreApi {
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> Result<Memo, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Memo, crate::Error> {
         let result = self
             .patch_memo_with_http_info(memo_id, memo, options)
             .await?;
@@ -2270,12 +2278,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for patch_memo but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2285,13 +2293,14 @@ impl StoreApi {
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Memo>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.patch_memo_invoke(memo_id, memo, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the patch_memo operation. The resolved
@@ -2383,13 +2392,13 @@ impl StoreApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn place_order(
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Order, crate::Error> {
         let result = self.place_order_with_http_info(order, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -2399,12 +2408,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for place_order but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2413,13 +2422,14 @@ impl StoreApi {
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Order>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.place_order_invoke(order, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the place_order operation. The resolved
@@ -2479,12 +2489,12 @@ impl StoreApi {
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
     ///
-    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn reserve_stock(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ReserveStockResponse, crate::Error> {
         let result = self.reserve_stock_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -2494,12 +2504,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for reserve_stock but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2507,12 +2517,14 @@ impl StoreApi {
     pub async fn reserve_stock_with_http_info(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ReserveStockResponse>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.reserve_stock_invoke(options, "application/json").await
+        self.reserve_stock_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the reserve_stock operation. The resolved
@@ -2580,7 +2592,7 @@ impl StoreApi {
     pub async fn search_store(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<Order>, crate::Error> {
         let result = self.search_store_with_http_info(options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -2590,12 +2602,12 @@ impl StoreApi {
         let headers = result.headers().clone();
         match result.into_data() {
             Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
+            None => Err(crate::Error::from(ApiError::new(
                 status_code,
                 "Expected a response body for search_store but received none".to_string(),
                 Some(headers),
                 Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
+            ))),
         }
     }
 
@@ -2603,12 +2615,14 @@ impl StoreApi {
     pub async fn search_store_with_http_info(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<Vec<Order>>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.search_store_invoke(options, "application/json").await
+        self.search_store_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the search_store operation. The resolved
@@ -2739,7 +2753,7 @@ impl StoreApi {
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), crate::Error> {
         let result = self.trace_memo_with_http_info(memo_id, options).await?;
         let _ = result;
         Ok(())
@@ -2750,13 +2764,14 @@ impl StoreApi {
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<()>, crate::Error> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
         self.trace_memo_invoke(memo_id, options, "application/json")
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the trace_memo operation. The resolved
@@ -2856,9 +2871,10 @@ impl StoreApi {
         options: Option<&WatchNoticesOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<SseStream<String>, crate::Error> {
         self.watch_notices_invoke(options, "application/json", stream_options)
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the watch_notices operation. The resolved
@@ -2926,9 +2942,10 @@ impl StoreApi {
         options: Option<&WatchOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<SseStream<Order>, crate::Error> {
         self.watch_orders_invoke(options, "application/json", stream_options)
             .await
+            .map_err(crate::Error::from)
     }
 
     /// Shared implementation for the watch_orders operation. The resolved
@@ -3023,179 +3040,153 @@ pub trait StoreApiTrait {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> impl Future<Output = Result<Account, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Account, crate::Error>>;
     fn create_account_with_http_info(
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Account>, crate::Error>>;
     fn delete_order(
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn delete_order_with_http_info(
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn export_orders_stream(
         &self,
         options: Option<&ExportOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<JsonLinesStream<Order>, crate::Error>>;
     fn get_audit_trail(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>>;
     fn get_audit_trail_with_http_info(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>>;
     fn get_by_swatch(
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> impl Future<Output = Result<Category, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Category, crate::Error>>;
     fn get_by_swatch_with_http_info(
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Category>, crate::Error>>;
     fn get_defaults(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> impl Future<Output = Result<Defaults, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Defaults, crate::Error>>;
     fn get_defaults_with_http_info(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Defaults>, crate::Error>>;
     fn get_department(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> impl Future<Output = Result<Department, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Department, crate::Error>>;
     fn get_department_with_http_info(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Department>, crate::Error>>;
     fn get_grouped_categories(
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
-    ) -> impl Future<
-        Output = Result<
-            Vec<std::collections::HashMap<String, Category>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    >;
+    ) -> impl Future<Output = Result<Vec<std::collections::HashMap<String, Category>>, crate::Error>>;
     fn get_grouped_categories_with_http_info(
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
     ) -> impl Future<
-        Output = Result<
-            ApiResult<Vec<std::collections::HashMap<String, Category>>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
+        Output = Result<ApiResult<Vec<std::collections::HashMap<String, Category>>>, crate::Error>,
     >;
     fn get_inventory(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> impl Future<
-        Output = Result<
-            std::collections::HashMap<String, i32>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    >;
+    ) -> impl Future<Output = Result<std::collections::HashMap<String, i32>, crate::Error>>;
     fn get_inventory_with_http_info(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> impl Future<
-        Output = Result<
-            ApiResult<std::collections::HashMap<String, i32>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    >;
+    ) -> impl Future<Output = Result<ApiResult<std::collections::HashMap<String, i32>>, crate::Error>>;
     fn get_matrix(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> impl Future<Output = Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<Vec<i32>>, crate::Error>>;
     fn get_matrix_with_http_info(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, crate::Error>>;
     fn get_memo(
         &self,
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Memo, crate::Error>>;
     fn get_memo_with_http_info(
         &self,
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Memo>, crate::Error>>;
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> impl Future<Output = Result<NativeValues, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<NativeValues, crate::Error>>;
     fn get_native_values_with_http_info(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<NativeValues>, crate::Error>>;
     fn get_order_by_id(
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Order, crate::Error>>;
     fn get_order_by_id_with_http_info(
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Order>, crate::Error>>;
     fn get_order_by_tracking_id(
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Order, crate::Error>>;
     fn get_order_by_tracking_id_with_http_info(
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Order>, crate::Error>>;
     fn get_stock_item(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> impl Future<Output = Result<StockItem, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<StockItem, crate::Error>>;
     fn get_stock_item_with_http_info(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> impl Future<Output = Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<StockItem>, crate::Error>>;
     fn get_swatch(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> impl Future<Output = Result<Swatch, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Swatch, crate::Error>>;
     fn get_swatch_with_http_info(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Swatch>, crate::Error>>;
     fn get_swatch_groups(
         &self,
         options: Option<&GetSwatchGroupsOptions>,
-    ) -> impl Future<
-        Output = Result<
-            Vec<std::collections::HashMap<String, Swatch>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    >;
+    ) -> impl Future<Output = Result<Vec<std::collections::HashMap<String, Swatch>>, crate::Error>>;
     fn get_swatch_groups_with_http_info(
         &self,
         options: Option<&GetSwatchGroupsOptions>,
     ) -> impl Future<
-        Output = Result<
-            ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
+        Output = Result<ApiResult<Vec<std::collections::HashMap<String, Swatch>>>, crate::Error>,
     >;
     fn get_timestamp_groups(
         &self,
@@ -3203,7 +3194,7 @@ pub trait StoreApiTrait {
     ) -> impl Future<
         Output = Result<
             Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            crate::Error,
         >,
     >;
     fn get_timestamp_groups_with_http_info(
@@ -3212,99 +3203,97 @@ pub trait StoreApiTrait {
     ) -> impl Future<
         Output = Result<
             ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            crate::Error,
         >,
     >;
     fn get_tree(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> impl Future<Output = Result<TreeNode, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<TreeNode, crate::Error>>;
     fn get_tree_with_http_info(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> impl Future<Output = Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<TreeNode>, crate::Error>>;
     fn head_memo(
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn head_memo_with_http_info(
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn options_memo(
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn options_memo_with_http_info(
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn patch_memo(
         &self,
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Memo, crate::Error>>;
     fn patch_memo_with_http_info(
         &self,
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Memo>, crate::Error>>;
     fn place_order(
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Order, crate::Error>>;
     fn place_order_with_http_info(
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Order>, crate::Error>>;
     fn reserve_stock(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> impl Future<Output = Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ReserveStockResponse, crate::Error>>;
     fn reserve_stock_with_http_info(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> impl Future<
-        Output = Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>>,
-    >;
+    ) -> impl Future<Output = Result<ApiResult<ReserveStockResponse>, crate::Error>>;
     fn search_store(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> impl Future<Output = Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<Vec<Order>, crate::Error>>;
     fn search_store_with_http_info(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, crate::Error>>;
     fn trace_memo(
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<(), crate::Error>>;
     fn trace_memo_with_http_info(
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn watch_notices_stream(
         &self,
         options: Option<&WatchNoticesOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<SseStream<String>, crate::Error>>;
     fn watch_orders_stream(
         &self,
         options: Option<&WatchOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<SseStream<Order>, crate::Error>>;
 }
 
 impl StoreApiTrait for StoreApi {
@@ -3312,7 +3301,7 @@ impl StoreApiTrait for StoreApi {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> impl Future<Output = Result<Account, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Account, crate::Error>> {
         StoreApi::create_account(self, account, options)
     }
 
@@ -3320,15 +3309,14 @@ impl StoreApiTrait for StoreApi {
         &self,
         account: Account,
         options: Option<&CreateAccountOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Account>, crate::Error>> {
         StoreApi::create_account_with_http_info(self, account, options)
     }
     fn delete_order(
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         StoreApi::delete_order(self, order_id, options)
     }
 
@@ -3336,7 +3324,7 @@ impl StoreApiTrait for StoreApi {
         &self,
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         StoreApi::delete_order_with_http_info(self, order_id, options)
     }
     fn export_orders_stream(
@@ -3344,29 +3332,27 @@ impl StoreApiTrait for StoreApi {
         options: Option<&ExportOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<JsonLinesStream<Order>, crate::Error>> {
         StoreApi::export_orders_stream(self, options, stream_options)
     }
     fn get_audit_trail(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResponse, crate::Error>> {
         StoreApi::get_audit_trail(self, options)
     }
 
     fn get_audit_trail_with_http_info(
         &self,
         options: Option<&GetAuditTrailOptions>,
-    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, crate::Error>> {
         StoreApi::get_audit_trail_with_http_info(self, options)
     }
     fn get_by_swatch(
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> impl Future<Output = Result<Category, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Category, crate::Error>> {
         StoreApi::get_by_swatch(self, path_swatch, options)
     }
 
@@ -3374,47 +3360,40 @@ impl StoreApiTrait for StoreApi {
         &self,
         path_swatch: Swatch,
         options: Option<&GetBySwatchOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Category>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Category>, crate::Error>> {
         StoreApi::get_by_swatch_with_http_info(self, path_swatch, options)
     }
     fn get_defaults(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> impl Future<Output = Result<Defaults, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Defaults, crate::Error>> {
         StoreApi::get_defaults(self, options)
     }
 
     fn get_defaults_with_http_info(
         &self,
         options: Option<&GetDefaultsOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Defaults>, crate::Error>> {
         StoreApi::get_defaults_with_http_info(self, options)
     }
     fn get_department(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> impl Future<Output = Result<Department, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Department, crate::Error>> {
         StoreApi::get_department(self, options)
     }
 
     fn get_department_with_http_info(
         &self,
         options: Option<&GetDepartmentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Department>, crate::Error>> {
         StoreApi::get_department_with_http_info(self, options)
     }
     fn get_grouped_categories(
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
-    ) -> impl Future<
-        Output = Result<
-            Vec<std::collections::HashMap<String, Category>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<Vec<std::collections::HashMap<String, Category>>, crate::Error>>
+    {
         StoreApi::get_grouped_categories(self, options)
     }
 
@@ -3422,48 +3401,35 @@ impl StoreApiTrait for StoreApi {
         &self,
         options: Option<&GetGroupedCategoriesOptions>,
     ) -> impl Future<
-        Output = Result<
-            ApiResult<Vec<std::collections::HashMap<String, Category>>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
+        Output = Result<ApiResult<Vec<std::collections::HashMap<String, Category>>>, crate::Error>,
     > {
         StoreApi::get_grouped_categories_with_http_info(self, options)
     }
     fn get_inventory(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> impl Future<
-        Output = Result<
-            std::collections::HashMap<String, i32>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<std::collections::HashMap<String, i32>, crate::Error>> {
         StoreApi::get_inventory(self, options)
     }
 
     fn get_inventory_with_http_info(
         &self,
         options: Option<&GetInventoryOptions>,
-    ) -> impl Future<
-        Output = Result<
-            ApiResult<std::collections::HashMap<String, i32>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<ApiResult<std::collections::HashMap<String, i32>>, crate::Error>>
+    {
         StoreApi::get_inventory_with_http_info(self, options)
     }
     fn get_matrix(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> impl Future<Output = Result<Vec<Vec<i32>>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Vec<i32>>, crate::Error>> {
         StoreApi::get_matrix(self, options)
     }
 
     fn get_matrix_with_http_info(
         &self,
         options: Option<&GetMatrixOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, crate::Error>> {
         StoreApi::get_matrix_with_http_info(self, options)
     }
     fn get_memo(
@@ -3471,7 +3437,7 @@ impl StoreApiTrait for StoreApi {
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Memo, crate::Error>> {
         StoreApi::get_memo(self, memo_id, server, options)
     }
 
@@ -3480,29 +3446,27 @@ impl StoreApiTrait for StoreApi {
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Memo>, crate::Error>> {
         StoreApi::get_memo_with_http_info(self, memo_id, server, options)
     }
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> impl Future<Output = Result<NativeValues, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<NativeValues, crate::Error>> {
         StoreApi::get_native_values(self, options)
     }
 
     fn get_native_values_with_http_info(
         &self,
         options: Option<&GetNativeValuesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<NativeValues>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<NativeValues>, crate::Error>> {
         StoreApi::get_native_values_with_http_info(self, options)
     }
     fn get_order_by_id(
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Order, crate::Error>> {
         StoreApi::get_order_by_id(self, order_id, options)
     }
 
@@ -3510,15 +3474,14 @@ impl StoreApiTrait for StoreApi {
         &self,
         order_id: i64,
         options: Option<&GetOrderByIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Order>, crate::Error>> {
         StoreApi::get_order_by_id_with_http_info(self, order_id, options)
     }
     fn get_order_by_tracking_id(
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Order, crate::Error>> {
         StoreApi::get_order_by_tracking_id(self, tracking_id, options)
     }
 
@@ -3526,47 +3489,40 @@ impl StoreApiTrait for StoreApi {
         &self,
         tracking_id: uuid::Uuid,
         options: Option<&GetOrderByTrackingIdOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Order>, crate::Error>> {
         StoreApi::get_order_by_tracking_id_with_http_info(self, tracking_id, options)
     }
     fn get_stock_item(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> impl Future<Output = Result<StockItem, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<StockItem, crate::Error>> {
         StoreApi::get_stock_item(self, options)
     }
 
     fn get_stock_item_with_http_info(
         &self,
         options: Option<&GetStockItemOptions>,
-    ) -> impl Future<Output = Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<StockItem>, crate::Error>> {
         StoreApi::get_stock_item_with_http_info(self, options)
     }
     fn get_swatch(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> impl Future<Output = Result<Swatch, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Swatch, crate::Error>> {
         StoreApi::get_swatch(self, options)
     }
 
     fn get_swatch_with_http_info(
         &self,
         options: Option<&GetSwatchOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Swatch>, crate::Error>> {
         StoreApi::get_swatch_with_http_info(self, options)
     }
     fn get_swatch_groups(
         &self,
         options: Option<&GetSwatchGroupsOptions>,
-    ) -> impl Future<
-        Output = Result<
-            Vec<std::collections::HashMap<String, Swatch>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
-    > {
+    ) -> impl Future<Output = Result<Vec<std::collections::HashMap<String, Swatch>>, crate::Error>>
+    {
         StoreApi::get_swatch_groups(self, options)
     }
 
@@ -3574,10 +3530,7 @@ impl StoreApiTrait for StoreApi {
         &self,
         options: Option<&GetSwatchGroupsOptions>,
     ) -> impl Future<
-        Output = Result<
-            ApiResult<Vec<std::collections::HashMap<String, Swatch>>>,
-            Box<dyn std::error::Error + Send + Sync>,
-        >,
+        Output = Result<ApiResult<Vec<std::collections::HashMap<String, Swatch>>>, crate::Error>,
     > {
         StoreApi::get_swatch_groups_with_http_info(self, options)
     }
@@ -3587,7 +3540,7 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<
         Output = Result<
             Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            crate::Error,
         >,
     > {
         StoreApi::get_timestamp_groups(self, options)
@@ -3599,7 +3552,7 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<
         Output = Result<
             ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
-            Box<dyn std::error::Error + Send + Sync>,
+            crate::Error,
         >,
     > {
         StoreApi::get_timestamp_groups_with_http_info(self, options)
@@ -3607,22 +3560,21 @@ impl StoreApiTrait for StoreApi {
     fn get_tree(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> impl Future<Output = Result<TreeNode, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<TreeNode, crate::Error>> {
         StoreApi::get_tree(self, options)
     }
 
     fn get_tree_with_http_info(
         &self,
         options: Option<&GetTreeOptions>,
-    ) -> impl Future<Output = Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<TreeNode>, crate::Error>> {
         StoreApi::get_tree_with_http_info(self, options)
     }
     fn head_memo(
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         StoreApi::head_memo(self, memo_id, options)
     }
 
@@ -3630,14 +3582,14 @@ impl StoreApiTrait for StoreApi {
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         StoreApi::head_memo_with_http_info(self, memo_id, options)
     }
     fn options_memo(
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         StoreApi::options_memo(self, memo_id, options)
     }
 
@@ -3645,7 +3597,7 @@ impl StoreApiTrait for StoreApi {
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         StoreApi::options_memo_with_http_info(self, memo_id, options)
     }
     fn patch_memo(
@@ -3653,7 +3605,7 @@ impl StoreApiTrait for StoreApi {
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Memo, crate::Error>> {
         StoreApi::patch_memo(self, memo_id, memo, options)
     }
 
@@ -3662,15 +3614,14 @@ impl StoreApiTrait for StoreApi {
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Memo>, crate::Error>> {
         StoreApi::patch_memo_with_http_info(self, memo_id, memo, options)
     }
     fn place_order(
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Order, crate::Error>> {
         StoreApi::place_order(self, order, options)
     }
 
@@ -3678,45 +3629,40 @@ impl StoreApiTrait for StoreApi {
         &self,
         order: Option<Order>,
         options: Option<&PlaceOrderOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Order>, crate::Error>> {
         StoreApi::place_order_with_http_info(self, order, options)
     }
     fn reserve_stock(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> impl Future<Output = Result<ReserveStockResponse, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ReserveStockResponse, crate::Error>> {
         StoreApi::reserve_stock(self, options)
     }
 
     fn reserve_stock_with_http_info(
         &self,
         options: Option<&ReserveStockOptions>,
-    ) -> impl Future<
-        Output = Result<ApiResult<ReserveStockResponse>, Box<dyn std::error::Error + Send + Sync>>,
-    > {
+    ) -> impl Future<Output = Result<ApiResult<ReserveStockResponse>, crate::Error>> {
         StoreApi::reserve_stock_with_http_info(self, options)
     }
     fn search_store(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> impl Future<Output = Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Vec<Order>, crate::Error>> {
         StoreApi::search_store(self, options)
     }
 
     fn search_store_with_http_info(
         &self,
         options: Option<&SearchStoreOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, crate::Error>> {
         StoreApi::search_store_with_http_info(self, options)
     }
     fn trace_memo(
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), crate::Error>> {
         StoreApi::trace_memo(self, memo_id, options)
     }
 
@@ -3724,7 +3670,7 @@ impl StoreApiTrait for StoreApi {
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         StoreApi::trace_memo_with_http_info(self, memo_id, options)
     }
     fn watch_notices_stream(
@@ -3732,8 +3678,7 @@ impl StoreApiTrait for StoreApi {
         options: Option<&WatchNoticesOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<SseStream<String>, crate::Error>> {
         StoreApi::watch_notices_stream(self, options, stream_options)
     }
     fn watch_orders_stream(
@@ -3741,8 +3686,7 @@ impl StoreApiTrait for StoreApi {
         options: Option<&WatchOrdersOptions>,
 
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<SseStream<Order>, crate::Error>> {
         StoreApi::watch_orders_stream(self, options, stream_options)
     }
 }

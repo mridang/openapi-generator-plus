@@ -13,7 +13,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"reflect"
 	"sort"
@@ -22,9 +24,14 @@ import (
 	"time"
 
 	errors_pkg "petstore/pkg/errors"
+	"petstore/pkg/internal/exactdecimal"
+	"petstore/pkg/internal/protoduration"
 	"petstore/pkg/models"
 
 	"cloud.google.com/go/civil"
+	jsonv2 "github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
+	"github.com/shopspring/decimal"
 )
 
 // stringifyDate formats a `format: date` value as YYYY-MM-DD, the text form of
@@ -60,13 +67,89 @@ func serialize(object any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(object); err != nil {
+	if err := enc.Encode(withProtoDurations(object)); err != nil {
 		return nil, newSerializationError(
 			fmt.Sprintf("failed to serialize object to JSON: %v", err),
 			err,
 		)
 	}
 	return unescapeLineSeparators(bytes.TrimRight(buf.Bytes(), "\n")), nil
+}
+
+// durationType is the reflect type of a time.Duration.
+var durationType = reflect.TypeOf(time.Duration(0))
+
+// withProtoDurations returns value with every time.Duration it holds outside a
+// model (on its own, behind a pointer, or inside a slice, array, map or any)
+// replaced by its protobuf-JSON string, because encoding/json writes a
+// time.Duration as nanoseconds. A model, or any other value with its own JSON
+// or text form, is kept as it is: a model rewrites its own duration fields. A
+// value that holds no duration is returned unchanged, without a copy.
+func withProtoDurations(value any) any {
+	converted, changed := convertDurations(reflect.ValueOf(value))
+	if !changed {
+		return value
+	}
+	return converted
+}
+
+var (
+	jsonMarshalerType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+	textMarshalerType = reflect.TypeOf((*interface{ MarshalText() ([]byte, error) })(nil)).Elem()
+)
+
+func convertDurations(rv reflect.Value) (any, bool) {
+	if !rv.IsValid() {
+		return nil, false
+	}
+	if rv.Type() == durationType {
+		return protoduration.Format(time.Duration(rv.Int())), true
+	}
+	if rv.Type().Implements(jsonMarshalerType) || rv.Type().Implements(textMarshalerType) {
+		return nil, false
+	}
+	switch rv.Kind() {
+	case reflect.Interface, reflect.Pointer:
+		if rv.IsNil() {
+			return nil, false
+		}
+		return convertDurations(rv.Elem())
+	case reflect.Slice, reflect.Array:
+		if rv.Kind() == reflect.Slice && (rv.IsNil() || rv.Type().Elem().Kind() == reflect.Uint8) {
+			return nil, false
+		}
+		items := make([]any, rv.Len())
+		changed := false
+		for i := range items {
+			item, itemChanged := convertDurations(rv.Index(i))
+			if itemChanged {
+				changed = true
+			} else {
+				item = rv.Index(i).Interface()
+			}
+			items[i] = item
+		}
+		return items, changed
+	case reflect.Map:
+		if rv.IsNil() || rv.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		entries := make(map[string]any, rv.Len())
+		changed := false
+		iter := rv.MapRange()
+		for iter.Next() {
+			item, itemChanged := convertDurations(iter.Value())
+			if itemChanged {
+				changed = true
+			} else {
+				item = iter.Value().Interface()
+			}
+			entries[iter.Key().String()] = item
+		}
+		return entries, changed
+	default:
+		return nil, false
+	}
 }
 
 // unescapeLineSeparators turns the \u2028 and \u2029 escapes that
@@ -119,11 +202,11 @@ func isJSONNull(data []byte) bool {
 }
 
 // maxJSONDepth caps how deeply a response JSON document can be nested.
-// Go's encoding/json has no built-in depth limit and recurses through the
-// host call stack, so a malicious server can crash the process with a
-// 100k-deep `{"a":{"a":...}}` payload (stack overflow → DoS). The 1000-deep
-// cap is uniform across all 12 SDKs (java/kotlin Jackson, python, csharp, rust
-// with serde's own limit disabled, etc.).
+// The JSON v2 decoder stops at 10000 levels and the models decode recursively
+// through the host call stack, so a deeply nested `{"a":{"a":...}}` payload is
+// refused before any decoding. The 1000-deep cap is uniform across all 12 SDKs
+// (java/kotlin Jackson, python, csharp, rust with serde's own limit disabled,
+// etc.).
 const maxJSONDepth = 1000
 
 // deserialize parses a JSON byte slice into the target value.
@@ -136,7 +219,7 @@ func deserialize(data []byte, target any) error {
 	}
 
 	// RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
-	// Windows-generated payloads often include one and encoding/json
+	// Windows-generated payloads often include one and the JSON decoder
 	// rejects it. Strip silently for parity with Java Jackson / C#
 	// System.Text.Json which strip transparently.
 	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
@@ -154,14 +237,31 @@ func deserialize(data []byte, target any) error {
 		return err
 	}
 
-	if err := json.Unmarshal(data, target); err != nil {
+	if err := jsonv2.Unmarshal(data, target, decodeOptions); err != nil {
+		detail := err.Error()
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			/* The canonical wording for a document that stops early. */
+			detail = "unexpected end of JSON input"
+		}
 		return newSerializationError(
-			fmt.Sprintf("failed to deserialize JSON: %v", err),
+			fmt.Sprintf("failed to deserialize JSON: %s", detail),
 			err,
 		)
 	}
 	return nil
 }
+
+// decodeOptions are the JSON v2 options a response body is decoded with, the
+// same ones the models use: a key that appears twice keeps its last value,
+// invalid UTF-8 inside a string is replaced rather than refused, and a
+// time.Duration (on its own or in a list or map) is read from its
+// protobuf-JSON string in the same pass. A model decodes itself in one pass
+// through its UnmarshalJSONFrom.
+var decodeOptions = jsonv2.JoinOptions(
+	jsontext.AllowDuplicateNames(true),
+	jsontext.AllowInvalidUTF8(true),
+	jsonv2.WithUnmarshalers(jsonv2.UnmarshalFunc(protoduration.DecodeValue)),
+)
 
 /* checkNullElements fails with a *SerializationError when the target is a slice,
  * array or map whose element type cannot hold nil and the JSON carries a null
@@ -225,8 +325,7 @@ func checkNullElement(item json.RawMessage, elem reflect.Type, where string) err
 
 // jsonMaxDepth returns the maximum nesting depth of `{`/`[` containers in
 // the JSON byte slice, skipping characters inside strings. Cheap pre-flight
-// check that prevents stack overflow before encoding/json's recursive
-// unmarshaller is invoked.
+// check run before the decoder is invoked.
 func jsonMaxDepth(data []byte) int {
 	depth := 0
 	max := 0
@@ -292,6 +391,21 @@ func stringify(value any) string {
 			return "true"
 		}
 		return "false"
+	case time.Duration:
+		return protoduration.Format(v)
+	case *time.Duration:
+		if v == nil {
+			return ""
+		}
+		return protoduration.Format(*v)
+	case decimal.Decimal:
+		/* Plain notation with every digit, trailing zeros included (never 1.2E+3). */
+		return exactdecimal.Text(v)
+	case *decimal.Decimal:
+		if v == nil {
+			return ""
+		}
+		return exactdecimal.Text(*v)
 	case models.DateTime:
 		return v.String()
 	case *models.DateTime:
@@ -343,14 +457,15 @@ func stringify(value any) string {
 }
 
 // isTemporalScalar reports whether a struct value is a date-time (time.Time or
-// a type defined on it, such as DateTime) or a calendar date (civil.Date). Both
-// are written as scalars.
+// a type defined on it, such as DateTime), a calendar date (civil.Date) or a
+// decimal (decimal.Decimal). All are written as scalars.
 func isTemporalScalar(rv reflect.Value) bool {
 	if rv.Kind() != reflect.Struct {
 		return false
 	}
 	return rv.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) ||
-		rv.Type() == reflect.TypeOf(civil.Date{})
+		rv.Type() == reflect.TypeOf(civil.Date{}) ||
+		rv.Type() == reflect.TypeOf(decimal.Decimal{})
 }
 
 // toPathValue converts a value to a string suitable for use as a URL path parameter.

@@ -657,6 +657,15 @@ void main() {
         expect(b.runtimeType, equals(ApiException));
         expect(b.requestMethod, equals('PUT'));
         expect(identical(c, a), isTrue);
+
+        final tooLarge = ResponseTooLargeException(
+          limit: 1024,
+          statusCode: 200,
+        ).withRequest('GET', '/blob?x=1');
+        expect(tooLarge, isA<ResponseTooLargeException>());
+        expect((tooLarge as ResponseTooLargeException).limit, equals(1024));
+        expect(tooLarge.statusCode, equals(200));
+        expect(tooLarge.requestPath, equals('/blob'));
       },
     );
   });

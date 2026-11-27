@@ -17,17 +17,17 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `string` / `date` | `civil.Date` | A calendar date from `cloud.google.com/go/civil`. The text form is `YYYY-MM-DD`, and a value that is not a real date (`2024-02-30`) fails the decode. |
 | `string` / `date-time` | `models.DateTime` | A `time.Time` wrapper. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `string` | No standard library type. `iso8601.go` ships `FormatTimeOfDay` and `ParseTimeOfDay` for callers who want a `time.Time`. |
-| `string` / `duration` | `models.Duration` | A `time.Duration` wrapper. The wire form is the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
+| `string` / `duration` | `time.Duration` | The standard library type (D145). The models and the serializer write it as the protobuf-JSON string such as `"3600s"`, not ISO 8601 and not `encoding/json`'s nanosecond count. |
 | `string` / `uuid` | `uuid.UUID` | From `github.com/google/uuid`. Written in lower case. |
-| `string` / `byte` | `[]byte` | `encoding/json` encodes it as padded standard base64. |
+| `string` / `byte` | `[]byte` | Written as padded standard base64; anything else, a line break included, fails the decode. |
 | `string` / `binary`, file bodies | `*ByteStream` (an `io.ReadCloser`) for downloads, `*BodySource` for a raw upload (a multipart file part stays `io.Reader`) | The response body is read as you consume it and the request body is sent as it is read, see Streaming. |
-| `string` / `uri` | `string` | |
+| `string` / `uri` | `string` | Checked as an absolute URI on decode. Not `url.URL`, because `url.Parse` lowercases the scheme, so the text would not round-trip (D146). |
 | `integer` / `int32` | `int32` | |
 | `integer` / `int64` | `int64` | |
 | `integer` with no format | `int64` | |
 | `number` / `float` | `float32` | |
 | `number` / `double`, `number` with no format | `float64` | |
-| `number` / `decimal` | `float64` | Lossy for exact decimal values such as money. This is documented in the generated README. |
+| `number` / `decimal`, `string` / `decimal` | `decimal.Decimal` (`github.com/shopspring/decimal`) | Exact (D135). The digits are read from the JSON text, never through a `float64`. A `number` decimal is written as a bare JSON number in plain notation with every digit and trailing zero it holds; a `string` decimal is read only from a JSON string and written back as one. A bare `number` with no format stays a lossy `float64`. |
 | `boolean` | `bool` | |
 | `array` | `[]T` | |
 | `array` with `uniqueItems` | `models.Set[T]` | Slice-backed, `T` is `comparable`. Scalar members are written sorted so the bytes are stable. |
@@ -46,6 +46,8 @@ Runtime modules, from the generated `go.mod`:
 | `github.com/andybalholm/brotli` | v1.2.1 | Decoding `br` responses |
 | `github.com/klauspost/compress` | v1.18.6 | Decoding `zstd` responses |
 | `github.com/google/uuid` | v1.6.0 | The `uuid` type |
+| `github.com/go-json-experiment/json` | v0.0.0-20260213210345-44df1a37e875 | Reading JSON with the JSON v2 API (D143); the standard library's `encoding/json/v2` is experimental before Go 1.27 |
+| `github.com/shopspring/decimal` | v1.6.0 | The `decimal.Decimal` type for `format: decimal` (pure Go, arbitrary precision) |
 | `cloud.google.com/go` | v0.121.4 | The `civil.Date` type for `format: date` (the `civil` package imports only the standard library) |
 | `go.opentelemetry.io/otel`, `otel/metric` and `otel/trace` | v1.47.0 | Trace-context propagation, and the `pkg/otelhook` adapter (the core package imports none of them) |
 
@@ -68,12 +70,13 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 
 - Every operation takes `ctx context.Context` as its first parameter. Cancelling it cancels the call. `Close()` on the client is graceful and idempotent: it marks the client closed and releases the connections the SDK created, a request already in flight finishes, a later request returns `ErrClientClosed`, and a transport you supplied is never closed.
 - Errors are values. Caller mistakes are exported sentinels you match with `errors.Is` (for example `ErrMissingRequiredParameter`, `ErrInvalidTimeout`, `ErrTransportConflict`, `ErrClientClosed`). SDK errors implement `Unwrap` and `As`. Error strings start in lower case, as `staticcheck` requires.
-- Optional operation parameters live in an `opts.<Operation>Options` struct. Per-call settings (`WithTimeout`, `WithHeaders`, `WithMaxRetries`, `WithRequestContentType`) are trailing variadic `RequestOption` values. Every operation takes them, including one with no parameters and no security, which has no options struct at all; Go does not generate an empty one, because the variadic tail already carries `timeout`, `headers` and `maxRetries`.
+- Optional operation parameters live in an `opts.<Operation>Options` struct. Per-call settings (`WithTimeout`, `WithHeaders`, `WithMaxRetries`, `WithRequestContentType`) are trailing variadic `RequestOption` values. Every operation takes them, including one with no parameters and no security, which has no options struct at all; Go does not generate an empty one, because the variadic tail already carries `timeout`, `headers` and `maxRetries`. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
 - Credentials come from an argument, then the environment. The constructor of each per-scheme authenticator (for example `auth.NewPetStoreBasicAuthenticator`) takes its credentials as strings; an empty string is read once, when the authenticator is built, from the variable of that scheme, and an empty variable counts as unset. A credential found in neither place returns an error that matches `auth.ErrMissingCredential` (the root package re-exports it as `ErrMissingCredential`) and names the variable, so every per-scheme constructor returns `(T, error)`. A Bearer scheme also has `New<Scheme>AuthenticatorWithProvider(host, provider)`, which calls a `func(ctx) (string, error)` for every request and reads no variable, so a provider you pass always outranks the environment (D108); `auth.NewApiKeyAuthenticatorWithProvider(host, name, provider, location)` does the same for an API key in a header, a query parameter or a cookie. The variable is `{PREFIX}_{FIELD}` in upper snake case (`ACME_TOKEN`, `ACME_CLIENT_SECRET`), or `{PREFIX}_{SCHEME}_{FIELD}` when two schemes have a field of the same name; the generated README lists them. The host is not read from a per-scheme variable. `New<Client>WithToken(host, accessToken, ...)` reads `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN` the same way.
 - One client can hold a credential for every security scheme: `New<Client>WithCredentials(host, Credentials{...}, transport)` takes a `Credentials` struct with one optional `Authenticator` field per scheme, named after the scheme (`PetStoreBearer`, `ApiKeyHeader`). Each operation uses the scheme its spec requires: the first scheme it accepts, in spec order, that has a credential, so a credential is never sent to an operation that does not accept its scheme. An operation declared without security sends none. There is no per-call override of the scheme, so an Options struct has no auth field. `New<Client>(authenticator, transport)` keeps a single authenticator for every secured operation.
 - A cookie parameter is sent as you give it when every character is a legal RFC 6265 cookie-octet, so percent-encode a value yourself first; a value with an illegal character (space, `;`, `,`, `"`, `\`, a control character or non-ASCII) fails with `ErrInvalidCookie` before anything is sent.
 - Building a model never validates: `New<Model>` and the `With` methods accept any value, including an unknown enum member. Validation happens only when a payload is decoded, and an unknown enum value decodes to the catch-all constant (D117).
 - Configuration is built with `NewConfigurationBuilder()` and `NewTransportOptionsBuilder()`.
+- `TransportOptionsBuilder.MaxResponseBytes(*int64)` is off by default: a buffered response whose body, raw or decompressed, passes it fails with `*ResponseTooLargeError` (an `*ApiError` with the real status, never retried); zero or a negative value fails `Build()` with `ErrInvalidMaxResponseBytes` (D138).
 - You can supply your own HTTP stack with `TransportOptionsBuilder.HttpClient` (anything with `Do(*http.Request)`) or `RoundTripper`. Combining that with the SDK's own proxy, TLS or pool settings fails `Build()` with `ErrTransportConflict`, and the SDK never closes a client you supplied.
 - Testing your code: every group has `<Group>ApiInterface` and the `Client` group fields are typed as those interfaces, so `&pkg.Client{Pet: fake}` is a client of fakes whose `Close()` returns nil. There is no client interface, because Go interfaces carry methods and not fields. A fake embeds the group interface so only the operations it fakes are written.
 - **Call hook.** `CallHook` is one small hook around every operation call: `Start(ctx, CallInfo, headers map[string]string) (CallObserver, error)` runs once per call after the headers are final and may edit them, and returns a `CallObserver` (or `nil`) whose `Finish(CallOutcome)` runs exactly once on every way the call can end. Go returns the error `Start` would throw: it reaches the caller unchanged, nothing is sent and `Finish` is not called; a panic in `Finish` is recovered. Set it with `NewConfigurationBuilder().CallHook(hook)` or, on a client, the trailing `WithCallHook(hook)` option of the `New<Client>` constructors; `CallHookFunc` adapts a function and `ChainCallHooks(a, b)` combines hooks. `CallInfo` has `OperationID` (as written in the spec), `Method`, `URLTemplate`, `URL` (no query string or fragment) and `ServerAddress`; `CallOutcome` has `StatusCode` (`0` when no response arrived), the lower-cased `Headers` (`nil` when none arrived) and the `Error` the caller receives. The hook runs above the transport, so it also fires with your own `HttpClient`.
@@ -166,8 +169,9 @@ An operation whose success response is `application/x-ndjson`, `application/json
 
 ## Known limits
 
+- The OpenID Connect authenticator checks the nonce, issuer, audience and expiry of the `id_token` but does not verify its signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 - `format: time` is a plain string, so it is not validated. `format: date` is a `civil.Date` and is validated when it is decoded.
-- `format: decimal` and `number` are `float64` and lose exactness.
+- A bare `type: number` (no format) is `float64` and loses exactness; `format: decimal` is the exact `decimal.Decimal`.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
 - `allOf` with a discriminator is not implemented yet. Only `oneOf` with a discriminator is.
 - A multipart request body and a JSON, text or form response body are read whole into memory. A raw binary request body and a binary, JSON Lines or server-sent events response are streams.
@@ -182,15 +186,14 @@ An operation whose success response is `application/x-ndjson`, `application/json
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
 - Add an SDK-owned `models.TimeOfDay` type so `time` is validated. This needs agreement with the other SDKs because it adds public API.
-- `url.URL` for `uri`, once it is shown to keep the text unchanged.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
-- Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.
-- Whether the duration wire form should stay protobuf-JSON or move to ISO 8601, across all languages.
+- Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on. The SDK already reads JSON with the JSON v2 API (D143); at a Go 1.27 floor its module import becomes the standard library `encoding/json/v2`.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `InjectTraceContext(ctx, headers)` hands the call context to the propagator; Go has no ambient context. The `otelhook` adapter records the request count and duration in the same call context, so a metric exemplar names the caller's span.
 
 ## Behaviour notes
 
+- A model reads its JSON object in one pass with the JSON v2 API (D143): a key matches its declared name exactly, so `"NAME"` is not `name`, a repeated key keeps its last value, and a required key that is missing or null fails as soon as the object ends. `json.Unmarshal` from `encoding/json` and from the JSON v2 package give the same result and the same error.
 - A security requirement that names several schemes together (`security: [{bearer: [], apiKey: []}]`) sends the credential of every scheme in it, chosen from the `Credentials` struct; an operation whose alternatives are single schemes still uses the first scheme you hold a credential for.
 - A multipart request body keeps the subtype the spec declares (`multipart/mixed`) with a generated boundary; a declared value that is not a plain `multipart/<token>` is sent as `multipart/form-data`.
 - `OAuth2TokenManager.Stop()` ends the manager; later token requests fail with an `*OAuth2TokenError` and send nothing. Stopping twice does nothing.

@@ -338,17 +338,30 @@ namespace {
         $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
         expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', true))
         ->toBe(['breed' => 'lab', 'min_age' => '3']);
+        $map = new \Ds\Map(['breed' => 'lab', 'min_age' => 3, 'note' => null]);
+        expect(ValueSerializer::serializeStyled('c', $map, 'query', 'object', null, 'form', true))
+        ->toBe(['breed' => 'lab', 'min_age' => '3']);
+        expect(ValueSerializer::serializeStyled('c', ['breed' => 'lab', 'min_age' => 3], 'query', 'object', null, 'form', true))
+        ->toBe(['breed' => 'lab', 'min_age' => '3']);
     });
 
     test('bhv serializationparam 039 form style object without explode is one comma separated list', function (): void {
         $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
         expect(ValueSerializer::serializeStyled('c', $criteria, 'query', 'SerializerProbe', null, 'form', false))
         ->toBe('breed,lab,min_age,3');
+        $map = new \Ds\Map(['breed' => 'lab', 'min_age' => 3]);
+        expect(ValueSerializer::serializeStyled('c', $map, 'query', 'object', null, 'form', false))
+        ->toBe('breed,lab,min_age,3');
+        expect(ValueSerializer::serializeStyled('c', ['breed' => 'lab', 'min_age' => 3], 'query', 'object', null, 'form', false))
+        ->toBe('breed,lab,min_age,3');
     });
 
     test('bhv serializationparam 082 simple style object renders as a header list', function (): void {
         $criteria = new SerializerProbe(breed: 'lab', minAge: 3);
         expect(ValueSerializer::serializeStyled('X-Criteria', $criteria, 'header', 'SerializerProbe', null, 'simple', false))
+        ->toBe('breed,lab,min_age,3');
+        $map = new \Ds\Map(['breed' => 'lab', 'min_age' => 3]);
+        expect(ValueSerializer::serializeStyled('X-Criteria', $map, 'header', 'object', null, 'simple', false))
         ->toBe('breed,lab,min_age,3');
     });
 
@@ -374,8 +387,17 @@ namespace {
 
 // -- serializeStyled: null style falls back to location default --
 
-    test('bhv serializationparam 106 path with null style behaves like simple', function (): void {
+    test('bhv serializationparam 106 path with null style behaves like simple, and a decimal parameter is written in plain notation', function (): void {
         expect(ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false))->toBe('5');
+        expect(ValueSerializer::serializeStyled(
+            'amount',
+            \Brick\Math\BigDecimal::of('1234567890123456789012.50'),
+            'query',
+            \Brick\Math\BigDecimal::class,
+            null,
+            'form',
+            true
+        ))->toBe('1234567890123456789012.50');
     });
 
     test('bhv serializationparam 105 a form scalar serializes styled as its own value, and an address parameter is its text unchanged', function (): void {
@@ -711,6 +733,10 @@ namespace {
 
     test('bhv serialization 018 a nested object inside an object-valued parameter is refused', function (): void {
         expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['inner' => ['deeper' => 1]]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        expect(fn () => ValueSerializer::serializeDeepObject('criteria', ['tags' => ['a', 'b']]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+        expect(fn () => ValueSerializer::serializeStyled('criteria', ['tags' => [1, 2]], 'query', 'object', null, 'form', false))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
     });
 

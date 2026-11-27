@@ -299,6 +299,8 @@ function clientWithTransport(Authenticator $authenticator): Client
 }
 ```
 
+`TransportOptions::builder()->maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
 ### Retries
 
 `TransportOptions::builder()->maxRetries(int)` sets the retries after a transient failure (default 2; 0 disables). Network errors before a response and 408, 409, 429 and 5xx (not 501) are retried with a 0.5 s to 8 s backoff and `Retry-After` honoured (at most 60 s). The retries stay inside the request timeout, a single-use `BodySource` or a multipart body is never retried, and each retry rebuilds the headers, authentication included.

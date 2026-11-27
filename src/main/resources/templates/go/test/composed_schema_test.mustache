@@ -694,18 +694,19 @@ func TestBhvUnions019_ComposedSchema_SetPetAvatarThumbnailRequest_ConstructedFro
 	}
 }
 
-// The variants are declared [byte, array-of-byte]; an empty JSON array decodes
-// into both Go types, so the first declared variant (the scalar []byte) must win
-// rather than the alphabetically first one.
-func TestBhvMisc291_ComposedSchema_SetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
+// A payload carrying the required fields of both variants matches both, so it
+// resolves to the first declared variant (Reservation), not the alphabetically
+// first or the last one tried.
+func TestBhvMisc291_ComposedSchema_ReserveStockResponse_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
 	t.Parallel()
 
-	var request models.SetPetAvatarThumbnailRequest
-	if err := json.Unmarshal([]byte(`[]`), &request); err != nil {
+	both := `{"reservationId":1,"quantity":2,"receiptCode":"r","expiresAt":"2024-01-01T00:00:00.000+00:00"}`
+	var response models.ReserveStockResponse
+	if err := json.Unmarshal([]byte(both), &response); err != nil {
 		t.Fatalf("failed to deserialize ambiguous payload: %v", err)
 	}
-	if _, ok := request.ActualInstance().([]byte); !ok {
-		t.Errorf("expected the first declared variant []byte, got %T", request.ActualInstance())
+	if !response.IsReservation() {
+		t.Errorf("expected the first declared variant Reservation, got %T", response.ActualInstance())
 	}
 }
 

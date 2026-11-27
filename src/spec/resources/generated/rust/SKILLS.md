@@ -305,19 +305,13 @@ Every failure the SDK produces implements the `OpenAPIError` marker trait, so a 
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```rust file
-use std::error::Error;
+Every operation returns `Result<T, petstore::Error>`. `Error` is a `#[non_exhaustive]` enum with one variant per error above: `Error::NotFound` and the other named statuses, `Error::Client` and `Error::Server` for any other 4xx and 5xx, `Error::Api` for any other status, `Error::Network`, `Error::NetworkTimeout`, `Error::Serialization`, `Error::Configuration` and the OAuth2 errors, one variant per error schema the API declares, and `Error::Other` for anything else, so a `match` ends with a wildcard arm. It implements `std::error::Error`, so `?` works, and `api_error()` returns the `ApiError` of any HTTP failure.
 
+```rust file
 use petstore::api::options::AddPetOptions;
 use petstore::models::Pet;
 use petstore::Client;
-use petstore::{ClientError, NotFoundError, ServerError};
-
-/// Whether `err` is a `T`. Rust has no inheritance: each error's `source()` is
-/// its parent in the hierarchy above, so the check walks that chain.
-fn is_a<T: Error + 'static>(err: &(dyn Error + 'static)) -> bool {
-    std::iter::successors(Some(err), |&e| e.source()).any(|e| e.is::<T>())
-}
+use petstore::Error;
 
 async fn add_pet_or_report(
     client: &Client,
@@ -326,10 +320,12 @@ async fn add_pet_or_report(
 ) {
     match client.pet.add_pet(pet, options).await {
         Ok(value) => println!("Found: {value:?}"),
-        Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {e}"),
-        Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {e}"),
-        Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {e}"),
-        Err(e) => println!("Error: {e}"),
+        Err(Error::NotFound(e)) => println!("Not found: {e}"),
+        Err(e) => match e.api_error().map(|api| api.status_code()) {
+            Some(400..=499) => println!("Client error: {e}"),
+            Some(500..=599) => println!("Server error: {e}"),
+            _ => println!("Error: {e}"),
+        },
     }
 }
 ```
@@ -440,7 +436,7 @@ use petstore::Client;
 
 async fn read_everything(
     client: &Client,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), petstore::Error> {
     let list = client.pet.list_pet_catalog_pages(None);
     let mut items = list.items();
     while let Some(item) = items.next().await {
@@ -491,7 +487,9 @@ The SDK adds no cancellation parameter: drop the future to cancel a call, or wra
 
 ### Raw responses, timeouts and the request id
 
-Each operation has a `..._with_http_info` variant returning `ApiResult<T>` (`status_code()`, `data()`, `raw_body()`, `headers()`). `timeout` is one end-to-end budget in milliseconds (default 10000). `inject_request_id(true)` adds an `X-Request-ID` header to each request unless you set one.
+Each operation has a `..._with_http_info` variant returning `ApiResult<T>` (`status_code()`, `data()`, `raw_body()`, `headers()`). `timeout` is one end-to-end budget in milliseconds (default 60000). `inject_request_id(true)` adds an `X-Request-ID` header to each request unless you set one.
+
+`TransportOptions::builder().max_response_bytes(Some(n))` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
 
 ## API Methods
 

@@ -806,6 +806,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        only this request's recorded refusal. */
     var task: URLSessionTask
     var callDelegate: SessionDelegate?
+    let responseLimit = transportOptions.maxResponseBytes
     do {
       /* When noRedirect is set (used by the OAuth2 token
        * endpoint POST), route through a dedicated, non-following
@@ -820,28 +821,59 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         : session
       /* A per-call timeout reaches a session the SDK built itself through
          a one-off copy of it: the session's own deadlines would otherwise
-         cut a longer call short. It is released as soon as the call ends. */
+         cut a longer call short. It is released as soon as the call ends.
+         A response size limit reaches a session the SDK built the same way,
+         with the bounded reader as its delegate, and rides on the task of
+         a supplied session, wrapping the SDK's own delegate. */
       var callSession: URLSession?
-      if ownsSession, !noRedirect, let callTimeout = perCallTimeout {
-        let configuration = session.configuration
-        configuration.timeoutIntervalForRequest = callTimeout
-        configuration.timeoutIntervalForResource = callTimeout
+      var bounded: BoundedBody?
+      let builtBySdk = ownsSession || noRedirect
+      let callTimeout = noRedirect ? nil : perCallTimeout
+      if builtBySdk, callTimeout != nil || responseLimit != nil {
+        let configuration = activeSession.configuration
+        if let callTimeout = callTimeout {
+          configuration.timeoutIntervalForRequest = callTimeout
+          configuration.timeoutIntervalForResource = callTimeout
+        }
         let delegate = SessionDelegate(
           verifySsl: transportOptions.verifySsl,
           caCertPath: transportOptions.caCertPath,
-          followRedirects: transportOptions.followRedirects,
-          maxRedirects: transportOptions.maxRedirects,
+          followRedirects: noRedirect ? false : transportOptions.followRedirects,
+          maxRedirects: noRedirect ? 0 : transportOptions.maxRedirects,
           proxyCredential: proxyCredential,
-          defaultHeaderNames: Array(transportOptions.defaultHeaders.keys)
+          defaultHeaderNames: noRedirect ? [] : Array(transportOptions.defaultHeaders.keys)
         )
+        let delegateOfCall: URLSessionDelegate
+        if let limit = responseLimit {
+          let reader = BoundedBody(policy: delegate, limit: limit)
+          bounded = reader
+          delegateOfCall = reader
+        } else {
+          delegateOfCall = delegate
+        }
         let created = URLSession(
-          configuration: configuration, delegate: delegate, delegateQueue: nil)
+          configuration: configuration, delegate: delegateOfCall, delegateQueue: nil)
         callSession = created
         callDelegate = delegate
         activeSession = created
+      } else if let limit = responseLimit {
+        /* A supplied session always has the SDK's delegate (see init). */
+        bounded = BoundedBody(
+          policy: sessionDelegate
+            ?? SessionDelegate(
+              verifySsl: true, caCertPath: nil, followRedirects: true, maxRedirects: nil),
+          limit: limit)
       }
       defer { callSession?.finishTasksAndInvalidate() }
       let redirects = noRedirect ? nil : (callDelegate ?? sessionDelegate)
+      let onTask: URLSessionTaskDelegate?
+      if builtBySdk {
+        onTask = nil
+      } else if let bounded = bounded {
+        onTask = bounded
+      } else {
+        onTask = sessionDelegate
+      }
       var next = request
       var followed = 0
       let started = Date()
@@ -849,8 +881,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         let remaining = effectiveTimeout.map { max($0 - Date().timeIntervalSince(started), 0.001) }
         (data, response, task) = try await DefaultApiClient.performDataTask(
           on: activeSession, for: next,
-          taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
-          redirects: redirects, redirectsFollowed: followed, source: streamed, deadline: remaining)
+          taskDelegate: onTask,
+          redirects: redirects, redirectsFollowed: followed, source: streamed, deadline: remaining,
+          bounded: bounded)
         /* A redirect the delegate left for the caller to send (Linux,
          * where a body cannot ride on the redirect URLSession follows). */
         guard let followUp = redirects?.takeFollowUp(for: task) else { break }
@@ -866,6 +899,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         responseHeaders: DefaultApiClient.lowercasedHeaders(of: undecodable.response),
         underlyingError: undecodable.urlError
       )
+    } catch let tooLarge as ResponseTooLargeError {
+      throw tooLarge
     } catch let urlError as URLError {
       throw DefaultApiClient.transportError(urlError, requestURL: request.url)
     } catch let cancellation as CancellationError {
@@ -965,7 +1000,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       /* The body still carries the gzip magic (0x1F 0x8B), so URLSession
          did NOT decode it. Decode it ourselves; a malformed stream throws. */
       do {
-        data = try DefaultApiClient.decodeGzipBody(data)
+        data = try DefaultApiClient.decodeGzipBody(data, limit: responseLimit)
+      } catch is InflatedPastLimit {
+        throw ResponseTooLargeError(
+          statusCode: httpResponse.statusCode, limit: responseLimit ?? 0,
+          responseHeaders: respHeaders)
       } catch {
         throw ApiError(
           statusCode: httpResponse.statusCode,
@@ -1410,7 +1449,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// gzip magic does reach here on a platform without a decoder, the bytes
   /// are genuinely undecoded gzip we cannot process, so surfacing an
   /// ``ApiError`` is the correct, non-corrupting outcome.
-  static func decodeGzipBody(_ data: Data) throws -> Data {
+  ///
+  /// With a `limit`, inflating stops as soon as the output passes it and
+  /// ``InflatedPastLimit`` is thrown, so a small body that inflates to a huge
+  /// one is never inflated in full.
+  static func decodeGzipBody(_ data: Data, limit: Int? = nil) throws -> Data {
     #if canImport(zlib)
       if data.isEmpty { return data }
       var stream = z_stream()
@@ -1429,6 +1472,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       var output = Data()
       let chunkSize = 64 * 1024
       var outBuffer = [UInt8](repeating: 0, count: chunkSize)
+      var overflowed = false
 
       let inflateError: Int32? = data.withUnsafeBytes {
         (inPtr: UnsafeRawBufferPointer) -> Int32? in
@@ -1451,8 +1495,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             }
             return s
           }
+          if let limit = limit, output.count > limit {
+            overflowed = true
+            return nil
+          }
         } while status == Z_OK
         return status == Z_STREAM_END ? nil : status
+      }
+      if overflowed {
+        throw InflatedPastLimit()
       }
 
       if let code = inflateError {
@@ -1481,6 +1532,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// task cancels the URLSession task, preserving structured-concurrency
   /// cancellation semantics. Available on both Apple Foundation and Linux
   /// swift-corelibs-foundation (FoundationNetworking).
+  /// A gzip body that inflated past the response size limit.
+  struct InflatedPastLimit: Error {}
+
   /// A response whose body URLSession could not decode.
   private struct UndecodableBody: Error {
     let response: HTTPURLResponse
@@ -1494,7 +1548,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     redirects: SessionDelegate? = nil,
     redirectsFollowed: Int = 0,
     source: BodySource? = nil,
-    deadline: TimeInterval? = nil
+    deadline: TimeInterval? = nil,
+    bounded: BoundedBody? = nil
   ) async throws -> (Data, URLResponse, URLSessionTask) {
     /* Box the task so the completion handler, the continuation body and
        the cancellation handler refer to the same instance. The lock and
@@ -1558,7 +1613,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       return try await withTaskCancellationHandler {
         try await withCheckedThrowingContinuation {
           (continuation: CheckedContinuation<(Data, URLResponse, URLSessionTask), Error>) in
-          let task = session.dataTask(with: request) { data, response, error in
+          let complete: @Sendable (Data?, URLResponse?, Error?) -> Void = { data, response, error in
             if let error = error {
               /* A body URLSession could not decode arrived with a
                  response; keep that response so the caller can
@@ -1579,6 +1634,16 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
               return
             }
             continuation.resume(returning: (data, response, task))
+          }
+          /* With a response size limit the body is read by the bounded
+             delegate, chunk by chunk, instead of by the completion
+             handler, which would hold all of it first. */
+          let task: URLSessionDataTask
+          if let bounded = bounded {
+            task = session.dataTask(with: request)
+            bounded.track(task, completion: complete)
+          } else {
+            task = session.dataTask(with: request, completionHandler: complete)
           }
           /* A caller-supplied session has no SDK delegate of its own, so
              the SDK's redirect rules ride on the task itself. */
@@ -2486,4 +2551,163 @@ private final class LockedTaskErrors: @unchecked Sendable {
       return v
     }
   }
+}
+
+/// Reads the body of one buffered call under ``TransportOptions/maxResponseBytes``.
+///
+/// A `URLSessionDataDelegate` collects the body as it arrives instead of the
+/// completion handler, which would hold the whole body before the client could
+/// look at it. A `Content-Length` above the limit stops the call before any
+/// body is read; otherwise every chunk is counted as it arrives, both the bytes
+/// URLSession hands over (decompressed when it decoded a gzip or deflate body)
+/// and the bytes the task received, and the task is cancelled as soon as either
+/// passes the limit, so the connection is dropped instead of drained. The
+/// redirect, challenge and body-replay callbacks go to the same
+/// ``SessionDelegate`` the unbounded path uses.
+final class BoundedBody: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+  typealias Completion = (Data?, URLResponse?, Error?) -> Void
+
+  private let policy: SessionDelegate
+  private let limit: Int
+  private let lock = NSLock()
+  private var task: URLSessionTask?
+  private var body = Data()
+  private var head: HTTPURLResponse?
+  private var exceeded = false
+  private var completion: Completion?
+
+  /// - Parameters:
+  ///   - policy: Applies the SDK's redirect and challenge rules.
+  ///   - limit: The most bytes of the body that may be read.
+  init(policy: SessionDelegate, limit: Int) {
+    self.policy = policy
+    self.limit = limit
+    super.init()
+  }
+
+  /// Makes `task` the one whose body is read, and `completion` what runs once
+  /// when it ends, with the body, or with ``ResponseTooLargeError`` when the
+  /// body passed the limit.
+  func track(_ task: URLSessionTask, completion: @escaping Completion) {
+    lock.withLock {
+      self.task = task
+      body = Data()
+      head = nil
+      exceeded = false
+      self.completion = completion
+    }
+  }
+
+  private func isCurrent(_ candidate: URLSessionTask) -> Bool {
+    return lock.withLock { task === candidate }
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    dataTask: URLSessionDataTask,
+    didReceive response: URLResponse,
+    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+  ) {
+    guard isCurrent(dataTask) else {
+      completionHandler(.cancel)
+      return
+    }
+    let http = response as? HTTPURLResponse
+    let method = (dataTask.originalRequest?.httpMethod ?? "GET").uppercased()
+    let status = http?.statusCode ?? 0
+    let bodiless =
+      method == "HEAD" || status == 204 || status == 304 || (100..<200).contains(status)
+    let declared = http?.value(forHTTPHeaderField: "Content-Length")
+      .flatMap { Int64($0.trimmingCharacters(in: .whitespaces)) }
+    let tooLong = !bodiless && (declared.map { $0 > Int64(limit) } ?? false)
+    lock.withLock {
+      head = http
+      if tooLong { exceeded = true }
+    }
+    completionHandler(tooLong ? .cancel : .allow)
+  }
+
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+    let stop: Bool = lock.withLock {
+      guard task === dataTask, !exceeded else { return false }
+      body.append(data)
+      if body.count > limit || dataTask.countOfBytesReceived > Int64(limit) {
+        exceeded = true
+        body = Data()
+        return true
+      }
+      return false
+    }
+    if stop {
+      dataTask.cancel()
+    }
+  }
+
+  func urlSession(
+    _ session: URLSession, task finished: URLSessionTask, didCompleteWithError error: Error?
+  ) {
+    policy.urlSession(session, task: finished, didCompleteWithError: error)
+    let ended: (Completion, Data, HTTPURLResponse?, Bool)? = lock.withLock {
+      guard task === finished, let done = completion else { return nil }
+      completion = nil
+      let collected = body
+      body = Data()
+      return (done, collected, head, exceeded)
+    }
+    guard let ended = ended else { return }
+    let (done, collected, response, tooLarge) = ended
+    if tooLarge {
+      done(
+        nil, response,
+        ResponseTooLargeError(
+          statusCode: response?.statusCode ?? 0, limit: limit,
+          responseHeaders: response.map { DefaultApiClient.lowercasedHeaders(of: $0) }))
+      return
+    }
+    if let error = error {
+      done(nil, finished.response, error)
+      return
+    }
+    done(collected, finished.response, nil)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task redirected: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse,
+    newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    policy.urlSession(
+      session, task: redirected, willPerformHTTPRedirection: response, newRequest: request,
+      completionHandler: completionHandler)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task challenged: URLSessionTask,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    policy.urlSession(
+      session, task: challenged, didReceive: challenge, completionHandler: completionHandler)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task resending: URLSessionTask,
+    needNewBodyStream completionHandler: @escaping @Sendable (InputStream?) -> Void
+  ) {
+    policy.urlSession(session, task: resending, needNewBodyStream: completionHandler)
+  }
+
+  #if canImport(Security)
+    func urlSession(
+      _ session: URLSession,
+      didReceive challenge: URLAuthenticationChallenge,
+      completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+      policy.urlSession(session, didReceive: challenge, completionHandler: completionHandler)
+    }
+  #endif
 }

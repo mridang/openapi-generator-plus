@@ -39,14 +39,14 @@ public class TransportOptionsTest
     public void BhvOptions038TimeoutDefaultsToTenSeconds()
     {
         var opts = TransportOptions.Builder().Build();
-        Assert.Equal(10000, opts.Timeout);
+        Assert.Equal(60000, opts.Timeout);
     }
 
     [Fact]
-    public void BhvOptions039TimeoutDefaultsTo10000Milliseconds()
+    public void BhvOptions039TimeoutDefaultsTo60000Milliseconds()
     {
         var opts = TransportOptions.Builder().Build();
-        Assert.Equal(10000, opts.Timeout);
+        Assert.Equal(60000, opts.Timeout);
     }
 
     [Fact]
@@ -101,6 +101,7 @@ public class TransportOptionsTest
             null,
             null,
             3,
+            null,
             null,
             CancellationToken.None
         );
@@ -699,5 +700,45 @@ public class TransportOptionsTest
         );
 
         Assert.Contains("must use http or https scheme", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvOptions069MaxResponseBytesDefaultsToNoLimitRoundTripsAndRefusesZeroAndNegative()
+    {
+        Assert.Null(TransportOptions.Builder().Build().MaxResponseBytes);
+        Assert.Equal(
+            1024L,
+            TransportOptions.Builder().MaxResponseBytes(1024).Build().MaxResponseBytes
+        );
+        Assert.Null(
+            TransportOptions
+                .Builder()
+                .MaxResponseBytes(1024)
+                .MaxResponseBytes(null)
+                .Build()
+                .MaxResponseBytes
+        );
+        Assert.Contains(
+            "MaxResponseBytes=2048",
+            TransportOptions.Builder().MaxResponseBytes(2048).Build().ToString(),
+            StringComparison.Ordinal
+        );
+
+        var zero = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().MaxResponseBytes(0)
+        );
+        Assert.StartsWith(
+            "Invalid maxResponseBytes: must be a positive number of bytes (got 0)",
+            zero.Message,
+            StringComparison.Ordinal
+        );
+        var negative = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().MaxResponseBytes(-5)
+        );
+        Assert.StartsWith(
+            "Invalid maxResponseBytes: must be a positive number of bytes (got -5)",
+            negative.Message,
+            StringComparison.Ordinal
+        );
     }
 }

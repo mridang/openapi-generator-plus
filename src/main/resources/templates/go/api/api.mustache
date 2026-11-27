@@ -13,6 +13,9 @@ import (
 {{#hasStringsImport}}
 	"strings"
 {{/hasStringsImport}}
+{{#hasTimeImport}}
+	"time"
+{{/hasTimeImport}}
 {{#hasUuidImport}}
 
 	"github.com/google/uuid"
@@ -21,6 +24,10 @@ import (
 
 	"cloud.google.com/go/civil"
 {{/hasCivilImport}}
+{{#hasDecimalImport}}
+
+	"github.com/shopspring/decimal"
+{{/hasDecimalImport}}
 
 	. "{{packageName}}/pkg/models"
 {{#optionsImports}}

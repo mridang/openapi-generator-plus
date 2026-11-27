@@ -224,11 +224,11 @@ class TransportOptionsTest {
   }
 
   @Test
-  @DisplayName("bhvOptions038 timeout defaults to 10000 ms (10 seconds)")
-  void bhvOptions038TimeoutDefaultsTo10Seconds() {
+  @DisplayName("bhvOptions038 timeout defaults to 60000 ms (60 seconds)")
+  void bhvOptions038TimeoutDefaultsTo60Seconds() {
     TransportOptions opts = TransportOptions.builder().build();
     assertNotNull(opts.getTimeout());
-    assertEquals(10000, opts.getTimeout());
+    assertEquals(60000, opts.getTimeout());
   }
 
   @Test
@@ -372,6 +372,7 @@ class TransportOptionsTest {
                     false,
                     null,
                     0,
+                    null,
                     null));
     assertEquals(
         "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
@@ -503,12 +504,12 @@ class TransportOptionsTest {
     assertEquals(
         0,
         new TransportOptions(
-                true, null, null, null, true, null, null, Map.of(), false, null, 0, null)
+                true, null, null, null, true, null, null, Map.of(), false, null, 0, null, null)
             .getMaxRetries());
     assertEquals(
         4,
         new TransportOptions(
-                true, null, null, null, true, null, null, Map.of(), false, null, 4, null)
+                true, null, null, null, true, null, null, Map.of(), false, null, 4, null, null)
             .getMaxRetries());
   }
 
@@ -626,12 +627,12 @@ class TransportOptionsTest {
   // TimeoutConfigTests
 
   @Test
-  @DisplayName("bhvOptions039 timeout defaults to 10000 ms (10 seconds)")
-  void bhvOptions039TimeoutDefaultsTo10SecondsInTimeoutGroup() {
-    // Default TransportOptions has a 10s timeout; matches cross-language parity.
+  @DisplayName("bhvOptions039 timeout defaults to 60000 ms (60 seconds)")
+  void bhvOptions039TimeoutDefaultsTo60SecondsInTimeoutGroup() {
+    // Default TransportOptions has a 60s timeout; matches cross-language parity.
     TransportOptions opts = TransportOptions.builder().build();
     assertNotNull(opts.getTimeout());
-    assertEquals(10000, opts.getTimeout());
+    assertEquals(60000, opts.getTimeout());
   }
 
   @Test
@@ -762,5 +763,27 @@ class TransportOptionsTest {
     assertEquals(
         "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
         ex.getMessage());
+  }
+
+  @Test
+  @DisplayName(
+      "bhvOptions069 maxResponseBytes is off by default, round-trips and refuses a non-positive"
+          + " value")
+  void bhvOptions069MaxResponseBytesIsOffByDefaultRoundTripsAndRefusesANonPositiveValue() {
+    assertNull(TransportOptions.builder().build().getMaxResponseBytes());
+    assertEquals(
+        1024L, TransportOptions.builder().maxResponseBytes(1024L).build().getMaxResponseBytes());
+    assertNull(TransportOptions.builder().maxResponseBytes(null).build().getMaxResponseBytes());
+    IllegalArgumentException zero =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().maxResponseBytes(0L));
+    assertEquals(
+        "Invalid maxResponseBytes: must be a positive number of bytes (got 0)", zero.getMessage());
+    IllegalArgumentException negative =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().maxResponseBytes(-1L));
+    assertEquals(
+        "Invalid maxResponseBytes: must be a positive number of bytes (got -1)",
+        negative.getMessage());
   }
 }

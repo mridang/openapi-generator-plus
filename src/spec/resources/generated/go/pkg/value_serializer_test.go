@@ -852,6 +852,16 @@ func TestBhvSerializationparam082_ValueSerializer_SerializeStyled_SimpleHeaderPo
 	if result != "blue,black" {
 		t.Errorf("expected 'blue,black' for header array, got %v", result)
 	}
+	breed := "lab"
+	minAge := int32(3)
+	criteria := &styledCriteria{Breed: &breed, MinAge: &minAge}
+	if got := serializeStyled("X-Criteria", criteria, "header", "styledCriteria", "", "simple", false); got != "breed,lab,min_age,3" {
+		t.Errorf("expected 'breed,lab,min_age,3' for a header object, got %v", got)
+	}
+	fields := map[string]any{"breed": "lab", "min_age": 3}
+	if got := serializeStyled("X-Criteria", fields, "header", "object", "", "simple", false); got != "breed,lab,min_age,3" {
+		t.Errorf("expected 'breed,lab,min_age,3' for a header map, got %v", got)
+	}
 }
 
 func TestBhvLanggo111_ValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
@@ -1436,6 +1446,18 @@ func TestBhvSerialization018_ValueSerializer_SerializeDeepObject_NestedObjectIsR
 	if !errors.As(err, &serErr) {
 		t.Errorf("expected *SerializationError for a nested array, got %T: %v", err, err)
 	}
+	_, err = serializeStyledChecked("criteria", &taggedCriteria{Tags: []string{"a", "b"}}, "query", "taggedCriteria", "", "form", true)
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a model with an array property, got %T: %v", err, err)
+	}
+	_, err = serializeStyledChecked("criteria", map[string]any{"tags": []int{1, 2}}, "query", "object", "", "form", false)
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a map with an array entry, got %T: %v", err, err)
+	}
+}
+
+type taggedCriteria struct {
+	Tags []string `json:"tags,omitempty"`
 }
 
 // An unset property of a model, or a null entry in a parameter map, is left out of the output.
@@ -1523,7 +1545,7 @@ func TestBhvSerialization118_ValueSerializer_ADateTimeQueryKeepsItsTime(t *testi
 // A nanosecond-precision duration is written with a nine-digit fraction.
 func TestBhvSerialization129_ValueSerializer_ANanosecondDurationHasANineDigitFraction(t *testing.T) {
 	t.Parallel()
-	d := models.Duration(123456789 * time.Nanosecond)
+	d := 123456789 * time.Nanosecond
 	data, err := serialize(models.EdgeCases{RetryAfter: &d})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

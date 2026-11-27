@@ -14,6 +14,8 @@ import {
   decodePlainNumber,
   decodeStringDecimal,
   plainDate,
+  isIpv4Address,
+  isIpv6Address,
 } from "../object-serializer.js";
 import { URI } from "../brand.js";
 import { Email } from "../brand.js";
@@ -21,18 +23,23 @@ import { Decimal } from "../brand.js";
 
 export class NativeValues {
   /**
-   * 2.5 — Wire-serialization registry for `type: number` (no format)
-   * fields. Such fields are carried as branded `Decimal` values,
-   * which are plain strings at runtime to preserve arbitrary precision.
-   * On the request path ObjectSerializer.serialize walks the instance with
-   * JSON.stringify, which would quote a string and emit
-   * `"amount":"12.345"` (a JSON string) instead of the spec-required
-   * `"amount":12.345` (a JSON number). The serializer consults this set
-   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
-   * preserving the full decimal text without a lossy Number() round-trip.
-   * Empty when the model has no `type: number` no-format fields.
+   * 2.5 — Wire-serialization registry for the number-shaped Decimal fields
+   * (`type: number` with no format or `format: decimal`). A Decimal's toJSON
+   * gives text that may carry an exponent, and a plain request-body literal
+   * may hold a numeric string, so ObjectSerializer.serialize consults this set
+   * (by runtime property name) to write those fields as a bare JSON number in
+   * plain notation via JSON.rawJSON, every digit kept. Empty when the model
+   * has no such field.
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set(["amount"]);
+
+  /**
+   * The `type: string` decimal fields: a Decimal under one of these names is
+   * written as a JSON string holding its plain-notation text.
+   */
+  static readonly __stringDecimalFields: ReadonlySet<string> = new Set([
+    "ledger",
+  ]);
 
   /**
    * `format: uuid` fields. ObjectSerializer.serialize writes them in the
@@ -137,9 +144,21 @@ export class NativeValues {
         `address4 must be a string, got ${typeof this.address4}`,
       );
     }
+    /* `format: ipv4` stays the text as given, read strictly. */
+    if (this.address4 != null && !isIpv4Address(this.address4)) {
+      throw new TypeError(
+        `address4 must be an IPv4 address, got ${JSON.stringify(this.address4)}`,
+      );
+    }
     if (this.address6 != null && typeof this.address6 !== "string") {
       throw new TypeError(
         `address6 must be a string, got ${typeof this.address6}`,
+      );
+    }
+    /* `format: ipv6` stays the text as given, read strictly. */
+    if (this.address6 != null && !isIpv6Address(this.address6)) {
+      throw new TypeError(
+        `address6 must be an IPv6 address, got ${JSON.stringify(this.address6)}`,
       );
     }
     if (
@@ -149,6 +168,17 @@ export class NativeValues {
     ) {
       throw new TypeError(
         `addresses must be an array, got ${typeof this.addresses}`,
+      );
+    }
+    /* Each `format: ipv6` element stays the text as given, read strictly. */
+    if (
+      this.addresses != null &&
+      [...this.addresses].some(
+        (item) => typeof item !== "string" || !isIpv6Address(item),
+      )
+    ) {
+      throw new TypeError(
+        `addresses must hold IPv6 addresses, got ${JSON.stringify([...this.addresses])}`,
       );
     }
     if (this.homepage != null && typeof this.homepage !== "string") {
@@ -170,22 +200,18 @@ export class NativeValues {
         `homepage must be an absolute URI, got ${JSON.stringify(this.homepage)}`,
       );
     }
-    /**
-     * 2.5 — `type: number` (no numeric format). Carried as a branded
-     * Decimal string to preserve arbitrary precision. The wire form can
-     * arrive as a JSON number (no explicit format means no precision
-     * guarantee from the server); coerce to its canonical string form
-     * here so downstream typed-string ops are safe.
-     */
-    if (this.amount != null && typeof this.amount === "number") {
-      Object.assign(this, { amount: String(this.amount) });
-    } else if (this.amount != null && typeof this.amount !== "string") {
+    /* 2.5 — `type: number` (no numeric format, or `format: decimal`) is
+     * decoded into a decimal.js Decimal from the number's exact text. */
+    if (this.amount != null && !Decimal.isDecimal(this.amount)) {
       throw new TypeError(
-        `amount must be a Decimal string or number, got ${typeof this.amount}`,
+        `amount must be a Decimal, got ${typeof this.amount}`,
       );
     }
-    if (this.ledger != null && typeof this.ledger !== "string") {
-      throw new TypeError(`ledger must be a string, got ${typeof this.ledger}`);
+    /* A `type: string` decimal is decoded into a decimal.js Decimal. */
+    if (this.ledger != null && !Decimal.isDecimal(this.ledger)) {
+      throw new TypeError(
+        `ledger must be a Decimal, got ${typeof this.ledger}`,
+      );
     }
     /**
      * 4.8 — `format: duration` (google.protobuf.Duration). Accept a
@@ -331,13 +357,13 @@ export class NativeValues {
     if (a == null || b == null) {
       return a === b;
     }
-    /* A Decimal is a branded string, so 1.5 and 1.50 differ as text but are
-     * the same number: compare the canonical form with trailing fractional
-     * zeros dropped. */
-    if (decimal && typeof a === "string" && typeof b === "string") {
-      const canonical = (d: string): string =>
-        /^-?\d+\.\d+$/.test(d) ? d.replace(/0+$/, "").replace(/\.$/, "") : d;
-      return canonical(a) === canonical(b);
+    /* Decimals compare by value, so 1.5 equals 1.50. */
+    if (
+      decimal &&
+      typeof (a as { eq?: unknown }).eq === "function" &&
+      typeof (b as { eq?: unknown }).eq === "function"
+    ) {
+      return (a as { eq(other: unknown): boolean }).eq(b);
     }
     if (
       typeof (a as { equals?: unknown }).equals === "function" &&

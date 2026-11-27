@@ -130,6 +130,20 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
      * @param code the authorization code from the callback
      */
     suspend fun exchangeCode(code: String) {
+        exchangeCode(code, null)
+    }
+
+    /**
+     * Exchange an authorization code, handing the response's id_token to a check
+     * before the session is kept. OpenID Connect uses this.
+     *
+     * @param code the authorization code from the callback
+     * @param idTokenCheck a check of the id_token, or null for none
+     */
+    internal suspend fun exchangeCode(
+        code: String,
+        idTokenCheck: ((String?) -> Unit)?,
+    ) {
         // RFC 6749 §4.1.3: the authorization code is a required parameter of
         // the token request. Reject an empty/whitespace code before the POST
         // so the caller sees a clear precondition error rather than a confusing
@@ -149,7 +163,7 @@ open class OAuth2AuthorizationCodeAuthenticator internal constructor(
         }
         // Always POST the new code: a cached token or a stored refresh token
         // from an earlier exchange must not stand in for this grant.
-        tokenManager.exchange(tokenUrl, params)
+        tokenManager.exchange(tokenUrl, params, idTokenCheck = idTokenCheck)
         tokenManager.markExchanged()
         pkceVerifier = null
     }

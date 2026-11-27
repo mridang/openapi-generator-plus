@@ -1,6 +1,6 @@
 # Elixir
 
-The `elixir-plus` generator (`BetterElixirCodegen`) produces a Mix project with one module per API group, model, error and authenticator. It uses Req for HTTP and Jason for JSON. For the rules shared by all twelve languages see [how it works](../how-it-works.md), for the type table across languages see [types](../types.md), and for settled cross-language choices see [decisions](../decisions.md).
+The `elixir-plus` generator (`BetterElixirCodegen`) produces a Mix project with one module per API group, model, error and authenticator. It uses Req for HTTP, Jason for JSON and the `decimal` package for exact decimals. For the rules shared by all twelve languages see [how it works](../how-it-works.md), for the type table across languages see [types](../types.md), and for settled cross-language choices see [decisions](../decisions.md).
 
 ## Versions and support policy
 
@@ -21,10 +21,11 @@ Types are the typespecs that appear in the generated modules.
 | `string` / `uuid` | `String.t()` | Neither Elixir nor Erlang has a UUID type. Written in lower case and validated when sent as a parameter. |
 | `string` / `byte` | `binary()` | Base64 with `Base`. |
 | `string` / `binary`, file bodies | `BodySource` for a raw binary request body (a multipart file part stays `binary()`); `ByteStream` (an `Enumerable` of binaries) for a response | The response body is read as you consume it, and a raw upload is sent as it is read, see Streaming. |
-| `string` / `uri` | `String.t()` | |
+| `string` / `uri` | `String.t()` | Checked as an absolute URI on decode. Not `URI.t()`, because `URI.to_string/1` lowercases the scheme and drops a default port, and `URI.new/1` refuses a square bracket in a path, so the text would not round-trip (D146). |
 | `integer` (any format) | `integer()` | BEAM integers are unbounded. `int32` and `int64` are not range checked. |
 | `number` / `float`, `double`, and no format | `float()` | |
-| `number` / `decimal` | `float()` | Lossy for exact decimal values such as money. Parse the body with the `Decimal` package if you need exactness. |
+| `number` / `decimal` | `Decimal.t()` | Exact (D135). The digits are read from the JSON text, never through a float, and written back as a bare JSON number in plain notation with every digit. A number with more than 34 significant digits after a decimal point, which the `decimal` package refuses to parse, fails with `SerializationError` instead of being rounded; an integer of any length is exact. |
+| `string` / `decimal` | `Decimal.t()` | The same `Decimal`, read only from a JSON string (a bare JSON number fails with `SerializationError`) and written back as a JSON string that keeps its decimal places (`"12.50"`). |
 | `boolean` | `boolean()` | |
 | `array` | `[T]` | |
 | `array` with `uniqueItems` | `MapSet.t(T)` | Sent in the `MapSet`'s own order. |
@@ -42,6 +43,7 @@ Runtime dependencies, from the generated `mix.exs`:
 |---|---|---|
 | `req` | ~> 0.5 | HTTP client (on Finch and Mint) |
 | `jason` | ~> 1.4 | JSON |
+| `decimal` | ~> 3.2 | `format: decimal` values |
 | `mime` | ~> 2.0 | Content types |
 | `brotli` | ~> 0.3 | Optional, `prod` only: decoding `br` responses |
 
@@ -64,9 +66,10 @@ The extra applications are `:logger` and `:crypto`. If a `br` response arrives a
 ## Idiom notes
 
 - Configuration is data. `Configuration.new/1` and `TransportOptions.new/1` take a keyword list, and there are no builders.
+- `TransportOptions` takes `max_response_bytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeError` (D138); zero, a negative value or a non-integer raises `ArgumentError` in `TransportOptions.new/1`. The body is read through a Req `into:` function that counts the bytes as they arrive and halts (dropping the connection) once they, or the declared `Content-Length`, pass the limit, and gzip and deflate are inflated a piece at a time with `:zlib.safeInflate/2`, stopping as soon as the output passes the limit. A zstd body is decoded the same way, a few input bytes at a time. With the limit set the client asks for gzip and deflate only; a br body the server sends anyway is checked once decoded, because the optional `:brotli` library has no incremental decoder here.
 - The API struct is the first argument of every operation. Optional trailing arguments (a server override, a content-type choice, a refresh URL) go into one `opts` keyword list.
 - A missing required option raises `ArgumentError` at call time.
-- Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries the per-call `timeout` (milliseconds), `headers` and `max_retries`. The `opts` keyword list takes the same three keys and wins over the struct.
+- Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries the per-call `timeout` (milliseconds), `headers` and `max_retries`. The `opts` keyword list takes the same three keys and wins over the struct. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
 - A credential that is not passed (`nil`) is read, once, when the authenticator is built, from an environment variable. Each security scheme reads its own variables, named `<PREFIX>_<FIELD>` (`PETSTORE_TOKEN`, `PETSTORE_API_KEY`, `PETSTORE_CLIENT_ID`), or `<PREFIX>_<SCHEME>_<FIELD>` for every scheme that shares a field name with another. An argument you pass wins, an empty variable counts as unset, and a credential found in neither place raises `ArgumentError` when the client is built. A bearer token or an API key can also be a zero-argument function that is called for every request, which takes the place of a token-provider callback. The generated README lists the variable of every credential.
 - A union module has a typed function for each model variant: `from_<variant>/1` checks the value and returns it (it raises `ArgumentError` for another value), `<variant>?/1` tells whether a built value is that variant, and `as_<variant>/1` returns the value or `nil`. The predicate is spelled `<variant>?` because Elixir reserves the `is_` prefix for guards.
 - A property that is a `$ref` with a `default` written beside it (an OpenAPI 3.1 sibling keyword) starts at that default: a referenced enum becomes the matching atom, so `%StockItem{priority: :number_1}.availability` is `:on_hold`, and a payload without the property decodes to it too.
@@ -141,7 +144,7 @@ result.raw_body
 ## Known limits
 
 - `format: date-time` decoding returns UTC. See the table note above.
-- `format: decimal` and `number` are `float()` and lose exactness.
+- A bare `number` with no format, `float` and `double` are `float()` and lose exactness; `format: decimal` is the exact `Decimal.t()`. An array of `type: string` decimals is read as numbers, like an array of `type: number` decimals.
 - Building a struct never validates anything: a wrong-typed scalar or an atom that is no enum member builds fine. The checks run when a response is decoded (a wrong type and a missing required property raise `SerializationError`, and an unknown enum string decodes to `:unknown_default_open_api`, D117) and when a body is encoded (an inline enum atom outside its members, the catch-all included, raises).
 - Fractional and quoted numbers are rejected when decoding. There is no 32-bit or 64-bit range check, because the typespec is the width-less `integer()`.
 - A body with a charset other than UTF-8 (such as `shift_jis` or the `iso-8859-x` family) is not decoded. Erlang's `:unicode` module does not cover it.
@@ -153,6 +156,7 @@ result.raw_body
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 - An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 - A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
+- The OpenID Connect authenticator sends a nonce and checks the claims of the `id_token` (nonce, issuer, audience, expiry), but it does not verify the token's signature, by decision D140. Signature checking can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 
 ## Under review
 
@@ -161,8 +165,6 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - Check that `DateTime` and `Time` decoding does not silently convert a value such as `+05:30` to UTC where the generated README claims a round trip, and add a test for it.
 - Tighten typespecs: `number()` instead of `float()` for a bare `number`, because Jason decodes `1` as an integer, and `%{optional(String.t()) => T}` for `additionalProperties`.
 - A documentation-only `@type uuid :: String.t()` alias in the models module. The review advises against adding a UUID dependency.
-- `URI.t()` for `uri`, once it is shown to keep the text unchanged.
-- `Decimal.t()` for `decimal` would need the `decimal` package as a dependency, so the README guidance stays unless that is accepted.
 - No floor change is required by any of these ideas.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `:otel_propagator_text_map.inject` reads the process's context; the headers are built in the calling process (`Tracer.with_span`).

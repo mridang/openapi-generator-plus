@@ -30,7 +30,8 @@ The floor is written once, in `composer.json`, and PHPStan is configured with `p
 | `integer`, `format: int32` | `int` | |
 | `integer`, `format: int64` | `int` | see Known limits |
 | `integer`, no format | `int` | PHP integers are 64-bit on 64-bit builds |
-| `number`, any format | `float` | including `format: decimal`, so money values lose exact decimal representation |
+| `number`, `format: decimal`, and `string`, `format: decimal` | `Brick\Math\BigDecimal` | from `brick/math`; read from the digits of the JSON text, never through a `float`, and written back in plain notation, as a JSON number or a JSON string as the schema says |
+| `number`, no format, `float` or `double` | `float` | a binary float, so money values lose exact decimal representation |
 | `boolean` | `bool` | |
 | `array` | `\Ds\Vector` | from `php-ds`, with element types in PHPDoc |
 | `array` with `uniqueItems` | `\Ds\Set` | sent in insertion order, not sorted |
@@ -51,6 +52,7 @@ Model properties are `readonly`.
 | `symfony/serializer`, `symfony/property-access`, `symfony/property-info`, `phpdocumentor/reflection-docblock` | JSON decoding into typed models |
 | `symfony/mime` | multipart bodies |
 | `symfony/uid` | the UUID type |
+| `brick/math` | `BigDecimal`, the exact type of `format: decimal` |
 | `php-ds/php-ds` | `\Ds\Vector`, `\Ds\Set` and `\Ds\Map`; installing the PECL `ext-ds` replaces the userland classes with native ones |
 | `psr/http-client`, `psr/http-factory`, `psr/http-message` | the `Psr18ApiClient` adapter for your own HTTP client |
 | `ext-brotli`, `ext-zstd` (suggested) | decoding `br` and `zstd` responses; without them only `gzip` and `deflate` are advertised |
@@ -87,12 +89,14 @@ Only `invokerPackage` and `packageVersion` are declared as options in the genera
 - **Authentication.** Basic, bearer and API key authenticators, plus OAuth 2 and OpenID Connect. The client takes one optional credential per distinct security scheme, a named parameter named after the scheme (`new Client(petStoreBearer: $credential)`); each operation uses the scheme its security requirement names (the first alternative whose schemes are all configured, several schemes of one alternative together through `CompositeAuthenticator`) and never sends the credential of another scheme. There is no per-call authenticator. The authenticator passed first (and `Client::withToken()`) serves a secured operation only when no scheme credential is configured; a client needs at least one of the two. After a 401 from an OAuth 2 or OpenID Connect call the cached access token is dropped and the request is sent once more. The generated authenticator of a basic, bearer or API key scheme takes its credential as an argument or, when you pass `null`, reads it from an environment variable named for that scheme and field (`{PREFIX}_{SCHEME}_{FIELD}`, for example `PETSTORE_SERVICE_TOKEN_TOKEN`; the scheme id is left out when no other scheme has a field of that name). The explicit argument or provider wins (a provider you pass outranks the variable), then the variable, read once when the authenticator is built (an empty variable counts as unset and an explicit empty value is refused); a credential found in neither place throws `InvalidArgumentException` when the authenticator is built, before any request. `BearerAuthenticator` and `ApiKeyAuthenticator` also take a `\Closure` that supplies the credential for every request. The base classes read no variable, and the OAuth 2 and OpenID Connect authenticators take their credentials as arguments. The generated README lists the variable of every scheme.
 - **Immutability.** Properties are `readonly`, and every property has a `withX()` method that returns a changed copy.
 - **Cookie parameters.** A cookie parameter value is sent as given when every character is a legal RFC 6265 cookie-octet; any other character (space, comma, semicolon, double quote, backslash, a control or non-ASCII character) fails with `InvalidArgumentException` before the request is sent. Percent-encode the value yourself when it needs it; the SDK never encodes a cookie.
+- **Object-valued query and header parameters.** A model, a `\Ds\Map` or an associative array passed as a query or header parameter is written by its wire names per its style (D139): `form` exploded as one `key=value` entry per property, `form` not exploded as `name=k1,v1,k2,v2`, `simple` as `k1,v1,k2,v2`. A `null` entry is left out and a nested object fails with `SerializationException`.
 - **No validation at construction.** A model constructor never validates values (PHP's native types are the only check); the wrong type or an enum string that is not a case is reported when decoding, as a `SerializationException`.
 - **Defaults beside a reference.** An optional property that is a `$ref` with a `default` written next to it starts at that default in the constructor (`?Availability $availability = Availability::ON_HOLD` for an enum, a literal for a referenced string, integer, number or boolean), so a decoded model without the key and `new Model(...)` agree; an explicit `null` is kept.
 - **Unions.** A `oneOf` or `anyOf` model is a wrapper class with `fromX()`, `isX()` and `asX()` for each variant, plus `getActualInstance()`. An operation with several `2xx` responses returns a union decoded by the status that arrived.
-- **Optional arguments.** Every operation takes an options object as its last argument, even one with no query, header, form or cookie parameter and no security scheme, and per-call `timeout`, `headers` and `maxRetries` go in it (`new OperationOptions(timeout: 2000)`); no options object has an `auth` field. `timeout` and `maxRetries` need the bundled transport or a subclass of `AbstractApiClient`.
+- **Optional arguments.** Every operation takes an options object as its last argument, even one with no query, header, form or cookie parameter and no security scheme, and per-call `timeout`, `headers` and `maxRetries` go in it (`new OperationOptions(timeout: 2000)`); no options object has an `auth` field. `timeout` and `maxRetries` need the bundled transport or a subclass of `AbstractApiClient`. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
 - **Lifecycle.** `$client->close()` is graceful and idempotent: a request already sent finishes, every later request fails with a `\LogicException` whose message is `client closed`, and only a transport the SDK created is released, never a PSR-18 or `ApiClient` you supplied. Cancellation stays per request, through the `timeout` option.
 - **Raw responses.** Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with public `statusCode`, `data`, `rawBody` and `headers`.
+- **Response size.** `TransportOptions::builder()->maxResponseBytes(n)` (off by default) caps a buffered response body: a body that passes it, raw or decompressed, fails with `ResponseTooLargeException`, a direct subclass of `ApiException` that carries the status, the headers and `limit` and is never retried (D138). Streamed responses are not capped, and neither is an injected PSR-18 client. gzip, deflate, br and zstd are decoded in small slices and stop at the limit.
 - **Custom transport.** Wrap any PSR-18 client in `Psr18ApiClient`, or use `Client::withHttpClient(...)`. The SDK keeps its own redirect loop, so disable redirects on your client. `TransportOptions` settings for proxy, TLS and timeout do not apply to an injected client, and setting a proxy, CA bundle or `verifySsl(false)` together with one is rejected with `InvalidArgumentException`.
 - **Request id.** `injectRequestId(true)` adds an `X-Request-ID` header to every request.
 - Testing your code: `<Group>ApiInterface` and `ClientInterface` (one file each, PSR-4), with `get<Group>()` accessors beside the `readonly` properties because interface properties need PHP 8.4. `ClientInterface` is not the PSR-18 `Psr\Http\Client\ClientInterface`: `Client.php` imports the PSR one, so it names ours by its full name. The tests build fakes with `fakeGroup()` in `tests/bootstrap.php`, which generates a class from the interface with reflection and `eval`.
@@ -164,7 +168,7 @@ try {
 ## Known limits
 
 - The generated README states that the Symfony serializer takes `int64` values through `float`, so values above 2^53 may lose precision on 64-bit PHP. See Under review.
-- `number` values, including `format: decimal`, are `float`, so `0.1 + 0.2` is not exact. Use BCMath on the raw value when you need exact arithmetic.
+- A bare `number` (and `format: float` or `double`) is a `float`, so `0.1 + 0.2` is not exact. `format: decimal` is an exact `BigDecimal`.
 - `date` and `date-time` are mutable `\DateTime` objects, which can be changed in place even inside a `readonly` model.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory; a raw binary request body is a `BodySource` and is sent as it is read. A binary response is a `ByteStream`, and a JSON Lines or server-sent events response is a stream returned by a `...Stream` method; see Streaming.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked by the SDK; the model layer checks only declared types, required properties and base64 for `format: byte`.
@@ -177,6 +181,7 @@ try {
 - Operations are blocking only, as a plain method call, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 - An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- The OpenID Connect authenticator sends a fresh nonce with each authorization URL and checks the `id_token` claims (nonce, issuer, audience, expiry with 60 seconds of clock skew) on the code exchange, but it does not verify the token's signature, by decision D140. Signature checking can be added later without changing the public API, because the discovery document already names the provider's `jwks_uri`.
 
 ## Under review
 
@@ -184,7 +189,6 @@ These are proposals from a review of the type mapping against current PHP. None 
 
 - Map `date` and `date-time` to `\DateTimeImmutable` instead of `\DateTime`. The review says this needs no floor change, but it needs a golden regeneration and updates to the `withX()` methods and tests.
 - Settle the `int64` caveat with a test: round-trip ids of 2^62 and 2^63-1 through the response decoder. If they survive, remove the README caveat; if not, fix the decoder so `int64` never goes through `float`.
-- Map decimals to `\BcMath\Number`. This needs `ext-bcmath` and would raise the floor from 8.3 to 8.4, so it waits for that floor. Until then the type stays `float`.
 - Map `format: uri` to `\Uri\Rfc3986\Uri` only once the floor reaches 8.5. Until then it stays `string`.
 - Keep `\DateTimeImmutable` for `time` and `\DateInterval` for durations: the review found no newer PHP type for either.
 

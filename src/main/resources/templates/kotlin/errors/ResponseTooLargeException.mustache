@@ -1,0 +1,36 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+/**
+ * Exception for a buffered response body that passed `maxResponseBytes` of the
+ * `TransportOptions`: the bytes on the wire or the decompressed bytes crossed the limit. A
+ * response did arrive, so it carries the real status code and headers, but the body was not
+ * kept: it is empty. Only the default client raises it, and it is never retried.
+ *
+ * @param statusCode the HTTP status code of the response
+ * @param responseHeaders the response headers, names in lower case
+ * @property limit the limit in bytes that the body passed
+ * @param requestMethod the HTTP method of the request that failed, if known
+ * @param requestPath the path of the request that failed, without its query string, if known
+ */
+class ResponseTooLargeException(
+    statusCode: Int,
+    responseHeaders: Map<String, String>?,
+    val limit: Long,
+    requestMethod: String? = null,
+    requestPath: String? = null,
+) : ApiException(
+        statusCode,
+        "Response body exceeds the limit of $limit bytes",
+        responseHeaders,
+        "",
+        null,
+        null,
+        requestMethod,
+        requestPath,
+    ) {
+    /** Never retryable: the same request draws the same body, whatever its status. */
+    override val isRetryable: Boolean
+        get() = false
+}

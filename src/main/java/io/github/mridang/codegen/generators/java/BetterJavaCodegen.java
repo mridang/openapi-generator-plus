@@ -665,6 +665,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.java"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.java"),
             new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.java"),
+            new SupportingFileSpec("errors/ResponseTooLargeException.mustache", errorsFolder, "ResponseTooLargeException.java"),
             new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.java"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.java"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.java"),

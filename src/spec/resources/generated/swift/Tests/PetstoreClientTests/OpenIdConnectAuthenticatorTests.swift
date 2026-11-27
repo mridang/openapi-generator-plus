@@ -747,8 +747,8 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     #expect(!String(describing: error).contains("<html>"))
   }
 
-  /* The authorization URL carries an S256 PKCE challenge and no nonce. */
-  @Test func testBhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce() async throws {
+  /* The authorization URL carries an S256 PKCE challenge and a nonce. */
+  @Test func testBhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndANonce() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
     let auth = createAuthenticator()
@@ -757,7 +757,8 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     let url = try await auth.buildAuthorizationURL()
 
     #expect(url.contains("code_challenge_method=S256"))
-    #expect(!url.contains("nonce="))
+    let nonce = URLComponents(string: url)?.queryItems?.first { $0.name == "nonce" }?.value
+    #expect(nonce?.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil)
   }
 
   /* A call made while the code exchange is in flight reuses the discovered configuration. */
@@ -899,4 +900,151 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     #expect(error?.requestPath == "/.well-known/openid-configuration")
   }
 
+  // MARK: - id_token validation
+
+  private static let issuerDiscoveryJSON = """
+    {"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}
+    """
+
+  /// An unsigned compact JWT whose payload is the given claims.
+  private static func idToken(_ claims: String) -> String {
+    return PKCE.base64URL(Array("{\"alg\":\"none\"}".utf8)) + "."
+      + PKCE.base64URL(Array(claims.utf8)) + ".sig"
+  }
+
+  /// Claims that pass every check for the given nonce, with one claim replaced when named.
+  private static func claims(nonce: String, replacing name: String = "", with value: String = "")
+    -> String
+  {
+    var claims: [(String, String)] = [
+      ("iss", "\"https://auth.example.com\""),
+      ("aud", "\"my-client-id\""),
+      ("exp", String(Int(Date().timeIntervalSince1970) + 3600)),
+      ("nonce", "\"\(nonce)\""),
+    ]
+    if let index = claims.firstIndex(where: { $0.0 == name }) {
+      claims[index] = (name, value)
+    }
+    return "{" + claims.map { "\"\($0.0)\":\($0.1)" }.joined(separator: ",") + "}"
+  }
+
+  /// An authenticator that has built an authorization URL and whose token
+  /// endpoint answers with the id_token built from that URL's nonce.
+  private func authenticatorReturning(
+    _ idTokenForNonce: (String) -> String
+  ) async throws -> (OpenIdConnectAuthenticator, MockApiClient) {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.issuerDiscoveryJSON)))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+    let url = try await auth.buildAuthorizationURL(state: "s")
+    let nonce = try #require(
+      URLComponents(string: url)?.queryItems?.first { $0.name == "nonce" }?.value)
+    client.responses.append(
+      .success(
+        makeResponse(
+          body:
+            "{\"access_token\":\"oidc-tok\",\"expires_in\":3600,\"id_token\":\"\(idTokenForNonce(nonce))\"}"
+        )))
+    return (auth, client)
+  }
+
+  @Test func testBhvAuthoidc034EachAuthorizationUrlCarriesAFreshNonce() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: Self.issuerDiscoveryJSON)))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let first = try await auth.buildAuthorizationURL(state: "s")
+    let second = try await auth.buildAuthorizationURL(state: "s")
+
+    let firstNonce = try #require(
+      URLComponents(string: first)?.queryItems?.first { $0.name == "nonce" }?.value)
+    let secondNonce = URLComponents(string: second)?.queryItems?.first { $0.name == "nonce" }?.value
+    #expect(firstNonce.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil)
+    #expect(firstNonce != secondNonce)
+  }
+
+  @Test func testBhvAuthoidc035AnIdTokenWithValidClaimsIsAccepted() async throws {
+    let (auth, _) = try await authenticatorReturning {
+      Self.idToken(Self.claims(nonce: $0, replacing: "aud", with: "[\"other\",\"my-client-id\"]"))
+    }
+
+    try await auth.exchangeCode("oidc-code")
+
+    #expect(try await auth.authHeaders()["Authorization"] == "Bearer oidc-tok")
+  }
+
+  @Test func testBhvAuthoidc036AnIdTokenWithAnotherNonceIsRejected() async throws {
+    let (auth, _) = try await authenticatorReturning {
+      Self.idToken(Self.claims(nonce: $0, replacing: "nonce", with: "\"replayed\""))
+    }
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      try await auth.exchangeCode("oidc-code")
+    }
+    #expect(
+      error == .invalidResponse("The id_token nonce does not match the authorization request"))
+  }
+
+  @Test func testBhvAuthoidc037AnIdTokenFromAnotherIssuerIsRejected() async throws {
+    let (auth, _) = try await authenticatorReturning {
+      Self.idToken(Self.claims(nonce: $0, replacing: "iss", with: "\"https://evil.example.com\""))
+    }
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      try await auth.exchangeCode("oidc-code")
+    }
+    #expect(error == .invalidResponse("The id_token issuer does not match the discovered issuer"))
+  }
+
+  @Test func testBhvAuthoidc038AnIdTokenForAnotherAudienceIsRejected() async throws {
+    let (auth, _) = try await authenticatorReturning {
+      Self.idToken(Self.claims(nonce: $0, replacing: "aud", with: "\"other-client\""))
+    }
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      try await auth.exchangeCode("oidc-code")
+    }
+    #expect(error == .invalidResponse("The id_token audience does not contain the client id"))
+  }
+
+  @Test func testBhvAuthoidc039AnExpiredIdTokenIsRejected() async throws {
+    let expired = String(Int(Date().timeIntervalSince1970) - 120)
+    let (auth, _) = try await authenticatorReturning {
+      Self.idToken(Self.claims(nonce: $0, replacing: "exp", with: expired))
+    }
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      try await auth.exchangeCode("oidc-code")
+    }
+    #expect(error == .invalidResponse("The id_token has expired"))
+  }
+
+  @Test(arguments: ["not-a-jwt", "boolean-exp"])
+  func testBhvAuthoidc040AMalformedIdTokenIsRejected(_ shape: String) async throws {
+    let (auth, _) = try await authenticatorReturning { nonce in
+      shape == "boolean-exp"
+        ? Self.idToken(Self.claims(nonce: nonce, replacing: "exp", with: "true"))
+        : "not-a-jwt"
+    }
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      try await auth.exchangeCode("oidc-code")
+    }
+    #expect(error == .invalidResponse("The id_token is malformed"))
+  }
+
+  @Test func testBhvAuthoidc041ARejectedIdTokenLeavesNoSession() async throws {
+    let (auth, _) = try await authenticatorReturning {
+      Self.idToken(Self.claims(nonce: $0, replacing: "nonce", with: "\"replayed\""))
+    }
+    await #expect(throws: OAuth2TokenError.self) {
+      try await auth.exchangeCode("oidc-code")
+    }
+
+    await #expect(throws: OAuth2AuthorizationCodeError.codeNotExchanged) {
+      _ = try await auth.authHeaders()
+    }
+  }
 }

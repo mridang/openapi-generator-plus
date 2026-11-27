@@ -10,7 +10,7 @@ public struct SetPetPreferencesOptions: Sendable {
   public let intervalDays: Int?
   public let ratio: Double?
   public let urgent: Bool?
-  public let snooze: TimeInterval?
+  public let snooze: Duration?
   /// Per-call timeout in milliseconds, greater than zero. Replaces the
   /// transport's timeout for this call; nil keeps it.
   public let timeout: Int?
@@ -24,7 +24,7 @@ public struct SetPetPreferencesOptions: Sendable {
   public init(
     nickname: String, tags: [String]? = nil, note: String? = nil, renewalDate: String? = nil,
     reminder: Date? = nil, intervalDays: Int? = nil, ratio: Double? = nil, urgent: Bool? = nil,
-    snooze: TimeInterval? = nil, timeout: Int? = nil, headers: [String: String]? = nil,
+    snooze: Duration? = nil, timeout: Int? = nil, headers: [String: String]? = nil,
     maxRetries: Int? = nil
   ) {
     self.nickname = nickname

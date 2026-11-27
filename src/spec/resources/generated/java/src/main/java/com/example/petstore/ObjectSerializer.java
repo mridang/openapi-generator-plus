@@ -613,6 +613,113 @@ public final class ObjectSerializer {
   }
 
   /**
+   * Decodes a {@code format: ipv4} string strictly: four dotted decimal parts from 0 to 255 with no
+   * leading zero, and nothing else. The JDK has no literal-only address parser below Java 22, so
+   * the value stays the text as given and a malformed one fails the decode.
+   */
+  public static final class Ipv4StringDeserializer extends JsonDeserializer<String> {
+    /** Creates the deserializer. */
+    public Ipv4StringDeserializer() {}
+
+    @Override
+    public String deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+        return (String) context.handleUnexpectedToken(String.class, parser);
+      }
+      String text = parser.getText();
+      if (!isIpv4Address(text)) {
+        throw context.weirdStringException(text, String.class, "not an IPv4 address");
+      }
+      return text;
+    }
+  }
+
+  /**
+   * Decodes a {@code format: ipv6} string strictly: hexadecimal groups of up to four digits, at
+   * most one {@code ::}, and an optional trailing dotted IPv4 part. A zone id, brackets, a prefix
+   * length or whitespace fails the decode; the value stays the text as given.
+   */
+  public static final class Ipv6StringDeserializer extends JsonDeserializer<String> {
+    /** Creates the deserializer. */
+    public Ipv6StringDeserializer() {}
+
+    @Override
+    public String deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+        return (String) context.handleUnexpectedToken(String.class, parser);
+      }
+      String text = parser.getText();
+      if (!isIpv6Address(text)) {
+        throw context.weirdStringException(text, String.class, "not an IPv6 address");
+      }
+      return text;
+    }
+  }
+
+  /** Four decimal parts from 0 to 255, with no leading zero. */
+  private static final java.util.regex.Pattern IPV4_ADDRESS =
+      java.util.regex.Pattern.compile(
+          "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])");
+
+  /** Only the characters an IPv6 address literal may hold. */
+  private static final java.util.regex.Pattern IPV6_CHARACTERS =
+      java.util.regex.Pattern.compile("[0-9A-Fa-f:.]+");
+
+  /**
+   * Whether {@code text} is exactly a dotted decimal IPv4 address.
+   *
+   * @param text the text to check
+   * @return {@code true} for an IPv4 address with no leading zero
+   */
+  static boolean isIpv4Address(String text) {
+    return IPV4_ADDRESS.matcher(text).matches();
+  }
+
+  /**
+   * Whether {@code text} is exactly an IPv6 address literal in any RFC 4291 text form.
+   *
+   * @param text the text to check
+   * @return {@code true} for an IPv6 address
+   */
+  static boolean isIpv6Address(String text) {
+    if (!IPV6_CHARACTERS.matcher(text).matches()) {
+      return false;
+    }
+    int gap = text.indexOf("::");
+    if (gap >= 0 && text.indexOf("::", gap + 1) >= 0) {
+      return false;
+    }
+    String[] halves =
+        gap >= 0
+            ? new String[] {text.substring(0, gap), text.substring(gap + 2)}
+            : new String[] {text};
+    int groups = 0;
+    for (int half = 0; half < halves.length; half++) {
+      if (halves[half].isEmpty()) {
+        continue;
+      }
+      String[] parts = halves[half].split(":", -1);
+      for (int i = 0; i < parts.length; i++) {
+        String part = parts[i];
+        boolean last = half == halves.length - 1 && i == parts.length - 1;
+        if (part.contains(".")) {
+          if (!last || !isIpv4Address(part)) {
+            return false;
+          }
+          groups += 2;
+        } else if (part.isEmpty() || part.length() > 4) {
+          return false;
+        } else {
+          groups += 1;
+        }
+      }
+    }
+    return gap >= 0 ? groups <= 7 : groups == 8;
+  }
+
+  /**
    * An absolute RFC 3986 URI: a scheme, a colon, then no whitespace or control characters. Any
    * scheme is accepted (http, ftp, mailto, urn).
    */

@@ -137,7 +137,13 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
     ready for API requests.
   """
   @spec exchange_code(t(), String.t()) :: t()
-  def exchange_code(%__MODULE__{} = self, code) do
+  def exchange_code(%__MODULE__{} = self, code), do: exchange_code_checked(self, code, nil)
+
+  # Exchanges the code, handing the response's id_token to `id_token_check`
+  # before the session is replaced. OpenID Connect uses this.
+  @doc false
+  @spec exchange_code_checked(t(), String.t(), (String.t() | nil -> any()) | nil) :: t()
+  def exchange_code_checked(%__MODULE__{} = self, code, id_token_check) do
     # Reject an empty/whitespace authorization code before POSTing to the
     # token endpoint: an empty `code` would otherwise be sent verbatim and
     # surface as a confusing server-side `invalid_grant` rather than a
@@ -164,7 +170,14 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
 
     # Always POSTs this code (never answers from the cache or the refresh path)
     # and replaces the session; a rejected code keeps the previous session.
-    _token = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(self.token_manager, self.token_url, params)
+    _token =
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(
+        self.token_manager,
+        self.token_url,
+        params,
+        %{},
+        id_token_check
+      )
     self
   end
 

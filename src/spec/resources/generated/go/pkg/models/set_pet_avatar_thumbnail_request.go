@@ -86,12 +86,12 @@ func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
 	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,
 	 * whereas the bare oneOf set is alphabetical. */
 	var byteSlice []byte
-	if err := json.Unmarshal(data, &byteSlice); err == nil {
+	if err := unmarshalValue(data, &byteSlice); err == nil {
 		o.value = byteSlice
 		return nil
 	}
 	var byteSliceSlice [][]byte
-	if err := json.Unmarshal(data, &byteSliceSlice); err == nil {
+	if err := unmarshalValue(data, &byteSliceSlice); err == nil {
 		o.value = byteSliceSlice
 		return nil
 	}

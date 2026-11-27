@@ -3597,6 +3597,103 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvTransport094PerCallTimeoutBoundsTheWholeCallBodyIncluded() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(
+                  socket, 200, "Content-Type: application/octet-stream", "Content-Length: 100000");
+              OutputStream out = socket.getOutputStream();
+              for (int sent = 0; sent < 300; sent++) {
+                out.write('a');
+                out.flush();
+                if (self.release.await(100, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                  return;
+                }
+              }
+            })) {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(60000).maxRetries(0).build());
+      long started = System.nanoTime();
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkTimeoutException.class,
+          () -> client.sendRequest("GET", server.url("/items/blob"), Map.of(), null, 500, null));
+      assertTrue(
+          System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(3),
+          "the trickling body was cut off by the per-call timeout");
+    }
+  }
+
+  @Test
+  void bhvTransport095ABufferedBodyOverMaxResponseBytesFailsWithResponseTooLarge() throws Exception {
+    byte[] body = new byte[4096];
+    java.util.Arrays.fill(body, (byte) 'a');
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(
+                  socket, 200, "Content-Type: application/octet-stream", "Content-Length: 4096");
+              OutputStream out = socket.getOutputStream();
+              out.write(body);
+              out.flush();
+            })) {
+      DefaultApiClient limited =
+          new DefaultApiClient(
+              TransportOptions.builder().maxResponseBytes(1024L).maxRetries(0).build());
+      {{invokerPackage}}.errors.ResponseTooLargeException ex =
+          assertThrowsExactly(
+              {{invokerPackage}}.errors.ResponseTooLargeException.class,
+              () -> limited.sendRequest("GET", server.url("/items/blob"), Map.of(), null));
+      assertEquals(200, ex.getStatusCode());
+      assertEquals(1024L, ex.getLimit());
+      assertEquals("Response body exceeds the limit of 1024 bytes", ex.getMessage());
+      assertFalse(ex.isRetryable());
+      assertEquals(1, server.hits.get());
+
+      DefaultApiClient unlimited =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      ApiHttpResponse response =
+          unlimited.sendRequest("GET", server.url("/items/blob"), Map.of(), null);
+      assertEquals(200, response.statusCode());
+    }
+  }
+
+  @Test
+  void bhvTransport096AGzipBodyThatInflatesPastMaxResponseBytesFailsWithResponseTooLarge()
+      throws Exception {
+    java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+    try (java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(compressed)) {
+      gzip.write(new byte[100000]);
+    }
+    byte[] body = compressed.toByteArray();
+    assertTrue(body.length < 1024, "the compressed body is under the limit");
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(
+                  socket,
+                  200,
+                  "Content-Type: application/octet-stream",
+                  "Content-Encoding: gzip",
+                  "Content-Length: " + body.length);
+              OutputStream out = socket.getOutputStream();
+              out.write(body);
+              out.flush();
+            })) {
+      DefaultApiClient limited =
+          new DefaultApiClient(
+              TransportOptions.builder().maxResponseBytes(1024L).maxRetries(0).build());
+      {{invokerPackage}}.errors.ResponseTooLargeException ex =
+          assertThrowsExactly(
+              {{invokerPackage}}.errors.ResponseTooLargeException.class,
+              () -> limited.sendRequest("GET", server.url("/items/blob"), Map.of(), null));
+      assertEquals(200, ex.getStatusCode());
+      assertEquals(1024L, ex.getLimit());
+      assertEquals("Response body exceeds the limit of 1024 bytes", ex.getMessage());
+    }
+  }
+
+  @Test
   void bhvLangjava013RequestWithoutDefaultHeadersSendsOnlyItsOwn() throws Exception {
     var seen = new java.util.concurrent.atomic.AtomicReference<String>("unset");
     HttpServer echo = HttpServer.create(new InetSocketAddress(0), 0);

@@ -2519,6 +2519,15 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerializationobject413ANumberOrStringDecimalFieldIsTheExactDecimal()
+        {
+            NativeValues? values = _serializer.Deserialize<NativeValues>("{\"amount\":0.1,\"ledger\":\"0.2\"}");
+            decimal? amount = values?.Amount;
+            decimal? ledger = values?.Ledger;
+            Assert.Equal(0.3m, amount + ledger);
+        }
+
+        [Fact]
         public void BhvSerializationparam104DurationParameterIsTheProtobufForm()
         {
             Assert.Equal("3600s", ObjectSerializer.Stringify(TimeSpan.FromHours(1)));

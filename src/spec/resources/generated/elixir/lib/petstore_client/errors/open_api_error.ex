@@ -49,6 +49,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
        │   │       (and the PetstoreClient.Errors.ServerError grouping)
        │   ├─ one error per declared error schema, named from the schema's model
        │   │   and specialising the status error of the status it is declared under
+       │   ├─ ResponseTooLargeError (a buffered body passed max_response_bytes)
        │   └─ no response: NetworkError, NetworkTimeoutError, StreamError (status 0)
        ├─ PetstoreClient.Errors.PaginationError  (a paged list that cannot be followed)
        ├─ PetstoreClient.Errors.SerializationError  (every encode/decode failure)
@@ -86,6 +87,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
     PetstoreClient.Errors.NetworkError,
     PetstoreClient.Errors.NetworkTimeoutError,
     PetstoreClient.Errors.StreamError,
+    PetstoreClient.Errors.ResponseTooLargeError,
     PetstoreClient.Errors.PaginationError,
     PetstoreClient.Errors.SerializationError,
     PetstoreClient.Errors.OAuth2ServerError,
@@ -124,6 +126,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
           | PetstoreClient.Errors.NetworkError.t()
           | PetstoreClient.Errors.NetworkTimeoutError.t()
           | PetstoreClient.Errors.StreamError.t()
+          | PetstoreClient.Errors.ResponseTooLargeError.t()
           | PetstoreClient.Errors.PaginationError.t()
           | PetstoreClient.Errors.SerializationError.t()
           | PetstoreClient.Errors.OAuth2ServerError.t()

@@ -244,7 +244,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#defaultValue}}
         // When the key is absent, apply the schema default. The default literal
         // is the wire-format String (e.g. "3600s"), so decode it through
-        // decodeDuration to convert it to the Swift TimeInterval type, matching
+        // decodeDuration to convert it to the Swift Duration type, matching
         // the present-key path and the non-duration default branch below.
         self.{{name}} = container.contains(.{{name}})
             ? try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
@@ -478,7 +478,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#defaultValue}}
         // When the key is absent, apply the schema default. The default literal
         // is the wire-format String (e.g. "3600s"), so decode it through
-        // decodeDuration to convert it to the Swift TimeInterval type, matching
+        // decodeDuration to convert it to the Swift Duration type, matching
         // the present-key path and the non-duration default branch below.
         self.{{name}} = container.contains(.{{name}})
             ? try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }

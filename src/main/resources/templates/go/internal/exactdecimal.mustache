@@ -1,0 +1,221 @@
+{{>api_info}}
+// Package exactdecimal writes and checks the JSON form of an OAS
+// `format: decimal` value, a decimal.Decimal from github.com/shopspring/decimal
+// in the generated code. A `type: number` decimal is a bare JSON number and a
+// `type: string` decimal is a JSON string; both keep every digit the server
+// sent. shopspring reads a decimal from its text, never through a float64, but
+// it writes one as a quoted string without its trailing zeros and reads a
+// number and a string alike. The models therefore check the JSON shape of
+// each decimal value as they read it and write the exact text on the way out.
+package exactdecimal
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"regexp"
+	"sort"
+
+	"github.com/go-json-experiment/json/jsontext"
+	"github.com/shopspring/decimal"
+)
+
+// decimalType is the reflect type of a decimal.Decimal.
+var decimalType = reflect.TypeOf(decimal.Decimal{})
+
+// plainDecimal is the text a `type: string` decimal may carry: an optional
+// minus, digits and an optional fraction, with no exponent, sign or space.
+var plainDecimal = regexp.MustCompile(`^-?[0-9]+(\.[0-9]+)?$`)
+
+// Text writes d in plain notation with every digit it holds, trailing zeros
+// included: 12.50 stays 12.50, and a value is never written with an exponent.
+func Text(d decimal.Decimal) string {
+	return d.StringFixed(max(-d.Exponent(), 0))
+}
+
+// Field names a top-level key of a JSON object that holds a decimal, on its own,
+// behind a pointer or in a list or map, and the Go value written under it.
+type Field struct {
+	// Key is the wire name of the property.
+	Key string
+	// Value is the property's Go value.
+	Value any
+	// Quoted is true for a `type: string` decimal, which travels as a JSON string.
+	Quoted bool
+}
+
+// EncodeFields replaces the value of each field's key in a JSON object with the
+// exact text of the field's Go value, keeping every key in place and in order.
+// A key that is absent stays absent, and a value of a shape this package does
+// not write (such as a set) is kept as encoding/json wrote it.
+func EncodeFields(data []byte, fields ...Field) ([]byte, error) {
+	if len(fields) == 0 {
+		return data, nil
+	}
+	byKey := make(map[string]Field, len(fields))
+	for _, field := range fields {
+		byKey[field.Key] = field
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	start, err := dec.Token()
+	if err != nil {
+		return data, nil
+	}
+	if delim, ok := start.(json.Delim); !ok || delim != '{' {
+		return data, nil
+	}
+	var out bytes.Buffer
+	out.WriteByte('{')
+	for first := true; dec.More(); first = false {
+		token, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, _ := token.(string)
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return nil, err
+		}
+		if field, ok := byKey[key]; ok {
+			if text, written := render(reflect.ValueOf(field.Value), field.Quoted); written {
+				value = text
+			}
+		}
+		name, err := marshal(key)
+		if err != nil {
+			return nil, err
+		}
+		if !first {
+			out.WriteByte(',')
+		}
+		out.Write(name)
+		out.WriteByte(':')
+		out.Write(value)
+	}
+	out.WriteByte('}')
+	return out.Bytes(), nil
+}
+
+// CheckValue rejects a decimal under key whose JSON shape is not the declared
+// one: a `type: number` decimal (quoted false) must be a bare JSON number, and a
+// `type: string` decimal (quoted true) a JSON string holding a plain decimal
+// number. value is the one JSON value the model read for key; the items of a
+// list or map are checked the same way, and a null passes. A value that is not
+// well-formed JSON is left to the decode that follows.
+func CheckValue(key string, value []byte, quoted bool) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(value), jsontext.AllowDuplicateNames(true), jsontext.AllowInvalidUTF8(true))
+	for {
+		token, err := dec.ReadToken()
+		if err != nil {
+			return nil
+		}
+		switch token.Kind() {
+		case '0':
+			if quoted {
+				return fmt.Errorf("field %q is a decimal written as a JSON string, not the bare number %s", key, token.String())
+			}
+		case '"':
+			/* A string read right after the opening brace or a value is an object
+			 * key, not a decimal: the object then holds an odd number of tokens. */
+			if kind, length := dec.StackIndex(dec.StackDepth()); kind == '{' && length%2 == 1 {
+				continue
+			}
+			text := token.String()
+			if !quoted {
+				return fmt.Errorf("field %q is a decimal written as a bare JSON number, not the string %q", key, text)
+			}
+			if !plainDecimal.MatchString(text) {
+				return fmt.Errorf("field %q is not a plain decimal number: %q", key, text)
+			}
+		case 't', 'f':
+			return fmt.Errorf("field %q is a decimal, not %v", key, token.Bool())
+		}
+	}
+}
+
+// render writes the JSON text of a decimal, a pointer to one, or a slice, array
+// or string-keyed map of them. It reports false for any other shape.
+func render(rv reflect.Value, quoted bool) ([]byte, bool) {
+	if !rv.IsValid() {
+		return []byte("null"), true
+	}
+	if rv.Type() == decimalType {
+		text := Text(rv.Interface().(decimal.Decimal))
+		if quoted {
+			return []byte(`"` + text + `"`), true
+		}
+		return []byte(text), true
+	}
+	switch rv.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if rv.IsNil() {
+			return []byte("null"), true
+		}
+		return render(rv.Elem(), quoted)
+	case reflect.Slice, reflect.Array:
+		if rv.Kind() == reflect.Slice && rv.IsNil() {
+			return []byte("null"), true
+		}
+		var out bytes.Buffer
+		out.WriteByte('[')
+		for i := range rv.Len() {
+			item, ok := render(rv.Index(i), quoted)
+			if !ok {
+				return nil, false
+			}
+			if i > 0 {
+				out.WriteByte(',')
+			}
+			out.Write(item)
+		}
+		out.WriteByte(']')
+		return out.Bytes(), true
+	case reflect.Map:
+		if rv.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		if rv.IsNil() {
+			return []byte("null"), true
+		}
+		keys := make([]string, 0, rv.Len())
+		for _, k := range rv.MapKeys() {
+			keys = append(keys, k.String())
+		}
+		sort.Strings(keys)
+		var out bytes.Buffer
+		out.WriteByte('{')
+		for i, k := range keys {
+			item, ok := render(rv.MapIndex(reflect.ValueOf(k).Convert(rv.Type().Key())), quoted)
+			if !ok {
+				return nil, false
+			}
+			name, err := marshal(k)
+			if err != nil {
+				return nil, false
+			}
+			if i > 0 {
+				out.WriteByte(',')
+			}
+			out.Write(name)
+			out.WriteByte(':')
+			out.Write(item)
+		}
+		out.WriteByte('}')
+		return out.Bytes(), true
+	default:
+		return nil, false
+	}
+}
+
+// marshal writes compact JSON with HTML escaping off, like the models and the
+// serializer, so '<', '>' and '&' reach the wire literally.
+func marshal(value any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}

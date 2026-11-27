@@ -38,7 +38,7 @@ Some rules need no configuration because the generator applies them to every doc
 
 The `x-internal` rule is how the shared test specification works: transport-test endpoints (echo, delay, compression, redirects, error statuses) live in the same file that the mock server serves, and are removed before generation so they do not become SDK methods.
 
-Every run also has a warning pass over the specification, after the stock normalisation and before the rules above. It logs each `$ref` that does not resolve inside the document (a dangling reference, or a reference that is not a local JSON pointer) and each construct the generators ignore (callbacks, webhooks, Link Objects and the `xml` object), with the JSON pointer of the place where it was found, such as `#/paths/~1pets/get/responses/200`. By default the run stays lenient and carries on. Pass `-DstrictSpec=true` to the JVM and any warning fails the run after all of them have been logged.
+Every run also has a warning pass over the specification, after the stock normalisation and before the rules above. It logs each `$ref` that does not resolve inside the document (a dangling reference, or a reference that is not a local JSON pointer) and each construct the generators ignore (callbacks, webhooks, Link Objects and the `xml` object), with the JSON pointer of the place where it was found, such as `#/paths/~1pets/get/responses/200`. Each JSON Schema keyword the generators read and ignore (such as `not`, `if`/`then`/`else` or `patternProperties`) is logged once as well. By default the run stays lenient and carries on. Pass `-DstrictSpec=true` to the JVM and any of these warnings fails the run after all of them have been logged (D142).
 
 ### The shared generator
 

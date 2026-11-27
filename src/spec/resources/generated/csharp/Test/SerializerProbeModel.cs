@@ -17,6 +17,6 @@ public sealed class SerializerProbeModel
     [System.Text.Json.Serialization.JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
-    [System.Text.Json.Serialization.JsonPropertyName("tags")]
-    public System.Collections.Generic.List<string> Tags { get; set; } = [];
+    [System.Text.Json.Serialization.JsonPropertyName("count")]
+    public int Count { get; set; }
 }

@@ -17,7 +17,7 @@ use futures_util::StreamExt as _;
 use crate::api_result::ApiResult;
 use crate::errors::pagination_error::PaginationError;
 
-type Failure = Box<dyn std::error::Error + Send + Sync>;
+type Failure = crate::Error;
 
 /// The request of one page, not sent until it is polled.
 pub type PageFuture<B> = Pin<Box<dyn Future<Output = Result<ApiResult<B>, Failure>> + Send>>;
@@ -294,7 +294,7 @@ where
                     }
                     if let Some(repeated) = state.repeated.take() {
                         state.done = true;
-                        return Some((Err(Box::new(repeated) as Failure), state));
+                        return Some((Err(Failure::from(repeated)), state));
                     }
                     let (fetch, items, next, more, request_path) = &*shared;
                     let result = match fetch(state.sent.clone()).await {
@@ -431,7 +431,7 @@ where
                     }
                     if let Some(repeated) = state.repeated.take() {
                         state.done = true;
-                        return Some((Err(Box::new(repeated) as Failure), state));
+                        return Some((Err(Failure::from(repeated)), state));
                     }
                     let (base_url, fetch, items, next, request_path) = &*shared;
                     let result = match fetch(state.url.clone()).await {

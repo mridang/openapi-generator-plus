@@ -36,7 +36,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           refresh_token: String.t() | nil,
           token_expiry: integer() | nil,
           token_exchanged: boolean(),
-          code_verifier: String.t() | nil
+          code_verifier: String.t() | nil,
+          id_token: String.t() | nil
         }
 
   @doc """
@@ -52,7 +53,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           refresh_token: nil,
           token_expiry: nil,
           token_exchanged: false,
-          code_verifier: nil
+          code_verifier: nil,
+          id_token: nil
         }
       end,
       opts
@@ -223,12 +225,21 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
   exactly what the response carried (no refresh token or expiry unless it sent
   one) and is marked exchanged. On failure the previous session is restored and
   the error re-raised, so a rejected grant does not discard a working session.
+
+  `id_token_check`, when given, receives the response's `id_token` (`nil` when
+  it carried none, `""` when it was not a JSON string) before the session is
+  replaced; when it raises, the previous session is kept and the error
+  re-raised. OpenID Connect uses it to validate the id_token.
   """
-  @spec exchange(pid(), String.t(), %{optional(String.t()) => String.t()}, %{
-          optional(String.t()) => String.t()
-        }) ::
+  @spec exchange(
+          pid(),
+          String.t(),
+          %{optional(String.t()) => String.t()},
+          %{optional(String.t()) => String.t()},
+          (String.t() | nil -> any()) | nil
+        ) ::
           String.t()
-  def exchange(manager, token_url, params, extra_headers \\ %{}) do
+  def exchange(manager, token_url, params, extra_headers \\ %{}, id_token_check \\ nil) do
     result =
       Agent.get_and_update(
         manager,
@@ -236,11 +247,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           cleared = %{state | access_token: nil, refresh_token: nil, token_expiry: nil}
 
           try do
-            new_state = %{
-              fetch_token(cleared, token_url, params, extra_headers)
-              | token_exchanged: true
-            }
-
+            fetched = fetch_token(cleared, token_url, params, extra_headers)
+            if id_token_check, do: id_token_check.(fetched.id_token)
+            new_state = %{fetched | token_exchanged: true}
             {{:ok, new_state.access_token}, new_state}
           rescue
             e -> {{:raise, e, __STACKTRACE__}, state}
@@ -389,7 +398,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           message: "Unsupported token_type in token response"
     end
 
-    new_state = %{state | access_token: access_token}
+    # The id_token is kept for the check of an exchange: nil when absent or
+    # null, "" when it is not a JSON string.
+    id_token =
+      case parsed["id_token"] do
+        nil -> nil
+        value when is_binary(value) -> value
+        _ -> ""
+      end
+
+    new_state = state |> Map.put(:access_token, access_token) |> Map.put(:id_token, id_token)
 
     new_state =
       case parsed["refresh_token"] do

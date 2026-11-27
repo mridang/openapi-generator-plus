@@ -21,6 +21,7 @@ import 'body_source.dart';
 import 'errors/api_exception.dart';
 import 'errors/network_exception.dart';
 import 'errors/network_timeout_exception.dart';
+import 'errors/response_too_large_exception.dart';
 import 'errors/stream_exception.dart';
 import 'object_serializer.dart';
 import 'transport_options.dart';
@@ -102,6 +103,26 @@ abstract class AbstractApiClient
   /// on the browser having already decoded the response and returns [bytes]
   /// unchanged. An empty encoding passes bytes through on both.
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding);
+
+  /// Platform seam: [decompressBytes] with the decoded output capped at
+  /// [maxBytes] (`TransportOptions.maxResponseBytes`). Raises
+  /// [ResponseTooLargeException] (with status 0; the caller adds the
+  /// response's status and headers) when the output passes the limit. The
+  /// native transport decodes chunk by chunk and stops as soon as the limit
+  /// is passed; this default checks the length of the decoded bytes, which is
+  /// exact on the web, where the browser has already decoded the body and the
+  /// read itself was capped.
+  Uint8List decompressBytesWithin(
+    Uint8List bytes,
+    String contentEncoding,
+    int maxBytes,
+  ) {
+    final decoded = decompressBytes(bytes, contentEncoding);
+    if (decoded.length > maxBytes) {
+      throw ResponseTooLargeException(limit: maxBytes, statusCode: 0);
+    }
+    return decoded;
+  }
 
   /// Platform seam: decode the response [body] of a stream call according to
   /// [contentEncoding], without buffering it. The native transport decodes
@@ -397,6 +418,7 @@ abstract class AbstractApiClient
     bool noDefaultHeaders,
   ) async {
     final clock = _Deadline(timeout ?? _transportOptions.timeout);
+    final maxBytes = _transportOptions.maxResponseBytes;
     /* Read the response body INSIDE the transport guard so a connection
      * reset, read timeout, or truncated-chunked failure that occurs AFTER the
      * response headers arrive is wrapped in the same error type a send-phase
@@ -411,7 +433,30 @@ abstract class AbstractApiClient
         noDefaultHeaders,
         clock,
       );
-      return (opened, await _readWithin(opened.stream, clock));
+      if (maxBytes == null) {
+        return (opened, await _readWithin(opened.stream, clock));
+      }
+      /* D138: a declared length over the limit fails before any byte is
+       * read; otherwise the read stops as soon as the running count of the
+       * bytes received passes it. Either way the body is cancelled, which
+       * drops the connection instead of draining it. */
+      final declared = opened.contentLength;
+      if (declared != null &&
+          declared > maxBytes &&
+          method.toUpperCase() != 'HEAD' &&
+          opened.statusCode != 204 &&
+          opened.statusCode != 304) {
+        unawaited(opened.stream.listen(null).cancel());
+        throw _tooLarge(opened, maxBytes);
+      }
+      try {
+        return (
+          opened,
+          await _readWithin(opened.stream, clock, maxBytes: maxBytes),
+        );
+      } on _BodyLimitExceeded {
+        throw _tooLarge(opened, maxBytes);
+      }
     });
     final streamedResponse = fetched.$1;
     final rawBytes = fetched.$2;
@@ -423,7 +468,11 @@ abstract class AbstractApiClient
      * status, never a NetworkException. */
     final Uint8List responseBytes;
     try {
-      responseBytes = decompressBytes(rawBytes, contentEncoding);
+      responseBytes = maxBytes == null
+          ? decompressBytes(rawBytes, contentEncoding)
+          : decompressBytesWithin(rawBytes, contentEncoding, maxBytes);
+    } on ResponseTooLargeException catch (e) {
+      throw _tooLarge(streamedResponse, e.limit);
     } on ApiException catch (e) {
       throw ApiException(
         statusCode: streamedResponse.statusCode,
@@ -455,6 +504,17 @@ abstract class AbstractApiClient
       headers: responseHeaders,
     );
   }
+
+  /// The error for a buffered body of [response] that passed [limit] bytes,
+  /// with the response's real status and lower-cased headers.
+  static ResponseTooLargeException _tooLarge(
+    http.StreamedResponse response,
+    int limit,
+  ) => ResponseTooLargeException(
+    limit: limit,
+    statusCode: response.statusCode,
+    responseHeaders: _lowerResponseHeaders(response),
+  );
 
   /// The response headers of [streamedResponse] with lower-cased names.
   static Map<String, String> _lowerResponseHeaders(
@@ -931,22 +991,37 @@ abstract class AbstractApiClient
   /// Reads the whole response body within what is left of the end-to-end
   /// timeout. `Future.timeout` over `toBytes()` would leave the subscription
   /// open, so the body is collected through a subscription that is cancelled
-  /// (closing the connection) when the deadline passes.
+  /// (closing the connection) when the deadline passes. With [maxBytes] the
+  /// subscription is also cancelled as soon as the running count of the bytes
+  /// received passes it, and the read fails with [_BodyLimitExceeded].
   Future<Uint8List> _readWithin(
     http.ByteStream stream,
     _Deadline clock, {
     bool discard = false,
+    int? maxBytes,
   }) {
     final limit = clock.limit;
-    if (limit == null) {
+    if (limit == null && maxBytes == null) {
       return discard
           ? stream.drain<void>().then((_) => Uint8List(0))
           : stream.toBytes();
     }
     final done = Completer<Uint8List>();
     final builder = BytesBuilder(copy: false);
-    final subscription = stream.listen(
+    var received = 0;
+    late final StreamSubscription<List<int>> subscription;
+    subscription = stream.listen(
       (List<int> chunk) {
+        if (maxBytes != null) {
+          received += chunk.length;
+          if (received > maxBytes) {
+            unawaited(subscription.cancel());
+            if (!done.isCompleted) {
+              done.completeError(const _BodyLimitExceeded());
+            }
+            return;
+          }
+        }
         if (!discard) builder.add(chunk);
       },
       onError: (Object error, StackTrace stack) {
@@ -957,15 +1032,17 @@ abstract class AbstractApiClient
       },
       cancelOnError: true,
     );
-    final timer = Timer(_remaining(clock), () {
-      subscription.cancel();
-      if (!done.isCompleted) {
-        done.completeError(
-          TimeoutException('Request timed out after $limit ms'),
-        );
-      }
-    });
-    return done.future.whenComplete(timer.cancel);
+    final timer = limit == null
+        ? null
+        : Timer(_remaining(clock), () {
+            subscription.cancel();
+            if (!done.isCompleted) {
+              done.completeError(
+                TimeoutException('Request timed out after $limit ms'),
+              );
+            }
+          });
+    return done.future.whenComplete(() => timer?.cancel());
   }
 
   /// Reads and discards the rest of [stream] within what is left of the
@@ -1428,6 +1505,13 @@ String rfc5987EncodeValue(String s) {
 
 /// The end-to-end deadline of one request: the limit in milliseconds (null for
 /// none) and a clock that started with the request.
+/// Raised by [AbstractApiClient._readWithin] when a buffered body passes
+/// `TransportOptions.maxResponseBytes`; the caller turns it into a
+/// [ResponseTooLargeException] carrying the response's status and headers.
+class _BodyLimitExceeded implements Exception {
+  const _BodyLimitExceeded();
+}
+
 class _Deadline {
   _Deadline(this.limit) : _clock = Stopwatch()..start();
 

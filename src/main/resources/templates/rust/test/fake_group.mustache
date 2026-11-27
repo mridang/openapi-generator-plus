@@ -9,14 +9,14 @@ impl Fake{{classname}} {
         Self { calls: std::sync::Mutex::new(Vec::new()) }
     }
 
-    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+    fn failure(&self) -> {{packageName}}::Error {
         Self::fresh_failure()
     }
 
-    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
+    fn fresh_failure() -> {{packageName}}::Error {
         let api_error = {{packageName}}::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = {{packageName}}::errors::client_error::ClientError::try_from(api_error).expect("a 404 is a client error");
-        Box::new({{packageName}}::errors::not_found_error::NotFoundError::try_from(client_error).expect("a 404 is not found"))
+        {{packageName}}::Error::from({{packageName}}::errors::not_found_error::NotFoundError::try_from(client_error).expect("a 404 is not found"))
     }
 }
 
@@ -39,7 +39,7 @@ impl {{classname}}Trait for Fake{{classname}} {
         request_content_type: Option<&str>,
 {{/consumes.1}}
         stream_options: Option<&StreamOptions>,
-    ) -> impl Future<Output = Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<{{{returnType}}}, {{packageName}}::Error>> {
         self.calls.lock().expect("calls lock").push(format!("{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
         let failure = self.failure();
         async move { Err(failure) }
@@ -60,7 +60,7 @@ impl {{classname}}Trait for Fake{{classname}} {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, {{packageName}}::Error>> {
         self.calls.lock().expect("calls lock").push(format!("{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
         let failure = self.failure();
         async move { Err(failure) }
@@ -80,7 +80,7 @@ impl {{classname}}Trait for Fake{{classname}} {
 {{#consumes.1}}
         request_content_type: Option<&str>,
 {{/consumes.1}}
-    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, {{packageName}}::Error>> {
         self.calls.lock().expect("calls lock").push(format!("{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
         let failure = self.failure();
         async move { Err(failure) }

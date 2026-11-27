@@ -86,12 +86,12 @@ func (o *ReserveStockResponse) UnmarshalJSON(data []byte) error {
 	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,
 	 * whereas the bare oneOf set is alphabetical. */
 	var reservation Reservation
-	if err := json.Unmarshal(data, &reservation); err == nil {
+	if err := unmarshalValue(data, &reservation); err == nil {
 		o.value = reservation
 		return nil
 	}
 	var reservationReceipt ReservationReceipt
-	if err := json.Unmarshal(data, &reservationReceipt); err == nil {
+	if err := unmarshalValue(data, &reservationReceipt); err == nil {
 		o.value = reservationReceipt
 		return nil
 	}

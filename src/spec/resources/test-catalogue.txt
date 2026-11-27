@@ -496,8 +496,8 @@ options034 | Setting proxy is supported on all platforms
 options035 | Setting proxy URL is preserved on read-back
 options036 | Setting timeout to 5000 is accessible
 options037 | Timeout can be explicitly disabled
-options038 | Timeout defaults to 10 seconds (10000 ms)
-options039 | Timeout defaults to 10000 ms (10 seconds)
+options038 | Timeout defaults to 60 seconds (60000 ms)
+options039 | Timeout defaults to 60000 ms (60 seconds)
 options040 | Timeout field is named exactly timeout
 options041 | UserAgent defaults to non-empty string
 options042 | UserAgent defaults to the published artifact name, version and language
@@ -1091,6 +1091,14 @@ authoidc030 | A discovery document served with max-age=0 is fetched again on eve
 authoidc031 | A cached discovery document is fetched again once its Cache-Control max-age has elapsed
 authoidc032 | A discovered endpoint that is not https is rejected
 authoidc033 | A failed discovery request reports its method and path in the error
+authoidc034 | Each authorization url carries a fresh nonce
+authoidc035 | An id_token with the nonce, the discovered issuer, the client id in its audience and a future expiry is accepted
+authoidc036 | An id_token whose nonce differs from the authorization url is rejected with the OAuth2 token error
+authoidc037 | An id_token whose issuer differs from the discovered issuer is rejected with the OAuth2 token error
+authoidc038 | An id_token whose audience does not contain the client id is rejected with the OAuth2 token error
+authoidc039 | An id_token that expired beyond the clock skew is rejected with the OAuth2 token error
+authoidc040 | An id_token that is not a decodable JWT is rejected with the OAuth2 token error
+authoidc041 | A rejected id_token leaves no session behind
 authscheme009 | A credential passed explicitly wins over its environment variable
 authscheme010 | An empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable
 authscheme011 | An empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable
@@ -1434,6 +1442,7 @@ serializationobject409 | A format: hostname or email value is kept as given and 
 serializationobject410 | A type: number field keeps all 25 digits of 12.345678901234567890123 from decode to encode and writes them as a bare JSON number in plain notation where the language has an exact decimal
 serializationobject411 | A type: string field with format decimal decodes a quoted number into the native decimal, writes it back as a JSON string, and rejects a bare JSON number
 serializationobject412 | A type: number value the native decimal cannot hold fails with the SDK serialization error and is never rounded
+serializationobject413 | A format: decimal field, number- or string-shaped, is the language's exact decimal type and never a binary float
 operations157 | A null required nullable query parameter is sent as the key with an empty value / A binary request body is sent as its exact raw bytes with no multipart encoding, whatever the binary input type. / A null required nullable query parameter is sent as the key with an empty value
 operations158 | Every null required nullable query parameter is sent as an empty value in declaration order / A header supplied on an individual call is sent with that call. / Every null required nullable query parameter is sent as an empty value in declaration order
 operations159 | A non-null required nullable query parameter is sent with its value / A call that returns a value raises a typed API error when a success response arrives with an empty body. / A non-null required nullable query parameter is sent with its value
@@ -1614,7 +1623,7 @@ misc074 | An alternative whose requirement names two schemes sends the credentia
 misc075 | A credential keyed to a security scheme the API does not declare is refused when the client is built.
 misc076 | A call made during a code exchange, or after a dropped one, reuses the discovered configuration and sees the code as not yet exchanged.
 misc077 | A generated PKCE verifier is 43 characters from the unreserved set and differs on every call.
-misc078 | An OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce.
+misc078 | An OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce.
 misc079 | When an operation declares different body types for several success statuses, each response is decoded as the type declared for the status it arrived with.
 misc080 | A response body is decoded with the schema of its own status code, so a body that fits another status's schema is refused with an error.
 misc081 | A string result whose response arrives under a binary content type is the decoded body, never the transport's base64 text.
@@ -1842,6 +1851,7 @@ operations163 | A request with no body sends no Content-Type header, whatever th
 operations164 | A call with a missing or nil required parameter raises an argument error and sends no request.
 operations165 | A path parameter is written into the request path using the serialization style the operation declares.
 options068 | Configuring a proxy with a SOCKS scheme fails at construction with the documented error message.
+options069 | maxResponseBytes is off by default, keeps a positive value and refuses zero or a negative value with the canonical message
 redirects046 | A redirect chain within the configured redirect limit is followed to its target, and a redirect past the limit raises a too-many-redirects error that carries the 3xx status and the canonical message.
 redirects047 | A redirect refusal or a successful redirect in one request does not change the outcome of other requests running at the same time.
 redirects048 | A 301 or 302 response turns a POST follow-up into a GET with no body, while PUT, PATCH, DELETE, HEAD and GET keep their method.
@@ -1938,6 +1948,9 @@ transport090 | Response headers repeated on the wire are returned with every val
 transport091 | The SDK leaves a caller-supplied file or upload stream open after sending the request.
 transport092 | A caller-supplied HTTP client or connection pool receives the SDK's request.
 transport093 | A server whose certificate is signed by a CA other than the configured one is rejected with a network error.
+transport094 | A per-call timeout bounds the whole call, body included: a body that trickles in past the budget fails with the network timeout error within the budget.
+transport095 | With maxResponseBytes set, a buffered body larger than it fails with the response-too-large error carrying the status and the limit; with no limit the same body is returned.
+transport096 | With maxResponseBytes set, a small compressed body that inflates past it fails with the response-too-large error.
 unions044 | Each variant of a union has a typed constructor or factory and a typed accessor that identify the variant the value was built from or decoded as.
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
@@ -2353,9 +2366,9 @@ langrust074 | Status error wrappers display the wrapped API error
 langrust075 | Network error wrappers display the wrapped API error
 langrust076 | The skills error handling example has the common catch arms
 langrust077 | Generic error wrappers refuse a status that does not belong to them
-langrust078 | Boxed error helpers resolve every HTTP wrapper to its API error
-langrust079 | Boxed error helpers return nothing for other errors
-langrust080 | A boxed error kind can be matched
+langrust078 | The operation error resolves every HTTP variant to its API error
+langrust079 | The operation error has no API error for any other variant
+langrust080 | The operation error and its kind view can be matched by variant
 langrust081 | A declared error schema decodes into its own error below the status error
 langrust082 | The explicit token is the one sent, never one read from the environment
 langrust083 | A token provider is called for every request, not once at construction
@@ -2369,6 +2382,7 @@ langrust090 | The README Usage fence and the quickstart hold the same statements
 langrust091 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langrust092 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langrust093 | The SDK Makefile has an examples target that builds every file under examples
+langrust094 | The operation error sorts a boxed error into the variant that names its type, and any other error into Other with its text kept
 langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
 langcsharp049 | The field holding the exchanged token can be read safely across threads
 langcsharp050 | The configured authorization endpoint is kept verbatim in the authorization url
@@ -3124,6 +3138,8 @@ langgo129 | The README Usage fence and the quickstart hold the same statements, 
 langgo130 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langgo131 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langgo132 | The SDK Makefile has an examples target that builds every file under examples
+langgo133 | A model decoded through JSON v2 reports a missing required key with the same error as encoding/json
+langgo134 | A model decoded through JSON v2 matches keys exactly, so a mis-cased key does not fill the declared field
 langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
 langelixir002 | A server variable must declare a default value, and omitting it is an error.
 langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.

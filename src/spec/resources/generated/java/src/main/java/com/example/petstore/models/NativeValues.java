@@ -192,6 +192,8 @@ public class NativeValues {
      * @return this builder
      */
     @JsonProperty("address4")
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+        using = com.example.petstore.ObjectSerializer.Ipv4StringDeserializer.class)
     public Builder address4(@Nullable String address4) {
       this.address4 = address4;
       return this;
@@ -204,6 +206,8 @@ public class NativeValues {
      * @return this builder
      */
     @JsonProperty("address6")
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+        using = com.example.petstore.ObjectSerializer.Ipv6StringDeserializer.class)
     public Builder address6(@Nullable String address6) {
       this.address6 = address6;
       return this;
@@ -216,6 +220,8 @@ public class NativeValues {
      * @return this builder
      */
     @JsonProperty("addresses")
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+        contentUsing = com.example.petstore.ObjectSerializer.Ipv6StringDeserializer.class)
     public Builder addresses(@Nullable List<String> addresses) {
       this.addresses =
           addresses == null

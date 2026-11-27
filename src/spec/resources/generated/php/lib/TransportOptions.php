@@ -45,7 +45,7 @@ final class TransportOptions
      * @param int|null              $timeout        End-to-end request timeout in milliseconds. Covers the
      *                                               entire request lifecycle: connection, TLS handshake,
      *                                               sending the request body, and reading the response.
-     *                                               Defaults to 10000 ms (10 seconds). `null` disables the
+     *                                               Defaults to 60000 ms (60 seconds). `null` disables the
      *                                               timeout (waits indefinitely)
      * @param bool                  $followRedirects Whether the client follows HTTP 3xx redirects automatically
      * @param int|null              $maxRedirects   Maximum number of consecutive redirects to follow. Only
@@ -72,12 +72,18 @@ final class TransportOptions
      *                                               `NetworkTimeoutException`. Defaults to 60000 ms (60
      *                                               seconds); 0 or `null` disables it (stored as `null`). A
      *                                               buffered call is unaffected
+     * @param int|null              $maxResponseBytes The most bytes the client reads for a buffered
+     *                                               response body (success, error or redirect), counting
+     *                                               both the bytes on the wire and the decompressed bytes;
+     *                                               a body that passes it fails with
+     *                                               `ResponseTooLargeException`. `null` (the default)
+     *                                               means no limit. A streamed response is not limited
      */
     public function __construct(
         public readonly bool $verifySsl = true,
         public readonly ?string $caCertPath = null,
         public readonly ?string $proxy = null,
-        public readonly ?int $timeout = 10000,
+        public readonly ?int $timeout = 60000,
         public readonly bool $followRedirects = true,
         public readonly ?int $maxRedirects = null,
         public readonly ?string $userAgent = 'petstoreclient/1.0.0 (php)',
@@ -85,6 +91,7 @@ final class TransportOptions
         public readonly bool $injectRequestId = false,
         public readonly int $maxRetries = 2,
         ?int $idleTimeout = 60000,
+        public readonly ?int $maxResponseBytes = null,
     ) {
         self::assertValidProxy($proxy);
         if ($timeout !== null && $timeout <= 0) {
@@ -100,6 +107,11 @@ final class TransportOptions
         if ($maxRetries < 0) {
             throw new \InvalidArgumentException(
                 "Invalid maxRetries: must not be negative (got $maxRetries)"
+            );
+        }
+        if ($maxResponseBytes !== null && $maxResponseBytes <= 0) {
+            throw new \InvalidArgumentException(
+                "Invalid maxResponseBytes: must be a positive number of bytes (got $maxResponseBytes)"
             );
         }
         if ($idleTimeout !== null && $idleTimeout < 0) {
@@ -190,6 +202,7 @@ final class TransportOptions
             'injectRequestId' => $this->injectRequestId,
             'maxRetries' => $this->maxRetries,
             'idleTimeout' => $this->idleTimeout,
+            'maxResponseBytes' => $this->maxResponseBytes,
             'defaultHeaders' => $headers,
         ];
     }

@@ -4,22 +4,42 @@ package {{invokerPackage}}.auth.oauth
 
 import {{invokerPackage}}.errors.ApiException
 import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.errors.OAuth2TokenException
 import {{invokerPackage}}.errors.SerializationException
 import {{invokerPackage}}.auth.HttpAwareAuthenticator
+import java.security.SecureRandom
 import java.time.Instant
+import java.util.Base64
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 
 /** Longest discovery cache lifetime honoured (one year). */
 private const val MAX_DISCOVERY_MAX_AGE_SECONDS: Long = 31_536_000L
+
+/** Clock skew allowed when checking the expiry of an id_token. */
+private const val ID_TOKEN_CLOCK_SKEW_SECONDS: Long = 60L
+
+private val NONCE_RANDOM = SecureRandom()
 
 /**
  * Authenticator for OpenID Connect.
  *
  * Fetches the OIDC discovery document to discover the authorization and
  * token endpoints, then delegates to an [OAuth2AuthorizationCodeAuthenticator].
+ *
+ * Each authorization URL carries a fresh `nonce`. The code exchange validates
+ * the claims of the `id_token` in the token response: the nonce of the
+ * authorization URL, the discovered issuer, the client id in the audience and
+ * an expiry that has not passed (60 seconds of clock skew are allowed). The
+ * signature of the id_token is not verified.
  *
  * Implements [HttpAwareAuthenticator] so that both the discovery
  * request and subsequent token exchange requests use the shared
@@ -55,6 +75,13 @@ open class OpenIdConnectAuthenticator(
 
     @Volatile
     private var discoveryExpiry: Instant = Instant.EPOCH
+
+    /** The issuer named by the last discovery document. */
+    @Volatile
+    private var discoveredIssuer: String? = null
+
+    /** The nonce of the last authorization URL built, until the code exchange uses it. */
+    private val pendingNonce = AtomicReference<String?>(null)
 
     /* Single-flight discovery: concurrent callers that find the document
      * missing or stale wait here and re-check, so one GET serves them all. */
@@ -177,6 +204,7 @@ open class OpenIdConnectAuthenticator(
          * or the code that comes back could not be exchanged. */
         resolved.pkceVerifier = cached?.pkceVerifier
         this.delegate = resolved
+        this.discoveredIssuer = issuer
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved
     }
@@ -255,7 +283,12 @@ open class OpenIdConnectAuthenticator(
      * @return the authorization URL
      */
     suspend fun buildAuthorizationUrl(state: String? = null): String {
-        return resolveDelegate().buildAuthorizationUrl(state)
+        val url = resolveDelegate().buildAuthorizationUrl(state)
+        /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+         * request; the exchange checks it once. */
+        val nonce = newNonce()
+        pendingNonce.set(nonce)
+        return "$url&nonce=$nonce"
     }
 
     /**
@@ -264,7 +297,71 @@ open class OpenIdConnectAuthenticator(
      * @param code the authorization code from the callback
      */
     suspend fun exchangeCode(code: String) {
-        resolveDelegate().exchangeCode(code)
+        val current = resolveDelegate()
+        val nonce = pendingNonce.getAndSet(null)
+        val issuer = discoveredIssuer
+        current.exchangeCode(code) { idToken -> validateIdToken(idToken, nonce, issuer) }
+    }
+
+    /**
+     * Validate the claims of the id_token of a code exchange (OpenID Connect
+     * Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+     * discovered issuer, the client id in the audience and the expiry. A
+     * response without an id_token is not checked. The payload is decoded
+     * without verifying the signature.
+     *
+     * @throws OAuth2TokenException when a claim does not hold
+     */
+    private fun validateIdToken(idToken: String?, nonce: String?, issuer: String?) {
+        if (idToken == null) {
+            return
+        }
+        val claims = decodeIdToken(idToken)
+        if (nonce != null && stringClaim(claims["nonce"]) != nonce) {
+            throw OAuth2TokenException("The id_token nonce does not match the authorization request")
+        }
+        val iss = stringClaim(claims["iss"])
+        if (issuer == null || iss != issuer) {
+            throw OAuth2TokenException("The id_token issuer does not match the discovered issuer")
+        }
+        if (!audienceContains(claims["aud"])) {
+            throw OAuth2TokenException("The id_token audience does not contain the client id")
+        }
+        val exp = (claims["exp"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull
+            ?: throw OAuth2TokenException("The id_token is malformed")
+        if (Instant.now().epochSecond >= exp + ID_TOKEN_CLOCK_SKEW_SECONDS) {
+            throw OAuth2TokenException("The id_token has expired")
+        }
+    }
+
+    /** The claims of a compact JWS: the second segment, base64url-decoded JSON. */
+    private fun decodeIdToken(idToken: String): JsonObject {
+        val parts = idToken.split('.')
+        if (parts.size != 3) {
+            throw OAuth2TokenException("The id_token is malformed")
+        }
+        return try {
+            json.parseToJsonElement(String(Base64.getUrlDecoder().decode(parts[1]), Charsets.UTF_8)).jsonObject
+        } catch (_: IllegalArgumentException) {
+            /* Bad base64url, bad JSON and a payload that is not an object all land here. */
+            throw OAuth2TokenException("The id_token is malformed")
+        }
+    }
+
+    private fun stringClaim(claim: JsonElement?): String? =
+        (claim as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+    private fun audienceContains(aud: JsonElement?): Boolean =
+        when (aud) {
+            is JsonArray -> aud.any { stringClaim(it) == clientId }
+            else -> stringClaim(aud) == clientId
+        }
+
+    /** A fresh nonce: 32 random bytes as unpadded base64url, 43 characters. */
+    private fun newNonce(): String {
+        val bytes = ByteArray(32)
+        NONCE_RANDOM.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
     override fun getHost(): String = host

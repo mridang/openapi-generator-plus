@@ -63,7 +63,9 @@ to read a response header.
 
 `TransportOptionsBuilder.Timeout(5000)` sets one end-to-end budget in milliseconds
 (a positive integer) for the whole call, redirects and retries included; the
-default is 10000. A call that exceeds it fails with `NetworkTimeoutException`.
+default is 60000. A call that exceeds it fails with `NetworkTimeoutException`.
+
+`TransportOptions.Builder().MaxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### Automatic retries
 

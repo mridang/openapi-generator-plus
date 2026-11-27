@@ -2738,6 +2738,32 @@ describe 'DefaultApiClientUnit' do
     thread.join
   end
 
+  it 'bhv_transport_094 a per-call timeout bounds the whole call so a trickling body times out within the budget' do
+    port, thread = serve_once do |socket|
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 100000\r\n\r\n")
+      300.times do
+        socket.write('x')
+        sleep 0.1
+      end
+    rescue IOError, SystemCallError
+      nil
+    end
+    transport = Petstore::Client::TransportOptions.builder.timeout(60_000).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    err = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
+      client.send_request('GET', "http://127.0.0.1:#{port}/trickle", {}, nil, timeout: 500, max_retries: 0)
+    end
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    _(err).must_be_instance_of Petstore::Client::Errors::NetworkTimeoutError
+    _(err.status_code).must_equal 0
+    _(elapsed).must_be :<, 3.0
+    thread.kill
+    thread.join
+  end
+
   # ── F823: automatic retries with backoff ──
   #
   # The stub answers every attempt through +respond+ (called with the attempt
@@ -4461,6 +4487,46 @@ describe 'DefaultApiClientUnit' do
     stream = open_events(event_opener(server, options), Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 0))
     _(stream.first.data).must_equal 'late'
     _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_transport_095 a body past max_response_bytes raises ResponseTooLargeError and is whole without a limit' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'x' * 4096)
+      RawHttp.finish(socket)
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.max_response_bytes(1024).build)
+    error = assert_raises(Petstore::Client::Errors::ResponseTooLargeError) do
+      client.send_request('GET', server.url('/items/blob'), {}, nil)
+    end
+    _(error.class).must_equal Petstore::Client::Errors::ResponseTooLargeError
+    _(error.status_code).must_equal 200
+    _(error.limit).must_equal 1024
+    _(error.detail_message).must_equal 'Response body exceeds the limit of 1024 bytes'
+    unlimited = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.build)
+    response = unlimited.send_request('GET', server.url('/items/blob'), {}, nil)
+    _(response.status_code).must_equal 200
+    _(response.body).must_equal 'x' * 4096
+  ensure
+    server&.close
+  end
+
+  it 'bhv_transport_096 a small gzip body that inflates past max_response_bytes raises ResponseTooLargeError' do
+    payload = Zlib.gzip("\0" * 100_000)
+    _(payload.bytesize).must_be :<, 1024
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Content-Encoding: gzip', "Content-Length: #{payload.bytesize}")
+      socket.write(payload)
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.max_response_bytes(1024).build)
+    error = assert_raises(Petstore::Client::Errors::ResponseTooLargeError) do
+      client.send_request('GET', server.url('/items/blob'), {}, nil)
+    end
+    _(error.class).must_equal Petstore::Client::Errors::ResponseTooLargeError
+    _(error.status_code).must_equal 200
+    _(error.limit).must_equal 1024
   ensure
     server&.close
   end

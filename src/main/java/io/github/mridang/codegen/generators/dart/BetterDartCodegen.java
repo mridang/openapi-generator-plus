@@ -84,7 +84,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("float", "double");
         typeMapping.put("double", "double");
         typeMapping.put("number", "double");
-        typeMapping.put("decimal", "double");
+        // format: decimal is the exact Decimal of package:decimal (#157). The
+        // number-shaped form is picked up in getSchemaType, because the base
+        // class types a number by its `number` type key and not its format.
+        typeMapping.put("decimal", "Decimal");
+        typeMapping.put("Decimal", "Decimal");
         // format:date → DateTime (date-only). Dart has only DateTime (no
         // civil-date type), so a `format: date` value is carried as a DateTime
         // and serialized date-only via ValueSerializer.stringifyDate, matching
@@ -146,7 +150,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "Duration",
                                 "List<int>",
                                 "Uint8List",
-                                "UuidValue"));
+                                "UuidValue",
+                                "Decimal"));
 
         reservedWords = loadReservedWords("/reserved-words/dart.txt");
 
@@ -174,13 +179,14 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /**
      * Core types the generated sources use unqualified. A schema named like one would shadow it
-     * in every file that imports the models (D45, F173).
+     * in every file that imports the models (D45, F173). {@code Decimal} is the one from
+     * {@code package:decimal} that the models use for {@code format: decimal}.
      */
     private static final Set<String> CORE_TYPE_CLASHES =
             Set.of(
                     "String", "int", "double", "num", "bool", "List", "Map", "Set", "Object",
                     "Null", "Future", "Stream", "Type", "Function", "Duration", "DateTime", "Uri",
-                    "Error", "Exception", "Iterable");
+                    "Error", "Exception", "Iterable", "Decimal");
 
     /**
      * Prefixes a schema named like a {@code dart:core} type with {@code Model} (D45, F173), so
@@ -201,6 +207,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @SuppressWarnings("rawtypes")
     public String getSchemaType(Schema schema) {
         final String type = super.getSchemaType(schema);
+        /* A number written as a decimal is the exact Decimal, the same as the string form. */
+        if (("double".equals(type) || "number".equals(type))
+                && schema.get$ref() == null
+                && "decimal".equals(schema.getFormat())) {
+            return "Decimal";
+        }
         if (schema.get$ref() != null && CORE_TYPE_CLASHES.contains(type)) {
             return "Model" + type;
         }
@@ -451,6 +463,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/network_exception.mustache", errorsDir, "network_exception.dart"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsDir, "network_timeout_exception.dart"),
             new SupportingFileSpec("errors/stream_exception.mustache", errorsDir, "stream_exception.dart"),
+            new SupportingFileSpec("errors/response_too_large_exception.mustache", errorsDir, "response_too_large_exception.dart"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsDir, "serialization_exception.dart"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsDir, "oauth2_server_exception.dart"),
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsDir, "oauth2_token_exception.dart"),
@@ -708,6 +721,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if ("decimal".equals(resolved.getFormat())) {
+            /* A Decimal has no const constructor, so it cannot be a default of the const model. */
+            return null;
+        }
         if (ModelUtils.isIntegerSchema(resolved)
                 || ModelUtils.isNumberSchema(resolved)
                 || ModelUtils.isBooleanSchema(resolved)) {
@@ -736,6 +753,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         tagDuration(property);
+        tagDecimal(property);
         propagateEnumRefBackingType(property);
         tagRequiredNullable(property);
     }
@@ -771,6 +789,26 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
         tagDuration(property.items);
+    }
+
+    /**
+     * Sets the {@code isDecimal}, {@code isDecimalNumber} and {@code isDecimalString} flags on
+     * the property and on every nested container leaf ({@code items}). A {@code Decimal} is read
+     * and written through its own helpers: the number-shaped form from the source text of the
+     * JSON number and back as a bare number, the string-shaped form from and to a JSON string.
+     *
+     * @param property the property to tag
+     */
+    static void tagDecimal(@Nullable final CodegenProperty property) {
+        if (property == null) {
+            return;
+        }
+        final boolean decimal = "Decimal".equals(property.dataType);
+        final boolean string = decimal && "string".equals(property.openApiType);
+        property.vendorExtensions.put("isDecimal", decimal);
+        property.vendorExtensions.put("isDecimalNumber", decimal && !string);
+        property.vendorExtensions.put("isDecimalString", string);
+        tagDecimal(property.items);
     }
 
     /**
@@ -1346,6 +1384,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         if (uploads != null && uploads.get("operation") instanceof List) {
             for (final CodegenOperation op : (List<CodegenOperation>) uploads.get("operation")) {
                 markBinaryUpload(op);
+                /* A List<Decimal> or Map<String, Decimal> response decodes through the same
+                 * container leaf as a model field, so its items carry the same flags. */
+                tagDecimal(op.returnProperty);
             }
         }
         objs = super.postProcessOperationsWithModels(objs, allModels);

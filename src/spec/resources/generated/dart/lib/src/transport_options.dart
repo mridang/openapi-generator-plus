@@ -46,7 +46,7 @@ class TransportOptions {
   /// End-to-end request timeout in milliseconds.
   ///
   /// Covers the entire request lifecycle: connection, TLS handshake, sending
-  /// the request body, and reading the response. Defaults to 10 seconds. Set
+  /// the request body, and reading the response. Defaults to 60 seconds. Set
   /// to null to disable the timeout (wait indefinitely).
   final int? timeout;
 
@@ -114,6 +114,16 @@ class TransportOptions {
   /// 60 seconds; 0 or null disables it.
   final int? idleTimeout;
 
+  /// The largest buffered response body the client reads, in bytes, or null
+  /// (the default) for no limit.
+  ///
+  /// Counts both the bytes received and the bytes after decompression, so a
+  /// small compressed body that inflates past the limit fails too, and
+  /// decompression stops as soon as the limit is passed. A body that passes it
+  /// raises `ResponseTooLargeException` with the real status. A streamed body
+  /// is not counted: the caller reads it piece by piece.
+  final int? maxResponseBytes;
+
   TransportOptions._({
     required this.verifySsl,
     required this.caCertPath,
@@ -127,6 +137,7 @@ class TransportOptions {
     required this.httpClient,
     required this.maxRetries,
     required this.idleTimeout,
+    required this.maxResponseBytes,
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Transport-level default headers included in every request.
@@ -147,7 +158,7 @@ class TransportOptions {
         'followRedirects: $followRedirects, maxRedirects: $maxRedirects, '
         'userAgent: $userAgent, defaultHeaders: $shownHeaders, '
         'injectRequestId: $injectRequestId, maxRetries: $maxRetries, '
-        'idleTimeout: $idleTimeout)';
+        'idleTimeout: $idleTimeout, maxResponseBytes: $maxResponseBytes)';
   }
 
   String? _redactedProxy() {
@@ -179,8 +190,9 @@ class TransportOptions {
 /// - `followRedirects` -- true
 /// - `injectRequestId` -- false
 /// - `maxRetries` -- 2
-/// - `timeout` -- 10000 (10 seconds)
+/// - `timeout` -- 60000 (60 seconds)
 /// - `idleTimeout` -- 60000 (60 seconds)
+/// - `maxResponseBytes` -- null (no limit)
 /// - `userAgent` -- a package-specific default string
 /// - All other fields -- null or empty
 ///
@@ -197,7 +209,7 @@ class TransportOptionsBuilder {
   bool _verifySsl = true;
   String? _caCertPath;
   String? _proxy;
-  int? _timeout = 10000;
+  int? _timeout = 60000;
   bool _followRedirects = true;
   int? _maxRedirects;
   String? _userAgent = 'petstore_client/1.0.0 (dart)';
@@ -206,6 +218,7 @@ class TransportOptionsBuilder {
   http.Client? _httpClient;
   int _maxRetries = 2;
   int? _idleTimeout = 60000;
+  int? _maxResponseBytes;
 
   /// Enable or disable TLS certificate verification.
   ///
@@ -341,6 +354,23 @@ class TransportOptionsBuilder {
     return this;
   }
 
+  /// Set the largest buffered response body the client reads, in bytes,
+  /// counted as received and after decompression.
+  ///
+  /// Pass a positive number of bytes, or null for no limit (the default).
+  /// Throws [ArgumentError] for zero or a negative value. A body that passes
+  /// it raises `ResponseTooLargeException`. See
+  /// [TransportOptions.maxResponseBytes].
+  TransportOptionsBuilder maxResponseBytes(int? val) {
+    if (val != null && val <= 0) {
+      throw ArgumentError(
+        'Invalid maxResponseBytes: must be a positive number of bytes (got $val)',
+      );
+    }
+    _maxResponseBytes = val;
+    return this;
+  }
+
   /// Build and return an immutable [TransportOptions] instance.
   ///
   /// Throws [ArgumentError] if the proxy URL is invalid, or if a custom
@@ -384,6 +414,7 @@ class TransportOptionsBuilder {
       httpClient: _httpClient,
       maxRetries: _maxRetries,
       idleTimeout: _idleTimeout,
+      maxResponseBytes: _maxResponseBytes,
     );
   }
 }

@@ -15,17 +15,18 @@ The package runs on Node and on runtimes that have only `fetch`: Deno, Bun, Clou
 | OpenAPI | TypeScript type | Notes |
 |---|---|---|
 | `integer`, `int32`, `int64`, `number` with `format: float` or `double` | `number` | A JavaScript number is a double, so integers above 2^53 - 1 are rounded by `JSON.parse`. The generated README documents this. |
-| `number` with no format, `format: decimal` | `Decimal` (a branded string) | Decoding reads the source text of the number with the `JSON.parse` reviver and keeps every digit; encoding writes it as a bare JSON number in plain notation. A `type: string` decimal is read from a JSON string only (a bare number is refused) and written as a JSON string. |
+| `number` with no format, `format: decimal` (number- or string-shaped) | `Decimal` from `decimal.js` | Exact arithmetic (`plus`, `times`, `eq`). Decoding builds the value from the source text of the number, which the `JSON.parse` reviver reads (Node 22 floor), never from a double, and keeps every digit and the decimal places it was written with (`12.50` is written back as `12.50`); a value you build or compute is written with the places it needs. Encoding writes plain notation, never an exponent: a bare JSON number through `JSON.rawJSON`, or a JSON string for a `type: string` decimal, which is read from a JSON string holding a plain decimal number only (a bare number or other text is refused). A `format: decimal` parameter is a `Decimal` too (D135). |
 | `boolean` | `boolean` | |
 | `string` | `string` | |
 | `string` with `format: date` | `string` | A plain `YYYY-MM-DD` string, because a `Date` would carry a time and a zone the wire value never had. |
 | `string` with `format: date-time` | `Date` | Millisecond precision. A wire value that is not an RFC 3339 date-time with an offset fails when the response is decoded. |
 | `string` with `format: time` | `Temporal.PlainTime` | From `temporal-polyfill`. |
-| `string` with `format: duration` | `Temporal.Duration` | From `temporal-polyfill`. The wire form is the protobuf-JSON form such as `3600s`. |
+| `string` with `format: duration` | `Temporal.Duration` | From `temporal-polyfill`, the documented fallback: Node has no standard library duration type at the Node 22 floor (D145). The wire form is the protobuf-JSON form such as `3600s`. |
 | `string` with `format: uuid` | `UUID` (a branded string) | Decoding validates the canonical 8-4-4-4-12 form. |
 | `string` with `format: uri` | `URI` (a branded string) | Absolute URIs only. `uri-reference` and `uri-template` stay `string`. |
 | `string` with `format: email` | `Email` (a branded string) | |
-| `string` with `format: hostname`, `ipv4`, `ipv6` | `string` | |
+| `string` with `format: hostname` | `string` | |
+| `string` with `format: ipv4`, `ipv6` | `string` | No standard library address type. The text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D146). |
 | `string` with `format: byte` | `Buffer` | Base64 on the wire, converted by the serializer. |
 | `string` with `format: binary`, file upload and download | `BodySource` for a raw request body, `ByteStream` for a download | A multipart file part is a `Buffer` or a `Blob`. A download is read as you consume it and a raw upload is sent as it is read, see Streaming. |
 | `array` | `Array<T>` | |
@@ -40,7 +41,7 @@ A branded string is a `string` with a compile-time tag, so a plain string does n
 
 ## Dependencies
 
-Runtime dependencies are `class-transformer` (`^0.5`), `reflect-metadata` (`^0.2`) and `temporal-polyfill` (`^0.3`). `undici` (`^6`) is an optional dependency used by the Node transport. `@opentelemetry/api` (`^1.0.0`) is an optional peer dependency, used for trace propagation and by the OpenTelemetry adapter when you install it.
+Runtime dependencies are `class-transformer` (`^0.5`), `decimal.js` (`^10.6`), `reflect-metadata` (`^0.2`) and `temporal-polyfill` (`^0.3`). `undici` (`^6`) is an optional dependency used by the Node transport. `@opentelemetry/api` (`^1.0.0`) is an optional peer dependency, used for trace propagation and by the OpenTelemetry adapter when you install it.
 
 The package uses legacy `experimentalDecorators`, because class-transformer needs them. It leaves `emitDecoratorMetadata` off, because turning it on causes temporal-dead-zone errors when models import each other in a cycle.
 
@@ -65,7 +66,8 @@ Pass options with `--additional-properties` or a config file. Options that apply
 
 - `Configuration` and `TransportOptions` take one options object and also have a fluent builder.
 - Every error class takes the ES2022 `{ cause }` bag as its last argument, which is how `Error` itself chains causes.
-- Every operation, including one that has no parameters and no security, takes a trailing `RequestOptions` object: `{ signal?, timeout?, maxRetries?, headers? }`. `timeout` (positive milliseconds, or `null` to wait indefinitely), `maxRetries` (a non-negative integer) and `headers` replace the transport's values for that one call, and an invalid value throws a `TypeError` before anything is sent. This one object is where node keeps the per-call settings that the other SDKs put on a per-operation Options type, so node does not generate an empty Options type for an operation that has no parameters of its own. `Configuration` can also hold a client-level signal. Cancellation raises the abort error, never the timeout error.
+- Every operation, including one that has no parameters and no security, takes a trailing `RequestOptions` object: `{ signal?, timeout?, maxRetries?, headers? }`. `timeout` (positive milliseconds, or `null` to wait indefinitely), `maxRetries` (a non-negative integer) and `headers` replace the transport's values for that one call, and an invalid value throws a `TypeError` before anything is sent. This one object is where node keeps the per-call settings that the other SDKs put on a per-operation Options type, so node does not generate an empty Options type for an operation that has no parameters of its own. `Configuration` can also hold a client-level signal. Cancellation raises the abort error, never the timeout error. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
+- `TransportOptions` takes `maxResponseBytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeError` (D138).
 - An authenticator whose credential is not passed reads it from the environment once, when it is built. The variable is `<PREFIX>_<FIELD>` in upper snake case (`ACME_TOKEN`, `ACME_API_KEY`, `ACME_USERNAME`, `ACME_PASSWORD`). `<PREFIX>` is the `envVarPrefix` option, else the API title without a trailing "SDK". When two security schemes have a field of the same name, each is qualified with its scheme id (`ACME_PARTNER_TOKEN_TOKEN`), and the generated README lists the names for the spec. An explicit argument wins over the variable, an empty variable counts as unset, and a credential that neither supplies throws a `TypeError` when the authenticator, and so the client, is built. `BearerAuthenticator` and `Client.withToken` also accept a function returning the token (or a promise of it), called for every request. OAuth 2.0 and OpenID Connect authenticators take their credentials as arguments only.
 - A property that is a `$ref` to an enum and carries a `default` beside the reference starts at that default: the field is initialised to the enum member, and decoding a payload that omits the key gives the same member. An explicit value or an explicit `null` is never replaced.
 - The client takes one optional credential per distinct security scheme of the API, named after the scheme (`new Client({ petStoreBearer: bearer, apiKeyHeader: apiKey })`), as an object in place of the single authenticator. An optional `authenticator` in the same object is the default credential. Each operation uses the credential of the first scheme in its own security requirement that the client holds, so a credential only goes to an operation whose spec names its scheme; when none of its schemes is held the operation uses the default `authenticator`, and when there is none it is sent without a credential. An operation declared `security: []` never sends one. The base URL comes from the first credential given, `authenticator` first, and a client given no credential at all throws a `TypeError`. There is no per-call authenticator: an Options interface has no `auth` member, and an operation with no parameters of its own has no Options interface, only the trailing `RequestOptions`. The single-authenticator constructor, `Client.withToken` and `Client.withAuthenticator` stay.
@@ -144,7 +146,7 @@ try {
 
 ## Known limits
 
-- `Decimal` decode is lossy until a reviver that reads the source text lands. int64 values beyond 2^53 are not preserved.
+- int64 values beyond 2^53 are not preserved. A `Decimal` you build yourself with `new Decimal('12.50')` drops the trailing zero (decimal.js keeps no scale) and is written as `12.5`; only a decoded value keeps the places it was written with.
 - The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory. Only a raw binary request body and a binary, JSON Lines or server-sent events response are streams.
 - An optional nullable property cannot tell "absent" from "null" on the way out: both are left out of the request body.
@@ -153,6 +155,7 @@ try {
 - Operations are asynchronous only, as Promises, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 - An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 - A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
+- The OpenID Connect authenticator sends a nonce and checks the `id_token` claims (nonce, issuer, audience, expiry), but does not verify the `id_token` signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already gives the `jwks_uri`.
 
 ## Under review
 
@@ -165,7 +168,6 @@ The SDK already depends on `temporal-polyfill` and uses it for `format: time` an
 - Map `format: date` to `Temporal.PlainDate`. It needs `@Transform` wiring like the one for `PlainTime`, serializer and README changes, and a golden regeneration. It changes the public type of every date field, so it is an API change.
 - For `format: date-time`, `Date` stays the least surprising choice with class-transformer. `Temporal.Instant` would keep nanoseconds and `Temporal.ZonedDateTime` would keep the offset, but only if sub-millisecond or offset fidelity is wanted.
 - Native Temporal arrives in Node 26 (on by default), but Node 22 and Node 24 lack it. So `temporal-polyfill` would have to stay until Node 24 is end of life (2028-04-30) at the earliest, and the web transport needs it as well because browsers do not all ship Temporal. The review does not suggest raising `engines.node`.
-- The review also asks the owner to confirm whether `duration` should stay protobuf-JSON (`3600s`, which every language uses today) or follow ISO 8601 as the OpenAPI format describes.
 
 ### Other ideas
 

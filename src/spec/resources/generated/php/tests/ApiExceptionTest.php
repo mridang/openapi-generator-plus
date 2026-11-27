@@ -534,6 +534,7 @@ test('bhv errors 044 every error type lives in the Errors namespace under the ro
     \PetstoreClient\Errors\InternalServerErrorException::class,
     \PetstoreClient\Errors\NetworkException::class,
     \PetstoreClient\Errors\NetworkTimeoutException::class,
+    \PetstoreClient\Errors\ResponseTooLargeException::class,
     SerializationException::class,
     \PetstoreClient\Errors\OAuth2ServerException::class,
     \PetstoreClient\Errors\OAuth2TokenException::class,

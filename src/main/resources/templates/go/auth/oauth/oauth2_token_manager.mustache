@@ -44,6 +44,9 @@ type OAuth2TokenManager struct {
 	refreshToken string
 	tokenExpiry  time.Time
 	stopped      bool
+	// lastIDToken is the id_token of the last token response, nil when it
+	// carried none and an empty string when its value was not a JSON string.
+	lastIDToken *string
 }
 
 // NewOAuth2TokenManager creates a new token manager.
@@ -197,12 +200,25 @@ func (m *OAuth2TokenManager) GetAccessTokenWithRefreshContext(ctx context.Contex
 // previous access token, refresh token and expiry are restored and the error
 // is returned, so a rejected code does not end the current session.
 func (m *OAuth2TokenManager) Exchange(tokenURL string, params map[string]string) error {
+	return m.exchange(tokenURL, params, nil)
+}
+
+// exchange is Exchange with a check of the response's id_token (nil when the
+// response carried none, an empty string when it was not a JSON string), run
+// before the session is committed; when it fails the previous session is
+// restored and its error returned. OpenID Connect uses it to validate the
+// id_token.
+func (m *OAuth2TokenManager) exchange(tokenURL string, params map[string]string, idTokenCheck func(idToken *string) error) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	prevAccess, prevRefresh, prevExpiry := m.accessToken, m.refreshToken, m.tokenExpiry
 	m.accessToken, m.refreshToken, m.tokenExpiry = "", "", time.Time{}
-	if err := m.fetchToken(context.Background(), tokenURL, params, nil); err != nil {
+	err := m.fetchToken(context.Background(), tokenURL, params, nil)
+	if err == nil && idTokenCheck != nil {
+		err = idTokenCheck(m.lastIDToken)
+	}
+	if err != nil {
 		m.accessToken, m.refreshToken, m.tokenExpiry = prevAccess, prevRefresh, prevExpiry
 		return err
 	}
@@ -282,6 +298,7 @@ func (m *OAuth2TokenManager) fetchToken(ctx context.Context, tokenURL string, pa
 		RefreshToken json.RawMessage `json:"refresh_token"`
 		ExpiresIn    json.RawMessage `json:"expires_in"`
 		TokenType    json.RawMessage `json:"token_type"`
+		IDToken      json.RawMessage `json:"id_token"`
 	}
 	/* A 2xx answer the SDK cannot use is an *OAuth2TokenError. The three
 	 * messages are fixed text with no parser detail, the same in every SDK. */
@@ -309,6 +326,14 @@ func (m *OAuth2TokenManager) fetchToken(ctx context.Context, tokenURL string, pa
 		}
 	}
 	m.accessToken = parsed.AccessToken
+	m.lastIDToken = nil
+	if len(parsed.IDToken) > 0 && string(parsed.IDToken) != "null" {
+		var idToken string
+		if json.Unmarshal(parsed.IDToken, &idToken) != nil {
+			idToken = ""
+		}
+		m.lastIDToken = &idToken
+	}
 	/* A refresh_token that is not a string is ignored, as in the other SDKs,
 	 * rather than failing the whole response. */
 	var refreshToken string

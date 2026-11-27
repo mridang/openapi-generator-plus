@@ -118,8 +118,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("long", "number");
         typeMapping.put("float", "number");
         typeMapping.put("double", "number");
-        // `number` (no format) and `decimal` map to a branded `Decimal`
-        // string at the property level (set in postProcessModelProperty).
+        // `number` (no format) and `decimal` map to decimal.js's `Decimal`
+        // at the property level (set in postProcessModelProperty) and at the
+        // parameter level (fromParameter).
         // We intentionally leave the typeMapping for `number` as `number`
         // here because the double-lookup in getSchemaType would otherwise
         // turn `long`/`integer` (which map to `number`) into `Decimal`.
@@ -406,6 +407,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/network-error.mustache", "src/errors", "network-error.ts"),
             new SupportingFileSpec("errors/network-timeout-error.mustache", "src/errors", "network-timeout-error.ts"),
             new SupportingFileSpec("errors/stream-error.mustache", "src/errors", "stream-error.ts"),
+            new SupportingFileSpec("errors/response-too-large-error.mustache", "src/errors", "response-too-large-error.ts"),
             new SupportingFileSpec("errors/serialization-error.mustache", "src/errors", "serialization-error.ts"),
             new SupportingFileSpec("errors/oauth2-server-error.mustache", "src/errors", "oauth2-server-error.ts"),
             new SupportingFileSpec("errors/oauth2-token-error.mustache", "src/errors", "oauth2-token-error.ts"),
@@ -776,6 +778,23 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Types a {@code format: decimal} parameter, number- or string-shaped, as
+     * decimal.js's {@code Decimal}, like the model fields, so the value is
+     * exact and written in plain notation.
+     */
+    @Override
+    public CodegenParameter fromParameter(
+            io.swagger.v3.oas.models.parameters.Parameter parameter, Set<String> imports) {
+        final CodegenParameter p = super.fromParameter(parameter, imports);
+        if ("decimal".equals(p.dataFormat)
+                && ("number".equals(p.dataType) || "string".equals(p.dataType))) {
+            p.dataType = "Decimal";
+            p.baseType = "Decimal";
+        }
+        return p;
+    }
+
+    /**
      * Records the branded scalar types ({@code UUID}, {@code URI},
      * {@code Email}, {@code Decimal}) that an API class's positional
      * parameters use, as {@code brandImports}, so the API file imports them
@@ -792,6 +811,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     positional.addAll(op.pathParams);
                 }
                 for (final CodegenParameter p : positional) {
+                    // A query, header, form or cookie parameter travels on the
+                    // Options object, whose own file imports its type.
+                    if (p.isQueryParam || p.isHeaderParam || p.isFormParam || p.isCookieParam) {
+                        continue;
+                    }
                     if (p.dataType != null && BRAND_TYPES.contains(p.dataType)) {
                         brands.add(p.dataType);
                     }
@@ -2045,12 +2069,22 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                                                         && p.items.dataType != null
                                                         && p.items.dataType.contains("Temporal.")));
 
+        // Branded and decimal parameter types come from the brand module.
+        final Set<String> brands = new java.util.TreeSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (p.dataType != null && BRAND_TYPES.contains(p.dataType)) {
+                brands.add(p.dataType);
+            }
+        }
+
         final Map<String, Object> context = new HashMap<>();
+        context.put("brandImports", String.join(", ", brands));
+        context.put("hasBrandImports", !brands.isEmpty());
         context.put("className", className);
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("modelImports", new ArrayList<>(modelTypes));
-        context.put("hasModelImports", !modelTypes.isEmpty() || usesTemporal);
+        context.put("hasModelImports", !modelTypes.isEmpty() || usesTemporal || !brands.isEmpty());
         context.put("hasTemporalImport", usesTemporal);
         // F857: no per-call authenticator. An operation uses the credential of the
         // scheme its spec names, so an Options object never carries an `auth` field.
@@ -2153,6 +2187,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainDate)) {
                     serializerImports.add("plainDate");
                 }
+                if (model.vars.stream().anyMatch(BetterNodeCodegen::holdsIpAddress)) {
+                    serializerImports.add("isIpv4Address");
+                    serializerImports.add("isIpv6Address");
+                }
                 modelMap.put("serializerImports", String.join(", ", serializerImports));
                 modelMap.put("hasSerializerImports", !serializerImports.isEmpty());
                 modelMap.put("hasUuidImport", namesType(model, "UUID"));
@@ -2164,9 +2202,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return result;
     }
 
-    /** Whether the property is a bare {@code type: number} carried as a branded Decimal. */
+    /** Whether the property is a number-shaped decimal carried as a decimal.js Decimal. */
     private static boolean isPlainNumberDecimal(CodegenProperty prop) {
         return Boolean.TRUE.equals(prop.vendorExtensions.get("isPlainNumberDecimal"));
+    }
+
+    /** Whether the property is a {@code format: ipv4} or {@code ipv6} string, or an array of them. */
+    private static boolean holdsIpAddress(CodegenProperty prop) {
+        return Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv4"))
+                || Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv6"))
+                || Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv4Items"))
+                || Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv6Items"));
     }
 
     /** Whether the property is a {@code format: date}, or an array of them, held as a plain string. */
@@ -2279,8 +2325,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             property.dataType = "Email";
             property.datatypeWithEnum = "Email";
         }
-        // 2.5 — `type: number` (no numeric format) and `type: string,
-        // format: decimal` become a branded `Decimal` string. The
+        // 2.5 — `type: number` (no numeric format or `format: decimal`) and
+        // `type: string, format: decimal` become decimal.js's `Decimal`. The
         // `number` schema type defaults to the `number` JS primitive at
         // the typeMapping layer to avoid collateral damage with `long`
         // and `integer`; we override at the property level here.
@@ -2303,12 +2349,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 // its text and rejects a bare number; encode writes it quoted.
                 property.vendorExtensions.put("isStringDecimal", true);
             }
-            // The branded Decimal is a string, so a numeric schema default
-            // becomes its exact text as a string literal cast to the brand.
-            if (property.defaultValue != null
-                    && !property.defaultValue.isEmpty()
-                    && property.defaultValue.charAt(0) != getQuoteChar()) {
-                property.defaultValue = toStringLiteral(property.defaultValue) + " as Decimal";
+            // A numeric schema default becomes a Decimal built from its exact
+            // text, so no digit passes through a double.
+            if (property.defaultValue != null && !property.defaultValue.isEmpty()) {
+                final String text =
+                        property.defaultValue.charAt(0) == getQuoteChar()
+                                ? property.defaultValue
+                                : toStringLiteral(property.defaultValue);
+                property.defaultValue = "new Decimal(" + text + ")";
             }
         }
     }

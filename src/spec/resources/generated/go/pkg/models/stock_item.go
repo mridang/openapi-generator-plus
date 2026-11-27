@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // StockItem is a model class generated from the OpenAPI schema.
@@ -95,33 +97,53 @@ func (o StockItem) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *StockItem) UnmarshalJSON(data []byte) error {
-	type Alias StockItem
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "priority", "availability", "matrix"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *StockItem) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out StockItem
+	seenPriority := false
+	seenAvailability := false
+	err := readObject(dec, "StockItem", func(key string) error {
+		switch key {
+		case "priority":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'priority' must not be null in StockItem")
+			}
+			seenPriority = true
+			return decodeValue(dec, &out.Priority)
+		case "availability":
+			seenAvailability = true
+			return decodeValue(dec, &out.Availability)
+		case "matrix":
+			return decodeValue(dec, &out.Matrix)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["priority"]; !ok {
+	/* Rather than pre-seed optional fields that declare a schema default
+	 * before decoding, the decode records which keys it read and gives each
+	 * absent one its default here; a key that is present, null included,
+	 * keeps what it decoded to, matching the other SDKs. */
+	if !seenPriority {
 		return fmt.Errorf("required field 'priority' is missing in StockItem")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'priority' must not be null in StockItem")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	if _, ok := raw["availability"]; !ok {
+	if !seenAvailability {
 		var defaultAvailability Availability = AvailabilityOnHold
-		aux.Availability = &defaultAvailability
+		out.Availability = &defaultAvailability
 	}
-	*o = StockItem(*aux)
+	*o = out
 	return nil
 }

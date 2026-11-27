@@ -8,7 +8,7 @@
 import base64
 import hashlib
 import secrets
-from typing import Dict, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence
 from urllib.parse import quote, urlencode
 
 from ...api_client import ApiClient
@@ -159,6 +159,16 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         Raises:
             ValueError: If ``code`` is empty or whitespace-only.
         """
+        self._exchange_code(code, None)
+
+    def _exchange_code(
+        self, code: str, id_token_check: Optional[Callable[[Optional[str]], None]]
+    ) -> None:
+        """Exchange a code, handing the response's id_token to a check first.
+
+        OpenID Connect uses this to validate the id_token before the session
+        is replaced.
+        """
         if not code or not code.strip():
             raise ValueError("Authorization code must not be empty")
         params = {
@@ -170,7 +180,9 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         }
         if self._pkce_verifier is not None:
             params["code_verifier"] = self._pkce_verifier
-        self._token_manager.exchange(self._token_url, params)
+        self._token_manager.exchange(
+            self._token_url, params, id_token_check=id_token_check
+        )
         self._pkce_verifier = None
 
     def get_host(self) -> str:

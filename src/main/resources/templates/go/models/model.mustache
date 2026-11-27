@@ -9,6 +9,21 @@ import (
 {{#hasNetipImport}}
 	"net/netip"
 {{/hasNetipImport}}
+{{#hasDurationImport}}
+	"time"
+{{/hasDurationImport}}
+{{#hasJsontextImport}}
+
+	"github.com/go-json-experiment/json/jsontext"
+{{/hasJsontextImport}}
+{{#hasExactDecimalImport}}
+
+	"{{packageName}}/pkg/internal/exactdecimal"
+{{/hasExactDecimalImport}}
+{{#hasProtoDurationImport}}
+
+	"{{packageName}}/pkg/internal/protoduration"
+{{/hasProtoDurationImport}}
 {{#hasUuidImport}}
 
 	"github.com/google/uuid"
@@ -17,6 +32,10 @@ import (
 
 	"cloud.google.com/go/civil"
 {{/hasCivilImport}}
+{{#hasDecimalImport}}
+
+	"github.com/shopspring/decimal"
+{{/hasDecimalImport}}
 )
 
 {{#models}}
@@ -413,6 +432,18 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+{{#vendorExtensions.hasDurationFields}}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	if b, err = protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasDecimalFields}}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b{{#vars}}{{#vendorExtensions.isDecimalField}}, exactdecimal.Field{Key: "{{baseName}}", Value: o.{{name}}{{#vendorExtensions.isDecimalString}}, Quoted: true{{/vendorExtensions.isDecimalString}}}{{/vendorExtensions.isDecimalField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDecimalFields}}
 	extras := withoutDeclaredKeys(o.AdditionalProperties{{#vars}}, "{{baseName}}"{{/vars}})
 	if len(extras) == 0 {
 		return b, nil
@@ -421,6 +452,11 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+{{#vendorExtensions.hasDurationAdditionalProperties}}
+	if extra, err = protoduration.EncodeJSON(extra); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDurationAdditionalProperties}}
 	/* Merge the two JSON objects. When every struct field is omitted the
 	   base marshals to "{}" (len 2); replacing its closing brace with a
 	   comma would yield invalid JSON ("{,...}"), so return the extras
@@ -432,356 +468,68 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	return append(b, extra[1:]...), nil
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *{{classname}}) UnmarshalJSON(data []byte) error {
-	type Alias {{classname}}
-	aux := &Alias{}
-{{#vars}}
-{{#isUri}}
-	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUri}}
-{{#vendorExtensions.isIpv4}}
-	if err := checkIPField(data, "{{baseName}}", false); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv4}}
-{{#vendorExtensions.isIpv6}}
-	if err := checkIPField(data, "{{baseName}}", true); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv6}}
-{{#isUuid}}
-	if err := checkUuidField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUuid}}
-{{/vars}}
-{{#hasByteFields}}
-	if err := checkBase64Fields(data, aux); err != nil {
-		return err
-	}
-{{/hasByteFields}}
-	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
-		return err
-	}
-	*o = {{classname}}(*aux)
-
-	/* Collect additional properties */
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	knownFields := map[string]bool{
-{{#vars}}
-		"{{baseName}}": true,
-{{/vars}}
-	}
-	for key, val := range raw {
-		if !knownFields[key] {
-			if o.AdditionalProperties == nil {
-				o.AdditionalProperties = make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}})
-			}
-{{#vendorExtensions.hasTypedAdditionalProperties}}
-{{^vendorExtensions.additionalPropertiesValue.isNullable}}
-			/* A typed extra decodes like an element of a map of the same type:
-			 * a null is rejected unless the value schema is nullable. */
-			if string(val) == "null" {
-				return fmt.Errorf("additional property '%s' must not be null in {{classname}}", key)
-			}
-{{/vendorExtensions.additionalPropertiesValue.isNullable}}
-{{/vendorExtensions.hasTypedAdditionalProperties}}
-			var v {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}
-			if err := json.Unmarshal(val, &v); err != nil {
-				return err
-			}
-			o.AdditionalProperties[key] = v
-		}
-	}
-	/* Gap AJ: encoding/json silently zero-inits required fields when the
-	 * value is null or missing. Reject both for required non-nullable
-	 * fields so the malformed server response surfaces at the deserialize
-	 * call instead of producing a confusing NPE later. */
-{{#vars}}
-{{#required}}
-{{^isNullable}}
-{{#defaultValue}}
-	if rawVal, ok := raw["{{baseName}}"]; !ok {
-		/* A required property that carries a default (the synthetic discriminator
-		 * default, or a schema default) is satisfied by that default when absent. */
-		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
-		o.{{name}} = default{{name}}
-	} else if string(rawVal) == "null" {
-{{/defaultValue}}
-{{^defaultValue}}
-	if rawVal, ok := raw["{{baseName}}"]; !ok {
-		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
-	} else if string(rawVal) == "null" {
-{{/defaultValue}}
-		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
-	}
-{{/isNullable}}
-{{#isNullable}}
-{{^defaultValue}}
-	/* Required AND nullable: the key must be present; an explicit null is a
-	 * legal value and decodes to a nil pointer. */
-	if _, ok := raw["{{baseName}}"]; !ok {
-		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
-	}
-{{/defaultValue}}
-{{/isNullable}}
-{{/required}}
-{{/vars}}
-	return nil
-}
+{{>models/unmarshal_from}}
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
+{{#vendorExtensions.hasRewrittenFields}}
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+{{#vendorExtensions.hasDurationFields}}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	if b, err = protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasDecimalFields}}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b{{#vars}}{{#vendorExtensions.isDecimalField}}, exactdecimal.Field{Key: "{{baseName}}", Value: o.{{name}}{{#vendorExtensions.isDecimalString}}, Quoted: true{{/vendorExtensions.isDecimalString}}}{{/vendorExtensions.isDecimalField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDecimalFields}}
+	return b, nil
+{{/vendorExtensions.hasRewrittenFields}}
+{{^vendorExtensions.hasRewrittenFields}}
 	return marshalJSON((Alias)(o))
+{{/vendorExtensions.hasRewrittenFields}}
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-// reject any JSON key not declared in the schema instead of silently dropping it.
-func (o *{{classname}}) UnmarshalJSON(data []byte) error {
-	type Alias {{classname}}
-	aux := &Alias{}
-{{#vars}}
-{{#isUri}}
-	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUri}}
-{{#vendorExtensions.isIpv4}}
-	if err := checkIPField(data, "{{baseName}}", false); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv4}}
-{{#vendorExtensions.isIpv6}}
-	if err := checkIPField(data, "{{baseName}}", true); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv6}}
-{{#isUuid}}
-	if err := checkUuidField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUuid}}
-{{/vars}}
-{{#hasByteFields}}
-	if err := checkBase64Fields(data, aux); err != nil {
-		return err
-	}
-{{/hasByteFields}}
-	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
-		return err
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	knownFields := map[string]bool{
-{{#vars}}
-		"{{baseName}}": true,
-{{/vars}}
-	}
-	for key := range raw {
-		if !knownFields[key] {
-			return fmt.Errorf("unknown property '%s' on {{classname}} (unevaluatedProperties:false)", key)
-		}
-	}
-	// Gap AJ: encoding/json silently zero-inits required fields when the
-	// value is null or missing. Reject both for required non-nullable fields
-	// so a malformed server response surfaces at the deserialize call,
-	// consistent with the other model branches and the other SDKs.
-{{#vars}}
-{{#required}}
-{{^isNullable}}
-{{#defaultValue}}
-	if rawVal, ok := raw["{{baseName}}"]; !ok {
-		/* A required property that carries a default (the synthetic discriminator
-		 * default, or a schema default) is satisfied by that default when absent. */
-		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
-		aux.{{name}} = default{{name}}
-	} else if string(rawVal) == "null" {
-{{/defaultValue}}
-{{^defaultValue}}
-	if rawVal, ok := raw["{{baseName}}"]; !ok {
-		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
-	} else if string(rawVal) == "null" {
-{{/defaultValue}}
-		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
-	}
-{{/isNullable}}
-{{#isNullable}}
-{{^defaultValue}}
-	/* Required AND nullable: the key must be present; an explicit null is a
-	 * legal value and decodes to a nil pointer. */
-	if _, ok := raw["{{baseName}}"]; !ok {
-		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
-	}
-{{/defaultValue}}
-{{/isNullable}}
-{{/required}}
-{{/vars}}
-	*o = {{classname}}(*aux)
-	return nil
-}
+{{>models/unmarshal_from}}
 {{/isUnevaluatedPropertiesFalse}}
 {{^isUnevaluatedPropertiesFalse}}
 {{^isAdditionalPropertiesTrue}}
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
+{{#vendorExtensions.hasRewrittenFields}}
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+{{#vendorExtensions.hasDurationFields}}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	if b, err = protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDurationFields}}
+{{#vendorExtensions.hasDecimalFields}}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b{{#vars}}{{#vendorExtensions.isDecimalField}}, exactdecimal.Field{Key: "{{baseName}}", Value: o.{{name}}{{#vendorExtensions.isDecimalString}}, Quoted: true{{/vendorExtensions.isDecimalString}}}{{/vendorExtensions.isDecimalField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDecimalFields}}
+	return b, nil
+{{/vendorExtensions.hasRewrittenFields}}
+{{^vendorExtensions.hasRewrittenFields}}
 	return marshalJSON((Alias)(o))
+{{/vendorExtensions.hasRewrittenFields}}
 }
 
-{{#hasRequired}}
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
-func (o *{{classname}}) UnmarshalJSON(data []byte) error {
-	type Alias {{classname}}
-	aux := &Alias{}
-{{#vars}}
-{{#isUri}}
-	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUri}}
-{{#vendorExtensions.isIpv4}}
-	if err := checkIPField(data, "{{baseName}}", false); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv4}}
-{{#vendorExtensions.isIpv6}}
-	if err := checkIPField(data, "{{baseName}}", true); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv6}}
-{{#isUuid}}
-	if err := checkUuidField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUuid}}
-{{/vars}}
-{{#hasByteFields}}
-	if err := checkBase64Fields(data, aux); err != nil {
-		return err
-	}
-{{/hasByteFields}}
-	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
-		return err
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-{{#vars}}
-{{#required}}
-{{^isNullable}}
-{{#defaultValue}}
-	if rawVal, ok := raw["{{baseName}}"]; !ok {
-		/* A required property that carries a default (the synthetic discriminator
-		 * default, or a schema default) is satisfied by that default when absent. */
-		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
-		aux.{{name}} = default{{name}}
-	} else if string(rawVal) == "null" {
-{{/defaultValue}}
-{{^defaultValue}}
-	if rawVal, ok := raw["{{baseName}}"]; !ok {
-		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
-	} else if string(rawVal) == "null" {
-{{/defaultValue}}
-		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
-	}
-{{/isNullable}}
-{{#isNullable}}
-{{^defaultValue}}
-	/* Required AND nullable: the key must be present; an explicit null is a
-	 * legal value and decodes to a nil pointer. */
-	if _, ok := raw["{{baseName}}"]; !ok {
-		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
-	}
-{{/defaultValue}}
-{{/isNullable}}
-{{/required}}
-{{/vars}}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-{{#vars}}
-{{^required}}
-{{#defaultValue}}
-	if _, ok := raw["{{baseName}}"]; !ok {
-		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
-		aux.{{name}} = &default{{name}}
-	}
-{{/defaultValue}}
-{{/required}}
-{{/vars}}
-	*o = {{classname}}(*aux)
-	return nil
-}
-{{/hasRequired}}
-{{^hasRequired}}
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *{{classname}}) UnmarshalJSON(data []byte) error {
-	type Alias {{classname}}
-	aux := &Alias{}
-{{#hasOptionalDefault}}
-	/* json.Unmarshal leaves a struct field untouched when its key is absent
-	 * from the payload, so we pre-seed optional fields that declare a schema
-	 * default before decoding: a present value overwrites the default while an
-	 * absent one keeps it, matching the default-application of the other SDKs. */
-{{#vars}}
-{{^required}}
-{{#defaultValue}}
-	var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
-	aux.{{name}} = &default{{name}}
-{{/defaultValue}}
-{{/required}}
-{{/vars}}
-{{/hasOptionalDefault}}
-{{#vars}}
-{{#isUri}}
-	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUri}}
-{{#vendorExtensions.isIpv4}}
-	if err := checkIPField(data, "{{baseName}}", false); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv4}}
-{{#vendorExtensions.isIpv6}}
-	if err := checkIPField(data, "{{baseName}}", true); err != nil {
-		return err
-	}
-{{/vendorExtensions.isIpv6}}
-{{#isUuid}}
-	if err := checkUuidField(data, "{{baseName}}"); err != nil {
-		return err
-	}
-{{/isUuid}}
-{{/vars}}
-{{#hasByteFields}}
-	if err := checkBase64Fields(data, aux); err != nil {
-		return err
-	}
-{{/hasByteFields}}
-	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
-		return err
-	}
-	*o = {{classname}}(*aux)
-	return nil
-}
-{{/hasRequired}}
+{{>models/unmarshal_from}}
 {{/isAdditionalPropertiesTrue}}
 {{/isUnevaluatedPropertiesFalse}}
 {{/anyOf}}
@@ -850,39 +598,38 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#discriminator}}
-	/* Use discriminator to determine type */
-	var disc struct {
-		{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} string `json:"{{propertyBaseName}}"`
-	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "{{propertyBaseName}}"), &disc); err != nil {
+	/* Read the discriminator from the top level of the object, matching its
+	 * key exactly, then decode the whole value as the variant it names. */
+	discriminator, err := readDiscriminator(data, "{{classname}}", "{{propertyBaseName}}")
+	if err != nil {
 		return err
 	}
-	switch disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} {
+	switch discriminator {
 {{#mappedModels}}
 	case "{{{mappingName}}}":
 		var v {{{modelName}}}
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := unmarshalValue(data, &v); err != nil {
 			return err
 		}
 		o.value = v
 		return nil
 {{/mappedModels}}
 	}
-	if disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} == "" {
+	if discriminator == "" {
 		return fmt.Errorf("missing discriminator property %q for {{classname}}", "{{propertyBaseName}}")
 	}
 	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
 	// previously returned nil silently, leaving the union uninitialized
 	// and producing a hard-to-debug `nil` downstream. Align by surfacing
 	// the error so callers see the malformed server response.
-	return fmt.Errorf("unknown discriminator value %q for {{classname}}", disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}})
+	return fmt.Errorf("unknown discriminator value %q for {{classname}}", discriminator)
 {{/discriminator}}
 {{^discriminator}}
 	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,
 	 * whereas the bare oneOf set is alphabetical. */
 {{#composedSchemas.oneOf}}
 	var {{#goVarName}}{{{dataType}}}{{/goVarName}} {{{dataType}}}
-	if err := json.Unmarshal(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
+	if err := unmarshalValue(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
 		o.value = {{#goVarName}}{{{dataType}}}{{/goVarName}}
 		return nil
 	}
@@ -1006,7 +753,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	var matched []any
 {{#composedSchemas.anyOf}}
 	var {{#goVarName}}{{{dataType}}}{{/goVarName}} {{{dataType}}}
-	if err := json.Unmarshal(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
+	if err := unmarshalValue(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
 		matched = append(matched, {{#goVarName}}{{{dataType}}}{{/goVarName}})
 	}
 {{/composedSchemas.anyOf}}

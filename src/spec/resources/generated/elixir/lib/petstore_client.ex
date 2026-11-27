@@ -51,6 +51,7 @@ defmodule PetstoreClient do
       PetstoreClient.Errors.NetworkError   # no response at all
       PetstoreClient.Errors.NetworkTimeoutError
       PetstoreClient.Errors.StreamError
+      PetstoreClient.Errors.ResponseTooLargeError   # a buffered body past max_response_bytes
       PetstoreClient.Errors.PaginationError   # a paged list that cannot be followed
       PetstoreClient.Errors.SerializationError
       PetstoreClient.Errors.OAuth2ServerError

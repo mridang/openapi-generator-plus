@@ -81,8 +81,13 @@ module {{moduleName}}
     # between two reads are bounded by the SDK itself.
     STREAM_READ_TIMEOUT_S = 31_536_000
 
+    # Compressed bytes fed to a decoder at a time while the decoded size of a
+    # body is checked against +max_response_bytes+, so a body that inflates
+    # past the limit is never decoded in full.
+    DECODE_INPUT_SLICE = 256
+
     private_constant :RETRYABLE_STATUS_CODES, :RETRY_BASE_DELAY_S, :RETRY_MAX_DELAY_S, :RETRY_JITTER, :RETRY_AFTER_CAP_S,
-                     :STREAM_ENCODINGS, :STREAM_READ_TIMEOUT_S
+                     :STREAM_ENCODINGS, :STREAM_READ_TIMEOUT_S, :DECODE_INPUT_SLICE
 
     # What a streamed call needs beyond a buffered one: the longest silence in
     # the body, in milliseconds, or nil for none.
@@ -322,7 +327,11 @@ module {{moduleName}}
       # surfaces as an ApiError carrying that response's status rather than
       # a network error or a raw Zlib / decoder exception.
       decoded_body = begin
+        limit = @transport_options.max_response_bytes
+        check_decoded_size!(response, limit) if limit
         decompress_body(response.body, response.headers['content-encoding'])
+      rescue Errors::ResponseTooLargeError
+        raise
       rescue StandardError => e
         raise unusable_response(response, "Failed to decompress #{response.headers['content-encoding']} response body: #{e.message}")
       end
@@ -778,10 +787,8 @@ module {{moduleName}}
       return open_hop(method, url, body, headers, deadline, timeout_ms, stream) if stream
 
       if deadline.nil?
-        return dispatch(method, url, body, headers) unless @transport_options.connection
-
-        return dispatch(method, url, body, headers) do |request|
-          request.options.params_encoder = QueryParamsEncoder
+        return buffered_dispatch(method, url, body, headers) do |request|
+          request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
         end
       end
 
@@ -790,13 +797,120 @@ module {{moduleName}}
         raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms")
       end
 
-      dispatch(method, url, body, headers) do |request|
-        # A supplied connection has its own encoder; the request-level one keeps
-        # the query exactly as BaseApi built it.
-        request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
-        request.options.timeout = remaining
-        request.options.open_timeout = remaining
-        request.options.write_timeout = remaining
+      # The socket timeouts bound each read; the outer deadline bounds the hop as a
+      # whole, body included, so a server that trickles the body cannot hold the
+      # call past the budget one read at a time.
+      Timeout.timeout(remaining) do
+        buffered_dispatch(method, url, body, headers) do |request|
+          # A supplied connection has its own encoder; the request-level one keeps
+          # the query exactly as BaseApi built it.
+          request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
+          request.options.timeout = remaining
+          request.options.open_timeout = remaining
+          request.options.write_timeout = remaining
+        end
+      end
+    rescue Timeout::Error => e
+      # The outer deadline starts before the socket timers, so it usually fires first. It carries
+      # the same cause as a socket timeout, a Faraday::TimeoutError, so a timed-out call looks the
+      # same whichever bound ended it.
+      raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms"),
+            cause: Faraday::TimeoutError.new(e)
+    end
+
+    # Send one buffered hop. With +max_response_bytes+ set, the body is taken
+    # as it arrives and counted: a running count that passes the limit raises
+    # {Errors::ResponseTooLargeError} at once, which leaves the read unfinished
+    # and so drops the connection instead of draining it. A connection that does not stream hands the whole
+    # body back, which is checked as it comes.
+    def buffered_dispatch(method, url, body, headers, &configure)
+      limit = @transport_options.max_response_bytes
+      return dispatch(method, url, body, headers, &configure) if limit.nil?
+
+      received = String.new(encoding: Encoding::BINARY)
+      streamed = false
+      response = dispatch(method, url, body, headers) do |request|
+        configure&.call(request)
+        request.options.on_data = proc do |chunk, _size, env|
+          streamed = true
+          received << chunk
+          raise response_too_large(env.status, env.response_headers, limit) if received.bytesize > limit
+        end
+      end
+      raw = streamed ? received : response.body.to_s
+      raise response_too_large(response.status, response.headers, limit) if raw.bytesize > limit
+
+      response.env.body = raw if streamed
+      response
+    end
+
+    # The error for a buffered body that passed +limit+: the real status and
+    # the lower-cased response headers, with an empty body.
+    def response_too_large(status, headers, limit)
+      lowered = {} #: Hash[String, String]
+      (headers || {}).each do |name, value|
+        lowered[name.to_s.downcase] = value.is_a?(Array) ? value.join(', ') : value.to_s
+      end
+      Errors::ResponseTooLargeError.new(limit: limit, status_code: status.to_i, response_headers: lowered)
+    end
+
+    # Raises {Errors::ResponseTooLargeError} when the decoded body of +response+
+    # would pass +limit+. The body is decoded in small slices and counted, and
+    # the check stops as soon as the count passes the limit, so a small body
+    # that inflates past it is never decoded in full. A body that is truncated
+    # or malformed is left for {#decompress_body} to report.
+    def check_decoded_size!(response, limit)
+      body = response.body.to_s
+      return if body.empty?
+
+      decoded = 0
+      each_decoded_slice(body, response.headers['content-encoding'].to_s.strip.downcase) do |slice|
+        decoded += slice.bytesize
+        raise response_too_large(response.status, response.headers, limit) if decoded > limit
+      end
+    rescue Errors::ResponseTooLargeError
+      raise
+    rescue StandardError
+      # A truncated or malformed body is left for decompress_body to report.
+      nil
+    end
+
+    # Yields the decoded bytes of +body+ slice by slice, feeding the decoder
+    # {DECODE_INPUT_SLICE} compressed bytes at a time. An identity body is
+    # yielded whole; an encoding with no streaming decoder is not yielded.
+    def each_decoded_slice(body, encoding)
+      case encoding
+      when '', 'identity'
+        yield body
+      when 'gzip', 'x-gzip', 'deflate'
+        inflater = Zlib::Inflate.new(encoding == 'deflate' ? Zlib::MAX_WBITS : Zlib::MAX_WBITS + 16)
+        begin
+          each_input_slice(body) do |input|
+            yield inflater.inflate(input)
+            break if inflater.finished?
+          end
+        ensure
+          inflater.close
+        end
+      when 'br'
+        return unless defined?(Brotli::Decompressor)
+
+        decoder = Brotli::Decompressor.new
+        each_input_slice(body) { |input| yield decoder.process(input) }
+      when 'zstd'
+        return unless defined?(Zstd::StreamingDecompress)
+
+        decoder = Zstd::StreamingDecompress.new
+        each_input_slice(body) { |input| yield decoder.decompress(input) }
+      end
+    end
+
+    # Yields +body+ in slices of {DECODE_INPUT_SLICE} bytes.
+    def each_input_slice(body)
+      offset = 0
+      while offset < body.bytesize
+        yield body.byteslice(offset, DECODE_INPUT_SLICE).to_s
+        offset += DECODE_INPUT_SLICE
       end
     end
 

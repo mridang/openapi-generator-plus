@@ -64,15 +64,15 @@ public class GoFormattingSpec extends AbstractFormattingSpec implements GoSpec {
     void preSeedDefaultCommentOnlyWhenAnOptionalDefaultExists() throws java.io.IOException {
         // A model with no required fields and at least one optional field that
         // declares a schema default (Defaults: retries/mode/label) must keep the
-        // "pre-seed optional fields" comment because the UnmarshalJSON body
-        // actually seeds those defaults.
+        // "pre-seed optional fields" comment because the decode body actually
+        // gives each absent field its default.
         String withDefaults =
                 java.nio.file.Files.readString(
                         tempOutputDir.resolve("pkg/models/defaults.go"));
         assertThat(withDefaults)
                 .as("defaults.go pre-seeds optional defaults, so it keeps the explanatory comment")
                 .contains("pre-seed optional fields that declare a schema")
-                .contains("aux.Retries = &defaultRetries");
+                .contains("out.Retries = &defaultRetries");
 
         // A model with no required fields and no optional field carrying a
         // default (ApiResponse: code/type/message) must NOT emit the comment,

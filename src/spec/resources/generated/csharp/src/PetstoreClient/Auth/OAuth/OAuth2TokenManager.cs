@@ -57,6 +57,10 @@ public sealed class OAuth2TokenManager
      * snapshot behind a single volatile reference, so the lock-free fast path
      * can never read a token paired with another token's expiry. */
     private volatile TokenSnapshot? _snapshot;
+
+    /* The id_token of the last token response: null when it carried none, an
+     * empty string when its value was not a JSON string. */
+    private volatile string? _lastIdToken;
     private volatile bool _stopped;
 
     /// <summary>An access token and the instant after which it must be refreshed (null: never).</summary>
@@ -168,12 +172,19 @@ public sealed class OAuth2TokenManager
     /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
     /// <param name="parameters">The token request parameters, sent unchanged.</param>
     /// <param name="extraHeaders">Optional additional headers to send with the token request.</param>
+    /// <param name="idTokenCheck">
+    /// Optional check of the response's <c>id_token</c> (null when it carried none, an
+    /// empty string when it was not a JSON string), run before the session is kept;
+    /// when it throws, the previous session is restored. OpenID Connect uses it to
+    /// validate the id_token.
+    /// </param>
     /// <param name="cancellationToken">Cancels the token request this call starts.</param>
     /// <returns>The new access token.</returns>
     public Task<string> ExchangeAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders = null,
+        Action<string?>? idTokenCheck = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -191,6 +202,7 @@ public sealed class OAuth2TokenManager
                 tokenUrl,
                 parameters,
                 extraHeaders,
+                idTokenCheck,
                 cancellationToken
             );
             _inflightRefresh = task;
@@ -204,6 +216,7 @@ public sealed class OAuth2TokenManager
         Uri tokenUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders,
+        Action<string?>? idTokenCheck,
         CancellationToken cancellationToken
     )
     {
@@ -228,8 +241,15 @@ public sealed class OAuth2TokenManager
         RefreshToken = null;
         try
         {
-            return await FetchTokenAsync(tokenUrl, parameters, extraHeaders, cancellationToken)
+            string token = await FetchTokenAsync(
+                    tokenUrl,
+                    parameters,
+                    extraHeaders,
+                    cancellationToken
+                )
                 .ConfigureAwait(false);
+            idTokenCheck?.Invoke(_lastIdToken);
+            return token;
         }
         catch
         {
@@ -449,6 +469,12 @@ public sealed class OAuth2TokenManager
         {
             throw new OAuth2TokenException("Unsupported token_type in token response");
         }
+        _lastIdToken =
+            !root.TryGetProperty("id_token", out JsonElement idTokenElement)
+            || idTokenElement.ValueKind == JsonValueKind.Null
+                ? null
+            : idTokenElement.ValueKind == JsonValueKind.String ? idTokenElement.GetString()
+            : "";
         if (
             root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement)
             && refreshTokenElement.ValueKind == JsonValueKind.String

@@ -15,7 +15,8 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | OpenAPI | Dart type | Notes |
 |---|---|---|
 | `integer`, `int32`, `int64` | `int` | Exact on the Dart VM. On Flutter web and dart2js, `int` is a double, so integers above 2^53 lose precision. The generated README documents this. |
-| `number` with any format, including `decimal` | `double` | Money loses exact decimal representation: `0.1 + 0.2` is `0.30000000000000004`. The README advises the `decimal` package or passing values as strings. |
+| `number` with no format, `float`, `double` | `double` | Money loses exact decimal representation: `0.1 + 0.2` is `0.30000000000000004`. The README advises `format: decimal` for money. |
+| `decimal`, on a `type: number` or a `type: string` | `Decimal` from the `decimal` package, exported by the SDK | Exact. The digits are read from the source text of the response, never through a `double`, and a number is written back as a bare JSON number in plain notation. The string form is read only from a JSON string and written back as one. A decoded `Decimal` is written back with the decimal places it was read with, so `"12.50"` stays `"12.50"`. |
 | `boolean` | `bool` | |
 | `string` | `String` | |
 | `string` with `format: date` | `DateTime` | Dart has no date-only type. The value is written as `YYYY-MM-DD` from the `DateTime`'s own year, month and day, so use a UTC value to be sure the day does not shift. |
@@ -24,7 +25,8 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | `string` with `format: duration` | `Duration` | The wire form is the protobuf-JSON form such as `3600s`, limited to +-315576000000 seconds (a value beyond that is refused). Helper functions in `iso8601_duration.dart` convert between the two, even though the file name says ISO 8601. |
 | `string` with `format: uuid` | `UuidValue` | A class the SDK defines itself, which validates on construction. It deliberately shadows the type of the same name in `package:uuid`, whose `fromString` does not validate. |
 | `string` with `format: uri` | `String` | Checked as an absolute RFC 3986 URI when decoded. Not `Uri`, because `dart:core` `Uri` rewrites `[`, `]` and the apostrophe, which would change the text on a round trip. |
-| `string` with `format: email`, `hostname`, `ipv4`, `ipv6` | `String` | |
+| `string` with `format: email`, `hostname` | `String` | |
+| `string` with `format: ipv4`, `ipv6` | `String` | `InternetAddress` is in `dart:io`, which the models cannot import when the SDK builds for the web. The text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D146). |
 | `string` with `format: byte`, and a `format: binary` multipart file part | `Uint8List` | The body is held in memory. |
 | `string` with `format: binary` as a raw request body | `BodySource` | The body is sent as it is read, see Streaming. |
 | `string` with `format: binary` in a success response | `ByteStream`, a `Stream<List<int>>` | The body is read as you consume it, see Streaming. |
@@ -37,7 +39,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 
 ## Dependencies
 
-Runtime dependencies are `collection` (`^1.18.0`), `http` (`^1.2.0`), `http_parser` (`^4.0.0`) and `mime` (`^1.0.0`). JSON handling is `dart:convert`. The SDK keeps the dependency list this short on purpose, which is why `UuidValue` is its own class rather than a dependency on `package:uuid`.
+Runtime dependencies are `collection` (`^1.18.0`), `decimal` (`^3.2.0`, for `format: decimal`), `http` (`^1.2.0`), `http_parser` (`^4.0.0`) and `mime` (`^1.0.0`). JSON handling is `dart:convert`. The SDK keeps the dependency list this short on purpose, which is why `UuidValue` is its own class rather than a dependency on `package:uuid`.
 
 Development dependencies are `lints`, `test`, `coverage`, `junitreport`, `opentelemetry` and `testcontainers_core`.
 
@@ -60,7 +62,8 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Models are plain classes with a `fromJson` factory, `toJson`, `==` and `hashCode` through `DeepCollectionEquality`, and a `toString` that lists the fields.
 - An `allOf` schema with a discriminator is inheritance: the base is an `abstract class` whose `fromJson` decodes the subtype its discriminator value names, and each subtype `extends` it and writes its discriminator value. An unknown or missing discriminator value throws `SerializationException`. A base has no `copyWith`, because each subtype's `copyWith` takes more arguments than the base's would.
 - Every operation takes an explicit positional `options` argument with no default, so a call with nothing to set is written `findPetsByStatus(null)`. This holds for an operation with no parameters of its own too, such as `getInventory(null)`: its options class holds only the per-call fields below, and adding a parameter to the operation later does not change the signature.
-- Every options class carries `timeout` (milliseconds, end to end), `headers` (a header already set is replaced, in any case) and `maxRetries` (`0` turns retries off) for that call only. There is no per-call authenticator.
+- Every options class carries `timeout` (milliseconds, end to end), `headers` (a header already set is replaced, in any case) and `maxRetries` (`0` turns retries off) for that call only. There is no per-call authenticator. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
+- `TransportOptions` takes `maxResponseBytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeException` (D138).
 - The basic, bearer and API key authenticators read a credential you do not pass from an environment variable, once, when they are built. An argument wins, a callback you pass (`tokenProvider`, `apiKeyProvider` or `credentialsProvider`) comes next and is used even when the variable is set, and only a credential you passed neither way is read from the variable (an empty value counts as unset); a credential found nowhere fails with `ArgumentError` when the authenticator is built. The names are `{PREFIX}_{FIELD}` in upper snake case, for example `PETSTORE_TOKEN`; when two schemes have a field of the same name each is qualified with its scheme id, for example `PETSTORE_SERVICE_TOKEN_TOKEN`. The generated README lists the exact names of the API. The OAuth 2 and OpenID Connect authenticators take their client id and secret as required arguments and read no environment variable. The browser has no environment: pass `environment:` a map.
 - The client takes one optional credential per distinct security scheme, named after the scheme (`Client(petStoreBearer: ..., adminBasic: ...)`), plus an optional default `authenticator` that serves an operation no scheme credential matches. Each operation uses the credential of the scheme its spec names (the first it lists that you configured); there is no per-call override. The base URL comes from the first credential given, and a client built with none is refused with `ArgumentError`.
 - A cookie parameter is sent raw when every character is a legal RFC 6265 cookie-octet; otherwise the call fails with `ArgumentError` before anything is sent, and a `style: form` cookie is percent-encoded. Percent-encode a raw value yourself if you need to send one with other characters.
@@ -162,9 +165,10 @@ A list whose page body carries the next URL in a property (a next URL list) is f
 
 ## Known limits
 
+- The OpenID Connect authenticator checks the nonce, issuer, audience and expiry of the `id_token` but does not verify its signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 - There is no per-call cancellation handle, so the call hook is never told of a cancelled call and the recipe has no `cancelled` error type.
 - Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only. Other charsets such as `shift_jis` fall back to lenient UTF-8, because Dart has no multi-charset standard library.
-- Bare `number` is a lossy `double`, and `int64` beyond 2^53 is lossy on the web.
+- Bare `number` is a lossy `double` (`format: decimal` is an exact `Decimal`), and `int64` beyond 2^53 is lossy on the web.
 - A multipart upload is fully buffered. A raw binary upload is sent as it is read, except in the browser, where `fetch` cannot stream a request body and the transport collects the body first, and where a file path is not available.
 - A union holding a value that is not one of its variants fails to serialize with a `SerializationException` naming the union. A string result under a binary content type is the decoded body. A deadline that passes while credentials are being obtained is a `NetworkTimeoutException` and the request is never sent.
 - SOCKS proxies are rejected.
@@ -180,7 +184,6 @@ These are ideas from a review of the type mapping against current Dart. None is 
 
 - Keep the floor at 3.11. The review found that no Dart release from 3.10 to 3.14 added a date, time, UUID, decimal or duration type to `dart:core`. Using the 3.10 dot shorthands or the 3.13 primary constructors in generated code would need a higher floor and is not a type improvement, so the review recommends against it.
 - Decide what `format: date` should be. One option is to keep `DateTime` and document that it is UTC midnight, with a test that a host in a non-UTC zone never shifts the day. Another is an SDK-owned `LocalDate` class, which would be a public API addition that has to match the other eleven SDKs.
-- Optionally map `format: uri` to `dart:core` `Uri`, if the rewriting of `[`, `]` and the apostrophe is acceptable. Otherwise record the decision to keep `String`.
 - Move the `oneOf` wrappers to sealed classes with pattern matching, which Dart has had since 3.0. The current wrapper cannot be switched exhaustively. This is a public API change.
 - The `iso8601_duration.dart` file name is misleading, since it holds protobuf-JSON helpers around `Duration`. The generator's AGENTS file also describes an SDK-owned duration class that does not exist.
 

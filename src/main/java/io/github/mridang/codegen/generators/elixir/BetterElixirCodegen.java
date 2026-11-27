@@ -54,6 +54,22 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
 
+    /**
+     * Types a {@code type: number} with {@code format: decimal} as the exact
+     * {@code Decimal.t()} (D135); the shared mapping gives every other number
+     * {@code float()}, and the base generator does not resolve that format to
+     * {@code decimal} for a number.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if ("float()".equals(type) && schema != null && "decimal".equals(schema.getFormat())) {
+            return "Decimal.t()";
+        }
+        return type;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String errorSchemaTemplate() {
@@ -256,7 +272,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         typeMapping.put("float", "float()");
         typeMapping.put("double", "float()");
         typeMapping.put("number", "float()");
-        typeMapping.put("decimal", "float()");
+        // format: decimal (number or string shaped) is the exact `Decimal.t()` of the
+        // hex `decimal` package (#157). ObjectSerializer reads its digits from the
+        // JSON text without passing through a float.
+        typeMapping.put("decimal", "Decimal.t()");
         // Elixir's built-in Date/DateTime types preserve calendar
         // semantics that String.t() loses. ObjectSerializer can
         // pipe ISO-8601 wire strings through Date.from_iso8601!/1
@@ -306,6 +325,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                                 // them or wrap them in Module.t() etc.
                                 "Time.t()",
                                 "Duration.t()",
+                                "Decimal.t()",
                                 ":inet.ip4_address()",
                                 ":inet.ip6_address()"));
 
@@ -541,6 +561,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "network_error.ex"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "network_timeout_error.ex"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "stream_error.ex"),
+            new SupportingFileSpec("errors/response_too_large_error.mustache", errorsDir, "response_too_large_error.ex"),
             new SupportingFileSpec("errors/pagination_error.mustache", errorsDir, "pagination_error.ex"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, errorPrefixSnake() + "_error.ex"),
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
@@ -819,6 +840,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             // diverging from the present-property path.
             if (resolved.getEnum() != null && !resolved.getEnum().isEmpty()) {
                 return ":\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+            } else if ("decimal".equals(resolved.getFormat())) {
+                // A Decimal default is built from its exact text, never from a float literal.
+                final Object raw = resolved.getDefault();
+                final String text = raw instanceof java.math.BigDecimal
+                        ? ((java.math.BigDecimal) raw).toPlainString()
+                        : String.valueOf(raw);
+                return "Decimal.new(\"" + escapeText(text) + "\")";
             } else if (ModelUtils.isStringSchema(resolved)) {
                 // The shared literal escape, so #{ cannot interpolate and the
                 // default is exactly the spec string.

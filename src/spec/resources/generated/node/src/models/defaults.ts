@@ -12,18 +12,21 @@ import { Decimal } from "../brand.js";
 
 export class Defaults {
   /**
-   * 2.5 — Wire-serialization registry for `type: number` (no format)
-   * fields. Such fields are carried as branded `Decimal` values,
-   * which are plain strings at runtime to preserve arbitrary precision.
-   * On the request path ObjectSerializer.serialize walks the instance with
-   * JSON.stringify, which would quote a string and emit
-   * `"amount":"12.345"` (a JSON string) instead of the spec-required
-   * `"amount":12.345` (a JSON number). The serializer consults this set
-   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
-   * preserving the full decimal text without a lossy Number() round-trip.
-   * Empty when the model has no `type: number` no-format fields.
+   * 2.5 — Wire-serialization registry for the number-shaped Decimal fields
+   * (`type: number` with no format or `format: decimal`). A Decimal's toJSON
+   * gives text that may carry an exponent, and a plain request-body literal
+   * may hold a numeric string, so ObjectSerializer.serialize consults this set
+   * (by runtime property name) to write those fields as a bare JSON number in
+   * plain notation via JSON.rawJSON, every digit kept. Empty when the model
+   * has no such field.
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set(["ratio"]);
+
+  /**
+   * The `type: string` decimal fields: a Decimal under one of these names is
+   * written as a JSON string holding its plain-notation text.
+   */
+  static readonly __stringDecimalFields: ReadonlySet<string> = new Set([]);
 
   /**
    * `format: uuid` fields. ObjectSerializer.serialize writes them in the
@@ -56,7 +59,7 @@ export class Defaults {
   @Transform(({ obj }) => decodePlainNumber(obj, "ratio"), {
     toClassOnly: true,
   })
-  readonly ratio?: Decimal = "1.5" as Decimal;
+  readonly ratio?: Decimal = new Decimal("1.5");
   @Expose({ name: "scale" })
   readonly scale?: number = 0.25;
   @Expose({ name: "weight" })
@@ -87,7 +90,7 @@ export class Defaults {
       this.swatch = Swatch.Green;
     }
     if (this.ratio === undefined) {
-      this.ratio = "1.5" as Decimal;
+      this.ratio = new Decimal("1.5");
     }
     if (this.scale === undefined) {
       this.scale = 0.25;
@@ -142,19 +145,10 @@ export class Defaults {
         `greeting must be a string, got ${typeof this.greeting}`,
       );
     }
-    /**
-     * 2.5 — `type: number` (no numeric format). Carried as a branded
-     * Decimal string to preserve arbitrary precision. The wire form can
-     * arrive as a JSON number (no explicit format means no precision
-     * guarantee from the server); coerce to its canonical string form
-     * here so downstream typed-string ops are safe.
-     */
-    if (this.ratio != null && typeof this.ratio === "number") {
-      Object.assign(this, { ratio: String(this.ratio) });
-    } else if (this.ratio != null && typeof this.ratio !== "string") {
-      throw new TypeError(
-        `ratio must be a Decimal string or number, got ${typeof this.ratio}`,
-      );
+    /* 2.5 — `type: number` (no numeric format, or `format: decimal`) is
+     * decoded into a decimal.js Decimal from the number's exact text. */
+    if (this.ratio != null && !Decimal.isDecimal(this.ratio)) {
+      throw new TypeError(`ratio must be a Decimal, got ${typeof this.ratio}`);
     }
     if (this.scale != null && typeof this.scale !== "number") {
       throw new TypeError(`scale must be a number, got ${typeof this.scale}`);
@@ -285,13 +279,13 @@ export class Defaults {
     if (a == null || b == null) {
       return a === b;
     }
-    /* A Decimal is a branded string, so 1.5 and 1.50 differ as text but are
-     * the same number: compare the canonical form with trailing fractional
-     * zeros dropped. */
-    if (decimal && typeof a === "string" && typeof b === "string") {
-      const canonical = (d: string): string =>
-        /^-?\d+\.\d+$/.test(d) ? d.replace(/0+$/, "").replace(/\.$/, "") : d;
-      return canonical(a) === canonical(b);
+    /* Decimals compare by value, so 1.5 equals 1.50. */
+    if (
+      decimal &&
+      typeof (a as { eq?: unknown }).eq === "function" &&
+      typeof (b as { eq?: unknown }).eq === "function"
+    ) {
+      return (a as { eq(other: unknown): boolean }).eq(b);
     }
     if (
       typeof (a as { equals?: unknown }).equals === "function" &&

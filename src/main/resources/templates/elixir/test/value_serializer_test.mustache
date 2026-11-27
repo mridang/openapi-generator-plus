@@ -330,12 +330,17 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ObjectSerializer.stringify({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}) == "2001:db8::1"
     end
 
-    test "bhv serializationparam 106 path with null style behaves like simple" do
+    test "bhv serializationparam 106 path with null style behaves like simple, and a decimal is written in plain notation" do
       null_style = {{moduleName}}.ValueSerializer.serialize_styled("id", "hello world", :path, "string", nil, nil, false)
       simple = {{moduleName}}.ValueSerializer.serialize_styled("id", "hello world", :path, "string", nil, "simple", false)
 
       assert null_style == simple
       assert null_style == "hello%20world"
+
+      for {given, expected} <- [{"1.50E+3", "1500"}, {"12.345678901234567890123", "12.345678901234567890123"}] do
+        assert {{moduleName}}.ValueSerializer.serialize_styled("amount", Decimal.new(given), :query, "Decimal.t()", nil, "form", true) ==
+                 expected
+      end
     end
 
     test "bhv langelixir 013 null style falls back to location-based serialization" do

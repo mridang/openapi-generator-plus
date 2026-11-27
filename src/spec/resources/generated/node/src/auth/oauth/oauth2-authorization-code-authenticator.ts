@@ -249,6 +249,21 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param code the authorization code from the callback
    */
   async exchangeCode(code: string): Promise<void> {
+    await this.exchangeCodeCheckingIdToken(code, null);
+  }
+
+  /**
+   * Exchange an authorization code, handing the response's id_token to a
+   * check before the session is replaced. OpenID Connect uses this.
+   *
+   * @internal
+   * @param code the authorization code from the callback
+   * @param idTokenCheck a check of the id_token, or null for none
+   */
+  async exchangeCodeCheckingIdToken(
+    code: string,
+    idTokenCheck: ((idToken: string | null) => void) | null,
+  ): Promise<void> {
     /* An empty/whitespace authorization code is a precondition error:
      * posting it to the token endpoint can only fail. Reject it up front
      * so the caller sees the real cause instead of a confusing server error. */
@@ -265,7 +280,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (this.pkce.verifier !== null) {
       params.code_verifier = this.pkce.verifier;
     }
-    await this.tokenManager.exchange(this.tokenUrl, params);
+    await this.tokenManager.exchange(this.tokenUrl, params, {}, idTokenCheck);
     this.pkce.verifier = null;
   }
 

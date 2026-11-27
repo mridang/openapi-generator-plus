@@ -83,37 +83,36 @@ func (o Shape) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *Shape) UnmarshalJSON(data []byte) error {
-	/* Use discriminator to determine type */
-	var disc struct {
-		ShapeType string `json:"shapeType"`
-	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "shapeType"), &disc); err != nil {
+	/* Read the discriminator from the top level of the object, matching its
+	 * key exactly, then decode the whole value as the variant it names. */
+	discriminator, err := readDiscriminator(data, "Shape", "shapeType")
+	if err != nil {
 		return err
 	}
-	switch disc.ShapeType {
+	switch discriminator {
 	case "Circle":
 		var v Circle
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := unmarshalValue(data, &v); err != nil {
 			return err
 		}
 		o.value = v
 		return nil
 	case "Square":
 		var v Square
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := unmarshalValue(data, &v); err != nil {
 			return err
 		}
 		o.value = v
 		return nil
 	}
-	if disc.ShapeType == "" {
+	if discriminator == "" {
 		return fmt.Errorf("missing discriminator property %q for Shape", "shapeType")
 	}
 	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
 	// previously returned nil silently, leaving the union uninitialized
 	// and producing a hard-to-debug `nil` downstream. Align by surfacing
 	// the error so callers see the malformed server response.
-	return fmt.Errorf("unknown discriminator value %q for Shape", disc.ShapeType)
+	return fmt.Errorf("unknown discriminator value %q for Shape", discriminator)
 }
 
 // ActualInstance returns the matched variant of the union type.

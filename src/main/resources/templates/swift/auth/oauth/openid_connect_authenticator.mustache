@@ -6,6 +6,12 @@ import Foundation
 /// Fetches the OIDC discovery document to discover the authorization and
 /// token endpoints, then delegates to an ``OAuth2AuthorizationCodeAuthenticator``.
 ///
+/// Each authorization URL carries a fresh `nonce`. The code exchange validates
+/// the claims of the `id_token` in the token response: the nonce of the
+/// authorization URL, the discovered issuer, the client ID in the audience and
+/// an expiry that has not passed (60 seconds of clock skew are allowed). The
+/// signature of the id_token is not verified.
+///
 /// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
 /// subsequent token exchange requests use the shared ``ApiClient`` with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
@@ -22,6 +28,12 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     private var discoveryExpiry: TimeInterval = -.infinity
     private var discoveryInFlight: Task<OAuth2AuthorizationCodeAuthenticator, Error>?
     private let lock = NSLock()
+    /// The issuer named by the last discovery document, or nil when it named none.
+    private var discoveredIssuer: String?
+    /// The nonce of the last authorization URL built, until the code exchange uses it.
+    private var pendingNonce: String?
+    /// Clock skew allowed when checking the expiry of an id_token.
+    static let idTokenClockSkewSeconds: Double = 60
 
     /// Creates a new OpenID Connect authenticator.
     public init(
@@ -64,13 +76,87 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     /// Builds the authorization URL using the discovered authorization endpoint.
     public func buildAuthorizationURL(state: String = "") async throws -> String {
         let delegate = try await resolveDelegate()
-        return try delegate.buildAuthorizationURL(state: state)
+        let url = try delegate.buildAuthorizationURL(state: state)
+        /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+         * request; the exchange checks it once. */
+        let nonce = PKCE.makeVerifier()
+        lock.withLock { pendingNonce = nonce }
+        return url + "&nonce=" + nonce
     }
 
     /// Exchanges an authorization code for tokens using the discovered token endpoint.
     public func exchangeCode(_ code: String) async throws {
         let delegate = try await resolveDelegate()
-        try await delegate.exchangeCode(code)
+        let (nonce, issuer): (String?, String?) = lock.withLock {
+            let taken = pendingNonce
+            pendingNonce = nil
+            return (taken, discoveredIssuer)
+        }
+        let clientID = self.clientID
+        try await delegate.exchangeCode(code) { idToken in
+            try Self.validateIdToken(idToken, nonce: nonce, issuer: issuer, clientID: clientID)
+        }
+    }
+
+    /// Validates the claims of the id_token of a code exchange (OpenID Connect
+    /// Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+    /// discovered issuer, the client ID in the audience and the expiry. A
+    /// response without an id_token is not checked. The payload is decoded
+    /// without verifying the signature.
+    static func validateIdToken(
+        _ idToken: String?, nonce: String?, issuer: String?, clientID: String
+    ) throws {
+        guard let idToken = idToken else {
+            return
+        }
+        let claims = try decodeIdToken(idToken)
+        if let nonce = nonce, claims["nonce"] as? String != nonce {
+            throw OAuth2TokenError.invalidResponse(
+                "The id_token nonce does not match the authorization request")
+        }
+        guard let issuer = issuer, let iss = claims["iss"] as? String, iss == issuer else {
+            throw OAuth2TokenError.invalidResponse(
+                "The id_token issuer does not match the discovered issuer")
+        }
+        let audience: [Any]
+        if let single = claims["aud"] as? String {
+            audience = [single]
+        } else {
+            audience = claims["aud"] as? [Any] ?? []
+        }
+        guard audience.contains(where: { ($0 as? String) == clientID }) else {
+            throw OAuth2TokenError.invalidResponse(
+                "The id_token audience does not contain the client id")
+        }
+        /* JSONSerialization reads a JSON boolean as an NSNumber of objCType "c";
+         * a boolean exp is malformed, as in the other SDKs. */
+        guard let exp = claims["exp"] as? NSNumber, String(cString: exp.objCType) != "c" else {
+            throw OAuth2TokenError.invalidResponse("The id_token is malformed")
+        }
+        if Date().timeIntervalSince1970 >= exp.doubleValue + idTokenClockSkewSeconds {
+            throw OAuth2TokenError.invalidResponse("The id_token has expired")
+        }
+    }
+
+    /// The claims of a compact JWS: the second segment, base64url-decoded JSON.
+    private static func decodeIdToken(_ idToken: String) throws -> [String: Any] {
+        let malformed = OAuth2TokenError.invalidResponse("The id_token is malformed")
+        let parts = idToken.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else {
+            throw malformed
+        }
+        var base64 = parts[1]
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 {
+            base64 += "="
+        }
+        guard let data = Data(base64Encoded: base64),
+            let claims = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else {
+            throw malformed
+        }
+        return claims
     }
 
     /// Returns the Bearer authentication header.
@@ -262,6 +348,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
             }
             self.delegate = current
             self.discoveredEndpoints = endpoints
+            self.discoveredIssuer = discovery.issuer
             self.discoveryExpiry = MonotonicClock.now() + TimeInterval(maxAge)
             return current
         }

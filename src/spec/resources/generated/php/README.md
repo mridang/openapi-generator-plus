@@ -74,7 +74,9 @@ Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with th
 
 ### Timeouts
 
-`TransportOptions::builder()->timeout(5000)` sets one end-to-end budget in milliseconds for the whole call, redirects and retries included. A call that exceeds it fails with `NetworkTimeoutException`; the default is 10 000 ms and `null` waits indefinitely.
+`TransportOptions::builder()->timeout(5000)` sets one end-to-end budget in milliseconds for the whole call, redirects and retries included. A call that exceeds it fails with `NetworkTimeoutException`; the default is 60 000 ms and `null` waits indefinitely.
+
+`TransportOptions::builder()->maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### Automatic retries
 
@@ -420,16 +422,22 @@ them to model fields. On 64-bit PHP this means values larger than
 JavaScript and Dart. Snowflake / Twitter / Discord-style IDs above
 9 007 199 254 740 991 are rounded.
 
-`format: decimal` / `format: number` fields are likewise stored as
-PHP `float`, so monetary values lose their exact decimal
-representation. `0.1 + 0.2` in PHP is `0.30000000000000004` — do not
-do arithmetic on prices, balances, or other money-typed fields. Pass
-them through as strings via `BCMath` if you need exact arithmetic.
+`format: decimal` fields are `Brick\Math\BigDecimal` from
+`brick/math`, an exact decimal. The digits of a decimal are read from
+the JSON text itself, never through a PHP `float`, so
+`12.345678901234567890123` keeps every digit, and the decimal is
+written back with the same digits in plain notation, never with an
+exponent. A `type: number` decimal travels as a bare JSON number and a
+`type: string` decimal as a JSON string; a string decimal is read only
+from a JSON string. `BigDecimal` keeps the scale it was written with,
+so `12.50` is written back as `12.50`, and two decimals compare equal
+by value (`1.5` equals `1.50`).
 
-Fixing this end-to-end would require switching the wire layer to
-emit JSON numbers from internal string/GMP representations, which
-breaks `format: int64` schema validation against strict mock servers
-(verified with Chasm). Documented as a known limitation.
+A bare `type: number` with no format is still a PHP `float`, so
+`0.1 + 0.2` is `0.30000000000000004` there. Do not do arithmetic on
+prices, balances, or other money-typed fields that the spec types as a
+plain number or as `format: float` or `double`; type them as
+`format: decimal` instead.
 
 ### Optional and nullable are one
 

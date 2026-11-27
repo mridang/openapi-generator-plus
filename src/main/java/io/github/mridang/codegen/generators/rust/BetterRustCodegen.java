@@ -116,7 +116,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("float", "f32");
         typeMapping.put("double", "f64");
         typeMapping.put("number", "f64");
-        typeMapping.put("decimal", "f64");
+        // `format: decimal` is exact (D135): `rust_decimal::Decimal`, read from the
+        // JSON text through object_serializer::decimal_number or decimal_string,
+        // never through an f64. A `type: string` decimal reaches this key; a
+        // `type: number` one is "number" and is mapped in getSchemaType.
+        typeMapping.put("decimal", "rust_decimal::Decimal");
         // Use chrono for proper date / date-time semantics in
         // generated structs. The previous String mapping forced
         // callers to parse manually and lost serde validation on
@@ -185,7 +189,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "char",
                                 "Vec",
                                 "HashMap",
-                                "uuid::Uuid"));
+                                "uuid::Uuid",
+                                "rust_decimal::Decimal"));
 
         reservedWords = loadReservedWords("/reserved-words/rust.txt");
 
@@ -291,6 +296,21 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {"rustup component add rustfmt", "cargo fmt"};
+    }
+
+    /**
+     * Types a {@code type: number} with {@code format: decimal} as the exact
+     * {@code rust_decimal::Decimal} (D135); the shared mapping gives every other
+     * number {@code f64}.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if ("f64".equals(type) && schema != null && "decimal".equals(schema.getFormat())) {
+            return "rust_decimal::Decimal";
+        }
+        return type;
     }
 
     /** {@inheritDoc} */
@@ -702,6 +722,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "errors/stream_error.mustache", "src/errors", "stream_error.rs"),
                 new SupportingFileSpec(
+                        "errors/response_too_large_error.mustache",
+                        "src/errors",
+                        "response_too_large_error.rs"),
+                new SupportingFileSpec(
                         "errors/pagination_error.mustache", "src/errors", "pagination_error.rs"),
                 new SupportingFileSpec("paginator.mustache", "src", "paginator.rs"),
                 new SupportingFileSpec("link_header.mustache", "src", "link_header.rs"),
@@ -766,6 +790,16 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         + "::"
                         + enumMemberName(resolved, String.valueOf(effectiveDefault), "String");
             }
+            if ("decimal".equals(resolved.getFormat())
+                    && (ModelUtils.isNumberSchema(resolved) || ModelUtils.isStringSchema(resolved))) {
+                // An exact decimal is built from its text, so no digit passes through an f64.
+                return "rust_decimal::Decimal::from_str_exact("
+                        + toRustStringLiteral(
+                                effectiveDefault instanceof java.math.BigDecimal
+                                        ? ((java.math.BigDecimal) effectiveDefault).toPlainString()
+                                        : String.valueOf(effectiveDefault))
+                        + ").expect(\"the default is an exact decimal\")";
+            }
             if (ModelUtils.isNumberSchema(resolved)) {
                 // A floating-point literal needs a decimal point: `Some(2)` is
                 // an integer and does not coerce to f32/f64.
@@ -812,6 +846,27 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         /* format: uri stays a String but is decoded through
          * object_serializer::absolute_uri, which rejects relative references. */
         property.vendorExtensions.put("isUri", "uri".equals(property.dataFormat));
+        /* format: decimal is rust_decimal::Decimal (D135). A number is read from
+         * and written as its JSON text through object_serializer::decimal_number;
+         * a string through object_serializer::decimal_string. */
+        final boolean decimal =
+                "rust_decimal::Decimal".equals(property.dataType) && !property.isContainer;
+        property.vendorExtensions.put(
+                "isDecimalNumber", decimal && "number".equals(property.openApiType));
+        property.vendorExtensions.put(
+                "isDecimalText", decimal && !"number".equals(property.openApiType));
+        /* A non-unique array of decimals goes through the `vec` variant of the same adapter. */
+        final boolean decimalItems =
+                property.isArray
+                        && !property.getUniqueItems()
+                        && property.items != null
+                        && "rust_decimal::Decimal".equals(property.items.dataType);
+        property.vendorExtensions.put(
+                "isDecimalNumberItems",
+                decimalItems && "number".equals(property.items.openApiType));
+        property.vendorExtensions.put(
+                "isDecimalTextItems",
+                decimalItems && !"number".equals(property.items.openApiType));
         /* A required AND nullable property is an Option whose key must be
          * present on decode (null is legal) and is always written on encode.
          * serde treats a missing Option field as None, so a plain Option needs
@@ -825,10 +880,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 property.isByteArray
                         || (property.isArray && itemsAreBytes)
                         || (property.isMap && itemsAreBytes)
+                        || decimalItems
                         || (!property.isArray
                                 && ("duration".equals(format)
                                         || "time".equals(format)
-                                        || "uri".equals(format)));
+                                        || "uri".equals(format)
+                                        || "rust_decimal::Decimal".equals(property.dataType)));
         property.vendorExtensions.put(
                 "requiredNullablePlain",
                 property.required && property.isNullable && !customAdapter);

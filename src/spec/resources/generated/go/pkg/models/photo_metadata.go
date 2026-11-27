@@ -11,6 +11,8 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // PhotoMetadata is a model class generated from the OpenAPI schema.
@@ -108,13 +110,37 @@ func (o PhotoMetadata) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *PhotoMetadata) UnmarshalJSON(data []byte) error {
-	type Alias PhotoMetadata
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "caption", "isPrimary", "takenAt", "location"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *PhotoMetadata) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out PhotoMetadata
+	err := readObject(dec, "PhotoMetadata", func(key string) error {
+		switch key {
+		case "caption":
+			return decodeValue(dec, &out.Caption)
+		case "isPrimary":
+			return decodeValue(dec, &out.IsPrimary)
+		case "takenAt":
+			return decodeValue(dec, &out.TakenAt)
+		case "location":
+			return decodeValue(dec, &out.Location)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	*o = PhotoMetadata(*aux)
+	*o = out
 	return nil
 }

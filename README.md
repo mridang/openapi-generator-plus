@@ -68,7 +68,7 @@ Each language has a page with its supported versions, type mapping, dependencies
 | PHP | `php-plus` | `openapi/petstoreclient` (`packageName`) | PHP 8.3 | [docs/languages/php.md](docs/languages/php.md) |
 | Go | `go-plus` | `petstore` (`packageName`) | Go 1.26 | [docs/languages/go.md](docs/languages/go.md) |
 | Rust | `rust-plus` | `petstore` (`packageName`) | Rust 1.85 | [docs/languages/rust.md](docs/languages/rust.md) |
-| Swift | `swift-plus` | `PetstoreClient` (`projectName`) | Swift 6.0, macOS 12, iOS 15 | [docs/languages/swift.md](docs/languages/swift.md) |
+| Swift | `swift-plus` | `PetstoreClient` (`projectName`) | Swift 6.0, macOS 13, iOS 16 | [docs/languages/swift.md](docs/languages/swift.md) |
 | Dart | `dart-plus` | `petstore_client` (`pubName`) | Dart 3.11 | [docs/languages/dart.md](docs/languages/dart.md) |
 | Elixir | `elixir-plus` | `petstore_client` (`packageName`) | Elixir 1.17 | [docs/languages/elixir.md](docs/languages/elixir.md) |
 

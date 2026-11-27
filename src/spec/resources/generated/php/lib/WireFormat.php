@@ -17,6 +17,8 @@ namespace PetstoreClient;
  * Marks a string model property whose schema declares a format the SDK checks when it decodes a
  * response: an absolute URI, an IPv4 address or an IPv6 address. PHP has no class for these, so the
  * property stays a string and {@see ObjectSerializer::deserialize()} refuses a value that is not one.
+ * `decimal` marks a `Brick\Math\BigDecimal` property whose value travels as a JSON string rather
+ * than a JSON number.
  *
  * @category Class
  * @package  PetstoreClient
@@ -25,7 +27,7 @@ namespace PetstoreClient;
 final readonly class WireFormat
 {
     /**
-     * @param string $format one of uri, ipv4 or ipv6
+     * @param string $format one of uri, ipv4, ipv6 or decimal
      */
     public function __construct(public string $format)
     {

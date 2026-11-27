@@ -55,6 +55,9 @@ module Petstore::Client
           @access_token = nil
           @refresh_token = nil
           @token_expiry = nil
+          # The id_token of the last token response: nil when it carried none,
+          # an empty string when its value was not a JSON string.
+          @last_id_token = nil
           @token_margin = 0
           @exchanged = false
           @stopped = false
@@ -125,8 +128,12 @@ module Petstore::Client
         #
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
+        # @yieldparam id_token [String, nil] the response's id_token (nil when it
+        #   carried none, an empty string when it was not a JSON string), handed
+        #   to the block before the session is committed; when the block raises,
+        #   the previous session is restored. OpenID Connect validates it here.
         # @return [String] the newly issued access token
-        def exchange(token_url, params, extra_headers = {})
+        def exchange(token_url, params, extra_headers = {}, &id_token_check)
           @mutex.synchronize do
             raise_if_stopped
             previous = [@access_token, @refresh_token, @token_expiry]
@@ -135,6 +142,7 @@ module Petstore::Client
             @token_expiry = nil
             begin
               fetch_token(token_url, params, extra_headers)
+              id_token_check&.call(@last_id_token)
             rescue StandardError
               @access_token, @refresh_token, @token_expiry = previous
               raise
@@ -293,6 +301,11 @@ module Petstore::Client
           raise ::Petstore::Client::Errors::OAuth2TokenError, 'Unsupported token_type in token response' unless token_type.nil? || (token_type.is_a?(String) && token_type.casecmp?('bearer'))
 
           @access_token = access_token
+          id_token = parsed['id_token']
+          @last_id_token = case id_token
+                           when nil, String then id_token
+                           else ''
+                           end
           # No expires_in means no expiry: a stale expiry from an earlier
           # token must not outlive the token that replaced it.
           @token_expiry = nil

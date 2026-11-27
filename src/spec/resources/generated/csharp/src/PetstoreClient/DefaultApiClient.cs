@@ -1280,13 +1280,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         CancellationToken timeoutToken
     )
     {
+        /* D138: with a size limit the body is not buffered by HttpClient but read
+           here in chunks, so the read stops as soon as the limit is passed. */
+        long? maxResponseBytes = _transportOptions.MaxResponseBytes;
         HttpResponseMessage response = await OpenResponseAsync(
                 method,
                 url,
                 headers,
                 body,
                 noRedirect,
-                HttpCompletionOption.ResponseContentRead,
+                maxResponseBytes.HasValue
+                    ? HttpCompletionOption.ResponseHeadersRead
+                    : HttpCompletionOption.ResponseContentRead,
                 timeoutSource,
                 state,
                 timeoutToken
@@ -1302,9 +1307,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         byte[] responseBytes;
         try
         {
-            responseBytes = await response
-                .Content.ReadAsByteArrayAsync(timeoutToken)
-                .ConfigureAwait(false);
+            responseBytes = maxResponseBytes.HasValue
+                ? await ReadBoundedAsync(response, maxResponseBytes.Value, timeoutToken)
+                    .ConfigureAwait(false)
+                : await response.Content.ReadAsByteArrayAsync(timeoutToken).ConfigureAwait(false);
         }
         catch (HttpRequestException ex)
         {
@@ -1359,11 +1365,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
            the error type identical to the auto-decompression path above. */
         if (response.Content.Headers.ContentEncoding.Count > 0)
         {
+            bool overLimit;
             try
             {
                 responseBytes = DecodeContentEncoding(
                     responseBytes,
-                    response.Content.Headers.ContentEncoding
+                    response.Content.Headers.ContentEncoding,
+                    maxResponseBytes,
+                    out overLimit
                 );
             }
             catch (Exception ex)
@@ -1379,6 +1388,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     ex,
                     decodeHeaders
                 );
+            }
+            if (overLimit)
+            {
+                throw TooLarge(response, maxResponseBytes ?? 0);
             }
             /* D92: a decoded body no longer matches the wire encoding, so the
                headers that describe the encoded bytes are dropped. */
@@ -1418,6 +1431,110 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             responseBody,
             CollectHeaders(response)
         );
+    }
+
+    /// <summary>
+    /// Reads a buffered body in chunks and stops as soon as more than
+    /// <paramref name="limit"/> bytes have arrived (D138): a declared
+    /// <c>Content-Length</c> over the limit fails before anything is read, and a
+    /// body that passes it drops the connection instead of draining the rest.
+    /// </summary>
+    private static async Task<byte[]> ReadBoundedAsync(
+        HttpResponseMessage response,
+        long limit,
+        CancellationToken cancellationToken
+    )
+    {
+        if (response.Content.Headers.ContentLength is long declared && declared > limit)
+        {
+            throw TooLarge(response, limit);
+        }
+        Stream raw = await response
+            .Content.ReadAsStreamAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await using (raw.ConfigureAwait(false))
+        {
+            using MemoryStream sink = new();
+            byte[] chunk = new byte[16384];
+            while (true)
+            {
+                int read = await raw.ReadAsync(chunk.AsMemory(), cancellationToken)
+                    .ConfigureAwait(false);
+                if (read == 0)
+                {
+                    return sink.ToArray();
+                }
+                if (sink.Length + read > limit)
+                {
+                    try
+                    {
+                        DropUnreadBody(raw);
+                    }
+                    catch (Exception ex)
+                        when (ex
+                                is IOException
+                                    or HttpRequestException
+                                    or ObjectDisposedException
+                                    or InvalidOperationException
+                                    or NotSupportedException
+                                    or AggregateException
+                        )
+                    {
+                        /* The connection is being dropped either way. */
+                    }
+                    throw TooLarge(response, limit);
+                }
+                await sink.WriteAsync(chunk.AsMemory(0, read), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The error for a buffered body that passed the limit, with the real status and
+    /// the lower-cased headers; the response is released first.
+    /// </summary>
+    private static Errors.ResponseTooLargeException TooLarge(
+        HttpResponseMessage response,
+        long limit
+    )
+    {
+        int status = (int)response.StatusCode;
+        Dictionary<string, string> responseHeaders = CollectHeaders(response);
+        response.Dispose();
+        return new Errors.ResponseTooLargeException(status, limit, responseHeaders);
+    }
+
+    /// <summary>
+    /// Disposing the response of a body that is not read to the end drains up to
+    /// 1 MiB, for up to two seconds, before it closes the connection, so an
+    /// endless feed would not be dropped at once. A read that is cancelled while
+    /// it waits drops the connection immediately, so one is started and cancelled
+    /// first; a byte that was already there is read away and the next read waits.
+    /// </summary>
+    private static void DropUnreadBody(Stream raw)
+    {
+        byte[] probe = new byte[1];
+        for (int tries = 0; tries < 8; tries++)
+        {
+            using CancellationTokenSource cut = new();
+            ValueTask<int> pending = raw.ReadAsync(probe, cut.Token);
+            if (pending.IsCompleted)
+            {
+                if (pending.GetAwaiter().GetResult() == 0)
+                {
+                    return;
+                }
+                continue;
+            }
+            cut.Cancel();
+            try
+            {
+                _ = pending.AsTask().GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException) { }
+            return;
+        }
     }
 
     /// <inheritdoc/>
@@ -2104,9 +2221,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     /// <param name="data">The raw (still-encoded) body bytes.</param>
     /// <param name="encodings">The Content-Encoding header values, in header order.</param>
-    /// <returns>The decoded body bytes.</returns>
-    private static byte[] DecodeContentEncoding(byte[] data, IEnumerable<string> encodings)
+    /// <param name="limit">The most decoded bytes to produce (D138), or <c>null</c> for no limit.</param>
+    /// <param name="overLimit">Set when decoding stopped because the output passed <paramref name="limit"/>.</param>
+    /// <returns>The decoded body bytes, or an empty array when <paramref name="overLimit"/> is set.</returns>
+    private static byte[] DecodeContentEncoding(
+        byte[] data,
+        IEnumerable<string> encodings,
+        long? limit,
+        out bool overLimit
+    )
     {
+        overLimit = false;
         /* A chained (multi-coding) Content-Encoding is non-standard for this
          * SDK's responses and is rejected uniformly across the SDKs rather than
          * decoded coding-by-coding here, matching the single-coding switch the
@@ -2155,8 +2280,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             };
             using (decoder)
             {
+                /* Inflate in chunks and stop as soon as the output passes the
+                   limit, so a small body that expands hugely is never decoded whole. */
                 using MemoryStream sink = new();
-                decoder.CopyTo(sink);
+                byte[] chunk = new byte[16384];
+                int read;
+                while ((read = decoder.Read(chunk.AsSpan())) > 0)
+                {
+                    if (limit.HasValue && sink.Length + read > limit.Value)
+                    {
+                        overLimit = true;
+                        return [];
+                    }
+                    sink.Write(chunk, 0, read);
+                }
                 current = sink.ToArray();
             }
         }
@@ -2568,36 +2705,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
         }
 
-        /// <summary>
-        /// Disposing the response of a body that is not read to the end drains up to
-        /// 1 MiB, for up to two seconds, before it closes the connection, so an
-        /// endless feed would not be dropped at once. A read that is cancelled while
-        /// it waits drops the connection immediately, so one is started and cancelled
-        /// first; a byte that was already there is read away and the next read waits.
-        /// </summary>
+        /// <summary>Drops the connection of the body without draining it (see <see cref="DropUnreadBody"/>).</summary>
         private void DropConnection()
         {
-            byte[] probe = new byte[1];
-            for (int tries = 0; tries < 8; tries++)
-            {
-                using CancellationTokenSource cut = new();
-                ValueTask<int> pending = _raw.ReadAsync(probe, cut.Token);
-                if (pending.IsCompleted)
-                {
-                    if (pending.GetAwaiter().GetResult() == 0)
-                    {
-                        return;
-                    }
-                    continue;
-                }
-                cut.Cancel();
-                try
-                {
-                    _ = pending.AsTask().GetAwaiter().GetResult();
-                }
-                catch (OperationCanceledException) { }
-                return;
-            }
+            DropUnreadBody(_raw);
         }
     }
 

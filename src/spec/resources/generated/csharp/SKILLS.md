@@ -269,6 +269,8 @@ public static class Transport
 
 The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done. Streams that are still open are cancelled.
 
+`TransportOptions.Builder().MaxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
 ### Retries
 
 `TransportOptions.Builder().MaxRetries(n)` sets the automatic retries (default 2, `0` disables). Retried: a network error before a response and the statuses 408, 409, 429 and 500-599 except 501, after a 0.5 s backoff doubling to 8 s with 25% jitter or the server's `Retry-After` (at most 60 s). The retries never extend the timeout, rebuild the headers on every attempt, and skip single-use and multipart bodies. A 401 on an OAuth2 or OpenID Connect call drops the cached access token and replays the request once (`InvalidateAccessToken()` on those authenticators does the same by hand).

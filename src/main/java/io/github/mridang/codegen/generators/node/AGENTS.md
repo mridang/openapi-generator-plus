@@ -23,7 +23,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | `templates/node/body_source.mustache` | `BodySource` (the raw binary request body: replayable or single use) and `OpenedBody` | upload types |
 | `templates/node/event_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache` | the line splitter and SSE parser, `ServerSentEvent`, `StreamOptions`, `JsonLinesStream`, `SseStream` | JSON Lines and SSE behaviour |
 | `templates/node/object_serializer.mustache`, `value_serializer.mustache`, `base_api.mustache` | JSON decode and encode, path, query, header and form encoding, multipart | serialization |
-| `templates/node/models/model.mustache`, `deserialize_arg.mustache`, `brand.mustache`, `deep_input.mustache` | model classes, branded `UUID`/`URI`/`Email`/`Decimal`, `DeepInput` request types | models |
+| `templates/node/models/model.mustache`, `deserialize_arg.mustache`, `brand.mustache`, `deep_input.mustache` | model classes, branded `UUID`/`URI`/`Email`, the decimal.js `Decimal` re-export and its text helpers, `DeepInput` request types | models |
 | `templates/node/api/*.mustache`, `client.mustache`, `configuration.mustache`, `server_configuration.mustache`, `servers.mustache` | per-tag API classes, Options classes, facade, builder | operation surface, server variants |
 | `templates/node/test/**` | the emitted Jest tests (extend these; never add a test file) | generated tests |
 | `templates/node/readme.mustache`, `skills.mustache`, `typedoc.mustache` | README, SKILLS.md, typedoc config | docs |
@@ -34,7 +34,8 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 
 | Topic | What this language does | Why |
 |---|---|---|
-| Format types | `UUID`, `URI`, `Email`, `Decimal` are branded string aliases; unions of primitives (`Array<Buffer> \| Buffer`) are plain aliases with no wrapper class; enums of some operations are literal unions | TypeScript has no nominal types. |
+| Format types | `UUID`, `URI`, `Email` are branded string aliases and `Decimal` is decimal.js's class (D135); unions of primitives (`Array<Buffer> \| Buffer`) are plain aliases with no wrapper class; enums of some operations are literal unions | TypeScript has no nominal types. |
+| `format: ipv4`, `ipv6` (D146) | plain `string`, checked in `__validate` with `isIpv4Address`/`isIpv6Address` from the object serializer, list elements included; a malformed address fails the decode | the standard library has no address type |
 | Construction | `Configuration` and `TransportOptions` take one options object plus a fluent builder | named-argument idiom of TypeScript |
 | Error construction | every `*Error` takes the ES2022 `{ cause }` bag as its last argument | that is the signature of `Error` itself |
 | Auth header accessor | a distinct `...Async` method beside the sync one; `isNoAuth` and `isHttpAwareAuthenticator` type guards | value-wrapped async (`Promise`) like csharp and dart; no interface check at runtime |
@@ -46,7 +47,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | Scheme credentials | the client takes `new Client({ <scheme>: authenticator, ..., authenticator })`, one optional credential per distinct security scheme in an object, or a single authenticator | the other SDKs use named arguments or a Credentials struct; TypeScript has no named arguments, so the object is the named-argument idiom |
 | Missing-parameter error | `TypeError` with a double-quoted message string | the message embeds `'<param>'`, so a single-quoted literal is a syntax error |
 | Dates and times | `Date` for date-time, `Temporal.PlainDate`/`PlainTime` from `temporal-polyfill` | no native date-only or time-only type |
-| Decimals | branded `Decimal`; decode keeps the number text via `JSON.rawJSON`/reviver source | JS numbers are binary doubles |
+| Decimals | decimal.js `Decimal`; decode builds it from the reviver's source text, encode writes plain notation via `JSON.rawJSON` | JS numbers are binary doubles |
 
 ## Settled decisions (do not re-open in review)
 
@@ -143,11 +144,11 @@ Why: the CI test job is CPU-bound; workflow issues are filed in mridang/action-r
 Where: `NodeSpec.getCacheEnv`.
 Test: the spec run itself.
 
-### `format: number` is a branded Decimal that is lossy on decode (D83)
-Rule: bare `type: number` is the branded `Decimal`. Encode keeps the text through `JSON.rawJSON` (an unquoted JSON number); decode currently uses a plain `JSON.parse`, so the text of an already rounded double is kept. The README carries the precision caveat. Do not change the type to a native `number`.
-Why: this is documented; making decode lossless with a `JSON.parse` reviver using `context.source` is open, not decided as forced. Node also accepts any string for a `Decimal`.
-Where: `object_serializer.mustache`, `models/model.mustache`, `readme.mustache`.
-Test: `test/object-serializer.test.mustache`.
+### `type: number` and `format: decimal` are decimal.js `Decimal` (D83, D135)
+Rule: a bare `type: number` and a `format: decimal` field or parameter, number- or string-shaped, are the `Decimal` class of `decimal.js`, re-exported from `brand.ts`. Decode builds it from the number's source text, recorded by the `JSON.parse` reviver (`context.source`, always present at the Node 22 floor), never from the double; a string-shaped field accepts only a JSON string holding a plain decimal number. Encode reads the Decimal from the holder in the replacer (its `toJSON` has already run and may give an exponent) and writes `decimalText`: plain notation with every digit, a bare JSON number through `JSON.rawJSON`, or a JSON string for a field in `__stringDecimalFields`. decimal.js keeps no scale, so `decimalFromText` records the written places of a decoded value in a `WeakMap` and `12.50` is written back as `12.50`; a value the caller builds is written with the places it needs. Never call `Decimal.set`: the global configuration belongs to the caller.
+Why: the owner chose decimal.js in #157 so callers get exact arithmetic; the branded string kept the digits but offered none.
+Where: `brand.mustache`, `object_serializer.mustache`, `value_serializer.mustache`, `deep_input.mustache`, `models/model.mustache`, `readme.mustache`, `BetterNodeCodegen.java` (`postProcessModelProperty`, `fromParameter`). Test: `serializationobject410` to `413`, `serializationparam106`, `models018`.
+Test: `serializationobject410` to `413`, `serializationparam106`, `models018`, `misc088` in `test/object-serializer.test.mustache` and `test/value-serializer.test.mustache`.
 
 ### Model names that collide get the `Model` prefix (D45)
 Rule: node already prefixes colliding names (`ModelError`); the reserved set is `languageSpecificPrimitives`, and `getModelNameCollisionPrefix()` returns `Model`.
@@ -367,12 +368,16 @@ Rule: `invalidateAccessToken()` is public on the OAuth2 client-credentials, pass
 Where: `base_api.mustache`, `auth/oauth/*_authenticator.mustache`. Test: `test/base-api.test.mustache` (`a 401 on an OAuth2 call`), the four `test/oauth2-*`/`openid-connect` authenticator tests.
 
 ### PKCE S256 on the authorization code flow
-Rule: `buildAuthorizationUrl()` makes a 43-character base64url verifier (32 random bytes), keeps it and adds `code_challenge` and `code_challenge_method=S256` (last in the query); `exchangeCode()` sends `code_verifier` and then forgets it. Building the URL again starts a new verifier. The verifier lives in a `PkceState` object the OpenID Connect authenticator shares with every delegate, so rediscovery keeps it; no nonce, since no ID token is validated. SHA-256 is hand-written in `oauth2_auth_code_authenticator.mustache` (the URL builder is synchronous and the portable client runs without `node:crypto`).
+Rule: `buildAuthorizationUrl()` makes a 43-character base64url verifier (32 random bytes), keeps it and adds `code_challenge` and `code_challenge_method=S256` (last in the query); `exchangeCode()` sends `code_verifier` and then forgets it. Building the URL again starts a new verifier. The verifier lives in a `PkceState` object the OpenID Connect authenticator shares with every delegate, so rediscovery keeps it. D140: the OIDC `buildAuthorizationUrl()` appends a fresh `nonce` (32 `crypto.getRandomValues` bytes, base64url) after the challenge, so it is last, and keeps it in the OIDC authenticator; `exchangeCode()` consumes it and checks the response's `id_token` through the `@internal` `exchangeCodeCheckingIdToken` and `OAuth2TokenManager.exchange(..., idTokenCheck)`: nonce, discovered issuer, client id in `aud`, `exp` with 60 s skew, else `OAuth2TokenError` with the previous session restored; no id_token, no check; no signature check (`Buffer` base64url and `JSON.parse` only). SHA-256 is hand-written in `oauth2_auth_code_authenticator.mustache` (the URL builder is synchronous and the portable client runs without `node:crypto`).
 Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`, `openid_connect_authenticator.mustache`. Test: `test/oauth2-auth-code-authenticator.test.mustache` (`PKCE`), `test/openid-connect-authenticator.test.mustache`, `test/client.test.mustache` (the exact authorize URL minus the challenge).
 
 ### Automatic retries
 Rule: `TransportOptions.maxRetries` (builder `maxRetries(n)`, default 2, 0 disables, a non-negative integer or `TypeError`). `AbstractApiClient.sendRequest` loops over `sendOnce`: it retries after a `NetworkError` that happened before a response (not a `NetworkTimeoutError`, not a failure while reading a body that arrived) and after 408, 409, 429 and 5xx except 501. Backoff is 0.5 s doubling to 8 s with up to 25% taken off; `Retry-After` (seconds or HTTP date, capped at 60 s) wins. One `AbortSignal.timeout` made before the first attempt covers every attempt, a wait that would reach the deadline ends the retries and returns the last result, and the caller's signal stops the wait with its own reason. Each attempt rebuilds the headers (new `X-Request-ID`, new multipart boundary) and `SendRequestOptions.refreshAuthHeaders` (set by `BaseApi`) asks the authenticator for its headers again before every retry. The transport owns the retry, so an injected `ApiClient` stub and a token request through the transport behave the same. Tests that expect one failing request use `maxRetries(0)`.
 Where: `abstract_api_client.mustache`, `transport_options.mustache`, `api_client.mustache`, `base_api.mustache`, `readme.mustache`, `skills.mustache`. Test: `test/default-api-client-unit.test.mustache` (`automatic retries`), `test/transport-options.test.mustache`.
+
+### Response size limit (D138)
+Rule: `TransportOptions.maxResponseBytes` (builder `maxResponseBytes(n)`, default `null` for no limit, a positive integer or `TypeError` with `Invalid maxResponseBytes: must be a positive number of bytes (got N)`). `sendOnce` reads a buffered body (success, error, or an unfollowed 3xx) through `readLimited`: a `Content-Length` over the limit fails before reading (not for HEAD, 204, 304), otherwise the body stream is read chunk by chunk and cancelled (the connection is dropped, not drained) once the running count passes the limit. `fetch` decodes `Content-Encoding` as it reads, so those chunks are the decompressed bytes and an inflating body stops after at most one chunk; `ensureDecoded` caps its own gzip and deflate `DecompressionStream` output the same way and passes `maxOutputLength` to the `node:zlib` zstd decoder. Limit: for an encoded body without `Content-Length` the bytes on the wire are not visible through `fetch`, so only the decoded count is checked. The failure is `ResponseTooLargeError` (a direct `ApiError` subclass with the real status, the lower-cased headers, an empty body and `limit`; `isRetryable` is false and the retry loop only retries `NetworkError`). Streamed bodies are not counted.
+Where: `abstract_api_client.mustache`, `default_api_client.mustache`, `transport_options.mustache`, `errors/response-too-large-error.mustache`, `readme.mustache`, `skills.mustache`. Test: `test/transport-options.test.mustache` (`bhv options 069`), `test/default-api-client-unit.test.mustache` (`bhv transport 095`, `096`), `test/api-error.test.mustache`.
 
 ### Already conforming
 F1080 (the rendered `ApiError.toString()` cap, escapes and header masks; control characters are `\n`, `\r`, `\t` and `\uNNNN`, the JS idiom). F825 is rust only.

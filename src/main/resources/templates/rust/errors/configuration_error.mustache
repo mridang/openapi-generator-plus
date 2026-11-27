@@ -5,7 +5,7 @@ use std::fmt;
 /// Error returned when the SDK is configured or called with an invalid value,
 /// or called in the wrong order: a proxy URL that does not parse or is not
 /// http(s), a CA certificate file that cannot be read or parsed, a zero or
-/// negative timeout, a server variable outside its enum, a malformed argument (bad
+/// negative timeout or response size limit, a server variable outside its enum, a malformed argument (bad
 /// credentials, a missing required parameter, a header or cookie value that
 /// would corrupt the HTTP message, a malformed request URL), or a call made in
 /// the wrong state (a closed client, an authenticator used before its API
@@ -23,6 +23,8 @@ pub enum ConfigurationError {
     InvalidCaCertificate(String),
     /// The request timeout is zero or negative.
     InvalidTimeout(i64),
+    /// The response size limit (`max_response_bytes`) is zero.
+    InvalidMaxResponseBytes(u64),
     /// A server variable override is outside the variable's enum.
     InvalidServerVariable(String),
     /// An argument is malformed: bad credentials, a missing required
@@ -43,6 +45,11 @@ impl fmt::Display for ConfigurationError {
                 f,
                 "Invalid timeout: must be a positive number of milliseconds (got {})",
                 ms
+            ),
+            Self::InvalidMaxResponseBytes(bytes) => write!(
+                f,
+                "Invalid maxResponseBytes: must be a positive number of bytes (got {})",
+                bytes
             ),
             Self::InvalidServerVariable(reason) => write!(f, "invalid server variable: {}", reason),
             Self::InvalidArgument(reason) => write!(f, "invalid argument: {}", reason),

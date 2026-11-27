@@ -17,7 +17,7 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `string` / `date` | `chrono::NaiveDate` | |
 | `string` / `date-time` | `crate::date_time::DateTime` | An SDK newtype over `chrono::DateTime<FixedOffset>`. The offset is kept. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `chrono::NaiveTime` | A time string with a zone offset does not round trip. |
-| `string` / `duration` | `chrono::TimeDelta` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
+| `string` / `duration` | `chrono::TimeDelta` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. The standard library's `std::time::Duration` is unsigned and cannot hold a negative duration, so `chrono` is the documented fallback (D145). |
 | `string` / `uuid` | `uuid::Uuid` | |
 | `string` / `byte` | `Vec<u8>` | Base64 through a serde adapter. |
 | `string` / `binary`, file bodies | `BodySource` for a raw request body (a multipart file part stays `Vec<u8>`); `ByteStream` (a `Stream` of `Bytes`) for a response | The response body is read as you consume it and the request body is sent as it is read, see Streaming. |
@@ -27,7 +27,8 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `integer` with no format | `i64` | |
 | `number` / `float` | `f32` | |
 | `number` / `double`, `number` with no format | `f64` | |
-| `number` / `decimal` | `f64` | Lossy for exact decimal values such as money. |
+| `number` / `decimal` | `rust_decimal::Decimal` | Exact (D135). Read from the digits of the JSON number, never through an `f64`, and written back as a bare JSON number in plain notation. A value with more digits than `Decimal` holds (28 significant digits) fails with `SerializationError` instead of being rounded. |
+| `string` / `decimal` | `rust_decimal::Decimal` | Exact (D135). Read only from a JSON string (a bare number fails with `SerializationError`) and written back as a JSON string that keeps its scale, so `"12.50"` stays `"12.50"`. |
 | `boolean` | `bool` | |
 | `array` | `Vec<T>` | |
 | `array` with `uniqueItems` | `std::collections::HashSet<T>` | Written in sorted order by a serde adapter so the bytes are stable. |
@@ -48,8 +49,9 @@ Runtime dependencies, from the generated `Cargo.toml`:
 |---|---|---|
 | `reqwest` | 0.12 | HTTP, with `json`, `multipart`, `http2`, `charset` and `rustls-tls-native-roots` |
 | `tokio` | 1 | Async runtime |
-| `serde`, `serde_repr`, `serde_json` | 1, 0.1, 1 | JSON. `serde_json` uses `unbounded_depth` and `preserve_order` |
+| `serde`, `serde_repr`, `serde_json` | 1, 0.1, 1 | JSON. `serde_json` uses `unbounded_depth`, `preserve_order` and `raw_value` (the source text of a decimal number) |
 | `chrono` | 0.4 | Dates and times |
+| `rust_decimal` | 1 | `format: decimal`, with `std` and `serde` only |
 | `uuid` | 1 | The `uuid` type |
 | `base64` | 0.22 | `byte` fields |
 | `flate2`, `brotli`, `zstd` | 1, 7, 0.13 | Decoding gzip, deflate, `br` and `zstd` responses |
@@ -85,9 +87,10 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 
 ## Idiom notes
 
-- Every operation takes an optional trailing `options` argument (`Option<&...Options>`), even one with no parameters and no security. Besides the operation's own parameters the Options struct carries `timeout(Duration)`, `max_retries(u32)` (`0` turns retrying off) and `header(name, value)` for that one call. An Options struct for an operation with no parameters and no security has no `auth` field.
+- Every operation takes an optional trailing `options` argument (`Option<&...Options>`), even one with no parameters and no security. Besides the operation's own parameters the Options struct carries `timeout(Duration)`, `max_retries(u32)` (`0` turns retrying off) and `header(name, value)` for that one call. An Options struct for an operation with no parameters and no security has no `auth` field. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
 
-- Operations return `Result<_, Box<dyn Error>>`. Caller mistakes are a typed `ConfigurationError`.
+- `TransportOptionsBuilder::max_response_bytes(Option<u64>)` is off by default: a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeError` (`Error::ResponseTooLarge`, an `ApiError` with the real status, never retried); `Some(0)` fails `build()` with `ConfigurationError::InvalidMaxResponseBytes` (D138).
+- Operations return `Result<_, <crate>::Error>` (D136): a `#[non_exhaustive]` enum with one variant per error kind, such as `Error::NotFound`, `Error::Network` and `Error::Configuration` for a caller mistake, one variant per declared error schema, and `Error::Other` for anything else. It implements `std::error::Error`, so `?` works, and `api_error()` returns the `ApiError` of any HTTP failure. The items of a byte, JSON Lines or event stream still fail with a boxed error; `Error::from` sorts one into its variant.
 - Streaming. An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns `ByteStream` from the one operation method (there is no second method), and `..._with_http_info` returns `ApiResult<ByteStream>` with an empty `raw_body()`. `ByteStream` is a `futures_core::Stream` of `Result<Bytes, Box<dyn Error + Send + Sync>>` with `status_code()`, the lower-cased `headers()`, an idempotent `close()` that aborts the connection instead of draining it (dropping it does the same), `is_closed()`, `bytes_delivered()` and `read_all(&mut self)` that reads the rest and leaves the stream closed; its `Debug` and `Display` show only the status and the bytes delivered. The transport gets `ApiClient::send_streaming(method, url, headers, body, &RequestOptions)`, which returns an `ApiStreamResponse` (status, headers, an unread body); its default implementation returns an `std::io::ErrorKind::Unsupported` error that names the transport, so an injected `ApiClient` keeps working for buffered calls. `TransportOptions::idle_timeout` (default `Some(60000)` ms, `Some(0)` or `None` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`; the call `timeout` stops at the headers. A reset or a body shorter than its `Content-Length` raises `StreamError`, a `NetworkError` with status 0. `Client::close()` cancels the open streams, whose next read raises `ConfigurationError::InvalidState`. A body the server compressed (gzip, deflate, br, zstd) is decoded as it arrives, incrementally, so the first items are available before the body ends; a body that does not decode ends the stream with an `ApiError` that carries the real status and the decoder error. `bytes_delivered()` counts decoded bytes, and the two headers that described the compressed body are dropped.
 - Uploads. An operation whose request body is raw binary takes a `BodySource` (`pub`, in the crate root) in every signature (the operation, `..._with_http_info`, the `...Trait` and the client): `BodySource::from_bytes(impl Into<Bytes>)` (`Vec<u8>` and `Bytes` convert with `.into()`), `BodySource::from_path(impl Into<PathBuf>)` and `BodySource::from_factory(|| stream)` are replayable, `BodySource::once(stream)` is single use, and `.with_length(n)` declares the length of a factory or single-use body. A stream is a `futures_core::Stream` of `std::io::Result<Bytes>`; it is the caller's to build, and it is moved into the SDK, so there is no handle left to close: the SDK reads it and drops it when the call ends, and anything the stream wraps that the caller still holds (a shared handle) is left open. The body is sent as it is read, never buffered: a known length sends `Content-Length`, an unknown one is chunked. A replayable body is opened again for a retry after a 5xx, a 429 or a network error and for a 307 or 308; a single-use body is never retried (the original error is returned unchanged), a redirect that would need it again raises `ApiError` with `Refusing to replay a streamed request body`, and a 401 token refresh and an SSE reconnect follow the same rule. `Debug` shows the kind and the length, never the content or a path. A custom `ApiClient` receives `RequestBody::Source(BodySource)` and reads it with `open().await`. Multipart bodies stay buffered. A file that cannot be opened fails the call with `ConfigurationError::InvalidArgument`.
 - Pagination. A GET list that the shared detector finds paged (one of the styles in the next bullet; D123, D124) has `<operation>_pages(...args, options)` beside its plain method, in the struct and in the `...Trait`. It is a plain method, not an `async fn`, and returns `Paginator<T, C, B>` (`T` the item type, `C` the cursor type, `()` for a `Link` or next URL list, `B` the page body type), whose `items()` is a `Stream` of `Result<T, Box<dyn Error + Send + Sync>>` and whose `pages()` is a `Stream` of `Result<Page<T, C, B>, ...>`; each call builds a fresh stream, so a second loop starts again, and dropping a stream stops the requests. `Page<T, C, B>` has `items()`, `into_items()`, `next_cursor()` (`None` on the last page, always `None` for `Link` and next URL lists) and `result()` (the `ApiResult<B>` of the page). The cursor is an optional query parameter, so it lives in the `<Operation>Options` struct (which is `Clone`): each page is an ordinary `_with_http_info` call with a clone of the options that carries the cursor, so the caller's options are never changed. A failed page is the last item of the stream, after the items of the earlier pages. A cursor equal to the one just sent, or a `Link` that points back at the page just read or leaves the origin of the client, delivers the page it came with and then yields `PaginationError` (a direct child of the SDK root error, not an `ApiError`). A `Link` page is requested through the private `<operation>_invoke`, which takes the absolute URL as `page_url`, replaces the path with it and clears the query; `BaseApi` joins an authentication query parameter to a URL that already has a query with `&`. The group structs are `Clone` (they hold `Arc`s) so the paginator owns its own copy and outlives the call. `ItemsOf` and `CursorOf` (hidden) read the items and the next cursor of a page whether the property is optional or not.
@@ -168,7 +171,7 @@ let etag = result.headers().get("etag");
 let raw = result.raw_body();
 
 if let Err(err) = client.pet.add_pet(pet, None).await {
-    if let Some(api) = err.as_api_error() {
+    if let Some(api) = err.api_error() {
         println!("{} {:?} {:?}", api.status_code(), api.response_headers(), api.response_body());
     }
 }
@@ -176,9 +179,11 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 ## Known limits
 
+- The OpenID Connect authenticator checks the nonce, issuer, audience and expiry of the `id_token` but does not verify its signature, by decision D140. Signature verification can be added later without changing the public API, because the discovery document already names the provider's keys (`jwks_uri`).
 - An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
 
-- `format: decimal` and `number` are `f64` and lose exactness.
+- A `number` with no format, `float` or `double` is a binary float (`f32`, `f64`) and loses exactness; use `format: decimal` for money.
+- A `format: decimal` value holds at most 28 significant digits (the limit of `rust_decimal`); a longer value fails to decode rather than being rounded. A decimal inside a `oneOf` or `anyOf` member, or in a response with a repeated key, passes through `serde_json::Value`, which holds a number as an `f64`, so only about 17 significant digits survive there. A `uniqueItems` set or a map of decimals uses `rust_decimal`'s own serde form, which writes a JSON string.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory. Only a raw binary request body and a binary, a JSON Lines and a server-sent events response is a stream.
 - Typed maps (`HashMap`) do not keep key order, while `JsonValue` does.
 - An optional nullable property cannot tell an absent key from an explicit `null`. Both are `None`.
@@ -196,7 +201,6 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
-- Exact decimals through `rust_decimal` or `bigdecimal`, with a serde adapter. This adds a dependency. The review advises against turning on `serde_json`'s `arbitrary_precision` feature globally.
 - `url::Url` for `uri`. It is already in the dependency tree through `reqwest`, but it normalises on parse, so values would not round trip byte for byte.
 - `#[non_exhaustive]` on generated enums, so a new server value is not a breaking change for callers who match on them.
 - Edition 2024, which 1.85 already supports.

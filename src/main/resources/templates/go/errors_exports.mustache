@@ -59,6 +59,8 @@ type (
 	NetworkTimeoutError = errors_pkg.NetworkTimeoutError
 	// StreamError is a response body that failed after its headers arrived.
 	StreamError = errors_pkg.StreamError
+	// ResponseTooLargeError is a buffered response body that passed MaxResponseBytes.
+	ResponseTooLargeError = errors_pkg.ResponseTooLargeError
 	// PaginationError is a paged list that cannot be followed safely.
 	PaginationError = errors_pkg.PaginationError
 	// SerializationError is a value that could not be encoded or decoded.

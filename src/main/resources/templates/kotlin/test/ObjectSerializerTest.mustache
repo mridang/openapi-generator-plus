@@ -3197,6 +3197,20 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject407 a malformed ipv4 or ipv6 address fails the decode")
+        fun malformedAddressFailsTheDecode() {
+            val cases = listOf(
+                "address4" to "\"01.2.3.4\"", "address4" to "\"192.0.2.1/24\"", "address4" to "\" 192.0.2.1\"",
+                "address4" to "\"[::1]\"", "address4" to "\"2001:db8::1\"", "address6" to "\"fe80::1%eth0\"",
+                "address6" to "\"[::1]\"", "address6" to "\"2001:db8::/64\"", "address6" to "\" ::1\"",
+                "address6" to "\"192.0.2.1\"", "addresses" to "[\"1:2:3:4:5:6:7:8:9\"]",
+            )
+            for ((field, value) in cases) {
+                assertThrows(SerializationException::class.java, { decode("{\"$field\":$value}") }, value)
+            }
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject408 every absolute URI of the corpus round-trips byte for byte")
         fun uriCorpusRoundTrips() {
             val corpus =
@@ -3249,6 +3263,15 @@ class ObjectSerializerTest {
             val decoded = decode("{\"amount\":$digits}")
             assertEquals(java.math.BigDecimal(digits), decoded.amount)
             assertEquals("{\"amount\":$digits}", serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject413 a number or string decimal field is the exact BigDecimal")
+        fun decimalFieldsAreBigDecimal() {
+            val decoded = decode("{\"amount\":0.1,\"ledger\":\"0.2\"}")
+            val amount: java.math.BigDecimal? = decoded.amount
+            val ledger: java.math.BigDecimal? = decoded.ledger
+            assertEquals(java.math.BigDecimal("0.3"), amount?.add(ledger))
         }
 
         @Test

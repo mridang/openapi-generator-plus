@@ -21,7 +21,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Example: 12.50
   public let ledger: Decimal?
   /// Example: 3600s
-  public let wait: TimeInterval?
+  public let wait: Duration?
   /// Example: 2024-02-29
   public let since: String?
   /// Example: example.com
@@ -45,8 +45,8 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Creates a new NativeValues instance.
   public init(
     address4: String? = nil, address6: String? = nil, addresses: [String]? = nil,
-    homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil,
-    wait: TimeInterval? = nil, since: String? = nil, host: String? = nil, contact: String? = nil
+    homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil, wait: Duration? = nil,
+    since: String? = nil, host: String? = nil, contact: String? = nil
   ) {
     self.address4 = address4
     self.address6 = address6
@@ -66,7 +66,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   public func copy(
     address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none,
     homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none,
-    wait: TimeInterval?? = .none, since: String?? = .none, host: String?? = .none,
+    wait: Duration?? = .none, since: String?? = .none, host: String?? = .none,
     contact: String?? = .none
   ) -> NativeValues {
     return NativeValues(

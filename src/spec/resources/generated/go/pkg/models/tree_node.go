@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // TreeNode is a model class generated from the OpenAPI schema.
@@ -79,29 +81,41 @@ func (o TreeNode) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *TreeNode) UnmarshalJSON(data []byte) error {
-	type Alias TreeNode
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "value", "child"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *TreeNode) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out TreeNode
+	seenValue := false
+	err := readObject(dec, "TreeNode", func(key string) error {
+		switch key {
+		case "value":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'value' must not be null in TreeNode")
+			}
+			seenValue = true
+			return decodeValue(dec, &out.Value)
+		case "child":
+			return decodeValue(dec, &out.Child)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["value"]; !ok {
+	if !seenValue {
 		return fmt.Errorf("required field 'value' is missing in TreeNode")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'value' must not be null in TreeNode")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = TreeNode(*aux)
+	*o = out
 	return nil
 }

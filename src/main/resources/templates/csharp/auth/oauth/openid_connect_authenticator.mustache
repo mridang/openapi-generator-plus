@@ -1,6 +1,8 @@
 {{>api_info}}
 
 using {{packageName}}.Errors;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -11,6 +13,12 @@ namespace {{packageName}}.Auth.OAuth;
 ///
 /// Fetches the OIDC discovery document to discover the authorization and
 /// token endpoints, then delegates to an <see cref="OAuth2AuthorizationCodeAuthenticator"/>.
+///
+/// Each authorization URL carries a fresh <c>nonce</c>. The code exchange
+/// validates the claims of the <c>id_token</c> in the token response: the
+/// nonce of the authorization URL, the discovered issuer, the client id in the
+/// audience and an expiry that has not passed (60 seconds of clock skew are
+/// allowed). The signature of the id_token is not verified.
 ///
 /// Implements <see cref="IHttpAwareAuthenticator"/> so that both the discovery
 /// request and subsequent token exchange requests use the shared
@@ -34,6 +42,15 @@ public partial class OpenIdConnectAuthenticator
     private string? _discoveredEndpoints;
     private readonly object _discoveryLock = new();
     private Task<OAuth2AuthorizationCodeAuthenticator>? _discovery;
+    /* The issuer named by the last discovery document, or null when it named none. */
+    private volatile string? _discoveredIssuer;
+    /* The nonce of the last authorization URL built, until the code exchange uses it. */
+    private string? _pendingNonce;
+
+    /// <summary>
+    /// Clock skew allowed when checking the expiry of an id_token, in seconds.
+    /// </summary>
+    private const long IdTokenClockSkewSeconds = 60L;
 
     [GeneratedRegex("max-age=(\\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex MaxAgePattern();
@@ -195,6 +212,11 @@ public partial class OpenIdConnectAuthenticator
             );
         }
         _discoveredEndpoints = endpoints;
+        _discoveredIssuer =
+            root.TryGetProperty("issuer", out JsonElement issuerClaim)
+            && issuerClaim.ValueKind == JsonValueKind.String
+                ? issuerClaim.GetString()
+                : null;
         _delegate.SetApiClient(_apiClient);
         _discoveryExpiry = DateTimeOffset.UtcNow.AddSeconds(ParseMaxAge(response.Headers));
         return _delegate;
@@ -341,7 +363,15 @@ public partial class OpenIdConnectAuthenticator
     public async Task<Uri> BuildAuthorizationUrlAsync(string? state = null)
     {
         OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
-        return d.BuildAuthorizationUrl(state);
+        Uri url = d.BuildAuthorizationUrl(state);
+        /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+         * request; the exchange checks it once. 32 random bytes, base64url. */
+        string nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+        Volatile.Write(ref _pendingNonce, nonce);
+        return new Uri(url.OriginalString + "&nonce=" + nonce);
     }
 
     /// <summary>
@@ -351,7 +381,113 @@ public partial class OpenIdConnectAuthenticator
     public async Task ExchangeCodeAsync(string code)
     {
         OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
-        await d.ExchangeCodeAsync(code).ConfigureAwait(false);
+        string? nonce = Interlocked.Exchange(ref _pendingNonce, null);
+        string? issuer = _discoveredIssuer;
+        await d.ExchangeCodeAsync(code, idToken => ValidateIdToken(idToken, nonce, issuer))
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Validates the claims of the id_token of a code exchange (OpenID Connect
+    /// Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+    /// discovered issuer, the client id in the audience and the expiry. A
+    /// response without an id_token is not checked. The payload is decoded
+    /// without verifying the signature.
+    /// </summary>
+    /// <exception cref="OAuth2TokenException">A claim does not hold.</exception>
+    private void ValidateIdToken(string? idToken, string? nonce, string? issuer)
+    {
+        if (idToken is null)
+        {
+            return;
+        }
+        using JsonDocument claims = DecodeIdToken(idToken);
+        JsonElement root = claims.RootElement;
+        if (nonce is not null && !string.Equals(StringClaim(root, "nonce"), nonce, StringComparison.Ordinal))
+        {
+            throw new OAuth2TokenException("The id_token nonce does not match the authorization request");
+        }
+        if (issuer is null || !string.Equals(StringClaim(root, "iss"), issuer, StringComparison.Ordinal))
+        {
+            throw new OAuth2TokenException("The id_token issuer does not match the discovered issuer");
+        }
+        if (!AudienceContains(root, _clientId))
+        {
+            throw new OAuth2TokenException("The id_token audience does not contain the client id");
+        }
+        if (
+            !root.TryGetProperty("exp", out JsonElement exp)
+            || exp.ValueKind != JsonValueKind.Number
+            || !exp.TryGetDouble(out double expSeconds)
+        )
+        {
+            throw new OAuth2TokenException("The id_token is malformed");
+        }
+        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() >= expSeconds + IdTokenClockSkewSeconds)
+        {
+            throw new OAuth2TokenException("The id_token has expired");
+        }
+    }
+
+    /// <summary>
+    /// The claims of a compact JWS: the second segment, base64url-decoded JSON.
+    /// </summary>
+    private static JsonDocument DecodeIdToken(string idToken)
+    {
+        string[] parts = idToken.Split('.');
+        if (parts.Length != 3)
+        {
+            throw new OAuth2TokenException("The id_token is malformed");
+        }
+        string payload = parts[1].Replace('-', '+').Replace('_', '/');
+        payload = payload.PadRight(payload.Length + ((4 - (payload.Length % 4)) % 4), '=');
+        try
+        {
+            JsonDocument doc = JsonDocument.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(payload)));
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                doc.Dispose();
+                throw new OAuth2TokenException("The id_token is malformed");
+            }
+            return doc;
+        }
+        catch (Exception ex) when (ex is FormatException or JsonException)
+        {
+            throw new OAuth2TokenException("The id_token is malformed");
+        }
+    }
+
+    private static string? StringClaim(JsonElement claims, string name)
+    {
+        return claims.TryGetProperty(name, out JsonElement claim) && claim.ValueKind == JsonValueKind.String
+            ? claim.GetString()
+            : null;
+    }
+
+    private static bool AudienceContains(JsonElement claims, string clientId)
+    {
+        if (!claims.TryGetProperty("aud", out JsonElement aud))
+        {
+            return false;
+        }
+        if (aud.ValueKind == JsonValueKind.String)
+        {
+            return string.Equals(aud.GetString(), clientId, StringComparison.Ordinal);
+        }
+        if (aud.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement entry in aud.EnumerateArray())
+            {
+                if (
+                    entry.ValueKind == JsonValueKind.String
+                    && string.Equals(entry.GetString(), clientId, StringComparison.Ordinal)
+                )
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /// <summary>

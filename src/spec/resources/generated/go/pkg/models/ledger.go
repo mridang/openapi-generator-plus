@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Ledger is a model class generated from the OpenAPI schema.
@@ -79,29 +81,41 @@ func (o Ledger) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// Gap AJ: encoding/json silently zero-inits required fields when the
-// value is null or missing. This wrapper rejects both for required
-// non-nullable fields so malformed server responses surface at the
-// deserialize call instead of producing a confusing zero-value later.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Ledger) UnmarshalJSON(data []byte) error {
-	type Alias Ledger
-	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "entryId", "entryIds"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Ledger) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Ledger
+	seenEntryId := false
+	err := readObject(dec, "Ledger", func(key string) error {
+		switch key {
+		case "entryId":
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field 'entryId' must not be null in Ledger")
+			}
+			seenEntryId = true
+			return decodeValue(dec, &out.EntryId)
+		case "entryIds":
+			return decodeValue(dec, &out.EntryIds)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if rawVal, ok := raw["entryId"]; !ok {
+	if !seenEntryId {
 		return fmt.Errorf("required field 'entryId' is missing in Ledger")
-	} else if string(rawVal) == "null" {
-		return fmt.Errorf("required field 'entryId' must not be null in Ledger")
 	}
-	/* An absent field carrying a schema default is populated with that default
-	 * so the deserialized model matches the spec, consistent with the other
-	 * SDKs. */
-	*o = Ledger(*aux)
+	*o = out
 	return nil
 }

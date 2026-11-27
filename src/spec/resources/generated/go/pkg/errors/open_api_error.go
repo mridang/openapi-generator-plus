@@ -30,6 +30,7 @@ package errors
 //	 │   ├─ ServerError (5xx)          InternalServerError(500) NotImplemented(501)
 //	 │   │                             BadGateway(502) ServiceUnavailable(503)
 //	 │   │                             GatewayTimeout(504)
+//	 │   ├─ ResponseTooLargeError      (a buffered body that passed MaxResponseBytes)
 //	 │   └─ NetworkError               (no HTTP response: connection, DNS, TLS, reset)
 //	 │       ├─ NetworkTimeoutError    (the request timed out)
 //	 │       └─ StreamError            (a body that failed after the headers)

@@ -738,6 +738,9 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}} imple
 {{#isUri}}
     #[\{{invokerPackage}}\WireFormat('uri')]
 {{/isUri}}
+{{#vendorExtensions.isDecimalString}}
+    #[\{{invokerPackage}}\WireFormat('decimal')]
+{{/vendorExtensions.isDecimalString}}
     #[SerializedName('{{{baseName}}}')]
     public readonly {{>model_var_type}} ${{name}};
 {{^-last}}

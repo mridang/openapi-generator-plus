@@ -4,6 +4,7 @@ package options
 
 import (
 	. "petstore/pkg/models"
+	"time"
 
 	"cloud.google.com/go/civil"
 )
@@ -18,5 +19,5 @@ type SetPetPreferencesOptions struct {
 	IntervalDays *int32
 	Ratio        *float64
 	Urgent       *bool
-	Snooze       *Duration
+	Snooze       *time.Duration
 }

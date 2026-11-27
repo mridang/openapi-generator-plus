@@ -895,22 +895,27 @@ public class ValueSerializerTest
     [Fact]
     public void BhvSerializationparam036ExplodedFormQueryObjectExpandsToOneEntryPerProperty()
     {
-        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
-        var result = ValueSerializer.SerializeStyled("probe", probe, "query", "object", null, "form", true);
-        var fields = Assert.IsType<ValueSerializer.ExplodedFields>(result);
-        Assert.Contains(fields.Fields, f => f.Key == "name" && f.Value == "Rex");
-        Assert.Contains(fields.Fields, f => f.Key == "tags");
-        Assert.DoesNotContain(fields.Fields, f => f.Key == "probe");
+        var probe = new SerializerProbeModel { Name = "Rex", Count = 3 };
+        var fields = Assert.IsType<ValueSerializer.ExplodedFields>(
+            ValueSerializer.SerializeStyled("c", probe, "query", "object", null, "form", true));
+        Assert.Equal(
+            new List<KeyValuePair<string, string>> { new("name", "Rex"), new("count", "3") },
+            fields.Fields.ToList());
+        var map = new Dictionary<string, object?> { ["breed"] = "lab", ["min_age"] = 3, ["note"] = null };
+        var mapFields = Assert.IsType<ValueSerializer.ExplodedFields>(
+            ValueSerializer.SerializeStyled("c", map, "query", "object", null, "form", true));
+        Assert.Equal(
+            new List<KeyValuePair<string, string>> { new("breed", "lab"), new("min_age", "3") },
+            mapFields.Fields.ToList());
     }
 
     [Fact]
     public void BhvSerializationparam039FormNotExplodedObjectIsOneCommaSeparatedList()
     {
-        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
-        string flat = Assert.IsType<string>(
-            ValueSerializer.SerializeStyled("probe", probe, "query", "object", null, "form", false));
-        Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
-        Assert.DoesNotContain("=", flat, StringComparison.Ordinal);
+        var probe = new SerializerProbeModel { Name = "Rex", Count = 3 };
+        Assert.Equal("name,Rex,count,3", ValueSerializer.SerializeStyled("c", probe, "query", "object", null, "form", false));
+        var map = new Dictionary<string, object?> { ["breed"] = "lab", ["min_age"] = 3 };
+        Assert.Equal("breed,lab,min_age,3", ValueSerializer.SerializeStyled("c", map, "query", "object", null, "form", false));
     }
 
     [Fact]
@@ -949,10 +954,10 @@ public class ValueSerializerTest
     [Fact]
     public void BhvSerializationparam082SimpleStyleObjectInAHeaderIsACommaList()
     {
-        var probe = new SerializerProbeModel { Name = "Rex", Tags = ["tag-one"] };
-        string flat = Assert.IsType<string>(
-            ValueSerializer.SerializeStyled("probe", probe, "header", "object", null, "simple", false));
-        Assert.Contains("name,Rex", flat, StringComparison.Ordinal);
+        var probe = new SerializerProbeModel { Name = "Rex", Count = 3 };
+        Assert.Equal("name,Rex,count,3", ValueSerializer.SerializeStyled("c", probe, "header", "object", null, "simple", false));
+        var map = new Dictionary<string, object?> { ["breed"] = "lab", ["min_age"] = 3 };
+        Assert.Equal("breed,lab,min_age,3", ValueSerializer.SerializeStyled("X-Criteria", map, "header", "object", null, "simple", false));
     }
 
     [Fact]
@@ -1077,6 +1082,10 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
     {
         var nested = new Dictionary<string, object?> { { "outer", new Dictionary<string, object?> { { "inner", "1" } } } };
         Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true));
+        var listed = new Dictionary<string, object?> { { "tags", new List<string> { "a", "b" } } };
+        Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", listed, "query", "object", null, "form", true));
+        var model = new NativeValues { Addresses = new List<System.Net.IPAddress> { System.Net.IPAddress.IPv6Loopback } };
+        Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", model, "query", "NativeValues", null, "form", true));
     }
     [Fact]
     public void BhvSerialization107AnExplodedArrayQueryParameterRepeatsItsKeyPerElement()

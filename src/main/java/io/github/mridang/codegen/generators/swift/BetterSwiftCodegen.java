@@ -94,14 +94,15 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         // 4.8: format:time and format:duration. Foundation has no civil-time
         // type (Date is an instant, not a wall-clock HH:MM:SS), so `time`
         // stays a String validated at the call site. `duration` maps to
-        // TimeInterval (alias for Double seconds) — Swift's stdlib-native
-        // duration scalar. The wire format is google.protobuf.Duration's
-        // protobuf-JSON form ("<seconds>s", e.g. "3600s", "1.5s"); the
-        // generated ISO8601Duration.swift file ships parseProtobufDuration /
-        // formatProtobufDuration helpers to convert between TimeInterval and
+        // the standard library's Duration (D145), which keeps every
+        // nanosecond and needs macOS 13 / iOS 16 / tvOS 16 / watchOS 9. The
+        // wire format is google.protobuf.Duration's protobuf-JSON form
+        // ("<seconds>s", e.g. "3600s", "1.500s"); the generated
+        // ISO8601Duration.swift file ships parseProtobufDuration /
+        // formatProtobufDuration helpers to convert between Duration and
         // that decimal-seconds string.
         typeMapping.put("time", "String");
-        typeMapping.put("duration", "TimeInterval");
+        typeMapping.put("duration", "Duration");
         typeMapping.put("array", "Array");
         typeMapping.put("List", "Array");
         typeMapping.put("set", "Set");
@@ -126,6 +127,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                                 "Double",
                                 "Data",
                                 "Date",
+                                "Duration",
                                 "TimeInterval",
                                 "UUID",
                                 "Void",
@@ -661,11 +663,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
      * {@code isDuration} vendor extension.
      *
      * <p>OpenAPI Generator 7.12 has no {@code isDuration} flag on
-     * {@code CodegenProperty}, and {@code duration} maps to {@code TimeInterval}
-     * (a plain {@code Double}). Default {@code Codable} would decode the
-     * protobuf-JSON string literal (e.g. {@code "3600s"}) into a {@code Double}
-     * and throw {@code typeMismatch}, and would encode a bare number rather than
-     * the canonical {@code "3600s"} string. The template reads this flag to route
+     * {@code CodegenProperty}, and {@code duration} maps to the standard
+     * library {@code Duration}. Its default {@code Codable} form is a pair of
+     * integers, so it would refuse the protobuf-JSON string literal (e.g.
+     * {@code "3600s"}) and would never write the canonical {@code "3600s"}
+     * string. The template reads this flag to route
      * the property through {@code ObjectSerializer.decodeDuration} /
      * {@code encodeDuration} (backed by the shipped {@code ISO8601Duration.swift}
      * helpers). Mirrors {@code BetterKotlinCodegen}.
@@ -826,6 +828,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "NetworkError.swift"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "NetworkTimeoutError.swift"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "StreamError.swift"),
+            new SupportingFileSpec("errors/response_too_large_error.mustache", errorsDir, "ResponseTooLargeError.swift"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsDir, "SerializationError.swift"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsDir, "OAuth2ServerError.swift"),
             new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsDir, "OAuth2TokenError.swift"),

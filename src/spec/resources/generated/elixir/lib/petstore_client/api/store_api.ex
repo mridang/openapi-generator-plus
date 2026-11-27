@@ -2173,7 +2173,7 @@ defmodule PetstoreClient.Api.StoreApi do
                  "amount",
                  options.amount,
                  :query,
-                 "float()",
+                 "Decimal.t()",
                  nil,
                  "form",
                  true

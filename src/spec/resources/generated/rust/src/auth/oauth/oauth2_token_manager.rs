@@ -60,7 +60,16 @@ struct TokenManagerInner {
     access_token: String,
     refresh_token: String,
     token_expiry: Option<Instant>,
+    /* The id_token of the last token response: None when it carried none,
+     * an empty string when its value was not a JSON string. */
+    last_id_token: Option<String>,
 }
+
+/// A check of the `id_token` of a code exchange, run before the session is
+/// committed. OpenID Connect uses it to validate the id_token claims.
+pub(crate) type IdTokenCheck<'a> = &'a (dyn Fn(Option<&str>) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+         + Send
+         + Sync);
 
 impl Default for OAuth2TokenManager {
     fn default() -> Self {
@@ -80,6 +89,7 @@ impl OAuth2TokenManager {
                 access_token: String::new(),
                 refresh_token: String::new(),
                 token_expiry: None,
+                last_id_token: None,
             }),
             exchanged: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
@@ -292,6 +302,21 @@ impl OAuth2TokenManager {
         params: &HashMap<String, String>,
         extra_headers: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.exchange_checked(token_url, params, extra_headers, None)
+            .await
+    }
+
+    /// [`Self::exchange`] with a check of the response's `id_token` (None when
+    /// the response carried none, an empty string when it was not a JSON
+    /// string), run before the session is committed; when the check fails the
+    /// previous session is restored and its error returned.
+    pub(crate) async fn exchange_checked(
+        &self,
+        token_url: &str,
+        params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
+        id_token_check: Option<IdTokenCheck<'_>>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let mut inner = self.inner.lock().await;
         let client = self
             .api_client
@@ -311,7 +336,17 @@ impl OAuth2TokenManager {
         inner.access_token = String::new();
         inner.refresh_token = String::new();
         inner.token_expiry = None;
-        match Self::fetch_token_locked(&mut inner, client, token_url, params, extra_headers).await {
+        let result =
+            match Self::fetch_token_locked(&mut inner, client, token_url, params, extra_headers)
+                .await
+            {
+                Ok(token) => match id_token_check {
+                    Some(check) => check(inner.last_id_token.as_deref()).map(|()| token),
+                    None => Ok(token),
+                },
+                Err(e) => Err(e),
+            };
+        match result {
             Ok(token) => {
                 self.mark_exchanged();
                 Ok(token)
@@ -418,6 +453,11 @@ impl OAuth2TokenManager {
             )) as Box<dyn std::error::Error + Send + Sync>);
         }
         inner.access_token = token.to_string();
+        inner.last_id_token = match parsed.get("id_token") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(serde_json::Value::String(id_token)) => Some(id_token.clone()),
+            Some(_) => Some(String::new()),
+        };
         if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
             if !refresh.is_empty() {
                 inner.refresh_token = refresh.to_string();

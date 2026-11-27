@@ -499,6 +499,13 @@ class TestNativeValueFormats:
         assert restored.amount == Decimal(digits)
         assert ObjectSerializer().serialize(restored) == '{"amount":' + digits + '}'
 
+    def test_bhv_serializationobject_413_a_decimal_field_is_the_exact_decimal_type(self) -> None:
+        restored = ObjectSerializer().deserialize('{"amount": 0.1, "ledger": "0.2"}', 'NativeValues')
+        assert isinstance(restored, NativeValues)
+        assert isinstance(restored.amount, Decimal)
+        assert isinstance(restored.ledger, Decimal)
+        assert restored.amount + restored.ledger == Decimal('0.3')
+
     def test_bhv_serializationparam_104_duration_parameter_is_the_protobuf_form(self) -> None:
         assert ObjectSerializer.stringify(datetime.timedelta(hours=1)) == '3600s'
         assert ObjectSerializer.to_query_value(datetime.timedelta(hours=1)) == '3600s'

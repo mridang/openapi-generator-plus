@@ -57,6 +57,47 @@ class _FakeApiClient implements ApiClient {
   }
 }
 
+const _issuerDiscovery = '{"issuer":"https://auth.example.com",'
+    '"authorization_endpoint":"https://auth.example.com/authorize",'
+    '"token_endpoint":"https://auth.example.com/token"}';
+
+/// An unsigned compact JWT whose payload is [claims].
+String _idToken(Map<String, Object?> claims) {
+  String encode(Object value) =>
+      base64Url.encode(utf8.encode(jsonEncode(value))).replaceAll('=', '');
+  return '${encode({'alg': 'none'})}.${encode(claims)}.sig';
+}
+
+/// Claims that pass every check for [nonce], with [overrides] applied.
+Map<String, Object?> _claims(String nonce,
+    [Map<String, Object?> overrides = const {}]) {
+  return {
+    'iss': 'https://auth.example.com',
+    'aud': 'my-client-id',
+    'exp': DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+    'nonce': nonce,
+    ...overrides,
+  };
+}
+
+/// Builds an authorization URL, then queues a token response whose id_token
+/// [idTokenFor] makes from the URL's nonce.
+Future<OpenIdConnectAuthenticator> _authenticatorReturning(
+    String Function(String nonce) idTokenFor) async {
+  final client = _FakeApiClient();
+  client.enqueue(_issuerDiscovery);
+  final auth = _createAuthenticator();
+  auth.setApiClient(client);
+  final url = await auth.buildAuthorizationUrl('s');
+  final nonce = Uri.parse(url).queryParameters['nonce']!;
+  client.enqueue(jsonEncode({
+    'access_token': 'oidc-tok',
+    'expires_in': 3600,
+    'id_token': idTokenFor(nonce),
+  }));
+  return auth;
+}
+
 OpenIdConnectAuthenticator _createAuthenticator() {
   return OpenIdConnectAuthenticator(
     host: 'https://api.example.com',
@@ -330,7 +371,7 @@ void main() {
       );
     });
 
-    test('bhv misc 078 the authorization url carries an S256 challenge and omits any nonce', () async {
+    test('bhv misc 078 the authorization url carries an S256 challenge and a nonce', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"authorization_endpoint":"https://auth.example.com/authorize",'
@@ -341,7 +382,7 @@ void main() {
       final query = Uri.parse(await auth.buildAuthorizationUrl()).queryParameters;
 
       expect(query['code_challenge_method'], equals('S256'));
-      expect(query.containsKey('nonce'), isFalse);
+      expect(query['nonce'], matches(RegExp(r'^[A-Za-z0-9_-]{43}$')));
     });
 
     test('bhv authoidc 016 throws SerializationException when the discovery document is not JSON', () async {
@@ -555,7 +596,7 @@ void main() {
 
       final query = Uri.parse(await auth.buildAuthorizationUrl('s')).queryParameters;
       expect(query['code_challenge_method'], equals('S256'));
-      expect(query.containsKey('nonce'), isFalse);
+      expect(query['nonce'], isNotNull);
       await auth.exchangeCode('oidc-code');
 
       expect(client.urls.last, equals('https://auth.example.com/token2'));
@@ -720,6 +761,93 @@ void main() {
 
       expect(await auth.buildAuthorizationUrl(), startsWith('https://auth.example.com/authorize?'));
       expect(await auth.buildAuthorizationUrl(), startsWith('https://auth.example.com/authorize-v2?'));
+    });
+
+    test('bhv authoidc 034 each authorization url carries a fresh nonce', () async {
+      final client = _FakeApiClient();
+      client.enqueue(_issuerDiscovery);
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final first = Uri.parse(await auth.buildAuthorizationUrl('s')).queryParameters['nonce'];
+      final second = Uri.parse(await auth.buildAuthorizationUrl('s')).queryParameters['nonce'];
+
+      expect(first, matches(RegExp(r'^[A-Za-z0-9_-]{43}$')));
+      expect(second, isNot(equals(first)));
+    });
+
+    test('bhv authoidc 035 an id_token with valid claims is accepted', () async {
+      final auth = await _authenticatorReturning((nonce) => _idToken(_claims(nonce, {
+            'aud': ['other', 'my-client-id'],
+          })));
+
+      await auth.exchangeCode('oidc-code');
+
+      expect((await auth.authHeadersAsync())['Authorization'], equals('Bearer oidc-tok'));
+    });
+
+    test('bhv authoidc 036 an id_token with another nonce is rejected', () async {
+      final auth = await _authenticatorReturning(
+          (nonce) => _idToken(_claims(nonce, {'nonce': 'replayed'})));
+
+      await expectLater(
+        auth.exchangeCode('oidc-code'),
+        throwsA(isA<OAuth2TokenException>().having((e) => e.message, 'message',
+            'The id_token nonce does not match the authorization request')),
+      );
+    });
+
+    test('bhv authoidc 037 an id_token from another issuer is rejected', () async {
+      final auth = await _authenticatorReturning(
+          (nonce) => _idToken(_claims(nonce, {'iss': 'https://evil.example.com'})));
+
+      await expectLater(
+        auth.exchangeCode('oidc-code'),
+        throwsA(isA<OAuth2TokenException>().having((e) => e.message, 'message',
+            'The id_token issuer does not match the discovered issuer')),
+      );
+    });
+
+    test('bhv authoidc 038 an id_token for another audience is rejected', () async {
+      final auth = await _authenticatorReturning(
+          (nonce) => _idToken(_claims(nonce, {'aud': 'other-client'})));
+
+      await expectLater(
+        auth.exchangeCode('oidc-code'),
+        throwsA(isA<OAuth2TokenException>().having((e) => e.message, 'message',
+            'The id_token audience does not contain the client id')),
+      );
+    });
+
+    test('bhv authoidc 039 an expired id_token is rejected', () async {
+      final expired = DateTime.now().millisecondsSinceEpoch ~/ 1000 - 120;
+      final auth = await _authenticatorReturning(
+          (nonce) => _idToken(_claims(nonce, {'exp': expired})));
+
+      await expectLater(
+        auth.exchangeCode('oidc-code'),
+        throwsA(isA<OAuth2TokenException>()
+            .having((e) => e.message, 'message', 'The id_token has expired')),
+      );
+    });
+
+    test('bhv authoidc 040 a malformed id_token is rejected', () async {
+      final auth = await _authenticatorReturning((_) => 'not-a-jwt');
+
+      await expectLater(
+        auth.exchangeCode('oidc-code'),
+        throwsA(isA<OAuth2TokenException>()
+            .having((e) => e.message, 'message', 'The id_token is malformed')),
+      );
+    });
+
+    test('bhv authoidc 041 a rejected id_token leaves no session', () async {
+      final auth = await _authenticatorReturning(
+          (nonce) => _idToken(_claims(nonce, {'nonce': 'replayed'})));
+      await expectLater(
+          auth.exchangeCode('oidc-code'), throwsA(isA<OAuth2TokenException>()));
+
+      await expectLater(auth.authHeadersAsync(), throwsA(isA<StateError>()));
     });
   });
 }

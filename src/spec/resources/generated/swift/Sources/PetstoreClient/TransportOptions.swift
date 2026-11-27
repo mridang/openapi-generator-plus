@@ -53,7 +53,7 @@ public final class TransportOptions: Sendable {
   ///
   /// Covers the entire request lifecycle: connection, TLS handshake,
   /// sending the request body, and reading the response. Defaults to
-  /// 10000 ms (10 seconds) when the builder does not set a value. A `nil`
+  /// 60000 ms (60 seconds) when the builder does not set a value. A `nil`
   /// value means no timeout.
   public let timeout: Int?
 
@@ -125,6 +125,16 @@ public final class TransportOptions: Sendable {
   /// 60000 ms (60 seconds); `nil` means the gap is not bounded.
   public let idleTimeout: Int?
 
+  /// The most bytes the client reads of a buffered response body, or `nil`
+  /// (the default) for no limit.
+  ///
+  /// Both the bytes received and the bytes once decompressed (gzip or
+  /// deflate) are counted, on every redirect hop that is read: the client
+  /// stops reading as soon as either count passes the limit, drops the
+  /// connection and throws ``ResponseTooLargeError``. A streamed response is
+  /// not bounded by it, because the caller reads that body itself.
+  public let maxResponseBytes: Int?
+
   fileprivate init(
     verifySsl: Bool,
     caCertPath: String?,
@@ -137,7 +147,8 @@ public final class TransportOptions: Sendable {
     injectRequestID: Bool,
     session: URLSession?,
     maxRetries: Int,
-    idleTimeout: Int?
+    idleTimeout: Int?,
+    maxResponseBytes: Int?
   ) {
     self.verifySsl = verifySsl
     self.caCertPath = caCertPath
@@ -151,6 +162,7 @@ public final class TransportOptions: Sendable {
     self.session = session
     self.maxRetries = maxRetries
     self.idleTimeout = idleTimeout
+    self.maxResponseBytes = maxResponseBytes
   }
 
   /// Create a new builder for constructing ``TransportOptions`` instances.
@@ -173,16 +185,17 @@ public final class TransportOptions: Sendable {
 /// - `verifySsl`: `true`
 /// - `followRedirects`: `true`
 /// - `injectRequestID`: `false`
-/// - `timeout`: `10000` (10 seconds)
+/// - `timeout`: `60000` (60 seconds)
 /// - `maxRetries`: `2`
 /// - `idleTimeout`: `60000` (60 seconds)
+/// - `maxResponseBytes`: `nil` (no limit)
 /// - `userAgent`: a package-specific default string
 /// - All other fields: `nil` or empty
 public final class TransportOptionsBuilder {
   private var verifySsl: Bool = true
   private var caCertPath: String? = nil
   private var proxy: String? = nil
-  private var timeout: Int? = 10000
+  private var timeout: Int? = 60000
   private var followRedirects: Bool = true
   private var maxRedirects: Int? = nil
   private var userAgent: String? = "PetstoreClient/1.0.0 (swift)"
@@ -191,6 +204,7 @@ public final class TransportOptionsBuilder {
   private var session: URLSession? = nil
   private var maxRetries: Int = 2
   private var idleTimeout: Int? = 60000
+  private var maxResponseBytes: Int? = nil
 
   public init() {}
 
@@ -305,12 +319,24 @@ public final class TransportOptionsBuilder {
     return self
   }
 
+  /// Set the most bytes the client reads of a buffered response body, raw or
+  /// decompressed (`nil`, the default, for no limit). A body that passes it
+  /// throws ``ResponseTooLargeError``. A value that is not positive is
+  /// rejected by ``build()``.
+  @discardableResult
+  public func maxResponseBytes(_ val: Int?) -> TransportOptionsBuilder {
+    self.maxResponseBytes = val
+    return self
+  }
+
   /// Build and return an immutable ``TransportOptions`` instance.
   ///
   /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the proxy URL is
   ///   not valid or does not use the http or https scheme,
   ///   ``ConfigurationError/invalidTimeout(_:)`` if the timeout is zero or
-  ///   negative, ``ConfigurationError/invalidArgument(_:)`` if `maxRetries`
+  ///   negative, ``ConfigurationError/invalidMaxResponseBytes(_:)`` if
+  ///   `maxResponseBytes` is zero or negative,
+  ///   ``ConfigurationError/invalidArgument(_:)`` if `maxRetries`
   ///   is negative, and
   ///   ``ConfigurationError/invalidArgument(_:)`` if a supplied session is
   ///   combined with a proxy, a CA certificate, disabled TLS verification
@@ -318,6 +344,9 @@ public final class TransportOptionsBuilder {
   public func build() throws -> TransportOptions {
     if let timeout = timeout, timeout <= 0 {
       throw ConfigurationError.invalidTimeout(timeout)
+    }
+    if let maxResponseBytes = maxResponseBytes, maxResponseBytes <= 0 {
+      throw ConfigurationError.invalidMaxResponseBytes(maxResponseBytes)
     }
     if maxRetries < 0 {
       throw ConfigurationError.invalidArgument("maxRetries must not be negative: \(maxRetries)")
@@ -375,7 +404,8 @@ public final class TransportOptionsBuilder {
       injectRequestID: injectRequestID,
       session: session,
       maxRetries: maxRetries,
-      idleTimeout: idleTimeout == 0 ? nil : idleTimeout
+      idleTimeout: idleTimeout == 0 ? nil : idleTimeout,
+      maxResponseBytes: maxResponseBytes
     )
   }
 }
@@ -395,7 +425,7 @@ extension TransportOptions: CustomStringConvertible, CustomDebugStringConvertibl
     }
     let headers = ApiError.compactJson(ApiError.maskingSecrets(defaultHeaders))
     return
-      "TransportOptions(proxy: \(shownProxy), defaultHeaders: \(headers), maxRetries: \(maxRetries), idleTimeout: \(idleTimeout.map(String.init) ?? "nil"))"
+      "TransportOptions(proxy: \(shownProxy), defaultHeaders: \(headers), maxRetries: \(maxRetries), idleTimeout: \(idleTimeout.map(String.init) ?? "nil"), maxResponseBytes: \(maxResponseBytes.map(String.init) ?? "nil"))"
   }
 
   /// The same text as ``description``, so `String(reflecting:)` never shows a secret either.

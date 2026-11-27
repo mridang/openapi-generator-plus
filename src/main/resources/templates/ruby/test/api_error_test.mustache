@@ -365,8 +365,8 @@ describe {{moduleName}}::Errors::ApiError do
       ForbiddenError NotFoundError ConflictError UnprocessableEntityError TooManyRequestsError
       PaymentRequiredError MethodNotAllowedError RequestTimeoutError GoneError PayloadTooLargeError
       UnsupportedMediaTypeError LockedError NotImplementedError BadGatewayError ServiceUnavailableError
-      GatewayTimeoutError InternalServerError NetworkError NetworkTimeoutError SerializationError
-      OAuth2ServerError OAuth2TokenError
+      GatewayTimeoutError InternalServerError NetworkError NetworkTimeoutError ResponseTooLargeError
+      SerializationError OAuth2ServerError OAuth2TokenError
     ].each do |name|
       klass = {{moduleName}}::Errors.const_get(name, false)
       _(klass).must_be_kind_of(Class)

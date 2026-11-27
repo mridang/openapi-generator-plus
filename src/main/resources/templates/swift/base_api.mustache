@@ -1135,7 +1135,7 @@ public class BaseApi: @unchecked Sendable {
             body.append(Data("\r\n".utf8))
         } else if value is String || isMultipartPrimitive(value) {
             /* Every primitive (string, boolean, any integer or floating-point
-               width, date-time, uuid, enum) is a plain text part with no part
+               width, date-time, duration, uuid, enum) is a plain text part with no part
                Content-Type, its body the canonical stringify form; only models
                and maps become application/json parts. */
             let text = ObjectSerializer.stringify(value)
@@ -1155,7 +1155,7 @@ public class BaseApi: @unchecked Sendable {
     /// date-time, a uuid, or an enum.
     static func isMultipartPrimitive(_ value: Any) -> Bool {
         return value is Bool || value is any BinaryInteger || value is any BinaryFloatingPoint
-            || value is Date || value is UUID || value is any RawRepresentable
+            || value is Date || value is UUID || value is Duration || value is any RawRepresentable
     }
 
     /// Validates and escapes a value destined for a quoted multipart header.

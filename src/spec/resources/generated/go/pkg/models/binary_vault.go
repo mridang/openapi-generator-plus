@@ -11,6 +11,8 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // BinaryVault is a model class generated from the OpenAPI schema.
@@ -98,16 +100,35 @@ func (o BinaryVault) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *BinaryVault) UnmarshalJSON(data []byte) error {
-	type Alias BinaryVault
-	aux := &Alias{}
-	if err := checkBase64Fields(data, aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *BinaryVault) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out BinaryVault
+	err := readObject(dec, "BinaryVault", func(key string) error {
+		switch key {
+		case "seal":
+			return decodeValue(dec, &out.Seal)
+		case "shards":
+			return decodeValue(dec, &out.Shards)
+		case "labels":
+			return decodeValue(dec, &out.Labels)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "seal", "shards", "labels"), aux); err != nil {
-		return err
-	}
-	*o = BinaryVault(*aux)
+	*o = out
 	return nil
 }

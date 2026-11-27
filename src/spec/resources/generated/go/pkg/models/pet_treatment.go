@@ -116,11 +116,11 @@ func (o PetTreatment) MarshalJSON() ([]byte, error) {
 func (o *PetTreatment) UnmarshalJSON(data []byte) error {
 	var matched []any
 	var medication Medication
-	if err := json.Unmarshal(data, &medication); err == nil {
+	if err := unmarshalValue(data, &medication); err == nil {
 		matched = append(matched, medication)
 	}
 	var surgery Surgery
-	if err := json.Unmarshal(data, &surgery); err == nil {
+	if err := unmarshalValue(data, &surgery); err == nil {
 		matched = append(matched, surgery)
 	}
 	if len(matched) == 0 {

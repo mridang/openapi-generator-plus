@@ -2,7 +2,9 @@
 
 {{>api_info}}
 
+require 'base64'
 require 'json'
+require 'securerandom'
 require 'uri'
 
 module {{moduleName}}
@@ -12,6 +14,12 @@ module {{moduleName}}
       #
       # Fetches the OIDC discovery document to discover the authorization and
       # token endpoints, then delegates to an {OAuth2AuthorizationCodeAuthenticator}.
+      #
+      # Each authorization URL carries a fresh +nonce+. The code exchange
+      # validates the claims of the +id_token+ in the token response: the nonce
+      # of the authorization URL, the discovered issuer, the client id in the
+      # audience and an expiry that has not passed (60 seconds of clock skew
+      # are allowed). The signature of the id_token is not verified.
       #
       # Includes {HttpAwareAuthenticator} so that both the discovery request
       # and subsequent token exchange requests use the shared {ApiClient}
@@ -44,6 +52,10 @@ module {{moduleName}}
           @delegate = nil
           @discovery_expiry = Time.at(0)
           @discovery_mutex = Mutex.new
+          # The issuer named by the last discovery document, nil when it named none.
+          @discovered_issuer = nil
+          # The nonce of the last authorization URL built, until the exchange uses it.
+          @pending_nonce = nil
         end
 
         # RFC 8414 recommended default max-age for OIDC discovery documents.
@@ -52,7 +64,11 @@ module {{moduleName}}
         # Ceiling (one year, in seconds) for a server-supplied max-age.
         MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000
 
-        private_constant :DEFAULT_DISCOVERY_MAX_AGE_SECONDS, :MAX_DISCOVERY_MAX_AGE_SECONDS
+        # Clock skew (seconds) allowed when checking the expiry of an id_token.
+        ID_TOKEN_CLOCK_SKEW_SECONDS = 60
+
+        private_constant :DEFAULT_DISCOVERY_MAX_AGE_SECONDS, :MAX_DISCOVERY_MAX_AGE_SECONDS,
+                         :ID_TOKEN_CLOCK_SKEW_SECONDS
 
         # Inject the shared API client for making discovery and token requests.
         #
@@ -65,7 +81,12 @@ module {{moduleName}}
         # @param state [String, nil] CSRF state parameter
         # @return [String] the authorization URL
         def build_authorization_url(state = nil)
-          resolve_delegate.build_authorization_url(state)
+          url = resolve_delegate.build_authorization_url(state)
+          # OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to
+          # this request; the exchange checks it once. 32 random bytes, base64url.
+          nonce = SecureRandom.urlsafe_base64(32)
+          @pending_nonce = nonce
+          "#{url}&nonce=#{nonce}"
         end
 
         # Exchange an authorization code for tokens using the discovered token endpoint.
@@ -73,7 +94,11 @@ module {{moduleName}}
         # @param code [String] the authorization code from the callback
         # @return [void]
         def exchange_code(code)
-          resolve_delegate.exchange_code(code)
+          delegate = resolve_delegate
+          nonce = @pending_nonce
+          @pending_nonce = nil
+          issuer = @discovered_issuer
+          delegate.exchange_code_checking_id_token(code) { |id_token| validate_id_token(id_token, nonce, issuer) }
         end
 
         # @return [Hash{String => String}]
@@ -180,6 +205,8 @@ module {{moduleName}}
           )
           delegate.api_client = client
           @delegate = delegate
+          issuer = discovery['issuer']
+          @discovered_issuer = issuer.is_a?(String) ? issuer : nil
           @discovery_expiry = Time.now + parse_max_age(response.headers)
           delegate
         end
@@ -224,6 +251,56 @@ module {{moduleName}}
           parsed
         rescue JSON::ParserError => e
           raise ::{{moduleName}}::Errors::SerializationError.new("OIDC discovery document is not valid JSON: #{e.message}", e)
+        end
+
+        # Validate the claims of the id_token of a code exchange (OpenID Connect
+        # Core 3.1.3.7): the nonce of the authorization URL when one was sent,
+        # the discovered issuer, the client id in the audience and the expiry.
+        # A response without an id_token is not checked. The payload is decoded
+        # without verifying the signature.
+        #
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if a claim does not hold
+        def validate_id_token(id_token, nonce, issuer)
+          return if id_token.nil?
+
+          claims = decode_id_token(id_token)
+          if nonce && claims['nonce'] != nonce
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token nonce does not match the authorization request'
+          end
+          iss = claims['iss']
+          if issuer.nil? || !iss.is_a?(String) || iss != issuer
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token issuer does not match the discovered issuer'
+          end
+          unless audience_contains?(claims['aud'])
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token audience does not contain the client id'
+          end
+          exp = claims['exp']
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed' unless exp.is_a?(Numeric)
+          return if Time.now.to_f < exp + ID_TOKEN_CLOCK_SKEW_SECONDS
+
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token has expired'
+        end
+
+        # @return [Hash] the claims of a compact JWS: the second segment, base64url-decoded JSON
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the id_token is not a decodable JWT
+        def decode_id_token(id_token)
+          parts = id_token.split('.', -1)
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed' unless parts.length == 3
+
+          payload = parts[1].to_s
+          claims = JSON.parse(Base64.urlsafe_decode64(payload + ('=' * (-payload.length % 4))))
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed' unless claims.is_a?(Hash)
+
+          claims
+        rescue ArgumentError, JSON::ParserError
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed'
+        end
+
+        # @return [Boolean] true when the aud claim is the client id or a list holding it
+        def audience_contains?(aud)
+          return aud == @client_id if aud.is_a?(String)
+
+          aud.is_a?(Array) && aud.include?(@client_id)
         end
 
         # Parse `Cache-Control: max-age=<seconds>` from response headers.

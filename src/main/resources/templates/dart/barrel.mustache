@@ -63,6 +63,7 @@ export 'src/errors/payload_too_large_exception.dart';
 export 'src/errors/pagination_exception.dart';
 export 'src/errors/payment_required_exception.dart';
 export 'src/errors/request_timeout_exception.dart';
+export 'src/errors/response_too_large_exception.dart';
 export 'src/errors/serialization_exception.dart';
 export 'src/errors/server_exception.dart';
 export 'src/errors/service_unavailable_exception.dart';
@@ -76,7 +77,7 @@ export 'src/errors/{{classFilename}}.dart';
 {{/errorSchemas}}
 export 'src/iso8601_duration.dart';
 export 'src/json_lines_stream.dart';
-export 'src/object_serializer.dart' show UuidValue;
+export 'src/object_serializer.dart' show Decimal, UuidValue;
 {{#models}}
 {{#model}}
 export 'src/models/{{classFilename}}.dart';

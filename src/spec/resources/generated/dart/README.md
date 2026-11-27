@@ -84,9 +84,11 @@ way to read a response header.
 ### Timeouts
 
 `TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
-milliseconds for the whole call, redirects included; the default is 10 seconds
+milliseconds for the whole call, redirects included; the default is 60 seconds
 and `null` waits indefinitely. A call that exceeds it fails with
 `NetworkTimeoutException`.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### Automatic retries
 
@@ -595,16 +597,20 @@ as Twitter / X, Snowflake and Discord IDs are preserved. Compiled to
 JavaScript (Flutter web) `int` is a double, so integers above 2^53
 (9 007 199 254 740 991) lose precision there.
 
-`format: decimal` / `format: number` values are likewise stored as
-`double`, so monetary values lose exact decimal representation.
-`0.1 + 0.2` is `0.30000000000000004`. Do not do arithmetic on
-prices, balances, or other money-typed fields; use the `decimal`
-package or pass values as strings.
+A `format: decimal` value is a `Decimal` from the `decimal` package,
+exported by this package, whether the schema is a `type: number` or a
+`type: string`. The digits are read from the text of the response, never
+through a `double`, so `12.345678901234567890123` keeps every digit, and a
+number is written back as a bare JSON number in plain notation. A
+`type: string` decimal is read only from a JSON string and written back as
+one. A decoded `Decimal` is written back with the decimal places it was
+read with, so `"12.50"` stays `"12.50"`.
 
-Fixing this end-to-end would require switching generated model
-fields to `BigInt` and a custom JSON parser, which breaks the
-arithmetic operators on every existing consumer. Documented as a
-known limitation.
+A bare `type: number` with no format is still stored as a `double`, so
+it loses exact decimal representation: `0.1 + 0.2` is
+`0.30000000000000004`. Do not do arithmetic on prices, balances, or
+other money-typed fields typed that way; ask for `format: decimal` in
+the API description instead.
 
 ### `ClientException` shares its name with `package:http`
 

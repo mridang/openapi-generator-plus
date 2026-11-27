@@ -554,6 +554,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.kt"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.kt"),
             new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.kt"),
+            new SupportingFileSpec("errors/ResponseTooLargeException.mustache", errorsFolder, "ResponseTooLargeException.kt"),
             new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.kt"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.kt"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"),

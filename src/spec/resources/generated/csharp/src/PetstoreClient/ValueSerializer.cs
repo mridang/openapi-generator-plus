@@ -287,18 +287,9 @@ internal static class ValueSerializer
         }
 
         if (
-            value is IDictionary dictionaryValue
-            && dictionaryValue.Values.Cast<object?>().Any(leaf => leaf is IDictionary)
+            items == null
+            && (DictionaryFields(paramName, value) ?? ModelFields(value)) is { } fields
         )
-        {
-            throw new SerializationException(
-                "Parameter '"
-                    + paramName
-                    + "' holds a nested object, which a styled parameter cannot carry"
-            );
-        }
-
-        if (items == null && ModelFields(value) is { } fields)
         {
             return SerializeObjectStyled(paramName, fields, style, explode, enc);
         }
@@ -366,6 +357,53 @@ internal static class ValueSerializer
 
     private static readonly ObjectSerializer FieldSerializer = new();
 
+    /* A dictionary is an object-valued parameter like a model: its keys are
+     * the wire names, in the dictionary's own order, and a null entry is left
+     * out. A nested dictionary or list has no styled form and is refused. */
+    private static List<KeyValuePair<string, string>>? DictionaryFields(
+        string paramName,
+        object value
+    )
+    {
+        if (value is not IDictionary dictionary)
+        {
+            return null;
+        }
+        List<KeyValuePair<string, string>> fields = [];
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (
+                entry.Value is IDictionary
+                || (
+                    entry.Value is IEnumerable
+                    && entry.Value is not string
+                    && entry.Value is not byte[]
+                )
+            )
+            {
+                throw new SerializationException(
+                    "Parameter '"
+                        + paramName
+                        + "' holds a nested object or array, which a styled parameter cannot carry"
+                );
+            }
+            if (entry.Value is null)
+            {
+                continue;
+            }
+            fields.Add(
+                new KeyValuePair<string, string>(
+                    System.Convert.ToString(
+                        entry.Key,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ) ?? "",
+                    ObjectSerializer.Stringify(entry.Value)
+                )
+            );
+        }
+        return fields;
+    }
+
     /* A generated model (never an enum) is an object-valued parameter. Its
      * wire fields are the top-level JSON properties: strings unquoted, other
      * values as their JSON text, null properties omitted. */
@@ -386,12 +424,16 @@ internal static class ValueSerializer
         }
         foreach (System.Text.Json.JsonProperty property in document.RootElement.EnumerateObject())
         {
-            if (property.Value.ValueKind == System.Text.Json.JsonValueKind.Object)
+            if (
+                property.Value.ValueKind
+                is System.Text.Json.JsonValueKind.Object
+                    or System.Text.Json.JsonValueKind.Array
+            )
             {
                 throw new SerializationException(
                     "Property '"
                         + property.Name
-                        + "' holds a nested object, which a styled parameter cannot carry"
+                        + "' holds a nested object or array, which a styled parameter cannot carry"
                 );
             }
             fields.Add(

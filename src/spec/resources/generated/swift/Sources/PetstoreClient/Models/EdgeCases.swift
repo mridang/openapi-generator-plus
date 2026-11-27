@@ -63,7 +63,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public let _class: String?
   public let _return: String?
   /// Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
-  public let retryAfter: TimeInterval?
+  public let retryAfter: Duration?
   /// Absolute expiry instant
   public let expiresAt: Date?
   public let n2fa: Bool?
@@ -104,10 +104,10 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public init(
     freeFormAny: AnyCodable? = nil, favoriteColor: Color? = nil, permissionsNote: String? = nil,
     and: Bool? = nil, or: Bool? = nil, not: Bool? = nil, _class: String? = nil,
-    _return: String? = nil, retryAfter: TimeInterval? = nil, expiresAt: Date? = nil,
-    n2fa: Bool? = nil, separator: Separator? = nil, null: String? = nil, _true: Bool? = nil,
-    _false: Bool? = nil, lastError: ModelError? = nil, outcome: ModelResult? = nil,
-    cutoff: String? = nil, phase: EdgeCasesPhaseEnum? = nil, slug: String? = nil
+    _return: String? = nil, retryAfter: Duration? = nil, expiresAt: Date? = nil, n2fa: Bool? = nil,
+    separator: Separator? = nil, null: String? = nil, _true: Bool? = nil, _false: Bool? = nil,
+    lastError: ModelError? = nil, outcome: ModelResult? = nil, cutoff: String? = nil,
+    phase: EdgeCasesPhaseEnum? = nil, slug: String? = nil
   ) {
     self.freeFormAny = freeFormAny
     self.favoriteColor = favoriteColor
@@ -137,7 +137,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public func copy(
     freeFormAny: AnyCodable?? = .none, favoriteColor: Color?? = .none,
     permissionsNote: String?? = .none, and: Bool?? = .none, or: Bool?? = .none, not: Bool?? = .none,
-    _class: String?? = .none, _return: String?? = .none, retryAfter: TimeInterval?? = .none,
+    _class: String?? = .none, _return: String?? = .none, retryAfter: Duration?? = .none,
     expiresAt: Date?? = .none, n2fa: Bool?? = .none, separator: Separator?? = .none,
     null: String?? = .none, _true: Bool?? = .none, _false: Bool?? = .none,
     lastError: ModelError?? = .none, outcome: ModelResult?? = .none, cutoff: String?? = .none,

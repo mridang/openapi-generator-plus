@@ -390,6 +390,8 @@ To send requests through your own `URLSession`, pass it to `TransportOptions.bui
 
 Failed calls are retried automatically: `TransportOptions.builder().maxRetries(n)` sets the count (default 2, `0` disables). The SDK retries network errors that happened before a response and statuses 408, 409, 429 and 500 to 599 except 501, waiting 0.5 s doubling to 8 s with 25% jitter or the server's `Retry-After` (seconds or HTTP date, capped at 60 s). The `timeout` stays the one end-to-end budget, a single-use `BodySource` is never retried, and each retry re-applies the authentication headers.
 
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
+
 ### Cancellation
 
 Cancel the Swift `Task` that made the call and the call throws `CancellationError`; the SDK has no cancellation API of its own. `NetworkTimeoutError` is only for the SDK's own `TransportOptions` timeout.
@@ -442,7 +444,7 @@ Each scheme authenticator takes its credentials as optional arguments and reads 
 
 ### Raw responses, timeouts and request ids
 
-Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 10000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
+Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 60000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
 
 ## Hooks and telemetry
 

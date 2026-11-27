@@ -11,6 +11,7 @@ import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-aut
 import { InternalServerError, NotFoundError } from "../src/errors/index.js";
 import { ApiError } from "../src/errors/api-error.js";
 import { NetworkError } from "../src/errors/network-error.js";
+import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
 import { SerializationError } from "../src/errors/serialization-error.js";
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
@@ -263,13 +264,13 @@ describe("OpenIdConnectAuthenticator", () => {
   });
 
   describe("PKCE and token renewal", () => {
-    test("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce", async () => {
+    test("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce", async () => {
       mockClient.responses = [discoveryResponse(), discoveryResponse()];
       const query = new URL(await authenticator.buildAuthorizationUrl())
         .searchParams;
       expect(query.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(query.get("code_challenge_method")).toBe("S256");
-      expect(query.has("nonce")).toBe(false);
+      expect(query.get("nonce")).toMatch(/^[A-Za-z0-9_-]{43}$/);
     });
 
     test("bhv misc 199 discovery runs again when the cached document has a zero max-age", async () => {
@@ -324,7 +325,7 @@ describe("OpenIdConnectAuthenticator", () => {
       headers: { "content-type": "application/json" },
     });
 
-    test("bhv authoidc 021 the verifier survives rediscovery and no nonce is sent", async () => {
+    test("bhv authoidc 021 the verifier survives rediscovery and a nonce is sent", async () => {
       mockClient.responses = [
         discoveryResponse(),
         discoveryResponse(),
@@ -343,7 +344,7 @@ describe("OpenIdConnectAuthenticator", () => {
 
       expect(mockClient.callCount).toBe(3);
       expect(query.get("code_challenge_method")).toBe("S256");
-      expect(query.has("nonce")).toBe(false);
+      expect(query.get("nonce")).toMatch(/^[A-Za-z0-9_-]{43}$/);
       const verifier = new URLSearchParams(mockClient.lastBody as string).get(
         "code_verifier",
       );
@@ -987,5 +988,178 @@ describe("OpenIdConnectAuthenticator discovery document", () => {
     );
     expect((error as Error).cause).toBeUndefined();
     expect((error as Error).message).not.toContain("discovery-body-secret");
+  });
+});
+
+describe("OpenIdConnectAuthenticator id_token validation", () => {
+  const discovery: ApiHttpResponse = {
+    statusCode: 200,
+    body: JSON.stringify({
+      issuer: "https://auth.example.com",
+      authorization_endpoint: "https://auth.example.com/authorize",
+      token_endpoint: "https://auth.example.com/token",
+    }),
+    headers: { "content-type": "application/json" },
+  };
+
+  /** An unsigned compact JWT whose payload is the given claims. */
+  const idToken = (claims: Record<string, unknown>): string =>
+    [{ alg: "none" }, claims, "sig"]
+      .map((part) =>
+        typeof part === "string"
+          ? part
+          : Buffer.from(JSON.stringify(part)).toString("base64url"),
+      )
+      .join(".");
+
+  /** Claims that pass every check for the given nonce, with the overrides applied. */
+  const claims = (
+    nonce: string,
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({
+    iss: "https://auth.example.com",
+    aud: "my-client-id",
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    nonce,
+    ...overrides,
+  });
+
+  /** An authenticator whose token endpoint answers with the id_token built from the URL's nonce. */
+  const authenticatorReturning = async (
+    idTokenForNonce: (nonce: string) => string,
+  ): Promise<OpenIdConnectAuthenticator> => {
+    const client = new MockApiClient();
+    client.responses = [discovery];
+    const auth = new OpenIdConnectAuthenticator(
+      "https://api.example.com",
+      "https://auth.example.com/.well-known/openid-configuration",
+      "my-client-id",
+      "my-client-secret",
+      "https://myapp.example.com/callback",
+      ["openid"],
+    );
+    auth.setApiClient(client);
+    const nonce =
+      new URL(await auth.buildAuthorizationUrl("s")).searchParams.get(
+        "nonce",
+      ) ?? "";
+    client.responses.push({
+      statusCode: 200,
+      body: JSON.stringify({
+        access_token: "oidc-tok",
+        expires_in: 3600,
+        id_token: idTokenForNonce(nonce),
+      }),
+      headers: { "content-type": "application/json" },
+    });
+    return auth;
+  };
+
+  test("bhv authoidc 034 each authorization url carries a fresh nonce", async () => {
+    const client = new MockApiClient();
+    client.responses = [discovery];
+    const auth = new OpenIdConnectAuthenticator(
+      "https://api.example.com",
+      "https://auth.example.com/.well-known/openid-configuration",
+      "my-client-id",
+      "my-client-secret",
+      "https://myapp.example.com/callback",
+      ["openid"],
+    );
+    auth.setApiClient(client);
+
+    const first = new URL(
+      await auth.buildAuthorizationUrl("s"),
+    ).searchParams.get("nonce");
+    const second = new URL(
+      await auth.buildAuthorizationUrl("s"),
+    ).searchParams.get("nonce");
+
+    expect(first).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(second).not.toBe(first);
+  });
+
+  test("bhv authoidc 035 an id_token with valid claims is accepted", async () => {
+    const auth = await authenticatorReturning((nonce) =>
+      idToken(claims(nonce, { aud: ["other", "my-client-id"] })),
+    );
+
+    await auth.exchangeCode("oidc-code");
+
+    expect((await auth.getAuthHeadersAsync())["Authorization"]).toBe(
+      "Bearer oidc-tok",
+    );
+  });
+
+  test("bhv authoidc 036 an id_token with another nonce is rejected", async () => {
+    const auth = await authenticatorReturning((nonce) =>
+      idToken(claims(nonce, { nonce: "replayed" })),
+    );
+
+    const error = await auth.exchangeCode("oidc-code").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2TokenError);
+    expect((error as Error).message).toBe(
+      "The id_token nonce does not match the authorization request",
+    );
+  });
+
+  test("bhv authoidc 037 an id_token from another issuer is rejected", async () => {
+    const auth = await authenticatorReturning((nonce) =>
+      idToken(claims(nonce, { iss: "https://evil.example.com" })),
+    );
+
+    const error = await auth.exchangeCode("oidc-code").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2TokenError);
+    expect((error as Error).message).toBe(
+      "The id_token issuer does not match the discovered issuer",
+    );
+  });
+
+  test("bhv authoidc 038 an id_token for another audience is rejected", async () => {
+    const auth = await authenticatorReturning((nonce) =>
+      idToken(claims(nonce, { aud: "other-client" })),
+    );
+
+    const error = await auth.exchangeCode("oidc-code").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2TokenError);
+    expect((error as Error).message).toBe(
+      "The id_token audience does not contain the client id",
+    );
+  });
+
+  test("bhv authoidc 039 an expired id_token is rejected", async () => {
+    const auth = await authenticatorReturning((nonce) =>
+      idToken(claims(nonce, { exp: Math.floor(Date.now() / 1000) - 120 })),
+    );
+
+    const error = await auth.exchangeCode("oidc-code").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2TokenError);
+    expect((error as Error).message).toBe("The id_token has expired");
+  });
+
+  test("bhv authoidc 040 a malformed id_token is rejected", async () => {
+    const auth = await authenticatorReturning(() => "not-a-jwt");
+
+    const error = await auth.exchangeCode("oidc-code").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2TokenError);
+    expect((error as Error).message).toBe("The id_token is malformed");
+  });
+
+  test("bhv authoidc 041 a rejected id_token leaves no session behind", async () => {
+    const auth = await authenticatorReturning((nonce) =>
+      idToken(claims(nonce, { nonce: "replayed" })),
+    );
+    await expect(auth.exchangeCode("oidc-code")).rejects.toBeInstanceOf(
+      OAuth2TokenError,
+    );
+
+    await expect(auth.getAuthHeadersAsync()).rejects.toThrow(
+      "Must call exchangeCode() before making API requests",
+    );
   });
 });

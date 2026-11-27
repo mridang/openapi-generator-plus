@@ -112,7 +112,38 @@ defmodule {{moduleName}}.ObjectSerializer do
     limit is exceeded or parsing fails.
   """
   @spec parse_json(binary()) :: {:ok, term()} | {:error, String.t() | Jason.DecodeError.t()}
-  def parse_json(data) when is_binary(data) do
+  def parse_json(data) when is_binary(data), do: parse_json(data, :floats)
+
+  @doc """
+  Parse JSON text into a plain Elixir value, reading every number that has a
+  fraction or an exponent either as a binary float (`:floats`) or as an exact
+  `Decimal` (`:decimals`).
+
+  `deserialize/2` reads with `:decimals`, so a `format: decimal` field never
+  passes through a binary float, and `convert_to_type/2` turns a `Decimal`
+  back into a float wherever the target is not a decimal. A number the
+  `decimal` package refuses to parse (more than 34 significant digits in a
+  fraction, or an exponent beyond 6144) makes that read fail, so the text is
+  read again with `:floats`: a float field still decodes, and a decimal field
+  given that float fails instead of being rounded.
+  """
+  @spec parse_json(binary(), :floats | :decimals) :: {:ok, term()} | {:error, String.t() | Jason.DecodeError.t()}
+  def parse_json(data, :decimals) when is_binary(data) do
+    case parse_json_with(data, :decimals) do
+      {:error, %Jason.DecodeError{}} = error ->
+        case parse_json_with(data, :floats) do
+          {:ok, _} = floats -> floats
+          _ -> error
+        end
+
+      result ->
+        result
+    end
+  end
+
+  def parse_json(data, :floats) when is_binary(data), do: parse_json_with(data, :floats)
+
+  defp parse_json_with(data, floats) do
     # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
     # Windows-generated payloads often include one and Jason rejects it.
     # Strip it here so the success and error-body paths share one rule.
@@ -130,7 +161,10 @@ defmodule {{moduleName}}.ObjectSerializer do
       # Jason keeps the FIRST of a duplicated object key; every other SDK keeps
       # the last. Decode objects in document order and fold them into maps so
       # the last occurrence wins.
-      with {:ok, decoded} <- Jason.decode(data, objects: :ordered_objects) do
+      # Jason names the float mode :native; :floats is this module's name for it.
+      jason_floats = if floats == :decimals, do: :decimals, else: :native
+
+      with {:ok, decoded} <- Jason.decode(data, objects: :ordered_objects, floats: jason_floats) do
         {:ok, last_key_wins(decoded)}
       end
     end
@@ -243,7 +277,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   def deserialize(json_string, target_type) when is_binary(json_string) do
-    case parse_json(json_string) do
+    case parse_json(json_string, :decimals) do
       {:ok, data} -> convert_guarded(data, target_type)
       {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to deserialize JSON: #{error_detail(reason)}"
     end
@@ -309,6 +343,8 @@ defmodule {{moduleName}}.ObjectSerializer do
   # matching `convert_to_type/2` clauses below.
   def stringify(%Time{} = t), do: format_time(t)
   def stringify(%Duration{} = d), do: format_protobuf_duration(d)
+  # A decimal is written in plain notation with every digit it holds.
+  def stringify(%Decimal{} = d), do: format_decimal(d)
 
   # An IP address is an `:inet` tuple; it is written in its canonical text.
   def stringify(ip) when is_tuple(ip) and tuple_size(ip) in [4, 8], do: format_ip(ip)
@@ -487,6 +523,11 @@ defmodule {{moduleName}}.ObjectSerializer do
   # protobuf-JSON "<seconds>s" string on the wire.
   def sanitize_for_serialization(%Time{} = t), do: format_time(t)
   def sanitize_for_serialization(%Duration{} = d), do: format_protobuf_duration(d)
+
+  # A decimal is a bare JSON number in plain notation with every digit it holds.
+  # Jason would write a `Decimal` as a quoted string, so the text goes out as a
+  # fragment. A `type: string` decimal field is quoted by `sanitize_field_value/2`.
+  def sanitize_for_serialization(%Decimal{} = d), do: Jason.Fragment.new(format_decimal(d))
 
   # An IP address (`:inet.ip4_address()` or `:inet.ip6_address()`) goes out as its canonical text.
   def sanitize_for_serialization(ip) when is_tuple(ip) and tuple_size(ip) in [4, 8], do: format_ip(ip)
@@ -685,6 +726,8 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
+  defp sanitize_field_value(%Decimal{} = value, "DecimalString"), do: format_decimal(value)
+
   defp sanitize_field_value(value, "UUID") when is_binary(value), do: convert_to_type(value, "UUID")
 
   defp sanitize_field_value(value, "URI") when is_binary(value), do: convert_to_type(value, "URI")
@@ -724,29 +767,66 @@ defmodule {{moduleName}}.ObjectSerializer do
     do: data
 
   def convert_to_type(data, type) when type in ["String", "String.t()"],
-    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected String, got #{inspect(data)}")
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected String, got #{shown(data)}")
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"] and is_integer(data),
     do: data
 
   def convert_to_type(data, type) when type in ["Integer", "integer()"],
-    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected Integer, got #{inspect(data)}")
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected Integer, got #{shown(data)}")
 
   def convert_to_type(data, type) when type in ["Float", "float()"] and is_float(data), do: data
 
   def convert_to_type(data, type) when type in ["Float", "float()"] and is_integer(data),
     do: data / 1
 
+  def convert_to_type(%Decimal{} = data, type) when type in ["Float", "float()"],
+    do: Decimal.to_float(data)
+
+  # format: decimal on a `type: number` - the exact `Decimal` read from the JSON
+  # text (`deserialize/2` decodes numbers with a fraction as decimals, and an
+  # integer is exact already). A binary float has already lost digits, so it is
+  # refused rather than rounded into a decimal; so is a quoted string.
+  def convert_to_type(%Decimal{} = data, type) when type in ["Decimal", "Decimal.t()"], do: finite_decimal(data)
+
+  def convert_to_type(data, type) when type in ["Decimal", "Decimal.t()"] and is_integer(data),
+    do: Decimal.new(data)
+
+  def convert_to_type(data, type) when type in ["Decimal", "Decimal.t()"] and is_float(data),
+    do:
+      raise({{moduleName}}.Errors.SerializationError,
+        message: "Expected a decimal read from its JSON text, got the binary float #{inspect(data)}"
+      )
+
+  def convert_to_type(data, type) when type in ["Decimal", "Decimal.t()"],
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected a JSON number for a decimal, got #{shown(data)}")
+
+  # format: decimal on a `type: string` - the same `Decimal`, read only from a
+  # JSON string holding a plain decimal number. A bare JSON number is refused.
+  @decimal_string_regex ~r/\A-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\z/
+
+  def convert_to_type(data, "DecimalString") when is_binary(data) do
+    with true <- Regex.match?(@decimal_string_regex, data),
+         {%Decimal{} = decimal, ""} <- Decimal.parse(data) do
+      decimal
+    else
+      _ -> raise_unparseable(data, "decimal")
+    end
+  end
+
+  def convert_to_type(data, "DecimalString"),
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected a JSON string for a decimal, got #{shown(data)}")
+
   def convert_to_type(data, type) when type in ["Float", "float()"],
-    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected Float/Integer, got #{inspect(data)}")
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected Float/Integer, got #{shown(data)}")
 
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"] and is_boolean(data),
     do: data
 
   def convert_to_type(data, type) when type in ["Boolean", "boolean()"],
-    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected Boolean, got #{inspect(data)}")
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected Boolean, got #{shown(data)}")
 
-  def convert_to_type(data, "Object"), do: data
+  def convert_to_type(data, "Object"), do: floats(data)
 
   # format: byte - wire form is a base64 string; decoded to native
   # Elixir bytes (`binary()`). Matches the OpenAPI 3 spec which mandates
@@ -765,7 +845,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   def convert_to_type(data, "ByteArray"),
     do:
       raise({{moduleName}}.Errors.SerializationError,
-        message: "Expected base64 String for ByteArray, got #{inspect(data)}"
+        message: "Expected base64 String for ByteArray, got #{shown(data)}"
       )
 
   # `format: byte` leaves carried inside a typespec descriptor
@@ -789,7 +869,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   def convert_to_type(data, "binary()"),
     do:
       raise({{moduleName}}.Errors.SerializationError,
-        message: "Expected base64 String for binary(), got #{inspect(data)}"
+        message: "Expected base64 String for binary(), got #{shown(data)}"
       )
 
   # format: uuid - RFC 4122 canonical 8-4-4-4-12 hex form, case
@@ -808,7 +888,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   def convert_to_type(data, "UUID"),
-    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected UUID String, got #{inspect(data)}")
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected UUID String, got #{shown(data)}")
 
   # format: uri - an absolute RFC 3986 URI: a scheme, a colon, then no
   # whitespace or control characters (http, ftp, mailto and urn all qualify).
@@ -826,7 +906,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   def convert_to_type(data, "URI"),
-    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected URI String, got #{inspect(data)}")
+    do: raise({{moduleName}}.Errors.SerializationError, message: "Expected URI String, got #{shown(data)}")
 
   def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] and is_list(data),
     do: raise_unparseable(data, "date-time")
@@ -964,6 +1044,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   # written: sanitize_field_value/2 refuses it.
   def convert_to_type(data, "Enum<" <> rest) do
     members = parse_inline_enum(rest)
+    data = floats(data)
 
     found =
       if is_atom(data) do
@@ -999,10 +1080,10 @@ defmodule {{moduleName}}.ObjectSerializer do
         deserialize_model(data, module)
 
       function_exported?(module, :all_values, 0) ->
-        atomize_enum(module, data)
+        atomize_enum(module, floats(data))
 
       true ->
-        data
+        floats(data)
     end
   end
 
@@ -1088,13 +1169,13 @@ defmodule {{moduleName}}.ObjectSerializer do
   @spec raise_not_a_list(term()) :: no_return()
   defp raise_not_a_list(data) do
     raise {{moduleName}}.Errors.SerializationError,
-      message: "Expected a list for array type, got #{inspect(data)}"
+      message: "Expected a list for array type, got #{shown(data)}"
   end
 
   @spec raise_not_a_map(term()) :: no_return()
   defp raise_not_a_map(data) do
     raise {{moduleName}}.Errors.SerializationError,
-      message: "Expected a JSON object for map type, got #{inspect(data)}"
+      message: "Expected a JSON object for map type, got #{shown(data)}"
   end
 
   @spec raise_unparseable(term(), String.t()) :: no_return()
@@ -1381,7 +1462,7 @@ defmodule {{moduleName}}.ObjectSerializer do
           converted =
             cond do
               is_nil(value_type) ->
-                value
+                floats(value)
 
               is_nil(value) and nullable ->
                 nil
@@ -1490,6 +1571,43 @@ defmodule {{moduleName}}.ObjectSerializer do
       if length(run) > best_length, do: {index, length(run)}, else: best
     end)
   end
+
+  # A decimal in plain notation (`12.50`, never `1.25E+1`) with every digit it
+  # holds. NaN and infinity have no JSON form, and neither has a value whose
+  # plain text would be longer than the `decimal` package writes.
+  @spec format_decimal(Decimal.t()) :: String.t()
+  defp format_decimal(%Decimal{} = decimal) do
+    decimal |> finite_decimal() |> Decimal.to_string(:normal)
+  rescue
+    error in [ArgumentError] ->
+      reraise {{moduleName}}.Errors.SerializationError,
+              [message: "Cannot write the decimal #{inspect(decimal)}: #{Exception.message(error)}", cause: error],
+              __STACKTRACE__
+  end
+
+  @spec finite_decimal(Decimal.t()) :: Decimal.t()
+  defp finite_decimal(%Decimal{} = decimal) do
+    if Decimal.nan?(decimal) or Decimal.inf?(decimal) do
+      raise {{moduleName}}.Errors.SerializationError,
+        message: "A decimal must be a finite number, got #{inspect(decimal)}"
+    else
+      decimal
+    end
+  end
+
+  # A value in an error message: a number read as a Decimal shows as the
+  # number it was written as, like any other value.
+  defp shown(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+  defp shown(data), do: inspect(data)
+
+  # A value that is not decoded into a decimal field keeps the binary float it
+  # had before decimals were read from the JSON text: every `Decimal` that
+  # `parse_json(data, :decimals)` left in it becomes a float again.
+  @spec floats(term()) :: term()
+  defp floats(%Decimal{} = decimal), do: Decimal.to_float(decimal)
+  defp floats(list) when is_list(list), do: Enum.map(list, &floats/1)
+  defp floats(map) when is_map(map) and not is_struct(map), do: Map.new(map, fn {key, value} -> {key, floats(value)} end)
+  defp floats(other), do: other
 
   @doc """
   Format a `Duration.t()` as a `google.protobuf.Duration` protobuf-JSON

@@ -169,8 +169,11 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
      * keeps the previous session.
      *
      * @param string $code the authorization code from the callback
+     * @param (\Closure(?string): void)|null $idTokenCheck internal: a check of the
+     *     response's id_token run before the session is kept; OpenID Connect
+     *     passes it, other callers leave it out
      */
-    public function exchangeCode(string $code): void
+    public function exchangeCode(string $code, ?\Closure $idTokenCheck = null): void
     {
         /* Reject an empty / whitespace-only authorization code before the
          * token POST. An empty code is a caller bug that would otherwise be
@@ -191,7 +194,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
         if ($this->pkceVerifier !== null) {
             $params['code_verifier'] = $this->pkceVerifier;
         }
-        $this->tokenManager->exchange($this->tokenUrl, $params);
+        $this->tokenManager->exchange($this->tokenUrl, $params, [], $idTokenCheck);
         $this->pkceVerifier = null;
     }
 

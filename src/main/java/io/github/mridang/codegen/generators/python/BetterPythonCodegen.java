@@ -126,7 +126,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("double", "LaxFloat");
         // A bare `type: number` (no `format`) is a decimal-precision surface
         // per the typed-everywhere policy: decimal.Decimal in Python (matching
-        // BigDecimal in Java/Kotlin and branded Decimal in Node). `format:
+        // BigDecimal in Java/Kotlin and decimal.js Decimal in Node). `format:
         // float`/`format: double` keep StrictFloat above for IEEE-754 fields.
         // JsonNumber is the branded Decimal alias from `<pkg>._types`: it
         // decodes to a full-precision Decimal but serializes UNQUOTED (a JSON
@@ -964,6 +964,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/network_exception.mustache", errorsPath, "network_exception.py"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsPath, "network_timeout_exception.py"),
             new SupportingFileSpec("errors/stream_exception.mustache", errorsPath, "stream_exception.py"),
+            new SupportingFileSpec("errors/response_too_large_exception.mustache", errorsPath, "response_too_large_exception.py"),
             new SupportingFileSpec("errors/pagination_exception.mustache", errorsPath, "pagination_exception.py"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsPath, "serialization_exception.py"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsPath, "oauth2_server_exception.py"),

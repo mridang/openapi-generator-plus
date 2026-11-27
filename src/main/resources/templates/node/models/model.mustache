@@ -349,22 +349,31 @@ import { Decimal } from '../brand{{importFileExtension}}';
 {{/isDeprecated}}
 export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   /**
-   * 2.5 — Wire-serialization registry for `type: number` (no format)
-   * fields. Such fields are carried as branded `Decimal` values,
-   * which are plain strings at runtime to preserve arbitrary precision.
-   * On the request path ObjectSerializer.serialize walks the instance with
-   * JSON.stringify, which would quote a string and emit
-   * `"amount":"12.345"` (a JSON string) instead of the spec-required
-   * `"amount":12.345` (a JSON number). The serializer consults this set
-   * (by runtime property name) to emit those fields unquoted via JSON.rawJSON,
-   * preserving the full decimal text without a lossy Number() round-trip.
-   * Empty when the model has no `type: number` no-format fields.
+   * 2.5 — Wire-serialization registry for the number-shaped Decimal fields
+   * (`type: number` with no format or `format: decimal`). A Decimal's toJSON
+   * gives text that may carry an exponent, and a plain request-body literal
+   * may hold a numeric string, so ObjectSerializer.serialize consults this set
+   * (by runtime property name) to write those fields as a bare JSON number in
+   * plain notation via JSON.rawJSON, every digit kept. Empty when the model
+   * has no such field.
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([
 {{#vars}}
 {{#vendorExtensions.isPlainNumberDecimal}}
     '{{name}}',
 {{/vendorExtensions.isPlainNumberDecimal}}
+{{/vars}}
+  ]);
+
+  /**
+   * The `type: string` decimal fields: a Decimal under one of these names is
+   * written as a JSON string holding its plain-notation text.
+   */
+  static readonly __stringDecimalFields: ReadonlySet<string> = new Set([
+{{#vars}}
+{{#vendorExtensions.isStringDecimal}}
+    '{{name}}',
+{{/vendorExtensions.isStringDecimal}}
 {{/vars}}
   ]);
 
@@ -942,17 +951,10 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/vendorExtensions.isDecimalFormat}}
 {{#vendorExtensions.isDecimalFormat}}
-    /**
-     * 2.5 — `type: number` (no numeric format). Carried as a branded
-     * Decimal string to preserve arbitrary precision. The wire form can
-     * arrive as a JSON number (no explicit format means no precision
-     * guarantee from the server); coerce to its canonical string form
-     * here so downstream typed-string ops are safe.
-     */
-    if (this.{{name}} != null && typeof this.{{name}} === 'number') {
-      Object.assign(this, { {{name}}: String(this.{{name}}) });
-    } else if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
-      throw new TypeError(`{{name}} must be a Decimal string or number, got ${typeof this.{{name}}}`);
+    /* 2.5 — `type: number` (no numeric format, or `format: decimal`) is
+     * decoded into a decimal.js Decimal from the number's exact text. */
+    if (this.{{name}} != null && !Decimal.isDecimal(this.{{name}})) {
+      throw new TypeError(`{{name}} must be a Decimal, got ${typeof this.{{name}}}`);
     }
 {{/vendorExtensions.isDecimalFormat}}
 {{/isNumber}}
@@ -962,6 +964,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/isBoolean}}
 {{#isString}}
+{{^vendorExtensions.isStringDecimal}}
 {{^isByteArray}}
 {{^isUuid}}
 {{^vendorExtensions.isTimeFormat}}
@@ -981,11 +984,46 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       throw new TypeError(`{{name}} must be an absolute URI, got ${JSON.stringify(this.{{name}})}`);
     }
 {{/isUri}}
+{{#vendorExtensions.isIpv4}}
+    /* `format: ipv4` stays the text as given, read strictly. */
+    if (this.{{name}} != null && !isIpv4Address(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an IPv4 address, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+    /* `format: ipv6` stays the text as given, read strictly. */
+    if (this.{{name}} != null && !isIpv6Address(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an IPv6 address, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv6}}
 {{/vendorExtensions.isDurationFormat}}
 {{/vendorExtensions.isTimeFormat}}
 {{/isUuid}}
 {{/isByteArray}}
+{{/vendorExtensions.isStringDecimal}}
+{{#vendorExtensions.isStringDecimal}}
+    /* A `type: string` decimal is decoded into a decimal.js Decimal. */
+    if (this.{{name}} != null && !Decimal.isDecimal(this.{{name}})) {
+      throw new TypeError(`{{name}} must be a Decimal, got ${typeof this.{{name}}}`);
+    }
+{{/vendorExtensions.isStringDecimal}}
 {{/isString}}
+{{#vendorExtensions.isIpv4Items}}
+    if (
+      Array.isArray(this.{{name}}) &&
+      this.{{name}}.some((item: unknown) => typeof item !== 'string' || !isIpv4Address(item))
+    ) {
+      throw new TypeError(`{{name}} must hold IPv4 addresses, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv4Items}}
+{{#vendorExtensions.isIpv6Items}}
+    if (
+      Array.isArray(this.{{name}}) &&
+      this.{{name}}.some((item: unknown) => typeof item !== 'string' || !isIpv6Address(item))
+    ) {
+      throw new TypeError(`{{name}} must hold IPv6 addresses, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv6Items}}
 {{#isByteArray}}
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a
@@ -1053,6 +1091,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !((this.{{name}} as unknown) instanceof Set)) {
       throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
     }
+{{#vendorExtensions.isIpv4Items}}
+    /* Each `format: ipv4` element stays the text as given, read strictly. */
+    if (this.{{name}} != null && [...this.{{name}}].some((item) => typeof item !== 'string' || !isIpv4Address(item))) {
+      throw new TypeError(`{{name}} must hold IPv4 addresses, got ${JSON.stringify([...this.{{name}}])}`);
+    }
+{{/vendorExtensions.isIpv4Items}}
+{{#vendorExtensions.isIpv6Items}}
+    /* Each `format: ipv6` element stays the text as given, read strictly. */
+    if (this.{{name}} != null && [...this.{{name}}].some((item) => typeof item !== 'string' || !isIpv6Address(item))) {
+      throw new TypeError(`{{name}} must hold IPv6 addresses, got ${JSON.stringify([...this.{{name}}])}`);
+    }
+{{/vendorExtensions.isIpv6Items}}
 {{#items}}
 {{#isByteArray}}
     /**
@@ -1377,12 +1427,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (a == null || b == null) {
       return a === b;
     }
-    /* A Decimal is a branded string, so 1.5 and 1.50 differ as text but are
-     * the same number: compare the canonical form with trailing fractional
-     * zeros dropped. */
-    if (decimal && typeof a === 'string' && typeof b === 'string') {
-      const canonical = (d: string): string => (/^-?\d+\.\d+$/.test(d) ? d.replace(/0+$/, '').replace(/\.$/, '') : d);
-      return canonical(a) === canonical(b);
+    /* Decimals compare by value, so 1.5 equals 1.50. */
+    if (decimal && typeof (a as { eq?: unknown }).eq === 'function' && typeof (b as { eq?: unknown }).eq === 'function') {
+      return (a as { eq(other: unknown): boolean }).eq(b);
     }
     if (
       typeof (a as { equals?: unknown }).equals === 'function' &&

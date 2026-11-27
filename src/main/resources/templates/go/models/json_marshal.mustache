@@ -4,10 +4,15 @@ package models
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"reflect"
+	"io"
 	"regexp"
-	"strings"
+
+	jsonv2 "github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
+	"{{packageName}}/pkg/internal/exactdecimal"
+	"{{packageName}}/pkg/internal/protoduration"
 )
 
 // marshalJSON marshals a value to compact JSON with HTML escaping turned off.
@@ -52,128 +57,155 @@ func withoutDeclaredKeys[V any](extras map[string]V, declared ...string) map[str
 	return result
 }
 
-// dropMiscasedKeys removes the top-level keys of a JSON object that differ from
-// a declared property name only in letter case.
-//
-// encoding/json falls back to a case-insensitive match when no struct tag
-// matches exactly, so {"NAME":"x"} would populate a field tagged "name" and a
-// later {"NAME":...} would overwrite an earlier exact {"name":...}. The other
-// SDKs match the exact wire name and treat any other spelling as an unknown
-// key. Decoding the filtered object instead keeps that contract; a key that is
-// exactly a declared name always survives. Anything that is not a JSON object
-// is returned unchanged for the caller's own decode to reject.
-func dropMiscasedKeys(data []byte, known ...string) []byte {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil || raw == nil {
-		return data
+// decodeOptions are the JSON v2 options every model decode runs with. A key
+// that appears twice keeps its last value and invalid UTF-8 inside a string is
+// replaced rather than refused, as encoding/json did, and a time.Duration is
+// read from its protobuf-JSON string ("3600s") in the same pass.
+var decodeOptions = jsonv2.JoinOptions(
+	jsontext.AllowDuplicateNames(true),
+	jsontext.AllowInvalidUTF8(true),
+	jsonv2.WithUnmarshalers(jsonv2.UnmarshalFunc(protoduration.DecodeValue)),
+)
+
+// unmarshalModel decodes data into a model through its UnmarshalJSONFrom, so
+// the encoding/json entry point (UnmarshalJSON) and the JSON v2 one apply the
+// same checks and return the same errors. Anything after the one JSON value is
+// refused.
+func unmarshalModel(data []byte, model jsonv2.UnmarshalerFrom) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(data), decodeOptions)
+	if err := model.UnmarshalJSONFrom(dec); err != nil {
+		return err
 	}
-	exact := make(map[string]bool, len(known))
-	for _, name := range known {
-		exact[name] = true
-	}
-	dropped := false
-	for key := range raw {
-		if exact[key] {
-			continue
+	if _, err := dec.ReadToken(); err != io.EOF {
+		if err == nil {
+			err = errors.New("unexpected data after the top-level JSON value")
 		}
-		for _, name := range known {
-			if strings.EqualFold(key, name) {
-				delete(raw, key)
-				dropped = true
-				break
-			}
-		}
+		return err
 	}
-	if !dropped {
-		return data
+	return nil
+}
+
+// unmarshalValue decodes data into target with the model decode options: a
+// model through unmarshalModel, anything else (a list, a map, a scalar, a
+// union) through JSON v2.
+func unmarshalValue(data []byte, target any) error {
+	if model, ok := target.(jsonv2.UnmarshalerFrom); ok {
+		return unmarshalModel(data, model)
 	}
-	filtered, err := json.Marshal(raw)
+	return jsonv2.Unmarshal(data, target, decodeOptions)
+}
+
+// decodeValue decodes the next JSON value of dec into out.
+func decodeValue[T any](dec *jsontext.Decoder, out *T) error {
+	return jsonv2.UnmarshalDecode(dec, out, decodeOptions)
+}
+
+// decodeChecked reads the next JSON value of dec, hands it to check under the
+// property's wire name and then decodes it into out. The value is read once
+// from the stream; check sees its JSON text.
+func decodeChecked[T any](dec *jsontext.Decoder, out *T, key string, check func(key string, value []byte) error) error {
+	value, err := dec.ReadValue()
 	if err != nil {
-		return data
+		return err
 	}
-	return filtered
+	if err := check(key, value); err != nil {
+		return err
+	}
+	return jsonv2.Unmarshal(value, out, decodeOptions)
 }
 
-// strictBase64 matches RFC 4648 section 4 base64: the standard alphabet, a
-// length that is a multiple of four and '=' padding, with no whitespace,
-// newline or URL-safe '-' and '_'.
-var strictBase64 = regexp.MustCompile(`^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$`)
-
-// checkBase64Fields rejects a format:byte value that is not strict base64
-// before encoding/json decodes it, since encoding/json skips '\r' and '\n'
-// inside base64 text. target is the model's decode struct; every field whose
-// type is []byte, or a slice or map of []byte, is checked under its JSON key.
-// A payload that is not a JSON object is left to json.Unmarshal to reject.
-func checkBase64Fields(data []byte, target any) error {
-	rt := reflect.TypeOf(target)
-	for rt.Kind() == reflect.Pointer {
-		rt = rt.Elem()
-	}
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(data, &raw) != nil {
-		return nil
-	}
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-		if !holdsBytes(field.Type) {
-			continue
-		}
-		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-		value, ok := raw[key]
-		if !ok || key == "" {
-			continue
-		}
-		var decoded any
-		if err := json.Unmarshal(value, &decoded); err != nil {
-			return err
-		}
-		if err := checkBase64Value(key, decoded); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// holdsBytes reports whether t is []byte, or a pointer, slice, array or map
-// whose elements eventually are.
-func holdsBytes(t reflect.Type) bool {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	switch t.Kind() {
-	case reflect.Slice:
-		if t.Elem().Kind() == reflect.Uint8 {
-			return true
-		}
-		return holdsBytes(t.Elem())
-	case reflect.Array, reflect.Map:
-		return holdsBytes(t.Elem())
+// readObject reads one JSON object from dec and calls field with each key, in
+// document order, with the value next on the stream; field must consume that
+// value. Keys match the declared wire names exactly: a key that differs only
+// in letter case is a different key. A null reads as an object with no keys,
+// so the caller's checks for required keys still run. Any other JSON value is
+// refused, naming the model.
+func readObject(dec *jsontext.Decoder, model string, field func(key string) error) error {
+	switch kind := dec.PeekKind(); kind {
+	case 'n':
+		_, err := dec.ReadToken()
+		return err
+	case '{':
+	case '"', '0', 't', 'f', '[':
+		return fmt.Errorf("cannot unmarshal a JSON %s into %s: expected an object", jsonKindName(kind), model)
 	default:
-		return false
+		_, err := dec.ReadToken()
+		return err
+	}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
+	}
+	for dec.PeekKind() != '}' {
+		name, err := dec.ReadToken()
+		if err != nil {
+			return err
+		}
+		if err := field(name.String()); err != nil {
+			return err
+		}
+	}
+	_, err := dec.ReadToken()
+	return err
+}
+
+// jsonKindName names a JSON kind as an error message reads it.
+func jsonKindName(kind jsontext.Kind) string {
+	switch kind {
+	case '"':
+		return "string"
+	case '0':
+		return "number"
+	case 't', 'f':
+		return "boolean"
+	case '[':
+		return "array"
+	default:
+		return kind.String()
 	}
 }
 
-// checkBase64Value walks a decoded JSON value and checks every string in it.
-func checkBase64Value(key string, value any) error {
-	switch v := value.(type) {
-	case string:
-		if !strictBase64.MatchString(v) {
-			return fmt.Errorf("field %q is not valid base64 (RFC 4648 standard alphabet with padding)", key)
+// readDiscriminator returns the string under the discriminator key name of
+// the JSON object data, reading only the top level of the object. The key
+// matches exactly, so a differently cased key is not the discriminator; a
+// missing key or a null gives the empty string, and the last of several wins.
+func readDiscriminator(data []byte, model, name string) (string, error) {
+	dec := jsontext.NewDecoder(bytes.NewReader(data), decodeOptions)
+	value := ""
+	err := readObject(dec, model, func(key string) error {
+		if key != name {
+			return dec.SkipValue()
 		}
-	case []any:
-		for _, item := range v {
-			if err := checkBase64Value(key, item); err != nil {
-				return err
-			}
+		if dec.PeekKind() == 'n' {
+			_, err := dec.ReadToken()
+			return err
 		}
-	case map[string]any:
-		for _, item := range v {
-			if err := checkBase64Value(key, item); err != nil {
-				return err
-			}
-		}
+		return decodeValue(dec, &value)
+	})
+	return value, err
+}
+
+// jsonString returns the text of a JSON string value, and false for any other
+// JSON value, which the decode that follows accepts or rejects.
+func jsonString(value []byte) (string, bool) {
+	if jsontext.Value(value).Kind() != '"' {
+		return "", false
 	}
-	return nil
+	var text string
+	if jsonv2.Unmarshal(value, &text, decodeOptions) != nil {
+		return "", false
+	}
+	return text, true
+}
+
+// checkDecimalNumber rejects a `type: number` decimal that is not a bare JSON
+// number, and checkDecimalString a `type: string` one that is not a JSON
+// string holding a plain decimal number.
+func checkDecimalNumber(key string, value []byte) error {
+	return exactdecimal.CheckValue(key, value, false)
+}
+
+func checkDecimalString(key string, value []byte) error {
+	return exactdecimal.CheckValue(key, value, true)
 }
 
 // ipv4Text and ipv6Text are the plain text of an address: dotted decimal with
@@ -185,22 +217,22 @@ var (
 	ipv6Text = regexp.MustCompile(`^[0-9A-Fa-f:.]+$`)
 )
 
-// checkIPField rejects a format:ipv4 or format:ipv6 value under key that is
-// not the plain text of an address of that family: a prefix length, a zone id,
-// brackets, surrounding whitespace, a leading zero and an address of the other
-// family are all refused. A missing, null or non-string value is left to
-// json.Unmarshal.
-func checkIPField(data []byte, key string, v6 bool) error {
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(data, &raw) != nil {
-		return nil
-	}
-	value, ok := raw[key]
+// checkIPv4 and checkIPv6 reject a format:ipv4 or format:ipv6 value under key
+// that is not the plain text of an address of that family: a prefix length, a
+// zone id, brackets, surrounding whitespace, a leading zero and an address of
+// the other family are all refused. A null or non-string value is left to the
+// decode that follows.
+func checkIPv4(key string, value []byte) error {
+	return checkIP(key, value, false)
+}
+
+func checkIPv6(key string, value []byte) error {
+	return checkIP(key, value, true)
+}
+
+func checkIP(key string, value []byte, v6 bool) error {
+	text, ok := jsonString(value)
 	if !ok {
-		return nil
-	}
-	var text string
-	if json.Unmarshal(value, &text) != nil {
 		return nil
 	}
 	if v6 && !ipv4Text.MatchString(text) && ipv6Text.MatchString(text) {
@@ -221,19 +253,11 @@ func checkIPField(data []byte, key string, v6 bool) error {
 // unhyphenated spellings, which the wire form does not allow.
 var canonicalUuid = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
 
-// checkUuidField rejects a format:uuid value under key that is not in canonical
-// form. A missing, null or non-string value is left to json.Unmarshal.
-func checkUuidField(data []byte, key string) error {
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(data, &raw) != nil {
-		return nil
-	}
-	value, ok := raw[key]
+// checkUuid rejects a format:uuid value under key that is not in canonical
+// form. A null or non-string value is left to the decode that follows.
+func checkUuid(key string, value []byte) error {
+	text, ok := jsonString(value)
 	if !ok {
-		return nil
-	}
-	var text string
-	if json.Unmarshal(value, &text) != nil {
 		return nil
 	}
 	if !canonicalUuid.MatchString(text) {
@@ -247,20 +271,12 @@ func checkUuidField(data []byte, key string) error {
 // a relative reference has no scheme and does not match.
 var absoluteURI = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1f\x7f]*$`)
 
-// checkAbsoluteURIField rejects a format:uri value under key that is not an
+// checkAbsoluteURI rejects a format:uri value under key that is not an
 // absolute URI. The value itself is kept byte-for-byte; only its shape is
-// checked. A missing, null or non-string value is left to json.Unmarshal.
-func checkAbsoluteURIField(data []byte, key string) error {
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(data, &raw) != nil {
-		return nil
-	}
-	value, ok := raw[key]
+// checked. A null or non-string value is left to the decode that follows.
+func checkAbsoluteURI(key string, value []byte) error {
+	text, ok := jsonString(value)
 	if !ok {
-		return nil
-	}
-	var text string
-	if json.Unmarshal(value, &text) != nil {
 		return nil
 	}
 	if !absoluteURI.MatchString(text) {

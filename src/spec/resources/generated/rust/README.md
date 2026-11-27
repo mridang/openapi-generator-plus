@@ -50,10 +50,12 @@ println!("{value:?}");
 ```
 
 Every operation is an `async` method on a typed API group, for example
-`client.pet`; call it with `.await`. Errors are
-`Box<dyn std::error::Error + Send + Sync>` values whose root is an SDK error:
-the `OpenAPIErrorExt` trait gives `as_api_error()`, `is_api_error()` and
-`api_error_kind()`. `NetworkError` and `NetworkTimeoutError` mean no HTTP
+`client.pet`; call it with `.await`. Every operation returns
+`Result<T, petstore::Error>`, a `#[non_exhaustive]` enum with one variant
+per kind of error, such as `Error::NotFound`, `Error::Network` and
+`Error::TooManyRequests`, and `Error::Other` for anything else. It implements
+`std::error::Error`, so `?` works, and `api_error()` returns the `ApiError` of
+any HTTP failure. `NetworkError` and `NetworkTimeoutError` mean no HTTP
 response arrived, and `TooManyRequestsError` is HTTP 429. See
 [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
@@ -67,7 +69,9 @@ It is the way to read a response header.
 
 `TransportOptions::builder().timeout(Some(5000))` sets one end-to-end budget in
 milliseconds for the whole call, redirects and retries included. A call that
-exceeds it fails with `NetworkTimeoutError`. The default is 10000 ms.
+exceeds it fails with `NetworkTimeoutError`. The default is 60000 ms.
+
+`TransportOptions::builder().max_response_bytes(Some(n))` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
 
 ### Automatic retries
 
@@ -182,7 +186,7 @@ use petstore::Client;
 
 async fn read_everything(
     client: &Client,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), petstore::Error> {
     let list = client.pet.list_pet_catalog_pages(None);
     let mut items = list.items();
     while let Some(item) = items.next().await {
@@ -461,16 +465,19 @@ cargo deny check
 
 ### Decimal / `format: number` precision
 
-`serde_json` parses JSON numbers into `f64` by default, and this SDK
-maps `format: number` / `format: decimal` schema fields to `f64`.
-Decimal values are therefore stored as IEEE-754 binary floating point,
-so monetary amounts lose exact decimal representation: `0.1 + 0.2` in
-Rust is `0.30000000000000004`.
+`format: decimal` fields and parameters are `rust_decimal::Decimal`.
+The digits are read from the JSON text, never through an `f64`, and
+written back exactly: a `type: number` decimal as a bare JSON number in
+plain notation, a `type: string` decimal as a JSON string that keeps
+its scale (`"12.50"`). A value with more than 28 significant digits,
+the most a `Decimal` holds, fails with `SerializationError` instead of
+being rounded. Add `rust_decimal` to your own `Cargo.toml` to build
+these values.
 
-Do not do arithmetic on prices, balances, or other money-typed fields.
-If you need exact decimal arithmetic, deserialize the raw response body
-yourself (e.g. with `serde_json::value::RawValue`) and use a decimal
-crate such as `rust_decimal` or `bigdecimal`.
+A `type: number` with no format, `format: float` and `format: double`
+are IEEE-754 binary floats (`f64`, `f32`), so they cannot hold every
+decimal fraction exactly: `0.1 + 0.2` is `0.30000000000000004`. Do not
+use them for prices, balances, or other money-typed fields.
 
 `format: int64` is unaffected — Rust's `i64` natively represents the
 full 64-bit range without precision loss.

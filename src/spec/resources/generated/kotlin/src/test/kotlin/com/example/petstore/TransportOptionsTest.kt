@@ -86,10 +86,10 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("bhvOptions038 timeout defaults to 10000L (10 seconds)")
+        @DisplayName("bhvOptions038 timeout defaults to 60000L (60 seconds)")
         fun timeoutDefaultsToTenSeconds() {
             val opts = TransportOptions.builder().build()
-            assertEquals(10000L, opts.timeout)
+            assertEquals(60000L, opts.timeout)
         }
 
         @Test
@@ -508,11 +508,11 @@ class TransportOptionsTest {
     @DisplayName("TimeoutConfigTests")
     inner class TimeoutConfigTests {
         @Test
-        @DisplayName("bhvOptions039 timeout defaults to 10000L (10 seconds)")
+        @DisplayName("bhvOptions039 timeout defaults to 60000L (60 seconds)")
         fun timeoutDefaultsToTenSeconds() {
-            // Default timeout is 10 seconds (10000ms) for parity across SDKs.
+            // Default timeout is 60 seconds (60000ms) for parity across SDKs.
             val opts = TransportOptions.builder().build()
-            assertEquals(10000L, opts.timeout)
+            assertEquals(60000L, opts.timeout)
         }
 
         @Test
@@ -828,6 +828,37 @@ class TransportOptionsTest {
                 }
             assertEquals("Invalid proxy URL (must use http or https scheme): socks5://proxy:1080", ex.message)
         }
+
+    @Test
+    @DisplayName("bhvOptions069 maxResponseBytes is off by default, round-trips and refuses a non-positive value")
+    fun bhvOptions069MaxResponseBytesIsOffByDefaultRoundTripsAndRefusesANonPositiveValue() {
+        assertNull(TransportOptions.builder().build().maxResponseBytes)
+        assertEquals(
+            1024L,
+            TransportOptions
+                .builder()
+                .maxResponseBytes(1024L)
+                .build()
+                .maxResponseBytes,
+        )
+        assertNull(
+            TransportOptions
+                .builder()
+                .maxResponseBytes(null)
+                .build()
+                .maxResponseBytes,
+        )
+        val zero =
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                TransportOptions.builder().maxResponseBytes(0L)
+            }
+        assertEquals("Invalid maxResponseBytes: must be a positive number of bytes (got 0)", zero.message)
+        val negative =
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                TransportOptions.builder().maxResponseBytes(-1L)
+            }
+        assertEquals("Invalid maxResponseBytes: must be a positive number of bytes (got -1)", negative.message)
+    }
 
     @Test
     @DisplayName("bhvMisc186 combining a ready-made connection with a CA bundle setting is rejected when the options are built")

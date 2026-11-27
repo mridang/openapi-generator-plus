@@ -2405,14 +2405,28 @@ describe Petstore::Client::ObjectSerializer do
       model = decode('{"ledger":"12.50"}')
 
       _(model.ledger).must_equal(BigDecimal('12.5'))
-      _(encode(model)).must_equal('{"ledger":"12.5"}')
+      _(encode(model)).must_equal('{"ledger":"12.50"}')
       assert_raises(Petstore::Client::Errors::SerializationError) { decode('{"ledger":12.50}') }
+    end
+
+    it 'bhv_misc_088 a decimal decoded from text keeps the decimal places it was written with' do
+      _(encode(decode('{"amount":12.50}'))).must_equal('{"amount":12.50}')
+      _(encode(decode('{"ledger":"1.50"}'))).must_equal('{"ledger":"1.50"}')
+      _(decode('{"amount":12.50}').amount).must_equal(BigDecimal('12.5'))
     end
 
     it 'bhv_serializationobject_412 reads a forty digit number exactly and never rounds it' do
       digits = '1234567890123456789012345678901234567890'
 
       _(encode(decode(%({"amount":#{digits}})))).must_equal(%({"amount":#{digits}}))
+    end
+
+    it 'bhv_serializationobject_413 reads a number or string decimal field as the exact BigDecimal' do
+      values = decode('{"amount":0.1,"ledger":"0.2"}')
+
+      _(values.amount).must_be_instance_of(BigDecimal)
+      _(values.ledger).must_be_instance_of(BigDecimal)
+      _(values.amount + values.ledger).must_equal(BigDecimal('0.3'))
     end
 
     it 'bhv_langruby_063 keeps a free-form number a Float' do

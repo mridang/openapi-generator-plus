@@ -369,6 +369,8 @@ TransportOptions newTransport() {
 
 Network errors before a response for GET, HEAD, OPTIONS, TRACE, PUT, DELETE and QUERY (TLS and certificate failures are never retried, and POST and PATCH are sent once), and statuses 408, 409, 429 and 500-599 (not 501) are retried with a backoff of 0.5 s doubling to 8 s with 25% jitter; `Retry-After` (at most 60 s) is honoured, the request timeout is never extended, and a multipart or single-use body is never retried.
 
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
 ### Streaming
 
 An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`try`/`finally`). `readAll()` reads the rest into memory and leaves the stream closed.

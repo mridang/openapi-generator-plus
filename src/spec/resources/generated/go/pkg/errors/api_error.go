@@ -12,15 +12,22 @@ package errors
 import (
 	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
+	"io"
 	"strings"
 	"unicode/utf8"
+
+	"petstore/pkg/internal/protoduration"
+
+	jsonv2 "github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // errorBodyMaxJSONDepth caps how deeply an error-response JSON body may nest.
-// encoding/json has no built-in depth limit and recurses through the host call
-// stack, so a malicious server can crash the process with a deeply-nested body
-// (stack overflow -> DoS). This mirrors the maxJSONDepth guard the main package
+// The models decode recursively through the host call stack, so a malicious
+// server could crash the process with a deeply-nested body (stack overflow ->
+// DoS). This mirrors the maxJSONDepth guard the main package
 // applies to success bodies; it is duplicated here because package errors is
 // imported by the root package and so cannot import it back (import cycle).
 const errorBodyMaxJSONDepth = 1000
@@ -37,11 +44,25 @@ func unmarshalErrorBody(data []byte, target any) error {
 			nil,
 		)
 	}
-	if err := json.Unmarshal(data, target); err != nil {
-		return NewSerializationError(fmt.Sprintf("failed to deserialize JSON: %v", err), err)
+	if err := jsonv2.Unmarshal(data, target, errorBodyDecodeOptions); err != nil {
+		detail := err.Error()
+		if stderrors.Is(err, io.ErrUnexpectedEOF) {
+			detail = "unexpected end of JSON input"
+		}
+		return NewSerializationError(fmt.Sprintf("failed to deserialize JSON: %s", detail), err)
 	}
 	return nil
 }
+
+// errorBodyDecodeOptions are the JSON v2 options of the success path (a
+// repeated key keeps its last value, invalid UTF-8 is replaced, a duration is
+// read from its protobuf-JSON string), duplicated here for the same import
+// cycle reason as errorBodyMaxJSONDepth.
+var errorBodyDecodeOptions = jsonv2.JoinOptions(
+	jsontext.AllowDuplicateNames(true),
+	jsontext.AllowInvalidUTF8(true),
+	jsonv2.WithUnmarshalers(jsonv2.UnmarshalFunc(protoduration.DecodeValue)),
+)
 
 // errorBodyJSONDepth returns the maximum `{`/`[` nesting depth in the JSON byte
 // slice, skipping characters inside strings. A cheap pre-flight check run

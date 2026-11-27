@@ -39,9 +39,9 @@ describe("TransportOptions", () => {
     expect(opts.proxy).toBeNull();
   });
 
-  test("bhv options 039 timeout defaults to 10000 milliseconds", () => {
+  test("bhv options 039 timeout defaults to 60000 milliseconds", () => {
     const opts = TransportOptions.builder().build();
-    expect(opts.timeout).toBe(10000);
+    expect(opts.timeout).toBe(60000);
   });
 
   test("bhv options 020 followRedirects defaults to true", () => {
@@ -391,10 +391,10 @@ describe("TransportOptions", () => {
   });
 
   describe("TimeoutConfigTests", () => {
-    test("bhv options 038 timeout defaults to 10 seconds (10000 ms)", () => {
-      // Default TransportOptions sets a 10-second timeout for cross-language parity.
+    test("bhv options 038 timeout defaults to 60 seconds (60000 ms)", () => {
+      // Default TransportOptions sets a 60-second timeout for cross-language parity.
       const opts = TransportOptions.builder().build();
-      expect(opts.timeout).toBe(10000);
+      expect(opts.timeout).toBe(60000);
     });
 
     test("bhv options 037 timeout default may be overridden to null for no timeout", () => {
@@ -614,5 +614,46 @@ describe("TransportOptions misc proxy schemes", () => {
     expect(() =>
       TransportOptions.builder().proxy("socks5://proxy.example.com:1080"),
     ).toThrow("Invalid proxy URL (must use http or https scheme)");
+  });
+});
+
+describe("TransportOptions maxResponseBytes", () => {
+  test("bhv options 069 maxResponseBytes defaults to none, keeps a positive value and refuses zero and negatives", () => {
+    expect(TransportOptions.builder().build().maxResponseBytes).toBeNull();
+    expect(
+      new TransportOptions({ ...directOptions }).maxResponseBytes,
+    ).toBeNull();
+    expect(
+      TransportOptions.builder().maxResponseBytes(1024).build()
+        .maxResponseBytes,
+    ).toBe(1024);
+    expect(
+      TransportOptions.builder().maxResponseBytes(1024).build().toString(),
+    ).toContain('"maxResponseBytes":1024');
+    expect(
+      new TransportOptions({ ...directOptions, maxResponseBytes: 2048 })
+        .maxResponseBytes,
+    ).toBe(2048);
+    expect(
+      TransportOptions.builder()
+        .maxResponseBytes(1024)
+        .maxResponseBytes(null)
+        .build().maxResponseBytes,
+    ).toBeNull();
+    for (const value of [0, -1]) {
+      expect(() => TransportOptions.builder().maxResponseBytes(value)).toThrow(
+        new TypeError(
+          `Invalid maxResponseBytes: must be a positive number of bytes (got ${value})`,
+        ),
+      );
+      expect(
+        () =>
+          new TransportOptions({ ...directOptions, maxResponseBytes: value }),
+      ).toThrow(
+        new TypeError(
+          `Invalid maxResponseBytes: must be a positive number of bytes (got ${value})`,
+        ),
+      );
+    }
   });
 });

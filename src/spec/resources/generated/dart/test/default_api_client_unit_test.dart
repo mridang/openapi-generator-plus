@@ -1108,6 +1108,85 @@ void main() {
     );
 
     test(
+      'bhv transport 094 a per-call timeout bounds the whole call including a trickling body',
+      () async {
+        final sockets = <Socket>[];
+        final timers = <Timer>[];
+        final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((conn) {
+          sockets.add(conn);
+          var started = false;
+          conn.listen(
+            (_) {
+              if (started) return;
+              started = true;
+              conn.write(
+                'HTTP/1.1 200 OK\r\n'
+                'Content-Type: application/octet-stream\r\n'
+                'Content-Length: 100000\r\n'
+                '\r\n',
+              );
+              var sent = 0;
+              timers.add(
+                Timer.periodic(const Duration(milliseconds: 100), (timer) {
+                  if (sent >= 100) {
+                    timer.cancel();
+                    conn.destroy();
+                    return;
+                  }
+                  sent += 1;
+                  try {
+                    conn.add(const [0x78]);
+                  } on Object {
+                    timer.cancel();
+                  }
+                }),
+              );
+            },
+            onError: (Object _) {},
+            onDone: () {},
+          );
+          conn.done.then<void>((_) {}, onError: (Object _) {});
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .timeout(60000)
+                .maxRetries(0)
+                .build(),
+          );
+          final clock = Stopwatch()..start();
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/trickle',
+              {},
+              null,
+              timeout: 500,
+            ),
+            throwsA(
+              isA<NetworkTimeoutException>().having(
+                (e) => e.runtimeType,
+                'runtimeType',
+                NetworkTimeoutException,
+              ),
+            ),
+          );
+          expect(clock.elapsedMilliseconds, lessThan(3000));
+        } finally {
+          for (final timer in timers) {
+            timer.cancel();
+          }
+          for (final conn in sockets) {
+            conn.destroy();
+          }
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv options 005 caller headers override transport default headers',
       () async {
         String? receivedCustom;
@@ -7326,6 +7405,113 @@ void main() {
             await origin.close();
             await target.close();
           }
+        }
+      },
+    );
+  });
+
+  group('DefaultApiClient maxResponseBytes', () {
+    Future<HttpServer> serving(
+      List<int> body, {
+      String? contentEncoding,
+    }) async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response.statusCode = 200;
+        request.response.headers.contentType = ContentType.binary;
+        if (contentEncoding != null) {
+          request.response.headers.set('Content-Encoding', contentEncoding);
+        }
+        request.response
+          ..add(body)
+          ..close();
+      });
+      return server;
+    }
+
+    test(
+      'bhv transport 095 a body larger than maxResponseBytes fails with ResponseTooLargeException and no limit reads it',
+      () async {
+        final server = await serving(List<int>.filled(4096, 0x61));
+        final limited = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .maxResponseBytes(1024)
+              .maxRetries(0)
+              .build(),
+        );
+        final unlimited = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().maxRetries(0).build(),
+        );
+        try {
+          await expectLater(
+            limited.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/payload',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<ResponseTooLargeException>()
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    equals('Response body exceeds the limit of 1024 bytes'),
+                  )
+                  .having((e) => e.statusCode, 'statusCode', equals(200))
+                  .having((e) => e.limit, 'limit', equals(1024))
+                  .having((e) => e.isRetryable, 'isRetryable', isFalse),
+            ),
+          );
+          final response = await unlimited.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/payload',
+            {},
+            null,
+          );
+          expect(response.statusCode, equals(200));
+          expect(base64Decode(response.body), hasLength(4096));
+        } finally {
+          limited.close();
+          unlimited.close();
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
+      'bhv transport 096 a small gzip body that inflates past maxResponseBytes fails with ResponseTooLargeException',
+      () async {
+        final compressed = gzip.encode(List<int>.filled(100000, 0));
+        expect(compressed.length, lessThan(1024));
+        final server = await serving(compressed, contentEncoding: 'gzip');
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .maxResponseBytes(1024)
+              .maxRetries(0)
+              .build(),
+        );
+        try {
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/payload',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<ResponseTooLargeException>()
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    equals('Response body exceeds the limit of 1024 bytes'),
+                  )
+                  .having((e) => e.statusCode, 'statusCode', equals(200))
+                  .having((e) => e.limit, 'limit', equals(1024)),
+            ),
+          );
+        } finally {
+          client.close();
+          await server.close(force: true);
         }
       },
     );

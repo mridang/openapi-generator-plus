@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Defaults is a model class generated from the OpenAPI schema.
@@ -258,35 +260,105 @@ func (o Defaults) MarshalJSON() ([]byte, error) {
 	return marshalJSON((Alias)(o))
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
 func (o *Defaults) UnmarshalJSON(data []byte) error {
-	type Alias Defaults
-	aux := &Alias{}
-	/* json.Unmarshal leaves a struct field untouched when its key is absent
-	 * from the payload, so we pre-seed optional fields that declare a schema
-	 * default before decoding: a present value overwrites the default while an
-	 * absent one keeps it, matching the default-application of the other SDKs. */
-	var defaultRetries int32 = 3
-	aux.Retries = &defaultRetries
-	var defaultMode DefaultsModeEnum = "medium"
-	aux.Mode = &defaultMode
-	var defaultLabel string = "untitled"
-	aux.Label = &defaultLabel
-	var defaultGreeting string = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
-	aux.Greeting = &defaultGreeting
-	var defaultSwatch Swatch = SwatchGreen
-	aux.Swatch = &defaultSwatch
-	var defaultRatio float64 = 1.5
-	aux.Ratio = &defaultRatio
-	var defaultScale float32 = 0.25
-	aux.Scale = &defaultScale
-	var defaultWeight float64 = 2
-	aux.Weight = &defaultWeight
-	var defaultCeiling int64 = 9000000000
-	aux.Ceiling = &defaultCeiling
-	if err := json.Unmarshal(dropMiscasedKeys(data, "retries", "mode", "label", "greeting", "swatch", "ratio", "scale", "weight", "ceiling"), aux); err != nil {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+// An undeclared key is skipped.
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *Defaults) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out Defaults
+	seenRetries := false
+	seenMode := false
+	seenLabel := false
+	seenGreeting := false
+	seenSwatch := false
+	seenRatio := false
+	seenScale := false
+	seenWeight := false
+	seenCeiling := false
+	err := readObject(dec, "Defaults", func(key string) error {
+		switch key {
+		case "retries":
+			seenRetries = true
+			return decodeValue(dec, &out.Retries)
+		case "mode":
+			seenMode = true
+			return decodeValue(dec, &out.Mode)
+		case "label":
+			seenLabel = true
+			return decodeValue(dec, &out.Label)
+		case "greeting":
+			seenGreeting = true
+			return decodeValue(dec, &out.Greeting)
+		case "swatch":
+			seenSwatch = true
+			return decodeValue(dec, &out.Swatch)
+		case "ratio":
+			seenRatio = true
+			return decodeValue(dec, &out.Ratio)
+		case "scale":
+			seenScale = true
+			return decodeValue(dec, &out.Scale)
+		case "weight":
+			seenWeight = true
+			return decodeValue(dec, &out.Weight)
+		case "ceiling":
+			seenCeiling = true
+			return decodeValue(dec, &out.Ceiling)
+		}
+		return dec.SkipValue()
+	})
+	if err != nil {
 		return err
 	}
-	*o = Defaults(*aux)
+	/* Rather than pre-seed optional fields that declare a schema default
+	 * before decoding, the decode records which keys it read and gives each
+	 * absent one its default here; a key that is present, null included,
+	 * keeps what it decoded to, matching the other SDKs. */
+	if !seenRetries {
+		var defaultRetries int32 = 3
+		out.Retries = &defaultRetries
+	}
+	if !seenMode {
+		var defaultMode DefaultsModeEnum = "medium"
+		out.Mode = &defaultMode
+	}
+	if !seenLabel {
+		var defaultLabel string = "untitled"
+		out.Label = &defaultLabel
+	}
+	if !seenGreeting {
+		var defaultGreeting string = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
+		out.Greeting = &defaultGreeting
+	}
+	if !seenSwatch {
+		var defaultSwatch Swatch = SwatchGreen
+		out.Swatch = &defaultSwatch
+	}
+	if !seenRatio {
+		var defaultRatio float64 = 1.5
+		out.Ratio = &defaultRatio
+	}
+	if !seenScale {
+		var defaultScale float32 = 0.25
+		out.Scale = &defaultScale
+	}
+	if !seenWeight {
+		var defaultWeight float64 = 2
+		out.Weight = &defaultWeight
+	}
+	if !seenCeiling {
+		var defaultCeiling int64 = 9000000000
+		out.Ceiling = &defaultCeiling
+	}
+	*o = out
 	return nil
 }

@@ -38,7 +38,7 @@ import io.ktor.client.plugins.pluginOrNull
  *   `"http://proxy.corp.example.com:3128"`. `null` means direct connections.
  * @property timeout End-to-end request timeout in milliseconds. Covers the entire request
  *   lifecycle: connection, TLS handshake, sending the request body, and reading the response.
- *   Defaults to 10000 ms (10 seconds) when the builder does not set a value. `null` means no
+ *   Defaults to 60000 ms (60 seconds) when the builder does not set a value. `null` means no
  *   timeout.
  * @property followRedirects Whether the client follows HTTP 3xx redirects automatically: `true` to
  *   follow redirects (default), `false` to return the redirect response as-is.
@@ -67,6 +67,12 @@ import io.ktor.client.plugins.pluginOrNull
  *   response headers, and this value bounds the gap between two reads of the body. A stalled
  *   body raises [com.example.petstore.errors.NetworkTimeoutException]. A buffered call is
  *   unaffected. Defaults to 60000 ms (60 seconds); `null` means the idle timeout is disabled.
+ * @property maxResponseBytes The most bytes the default client reads for a buffered response
+ *   body. Both the bytes on the wire and the decompressed bytes (gzip, deflate, br, zstd) count
+ *   against it, for a success or an error body and for every redirect hop that is read. A body
+ *   that passes it raises [com.example.petstore.errors.ResponseTooLargeException] as soon as the
+ *   limit is crossed, and the connection is dropped. A streamed response is read by the caller
+ *   and is not bounded by it. `null` (the default) means no limit.
  */
 class TransportOptions private constructor(
     val verifySsl: Boolean,
@@ -81,6 +87,7 @@ class TransportOptions private constructor(
     val httpClient: HttpClient?,
     val maxRetries: Int,
     val idleTimeout: Long?,
+    val maxResponseBytes: Long?,
 ) {
     companion object {
         /* The proxy URL with any user-info replaced by `***@`, so an error message or a string
@@ -108,9 +115,10 @@ class TransportOptions private constructor(
      * - `verifySsl` - `true`
      * - `followRedirects` - `true`
      * - `injectRequestId` - `false`
-     * - `timeout` - `10000` (10 seconds)
+     * - `timeout` - `60000` (60 seconds)
      * - `maxRetries` - `2`
      * - `idleTimeout` - `60000` (60 seconds)
+     * - `maxResponseBytes` - `null` (no limit)
      * - `userAgent` - a package-specific default string
      * - All other fields - `null` or empty
      */
@@ -118,7 +126,7 @@ class TransportOptions private constructor(
         private var verifySsl: Boolean = true
         private var caCertPath: String? = null
         private var proxy: String? = null
-        private var timeout: Long? = 10000L
+        private var timeout: Long? = 60000L
         private var followRedirects: Boolean = true
         private var maxRedirects: Int? = null
         private var userAgent: String? = "petstore-client/1.0.0 (kotlin)"
@@ -127,6 +135,7 @@ class TransportOptions private constructor(
         private var httpClient: HttpClient? = null
         private var maxRetries: Int = 2
         private var idleTimeout: Long? = 60_000L
+        private var maxResponseBytes: Long? = null
 
         /**
          * Enable or disable TLS certificate verification.
@@ -271,6 +280,23 @@ class TransportOptions private constructor(
                 this.idleTimeout = if (idleTimeout == null || idleTimeout == 0L) null else idleTimeout
             }
 
+        /**
+         * Set the most bytes the default client reads for a buffered response body.
+         *
+         * See [TransportOptions.maxResponseBytes] for what is counted.
+         *
+         * @param maxResponseBytes the limit in bytes (positive), or `null` for no limit
+         * @return this builder
+         * @throws IllegalArgumentException if [maxResponseBytes] is not positive
+         */
+        fun maxResponseBytes(maxResponseBytes: Long?): Builder =
+            apply {
+                require(maxResponseBytes == null || maxResponseBytes > 0) {
+                    "Invalid maxResponseBytes: must be a positive number of bytes (got $maxResponseBytes)"
+                }
+                this.maxResponseBytes = maxResponseBytes
+            }
+
         private fun canonicalProxy(proxy: String?): String? {
             if (proxy == null) {
                 return null
@@ -340,6 +366,7 @@ class TransportOptions private constructor(
                 httpClient,
                 maxRetries,
                 idleTimeout,
+                maxResponseBytes,
             )
         }
     }
@@ -360,6 +387,6 @@ class TransportOptions private constructor(
             "proxy=${proxy?.let { maskUserInfo(it) }}, timeout=$timeout, " +
             "followRedirects=$followRedirects, maxRedirects=$maxRedirects, userAgent=$userAgent, " +
             "defaultHeaders=$headers, injectRequestId=$injectRequestId, maxRetries=$maxRetries, " +
-            "idleTimeout=$idleTimeout)"
+            "idleTimeout=$idleTimeout, maxResponseBytes=$maxResponseBytes)"
     }
 }

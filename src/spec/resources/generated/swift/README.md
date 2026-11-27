@@ -15,7 +15,7 @@ Pets, owners and orders for integration tests
 ## Requirements
 
 - **Swift 6.0+** (toolchain available at <https://swift.org/download/>)
-- **macOS 12+** or a Linux distribution supported by the Swift toolchain
+- **macOS 13+** or a Linux distribution supported by the Swift toolchain
 - [`swift-format`](https://github.com/apple/swift-format) (bundled with the
   Swift 6.0 toolchain) — formatter and basic linter
 - [`swiftlint`](https://github.com/realm/SwiftLint) — opinionated linter
@@ -246,7 +246,7 @@ Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult`
 holding the status code, the response headers, the raw body and the decoded
 data; use it when you need to read a header.
 
-`TransportOptionsBuilder.timeout(_:)` is in milliseconds (default 10000) and is
+`TransportOptionsBuilder.timeout(_:)` is in milliseconds (default 60000) and is
 one end-to-end budget for the whole call: connection, every redirect hop and
 the response body. When it elapses the call throws `NetworkTimeoutError`.
 Unless `injectRequestID(false)` is set, the SDK sends a generated
@@ -265,6 +265,8 @@ is the single end-to-end budget: retries never extend it, and a wait that does
 not fit in what is left is skipped. Every retry is a fresh request that asks the
 authenticator for its headers again. A single-use `BodySource` and the OAuth2 token request
 are never retried, and a request that timed out is not retried.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
 
 ## Per-call options
 

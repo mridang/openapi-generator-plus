@@ -28,6 +28,10 @@ var ErrInvalidProxyURL = errors.New("invalid proxy URL")
 // number of milliseconds. Match it with errors.Is.
 var ErrInvalidTimeout = errors.New("invalid timeout")
 
+// ErrInvalidMaxResponseBytes is returned by Build when the response size limit
+// is not a positive number of bytes. Match it with errors.Is.
+var ErrInvalidMaxResponseBytes = errors.New("invalid maxResponseBytes")
+
 // ErrInvalidMaxRetries is returned by Build when the retry limit is negative.
 // Match it with errors.Is.
 var ErrInvalidMaxRetries = errors.New("invalid max retries")
@@ -91,20 +95,21 @@ var ErrTransportConflict = errors.New("conflicting transport options")
 //		// ErrInvalidProxyURL or ErrInvalidCACertificate
 //	}
 type TransportOptions struct {
-	verifySsl       bool
-	caCertPath      string
-	caCertPool      *x509.CertPool // certificates read from caCertPath by Build; nil when none
-	proxy           *url.URL
-	timeout         *int
-	followRedirects bool
-	maxRedirects    *int
-	userAgent       *string
-	defaultHeaders  map[string]string
-	injectRequestID bool
-	maxRetries      int
-	idleTimeout     *int
-	httpClient      HttpDoer
-	roundTripper    http.RoundTripper
+	verifySsl        bool
+	caCertPath       string
+	caCertPool       *x509.CertPool // certificates read from caCertPath by Build; nil when none
+	proxy            *url.URL
+	timeout          *int
+	followRedirects  bool
+	maxRedirects     *int
+	userAgent        *string
+	defaultHeaders   map[string]string
+	injectRequestID  bool
+	maxRetries       int
+	idleTimeout      *int
+	maxResponseBytes *int64
+	httpClient       HttpDoer
+	roundTripper     http.RoundTripper
 }
 
 // DefaultIdleTimeout is the longest, in milliseconds, a streamed response body
@@ -119,15 +124,17 @@ const DefaultIdleTimeout = 60000
 //   - followRedirects: true
 //   - injectRequestID: false
 //   - maxRetries: 2 (DefaultMaxRetries); call MaxRetries(0) to disable retries
-//   - timeout: 10000 (10 seconds); call Timeout with an explicit value to
+//   - timeout: 60000 (60 seconds); call Timeout with an explicit value to
 //     override it, or with nil for no timeout
 //   - idleTimeout: 60000 (60 seconds); call IdleTimeout with an explicit value
 //     to override it, or with nil or a pointer to 0 for none
 //   - userAgent: "petstore/1.0.0 (go)"; call UserAgent to override it or pass
 //     nil to omit it
+//   - maxResponseBytes: nil (no limit); call MaxResponseBytes to bound the
+//     body of a buffered response
 //   - all other fields: nil or empty
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
-	defaultTimeout := 10000
+	defaultTimeout := 60000
 	defaultIdleTimeout := DefaultIdleTimeout
 	defaultUserAgent := "petstore/1.0.0 (go)"
 	return &TransportOptionsBuilder{
@@ -163,7 +170,7 @@ func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
 // Timeout returns the end-to-end request timeout in milliseconds.
 //
 // Covers the entire request lifecycle: connection, TLS handshake, sending the
-// request body, and reading the response. Defaults to 10000 ms (10 seconds)
+// request body, and reading the response. Defaults to 60000 ms (60 seconds)
 // when the builder does not set a value. Returns nil for no timeout (wait
 // indefinitely); a set value is always positive.
 func (t *TransportOptions) Timeout() *int { return t.timeout }
@@ -229,22 +236,35 @@ func (t *TransportOptions) MaxRetries() int { return t.maxRetries }
 // when it is disabled, and a set value is always positive.
 func (t *TransportOptions) IdleTimeout() *int { return t.idleTimeout }
 
+// MaxResponseBytes returns the most bytes the client reads for the body of a
+// buffered response, or nil for no limit (the default).
+//
+// The limit counts both the bytes on the wire and the bytes after
+// decompression (gzip, deflate, br, zstd), so a small compressed body that
+// inflates past it fails too. A body that passes it fails the call with a
+// *ResponseTooLargeError carrying the response's status and headers; the
+// connection is dropped and the call is not retried. A streamed response is
+// not affected: the caller reads it incrementally. A set value is always
+// positive.
+func (t *TransportOptions) MaxResponseBytes() *int64 { return t.maxResponseBytes }
+
 // TransportOptionsBuilder builds immutable TransportOptions instances.
 type TransportOptionsBuilder struct {
-	verifySsl       bool
-	caCertPath      string
-	proxy           *url.URL
-	proxyErr        error
-	timeout         *int
-	followRedirects bool
-	maxRedirects    *int
-	userAgent       *string
-	defaultHeaders  map[string]string
-	injectRequestID bool
-	maxRetries      int
-	idleTimeout     *int
-	httpClient      HttpDoer
-	roundTripper    http.RoundTripper
+	verifySsl        bool
+	caCertPath       string
+	proxy            *url.URL
+	proxyErr         error
+	timeout          *int
+	followRedirects  bool
+	maxRedirects     *int
+	userAgent        *string
+	defaultHeaders   map[string]string
+	injectRequestID  bool
+	maxRetries       int
+	idleTimeout      *int
+	maxResponseBytes *int64
+	httpClient       HttpDoer
+	roundTripper     http.RoundTripper
 }
 
 // HttpClient routes every request through the caller's own HTTP client (any
@@ -411,6 +431,16 @@ func (b *TransportOptionsBuilder) IdleTimeout(val *int) *TransportOptionsBuilder
 	return b
 }
 
+// MaxResponseBytes sets the most bytes the client reads for the body of a
+// buffered response (see TransportOptions.MaxResponseBytes).
+//
+// Pass nil for no limit (the default). Build rejects zero and negative values
+// with ErrInvalidMaxResponseBytes.
+func (b *TransportOptionsBuilder) MaxResponseBytes(val *int64) *TransportOptionsBuilder {
+	b.maxResponseBytes = val
+	return b
+}
+
 // Build builds and returns an immutable TransportOptions instance.
 //
 // It returns ErrInvalidProxyURL when the proxy URL is invalid, and
@@ -423,6 +453,9 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	}
 	if b.timeout != nil && *b.timeout <= 0 {
 		return nil, fmt.Errorf("%w: must be a positive number of milliseconds (got %d)", ErrInvalidTimeout, *b.timeout)
+	}
+	if b.maxResponseBytes != nil && *b.maxResponseBytes <= 0 {
+		return nil, fmt.Errorf("%w: must be a positive number of bytes (got %d)", ErrInvalidMaxResponseBytes, *b.maxResponseBytes)
 	}
 	if b.maxRetries < 0 {
 		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRetries, b.maxRetries)
@@ -470,21 +503,27 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 		value := *b.idleTimeout
 		idleTimeout = &value
 	}
+	var maxResponseBytes *int64
+	if b.maxResponseBytes != nil {
+		value := *b.maxResponseBytes
+		maxResponseBytes = &value
+	}
 	return &TransportOptions{
-		verifySsl:       b.verifySsl,
-		caCertPath:      b.caCertPath,
-		caCertPool:      caCertPool,
-		proxy:           b.proxy,
-		timeout:         b.timeout,
-		followRedirects: b.followRedirects,
-		maxRedirects:    b.maxRedirects,
-		userAgent:       b.userAgent,
-		defaultHeaders:  headers,
-		injectRequestID: b.injectRequestID,
-		maxRetries:      b.maxRetries,
-		idleTimeout:     idleTimeout,
-		httpClient:      b.httpClient,
-		roundTripper:    b.roundTripper,
+		verifySsl:        b.verifySsl,
+		caCertPath:       b.caCertPath,
+		caCertPool:       caCertPool,
+		proxy:            b.proxy,
+		timeout:          b.timeout,
+		followRedirects:  b.followRedirects,
+		maxRedirects:     b.maxRedirects,
+		userAgent:        b.userAgent,
+		defaultHeaders:   headers,
+		injectRequestID:  b.injectRequestID,
+		maxRetries:       b.maxRetries,
+		idleTimeout:      idleTimeout,
+		maxResponseBytes: maxResponseBytes,
+		httpClient:       b.httpClient,
+		roundTripper:     b.roundTripper,
 	}, nil
 }
 
@@ -499,9 +538,18 @@ func defaultTransportOptions() *TransportOptions {
 // secrets held in the default headers, so credentials never leak into logs.
 func (t TransportOptions) String() string {
 	return fmt.Sprintf(
-		"TransportOptions{verifySsl: %t, caCertPath: %q, proxy: %s, followRedirects: %t, defaultHeaders: %s, injectRequestID: %t, maxRetries: %d}",
-		t.verifySsl, t.caCertPath, redactedProxy(t.proxy), t.followRedirects, redactedHeaders(t.defaultHeaders), t.injectRequestID, t.maxRetries,
+		"TransportOptions{verifySsl: %t, caCertPath: %q, proxy: %s, followRedirects: %t, defaultHeaders: %s, injectRequestID: %t, maxRetries: %d, maxResponseBytes: %s}",
+		t.verifySsl, t.caCertPath, redactedProxy(t.proxy), t.followRedirects, redactedHeaders(t.defaultHeaders), t.injectRequestID, t.maxRetries, shownMaxResponseBytes(t.maxResponseBytes),
 	)
+}
+
+// shownMaxResponseBytes is the response size limit as String shows it: the
+// number of bytes, or nil when there is no limit.
+func shownMaxResponseBytes(limit *int64) string {
+	if limit == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%d", *limit)
 }
 
 // GoString redacts the same secrets for the %#v verb, which would otherwise

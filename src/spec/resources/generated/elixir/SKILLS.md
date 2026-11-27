@@ -333,6 +333,8 @@ defmodule NoRetriesClient do
 end
 ```
 
+`TransportOptions.new(max_response_bytes: n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
+
 ### Streaming
 
 An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close/1` that aborts the connection instead of draining it, so close it when you stop early (in an `after` block). `read_all/1` reads the rest into memory and leaves the stream closed.

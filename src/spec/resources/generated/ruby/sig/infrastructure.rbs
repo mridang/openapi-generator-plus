@@ -86,13 +86,15 @@ module Petstore::Client
     attr_reader max_retries: Integer
     attr_reader connection: untyped
     attr_reader idle_timeout: (Integer | Float)?
-    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Numeric?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped, ?idle_timeout: (Integer | Float)?) -> void
+    attr_reader max_response_bytes: Integer?
+    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Numeric?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped, ?idle_timeout: (Integer | Float)?, ?max_response_bytes: Integer?) -> void
     def self.builder: () -> TransportOptions::Builder
     def self.follows_redirects?: (untyped) -> bool
     def self.validate_proxy!: (String?) -> void
     def self.validate_max_retries!: (untyped) -> Integer
     def self.validate_max_redirects!: (untyped) -> untyped
     def self.validate_idle_timeout!: (untyped) -> (Integer | Float)?
+    def self.validate_max_response_bytes!: (untyped) -> Integer?
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
@@ -115,6 +117,7 @@ module Petstore::Client
       def max_retries: (Integer) -> Builder
       def connection: (untyped) -> Builder
       def idle_timeout: ((Integer | Float)?) -> Builder
+      def max_response_bytes: (Integer?) -> Builder
       def build: () -> TransportOptions
     end
   end
@@ -549,6 +552,11 @@ module Petstore::Client
     class StreamError < NetworkError
     end
 
+    class ResponseTooLargeError < ApiError
+      attr_reader limit: Integer
+      def initialize: (limit: Integer, ?status_code: Integer, ?response_headers: Hash[String, String]?, ?request_method: String?, ?request_path: String?) -> void
+    end
+
     class PaginationError < ::Petstore::Client::Errors::OpenAPIError
       attr_reader request_path: String?
       def initialize: (String, ?String?) -> void
@@ -628,6 +636,7 @@ module Petstore::Client
     RETRY_AFTER_CAP_S: Float
     STREAM_ENCODINGS: String
     STREAM_READ_TIMEOUT_S: Integer
+    DECODE_INPUT_SLICE: Integer
     class StreamSpec
       attr_reader idle_ms: (Integer | Float)?
       def initialize: ((Integer | Float)?) -> void
@@ -670,6 +679,11 @@ module Petstore::Client
     def pause: (Float) -> void
     def run_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?, ?StreamSpec?) -> untyped
     def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
+    def buffered_dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
+    def response_too_large: (untyped, untyped, untyped) -> Errors::ResponseTooLargeError
+    def check_decoded_size!: (untyped, Integer) -> void
+    def each_decoded_slice: (String, String) { (String) -> void } -> void
+    def each_input_slice: (String) { (String) -> void } -> void
     def wire_body: (BodySource) -> [untyped, Hash[String, String]]
     def dispatch_wire: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
@@ -738,6 +752,11 @@ module Petstore::Client
     MAX_JSON_DEPTH: Integer
     EXACT_NUMBER_TOKEN: String
     EXACT_NUMBER_PREFIX: String
+    WRITTEN_SCALE: ObjectSpace::WeakMap[BigDecimal, Integer]
+    module ScaledDecimal
+      def self.try_convert: (String) -> BigDecimal
+    end
+    def self.scaled_decimal: (String) -> BigDecimal
     PROTOBUF_DURATION_REGEX: Regexp
     PROTOBUF_DURATION_MAX_SECONDS: Integer
     UUID_REGEX: Regexp
@@ -901,6 +920,7 @@ module Petstore::Client
         def invalidate_access_token: () -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
+        def exchange_code_checking_id_token: (String) ?{ (String?) -> void } -> void
       end
       class OAuth2ImplicitAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
@@ -913,6 +933,7 @@ module Petstore::Client
         include HttpAwareAuthenticator
         DEFAULT_DISCOVERY_MAX_AGE_SECONDS: Integer
         MAX_DISCOVERY_MAX_AGE_SECONDS: Integer
+        ID_TOKEN_CLOCK_SKEW_SECONDS: Integer
         def initialize: (String, String, String, String, String, Array[String]) -> void
         attr_writer api_client: ApiClient?
         def build_authorization_url: (?String?) -> String
@@ -925,6 +946,9 @@ module Petstore::Client
         def validate_discovery!: (Hash[String, untyped], untyped, untyped) -> void
         def secure_endpoint?: (String) -> bool
         def parse_discovery: (String?) -> Hash[String, untyped]
+        def validate_id_token: (String?, String?, String?) -> void
+        def decode_id_token: (String) -> Hash[String, untyped]
+        def audience_contains?: (untyped) -> bool
       end
 
       class OAuth2TokenManager
@@ -934,7 +958,7 @@ module Petstore::Client
         attr_reader refresh_token: String?
         def initialize: () -> void
         def get_access_token: (String, Hash[String, String], ?Hash[String, String], ?refresh_url: String?) -> String
-        def exchange: (String, Hash[String, String], ?Hash[String, String]) -> String
+        def exchange: (String, Hash[String, String], ?Hash[String, String]) ?{ (String?) -> void } -> String
         def access_token=: (String) -> void
         def invalidate_access_token: () -> void
         def mark_exchanged: () -> void

@@ -696,6 +696,355 @@ pub mod naive_time {
     }
 }
 
+/// Whether `text` is a plain decimal: an optional minus, digits and an
+/// optional fraction, with no exponent, sign plus, underscore or whitespace.
+fn is_plain_decimal(text: &str) -> bool {
+    let body = text.strip_prefix('-').unwrap_or(text);
+    let (whole, fraction) = match body.split_once('.') {
+        Some((whole, fraction)) => (whole, Some(fraction)),
+        None => (body, None),
+    };
+    !whole.is_empty()
+        && whole.bytes().all(|b| b.is_ascii_digit())
+        && fraction.is_none_or(|f| !f.is_empty() && f.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// Parses decimal text exactly. A value with more digits than a
+/// `rust_decimal::Decimal` holds (28 significant digits) is refused rather
+/// than rounded.
+pub fn parse_decimal(text: &str) -> Result<rust_decimal::Decimal, String> {
+    let exact = if is_plain_decimal(text) {
+        rust_decimal::Decimal::from_str_exact(text).ok()
+    } else {
+        None
+    };
+    exact.ok_or_else(|| format!("{text:?} is not a decimal that can be held exactly"))
+}
+
+/// Reads the text of a JSON number into its exact digits, writing an
+/// exponent out in full (`1e2` is `100`).
+fn parse_json_number(text: &str) -> Result<rust_decimal::Decimal, String> {
+    match text.find(['e', 'E']) {
+        None => parse_decimal(text),
+        Some(at) => {
+            let mantissa = parse_decimal(&text[..at])?;
+            let exponent: i64 = text[at + 1..]
+                .parse()
+                .map_err(|_| format!("{text:?} is not a JSON number"))?;
+            let shift = u32::try_from(exponent.unsigned_abs())
+                .ok()
+                .filter(|shift| *shift <= 28)
+                .ok_or_else(|| format!("{text:?} is not a decimal that can be held exactly"))?;
+            let factor = rust_decimal::Decimal::from_i128_with_scale(10_i128.pow(shift), 0);
+            let scaled = if exponent < 0 {
+                mantissa.checked_div(factor)
+            } else {
+                mantissa.checked_mul(factor)
+            };
+            scaled
+                .filter(|value| {
+                    if exponent < 0 {
+                        value.checked_mul(factor) == Some(mantissa)
+                    } else {
+                        true
+                    }
+                })
+                .map(|value| value.normalize())
+                .ok_or_else(|| format!("{text:?} is not a decimal that can be held exactly"))
+        }
+    }
+}
+
+/// Serde adapter for a `type: number`, `format: decimal` field: reads the
+/// digits of the JSON number from its source text, never through an `f64`,
+/// and writes them back as a bare JSON number in plain notation.
+pub mod decimal_number {
+    use rust_decimal::Decimal;
+    use serde::de::{self, MapAccess, Visitor};
+    use serde::{Deserializer, Serialize, Serializer};
+
+    /* The name serde_json gives the newtype through which it hands a value's
+     * source text to `serde_json::value::RawValue` (the `raw_value` feature). */
+    const RAW_VALUE_TOKEN: &str = "$serde_json::private::RawValue";
+
+    pub fn serialize<S: Serializer>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error> {
+        serde_json::value::RawValue::from_string(value.to_string())
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Decimal, D::Error> {
+        deserializer.deserialize_newtype_struct(RAW_VALUE_TOKEN, NumberVisitor)
+    }
+
+    struct NumberVisitor;
+
+    impl<'de> Visitor<'de> for NumberVisitor {
+        type Value = Decimal;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a JSON number")
+        }
+
+        /* serde_json hands the source text as a one-entry map keyed by the token. */
+        fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Decimal, A::Error> {
+            let key: Option<String> = map.next_key()?;
+            if key.as_deref() != Some(RAW_VALUE_TOKEN) {
+                return Err(de::Error::invalid_type(de::Unexpected::Map, &self));
+            }
+            let text: String = map.next_value()?;
+            if !text.starts_with(['-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']) {
+                return Err(de::Error::custom(format!(
+                    "expected a JSON number, found {text}"
+                )));
+            }
+            super::parse_json_number(&text).map_err(de::Error::custom)
+        }
+
+        /* A value buffered by serde (a flattened or untagged model) has
+         * already been read as a number; take it as it arrives. */
+        fn visit_newtype_struct<D: Deserializer<'de>>(
+            self,
+            deserializer: D,
+        ) -> Result<Decimal, D::Error> {
+            deserializer.deserialize_any(self)
+        }
+
+        fn visit_u64<E: de::Error>(self, value: u64) -> Result<Decimal, E> {
+            Ok(Decimal::from(value))
+        }
+
+        fn visit_i64<E: de::Error>(self, value: i64) -> Result<Decimal, E> {
+            Ok(Decimal::from(value))
+        }
+
+        fn visit_f64<E: de::Error>(self, value: f64) -> Result<Decimal, E> {
+            super::parse_json_number(&value.to_string()).map_err(de::Error::custom)
+        }
+    }
+
+    /// `Option<Decimal>` variant.
+    pub mod option {
+        use rust_decimal::Decimal;
+        use serde::de::{self, Visitor};
+        use serde::{Deserializer, Serializer};
+
+        pub fn serialize<S: Serializer>(
+            value: &Option<Decimal>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match value {
+                Some(value) => super::serialize(value, serializer),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<Decimal>, D::Error> {
+            deserializer.deserialize_option(OptionVisitor)
+        }
+
+        struct OptionVisitor;
+
+        impl<'de> Visitor<'de> for OptionVisitor {
+            type Value = Option<Decimal>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a JSON number or null")
+            }
+
+            fn visit_none<E: de::Error>(self) -> Result<Option<Decimal>, E> {
+                Ok(None)
+            }
+
+            fn visit_unit<E: de::Error>(self) -> Result<Option<Decimal>, E> {
+                Ok(None)
+            }
+
+            fn visit_some<D: Deserializer<'de>>(
+                self,
+                deserializer: D,
+            ) -> Result<Option<Decimal>, D::Error> {
+                super::deserialize(deserializer).map(Some)
+            }
+        }
+    }
+
+    /// `Vec<Decimal>` variant.
+    pub mod vec {
+        use rust_decimal::Decimal;
+        use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+        /// One element, read and written through the adapter above.
+        pub struct Item(pub Decimal);
+
+        impl Serialize for Item {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                super::serialize(&self.0, serializer)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for Item {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                super::deserialize(deserializer).map(Item)
+            }
+        }
+
+        pub fn serialize<S: Serializer>(
+            values: &[Decimal],
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            serializer.collect_seq(values.iter().map(|value| Item(*value)))
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Vec<Decimal>, D::Error> {
+            Ok(Vec::<Item>::deserialize(deserializer)?
+                .into_iter()
+                .map(|Item(value)| value)
+                .collect())
+        }
+    }
+
+    /// `Option<Vec<Decimal>>` variant.
+    pub mod vec_option {
+        use rust_decimal::Decimal;
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        pub fn serialize<S: Serializer>(
+            values: &Option<Vec<Decimal>>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match values {
+                Some(values) => super::vec::serialize(values, serializer),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<Vec<Decimal>>, D::Error> {
+            Ok(
+                Option::<Vec<super::vec::Item>>::deserialize(deserializer)?.map(|items| {
+                    items
+                        .into_iter()
+                        .map(|super::vec::Item(value)| value)
+                        .collect()
+                }),
+            )
+        }
+    }
+}
+
+/// Serde adapter for a `type: string`, `format: decimal` field: reads the
+/// decimal only from a JSON string and writes it back as one, keeping its
+/// scale (`12.50`).
+pub mod decimal_string {
+    use rust_decimal::Decimal;
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&value.to_string())
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Decimal, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        super::parse_decimal(&text).map_err(de::Error::custom)
+    }
+
+    /// `Option<Decimal>` variant.
+    pub mod option {
+        use rust_decimal::Decimal;
+        use serde::{de, Deserialize, Deserializer, Serializer};
+
+        pub fn serialize<S: Serializer>(
+            value: &Option<Decimal>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match value {
+                Some(value) => super::serialize(value, serializer),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<Decimal>, D::Error> {
+            Option::<String>::deserialize(deserializer)?
+                .map(|text| super::super::parse_decimal(&text).map_err(de::Error::custom))
+                .transpose()
+        }
+    }
+
+    /// `Vec<Decimal>` variant.
+    pub mod vec {
+        use rust_decimal::Decimal;
+        use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+        /// One element, read and written through the adapter above.
+        pub struct Item(pub Decimal);
+
+        impl Serialize for Item {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                super::serialize(&self.0, serializer)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for Item {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                super::deserialize(deserializer).map(Item)
+            }
+        }
+
+        pub fn serialize<S: Serializer>(
+            values: &[Decimal],
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            serializer.collect_seq(values.iter().map(|value| Item(*value)))
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Vec<Decimal>, D::Error> {
+            Ok(Vec::<Item>::deserialize(deserializer)?
+                .into_iter()
+                .map(|Item(value)| value)
+                .collect())
+        }
+    }
+
+    /// `Option<Vec<Decimal>>` variant.
+    pub mod vec_option {
+        use rust_decimal::Decimal;
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        pub fn serialize<S: Serializer>(
+            values: &Option<Vec<Decimal>>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match values {
+                Some(values) => super::vec::serialize(values, serializer),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<Vec<Decimal>>, D::Error> {
+            Ok(
+                Option::<Vec<super::vec::Item>>::deserialize(deserializer)?.map(|items| {
+                    items
+                        .into_iter()
+                        .map(|super::vec::Item(value)| value)
+                        .collect()
+                }),
+            )
+        }
+    }
+}
+
 /// Serde adapter for `uniqueItems` arrays: the set is written in ascending
 /// natural order when every member is a scalar (numbers numerically, strings
 /// and enum wire values by Unicode code point, `false` before `true`), so the
@@ -839,6 +1188,11 @@ fn scalar_override<T: 'static>(value: &T) -> Option<String> {
     }
     if let Some(duration) = any.downcast_ref::<chrono::TimeDelta>() {
         return Some(crate::proto_duration::format(duration));
+    }
+    /* A decimal parameter is written in plain notation with every digit;
+     * rust_decimal's own serde form would quote it. */
+    if let Some(decimal) = any.downcast_ref::<rust_decimal::Decimal>() {
+        return Some(decimal.to_string());
     }
     any.downcast_ref::<chrono::NaiveTime>().map(format_time)
 }
@@ -1021,6 +1375,10 @@ mod tests {
     fn test_bhv_serializationparam_082_stringify_param_simple_object_is_a_header_list() {
         let map = sample_object();
 
+        assert_eq!(
+            "breed,lab,min_age,3",
+            object_serializer::stringify_param(&map, "simple", false).unwrap()
+        );
         assert_eq!(
             "breed=lab,min_age=3",
             object_serializer::stringify_param(&map, "simple", true).unwrap()

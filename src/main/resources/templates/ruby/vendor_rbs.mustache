@@ -22,10 +22,20 @@ end
 
 module Brotli
   def self.inflate: (String) -> String
+
+  class Decompressor
+    def initialize: () -> void
+    def process: (String) -> String
+  end
 end
 
 module Zstd
   def self.decompress: (String) -> String
+
+  class StreamingDecompress
+    def initialize: () -> void
+    def decompress: (String) -> String
+  end
 end
 
 # 4.8: format: time — Tod::TimeOfDay surface for HH:MM:SS values.
@@ -61,5 +71,15 @@ end
 module Faraday
   class Connection
     def proxy=: ((String | Hash[Symbol, untyped])?) -> void
+  end
+end
+
+# ObjectSpace::WeakMap is core Ruby, but the RBS core set the type checker loads
+# does not declare it; ObjectSerializer::WRITTEN_SCALE uses only these methods.
+module ObjectSpace
+  class WeakMap[K, V]
+    def initialize: () -> void
+    def []: (K) -> V?
+    def []=: (K, V) -> V
   end
 end
