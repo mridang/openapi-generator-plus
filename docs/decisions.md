@@ -439,6 +439,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A spec with a lower-case or hyphenated custom method generates every other operation and tells the user which one was dropped and why.
 
+## D161: A querystring parameter with form content is an exploded form query parameter
+
+**Decision.** A 3.2 parameter `in: querystring` whose `content` is `application/x-www-form-urlencoded` is generated in all twelve SDKs as one argument of the content's schema (a model or a map), and its value is written as the whole query string: each property becomes a `name=value` pair in declaration order, form-encoded, nulls left out, a nested object refused with the serialization error. That is byte for byte the exploded form style of an object query parameter (D139), so the 3.2 loader rewrites the parameter into exactly that (`in: query`, `style: form`, `explode: true`, the content's schema as its `schema`) and every SDK reuses the encoder it already has and tests (`serializationparam036`, `operations067`). A querystring parameter with any other media type (JSON, `application/jsonpath`, plain text) is left out, together with every reference to it, and reported by the specification warning pass (D142); the specification gives such a value no encoding of its own beyond "percent-encode the serialised text", and each SDK would need a second, untested query writer for it. An operation that declares a querystring parameter beside a query parameter, at the operation or the path-item level, or two querystring parameters, is reported as well, since the specification forbids both; the parameters are all kept and sent (#63).
+
+**Consequences.** A form-content querystring parameter needs no template change. Supporting another media type later is additive: a new argument kind with its own encoder.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

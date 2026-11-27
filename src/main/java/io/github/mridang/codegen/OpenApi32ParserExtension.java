@@ -108,6 +108,15 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
     private static final java.util.regex.Pattern CUSTOM_METHOD =
             java.util.regex.Pattern.compile("[A-Z][A-Z0-9_]*");
 
+    /**
+     * The carrier of a parameter's 3.2 location {@code querystring}, which the loader rewrites to
+     * an exploded form-style query parameter (D161).
+     */
+    public static final String PARAMETER_IN = "x-oas32-in";
+
+    /** The only media type a querystring parameter is read with. */
+    private static final String FORM_MEDIA_TYPE = "application/x-www-form-urlencoded";
+
     /** The version the converted document is read as. */
     private static final String READ_AS_VERSION = "3.1.1";
 
@@ -115,8 +124,11 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
     private static final String MEDIA_TYPES_PREFIX = "#/components/mediaTypes/";
 
     /** The path-item fields that hold an operation object, the 3.2 {@code query} included. */
-    private static final Set<String> OPERATION_FIELDS =
-            Set.of("get", "put", "post", "delete", "options", "head", "patch", "trace", "query");
+    private static final List<String> OPERATION_FIELD_ORDER =
+            List.of("get", "put", "post", "delete", "options", "head", "patch", "trace", "query");
+
+    /** The same fields, for membership checks. */
+    private static final Set<String> OPERATION_FIELDS = Set.copyOf(OPERATION_FIELD_ORDER);
 
     @Override
     @Nullable public SwaggerParseResult readLocation(
@@ -218,6 +230,7 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
         root.remove("$self");
         final ArrayNode warnings = root.arrayNode();
         relocateOperations(root, warnings);
+        rewriteQueryStrings(root, warnings);
         if (!warnings.isEmpty()) {
             root.set(LOADER_WARNINGS, warnings);
         }
@@ -411,6 +424,155 @@ public final class OpenApi32ParserExtension implements SwaggerParserExtension {
 
     private static String escape(final String segment) {
         return segment.replace("~", "~0").replace("/", "~1");
+    }
+
+    /**
+     * Rewrites every {@code in: querystring} parameter (D161). A querystring parameter whose
+     * {@code content} is {@code application/x-www-form-urlencoded} is the query string written as
+     * the form pairs of its value, which is exactly an exploded form-style query parameter of the
+     * same schema, so it becomes one: {@code in: query}, {@code style: form},
+     * {@code explode: true}, the content's schema as its {@code schema}. A querystring parameter
+     * with any other media type is left out and reported, together with every reference to it.
+     * An operation whose querystring parameter sits beside a query parameter, or beside a second
+     * querystring parameter, is reported, since the specification forbids both; its parameters
+     * are kept.
+     *
+     * @param root the document as written, changed in place
+     * @param warnings the list the problems are added to
+     */
+    static void rewriteQueryStrings(final ObjectNode root, final ArrayNode warnings) {
+        final JsonNode components = root.get("components");
+        final JsonNode parameters = components == null ? null : components.get("parameters");
+        final Set<String> unsupported = new java.util.HashSet<>();
+        if (parameters instanceof ObjectNode) {
+            final Iterator<Map.Entry<String, JsonNode>> named = parameters.properties().iterator();
+            while (named.hasNext()) {
+                final Map.Entry<String, JsonNode> entry = named.next();
+                if (entry.getValue() instanceof ObjectNode && !rewriteQueryString(
+                        (ObjectNode) entry.getValue(),
+                        "#/components/parameters/" + escape(entry.getKey()), warnings)) {
+                    unsupported.add("#/components/parameters/" + escape(entry.getKey()));
+                }
+            }
+            for (final String ref : unsupported) {
+                ((ObjectNode) parameters).remove(
+                        ref.substring("#/components/parameters/".length())
+                                .replace("~1", "/").replace("~0", "~"));
+            }
+        }
+        final JsonNode paths = root.get("paths");
+        if (paths != null) {
+            final Iterator<Map.Entry<String, JsonNode>> items = paths.properties().iterator();
+            while (items.hasNext()) {
+                final Map.Entry<String, JsonNode> item = items.next();
+                final String pointer = "#/paths/" + escape(item.getKey());
+                final JsonNode shared = item.getValue().get("parameters");
+                rewriteParameterList(shared, pointer + "/parameters", unsupported, warnings);
+                for (final String field : OPERATION_FIELD_ORDER) {
+                    final JsonNode operation = item.getValue().get(field);
+                    if (operation instanceof ObjectNode) {
+                        final JsonNode own = operation.get("parameters");
+                        rewriteParameterList(own, pointer + "/" + field + "/parameters", unsupported,
+                                warnings);
+                        checkQueryStringExclusive(root, shared, own, pointer + "/" + field,
+                                warnings);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Rewrites the querystring parameters of one list and drops the ones that are left out. */
+    private static void rewriteParameterList(@Nullable final JsonNode list, final String pointer,
+            final Set<String> unsupported, final ArrayNode warnings) {
+        if (!(list instanceof ArrayNode)) {
+            return;
+        }
+        final ArrayNode array = (ArrayNode) list;
+        for (int i = array.size() - 1; i >= 0; i--) {
+            final JsonNode parameter = array.get(i);
+            final JsonNode ref = parameter.get("$ref");
+            if (ref != null && ref.isTextual() && unsupported.contains(ref.asText())) {
+                array.remove(i);
+            } else if (parameter instanceof ObjectNode
+                    && !rewriteQueryString((ObjectNode) parameter, pointer + "/" + i, warnings)) {
+                array.remove(i);
+            }
+        }
+    }
+
+    /**
+     * Rewrites one querystring parameter in place; returns false when it is left out. Any other
+     * parameter is not changed and is kept.
+     */
+    private static boolean rewriteQueryString(
+            final ObjectNode parameter, final String pointer, final ArrayNode warnings) {
+        final JsonNode in = parameter.get("in");
+        if (in == null || !"querystring".equals(in.asText())) {
+            return true;
+        }
+        final JsonNode content = parameter.get("content");
+        final JsonNode form = content == null ? null : content.get(FORM_MEDIA_TYPE);
+        if (content == null || content.size() != 1 || !(form instanceof ObjectNode)) {
+            warn(warnings, pointer, "a querystring parameter is supported only with"
+                    + " application/x-www-form-urlencoded content; the parameter is ignored");
+            return false;
+        }
+        parameter.put("in", "query");
+        parameter.put("style", "form");
+        parameter.put("explode", true);
+        parameter.remove("content");
+        parameter.remove("allowReserved");
+        final JsonNode schema = form.get("schema");
+        parameter.set("schema", schema == null ? parameter.objectNode().put("type", "object")
+                : schema.deepCopy());
+        parameter.put(PARAMETER_IN, "querystring");
+        return true;
+    }
+
+    /** Reports an operation that mixes its querystring parameter with query parameters. */
+    private static void checkQueryStringExclusive(final ObjectNode root,
+            @Nullable final JsonNode shared, @Nullable final JsonNode own, final String pointer,
+            final ArrayNode warnings) {
+        int queryStrings = 0;
+        int queries = 0;
+        for (final JsonNode list : java.util.Arrays.asList(shared, own)) {
+            if (!(list instanceof ArrayNode)) {
+                continue;
+            }
+            for (final JsonNode parameter : list) {
+                final JsonNode resolved = resolveParameter(root, parameter);
+                if (resolved == null || resolved.get("in") == null) {
+                    continue;
+                }
+                if (resolved.has(PARAMETER_IN)) {
+                    queryStrings++;
+                } else if ("query".equals(resolved.get("in").asText())) {
+                    queries++;
+                }
+            }
+        }
+        if (queryStrings > 1) {
+            warn(warnings, pointer, "an operation has at most one querystring parameter");
+        }
+        if (queryStrings > 0 && queries > 0) {
+            warn(warnings, pointer, "a querystring parameter must not be used together with query"
+                    + " parameters; both are sent");
+        }
+    }
+
+    @Nullable private static JsonNode resolveParameter(final ObjectNode root, final JsonNode parameter) {
+        final JsonNode ref = parameter.get("$ref");
+        final String prefix = "#/components/parameters/";
+        if (ref == null || !ref.isTextual()) {
+            return parameter;
+        }
+        if (!ref.asText().startsWith(prefix) || root.get("components") == null
+                || root.get("components").get("parameters") == null) {
+            return null;
+        }
+        return root.get("components").get("parameters").get(
+                ref.asText().substring(prefix.length()).replace("~1", "/").replace("~0", "~"));
     }
 
     /** Replaces every reference that resolves to this document with its local fragment. */

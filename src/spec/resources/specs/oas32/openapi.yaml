@@ -17,6 +17,7 @@ openapi: 3.2.0
 #   - a JSON Lines response declares its item through itemSchema (D120)
 #   - a path item declares a QUERY operation with a request body (#60)
 #   - a path item declares a custom LINK method in additionalOperations (#61)
+#   - a querystring parameter carries the whole query as form pairs (#63)
 $self: shared/openapi.yaml
 jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 info:
@@ -127,7 +128,32 @@ paths:
         responses:
           '204':
             description: Linked
+  /ledgers/filter:
+    get:
+      tags:
+        - accounts
+      operationId: filterLedgers
+      parameters:
+        - name: filter
+          in: querystring
+          required: true
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                $ref: '#/components/schemas/LedgerFilter'
+      responses:
+        '204':
+          description: Filtered
 components:
+  schemas:
+    LedgerFilter:
+      type: object
+      properties:
+        prefix:
+          type: string
+        minimum:
+          type: integer
+          format: int64
   parameters:
     LedgerCode:
       name: code

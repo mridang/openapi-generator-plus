@@ -71,7 +71,7 @@ class OpenApi32ParserExtensionTest {
         assertAll(
                 () -> assertEquals("3.2.0", api.getOpenapi()),
                 () -> assertEquals("Ledger Fixture", api.getInfo().getTitle()),
-                () -> assertEquals(4, api.getPaths().keySet().stream()
+                () -> assertEquals(5, api.getPaths().keySet().stream()
                         .map(OpenApi32ParserExtension::resourcePath).distinct().count()));
     }
 
@@ -294,6 +294,74 @@ class OpenApi32ParserExtensionTest {
                         warnings));
     }
 
+    @Test
+    @DisplayName("a form-urlencoded querystring parameter becomes an exploded form query parameter")
+    void queryStringBecomesAnExplodedFormParameter() throws URISyntaxException {
+        final OpenAPI api = parse(fixturePath());
+        final Parameter filter =
+                nn(api.getPaths().get("/ledgers/filter")).getGet().getParameters().get(0);
+        assertAll(
+                () -> assertEquals("query", filter.getIn()),
+                () -> assertEquals(Parameter.StyleEnum.FORM, filter.getStyle()),
+                () -> assertEquals(true, filter.getExplode()),
+                () -> assertNull(filter.getContent()),
+                () -> assertTrue(filter.getRequired()),
+                () -> assertEquals("#/components/schemas/LedgerFilter", nn(filter.getSchema()).get$ref(),
+                        "the content schema was not moved to the parameter"));
+    }
+
+    @Test
+    @DisplayName("a querystring parameter of another media type is left out, and mixing is reported")
+    void unsupportedQueryStringsAreReported(@TempDir final Path dir) throws IOException {
+        final Path spec = dir.resolve("openapi.yaml");
+        Files.writeString(spec, "openapi: 3.2.0\n"
+                + "info: {title: T, version: '1'}\n"
+                + "paths:\n"
+                + "  /items:\n"
+                + "    parameters:\n"
+                + "      - {name: limit, in: query, schema: {type: integer}}\n"
+                + "    get:\n"
+                + "      parameters:\n"
+                + "        - $ref: '#/components/parameters/Filter'\n"
+                + "      responses: {'204': {description: OK}}\n"
+                + "    put:\n"
+                + "      parameters:\n"
+                + "        - $ref: '#/components/parameters/Path'\n"
+                + "        - name: raw\n"
+                + "          in: querystring\n"
+                + "          content: {text/plain: {schema: {type: string}}}\n"
+                + "      responses: {'204': {description: OK}}\n"
+                + "components:\n"
+                + "  parameters:\n"
+                + "    Filter:\n"
+                + "      name: filter\n"
+                + "      in: querystring\n"
+                + "      content:\n"
+                + "        application/x-www-form-urlencoded:\n"
+                + "          schema: {type: object, properties: {q: {type: string}}}\n"
+                + "    Path:\n"
+                + "      name: path\n"
+                + "      in: querystring\n"
+                + "      content: {application/jsonpath: {schema: {type: string}}}\n",
+                StandardCharsets.UTF_8);
+        final OpenAPI api = parse(spec.toString());
+        final List<String> warnings = SpecWarnings.collect(api).stream()
+                .map(SpecWarnings.Warning::toString).collect(Collectors.toList());
+        assertAll(
+                () -> assertEquals(List.of(
+                        "#/components/parameters/Path: a querystring parameter is supported only"
+                                + " with application/x-www-form-urlencoded content; the parameter"
+                                + " is ignored",
+                        "#/paths/~1items/get: a querystring parameter must not be used together"
+                                + " with query parameters; both are sent",
+                        "#/paths/~1items/put/parameters/1: a querystring parameter is supported"
+                                + " only with application/x-www-form-urlencoded content; the"
+                                + " parameter is ignored"),
+                        warnings),
+                () -> assertEquals(List.of(), nn(api.getPaths().get("/items")).getPut().getParameters()),
+                () -> assertFalse(api.getComponents().getParameters().containsKey("Path")));
+    }
+
     @TestFactory
     @DisplayName("every SDK generates from the 3.2 fixture")
     Stream<DynamicTest> everySdkGeneratesFromTheFixture() {
@@ -321,7 +389,10 @@ class OpenApi32ParserExtensionTest {
                                     .contains("linkledgers") && all.contains("LINK"),
                                     "the LINK operation is missing"),
                             () -> assertFalse(all.contains("search QUERY") || all.contains("search LINK"),
-                                    "the internal path-item key leaked into the SDK"));
+                                    "the internal path-item key leaked into the SDK"),
+                            () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
+                                    .contains("filterledgers") && all.contains("LedgerFilter"),
+                                    "the querystring operation or its model is missing"));
                 }));
     }
 
