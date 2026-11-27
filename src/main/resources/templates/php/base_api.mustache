@@ -27,6 +27,9 @@ use {{invokerPackage}}\TraceContextUtil;
 use {{invokerPackage}}\ValueSerializer;
 use {{invokerPackage}}\Auth\Authenticator;
 use {{invokerPackage}}\Auth\CompositeAuthenticator;
+{{#hasDigestAuth}}
+use {{invokerPackage}}\Auth\DigestAuthenticator;
+{{/hasDigestAuth}}
 use {{invokerPackage}}\Auth\HttpAwareAuthenticator;
 use {{invokerPackage}}\Auth\NoAuth;
 
@@ -763,6 +766,10 @@ class BaseApi
             $headerParams,
             $effectiveAuth,
             $callHeaders,
+{{#hasDigestAuth}}
+            $method,
+            $url,
+{{/hasDigestAuth}}
         ): array {
             $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
             $headers = self::mergeHeaders($headers, $this->config->defaultHeaders);
@@ -793,6 +800,15 @@ class BaseApi
                     $existing = $headers['Cookie'] ?? '';
                     $headers['Cookie'] = $existing !== '' ? $existing . '; ' . $cookieStr : $cookieStr;
                 }
+{{#hasDigestAuth}}
+                /* A digest authenticator answers the challenge it remembers (D192). */
+                if ($effectiveAuth instanceof DigestAuthenticator) {
+                    $answer = $effectiveAuth->authorization(strtoupper($method), self::requestTarget($url));
+                    if ($answer !== null) {
+                        $headers = self::mergeHeaders($headers, ['Authorization' => $answer]);
+                    }
+                }
+{{/hasDigestAuth}}
             }
             foreach ($callHeaders ?? [] as $name => $value) {
                 foreach (array_keys($headers) as $existing) {
@@ -913,6 +929,20 @@ class BaseApi
                         $responseHeaders = $response->headers;
                     }
                 }
+{{#hasDigestAuth}}
+
+                if ($response->statusCode === 401
+                    && $effectiveAuth instanceof DigestAuthenticator
+                    && self::isReplayableBody($serializedBody)
+                    && self::acceptsChallenge($effectiveAuth, $response->headers)
+                ) {
+                    /* HTTP Digest (D192): the challenge is answered and the request
+                     * replayed once; a second 401 stands. */
+                    $response = $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
+                    $statusCode = $response->statusCode;
+                    $responseHeaders = $response->headers;
+                }
+{{/hasDigestAuth}}
 
                 if ($response->statusCode < 200 || $response->statusCode >= 300) {
                     throw ApiException::fromResponse(
@@ -1019,6 +1049,27 @@ class BaseApi
                 $responseHeaders = $stream->headers;
             }
         }
+{{#hasDigestAuth}}
+
+        if ($stream->statusCode === 401
+            && $effectiveAuth instanceof DigestAuthenticator
+            && self::isReplayableBody($serializedBody)
+            && self::acceptsChallenge($effectiveAuth, $stream->headers)
+        ) {
+            $stream->close();
+            $stream = $this->callStreaming(
+                $method,
+                $url,
+                $headersForAttempt,
+                $serializedBody,
+                $timeout,
+                $maxRetries,
+                $idleTimeoutMs
+            );
+            $statusCode = $stream->statusCode;
+            $responseHeaders = $stream->headers;
+        }
+{{/hasDigestAuth}}
 
         if ($stream->statusCode < 200 || $stream->statusCode >= 300) {
             $bytes = $stream->readBounded(self::STREAM_ERROR_BODY_LIMIT);
@@ -1594,6 +1645,33 @@ class BaseApi
         return ObjectSerializer::serialize($body);
     }
 
+{{#hasDigestAuth}}
+    /** The request target of a URL: its path and query, without the scheme and host. */
+    private static function requestTarget(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $query = parse_url($url, PHP_URL_QUERY);
+
+        return (is_string($path) ? $path : '') . (is_string($query) && $query !== '' ? '?' . $query : '');
+    }
+
+    /**
+     * Whether a 401 carries a challenge the digest authenticator accepts.
+     *
+     * @param array<string, string> $headers the response headers
+     */
+    private static function acceptsChallenge(DigestAuthenticator $auth, array $headers): bool
+    {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp((string) $name, 'WWW-Authenticate') === 0) {
+                return $auth->acceptChallenge($value);
+            }
+        }
+
+        return false;
+    }
+
+{{/hasDigestAuth}}
     /**
      * Whether a request body can be sent again, which a replay after a token refresh needs: no body,
      * bytes, or a replayable {@see BodySource}. A stream or multipart parts cannot.

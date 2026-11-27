@@ -23,6 +23,9 @@ import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.ObjectSerializer;
 import {{invokerPackage}}.TraceContextUtil;
 import {{invokerPackage}}.auth.Authenticator;
+{{#hasDigestAuth}}
+import {{invokerPackage}}.auth.ChallengeAuthenticator;
+{{/hasDigestAuth}}
 import {{invokerPackage}}.auth.HttpAwareAuthenticator;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -777,6 +780,18 @@ public abstract class BaseApi {
                         requestPathOf(url));
             }
             headers.putAll(sentAuthHeaders);
+{{#hasDigestAuth}}
+            /* A Digest authenticator answers the challenge it remembers up front (D192). */
+            if (effectiveAuth instanceof ChallengeAuthenticator challenged) {
+                String answer =
+                        challenged.authorization(
+                                method.toUpperCase(java.util.Locale.ROOT), requestTargetOf(url));
+                if (answer != null) {
+                    headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+                    headers.put("Authorization", answer);
+                }
+            }
+{{/hasDigestAuth}}
             Map<String, String> cookies = effectiveAuth.getCookieParams();
             if (!cookies.isEmpty()) {
                 /* RFC 6265 — cookie name is a token (RFC 7230 §3.2.6); cookie
@@ -1173,6 +1188,18 @@ public abstract class BaseApi {
             @Nullable Integer idleTimeoutMillis) {
         ApiStreamResponse response =
                 apiClient.sendStreaming(method, url, headers, requestBody, timeoutMillis, maxRetries, idleTimeoutMillis);
+{{#hasDigestAuth}}
+        if (response.statusCode() == 401 && auth instanceof ChallengeAuthenticator challenged) {
+            String answer = answerChallenge(challenged, response.headers(), method, url, requestBody);
+            if (answer == null) {
+                return response;
+            }
+            response.close();
+            headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+            headers.put("Authorization", answer);
+            return apiClient.sendStreaming(method, url, headers, requestBody, timeoutMillis, maxRetries, idleTimeoutMillis);
+        }
+{{/hasDigestAuth}}
         if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
             return response;
         }
@@ -1251,7 +1278,9 @@ public abstract class BaseApi {
      * {@code UnauthorizedException}. The request is not sent again when its
      * body is a stream or a multipart form (it cannot be replayed), or when the
      * authenticator has no fresher credential to offer. Authenticators that are
-     * not {@link HttpAwareAuthenticator} (API key, basic, bearer) never replay.
+     * not {@link HttpAwareAuthenticator} (API key, basic, bearer) never replay,
+     * except a Digest authenticator, which answers the server's challenge and
+     * replays once under the same rules (D192).
      */
     private ApiHttpResponse sendReplayingOnUnauthorized(
             String method,
@@ -1264,6 +1293,17 @@ public abstract class BaseApi {
             @Nullable Integer maxRetries) {
         ApiHttpResponse response =
                 send(method, url, headers, requestBody, timeoutMillis, maxRetries);
+{{#hasDigestAuth}}
+        if (response.statusCode() == 401 && auth instanceof ChallengeAuthenticator challenged) {
+            String answer = answerChallenge(challenged, response.headers(), method, url, requestBody);
+            if (answer == null) {
+                return response;
+            }
+            headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+            headers.put("Authorization", answer);
+            return send(method, url, headers, requestBody, timeoutMillis, maxRetries);
+        }
+{{/hasDigestAuth}}
         if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
             return response;
         }
@@ -1286,6 +1326,60 @@ public abstract class BaseApi {
         return send(method, url, headers, requestBody, timeoutMillis, maxRetries);
     }
 
+{{#hasDigestAuth}}
+    /**
+     * The {@code Authorization} answer to the Digest challenge of a {@code 401}, or {@code null}
+     * when the response carries no challenge the authenticator accepts or the body cannot be
+     * sent again (D192).
+     */
+    @Nullable
+    private static String answerChallenge(
+            ChallengeAuthenticator challenged,
+            Map<String, String> responseHeaders,
+            String method,
+            String url,
+            @Nullable Object requestBody) {
+        String challenge = null;
+        for (Map.Entry<String, String> header : responseHeaders.entrySet()) {
+            if (header.getKey().equalsIgnoreCase("WWW-Authenticate")) {
+                challenge = header.getValue();
+            }
+        }
+        if (challenge == null || !challenged.acceptChallenge(challenge)) {
+            return null;
+        }
+        boolean replayable =
+                requestBody == null
+                        || requestBody instanceof String
+                        || requestBody instanceof byte[]
+                        || (requestBody instanceof BodySource source && source.isReplayable());
+        if (!replayable) {
+            return null;
+        }
+        return challenged.authorization(method.toUpperCase(java.util.Locale.ROOT), requestTargetOf(url));
+    }
+
+    /** The request target of a URL for a Digest answer: its path and query, without the fragment. */
+    private static String requestTargetOf(String url) {
+        String target = url;
+        int fragment = target.indexOf('#');
+        if (fragment >= 0) {
+            target = target.substring(0, fragment);
+        }
+        int scheme = target.indexOf("://");
+        if (scheme >= 0) {
+            int slash = target.indexOf('/', scheme + 3);
+            int query = target.indexOf('?', scheme + 3);
+            if (slash < 0 || (query >= 0 && query < slash)) {
+                target = query < 0 ? "/" : "/" + target.substring(query);
+            } else {
+                target = target.substring(slash);
+            }
+        }
+        return target;
+    }
+
+{{/hasDigestAuth}}
     /** Send through the client, passing the per-call overrides only when there are any. */
     private ApiHttpResponse send(
             String method,

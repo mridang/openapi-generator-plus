@@ -1764,6 +1764,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             superCall =
                     "host: host, username: username, password: password, "
                             + "credentialsProvider: credentialsProvider, environment: environment";
+        } else if ("DigestAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("digest_authenticator.dart");
+            constructorSig =
+                    "required String host, String? username, String? password, "
+                            + "Map<String, String>? environment";
+            superCall = "host: host, username: username, password: password, environment: environment";
         } else if ("BearerAuthenticator".equals(spec.baseClass())) {
             imports = List.of("dart:async", "bearer_authenticator.dart");
             constructorSig =
@@ -1924,9 +1930,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             final Map<String, Object> entry = (Map<String, Object>) item;
             final String field = String.valueOf(entry.get("field"));
             final String arg;
-            if ("BasicAuthenticator".equals(baseClass) && "username".equals(field)) {
+            final boolean credentialPair =
+                    "BasicAuthenticator".equals(baseClass) || "DigestAuthenticator".equals(baseClass);
+            if (credentialPair && "username".equals(field)) {
                 arg = "usernameVariable";
-            } else if ("BasicAuthenticator".equals(baseClass) && "password".equals(field)) {
+            } else if (credentialPair && "password".equals(field)) {
                 arg = "passwordVariable";
             } else if (("BearerAuthenticator".equals(baseClass) && "token".equals(field))
                     || ("ApiKeyAuthenticator".equals(baseClass) && "apiKey".equals(field))) {

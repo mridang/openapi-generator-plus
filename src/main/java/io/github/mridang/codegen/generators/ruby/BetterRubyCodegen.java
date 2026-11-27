@@ -1539,7 +1539,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             superArgs.add("token_provider: token_provider");
             superArgs.add("env: env");
             superArgs.add("token_env: " + rubyLiteral(envByParam.get("token")));
-        } else if ("BasicAuthenticator".equals(base)) {
+        } else if ("BasicAuthenticator".equals(base) || "DigestAuthenticator".equals(base)) {
             signature.append(", username = nil, password = nil, env: ENV");
             rbs.append(", ?String? username, ?String? password, ?env: untyped");
             superArgs.add("env: env");
@@ -1600,7 +1600,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     private List<String> buildRubySuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass()) || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {

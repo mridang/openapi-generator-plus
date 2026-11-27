@@ -1,0 +1,257 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Locale
+
+private val CNONCE_RANDOM = SecureRandom()
+
+/**
+ * Authenticator for HTTP Digest authentication (RFC 7616).
+ *
+ * It sends nothing until the server answers 401 with a `WWW-Authenticate: Digest` challenge; the
+ * SDK then answers that challenge and replays the request once. Later requests answer the
+ * remembered challenge up front with the nonce count incremented. The algorithms `MD5`,
+ * `MD5-sess`, `SHA-256` and `SHA-256-sess` are supported with `qop=auth` or without a `qop`.
+ *
+ * Each credential is the first of: the argument, the environment variable
+ * `{{envVarPrefix}}_USERNAME` or `{{envVarPrefix}}_PASSWORD` (read once, here; an empty
+ * value counts as unset). When one is missing, building the authenticator fails.
+ *
+ * @param host the base URL of the API
+ * @param username the Digest username
+ * @param password the Digest password
+ * @throws IllegalArgumentException if a credential is missing or malformed
+ */
+open class DigestAuthenticator internal constructor(
+    private val host: String,
+    username: String?,
+    password: String?,
+    usernameVariable: String,
+    passwordVariable: String,
+) : BaseAuthenticator() {
+
+    /**
+     * Creates an authenticator that reads `{{envVarPrefix}}_USERNAME` and
+     * `{{envVarPrefix}}_PASSWORD` for a credential that is not passed.
+     *
+     * @param host the base URL of the API
+     * @param username the Digest username
+     * @param password the Digest password
+     * @throws IllegalArgumentException if a credential is missing or malformed
+     */
+    constructor(
+        host: String,
+        username: String? = null,
+        password: String? = null,
+    ) : this(host, username, password, "{{envVarPrefix}}_USERNAME", "{{envVarPrefix}}_PASSWORD")
+
+    private val username: String =
+        if (username != null && username.isEmpty()) {
+            throw IllegalArgumentException("Digest username must not be empty")
+        } else {
+            CredentialEnvironment.require(username, usernameVariable, "the Digest username")
+        }
+
+    private val password: String =
+        CredentialEnvironment.require(password, passwordVariable, "the Digest password")
+
+    /** The client nonce of each answer; an internal seam so a test can fix it. */
+    internal var cnonceSource: () -> String = {
+        val bytes = ByteArray(16)
+        CNONCE_RANDOM.nextBytes(bytes)
+        bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    private val lock = Any()
+    private var challenge: Challenge? = null
+    private var nonceCount = 0
+
+    init {
+        val breaks = { value: String -> value.any { c -> c == '\r' || c == '\n' || c == '\u0000' } }
+        if (breaks(this.username) || breaks(this.password)) {
+            throw IllegalArgumentException("Digest credentials must not contain a line break or NUL")
+        }
+        if (this.username.contains('"')) {
+            throw IllegalArgumentException("Digest username must not contain a double quote")
+        }
+    }
+
+    override fun getHost(): String = host
+
+    /**
+     * Returns no headers: a Digest answer needs the method and the request target, which the
+     * SDK's dispatch passes to the authenticator itself.
+     */
+    override suspend fun getAuthHeaders(): Map<String, String> = emptyMap()
+
+    /**
+     * The `Authorization` header value that answers the remembered challenge, or null before any
+     * challenge was accepted. Each answer increments the nonce count.
+     */
+    internal fun authorization(method: String, requestTarget: String): String? {
+        val (current, count) =
+            synchronized(lock) {
+                val remembered = challenge ?: return null
+                nonceCount++
+                remembered to nonceCount
+            }
+        val nc = "%08x".format(count)
+        val cnonce = cnonceSource()
+        val upper = (current.algorithm ?: "MD5").uppercase(Locale.ROOT)
+        val hashName = if (upper.startsWith("SHA-256")) "SHA-256" else "MD5"
+        var ha1 = hash(hashName, "$username:${current.realm}:$password")
+        if (upper.endsWith("-SESS")) {
+            ha1 = hash(hashName, "$ha1:${current.nonce}:$cnonce")
+        }
+        val ha2 = hash(hashName, "$method:$requestTarget")
+        val response =
+            if (current.qop) {
+                hash(hashName, "$ha1:${current.nonce}:$nc:$cnonce:auth:$ha2")
+            } else {
+                hash(hashName, "$ha1:${current.nonce}:$ha2")
+            }
+        val fields = mutableListOf(
+            "username=${quote(username)}",
+            "realm=${quote(current.realm)}",
+            "nonce=${quote(current.nonce)}",
+            "uri=${quote(requestTarget)}",
+        )
+        current.algorithm?.let { fields.add("algorithm=$it") }
+        fields.add("response=${quote(response)}")
+        if (current.qop) {
+            fields.add("qop=auth")
+            fields.add("nc=$nc")
+            fields.add("cnonce=${quote(cnonce)}")
+        }
+        current.opaque?.let { fields.add("opaque=${quote(it)}") }
+        return "Digest " + fields.joinToString(", ")
+    }
+
+    /**
+     * Reads a `WWW-Authenticate` header value and remembers the first Digest challenge this
+     * authenticator can answer, resetting the nonce count. Returns whether one was accepted.
+     */
+    internal fun acceptChallenge(wwwAuthenticate: String): Boolean {
+        val params = parseChallenges(wwwAuthenticate).firstOrNull { (scheme, params) -> isAnswerable(scheme, params) }?.second
+            ?: return false
+        val accepted = Challenge(
+            params["realm"] ?: "",
+            params["nonce"] ?: "",
+            params["opaque"],
+            params["algorithm"],
+            params["qop"] != null,
+        )
+        synchronized(lock) {
+            challenge = accepted
+            nonceCount = 0
+        }
+        return true
+    }
+
+    /**
+     * Returns a string representation that redacts the password so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, username=$username, password=***)"
+
+    private class Challenge(
+        val realm: String,
+        val nonce: String,
+        val opaque: String?,
+        val algorithm: String?,
+        val qop: Boolean,
+    )
+
+    private companion object {
+        val SUPPORTED_ALGORITHMS = setOf("MD5", "MD5-SESS", "SHA-256", "SHA-256-SESS")
+
+        fun quote(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+        fun hash(algorithm: String, text: String): String =
+            MessageDigest.getInstance(algorithm)
+                .digest(text.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+
+        /* A Digest challenge offering qop=auth or no qop at all, with a supported algorithm or none. */
+        fun isAnswerable(scheme: String, params: Map<String, String>): Boolean {
+            val qop = params["qop"]
+            val algorithm = params["algorithm"]
+            return scheme.equals("digest", ignoreCase = true) &&
+                (qop == null || qop.split(',').any { it.trim().equals("auth", ignoreCase = true) }) &&
+                (algorithm == null || algorithm.uppercase(Locale.ROOT) in SUPPORTED_ALGORITHMS)
+        }
+
+        fun isDelimiter(c: Char): Boolean = c == ',' || c == '=' || c == '"' || c.isWhitespace()
+
+        fun skipWhitespace(header: String, from: Int): Int {
+            var i = from
+            while (i < header.length && header[i].isWhitespace()) {
+                i++
+            }
+            return i
+        }
+
+        /* A token or a quoted string (backslash escapes) starting at [from], and the index after it. */
+        fun readValue(header: String, from: Int): Pair<String, Int> {
+            val value = StringBuilder()
+            var i = from
+            if (i < header.length && header[i] == '"') {
+                i++
+                while (i < header.length && header[i] != '"') {
+                    if (header[i] == '\\' && i + 1 < header.length) {
+                        i++
+                    }
+                    value.append(header[i])
+                    i++
+                }
+                i++
+            } else {
+                while (i < header.length && header[i] != ',' && !header[i].isWhitespace()) {
+                    value.append(header[i])
+                    i++
+                }
+            }
+            return value.toString() to i
+        }
+
+        /*
+         * Splits a WWW-Authenticate value into its challenges: a scheme name followed by
+         * name=token or name="quoted" parameters (backslash escapes), separated by commas.
+         * Parameter names are lower-cased.
+         */
+        fun parseChallenges(header: String): List<Pair<String, Map<String, String>>> {
+            val challenges = mutableListOf<Pair<String, MutableMap<String, String>>>()
+            var current: MutableMap<String, String>? = null
+            var i = 0
+            while (i < header.length) {
+                if (header[i] == ',' || header[i].isWhitespace()) {
+                    i++
+                } else {
+                    val start = i
+                    while (i < header.length && !isDelimiter(header[i])) {
+                        i++
+                    }
+                    val token = header.substring(start, i)
+                    val equals = skipWhitespace(header, i)
+                    if (token.isEmpty()) {
+                        i++
+                    } else if (equals >= header.length || header[equals] != '=') {
+                        current = mutableMapOf()
+                        challenges.add(token to current)
+                    } else {
+                        val (value, end) = readValue(header, skipWhitespace(header, equals + 1))
+                        current?.putIfAbsent(token.lowercase(Locale.ROOT), value)
+                        i = end
+                    }
+                }
+            }
+            return challenges
+        }
+    }
+}

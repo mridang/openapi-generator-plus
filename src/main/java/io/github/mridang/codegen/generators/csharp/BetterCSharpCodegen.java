@@ -975,7 +975,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         final String refreshArg =
                 spec.refreshUrl() != null ? "new Uri(\"" + spec.refreshUrl() + "\")" : "null";
 
-        if ("BasicAuthenticator".equals(baseClass)) {
+        if ("BasicAuthenticator".equals(baseClass) || "DigestAuthenticator".equals(baseClass)) {
             superCall = "host, " + credential(envNames, "username") + ", "
                     + credential(envNames, "password");
             namespaceSuffix = null;
@@ -1122,6 +1122,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         }
         entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
         entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
+        entry.put("isDigest", "DigestAuthenticator".equals(spec.baseClass()));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
         entry.put("isOAuth", spec.isOAuth());
         final String baseClass = spec.baseClass();

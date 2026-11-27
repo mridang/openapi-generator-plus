@@ -89,6 +89,8 @@ A security scheme the API marks `deprecated: true` keeps its authenticator, and 
 
 The OAuth2 device authorization flow (D191) is `OAuth2DeviceAuthorizationAuthenticator`: `request_device_authorization().await` returns a `DeviceAuthorization` with the user code and verification URI to show, and `poll_for_token(&authorization).await` waits on the tokio timer between polls until the user approves; before that, a request fails with `OAuth2AuthorizationCodeError::DeviceTokenNotPolled`.
 
+HTTP Digest (D192) is `DigestAuthenticator::new(host, username, password)`, which fails with `ConfigurationError::InvalidArgument` for a bad credential; the per-scheme authenticator reads `<PREFIX>_USERNAME` and `<PREFIX>_PASSWORD` like Basic. It sends nothing until the server's 401 challenge, which the SDK answers (through the hidden `challenge_authorization` and `accept_challenge` methods of `Authenticator`) before replaying the request once. SHA-256 comes from `sha2`, which the SDK already used; MD5 needs the `md-5` crate, which is added only when the spec has a digest scheme.
+
 ## Idiom notes
 
 - Every operation takes an optional trailing `options` argument (`Option<&...Options>`), even one with no parameters and no security. Besides the operation's own parameters the Options struct carries `timeout(Duration)`, `max_retries(u32)` (`0` turns retrying off) and `header(name, value)` for that one call. An Options struct for an operation with no parameters and no security has no `auth` field. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).

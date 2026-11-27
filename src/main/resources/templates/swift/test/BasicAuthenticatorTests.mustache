@@ -289,5 +289,106 @@ import Testing
 {{/isBearerScheme}}
 {{/perSchemeAuthEntries}}
     }
+{{#hasDigestAuth}}
 
+    // MARK: - HTTP Digest (D192)
+
+    /// The RFC 7616 section 3.9.1 example: its nonce, opaque and client nonce.
+    private static let digestNonce = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"
+    private static let digestOpaque = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"
+    private static let digestCnonce = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
+
+    /// The RFC 7616 example user's DigestAuthenticator with the example's client nonce.
+    private func digestAuthenticator() throws -> DigestAuthenticator {
+        let auth = try DigestAuthenticator(host: "https://api.example.com", username: "Mufasa", password: "Circle of Life")
+        auth.fixCnonce(Self.digestCnonce)
+        return auth
+    }
+
+    /// Feeds a challenge and returns the answer for GET /dir/index.html.
+    private func digestAnswer(_ challenge: String) throws -> String? {
+        let auth = try digestAuthenticator()
+        #expect(auth.acceptChallenge(challenge))
+        return auth.authorization(method: "GET", requestTarget: "/dir/index.html")
+    }
+
+    /* The MD5 answer to the RFC 7616 example challenge has the published
+     * response and the header fields in the fixed order. */
+    @Test func testBhvAuthdigest700TheMd5AnswerToTheRfc7616ExampleIsThePublishedOne() throws {
+        let got = try digestAnswer(
+            "Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm=MD5, "
+                + "nonce=\"\(Self.digestNonce)\", opaque=\"\(Self.digestOpaque)\"")
+        #expect(
+            got == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", algorithm=MD5, response=\"8ca523f5e9506fed4657c9700eebdbec\", "
+                + "qop=auth, nc=00000001, cnonce=\"\(Self.digestCnonce)\", opaque=\"\(Self.digestOpaque)\"")
+    }
+
+    /* The SHA-256 answer to the RFC 7616 example has the published response,
+     * and the -sess variants hash the first value again with the nonce and the cnonce. */
+    @Test(arguments: [
+        ("SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"),
+        ("MD5-sess", "e783283f46242139c486a698fec7211d"),
+        ("SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"),
+    ])
+    func testBhvAuthdigest701TheSha256AndSessAnswersAreThePublishedOnes(algorithm: String, response: String) throws {
+        let got = try digestAnswer(
+            "Basic realm=\"other\", Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", "
+                + "algorithm=\(algorithm), nonce=\"\(Self.digestNonce)\", opaque=\"\(Self.digestOpaque)\", "
+                + "Digest realm=\"http-auth@example.org\", algorithm=MD5, nonce=\"other\"")
+        #expect(
+            got == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", algorithm=\(algorithm), response=\"\(response)\", "
+                + "qop=auth, nc=00000001, cnonce=\"\(Self.digestCnonce)\", opaque=\"\(Self.digestOpaque)\"")
+    }
+
+    /* A challenge without qop is answered in the RFC 2069 form, with no qop, nc
+     * or cnonce; opaque is echoed only when sent and algorithm only when named, as written. */
+    @Test func testBhvAuthdigest704AChallengeWithoutQopIsAnsweredInTheRfc2069Form() throws {
+        let plain = try digestAnswer("Digest realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\"")
+        #expect(
+            plain == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", response=\"7b2cc3b30e75b4777ea31027084363fd\"")
+        let named = try digestAnswer(
+            "digest realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", algorithm=md5, "
+                + "opaque=\"\(Self.digestOpaque)\"")
+        #expect(
+            named == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", algorithm=md5, response=\"7b2cc3b30e75b4777ea31027084363fd\", "
+                + "opaque=\"\(Self.digestOpaque)\"")
+    }
+
+    /* A challenge that offers only qop=auth-int, or names an unknown algorithm,
+     * is not answered: nothing is accepted and no header is produced. */
+    @Test(arguments: [
+        "Digest realm=\"r\", nonce=\"n\", qop=\"auth-int\"",
+        "Digest realm=\"r\", nonce=\"n\", algorithm=SHA-512-256",
+        "Basic realm=\"r\"",
+    ])
+    func testBhvAuthdigest705AnAuthIntOnlyOrUnknownAlgorithmChallengeIsNotAnswered(challenge: String) throws {
+        let auth = try digestAuthenticator()
+        #expect(!auth.acceptChallenge(challenge))
+        #expect(auth.authorization(method: "GET", requestTarget: "/dir/index.html") == nil)
+    }
+
+    /* An empty username, a line break or NUL in either field, or a double quote
+     * in the username fails at construction, and the string form masks the password. */
+    @Test(arguments: [
+        ("", "pw", "Digest username must not be empty"),
+        ("ali\nce", "pw", "Digest credentials must not contain a line break or NUL"),
+        ("alice", "p\rw", "Digest credentials must not contain a line break or NUL"),
+        ("alice", "p\u{0}w", "Digest credentials must not contain a line break or NUL"),
+        ("ali\"ce", "pw", "Digest username must not contain a double quote"),
+    ])
+    func testBhvAuthdigest706DigestCredentialsAreCheckedAtConstruction(
+        username: String, password: String, message: String
+    ) throws {
+        #expect(throws: ConfigurationError.invalidArgument(message)) {
+            _ = try DigestAuthenticator(host: "https://api.example.com", username: username, password: password)
+        }
+        let auth = try DigestAuthenticator(host: "https://api.example.com", username: "alice", password: "s3cret")
+        #expect(String(describing: auth) == "DigestAuthenticator(host: https://api.example.com, username: alice, password: ***)")
+        #expect(String(reflecting: auth) == String(describing: auth))
+    }
+{{/hasDigestAuth}}
 }

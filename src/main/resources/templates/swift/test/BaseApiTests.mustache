@@ -617,6 +617,83 @@ import Testing
         #expect(client.seenAuthorization == ["Bearer t1", "Bearer t2"])
     }
 
+{{#hasDigestAuth}}
+    // MARK: - HTTP Digest (D192)
+
+    /// Answers each request with the next status (the last repeats), with the
+    /// RFC 7616 example Digest challenge on every 401, recording every request.
+    private final class DigestChallengeApiClient: ApiClient, @unchecked Sendable {
+        let statuses: [Int]
+        var seenAuthorization: [String?] = []
+
+        init(statuses: [Int]) { self.statuses = statuses }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            let status = statuses[min(seenAuthorization.count, statuses.count - 1)]
+            seenAuthorization.append(headers["Authorization"])
+            var responseHeaders = ["Content-Type": "application/json"]
+            if status == 401 {
+                responseHeaders["WWW-Authenticate"] =
+                    "Digest realm=\"http-auth@example.org\", qop=\"auth\", algorithm=MD5, "
+                    + "nonce=\"7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v\", "
+                    + "opaque=\"FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS\""
+            }
+            return ApiHttpResponse(
+                statusCode: status, body: "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                headers: responseHeaders)
+        }
+    }
+
+    /// The API over a scripted client, authenticated by the RFC 7616 example
+    /// user with the example's client nonce.
+    private func digestApi(_ client: DigestChallengeApiClient) throws -> PetApi {
+        let auth = try DigestAuthenticator(host: "https://example.com", username: "Mufasa", password: "Circle of Life")
+        auth.fixCnonce("f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ")
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        return PetApi(apiClient: client, config: config, authenticator: auth)
+    }
+
+    /// The answer to the example challenge for GET /pet/7 with the given response and nonce count.
+    private func digestAnswer(_ response: String, _ nc: String) -> String {
+        return "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", "
+            + "nonce=\"7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v\", uri=\"/pet/7\", algorithm=MD5, "
+            + "response=\"\(response)\", qop=auth, nc=\(nc), cnonce=\"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\", "
+            + "opaque=\"FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS\""
+    }
+
+    /* A request goes without credentials, the 401 with a Digest challenge is
+     * answered and the request replayed once, and a second 401 is returned as is. */
+    @Test func testBhvAuthdigest702ADigestChallengeIsAnsweredAndTheRequestReplayedOnce() async throws {
+        let client = DigestChallengeApiClient(statuses: [401, 200])
+        _ = try await digestApi(client).getPetById(petId: 7)
+        #expect(client.seenAuthorization == [nil, digestAnswer("680a940b3de8784bf5cb52faf53bbef4", "00000001")])
+
+        let rejecting = DigestChallengeApiClient(statuses: [401])
+        let api = try digestApi(rejecting)
+        await #expect(throws: UnauthorizedError.self) {
+            _ = try await api.getPetById(petId: 7)
+        }
+        #expect(rejecting.seenAuthorization.count == 2)
+    }
+
+    /* A later request answers the remembered challenge up front, with the
+     * nonce count incremented to 00000002. */
+    @Test func testBhvAuthdigest703ALaterRequestAnswersTheRememberedChallengeUpFront() async throws {
+        let client = DigestChallengeApiClient(statuses: [401, 200])
+        let api = try digestApi(client)
+        _ = try await api.getPetById(petId: 7)
+        _ = try await api.getPetById(petId: 7)
+        #expect(
+            client.seenAuthorization == [
+                nil,
+                digestAnswer("680a940b3de8784bf5cb52faf53bbef4", "00000001"),
+                digestAnswer("bb35834772445b1909f78694eb67c9f3", "00000002"),
+            ])
+    }
+
+{{/hasDigestAuth}}
     @Test func testBhvRetries008ASecond401IsSurfacedWithoutAThirdAttempt() async throws {
         let client = ScriptedApiClient(statuses: [401, 401, 200])
         let auth = RotatingAuth()

@@ -69,6 +69,10 @@ futures-core = "0.3"
 futures-util = "0.3"
 base64 = "0.22"
 sha2 = "0.10"
+{{#hasDigestAuth}}
+# HTTP Digest (RFC 7616) answers MD5 challenges; the standard library has no MD5.
+md-5 = "0.10"
+{{/hasDigestAuth}}
 uuid = { version = "1", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false, features = ["std", "serde"] }

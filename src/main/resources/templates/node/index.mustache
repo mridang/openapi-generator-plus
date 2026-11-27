@@ -73,6 +73,9 @@ export type { CredentialProvider } from './auth/credentials{{importFileExtension
 {{#hasBasicAuth}}
 export { BasicAuthenticator } from './auth/basic-authenticator{{importFileExtension}}';
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+export { DigestAuthenticator } from './auth/digest-authenticator{{importFileExtension}}';
+{{/hasDigestAuth}}
 export { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
 {{#hasApiKeyAuth}}
 export { ApiKeyAuthenticator } from './auth/api-key-authenticator{{importFileExtension}}';

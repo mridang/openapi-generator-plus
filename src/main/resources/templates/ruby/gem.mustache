@@ -85,6 +85,9 @@ require '{{modulePath}}/auth/all_of_http_aware_authenticator'
 {{#hasBasicAuth}}
 require '{{modulePath}}/auth/basic_authenticator'
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+require '{{modulePath}}/auth/digest_authenticator'
+{{/hasDigestAuth}}
 require '{{modulePath}}/auth/bearer_authenticator'
 {{#hasApiKeyAuth}}
 require '{{modulePath}}/auth/api_key_location'

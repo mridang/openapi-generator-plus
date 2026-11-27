@@ -1158,6 +1158,13 @@ lifecycle028 | An explicit host and token win over the environment
 lifecycle030 | The base URL comes from the default authenticator first, then from the first scheme credential
 lifecycle032 | A token passed to the client is preferred to the one in the environment
 authbearer028 | A bearer token containing CRLF is rejected at construction
+authdigest700 | The MD5 answer to the RFC 7616 example challenge (Mufasa, http-auth@example.org, GET /dir/index.html, the example nonce, cnonce and opaque) has the response 8ca523f5e9506fed4657c9700eebdbec and the header fields in the fixed order
+authdigest701 | The SHA-256 answer to the RFC 7616 example challenge has the response 753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1, and the -sess variants hash the first value with the nonce and cnonce
+authdigest702 | A request is sent without credentials, a 401 with a Digest challenge is answered and the request replayed once with the Authorization header, and a second 401 is returned as is
+authdigest703 | A later request answers the remembered challenge up front with the nonce count incremented to 00000002
+authdigest704 | A challenge without qop is answered in the RFC 2069 form (no qop, nc or cnonce), opaque is echoed only when sent and algorithm only when named
+authdigest705 | A challenge that offers only qop=auth-int or an unknown algorithm is not answered and the 401 stands
+authdigest706 | An empty username, a line break or NUL in the username or password, or a double quote in the username fails at construction, and the string form masks the password
 lifecycle035 | A request issued after close fails with the one closed-client error and never reaches the transport
 serializationobject188 | An empty object serializes to an empty JSON object
 operations127 | A malformed 2xx body fails loud with a serialization error instead of returning the raw string

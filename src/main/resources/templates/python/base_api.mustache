@@ -57,6 +57,9 @@ from ..errors import ApiException, ErrorFactory, NetworkException, NetworkTimeou
 from ..errors.serialization_exception import SerializationException
 from ..auth.authenticator import Authenticator
 from ..auth.http_aware_authenticator import HttpAwareAuthenticator
+{{#hasDigestAuth}}
+from ..auth.digest_authenticator import ChallengeAuthenticator
+{{/hasDigestAuth}}
 
 T = TypeVar('T')
 _P = ParamSpec('_P')
@@ -103,6 +106,14 @@ def _is_replayable(body: Any) -> bool:
     return True
 
 
+{{#hasDigestAuth}}
+def _request_target(url: str) -> str:
+    """The path and query of a URL, without the scheme and host."""
+    split = urlsplit(url)
+    return split.path + ('?' + split.query if split.query else '')
+
+
+{{/hasDigestAuth}}
 def _is_tls_failure(error: NetworkException) -> bool:
     """A certificate or handshake failure will fail the same way again."""
     cause = error.__cause__
@@ -499,6 +510,14 @@ class BaseApi:
                         headers['Cookie'] = existing + '; ' + cookie_str
                     else:
                         headers['Cookie'] = cookie_str
+{{#hasDigestAuth}}
+                # A challenge authenticator answers the challenge it remembers (D192).
+                if isinstance(effective_auth, ChallengeAuthenticator):
+                    answer = effective_auth.authorization(method.upper(), _request_target(url))
+                    if answer is not None:
+                        auth_names.add('authorization')
+                        _merge_headers(headers, {'Authorization': answer})
+{{/hasDigestAuth}}
             inject_trace_context(headers)
             if hook_set or hook_removed:
                 for name in hook_removed:
@@ -859,6 +878,26 @@ class BaseApi:
             return await self._send_with_retries(
                 method, fresh_headers, body, rebuild_headers, max_retries, deadline, send
             )
+{{#hasDigestAuth}}
+        if (
+            response.status_code == 401
+            and replayable
+            and isinstance(auth, ChallengeAuthenticator)
+            and (deadline is None or time.monotonic() < deadline)
+        ):
+            # HTTP Digest (D192): a challenge the authenticator accepts is
+            # answered and the request replayed once; a second 401 stands.
+            challenge = next(
+                (v for k, v in response.headers.items() if k.lower() == 'www-authenticate'),
+                None,
+            )
+            if challenge is not None and auth.accept_challenge(challenge):
+                fresh_headers = await rebuild_headers(True)
+                self._discard(response)
+                return await self._send_with_retries(
+                    method, fresh_headers, body, rebuild_headers, max_retries, deadline, send
+                )
+{{/hasDigestAuth}}
         return response
 
     @staticmethod

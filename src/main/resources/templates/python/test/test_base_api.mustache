@@ -37,6 +37,10 @@ from {{packageName}}.transport_options import TransportOptions
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
+{{#hasDigestAuth}}
+import re
+from {{packageName}}.auth.digest_authenticator import DigestAuthenticator
+{{/hasDigestAuth}}
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 from {{packageName}}.errors import ApiException, NetworkException, {{errorPrefix}}Exception
 from {{packageName}}.errors.network_timeout_exception import NetworkTimeoutException
@@ -2846,6 +2850,61 @@ class TestUnauthorizedReplay:
         assert len(server.requests) == 1
 
 
+{{#hasDigestAuth}}
+_DIGEST_CHALLENGE: Reply = (
+    401, {'WWW-Authenticate': 'Basic realm="other", Digest realm="r", nonce="n", qop="auth"'}, '{}'
+)
+
+
+def _digest() -> DigestAuthenticator:
+    auth = DigestAuthenticator('https://api.example.com', 'Mufasa', ' '.join(['Circle', 'of', 'Life']))
+    auth._cnonce_source = lambda: 'c'
+    return auth
+
+
+def _digest_answer(nc: str) -> str:
+    return (
+        r'Digest username="Mufasa", realm="r", nonce="n", uri="/x\?q=a%20b", '
+        r'response="[0-9a-f]{32}", qop=auth, nc=' + nc + r', cnonce="c"'
+    )
+
+
+class TestDigestChallenge:
+    async def _call(self, api: StubApi, auth: Authenticator) -> Any:
+        return await api.call('GET', '/x', {'q': 'a b'}, {}, None, ['application/json'], 'application/json',
+                              None, auth)
+
+    async def test_bhv_authdigest_702_a_challenge_is_answered_and_the_request_replayed_once_and_a_second_401_stands(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(_DIGEST_CHALLENGE, _OK)
+
+        await self._call(_retry_api(server), _digest())
+
+        assert len(server.requests) == 2
+        assert 'authorization' not in server.requests[0]
+        assert re.fullmatch(_digest_answer('00000001'), server.requests[1]['authorization'])
+
+        refusing = scripted(_DIGEST_CHALLENGE)
+        with pytest.raises(UnauthorizedException):
+            await self._call(_retry_api(refusing), _digest())
+        assert len(refusing.requests) == 2
+
+    async def test_bhv_authdigest_703_a_later_request_answers_the_remembered_challenge_with_the_count_incremented(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(_DIGEST_CHALLENGE, _OK)
+        api = _retry_api(server)
+        auth = _digest()
+
+        await self._call(api, auth)
+        await self._call(api, auth)
+
+        assert len(server.requests) == 3
+        assert re.fullmatch(_digest_answer('00000002'), server.requests[2]['authorization'])
+
+
+{{/hasDigestAuth}}
 class _SlowAuthenticator(StubAuthenticator):
     """Authenticator whose header lookup is slow, so it is offloaded and awaited."""
 

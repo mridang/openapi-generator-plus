@@ -32,6 +32,9 @@ import type { ApiResult } from '../src/api-result{{importFileExtension}}';
 import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
 import { StoreApi } from '../src/api/store-api{{importFileExtension}}';
 import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFileExtension}}';
+{{#hasDigestAuth}}
+import { DigestAuthenticator } from '../src/auth/digest-authenticator{{importFileExtension}}';
+{{/hasDigestAuth}}
 import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFileExtension}}';
 import { OAuth2ClientCredentialsAuthenticator } from '../src/auth/oauth/oauth2-client-credentials-authenticator{{importFileExtension}}';
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
@@ -756,6 +759,73 @@ describe('BaseApi', () => {
       }
     });
   });
+{{#hasDigestAuth}}
+
+  describe('a 401 with a Digest challenge', () => {
+    const challengeHeaders = {
+      'content-type': 'application/json',
+      'www-authenticate': 'Basic realm="other", Digest realm="r", nonce="n", qop="auth"'
+    };
+
+    /* An API that answers 401 with the challenge until a Digest answer arrives. */
+    function digestServer(accept: boolean) {
+      const seen: Array<string | undefined> = [];
+      const stub: ApiClient = {
+        async sendRequest(_method, _url, headers): Promise<ApiHttpResponse> {
+          const authorization = headers['Authorization'];
+          seen.push(authorization);
+          return accept && authorization !== undefined
+            ? { statusCode: 200, body: '{}', headers: { 'content-type': 'application/json' } }
+            : { statusCode: 401, body: '{}', headers: challengeHeaders };
+        }
+      };
+      return { seen, stub };
+    }
+
+    const digest = (): DigestAuthenticator => {
+      const auth = new DigestAuthenticator('https://api.example.com', 'Mufasa', ['Circle', 'of', 'Life'].join(' '));
+      (auth as unknown as { cnonceSource: () => string }).cnonceSource = () => 'c';
+      return auth;
+    };
+
+    const answer = (nc: string): RegExp =>
+      new RegExp(
+        '^Digest username="Mufasa", realm="r", nonce="n", uri="/items\\?q=a%20b", ' +
+          `response="[0-9a-f]{32}", qop=auth, nc=${nc}, cnonce="c"$`
+      );
+
+    test('bhv authdigest 702 a request goes without credentials, the challenge is answered and the request replayed once, and a second 401 stands', async () => {
+      const { seen, stub } = digestServer(true);
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), digest());
+
+      await testable.call('GET', '/items', { q: 'a b' }, {}, null, ['application/json'], 'application/json', null);
+
+      expect(seen).toHaveLength(2);
+      expect(seen[0]).toBeUndefined();
+      expect(seen[1]).toMatch(answer('00000001'));
+
+      const refused = digestServer(false);
+      const refusing = new TestableApi(refused.stub, new Configuration({ baseUrl: 'https://api.example.com' }), digest());
+      const error = await refusing
+        .call('GET', '/items', { q: 'a b' }, {}, null, ['application/json'], 'application/json', null)
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(UnauthorizedError);
+      expect(refused.seen).toHaveLength(2);
+    });
+
+    test('bhv authdigest 703 a later request answers the remembered challenge up front with the nonce count incremented', async () => {
+      const { seen, stub } = digestServer(true);
+      const testable = new TestableApi(stub, new Configuration({ baseUrl: 'https://api.example.com' }), digest());
+
+      await testable.call('GET', '/items', { q: 'a b' }, {}, null, ['application/json'], 'application/json', null);
+      await testable.call('GET', '/items', { q: 'a b' }, {}, null, ['application/json'], 'application/json', null);
+
+      expect(seen).toHaveLength(3);
+      expect(seen[2]).toMatch(answer('00000002'));
+    });
+  });
+{{/hasDigestAuth}}
 
   /*
    * AUTH-APPLIED (Wave A1): a CONFIGURED authenticator must actually be

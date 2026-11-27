@@ -5,6 +5,9 @@ from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 {{#hasBasicAuth}}
 from {{packageName}}.auth.basic_authenticator import BasicAuthenticator as BasicAuthenticator
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+from {{packageName}}.auth.digest_authenticator import DigestAuthenticator as DigestAuthenticator
+{{/hasDigestAuth}}
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator as BearerAuthenticator
 {{#hasApiKeyAuth}}
 from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator as ApiKeyAuthenticator
@@ -18,6 +21,9 @@ __all__ = [
 {{#hasBasicAuth}}
     'BasicAuthenticator',
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+    'DigestAuthenticator',
+{{/hasDigestAuth}}
     'BearerAuthenticator',
 {{#hasApiKeyAuth}}
     'ApiKeyAuthenticator',

@@ -123,4 +123,123 @@ public class BasicAuthenticatorTest
             new BasicAuthenticator("https://api.example.com", "alice", "bad\npass"));
         Assert.Contains("password", pass.Message, StringComparison.Ordinal);
     }
+{{#hasDigestAuth}}
+
+    private const string DigestRealm = "http-auth@example.org";
+    private const string DigestNonce = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v";
+    private const string DigestOpaque = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS";
+    private const string DigestCnonce = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ";
+
+    /* The RFC 7616 example credential, built at run time so no secret literal is committed. */
+    private static DigestAuthenticator RfcDigest()
+    {
+        return new DigestAuthenticator("https://api.example.com", "Mufasa", string.Join(' ', "Circle", "of", "Life"))
+        {
+            CnonceSource = () => DigestCnonce,
+        };
+    }
+
+    private static string RfcChallenge(string algorithm)
+    {
+        return $"Digest realm=\"{DigestRealm}\", qop=\"auth, auth-int\", algorithm={algorithm}, "
+            + $"nonce=\"{DigestNonce}\", opaque=\"{DigestOpaque}\"";
+    }
+
+    private static string RfcAnswer(string algorithm, string response)
+    {
+        return $"Digest username=\"Mufasa\", realm=\"{DigestRealm}\", nonce=\"{DigestNonce}\", uri=\"/dir/index.html\", "
+            + $"algorithm={algorithm}, response=\"{response}\", qop=auth, nc=00000001, cnonce=\"{DigestCnonce}\", "
+            + $"opaque=\"{DigestOpaque}\"";
+    }
+
+    [Fact]
+    public void BhvAuthdigest700AnswersTheRfcMd5ChallengeWithTheFieldsInOrder()
+    {
+        DigestAuthenticator digest = RfcDigest();
+        IChallengeAuthenticator auth = digest;
+        Assert.Null(auth.Authorization("GET", "/dir/index.html"));
+        Assert.True(auth.AcceptChallenge(RfcChallenge("MD5")));
+        Assert.Equal(RfcAnswer("MD5", "8ca523f5e9506fed4657c9700eebdbec"), auth.Authorization("GET", "/dir/index.html"));
+        Assert.Empty(digest.GetAuthHeaders());
+    }
+
+    [Fact]
+    public void BhvAuthdigest701AnswersTheRfcSha256ChallengeAndTheSessVariants()
+    {
+        IChallengeAuthenticator sha256 = RfcDigest();
+        Assert.True(sha256.AcceptChallenge(RfcChallenge("SHA-256")));
+        Assert.Equal(
+            RfcAnswer("SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"),
+            sha256.Authorization("GET", "/dir/index.html"));
+        IChallengeAuthenticator sha256Sess = RfcDigest();
+        Assert.True(sha256Sess.AcceptChallenge(RfcChallenge("SHA-256-sess")));
+        Assert.Equal(
+            RfcAnswer("SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"),
+            sha256Sess.Authorization("GET", "/dir/index.html"));
+        IChallengeAuthenticator md5Sess = RfcDigest();
+        Assert.True(md5Sess.AcceptChallenge(RfcChallenge("MD5-sess")));
+        Assert.Equal(
+            RfcAnswer("MD5-sess", "e783283f46242139c486a698fec7211d"),
+            md5Sess.Authorization("GET", "/dir/index.html"));
+    }
+
+    [Fact]
+    public void BhvAuthdigest704AnswersAChallengeWithoutQopInTheRfc2069Form()
+    {
+        IChallengeAuthenticator plain = RfcDigest();
+        Assert.True(plain.AcceptChallenge($"Basic realm=\"other\", Digest realm=\"{DigestRealm}\", nonce=\"{DigestNonce}\""));
+        Assert.Equal(
+            $"Digest username=\"Mufasa\", realm=\"{DigestRealm}\", nonce=\"{DigestNonce}\", uri=\"/dir/index.html\", "
+                + "response=\"7b2cc3b30e75b4777ea31027084363fd\"",
+            plain.Authorization("GET", "/dir/index.html"));
+        IChallengeAuthenticator withOpaque = RfcDigest();
+        Assert.True(withOpaque.AcceptChallenge(
+            $"digest REALM=\"{DigestRealm}\", nonce=\"{DigestNonce}\", opaque=\"{DigestOpaque}\""));
+        Assert.Equal(
+            $"Digest username=\"Mufasa\", realm=\"{DigestRealm}\", nonce=\"{DigestNonce}\", uri=\"/dir/index.html\", "
+                + $"response=\"7b2cc3b30e75b4777ea31027084363fd\", opaque=\"{DigestOpaque}\"",
+            withOpaque.Authorization("GET", "/dir/index.html"));
+    }
+
+    [Fact]
+    public void BhvAuthdigest705DoesNotAnswerAuthIntOnlyOrAnUnknownAlgorithm()
+    {
+        IChallengeAuthenticator authInt = RfcDigest();
+        Assert.False(authInt.AcceptChallenge($"Digest realm=\"{DigestRealm}\", qop=\"auth-int\", nonce=\"{DigestNonce}\""));
+        Assert.Null(authInt.Authorization("GET", "/dir/index.html"));
+        IChallengeAuthenticator unknown = RfcDigest();
+        Assert.False(unknown.AcceptChallenge(RfcChallenge("SHA-512-256")));
+        Assert.Null(unknown.Authorization("GET", "/dir/index.html"));
+    }
+
+    [Theory]
+    [InlineData("ali\rce", "")]
+    [InlineData("ali\nce", "")]
+    [InlineData("ali\0ce", "")]
+    [InlineData("alice", "\r")]
+    [InlineData("alice", "\n")]
+    [InlineData("alice", "\0")]
+    public void BhvAuthdigest706ALineBreakOrNulInACredentialFailsAtConstruction(string username, string passwordSuffix)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new DigestAuthenticator("https://api.example.com", username, string.Concat("s3", passwordSuffix, "cret")));
+        Assert.StartsWith("Digest credentials must not contain a line break or NUL", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthdigest706AnEmptyUsernameOrADoubleQuoteFailsAtConstructionAndThePasswordIsMasked()
+    {
+        string secret = string.Concat("s3", "cret");
+        var empty = Assert.Throws<ArgumentException>(() =>
+            new DigestAuthenticator("https://api.example.com", "", secret));
+        Assert.StartsWith("Digest username must not be empty", empty.Message, StringComparison.Ordinal);
+        Assert.Equal("username", empty.ParamName);
+        var quote = Assert.Throws<ArgumentException>(() =>
+            new DigestAuthenticator("https://api.example.com", "ali\"ce", secret));
+        Assert.StartsWith("Digest username must not contain a double quote", quote.Message, StringComparison.Ordinal);
+        Assert.Equal(
+            "DigestAuthenticator(Host=https://api.example.com, Username=alice, Password=***)",
+            new DigestAuthenticator("https://api.example.com", "alice", secret).ToString());
+    }
+{{/hasDigestAuth}}
 }

@@ -2057,7 +2057,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @SuppressWarnings("StringConcatenationMissingWhitespace")
     private static List<String> buildPythonSuperArgs(SchemeAuthSpec spec) {
         final String scopes = formatPythonScopes(spec.scopes());
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {

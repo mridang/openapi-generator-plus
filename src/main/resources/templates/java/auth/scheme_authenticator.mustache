@@ -97,7 +97,7 @@ import javax.annotation.Nullable;
  * <p>Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
 {{/schemeDeprecated}}
  */
-public final class {{className}} extends BaseAuthenticator {
+public final class {{className}} extends BaseAuthenticator{{#isDigestWrapper}} implements ChallengeAuthenticator{{/isDigestWrapper}} {
 {{#hasOAuth2MetadataUrl}}
     /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
     public static final String METADATA_URL = "{{{oauth2MetadataUrlLiteral}}}";
@@ -162,6 +162,19 @@ public final class {{className}} extends BaseAuthenticator {
     public Map<String, String> getCookieParams() {
         return delegate.getCookieParams();
     }
+{{#isDigestWrapper}}
+
+    @Override
+    @Nullable
+    public String authorization(String method, String requestTarget) {
+        return delegate.authorization(method, requestTarget);
+    }
+
+    @Override
+    public boolean acceptChallenge(String wwwAuthenticate) {
+        return delegate.acceptChallenge(wwwAuthenticate);
+    }
+{{/isDigestWrapper}}
 
     /**
      * Returns the delegate's redacted representation under this wrapper's own

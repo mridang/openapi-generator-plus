@@ -1457,6 +1457,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasDigestAuth) {
+            /* The challenge contract the dispatch hands the method and request target to (D192). */
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/challenge_authenticator.mustache",
+                            getAuthDir(),
+                            "ChallengeAuthenticator.java"));
+        }
 
         if (generateTests) {
             final String testFolder =
@@ -1583,6 +1591,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("isBearerWrapper", "BearerAuthenticator".equals(spec.baseClass()));
+        ctx.put("isDigestWrapper", "DigestAuthenticator".equals(spec.baseClass()));
         ctx.put("schemeNameLiteral", escapeJavaLiteral(spec.schemeName()));
         ctx.put("superArgs", schemeSuperArgs(spec, envNameByField));
         recordOAuth2MetadataUrl(ctx);
@@ -1661,7 +1670,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     private List<String> buildJavaSuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {

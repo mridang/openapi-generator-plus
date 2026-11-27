@@ -1246,7 +1246,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
                     + " — toLowerCase(Locale.ROOT) is intentional and safe here")
     private List<String> buildElixirSuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass()) || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {

@@ -221,6 +221,10 @@ The authorization-code flow uses PKCE (`S256`): `build_authorization_url()` crea
 
 The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call request_device_authorization() to get the user code and verification URI to show to the user, then poll_for_token() to wait for the approval.
 {{/hasOAuth2DeviceAuthorization}}
+{{#hasDigestAuth}}
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+{{/hasDigestAuth}}
 
 A token response whose `token_type` is not `bearer` (any case) raises `OAuth2TokenException`, and an OpenID Connect discovery document whose `issuer` differs from the discovery URL, or whose endpoints are not https (loopback hosts excepted), raises `SerializationException`.
 

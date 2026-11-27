@@ -2508,6 +2508,10 @@ components:
       type: http
       scheme: basic
       deprecated: true
+    # HTTP Digest (RFC 7616, D192, #89): answered after the server's 401 challenge.
+    archiveDigest:
+      type: http
+      scheme: digest
     petStoreBearer:
       type: http
       scheme: bearer

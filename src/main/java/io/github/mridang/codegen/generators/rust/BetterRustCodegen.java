@@ -1689,6 +1689,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         } else if ("BearerAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("token", "&str"));
             superArgs = List.of("host", "token");
+        } else if ("DigestAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("username", "&str"), p("password", "&str"));
+            superArgs = List.of("host", "username", "password");
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = "ApiKeyLocation::" + NamingConvention.PASCAL_CASE.apply(
                     spec.keyIn() != null
@@ -1876,9 +1879,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // (an unconditional import would be dead under -D warnings).
         ctx.put("needsApiKeyLocation", "ApiKeyAuthenticator".equals(spec.baseClass()));
         // The wrapper always returns Result: a missing credential is a ConfigurationError.
-        // Basic, Bearer and API-key bases are themselves fallible; the OAuth bases are not.
+        // Basic, Bearer, API-key and Digest bases are themselves fallible; the OAuth bases are not.
         ctx.put("fallible", java.util.Set.of(
-                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator")
                 .contains(spec.baseClass()));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }

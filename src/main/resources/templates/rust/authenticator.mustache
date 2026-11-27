@@ -73,6 +73,25 @@ pub trait Authenticator: Send + Sync {
         Box::pin(async { false })
     }
 
+    /// Returns the Authorization header that answers the challenge this
+    /// authenticator accepted, for a request with `method` and
+    /// `request_target` (the path and query of the URL), or `None` before any
+    /// challenge was accepted. `BaseApi` asks it before every request; only the
+    /// HTTP Digest authenticator answers. The default returns `None`.
+    #[doc(hidden)]
+    fn challenge_authorization(&self, _method: &str, _request_target: &str) -> Option<String> {
+        None
+    }
+
+    /// Remembers the first challenge of a `WWW-Authenticate` value this
+    /// authenticator can answer and returns whether there was one. `BaseApi`
+    /// calls it after a 401 and replays the request once when it returns
+    /// `true`. The default returns `false`.
+    #[doc(hidden)]
+    fn accept_challenge(&self, _www_authenticate: &str) -> bool {
+        false
+    }
+
     /// Returns a mutable reference to this authenticator as an
     /// HttpAwareAuthenticator, if it implements that trait.
     ///

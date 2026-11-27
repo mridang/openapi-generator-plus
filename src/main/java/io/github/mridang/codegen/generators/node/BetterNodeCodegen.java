@@ -446,7 +446,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** Base classes the barrel already exports, so a per-scheme class of the same name is skipped. */
     private static final Set<String> BASE_AUTHENTICATORS = Set.of(
-            "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator",
+            "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator",
             "OAuth2ClientCredentialsAuthenticator", "OAuth2PasswordAuthenticator",
             "OAuth2AuthorizationCodeAuthenticator", "OAuth2ImplicitAuthenticator",
             "OAuth2DeviceAuthorizationAuthenticator", "OpenIdConnectAuthenticator");
@@ -1830,6 +1830,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("BearerAuthenticator", "./bearer-authenticator"));
         }
+        if ("DigestAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("DigestAuthenticator", "./digest-authenticator"));
+        }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of(
                     imp("ApiKeyAuthenticator", "./api-key-authenticator"),
@@ -1993,6 +1996,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             + ", 'Basic auth username')",
                     "resolveCredential(password, " + quoteSingle(envName(envNames, "password"))
                             + ", 'Basic auth password')");
+        }
+        if ("DigestAuthenticator".equals(spec.baseClass())) {
+            return List.of("host",
+                    "resolveCredential(username, " + quoteSingle(envName(envNames, "username"))
+                            + ", 'Digest username')",
+                    "resolveCredential(password, " + quoteSingle(envName(envNames, "password"))
+                            + ", 'Digest password')");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             return List.of("host",

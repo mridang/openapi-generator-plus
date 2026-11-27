@@ -873,6 +873,33 @@
       def to_s: () -> String
     end
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+
+    class DigestAuthenticator < BaseAuthenticator
+      HASHES: Hash[String, singleton(Digest::Base)]
+      TOKEN: Regexp
+      attr_writer cnonce_source: ^() -> String
+      @username: String
+      @password: String
+      @mutex: Thread::Mutex
+      @challenge: Hash[Symbol, untyped]?
+      @nonce_count: Integer
+      def initialize: (String, ?String?, ?String?, ?env: untyped, ?username_env: String, ?password_env: String) -> void
+      def inspect: () -> String
+      def to_s: () -> String
+      def auth_headers: () -> Hash[String, String]
+      def authorization: (String | Symbol, String) -> String?
+      def accept_challenge: (String | Array[String]) -> bool
+
+      private
+
+      def acceptable?: (Hash[String, String]) -> bool
+      def answer: (Hash[Symbol, untyped], String, String, String) -> String
+      def quoted: (untyped) -> String
+      def parse_challenges: (String) -> Array[[String, Hash[String, String]]]
+      def quoted_value: (StringScanner) -> String
+    end
+{{/hasDigestAuth}}
 
     class BearerAuthenticator < BaseAuthenticator
       def initialize: (String, ?String?, ?token_provider: (^() -> String)?, ?env: untyped, ?token_env: String) -> void
@@ -1080,9 +1107,11 @@
       def invoke_api_for_stream: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[ByteStream]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
-      def authenticated_headers: (Hash[String, String], untyped) -> Hash[String, String]
-      def credentialed_headers: (Hash[String, String], untyped) -> Hash[String, String]
-      def rebuilt_headers: (Hash[String, String], untyped, bool, Hash[Symbol, untyped]?, bool) -> Hash[String, String]
+      def authenticated_headers: (Hash[String, String], untyped, untyped, String) -> Hash[String, String]
+      def credentialed_headers: (Hash[String, String], untyped, untyped, String) -> Hash[String, String]
+      def rebuilt_headers: (Hash[String, String], untyped, bool, Hash[Symbol, untyped]?, bool, untyped, String) -> Hash[String, String]
+      def request_target_of: (String) -> String
+      def header_value: (Hash[untyped, untyped], String) -> String?
       def header_delta: (Hash[String, String], Hash[String, String]) -> Hash[Symbol, untyped]
       def apply_header_delta: (Hash[String, String], Hash[Symbol, untyped], Array[String]) -> void
       def call_info_of: (Symbol, String, String, String?) -> CallInfo

@@ -331,6 +331,70 @@ class BaseApiTest {
         assertEquals(2, client.sentHeaders.size)
         assertEquals(1, auth.invalidations)
     }
+{{#hasDigestAuth}}
+
+    /* Answers with the given statuses in turn (the last one repeats); a 401 carries a Digest challenge. */
+    class DigestChallengeApiClient(private val statuses: List<Int>) : ApiClient {
+        val sentHeaders = mutableListOf<Map<String, String>>()
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            sentHeaders.add(headers.toMap())
+            val status = statuses[minOf(sentHeaders.size - 1, statuses.size - 1)]
+            val responseHeaders = mutableMapOf("Content-Type" to "application/json")
+            if (status == 401) {
+                responseHeaders["WWW-Authenticate"] = "Basic realm=\"test\", Digest realm=\"test\", qop=\"auth\", nonce=\"abc\""
+            }
+            return ApiHttpResponse(status, "{}", responseHeaders)
+        }
+    }
+
+    private fun digestCall(client: ApiClient, auth: {{invokerPackage}}.auth.DigestAuthenticator) {
+        val api = object : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+            suspend fun call() =
+                invokeApi("POST", "/test/echo", mutableMapOf(), mutableMapOf(), "{}", arrayOf("application/json"), "application/json", auth)
+        }
+        runBlocking { api.call() }
+    }
+
+    @Test
+    @DisplayName("authdigest702 a Digest challenge is answered and the request replayed once; a second 401 stands")
+    fun bhvAuthdigest702ChallengeIsAnsweredAndReplayedOnce() {
+        val client = DigestChallengeApiClient(listOf(401, 200))
+        val auth = {{invokerPackage}}.auth.DigestAuthenticator("http://localhost", "alice", listOf("s3", "cret").joinToString(""))
+        digestCall(client, auth)
+        assertEquals(2, client.sentHeaders.size)
+        assertNull(client.sentHeaders[0]["Authorization"])
+        val answer = client.sentHeaders[1]["Authorization"].orEmpty()
+        assertTrue(
+            Regex(
+                "Digest username=\"alice\", realm=\"test\", nonce=\"abc\", uri=\"/test/echo\", " +
+                    "response=\"[0-9a-f]{32}\", qop=auth, nc=00000001, cnonce=\"[0-9a-f]{32}\"",
+            ).matches(answer),
+            answer,
+        )
+        val refused = DigestChallengeApiClient(listOf(401))
+        assertThrowsExactly(UnauthorizedException::class.java) { digestCall(refused, auth) }
+        assertEquals(2, refused.sentHeaders.size)
+    }
+
+    @Test
+    @DisplayName("authdigest703 a later request answers the remembered challenge up front with nc 00000002")
+    fun bhvAuthdigest703LaterRequestAnswersUpFrontWithTheNextNonceCount() {
+        val client = DigestChallengeApiClient(listOf(401, 200, 200))
+        val auth = {{invokerPackage}}.auth.DigestAuthenticator("http://localhost", "alice", listOf("s3", "cret").joinToString(""))
+        digestCall(client, auth)
+        digestCall(client, auth)
+        assertEquals(3, client.sentHeaders.size)
+        val answer = client.sentHeaders[2]["Authorization"].orEmpty()
+        assertTrue(answer.contains(", nc=00000002, "), answer)
+    }
+{{/hasDigestAuth}}
 
     @Test
     @DisplayName("bhvRetries003 F855: a multipart body is not replayed after a 401")

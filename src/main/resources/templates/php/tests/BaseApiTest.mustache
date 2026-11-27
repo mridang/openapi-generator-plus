@@ -11,6 +11,9 @@ use {{invokerPackage}}\Servers;
 use {{invokerPackage}}\TransportOptions;
 use {{invokerPackage}}\Auth\Authenticator;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
+{{#hasDigestAuth}}
+use {{invokerPackage}}\Auth\DigestAuthenticator;
+{{/hasDigestAuth}}
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Errors\ApiException;
@@ -1808,6 +1811,70 @@ test('bhv retries 002 a bearer authenticator is never replayed on a 401', functi
     expect($requests)->toHaveCount(1);
 });
 
+{{#hasDigestAuth}}
+/**
+ * A digest authenticator for Mufasa whose client nonce is fixed to `c`.
+ */
+function digestAuthenticator(): DigestAuthenticator
+{
+    $auth = new DigestAuthenticator('https://api.example.com', 'Mufasa', implode(' ', ['Circle', 'of', 'Life']));
+    (new \ReflectionProperty(DigestAuthenticator::class, 'cnonceSource'))->setValue(
+        $auth,
+        static fn (): string => 'c'
+    );
+
+    return $auth;
+}
+
+/**
+ * The 401 a server sends with its Digest challenge.
+ */
+function digestChallenge(): ApiHttpResponse
+{
+    return new ApiHttpResponse(401, '{}', [
+        'content-type' => 'application/json',
+        'www-authenticate' => 'Basic realm="other", Digest realm="r", nonce="n", qop="auth"',
+    ]);
+}
+
+/**
+ * The pattern of the answer to that challenge for GET /items?q=a%20b with the nonce count.
+ */
+function digestAnswer(string $nc): string
+{
+    return '/\ADigest username="Mufasa", realm="r", nonce="n", uri="\/items\?q=a%20b", '
+        . 'response="[0-9a-f]{32}", qop=auth, nc=' . $nc . ', cnonce="c"\z/';
+}
+
+test('bhv authdigest 702 a request goes without credentials, the challenge is answered and the request replayed once, and a second 401 stands', function (): void {
+    $client = new ScriptedApiClient([digestChallenge()]);
+    $api = new TestableApi($client, new Configuration('http://localhost'), digestAuthenticator());
+
+    $api->call('GET', '/items', ['q' => 'a b'], [], null, ['application/json'], null);
+
+    expect($client->requests)->toHaveCount(2);
+    expect(sentHeader($client->requests[0]['headers'], 'Authorization'))->toBeNull();
+    expect(sentHeader($client->requests[1]['headers'], 'Authorization'))->toMatch(digestAnswer('00000001'));
+
+    $refusing = new ScriptedApiClient([digestChallenge(), digestChallenge()]);
+    $refused = new TestableApi($refusing, new Configuration('http://localhost'), digestAuthenticator());
+    expect(fn (): mixed => $refused->call('GET', '/items', ['q' => 'a b'], [], null, ['application/json'], null))
+        ->toThrow(UnauthorizedException::class);
+    expect($refusing->requests)->toHaveCount(2);
+});
+
+test('bhv authdigest 703 a later request answers the remembered challenge up front with the nonce count incremented', function (): void {
+    $client = new ScriptedApiClient([digestChallenge()]);
+    $api = new TestableApi($client, new Configuration('http://localhost'), digestAuthenticator());
+
+    $api->call('GET', '/items', ['q' => 'a b'], [], null, ['application/json'], null);
+    $api->call('GET', '/items', ['q' => 'a b'], [], null, ['application/json'], null);
+
+    expect($client->requests)->toHaveCount(3);
+    expect(sentHeader($client->requests[2]['headers'], 'Authorization'))->toMatch(digestAnswer('00000002'));
+});
+
+{{/hasDigestAuth}}
 test('bhv authintegration 004 appends auth cookies to a cookie header the operation already set', function (): void {
     $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
     $result = makeBaseApiTestableApi()->call(

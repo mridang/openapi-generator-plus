@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+{{#hasDigestAuth}}
+	"{{packageName}}/internal/digestseam"
+{{/hasDigestAuth}}
 	"{{packageName}}/pkg/auth"
 	apierrors "{{packageName}}/pkg/errors"
 )
@@ -191,3 +194,137 @@ func TestBhvAuth036_BasicAuthenticator_RefusesAUsernameWithAColon(t *testing.T) 
 		t.Errorf("expected ErrBasicAuthUsernameColon and no authenticator, got %v %v", a, err)
 	}
 }
+{{#hasDigestAuth}}
+
+// The RFC 7616 section 3.9.1 example: its nonce, opaque and client nonce.
+const (
+	digestNonce  = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"
+	digestOpaque = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"
+	digestCnonce = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
+)
+
+// mustDigest builds the RFC 7616 example user's DigestAuthenticator with the
+// example's client nonce.
+func mustDigest(t *testing.T) *auth.DigestAuthenticator {
+	t.Helper()
+	a, err := auth.NewDigestAuthenticator("https://api.example.com", "Mufasa", "Circle of Life")
+	if err != nil {
+		t.Fatalf("unexpected error from NewDigestAuthenticator: %v", err)
+	}
+	digestseam.SetCnonce(a, digestCnonce)
+	return a
+}
+
+// digestAnswer feeds a challenge and returns the answer for GET /dir/index.html.
+func digestAnswer(t *testing.T, challenge string) string {
+	t.Helper()
+	a := mustDigest(t)
+	if !a.AcceptChallenge(challenge) {
+		t.Fatalf("expected the challenge %q to be accepted", challenge)
+	}
+	header, ok := a.Authorization("GET", "/dir/index.html")
+	if !ok {
+		t.Fatalf("expected an answer to the challenge %q", challenge)
+	}
+	return header
+}
+
+// The MD5 answer to the RFC 7616 example challenge has the published response
+// and the header fields in the fixed order.
+func TestBhvAuthdigest700_BasicAuthenticator_TheMd5AnswerToTheRfc7616ExampleIsThePublishedOne(t *testing.T) {
+	t.Parallel()
+	got := digestAnswer(t, `Digest realm="http-auth@example.org", qop="auth, auth-int", algorithm=MD5, nonce="`+digestNonce+`", opaque="`+digestOpaque+`"`)
+	want := `Digest username="Mufasa", realm="http-auth@example.org", nonce="` + digestNonce + `", uri="/dir/index.html", algorithm=MD5, response="8ca523f5e9506fed4657c9700eebdbec", qop=auth, nc=00000001, cnonce="` + digestCnonce + `", opaque="` + digestOpaque + `"`
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// The SHA-256 answer to the RFC 7616 example has the published response, and
+// the -sess variants hash the first value again with the nonce and the cnonce.
+func TestBhvAuthdigest701_BasicAuthenticator_TheSha256AndSessAnswersAreThePublishedOnes(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		algorithm string
+		response  string
+	}{
+		{"SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"},
+		{"MD5-sess", "e783283f46242139c486a698fec7211d"},
+		{"SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"},
+	}
+	for _, tc := range cases {
+		got := digestAnswer(t, `Basic realm="other", Digest realm="http-auth@example.org", qop="auth, auth-int", algorithm=`+tc.algorithm+`, nonce="`+digestNonce+`", opaque="`+digestOpaque+`", Digest realm="http-auth@example.org", algorithm=MD5, nonce="other"`)
+		want := `Digest username="Mufasa", realm="http-auth@example.org", nonce="` + digestNonce + `", uri="/dir/index.html", algorithm=` + tc.algorithm + `, response="` + tc.response + `", qop=auth, nc=00000001, cnonce="` + digestCnonce + `", opaque="` + digestOpaque + `"`
+		if got != want {
+			t.Errorf("%s: expected %q, got %q", tc.algorithm, want, got)
+		}
+	}
+}
+
+// A challenge without qop is answered in the RFC 2069 form, with no qop, nc or
+// cnonce; opaque is echoed only when sent and algorithm only when named, as
+// written.
+func TestBhvAuthdigest704_BasicAuthenticator_AChallengeWithoutQopIsAnsweredInTheRfc2069Form(t *testing.T) {
+	t.Parallel()
+	plain := digestAnswer(t, `Digest realm="http-auth@example.org", nonce="`+digestNonce+`"`)
+	if want := `Digest username="Mufasa", realm="http-auth@example.org", nonce="` + digestNonce + `", uri="/dir/index.html", response="7b2cc3b30e75b4777ea31027084363fd"`; plain != want {
+		t.Errorf("expected %q, got %q", want, plain)
+	}
+	named := digestAnswer(t, `digest realm="http-auth@example.org", nonce="`+digestNonce+`", algorithm=md5, opaque="`+digestOpaque+`"`)
+	if want := `Digest username="Mufasa", realm="http-auth@example.org", nonce="` + digestNonce + `", uri="/dir/index.html", algorithm=md5, response="7b2cc3b30e75b4777ea31027084363fd", opaque="` + digestOpaque + `"`; named != want {
+		t.Errorf("expected %q, got %q", want, named)
+	}
+}
+
+// A challenge that offers only qop=auth-int, or names an unknown algorithm, is
+// not answered: nothing is accepted and no header is produced.
+func TestBhvAuthdigest705_BasicAuthenticator_AnAuthIntOnlyOrUnknownAlgorithmChallengeIsNotAnswered(t *testing.T) {
+	t.Parallel()
+	for _, challenge := range []string{
+		`Digest realm="r", nonce="n", qop="auth-int"`,
+		`Digest realm="r", nonce="n", algorithm=SHA-512-256`,
+		`Basic realm="r"`,
+	} {
+		a := mustDigest(t)
+		if a.AcceptChallenge(challenge) {
+			t.Errorf("expected %q not to be accepted", challenge)
+		}
+		if header, ok := a.Authorization("GET", "/dir/index.html"); ok {
+			t.Errorf("expected no answer to %q, got %q", challenge, header)
+		}
+	}
+}
+
+// An empty username, a line break or NUL in either field, or a double quote in
+// the username fails at construction, and the string form masks the password.
+func TestBhvAuthdigest706_BasicAuthenticator_DigestCredentialsAreCheckedAtConstructionAndThePasswordIsMasked(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		username, password string
+		want               error
+		message            string
+	}{
+		{"", "pw", auth.ErrDigestUsernameEmpty, "digest username must not be empty"},
+		{"ali\nce", "pw", auth.ErrDigestCredentialsControlChar, "digest credentials must not contain a line break or NUL"},
+		{"alice", "p\rw", auth.ErrDigestCredentialsControlChar, "digest credentials must not contain a line break or NUL"},
+		{"alice", "p\x00w", auth.ErrDigestCredentialsControlChar, "digest credentials must not contain a line break or NUL"},
+		{`ali"ce`, "pw", auth.ErrDigestUsernameQuote, "digest username must not contain a double quote"},
+	}
+	for _, tc := range cases {
+		a, err := auth.NewDigestAuthenticator("https://api.example.com", tc.username, tc.password)
+		if !errors.Is(err, tc.want) || err.Error() != tc.message || a != nil {
+			t.Errorf("NewDigestAuthenticator(%q, %q): expected %q and no authenticator, got %v %v", tc.username, tc.password, tc.message, a, err)
+		}
+	}
+	a, err := auth.NewDigestAuthenticator("https://api.example.com", "alice", "s3cret")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := `DigestAuthenticator{host: "https://api.example.com", username: "alice", password: ***}`
+	for _, s := range []string{a.String(), fmt.Sprint(a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprint(*a), fmt.Sprintf("%#v", *a)} {
+		if s != want {
+			t.Errorf("expected %q, got %q", want, s)
+		}
+	}
+}
+{{/hasDigestAuth}}

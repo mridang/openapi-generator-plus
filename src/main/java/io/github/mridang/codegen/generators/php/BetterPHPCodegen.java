@@ -77,6 +77,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final Set<String> CREDENTIAL_FALLBACK_BASES =
             Set.of(
                     "BasicAuthenticator",
+                    "DigestAuthenticator",
                     "BearerAuthenticator",
                     "ApiKeyAuthenticator",
                     "OAuth2ClientCredentialsAuthenticator",
@@ -1635,7 +1636,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     private List<String> buildPhpSuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("$host", "$username", "$password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {

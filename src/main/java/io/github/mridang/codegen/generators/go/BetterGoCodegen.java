@@ -1260,6 +1260,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasDigestAuth) {
+            /* D192: the module-internal seam the tests use to fix a digest answer's client nonce. */
+            supportingFiles.add(
+                    new SupportingFile("internal/digestseam.mustache", "internal/digestseam", "digestseam.go"));
+        }
         if (!generateTests) {
             return;
         }
@@ -1383,9 +1388,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildGoSuperArgs(spec));
-        // Basic, Bearer and API-key base constructors validate their credentials and
+        // Basic, Bearer, API-key and Digest base constructors validate their credentials and
         // return (T, error); the scheme wrapper forwards that error.
-        ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+        ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator")
                 .contains(spec.baseClass()));
         recordSchemeAuthTest(spec, envVars, isBearer, ctx);
         final Map<String, Object> credentialScheme = new HashMap<>();
@@ -1570,6 +1575,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "token");
+        }
+        if ("DigestAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + goStringBody(java.util.Objects.toString(spec.keyParamName(), "")) + "\"", "apiKey",

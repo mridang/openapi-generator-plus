@@ -1068,7 +1068,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     private List<String> buildKotlinSuperArgs(SchemeAuthSpec spec, Map<String, String> env) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password",
                     "\"" + env.get("username") + "\"", "\"" + env.get("password") + "\"");
         }

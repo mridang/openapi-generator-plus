@@ -5,6 +5,9 @@ namespace {{invokerPackage}}\Test;
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\BasicAuthenticator;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
+{{#hasDigestAuth}}
+use {{invokerPackage}}\Auth\DigestAuthenticator;
+{{/hasDigestAuth}}
 use {{invokerPackage}}\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 use {{invokerPackage}}\Auth\OAuth\OAuth2PasswordAuthenticator;
@@ -371,3 +374,103 @@ test('bhv serialization 112 masks the password in var_dump and print_r output', 
     // Username is non-secret and should still be visible for debugging.
     expect($printR)->toContain('alice');
 });
+{{#hasDigestAuth}}
+
+/**
+ * The RFC 7616 section 3.9.1 user with the cnonce of the example.
+ */
+function rfcDigestAuthenticator(): DigestAuthenticator
+{
+    $auth = new DigestAuthenticator('https://api.example.com', 'Mufasa', implode(' ', ['Circle', 'of', 'Life']));
+    (new \ReflectionProperty(DigestAuthenticator::class, 'cnonceSource'))->setValue(
+        $auth,
+        static fn (): string => 'f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ'
+    );
+
+    return $auth;
+}
+
+/**
+ * The RFC 7616 example challenge naming the algorithm.
+ */
+function rfcDigestChallenge(string $algorithm): string
+{
+    return 'Digest realm="http-auth@example.org", qop="auth, auth-int", algorithm=' . $algorithm
+        . ', nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"';
+}
+
+/**
+ * The answer to the RFC 7616 example challenge with the algorithm and the response.
+ */
+function rfcDigestAnswer(string $algorithm, string $response): string
+{
+    return 'Digest username="Mufasa", realm="http-auth@example.org", '
+        . 'nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", uri="/dir/index.html", algorithm=' . $algorithm
+        . ', response="' . $response . '", qop=auth, nc=00000001, cnonce="f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ", '
+        . 'opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"';
+}
+
+test('bhv authdigest 700 the MD5 answer to the RFC 7616 example challenge has the RFC response and the header fields in the fixed order', function (): void {
+    $auth = rfcDigestAuthenticator();
+    expect($auth->authorization('GET', '/dir/index.html'))->toBeNull();
+    expect($auth->acceptChallenge(rfcDigestChallenge('MD5')))->toBeTrue();
+    expect($auth->authorization('GET', '/dir/index.html'))
+        ->toBe(rfcDigestAnswer('MD5', '8ca523f5e9506fed4657c9700eebdbec'));
+    expect($auth->getAuthHeaders())->toBe([]);
+});
+
+test('bhv authdigest 701 the SHA-256 answer has the RFC response and the -sess variants hash the first value with the nonce and cnonce', function (string $algorithm, string $response): void {
+    $auth = rfcDigestAuthenticator();
+    expect($auth->acceptChallenge(rfcDigestChallenge($algorithm)))->toBeTrue();
+    expect($auth->authorization('GET', '/dir/index.html'))->toBe(rfcDigestAnswer($algorithm, $response));
+})->with([
+    ['SHA-256', '753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1'],
+    ['MD5-sess', 'e783283f46242139c486a698fec7211d'],
+    ['SHA-256-sess', '2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7'],
+]);
+
+test('bhv authdigest 704 a challenge without qop is answered in the RFC 2069 form, opaque only when sent and algorithm only when named', function (): void {
+    $auth = rfcDigestAuthenticator();
+    expect($auth->acceptChallenge(
+        'Basic realm="other", digest realm="http-auth@example.org", nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"'
+    ))->toBeTrue();
+    expect($auth->authorization('GET', '/dir/index.html'))->toBe(
+        'Digest username="Mufasa", realm="http-auth@example.org", nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", '
+        . 'uri="/dir/index.html", response="7b2cc3b30e75b4777ea31027084363fd"'
+    );
+});
+
+test('bhv authdigest 705 a challenge that offers only qop=auth-int or an unknown algorithm is not answered', function (): void {
+    $auth = rfcDigestAuthenticator();
+    expect($auth->acceptChallenge('Digest realm="r", nonce="n", qop="auth-int"'))->toBeFalse();
+    expect($auth->acceptChallenge('Digest realm="r", nonce="n", algorithm=SHA-512-256'))->toBeFalse();
+    expect($auth->authorization('GET', '/dir/index.html'))->toBeNull();
+});
+
+test('bhv authdigest 706 a malformed credential fails at construction and the string form masks the password', function (): void {
+    $secret = implode(' ', ['Circle', 'of', 'Life']);
+    $refusals = [
+        ['', $secret, 'Digest username must not be empty'],
+        ["Muf\rasa", $secret, 'Digest credentials must not contain a line break or NUL'],
+        ["Muf\nasa", $secret, 'Digest credentials must not contain a line break or NUL'],
+        ["Muf\0asa", $secret, 'Digest credentials must not contain a line break or NUL'],
+        ['Mufasa', "Circle\r\nof Life", 'Digest credentials must not contain a line break or NUL'],
+        ['Mufasa', "Circle\0of Life", 'Digest credentials must not contain a line break or NUL'],
+        ['Muf"asa', $secret, 'Digest username must not contain a double quote'],
+    ];
+    foreach ($refusals as [$username, $password, $message]) {
+        $refused = null;
+        try {
+            new DigestAuthenticator('https://api.example.com', $username, $password);
+        } catch (\InvalidArgumentException $error) {
+            $refused = $error;
+        }
+        expect($refused)->toBeInstanceOf(\InvalidArgumentException::class);
+        expect($refused?->getMessage())->toBe($message);
+    }
+    $printed = print_r(new DigestAuthenticator('https://api.example.com', 'Mufasa', $secret), true);
+    expect($printed)->not->toContain($secret);
+    expect($printed)->toContain('***');
+    expect($printed)->toContain('Mufasa');
+});
+{{/hasDigestAuth}}

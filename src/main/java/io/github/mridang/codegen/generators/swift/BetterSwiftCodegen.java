@@ -1212,21 +1212,22 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("imports", List.of());
         final boolean hasEnvVars = Boolean.TRUE.equals(ctx.get("hasEnvVars"));
-        /* Basic and Bearer take the same argument labels as their base class, so the
+        /* Basic, Bearer and Digest take the same argument labels as their base class, so the
            initializer of the scheme class overrides the base one. */
         final boolean needsOverride =
                 "BasicAuthenticator".equals(spec.baseClass())
-                        || "BearerAuthenticator".equals(spec.baseClass());
+                        || "BearerAuthenticator".equals(spec.baseClass())
+                        || "DigestAuthenticator".equals(spec.baseClass());
         ctx.put("needsOverride", needsOverride);
         ctx.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
         ctx.put("constructorSignature", buildSwiftConstructorSignature(spec, hasEnvVars, true));
         ctx.put("environmentSignature", buildSwiftConstructorSignature(spec, hasEnvVars, false));
         ctx.put("forwardArguments", buildSwiftForwardArguments(spec));
         ctx.put("superCall", buildSwiftSuperCall(spec));
-        // Basic, Bearer and API-key initializers validate their credentials and
+        // Basic, Bearer, API-key and Digest initializers validate their credentials and
         // throw ConfigurationError; the scheme subclass rethrows.
         final boolean superThrows = java.util.Set.of(
-                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator")
                 .contains(spec.baseClass());
         ctx.put("fallible", superThrows);
         // A credential that can come from the environment can be missing, which throws.
@@ -1474,7 +1475,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
                     + " — toLowerCase(Locale.ROOT) is intentional and safe here")
     private static String buildSwiftSuperCall(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return "host: host, username: username, password: password";
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {

@@ -2,6 +2,9 @@
 
 import * as util from 'node:util';
 import { BasicAuthenticator } from '../src/auth/basic-authenticator{{importFileExtension}}';
+{{#hasDigestAuth}}
+import { DigestAuthenticator } from '../src/auth/digest-authenticator{{importFileExtension}}';
+{{/hasDigestAuth}}
 
 describe('BasicAuthenticator', () => {
   it('bhv authbasic 011 valid credentials produce basic header', () => {
@@ -143,3 +146,84 @@ describe('BasicAuthenticator', () => {
     });
   });
 });
+{{#hasDigestAuth}}
+
+describe('DigestAuthenticator', () => {
+  const host = 'https://api.example.com';
+  const realm = 'http-auth@example.org';
+  const nonce = '7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v';
+  const opaque = 'FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS';
+  const cnonce = 'f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ';
+  const secret = ['Circle', 'of', 'Life'].join(' ');
+
+  const mufasa = (): DigestAuthenticator => {
+    const auth = new DigestAuthenticator(host, 'Mufasa', secret);
+    (auth as unknown as { cnonceSource: () => string }).cnonceSource = () => cnonce;
+    return auth;
+  };
+
+  const challenge = (algorithm: string): string =>
+    `Digest realm="${realm}", qop="auth, auth-int", algorithm=${algorithm}, nonce="${nonce}", opaque="${opaque}"`;
+
+  const expected = (algorithm: string, response: string): string =>
+    `Digest username="Mufasa", realm="${realm}", nonce="${nonce}", uri="/dir/index.html", algorithm=${algorithm}, ` +
+    `response="${response}", qop=auth, nc=00000001, cnonce="${cnonce}", opaque="${opaque}"`;
+
+  it('bhv authdigest 700 the MD5 answer to the RFC 7616 example challenge has the RFC response and the header fields in the fixed order', () => {
+    const auth = mufasa();
+    expect(auth.authorization('GET', '/dir/index.html')).toBeNull();
+    expect(auth.acceptChallenge(challenge('MD5'))).toBe(true);
+    expect(auth.authorization('GET', '/dir/index.html')).toBe(expected('MD5', '8ca523f5e9506fed4657c9700eebdbec'));
+    expect(auth.getAuthHeaders()).toEqual({});
+  });
+
+  it('bhv authdigest 701 the SHA-256 answer has the RFC response and the -sess variants hash the first value with the nonce and cnonce', () => {
+    for (const [algorithm, response] of [
+      ['SHA-256', '753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1'],
+      ['MD5-sess', 'e783283f46242139c486a698fec7211d'],
+      ['SHA-256-sess', '2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7']
+    ] as const) {
+      const auth = mufasa();
+      expect(auth.acceptChallenge(challenge(algorithm))).toBe(true);
+      expect(auth.authorization('GET', '/dir/index.html')).toBe(expected(algorithm, response));
+    }
+  });
+
+  it('bhv authdigest 704 a challenge without qop is answered in the RFC 2069 form, opaque only when sent and algorithm only when named', () => {
+    const auth = mufasa();
+    expect(auth.acceptChallenge(`Basic realm="other", digest realm="${realm}", nonce="${nonce}"`)).toBe(true);
+    expect(auth.authorization('GET', '/dir/index.html')).toBe(
+      `Digest username="Mufasa", realm="${realm}", nonce="${nonce}", uri="/dir/index.html", ` +
+        'response="7b2cc3b30e75b4777ea31027084363fd"'
+    );
+  });
+
+  it('bhv authdigest 705 a challenge that offers only qop=auth-int or an unknown algorithm is not answered', () => {
+    const auth = mufasa();
+    expect(auth.acceptChallenge(`Digest realm="${realm}", nonce="${nonce}", qop="auth-int"`)).toBe(false);
+    expect(auth.acceptChallenge(`Digest realm="${realm}", nonce="${nonce}", algorithm=SHA-512-256`)).toBe(false);
+    expect(auth.authorization('GET', '/dir/index.html')).toBeNull();
+  });
+
+  it('bhv authdigest 706 a malformed credential fails at construction and the string form masks the password', () => {
+    expect(() => new DigestAuthenticator(host, '', secret)).toThrow(new TypeError('Digest username must not be empty'));
+    for (const [username, password] of [
+      ['Muf\rasa', secret],
+      ['Muf\nasa', secret],
+      ['Muf\0asa', secret],
+      ['Mufasa', 'Circle\r\nof Life'],
+      ['Mufasa', 'Circle\0of Life']
+    ] as const) {
+      expect(() => new DigestAuthenticator(host, username, password)).toThrow(
+        new TypeError('Digest credentials must not contain a line break or NUL')
+      );
+    }
+    expect(() => new DigestAuthenticator(host, 'Muf"asa', secret)).toThrow(
+      new TypeError('Digest username must not contain a double quote')
+    );
+    const auth = new DigestAuthenticator(host, 'Mufasa', secret);
+    expect(util.inspect(auth)).toBe('DigestAuthenticator(host=https://api.example.com, username=Mufasa, password=***)');
+    expect(JSON.stringify(auth)).not.toContain(secret);
+  });
+});
+{{/hasDigestAuth}}

@@ -2227,6 +2227,69 @@ public class BaseApiTest
         Assert.Equal(1, auth.Invalidations);
         Assert.Equal(2, client.Authorizations.Count);
     }
+{{#hasDigestAuth}}
+
+    /* Answers with the given statuses in turn (the last one repeats); a 401 carries a Digest challenge. */
+    private sealed class DigestChallengeApiClient(params int[] statuses) : IApiClient
+    {
+        public List<string?> Authorizations { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Authorizations.Add(headers.GetValueOrDefault("Authorization"));
+            int status = statuses[Math.Min(Authorizations.Count, statuses.Length) - 1];
+            Dictionary<string, string> responseHeaders = new() { { "Content-Type", "application/json" } };
+            if (status == 401)
+            {
+                responseHeaders["WWW-Authenticate"] =
+                    "Basic realm=\"test\", Digest realm=\"test\", qop=\"auth\", nonce=\"abc\"";
+            }
+            return Task.FromResult(new ApiHttpResponse(status, "{}", responseHeaders));
+        }
+    }
+
+    private static Task<object?> CallWithDigest(DigestChallengeApiClient client, DigestAuthenticator auth)
+    {
+        return new TestableApi(client, "http://localhost").CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "{}", ["application/json"], "application/json", auth);
+    }
+
+    [Fact]
+    public async Task BhvAuthdigest702AChallengeIsAnsweredAndTheRequestReplayedOnceAndASecond401Stands()
+    {
+        var client = new DigestChallengeApiClient(401, 200);
+        var auth = new DigestAuthenticator("http://localhost", "alice", string.Concat("s3", "cret"));
+
+        _ = await CallWithDigest(client, auth);
+
+        Assert.Equal(2, client.Authorizations.Count);
+        Assert.Null(client.Authorizations[0]);
+        Assert.Matches(
+            "^Digest username=\"alice\", realm=\"test\", nonce=\"abc\", uri=\"/test/echo\", "
+                + "response=\"[0-9a-f]{32}\", qop=auth, nc=00000001, cnonce=\"[0-9a-f]{32}\"$",
+            client.Authorizations[1]);
+        var refused = new DigestChallengeApiClient(401);
+        _ = await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithDigest(refused, auth));
+        Assert.Equal(2, refused.Authorizations.Count);
+    }
+
+    [Fact]
+    public async Task BhvAuthdigest703ALaterRequestAnswersTheRememberedChallengeWithTheNextNonceCount()
+    {
+        var client = new DigestChallengeApiClient(401, 200, 200);
+        var auth = new DigestAuthenticator("http://localhost", "alice", string.Concat("s3", "cret"));
+
+        _ = await CallWithDigest(client, auth);
+        _ = await CallWithDigest(client, auth);
+
+        Assert.Equal(3, client.Authorizations.Count);
+        Assert.Contains(", nc=00000002, ", client.Authorizations[2], StringComparison.Ordinal);
+    }
+{{/hasDigestAuth}}
 
     [Fact]
     public async Task BhvSerializationwire001AllowEmptyValueParamOmittedWithDefaultOptions()

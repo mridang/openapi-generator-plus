@@ -177,6 +177,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     protected boolean hasBasicAuth;
     protected boolean hasBearerAuth;
+    /** A scheme is {@code type: http, scheme: digest} (RFC 7616, D192). */
+    protected boolean hasDigestAuth;
     protected boolean hasApiKeyAuth;
 
     /**
@@ -861,6 +863,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("hasClientSchemes", !sharedClientSchemes.isEmpty());
         additionalProperties.put("hasBasicAuth", hasBasicAuth);
         additionalProperties.put("hasBearerAuth", hasBearerAuth);
+        additionalProperties.put("hasDigestAuth", hasDigestAuth);
         additionalProperties.put("hasApiKeyAuth", hasApiKeyAuth);
         final List<Map<String, Object>> apiKeyHeaderNamesList = new ArrayList<>();
         for (final String name : apiKeyHeaderNames) {
@@ -978,6 +981,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     hasBasicAuth = true;
                 } else if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
                     hasBearerAuth = true;
+                } else if ("digest".equalsIgnoreCase(scheme.getScheme())) {
+                    hasDigestAuth = true;
                 }
             } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
                 hasApiKeyAuth = true;
@@ -1259,6 +1264,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "auth/bearer_authenticator.mustache",
                 getAuthDir(),
                 toAuthFilename("bearer_authenticator")));
+        if (hasDigestAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/digest_authenticator.mustache",
+                    getAuthDir(),
+                    toAuthFilename("digest_authenticator")));
+        }
         if (hasApiKeyAuth) {
             supportingFiles.add(new SupportingFile(
                     "auth/api_key_location.mustache",
@@ -1433,6 +1444,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         List.of("host", "token"),
                         null, null, null, null, null, null, null);
             }
+            if ("digest".equalsIgnoreCase(scheme.getScheme())) {
+                return new SchemeAuthSpec(schemeName, cls, "", "DigestAuthenticator", false,
+                        List.of("host", "username", "password"),
+                        null, null, null, null, null, null, null);
+            }
         } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
             final String location =
                     NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
@@ -1486,7 +1502,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     static String unsupportedSchemeMessage(String schemeName, SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.HTTP) {
             return "Unsupported http security scheme '" + scheme.getScheme() + "' for '"
-                    + schemeName + "': only basic and bearer get an authenticator";
+                    + schemeName + "': only basic, bearer and digest get an authenticator";
         }
         return "Unsupported security scheme type " + scheme.getType() + " for '" + schemeName
                 + "': no authenticator is generated";

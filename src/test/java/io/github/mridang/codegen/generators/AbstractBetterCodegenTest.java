@@ -833,17 +833,30 @@ class AbstractBetterCodegenTest {
   }
 
   @Test
-  @DisplayName("an http scheme other than basic and bearer is named in the warning")
+  @DisplayName("an http scheme other than basic, bearer and digest is named in the warning")
   void unsupportedHttpSchemeIsNamed() {
+    final io.swagger.v3.oas.models.security.SecurityScheme negotiate =
+        new io.swagger.v3.oas.models.security.SecurityScheme()
+            .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP)
+            .scheme("negotiate");
+    assertEquals(
+        "Unsupported http security scheme 'negotiate' for 'legacy': only basic, bearer and digest"
+            + " get an authenticator",
+        AbstractBetterCodegen.unsupportedSchemeMessage("legacy", negotiate));
+    assertEquals(null, codegen("java").buildSchemeAuthSpec("legacy", negotiate));
+  }
+
+  @Test
+  @DisplayName("an http digest scheme gets a digest authenticator with a username and a password")
+  void digestSchemeGetsAnAuthenticator() {
     final io.swagger.v3.oas.models.security.SecurityScheme digest =
         new io.swagger.v3.oas.models.security.SecurityScheme()
             .type(io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP)
-            .scheme("digest");
-    assertEquals(
-        "Unsupported http security scheme 'digest' for 'legacy': only basic and bearer get an"
-            + " authenticator",
-        AbstractBetterCodegen.unsupportedSchemeMessage("legacy", digest));
-    assertEquals(null, codegen("java").buildSchemeAuthSpec("legacy", digest));
+            .scheme("Digest");
+    final AbstractBetterCodegen.SchemeAuthSpec spec =
+        java.util.Objects.requireNonNull(codegen("java").buildSchemeAuthSpec("legacy", digest));
+    assertEquals("DigestAuthenticator", spec.baseClass());
+    assertEquals(java.util.List.of("host", "username", "password"), spec.paramNames());
   }
 
   @Test

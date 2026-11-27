@@ -359,6 +359,10 @@ func newClient() (*{{packageName}}.Client, error) {
 The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call RequestDeviceAuthorization() to get the user code and verification URI to show to the user, then PollForToken() to wait for the approval.
 
 {{/hasOAuth2DeviceAuthorization}}
+{{#hasDigestAuth}}
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+{{/hasDigestAuth}}
 ### Per-call options
 
 Every operation takes any number of `RequestOption` values as its last arguments, including an operation with no parameters and no security, which has no options struct of its own: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.

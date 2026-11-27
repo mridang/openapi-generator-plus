@@ -193,6 +193,10 @@ function clientWithRotatingToken(readToken: () => Promise<string>): {{clientClas
 
 The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
 {{/hasOAuth2DeviceAuthorization}}
+{{#hasDigestAuth}}
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+{{/hasDigestAuth}}
 
 {{#hasClientSchemes}}
 ### Credentials per security scheme
