@@ -331,6 +331,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A model passed as a query or header parameter was already expanded in every SDK (D47); C# and PHP now expand a dictionary, a `\Ds\Map` or an associative array the same way, where they used to write it as one opaque value. `deepObject` and `content` parameters are unchanged.
 
+## D140: The OpenID Connect authenticator sends a nonce and checks the id_token claims
+
+**Decision.** Every authorization URL the OpenID Connect authenticator builds carries a fresh `nonce`, in all twelve SDKs. On the code exchange the authenticator reads the `id_token` of the token response and checks its claims before it keeps the new session: the `nonce` must be the one of the authorization URL, `iss` must equal the `issuer` of the discovery document, `aud` must contain the client id, and `exp` must not have passed, allowing 60 seconds of clock skew. A token that fails a check, or that cannot be decoded, fails the exchange with the SDK's OAuth2 token error (`OAuth2TokenError`, or `OAuth2TokenException` where errors end in Exception), and the previous session is kept. The payload is decoded with base64url and JSON only; no JWT library is added (#110, owner decision).
+
+**Consequences.** The signature of the `id_token` is not verified. This is a known limitation: the claims are checked, but a token forged by someone who can answer in place of the token endpoint would not be detected. Signature checking can be added later without changing the public API, because the discovery document already names the provider's keys in `jwks_uri`. A token response without an `id_token` is not checked, and the nonce is not checked when the exchange follows no authorization URL built by the same authenticator. The plain OAuth2 authorization-code authenticator sends no nonce, as before.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -373,7 +379,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 ### Deferred to an issue
 
 * **Streaming responses and uploads (#114).** The transport contract reads a whole response and sends a whole body in all twelve SDKs, so server-sent events, JSON Lines and very large files cannot be expressed. The shape has to be chosen once for all twelve, so nothing was built in one language first. Until then you can pass your own HTTP client.
-* **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
 
@@ -399,7 +404,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#105](https://github.com/mridang/openapi-generator-plus/issues/105): run a vulnerability and unused-dependency audit on every generated SDK.
 * [#107](https://github.com/mridang/openapi-generator-plus/issues/107): decode Go models in a single pass.
 * [#108](https://github.com/mridang/openapi-generator-plus/issues/108): add optional tracer and meter providers to the Go client.
-* [#110](https://github.com/mridang/openapi-generator-plus/issues/110): generate a nonce and validate `id_token` claims in the OIDC authenticator.
 * [#111](https://github.com/mridang/openapi-generator-plus/issues/111): compile the README and `SKILLS.md` code fences and test the minimum supported runtimes.
 * [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients (built, decisions D118 to D122, D125 to D127).
 * [#115](https://github.com/mridang/openapi-generator-plus/issues/115): cover the Dart browser client and derive the keyword lists from the toolchains.
