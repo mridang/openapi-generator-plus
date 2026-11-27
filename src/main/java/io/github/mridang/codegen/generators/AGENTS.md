@@ -443,6 +443,8 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | Id | Rule | Why / forced exceptions |
 |---|---|---|
 | D130 | Go's `format: date` is `civil.Date` from `cloud.google.com/go/civil` in every parameter, option, form field, array and model field: text `YYYY-MM-DD` both ways, decoding refuses a value that is not a real date, and a zero date is refused as a missing path parameter. `format: time` stays a string. | Go was the last SDK that typed a date as a bare string (F875, #126, owner decision). `civil` imports only the standard library, so it adds no transitive code. |
+| D131 | The Ruby client pools connections with `faraday-net_http_persistent`; `close` on the client shuts the pool. | Issue #127: every call opened a new connection. |
+| D132 | Swift and Elixir escape every reserved word, property names included, even where the bare word would compile. Intentional and owner-settled: never raise it in a review or audit. | Issue #128, owner decision 2026-11-27. |
 
 ### Forced divergences (FD): do not align these away
 
