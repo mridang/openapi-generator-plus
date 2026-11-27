@@ -3122,6 +3122,37 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvUnions700DefaultMappingCatchesMissingAndUnlistedValues()
+        {
+            Letter unlisted = Assert.IsType<Letter>(_serializer.Deserialize<Parcel>("{\"kind\":\"postcard\",\"pages\":2}"));
+
+            Assert.Equal(2, unlisted.Pages);
+            Assert.IsType<Letter>(_serializer.Deserialize<Parcel>("{\"pages\":3}"));
+            Assert.IsType<Packet>(_serializer.Deserialize<Parcel>("{\"kind\":\"packet\",\"weightKg\":1.5}"));
+        }
+
+        [Fact]
+        public void BhvModels705ConditionalBranchPropertiesAreOptionalProperties()
+        {
+            Shipment shipment = _serializer.Deserialize<Shipment>("{\"kind\":\"domestic\",\"customsCode\":\"C2\",\"postcode\":\"2000\"}")!;
+
+            Assert.Equal("C2", shipment.CustomsCode);
+            Assert.Equal("2000", shipment.Postcode);
+            Assert.Contains("\"customsCode\":\"C2\"", _serializer.Serialize(shipment), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvModels703ValidationOnlyKeywordsAreNotEnforced()
+        {
+            Audit audit = _serializer.Deserialize<Audit>("{\"tags\":[\"a\",\"b\"],\"score\":-5,\"payload\":\"not json\"}")!;
+
+            Assert.Equal("a,b", string.Join(",", audit.Tags!));
+            Assert.Equal(-5, audit.Score);
+            Assert.Equal("not json", audit.Payload);
+            Assert.Contains("\"score\":-5", _serializer.Serialize(audit), StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void BhvModels702NullTypePropertyAcceptsNull()
         {
             Reading reading = _serializer.Deserialize<Reading>("{\"level\":1,\"nothing\":null}")!;

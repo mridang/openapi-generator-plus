@@ -14,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Roster, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum, Swatch, Reading } from '../src/models/index{{importFileExtension}}';
+import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Roster, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum, Swatch, Reading, Audit, Shipment, Parcel, Letter, Packet } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -3007,6 +3007,32 @@ describe('toBinary', () => {
       const map = ObjectSerializer.deserialize({ level: 1, shape: { k: 'v' } }, Reading)!;
       expect(map.shape!.getActualInstance()).toEqual({ k: 'v' });
       expect(JSON.parse(ObjectSerializer.serialize(map)).shape).toEqual({ k: 'v' });
+    });
+
+    test('bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant', () => {
+      const unlisted = ObjectSerializer.deserialize({ kind: 'postcard', pages: 2 }, Parcel)!.getActualInstance();
+
+      expect(unlisted).toBeInstanceOf(Letter);
+      expect((unlisted as Letter).pages).toBe(2);
+      expect(ObjectSerializer.deserialize({ pages: 3 }, Parcel)!.getActualInstance()).toBeInstanceOf(Letter);
+      expect(ObjectSerializer.deserialize({ kind: 'packet', weightKg: 1.5 }, Parcel)!.getActualInstance()).toBeInstanceOf(Packet);
+    });
+
+    test('bhv models 705 the properties of then and else are optional properties and the condition is not enforced', () => {
+      const shipment = ObjectSerializer.deserialize({ kind: 'domestic', customsCode: 'C2', postcode: '2000' }, Shipment)!;
+
+      expect(shipment.customsCode).toBe('C2');
+      expect(shipment.postcode).toBe('2000');
+      expect(JSON.parse(ObjectSerializer.serialize(shipment)).customsCode).toBe('C2');
+    });
+
+    test('bhv models 703 the validation-only JSON Schema keywords are not enforced', () => {
+      const audit = ObjectSerializer.deserialize({ tags: ['a', 'b'], score: -5, payload: 'not json' }, Audit)!;
+
+      expect(audit.tags).toEqual(['a', 'b']);
+      expect(audit.score).toBe(-5);
+      expect(audit.payload).toBe('not json');
+      expect(JSON.parse(ObjectSerializer.serialize(audit)).score).toBe(-5);
     });
 
     test('bhv models 702 a property of type null accepts null', () => {

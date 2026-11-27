@@ -81,7 +81,6 @@ import io.github.mridang.codegen.rules.NormalizeIntegerWidthRule;
 import io.github.mridang.codegen.rules.NormalizeNullTypeRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
 import io.github.mridang.codegen.rules.NormalizeTypeArrayRule;
-import io.github.mridang.codegen.rules.WarnUnsupportedKeywordsRule;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -565,6 +564,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
+        // The keyword warnings and the $defs hoist must see the document before the stock
+        // 3.1 normaliser rebuilds array schemas (D184).
+        openapiNormalizer().putIfAbsent("NORMALIZER_CLASS", io.github.mridang.codegen.PreNormalizer.class.getName());
         setEnablePostProcessFile(true);
         supportingFiles.clear();
 
@@ -797,6 +799,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         putInfoMetadata(openAPI.getInfo());
         responseSummaries = RawSpecReader.responseSummaries(getInputSpec());
+        discriminatorDefaults = RawSpecReader.discriminatorDefaults(getInputSpec());
         computeSchemeEnvVars(openAPI);
         // Webhooks are out of scope (S11); the stock generator would write each one into an API
         // class as an ordinary operation and overwrite the untagged operations of the document.
@@ -819,11 +822,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                                 : "https://spdx.org/licenses/" + identifier + ".html");
             }
         }
-        WarnUnsupportedKeywordsRule.check(openAPI, LOGGER);
+        io.github.mridang.codegen.SpecPreChecks.run(openAPI, LOGGER);
+        io.github.mridang.codegen.SpecPreChecks.clear(openAPI);
         new InlinePathItemReferencesRule()
                 .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new io.github.mridang.codegen.rules.NormalizePatternPropertiesRule()
+                .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeConstRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new IgnoreReservedHeadersRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeIntegerWidthRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
@@ -1935,6 +1941,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     private Map<String, Map<String, String>> responseSummaries = Map.of();
 
+    /** The Discriminator Object {@code defaultMapping} per component schema, read raw (#87). */
+    private Map<String, String> discriminatorDefaults = Map.of();
+
     /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
     private static final Set<String> SAFE_HTTP_METHODS =
             Set.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY");
@@ -2138,6 +2147,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final CodegenModel built = super.fromModel(name, schema);
         if (built != null) {
             populateTypedAdditionalProperties(built, schema);
+            markDiscriminatorDefault(name, built);
         }
         // Record enum models so referenced-enum properties (which carry
         // isEnum == false but a complexType naming the enum) can be told apart
@@ -2160,6 +2170,37 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     protected final boolean isEnumModel(@Nullable String typeName) {
         return typeName != null && enumModelNames.contains(typeName);
+    }
+
+    /**
+     * Hands a discriminated model the variant its {@code defaultMapping} names (#87, D187):
+     * {@code vendorExtensions.discriminatorDefault} is the variant's model name and
+     * {@code discriminatorDefaultMappingName} the mapping key that names the same schema, or the
+     * schema's own name when the mapping does not list it. A template decodes a payload whose
+     * discriminator is missing or not in the mapping as that variant instead of failing.
+     */
+    private void markDiscriminatorDefault(String name, CodegenModel model) {
+        final String target = discriminatorDefaults.get(name);
+        if (target == null || model.discriminator == null) {
+            return;
+        }
+        final String modelName = toModelName(target);
+        String mappingName = target;
+        if (model.discriminator.getMappedModels() != null) {
+            for (final org.openapitools.codegen.CodegenDiscriminator.MappedModel mapped
+                    : model.discriminator.getMappedModels()) {
+                if (modelName.equals(mapped.getModelName())) {
+                    mappingName = mapped.getMappingName();
+                    break;
+                }
+            }
+        }
+        model.vendorExtensions.put("discriminatorDefault", modelName);
+        model.vendorExtensions.put("discriminatorDefaultMappingName", mappingName);
+        // Inside a {{#discriminator}} section the name vendorExtensions resolves to the
+        // discriminator's own map, so the values are put there as well.
+        model.discriminator.getVendorExtensions().put("discriminatorDefault", modelName);
+        model.discriminator.getVendorExtensions().put("discriminatorDefaultMappingName", mappingName);
     }
 
     /**

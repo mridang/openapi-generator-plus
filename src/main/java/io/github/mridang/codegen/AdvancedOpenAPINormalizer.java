@@ -86,6 +86,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
      */
     @Override
     protected void normalize() {
+        SpecPreChecks.run(this.openAPI, getLogger());
         super.normalize();
         getLogger().info("Default normalization complete. Applying custom rules...");
 

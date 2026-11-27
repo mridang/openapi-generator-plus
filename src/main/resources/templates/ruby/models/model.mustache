@@ -207,6 +207,13 @@ module {{moduleName}}
         # @return [Object] Returns the model or the data itself
         def build(data)
         {{#discriminator}}
+        {{#vendorExtensions.discriminatorDefault}}
+          # defaultMapping (D187): a missing or unlisted value is the default variant.
+          discriminator_value = data.is_a?(Hash) ? data[openapi_discriminator_name] : nil
+          klass_name = openapi_discriminator_mapping[discriminator_value.to_s] || '{{vendorExtensions.discriminatorDefault}}'
+          ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+        {{/vendorExtensions.discriminatorDefault}}
+        {{^vendorExtensions.discriminatorDefault}}
           discriminator_value = data[openapi_discriminator_name]
           # Raise on missing/unknown discriminator instead of silently
           # falling through to the base type. Aligns with Swift / Dart /
@@ -231,6 +238,7 @@ module {{moduleName}}
         {{^mappedModels}}
           ::{{moduleName}}::ObjectSerializer.convert_to_type(data, discriminator_value.to_s)
         {{/mappedModels}}
+        {{/vendorExtensions.discriminatorDefault}}
         {{/discriminator}}
         {{^discriminator}}
           openapi_one_of.each do |klass_name|
@@ -656,6 +664,12 @@ module {{moduleName}}
         end
 
         discriminator_value = data.transform_keys(&:to_s)[OPENAPI_DISCRIMINATOR_NAME]
+{{#vendorExtensions.discriminatorDefault}}
+        # defaultMapping (D187): a missing or unlisted value is the default variant.
+        klass_name = OPENAPI_DISCRIMINATOR_MAPPING[discriminator_value.to_s] || '{{vendorExtensions.discriminatorDefault}}'
+        ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         if discriminator_value.nil?
           raise ::{{moduleName}}::Errors::SerializationError,
                 "Missing discriminator '#{OPENAPI_DISCRIMINATOR_NAME}' for {{classname}}"
@@ -668,6 +682,7 @@ module {{moduleName}}
         end
 
         ::{{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name)
+{{/vendorExtensions.discriminatorDefault}}
       end
 {{/vendorExtensions.x-allof-base}}
 

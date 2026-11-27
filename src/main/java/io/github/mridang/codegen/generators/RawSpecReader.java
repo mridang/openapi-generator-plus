@@ -88,6 +88,34 @@ public final class RawSpecReader {
         return identifier.asText().trim();
     }
 
+    /**
+     * Returns the Discriminator Object {@code defaultMapping} of every component schema that
+     * declares one, keyed by the component name, as the schema name the value references (the
+     * last segment of a {@code $ref} value, or the value itself when it is a bare schema name).
+     * swagger-models 2.2 has no field for it (OpenAPI 3.2, #87).
+     *
+     * @param location the path of the specification file, or null
+     * @return the default schema name per component, in document order
+     */
+    public static Map<String, String> discriminatorDefaults(@Nullable final String location) {
+        final Map<String, String> defaults = new LinkedHashMap<>();
+        final JsonNode root = read(location);
+        final JsonNode components = root == null ? null : root.get("components");
+        final JsonNode schemas = components == null ? null : components.get("schemas");
+        if (schemas == null || !schemas.isObject()) {
+            return defaults;
+        }
+        for (final Map.Entry<String, JsonNode> entry : schemas.properties()) {
+            final JsonNode discriminator = entry.getValue().get("discriminator");
+            final JsonNode value = discriminator == null ? null : discriminator.get("defaultMapping");
+            if (value != null && value.isTextual() && !value.asText().isBlank()) {
+                final String text = value.asText().trim();
+                defaults.put(entry.getKey(), text.substring(text.lastIndexOf('/') + 1));
+            }
+        }
+        return defaults;
+    }
+
     @SuppressFBWarnings(
             value = "PATH_TRAVERSAL_IN",
             justification = "The location is the input specification the generator was asked to read")

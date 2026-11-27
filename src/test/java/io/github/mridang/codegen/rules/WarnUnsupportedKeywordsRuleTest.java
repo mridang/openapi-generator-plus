@@ -2,6 +2,7 @@ package io.github.mridang.codegen.rules;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.swagger.v3.oas.models.OpenAPI;
@@ -51,9 +52,30 @@ class WarnUnsupportedKeywordsRuleTest {
     void eachKeywordWarnsOnce() {
         final List<String> out =
                 warnings("    A: {not: {type: string}}\n    B: {not: {type: integer}}\n"
-                        + "    C: {type: object, patternProperties: {'^x': {type: string}}}\n");
+                        + "    C: {type: object, propertyNames: {pattern: '^x'}}\n");
 
         assertEquals(2, out.size());
+    }
+
+    @Test
+    @DisplayName("maxContains and the dynamic references warn, each once")
+    void dynamicReferencesAndMaxContainsWarn() {
+        final List<String> out =
+                warnings("    A: {type: array, items: {type: string}, maxContains: 2}\n"
+                        + "    B: {$dynamicAnchor: node, type: object,"
+                        + " properties: {next: {$dynamicRef: '#node'}}}\n");
+
+        assertEquals(3, out.size());
+        assertTrue(String.join(" ", out).contains("$dynamicRef"));
+    }
+
+    @Test
+    @DisplayName("a prefixItems tuple warns, so the strict mode refuses its untyped list")
+    void prefixItemsWarns() {
+        final List<String> out = warnings("    T: {type: array, prefixItems: [{type: number}, {type: string}]}\n");
+
+        assertEquals(1, out.size());
+        assertTrue(out.get(0).contains("prefixItems"));
     }
 
     @Test

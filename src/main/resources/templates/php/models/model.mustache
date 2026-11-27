@@ -240,6 +240,14 @@ class {{classname}} implements \Ds\Hashable
     public static function build(mixed $data): self
     {
 {{#discriminator}}
+{{#vendorExtensions.discriminatorDefault}}
+        /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+        $discValue = is_array($data) ? ($data[self::DISCRIMINATOR_PROPERTY] ?? null) : null;
+        $class = (is_string($discValue) ? (self::DISCRIMINATOR_MAPPING[$discValue] ?? null) : null)
+            ?? \{{modelPackage}}\{{vendorExtensions.discriminatorDefault}}::class;
+        return new self(\{{invokerPackage}}\ObjectSerializer::deserialize($data, $class));
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         /* Gap AU: throw on missing / unknown / non-string discriminator
          * value. Previously this fell through to `return new self($data)`
          * which wrapped the raw array in a oneOf container — the result
@@ -265,6 +273,7 @@ class {{classname}} implements \Ds\Hashable
             );
         }
         return new self(\{{invokerPackage}}\ObjectSerializer::deserialize($data, $class));
+{{/vendorExtensions.discriminatorDefault}}
 {{/discriminator}}
 {{^discriminator}}
         return new self(\{{invokerPackage}}\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
@@ -483,6 +492,14 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}} imple
      */
     public static function subtypeClass(array $payload): string
     {
+{{#vendorExtensions.discriminatorDefault}}
+        /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+        $discValue = $payload[self::DISCRIMINATOR_PROPERTY] ?? null;
+        $mapped = is_string($discValue) ? (self::DISCRIMINATOR_MAPPING[$discValue] ?? null) : null;
+        if ($mapped === null) {
+            return \{{modelPackage}}\{{vendorExtensions.discriminatorDefault}}::class;
+        }
+{{/vendorExtensions.discriminatorDefault}}
         if (!isset($payload[self::DISCRIMINATOR_PROPERTY])) {
             throw new \InvalidArgumentException(
                 "Missing discriminator field '" . self::DISCRIMINATOR_PROPERTY

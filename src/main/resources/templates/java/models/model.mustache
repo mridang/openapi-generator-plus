@@ -243,7 +243,8 @@ public enum {{classname}} {
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,
     property = "{{discriminator.propertyBaseName}}",
-    visible = true)
+    visible = true{{#vendorExtensions.discriminatorDefault}},
+    defaultImpl = {{vendorExtensions.discriminatorDefault}}.class{{/vendorExtensions.discriminatorDefault}})
 @JsonSubTypes({
 {{#mappedModels}}
   @JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
@@ -718,7 +719,8 @@ public class {{classname}} {
     use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME,
     include = com.fasterxml.jackson.annotation.JsonTypeInfo.As.EXISTING_PROPERTY,
     property = "{{discriminator.propertyBaseName}}",
-    visible = true)
+    visible = true{{#vendorExtensions.discriminatorDefault}},
+    defaultImpl = {{vendorExtensions.discriminatorDefault}}.class{{/vendorExtensions.discriminatorDefault}})
 @com.fasterxml.jackson.annotation.JsonSubTypes({
 {{#discriminator}}
 {{#mappedModels}}

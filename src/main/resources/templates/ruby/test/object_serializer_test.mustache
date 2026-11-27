@@ -1778,6 +1778,29 @@ describe {{moduleName}}::ObjectSerializer do
       _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(map))['shape']).must_equal({ 'k' => 'v' })
     end
 
+    it 'bhv_unions_700 decodes a missing or unlisted discriminator value as the defaultMapping variant' do
+      unlisted = {{moduleName}}::ObjectSerializer.deserialize('{"kind":"postcard","pages":2}', 'Parcel')
+      _(unlisted).must_be_instance_of({{moduleName}}::Models::Letter)
+      _(unlisted.pages).must_equal(2)
+      _({{moduleName}}::ObjectSerializer.deserialize('{"pages":3}', 'Parcel')).must_be_instance_of({{moduleName}}::Models::Letter)
+      _({{moduleName}}::ObjectSerializer.deserialize('{"kind":"packet","weightKg":1.5}', 'Parcel')).must_be_instance_of({{moduleName}}::Models::Packet)
+    end
+
+    it 'bhv_models_705 reads the then and else properties as optional properties without the condition' do
+      shipment = {{moduleName}}::ObjectSerializer.deserialize('{"kind":"domestic","customsCode":"C2","postcode":"2000"}', 'Shipment')
+      _(shipment.customs_code).must_equal('C2')
+      _(shipment.postcode).must_equal('2000')
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(shipment))['customsCode']).must_equal('C2')
+    end
+
+    it 'bhv_models_703 does not enforce the validation-only JSON Schema keywords' do
+      audit = {{moduleName}}::ObjectSerializer.deserialize('{"tags":["a","b"],"score":-5,"payload":"not json"}', 'Audit')
+      _(audit.tags).must_equal(%w[a b])
+      _(audit.score).must_equal(-5)
+      _(audit.payload).must_equal('not json')
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(audit))['score']).must_equal(-5)
+    end
+
     it 'bhv_models_702 accepts null for a property of type null' do
       reading = {{moduleName}}::ObjectSerializer.deserialize('{"level":1,"nothing":null}', 'Reading')
       _(reading.nothing).must_be_nil

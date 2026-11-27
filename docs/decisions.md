@@ -397,6 +397,36 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A union is now usable as a property of another model in all twelve SDKs; before, no fixture used one and several SDKs failed to compile it, to decode a scalar into it or to write it back. An `anyOf` whose matched variant is a scalar or a list writes that value as is, since only objects can be merged field by field. The mock server used by the tests cannot load a type array of two non-null types, so the test fixture declares the `anyOf` the generator produces for one, and the rewrite itself is tested in the generator.
 
+## D184: The remaining JSON Schema keywords are mapped or warned about
+
+**Decision.** `const` is an enum with one value. The `$defs` of a component schema become component schemas of their own, named after the definition (with the owning schema's name in front when that name is taken), and every reference into `$defs` follows them, so a definition generates a model like any other schema. The validation keywords `not`, `contains`, `minContains`, `maxContains`, `unevaluatedItems`, `contentSchema`, `dependentRequired` and `dependentSchemas` are read and not enforced, like `pattern` and the other constraints the server owns (S3): a value they would refuse decodes as given. `$dynamicRef` and `$dynamicAnchor` are ignored, because a reference resolved at validation time has no static type in any of the twelve languages. Each ignored keyword is logged once when the SDK is generated, and the strict mode of D142 fails on it (#82).
+
+**Consequences.** The warnings now run before the stock OpenAPI 3.1 normaliser, which rebuilds array schemas without `contains` and its siblings, so those keywords are reported where they were silently dropped before. The mock server used by the tests cannot resolve a reference into `$defs`, so the hoist is tested in the generator.
+
+## D185: Pattern properties type the extra properties
+
+**Decision.** A schema's `patternProperties` describe keys a client cannot name in advance, which is what the map of extra properties already holds, so the value schema of the patterns types that map: a schema with `patternProperties: {'^s[0-9]+$': {type: integer}}` exposes its extra keys as a string-keyed map of integers in every SDK, with the same checks as a typed `additionalProperties` (a value of the wrong type fails the decode). When the patterns declare different value schemas, or `additionalProperties` declares a different schema or `true`, the extras stay free-form. The key patterns and `propertyNames` are not checked, like the other validation keywords (S3), and `propertyNames` is logged as ignored (#84).
+
+**Consequences.** A pattern-keyed map needs no new public field and no template change, and an SDK reads it exactly like a typed `additionalProperties` map. A key that does not match the pattern is still kept as an extra property.
+
+## D186: A conditional schema is one model with the properties of both branches
+
+**Decision.** A schema with `if`, `then` and `else` generates one model. The properties that `then` or `else` declares are optional properties of that model, after its own properties, so a payload of either branch decodes and writes back without loss. A property the schema declares itself keeps its own schema, and a property both branches declare with different schemas keeps the `then` schema, with a warning at generation time. The `if` condition and the `required` lists of the branches are not checked, like the other validation keywords (S3) (#86).
+
+**Consequences.** A caller reads `customsCode` and `postcode` from one `Shipment` model whatever the payload's `kind`; nothing tells it which branch the server meant, which the server owns.
+
+## D187: A discriminator's default mapping catches missing and unknown values
+
+**Decision.** When a discriminator declares `defaultMapping`, a payload whose discriminating property is missing, or holds a value the mapping does not list, decodes as the variant `defaultMapping` names, in every SDK and for both a `oneOf` or `anyOf` union and a classic `allOf` base. A listed value still picks its own variant. Without `defaultMapping` nothing changes: a missing or unknown discriminator fails the decode with the serialization error, so an out-of-date specification is still visible. `propertyName` stays required, as OpenAPI 3.2 has it; what becomes optional is the property in the payload. The parser the generator uses does not keep `defaultMapping`, so the generator reads it from the document as written (#87).
+
+**Consequences.** The default variant must be one of the variants of the union. A document that names another schema fails to compile in the SDKs whose unions are closed types (Rust, Swift).
+
+## D188: Tuples stay lists of any values for now, with a warning
+
+**Decision.** A `prefixItems` tuple is still generated as a list of any values, with the positional types recorded in its documentation, and the generator now reports it as a specification warning, so the strict mode of D142 refuses it instead of shipping the untyped shape unnoticed. Typed tuples are deferred: when they are built, each tuple schema becomes a positional model that reads and writes a JSON array, in the idiom of each language (#85).
+
+**Consequences.** Moving to typed tuples later changes the type of every tuple field in all twelve SDKs, so it is one decision for all of them. Until then callers read each position as an untyped value.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

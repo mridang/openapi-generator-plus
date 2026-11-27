@@ -972,6 +972,30 @@ void main() {
       expect((jsonDecode(serialize(map)) as Map<String, dynamic>)['shape'], equals({'k': 'v'}));
     });
 
+    test('bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant', () {
+      final unlisted = deserialize<Parcel>('{"kind":"postcard","pages":2}', Parcel.fromJson)!;
+      expect(unlisted.asLetter?.pages, equals(2));
+      expect(deserialize<Parcel>('{"pages":3}', Parcel.fromJson)!.isLetter, isTrue);
+      expect(deserialize<Parcel>('{"kind":"packet","weightKg":1.5}', Parcel.fromJson)!.isPacket, isTrue);
+    });
+
+    test('bhv models 705 the properties of then and else are optional properties and the condition is not enforced', () {
+      final shipment = deserialize<Shipment>(
+          '{"kind":"domestic","customsCode":"C2","postcode":"2000"}', Shipment.fromJson)!;
+      expect(shipment.customsCode, equals('C2'));
+      expect(shipment.postcode, equals('2000'));
+      expect((jsonDecode(serialize(shipment)) as Map<String, dynamic>)['customsCode'], equals('C2'));
+    });
+
+    test('bhv models 703 the validation-only JSON Schema keywords are not enforced', () {
+      final audit = deserialize<Audit>(
+          '{"tags":["a","b"],"score":-5,"payload":"not json"}', Audit.fromJson)!;
+      expect(audit.tags, equals(['a', 'b']));
+      expect(audit.score, equals(-5));
+      expect(audit.payload, equals('not json'));
+      expect((jsonDecode(serialize(audit)) as Map<String, dynamic>)['score'], equals(-5));
+    });
+
     test('bhv models 702 a property of type null accepts null', () {
       final reading = deserialize<Reading>('{"level":1,"nothing":null}', Reading.fromJson)!;
       expect(reading.nothing, isNull);

@@ -411,18 +411,26 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   /// discriminator, or with a value no mapping lists, is a [SerializationException].
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
     final disc = json['{{discriminator.propertyBaseName}}'];
+{{^vendorExtensions.discriminatorDefault}}
     if (disc == null) {
       throw SerializationException(
           "Missing discriminator property '{{discriminator.propertyBaseName}}' in payload for {{classname}}");
     }
+{{/vendorExtensions.discriminatorDefault}}
     switch (disc) {
 {{#vendorExtensions.dartSubtypes}}
       case '{{{mappingName}}}':
         return {{{modelName}}}.fromJson(json);
 {{/vendorExtensions.dartSubtypes}}
       default:
+{{#vendorExtensions.discriminatorDefault}}
+        /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+        return {{vendorExtensions.discriminatorDefault}}.fromJson(json);
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         throw SerializationException(
             "Discriminator value '$disc' on '{{discriminator.propertyBaseName}}' is not listed in the schema mapping for {{classname}}");
+{{/vendorExtensions.discriminatorDefault}}
     }
   }
   {{/vendorExtensions.dartAllOfBase}}
@@ -1473,15 +1481,24 @@ class {{classname}} {
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
 {{#discriminator}}
     final disc = json['{{propertyBaseName}}'];
+{{^vendorExtensions.discriminatorDefault}}
     if (disc == null) {
       throw SerializationException(
           "Missing discriminator property '{{propertyBaseName}}' in payload for {{classname}}");
     }
+{{/vendorExtensions.discriminatorDefault}}
     switch (disc) {
 {{#mappedModels}}
       case '{{{mappingName}}}':
         return {{classname}}._({{{modelName}}}.fromJson(json));
 {{/mappedModels}}
+{{#vendorExtensions.discriminatorDefault}}
+      default:
+        /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+        return {{classname}}._({{vendorExtensions.discriminatorDefault}}.fromJson(json));
+    }
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
       default:
         /* 4.7 — discriminator value not in the listed mappings.
            Throw a SerializationException instead of falling through, so
@@ -1490,6 +1507,7 @@ class {{classname}} {
         throw SerializationException(
             'Unknown discriminator value for {{classname}}: $disc');
     }
+{{/vendorExtensions.discriminatorDefault}}
 {{/discriminator}}
 {{^discriminator}}
 {{#composedSchemas}}

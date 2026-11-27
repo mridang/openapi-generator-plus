@@ -97,9 +97,9 @@ A bare `type: number` with no format is exact in Java, Kotlin (`BigDecimal`), C#
 
 Arrays, sets and maps use the language's own collection type, except in PHP where they use the `php-ds` types (`\Ds\Vector`, `\Ds\Set`, `\Ds\Map`), and in Go, where a set is an SDK type (`models.Set[T]`) because Go has no set. `uniqueItems` arrays are written in each language's natural collection order, which is not sorted and not specified.
 
-A schema whose `additionalProperties` declares a value type uses that type for the extra keys: `Metadata` with `additionalProperties: {type: string}` exposes a map of strings, a model value gives a map of that model, and an array or map value keeps its element type. The `T` in the `object` with `additionalProperties` row is that value type. A `null` extra is rejected unless the value schema is nullable. A free-form `additionalProperties` (`true`, an empty schema or no `type`) keeps the any-type listed below, so every JSON value is accepted and returned as it arrived.
+A schema whose `additionalProperties` declares a value type uses that type for the extra keys: `Metadata` with `additionalProperties: {type: string}` exposes a map of strings, a model value gives a map of that model, and an array or map value keeps its element type. The `T` in the `object` with `additionalProperties` row is that value type. A `null` extra is rejected unless the value schema is nullable. `patternProperties` type the same map when their patterns share one value schema (D185); the key patterns are not checked. A free-form `additionalProperties` (`true`, an empty schema or no `type`) keeps the any-type listed below, so every JSON value is accepted and returned as it arrived.
 
-Free-form objects and the `AnyType` schema map to the most open type the language has. Java uses `Object`, Kotlin `Any`, C# `object`, Node `unknown`, Dart `Object?`, Go `any`, Python and Ruby `object`. Rust and Swift ship their own value type (`JsonValue`, `AnyCodable`) because their standard libraries have none. Elixir uses a map for an object and `any()` for `AnyType`.
+A `prefixItems` tuple is a list of that any-type, with the positional types in its documentation; typed tuples are deferred and the generator warns about each tuple (D188). Free-form objects and the `AnyType` schema map to the most open type the language has. Java uses `Object`, Kotlin `Any`, C# `object`, Node `unknown`, Dart `Object?`, Go `any`, Python and Ruby `object`. Rust and Swift ship their own value type (`JsonValue`, `AnyCodable`) because their standard libraries have none. Elixir uses a map for an object and `any()` for `AnyType`.
 
 ## Unions
 
@@ -107,7 +107,7 @@ Free-form objects and the `AnyType` schema map to the most open type the languag
 
 An OpenAPI 3.1 `type` array such as `[string, integer]` is the same union with one variant per type, and `type: 'null'` is the any-type that may be null (D183). A union can be the type of a model property; the property then holds whatever the union holds, a scalar and a list included, and writes it back unchanged.
 
-Variants without a discriminator are tried in declaration order. In an `anyOf` the later declared variant wins when several match. An operation with several `2xx` responses of different shapes decodes the body as the schema of the status that arrived and returns a generated union of them.
+A discriminator with a `defaultMapping` decodes a payload whose discriminator is missing or not in the mapping as the default variant (D187). Variants without a discriminator are tried in declaration order. In an `anyOf` the later declared variant wins when several match. An operation with several `2xx` responses of different shapes decodes the body as the schema of the status that arrived and returns a generated union of them.
 
 `allOf` with a discriminator is also language-shaped: inheritance in Java, C#, Node, Python, Ruby, PHP and Dart; a sealed interface with flattened data classes in Kotlin; an embedded base struct and a decoding function in Go; an internally tagged enum in Rust; a protocol and an enum in Swift; flattened structs and a dispatch function in Elixir.
 

@@ -1936,6 +1936,40 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvUnions700 a missing or unlisted discriminator value decodes as the defaultMapping variant")
+        fun defaultMappingCatchesMissingAndUnlistedValues() {
+            val unlisted = serializer.deserialize<{{modelPackage}}.Parcel>("{\"kind\":\"postcard\",\"pages\":2}")!!
+            assertEquals(2, (unlisted.actualInstance as {{modelPackage}}.Letter).pages)
+            val missing = serializer.deserialize<{{modelPackage}}.Parcel>("{\"pages\":3}")!!
+            assertTrue(missing.actualInstance is {{modelPackage}}.Letter)
+            val box = serializer.deserialize<{{modelPackage}}.Parcel>("{\"kind\":\"packet\",\"weightKg\":1.5}")!!
+            assertTrue(box.actualInstance is {{modelPackage}}.Packet)
+        }
+
+        @Test
+        @DisplayName("bhvModels705 the properties of then and else are optional properties and the condition is not enforced")
+        fun conditionalBranchPropertiesAreOptionalProperties() {
+            val shipment = serializer.deserialize<{{modelPackage}}.Shipment>(
+                "{\"kind\":\"domestic\",\"customsCode\":\"C2\",\"postcode\":\"2000\"}",
+            )!!
+            assertEquals("C2", shipment.customsCode)
+            assertEquals("2000", shipment.postcode)
+            assertTrue(serializer.serialize(shipment).contains("\"customsCode\":\"C2\""))
+        }
+
+        @Test
+        @DisplayName("bhvModels703 the validation-only JSON Schema keywords are not enforced")
+        fun validationOnlyKeywordsAreNotEnforced() {
+            val audit = serializer.deserialize<{{modelPackage}}.Audit>(
+                "{\"tags\":[\"a\",\"b\"],\"score\":-5,\"payload\":\"not json\"}",
+            )!!
+            assertEquals(listOf("a", "b"), audit.tags)
+            assertEquals(-5, audit.score)
+            assertEquals("not json", audit.payload)
+            assertTrue(serializer.serialize(audit).contains("\"score\":-5"))
+        }
+
+        @Test
         @DisplayName("bhvModels702 a property of type null accepts null")
         fun nullTypePropertyAcceptsNull() {
             val reading = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"nothing\":null}")!!

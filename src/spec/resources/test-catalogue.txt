@@ -338,6 +338,9 @@ models029 | A free-form additionalProperties keeps accepting and returning any J
 models700 | The union an OAS 3.1 type array of scalar types becomes (an anyOf of string and integer), held by a model property, decodes each of its types and writes the value back unchanged
 models701 | The union an OAS 3.1 type array of array and object becomes, held by a model property, decodes both an array and an object and writes each back unchanged
 models702 | A property of the OAS 3.1 null type (type: 'null') accepts null
+models703 | The validation-only JSON Schema 2020-12 keywords (contains, minContains, maxContains, unevaluatedItems, not, contentSchema) are not enforced: a value they would refuse decodes as given and is written back
+models704 | A schema's patternProperties value schema types its extra properties: matching keys decode as a string-keyed map of that type and a value of the wrong type fails the decode
+models705 | The properties of a schema's then and else branches are optional properties of its model: each decodes and is written back, and the if condition is not enforced
 operations001 | A per-call header replaces a default header of the same name
 operations002 | All headers from selector flow through
 operations003 | AllowEmptyValue param included when value is empty string
@@ -1958,6 +1961,7 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+unions700 | A discriminated union with a defaultMapping decodes a payload whose discriminator is missing or not in the mapping as the default variant, and a listed value still picks its own variant
 langswift001 | An API error conforms to the platform error protocol and reports a non-empty description
 langswift002 | An OAuth2 token error's localized description is exactly its message
 langswift003 | A refused loopback connection with no response raises a network error with status zero that keeps the transport error

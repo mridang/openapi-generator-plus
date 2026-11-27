@@ -10,8 +10,8 @@ import org.slf4j.Logger;
 
 /**
  * Logs one warning per JSON Schema keyword that the generator reads and ignores: the
- * validation-only keywords (the server owns validation), {@code patternProperties} and
- * {@code $anchor}. It never changes the document. Like the other spec warnings, the keywords
+ * validation-only keywords (the server owns validation, D184), {@code $anchor} and the dynamic
+ * references {@code $dynamicRef} and {@code $dynamicAnchor}, which no language can type. It never changes the document. Like the other spec warnings, the keywords
  * fail the run instead when {@code -DstrictSpec=true} is set.
  */
 public class WarnUnsupportedKeywordsRule extends SchemaWalkingRule {
@@ -50,6 +50,7 @@ public class WarnUnsupportedKeywordsRule extends SchemaWalkingRule {
         note(schema.getNot() != null, "not", logger);
         note(schema.getContains() != null, "contains", logger);
         note(schema.getMinContains() != null, "minContains", logger);
+        note(schema.getMaxContains() != null, "maxContains", logger);
         note(schema.getUnevaluatedItems() != null, "unevaluatedItems", logger);
         note(schema.getDependentRequired() != null, "dependentRequired", logger);
         note(schema.getDependentSchemas() != null, "dependentSchemas", logger);
@@ -57,8 +58,12 @@ public class WarnUnsupportedKeywordsRule extends SchemaWalkingRule {
                 "if/then/else", logger);
         note(schema.getPropertyNames() != null, "propertyNames", logger);
         note(schema.getContentSchema() != null, "contentSchema", logger);
-        note(schema.getPatternProperties() != null, "patternProperties", logger);
+        // A prefixItems tuple is generated as a list of any values until typed tuples land
+        // (D188); the warning makes the strict mode refuse the lossy shape (F843).
+        note(schema.getPrefixItems() != null && !schema.getPrefixItems().isEmpty(), "prefixItems", logger);
         note(schema.get$anchor() != null, "$anchor", logger);
+        note(schema.get$dynamicRef() != null, "$dynamicRef", logger);
+        note(schema.get$dynamicAnchor() != null, "$dynamicAnchor", logger);
     }
 
     private void note(boolean present, String keyword, Logger logger) {

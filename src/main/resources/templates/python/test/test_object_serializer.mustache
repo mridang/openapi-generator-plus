@@ -1249,6 +1249,41 @@ class TestFixtureModelsOnTheWire:
         assert mapped.shape.actual_instance == {'k': 'v'}
         assert json.loads(ObjectSerializer().serialize(mapped))['shape'] == {'k': 'v'}
 
+    def test_bhv_unions_700_default_mapping_catches_missing_and_unlisted_values(self) -> None:
+        from {{packageName}}.models.packet import Packet
+        from {{packageName}}.models.letter import Letter
+
+        unlisted = ObjectSerializer().deserialize('{"kind":"postcard","pages":2}', 'Parcel')
+        assert isinstance(unlisted.actual_instance, Letter)
+        assert unlisted.actual_instance.pages == 2
+        missing = ObjectSerializer().deserialize('{"pages":3}', 'Parcel')
+        assert isinstance(missing.actual_instance, Letter)
+        box = ObjectSerializer().deserialize('{"kind":"packet","weightKg":1.5}', 'Parcel')
+        assert isinstance(box.actual_instance, Packet)
+
+    def test_bhv_models_705_the_then_and_else_properties_are_optional_properties(self) -> None:
+        import json
+        from {{packageName}}.models.shipment import Shipment
+
+        shipment = ObjectSerializer().deserialize(
+            '{"kind":"domestic","customsCode":"C2","postcode":"2000"}', 'Shipment'
+        )
+        assert isinstance(shipment, Shipment)
+        assert shipment.customs_code == 'C2'
+        assert shipment.postcode == '2000'
+        assert json.loads(ObjectSerializer().serialize(shipment))['customsCode'] == 'C2'
+
+    def test_bhv_models_703_the_validation_only_keywords_are_not_enforced(self) -> None:
+        import json
+        from {{packageName}}.models.audit import Audit
+
+        audit = ObjectSerializer().deserialize('{"tags":["a","b"],"score":-5,"payload":"not json"}', 'Audit')
+        assert isinstance(audit, Audit)
+        assert audit.tags == ['a', 'b']
+        assert audit.score == -5
+        assert audit.payload == 'not json'
+        assert json.loads(ObjectSerializer().serialize(audit))['score'] == -5
+
     def test_bhv_models_702_a_property_of_type_null_accepts_null(self) -> None:
         from {{packageName}}.models.reading import Reading
 

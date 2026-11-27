@@ -180,6 +180,16 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def build(data) do
   {{#discriminator}}
     discriminator_value = data[to_string(openapi_discriminator_name())]
+  {{#vendorExtensions.discriminatorDefault}}
+    # defaultMapping (D187): a missing or unlisted value is the default variant.
+    if is_nil(discriminator_value) or
+         not Map.has_key?(openapi_discriminator_mapping(), to_string(discriminator_value)) do
+      {{moduleName}}.ObjectSerializer.convert_to_type(data, "{{vendorExtensions.discriminatorDefault}}")
+    else
+      do_build_discriminated(data, discriminator_value)
+    end
+  {{/vendorExtensions.discriminatorDefault}}
+  {{^vendorExtensions.discriminatorDefault}}
     # Raise on missing/unknown discriminator instead of silently
     # returning nil. Aligns with Python, Swift, Dart, Go, Rust
     # which throw on union no-match (5 of 12 SDKs already strict;
@@ -190,6 +200,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     end
 
     do_build_discriminated(data, discriminator_value)
+  {{/vendorExtensions.discriminatorDefault}}
   {{/discriminator}}
   {{^discriminator}}
     result =
@@ -667,6 +678,17 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   def build(data) do
     discriminator_value = data[to_string(openapi_discriminator_name())]
+{{#vendorExtensions.discriminatorDefault}}
+
+    # defaultMapping (D187): a missing or unlisted value is the default variant.
+    klass_name =
+      Map.get(openapi_discriminator_mapping(), to_string(discriminator_value)) ||
+        "{{vendorExtensions.discriminatorDefault}}"
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+  end
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
 
     if is_nil(discriminator_value) do
       raise {{moduleName}}.Errors.SerializationError,
@@ -682,6 +704,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
     {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
   end
+{{/vendorExtensions.discriminatorDefault}}
 
 {{/discriminator}}
 {{/hasChildren}}

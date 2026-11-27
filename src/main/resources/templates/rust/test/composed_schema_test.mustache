@@ -1202,6 +1202,47 @@ fn test_bhv_models_702_reading_null_type_property_accepts_null() {
     assert!(reading.nothing.is_none());
 }
 
+/* -- a missing or unlisted discriminator value is the defaultMapping variant (#87) -- */
+
+#[test]
+fn test_bhv_unions_700_parcel_default_mapping_catches_missing_and_unlisted_values() {
+    let unlisted: Parcel = serde_json::from_str(r#"{"kind":"postcard","pages":2}"#).expect("failed to decode Parcel");
+    assert!(matches!(unlisted, Parcel::Letter(ref letter) if letter.pages == Some(2)));
+    let missing: Parcel = serde_json::from_str(r#"{"pages":3}"#).expect("failed to decode Parcel");
+    assert!(matches!(missing, Parcel::Letter(_)));
+    let boxed: Parcel = serde_json::from_str(r#"{"kind":"packet","weightKg":1.5}"#).expect("failed to decode Parcel");
+    assert!(matches!(boxed, Parcel::Packet(_)));
+}
+
+/* -- the then and else properties are optional properties (#86) -- */
+
+#[test]
+fn test_bhv_models_705_shipment_conditional_branch_properties_are_optional_properties() {
+    let shipment: Shipment = serde_json::from_str(r#"{"kind":"domestic","customsCode":"C2","postcode":"2000"}"#)
+        .expect("failed to decode Shipment");
+    assert_eq!(Some("C2".to_string()), shipment.customs_code);
+    assert_eq!(Some("2000".to_string()), shipment.postcode);
+    assert_eq!(
+        serde_json::json!("C2"),
+        serde_json::to_value(&shipment).expect("failed to encode Shipment")["customsCode"]
+    );
+}
+
+/* -- the validation-only JSON Schema keywords are not enforced (#82) -- */
+
+#[test]
+fn test_bhv_models_703_audit_validation_only_keywords_are_not_enforced() {
+    let audit: Audit = serde_json::from_str(r#"{"tags":["a","b"],"score":-5,"payload":"not json"}"#)
+        .expect("failed to decode Audit");
+    assert_eq!(Some(vec!["a".to_string(), "b".to_string()]), audit.tags);
+    assert_eq!(Some(-5), audit.score);
+    assert_eq!(Some("not json".to_string()), audit.payload);
+    assert_eq!(
+        serde_json::json!(-5),
+        serde_json::to_value(&audit).expect("failed to encode Audit")["score"]
+    );
+}
+
 /* -- a protobuf-JSON duration decodes and re-encodes (F1149) -- */
 
 #[test]

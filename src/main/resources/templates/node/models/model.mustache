@@ -84,6 +84,10 @@ export type {{classname}}Type = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf
 export class {{classname}} {
   static readonly ONE_OF_SCHEMAS: string[] = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
   static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+{{#vendorExtensions.discriminatorDefault}}
+  /** The variant a missing or unlisted discriminator value decodes as (defaultMapping, D187). */
+  static readonly DISCRIMINATOR_DEFAULT = '{{vendorExtensions.discriminatorDefault}}';
+{{/vendorExtensions.discriminatorDefault}}
   static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
 {{#mappedModels}}
     {{mappingName}}: '{{modelName}}'{{^-last}},{{/-last}}
@@ -423,6 +427,10 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * the mapped subtype, so decoding this type returns the subtype.
    */
   static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+{{#vendorExtensions.discriminatorDefault}}
+  /** The subtype a missing or unlisted discriminator value decodes as (defaultMapping, D187). */
+  static readonly DISCRIMINATOR_DEFAULT = '{{vendorExtensions.discriminatorDefault}}';
+{{/vendorExtensions.discriminatorDefault}}
   static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
 {{#discriminator}}
 {{#mappedModels}}

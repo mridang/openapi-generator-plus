@@ -138,6 +138,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
         `isinstance(..., DryFood)`-checked. The other 10 SDKs throw —
         Python now matches.
         """
+{{#vendorExtensions.discriminatorDefault}}
+        default_value = obj.get(cls._discriminator_property_name)
+        if not isinstance(default_value, str) or default_value not in cls.discriminator_value_class_map:
+            # defaultMapping (D187): a missing or unlisted value is the default variant.
+            return '{{vendorExtensions.discriminatorDefault}}'
+{{/vendorExtensions.discriminatorDefault}}
         if cls._discriminator_property_name not in obj:
             raise ValueError(
                 f"Missing discriminator field '{cls._discriminator_property_name}' "
@@ -679,6 +685,12 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
         couldn't be `isinstance(..., DryFood)`-checked. The other 10 SDKs
         throw — Python now matches.
         """
+{{#vendorExtensions.discriminatorDefault}}
+        default_value = obj.get(cls.__discriminator_property_name)
+        if not isinstance(default_value, str) or default_value not in cls.__discriminator_value_class_map:
+            # defaultMapping (D187): a missing or unlisted value is the default variant.
+            return '{{vendorExtensions.discriminatorDefault}}'
+{{/vendorExtensions.discriminatorDefault}}
         if cls.__discriminator_property_name not in obj:
             raise ValueError(
                 f"Missing discriminator field '{cls.__discriminator_property_name}' "

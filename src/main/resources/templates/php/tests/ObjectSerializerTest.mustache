@@ -1729,6 +1729,39 @@ test('bhv models 701 a type array of array and object decodes both shapes and wr
     expect(ObjectSerializer::serialize($map))->toContain('"shape":{"k":"v"}');
 });
 
+test('bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant', function (): void {
+    /** @var \{{modelPackage}}\Parcel $unlisted */
+    $unlisted = ObjectSerializer::deserialize('{"kind":"postcard","pages":2}', \{{modelPackage}}\Parcel::class);
+    $letter = $unlisted->getActualInstance();
+    expect($letter)->toBeInstanceOf(\{{modelPackage}}\Letter::class);
+    expect($letter instanceof \{{modelPackage}}\Letter ? $letter->pages : null)->toBe(2);
+
+    /** @var \{{modelPackage}}\Parcel $missing */
+    $missing = ObjectSerializer::deserialize('{"pages":3}', \{{modelPackage}}\Parcel::class);
+    expect($missing->getActualInstance())->toBeInstanceOf(\{{modelPackage}}\Letter::class);
+
+    /** @var \{{modelPackage}}\Parcel $box */
+    $box = ObjectSerializer::deserialize('{"kind":"packet","weightKg":1.5}', \{{modelPackage}}\Parcel::class);
+    expect($box->getActualInstance())->toBeInstanceOf(\{{modelPackage}}\Packet::class);
+});
+
+test('bhv models 705 the properties of then and else are optional properties and the condition is not enforced', function (): void {
+    /** @var \{{modelPackage}}\Shipment $shipment */
+    $shipment = ObjectSerializer::deserialize('{"kind":"domestic","customsCode":"C2","postcode":"2000"}', \{{modelPackage}}\Shipment::class);
+    expect($shipment->customsCode)->toBe('C2');
+    expect($shipment->postcode)->toBe('2000');
+    expect(ObjectSerializer::serialize($shipment))->toContain('"customsCode":"C2"');
+});
+
+test('bhv models 703 the validation-only JSON Schema keywords are not enforced', function (): void {
+    /** @var \{{modelPackage}}\Audit $audit */
+    $audit = ObjectSerializer::deserialize('{"tags":["a","b"],"score":-5,"payload":"not json"}', \{{modelPackage}}\Audit::class);
+    expect($audit->tags?->toArray())->toBe(['a', 'b']);
+    expect($audit->score)->toBe(-5);
+    expect($audit->payload)->toBe('not json');
+    expect(ObjectSerializer::serialize($audit))->toContain('"score":-5');
+});
+
 test('bhv models 702 a property of type null accepts null', function (): void {
     /** @var \{{modelPackage}}\Reading $reading */
     $reading = ObjectSerializer::deserialize('{"level":1,"nothing":null}', \{{modelPackage}}\Reading::class);

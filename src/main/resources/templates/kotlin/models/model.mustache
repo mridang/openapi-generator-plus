@@ -336,8 +336,13 @@ class {{classname}}(
       val discriminator =
         (obj["{{discriminator.propertyBaseName}}"]
           as? kotlinx.serialization.json.JsonPrimitive)?.content
+{{#vendorExtensions.discriminatorDefault}}
+          ?: ""
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
           ?: throw kotlinx.serialization.SerializationException(
             "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+{{/vendorExtensions.discriminatorDefault}}
       // Resolve the variant from the discriminator value, then decode the
       // matching concrete type. An unknown value fails loud rather than
       // silently yielding an empty wrapper.
@@ -346,8 +351,14 @@ class {{classname}}(
         "{{mappingName}}" ->
           jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
         {{/discriminator.mappedModels}}
+{{#vendorExtensions.discriminatorDefault}}
+        // defaultMapping (D187): a missing or unlisted value is the default variant.
+        else -> jsonDecoder.json.decodeFromJsonElement({{vendorExtensions.discriminatorDefault}}.serializer(), obj)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         else -> throw kotlinx.serialization.SerializationException(
           "Unknown {{classname}} discriminator value: '$discriminator'")
+{{/vendorExtensions.discriminatorDefault}}
       }
       return {{classname}}(instance)
     }
@@ -824,15 +835,26 @@ sealed interface {{classname}} {
       val discriminator =
         (obj["{{discriminator.propertyBaseName}}"]
           as? kotlinx.serialization.json.JsonPrimitive)?.content
+{{#vendorExtensions.discriminatorDefault}}
+          ?: ""
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
           ?: throw kotlinx.serialization.SerializationException(
             "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+{{/vendorExtensions.discriminatorDefault}}
       return when (discriminator) {
         {{#discriminator.mappedModels}}
         "{{mappingName}}" ->
           jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
         {{/discriminator.mappedModels}}
+{{#vendorExtensions.discriminatorDefault}}
+        // defaultMapping (D187): a missing or unlisted value is the default variant.
+        else -> jsonDecoder.json.decodeFromJsonElement({{vendorExtensions.discriminatorDefault}}.serializer(), obj)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         else -> throw kotlinx.serialization.SerializationException(
           "Unknown {{classname}} discriminator value: '$discriminator'")
+{{/vendorExtensions.discriminatorDefault}}
       }
     }
   }

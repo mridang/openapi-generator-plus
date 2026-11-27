@@ -2077,6 +2077,42 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(map))["shape"] == %{"k" => "v"}
     end
 
+    test "bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant" do
+      unlisted = {{moduleName}}.ObjectSerializer.deserialize(~s({"kind":"postcard","pages":2}), "Parcel")
+      assert %{{moduleName}}.Models.Letter{pages: 2} = unlisted
+
+      assert %{{moduleName}}.Models.Letter{} =
+               {{moduleName}}.ObjectSerializer.deserialize(~s({"pages":3}), "Parcel")
+
+      assert %{{moduleName}}.Models.Packet{} =
+               {{moduleName}}.ObjectSerializer.deserialize(~s({"kind":"packet","weightKg":1.5}), "Parcel")
+    end
+
+    test "bhv models 705 the properties of then and else are optional properties and the condition is not enforced" do
+      shipment =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          ~s({"kind":"domestic","customsCode":"C2","postcode":"2000"}),
+          "Shipment"
+        )
+
+      assert shipment.customs_code == "C2"
+      assert shipment.postcode == "2000"
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(shipment))["customsCode"] == "C2"
+    end
+
+    test "bhv models 703 the validation-only JSON Schema keywords are not enforced" do
+      audit =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          ~s({"tags":["a","b"],"score":-5,"payload":"not json"}),
+          "Audit"
+        )
+
+      assert audit.tags == ["a", "b"]
+      assert audit.score == -5
+      assert audit.payload == "not json"
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(audit))["score"] == -5
+    end
+
     test "bhv models 702 a property of type null accepts null" do
       reading = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"nothing":null}), "Reading")
       assert reading.nothing == nil

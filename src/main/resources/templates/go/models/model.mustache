@@ -615,6 +615,16 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return nil
 {{/mappedModels}}
 	}
+{{#vendorExtensions.discriminatorDefault}}
+	/* defaultMapping (D187): a missing or unlisted value is the default variant. */
+	var fallback {{vendorExtensions.discriminatorDefault}}
+	if err := unmarshalValue(data, &fallback); err != nil {
+		return err
+	}
+	o.value = fallback
+	return nil
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
 	if discriminator == "" {
 		return fmt.Errorf("missing discriminator property %q for {{classname}}", "{{propertyBaseName}}")
 	}
@@ -623,6 +633,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	// and producing a hard-to-debug `nil` downstream. Align by surfacing
 	// the error so callers see the malformed server response.
 	return fmt.Errorf("unknown discriminator value %q for {{classname}}", discriminator)
+{{/vendorExtensions.discriminatorDefault}}
 {{/discriminator}}
 {{^discriminator}}
 	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,

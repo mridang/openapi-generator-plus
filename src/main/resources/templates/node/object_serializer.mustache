@@ -1131,6 +1131,8 @@ export class ObjectSerializer {
       const oneOfSchemas = clsRecord['ONE_OF_SCHEMAS'] as string[] | undefined;
       const discProp = clsRecord['DISCRIMINATOR_PROPERTY'] as string | undefined;
       const discMapping = clsRecord['DISCRIMINATOR_MAPPING'] as Record<string, string> | undefined;
+      /* defaultMapping (D187): the variant a missing or unlisted value decodes as. */
+      const discDefault = clsRecord['DISCRIMINATOR_DEFAULT'] as string | undefined;
       const schemas = anyOfSchemas ?? oneOfSchemas;
 
       /**
@@ -1148,7 +1150,7 @@ export class ObjectSerializer {
         !Array.isArray(json)
       ) {
         const record = json as Record<string, unknown>;
-        if (!(discProp in record)) {
+        if (!(discProp in record) && discDefault === undefined) {
           throw new SerializationError(
             `Missing discriminator property '${discProp}' in payload.`
           );
@@ -1156,7 +1158,7 @@ export class ObjectSerializer {
         const discValue = record[discProp] as string;
         const targetName = Object.prototype.hasOwnProperty.call(discMapping, discValue)
           ? discMapping[discValue]
-          : undefined;
+          : discDefault;
         const targetCls = targetName
           ? ((models as Record<string, unknown>)[targetName] as ClassConstructor<T> | undefined)
           : undefined;
@@ -1196,9 +1198,15 @@ export class ObjectSerializer {
       }
 
       if (schemas && json && typeof json === 'object') {
-        if (discProp && discMapping && discProp in (json as Record<string, unknown>)) {
+        if (
+          discProp &&
+          discMapping &&
+          (discProp in (json as Record<string, unknown>) || discDefault !== undefined)
+        ) {
           const discValue = (json as Record<string, unknown>)[discProp] as string;
-          const targetName = discMapping[discValue];
+          const targetName = Object.prototype.hasOwnProperty.call(discMapping, discValue)
+            ? discMapping[discValue]
+            : discDefault;
           if (targetName) {
             const targetCls = (models as Record<string, unknown>)[targetName] as ClassConstructor<unknown> | undefined;
             if (targetCls) {

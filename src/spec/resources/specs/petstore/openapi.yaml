@@ -3244,6 +3244,109 @@ components:
           additionalProperties:
             type: string
 
+    # JSON Schema 2020-12 validation keywords the SDKs read and do not enforce (#82,
+    # D184): contains, minContains, maxContains, unevaluatedItems, not and contentSchema.
+    # A value they would refuse decodes as given. Not referenced by an operation.
+    Audit:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+          contains:
+            const: core
+          minContains: 1
+          maxContains: 1
+          unevaluatedItems: false
+        score:
+          type: integer
+          format: int32
+          not:
+            maximum: -1
+        payload:
+          type: string
+          contentMediaType: application/json
+          contentSchema:
+            type: object
+
+    # JSON Schema 2020-12 patternProperties and propertyNames (#84, D185): the pattern's
+    # value schema types the extra properties; the key patterns are not enforced.
+    # Not referenced by an operation.
+    Sensors:
+      type: object
+      properties:
+        site:
+          type: string
+      patternProperties:
+        '^s[0-9]+$':
+          type: integer
+          format: int32
+      propertyNames:
+        pattern: '^[a-z0-9]+$'
+
+    # JSON Schema 2020-12 if/then/else (#86, D186): the properties of then and else
+    # become optional properties of the model; the condition is not enforced.
+    # Not referenced by an operation.
+    Shipment:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+      if:
+        properties:
+          kind:
+            const: international
+      then:
+        properties:
+          customsCode:
+            type: string
+        required:
+          - customsCode
+      else:
+        properties:
+          postcode:
+            type: string
+
+    # Discriminator defaultMapping (#87, D187): a payload whose kind is missing or not in
+    # the mapping decodes as the default variant, Letter. defaultMapping is an OpenAPI 3.2
+    # field; the parser drops it, so the generator reads it from the raw document, and
+    # chasm 1.3.0 loads it. Not referenced by an operation.
+    Parcel:
+      oneOf:
+        - $ref: '#/components/schemas/Letter'
+        - $ref: '#/components/schemas/Packet'
+      discriminator:
+        propertyName: kind
+        mapping:
+          letter: '#/components/schemas/Letter'
+          packet: '#/components/schemas/Packet'
+        defaultMapping: '#/components/schemas/Letter'
+
+    Letter:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+        pages:
+          type: integer
+          format: int32
+
+    Packet:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+        weightKg:
+          type: number
+          format: double
+
     # Standalone string-enum component (NOT an inline property enum like
     # Order.status). Exercises the top-level enum template path: in Java that
     # path emits @JsonValue / @JsonCreator and must self-import the Jackson

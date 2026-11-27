@@ -75,6 +75,16 @@ import Testing
         #expect(extras["extra"] == "x")
     }
 
+    /* The patternProperties schema types the extra properties (#84). */
+    @Test func testBhvModels704PatternPropertiesTypeTheExtraProperties() throws {
+        let sensors = try #require(try ObjectSerializer.deserialize(Data("{\"site\":\"north\",\"s1\":3,\"s2\":4}".utf8), as: Sensors.self))
+        let extras: [String: Int] = sensors.additionalProperties
+        #expect(extras == ["s1": 3, "s2": 4])
+        #expect(throws: SerializationError.self) {
+            try ObjectSerializer.deserialize(Data("{\"s1\":\"three\"}".utf8), as: Sensors.self)
+        }
+    }
+
     /* A value of the wrong JSON type fails the decode with the SDK's serialization error. */
     @Test func testBhvModels025AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode() {
         for body in ["{\"a\":2.5}", "{\"a\":\"2\"}"] {
