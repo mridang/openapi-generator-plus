@@ -25,7 +25,7 @@ Java 21 is a long-term-support release, and it is the floor because the generate
 | `string`, `format: binary` | `BodySource` for a raw request body; `ByteStream` (an `InputStream`) for a response | the response body is read as you consume it and the request body is sent as it is read, see Streaming |
 | `string`, `format: uri` | `java.net.URI` | `uri-reference` and `uri-template` stay `String` |
 | `string`, `format: email`, `hostname`, and plain `string` | `String` | no dedicated type |
-| `string`, `format: ipv4`, `ipv6` | `String` | the JDK has no address parser that accepts only a literal before Java 22, so the text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D134) |
+| `string`, `format: ipv4`, `ipv6` | `String` | the JDK has no address parser that accepts only a literal before Java 22, so the text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D146) |
 | `string`, `format: decimal` | `BigDecimal` | read from a JSON string only and written as a JSON string |
 | `integer`, `format: int32` | `Integer` | |
 | `integer`, `format: int64` | `Long` | |

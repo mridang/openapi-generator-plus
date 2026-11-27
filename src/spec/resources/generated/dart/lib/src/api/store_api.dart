@@ -19,6 +19,7 @@ import '../models/api_response.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
+import '../models/memo.dart';
 import '../models/native_values.dart';
 import '../models/order.dart';
 import '../models/reserve_stock_response.dart';
@@ -37,6 +38,7 @@ import 'options/get_department_options.dart';
 import 'options/get_grouped_categories_options.dart';
 import 'options/get_inventory_options.dart';
 import 'options/get_matrix_options.dart';
+import 'options/get_memo_options.dart';
 import 'options/get_native_values_options.dart';
 import 'options/get_order_by_id_options.dart';
 import 'options/get_order_by_tracking_id_options.dart';
@@ -45,11 +47,32 @@ import 'options/get_swatch_options.dart';
 import 'options/get_swatch_groups_options.dart';
 import 'options/get_timestamp_groups_options.dart';
 import 'options/get_tree_options.dart';
+import 'options/head_memo_options.dart';
+import 'options/options_memo_options.dart';
+import 'options/patch_memo_options.dart';
 import 'options/place_order_options.dart';
 import 'options/reserve_stock_options.dart';
 import 'options/search_store_options.dart';
+import 'options/trace_memo_options.dart';
 import 'options/watch_notices_options.dart';
 import 'options/watch_orders_options.dart';
+
+/// Abstract base class for per-operation server URLs for getMemo.
+abstract class GetMemoServer {
+  /// Returns the server URL.
+  String getUrl();
+}
+
+/// Memos
+class GetMemoServerMemos extends GetMemoServer {
+  GetMemoServerMemos();
+
+  @override
+  String getUrl() {
+    var url = 'https://memos.example.com/v1';
+    return url;
+  }
+}
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
@@ -110,6 +133,17 @@ abstract interface class StoreApiInterface {
   Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(
     GetMatrixOptions? options,
   );
+  Future<Memo> getMemo(
+    String memoId,
+    GetMemoServer? server,
+    GetMemoOptions? options,
+  );
+
+  Future<ApiResult<Memo>> getMemoWithHttpInfo(
+    String memoId,
+    GetMemoServer? server,
+    GetMemoOptions? options,
+  );
   Future<NativeValues> getNativeValues(GetNativeValuesOptions? options);
 
   Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(
@@ -155,6 +189,25 @@ abstract interface class StoreApiInterface {
   Future<TreeNode> getTree(GetTreeOptions? options);
 
   Future<ApiResult<TreeNode>> getTreeWithHttpInfo(GetTreeOptions? options);
+  Future<void> headMemo(String memoId, HeadMemoOptions? options);
+
+  Future<ApiResult<void>> headMemoWithHttpInfo(
+    String memoId,
+    HeadMemoOptions? options,
+  );
+  Future<void> optionsMemo(String memoId, OptionsMemoOptions? options);
+
+  Future<ApiResult<void>> optionsMemoWithHttpInfo(
+    String memoId,
+    OptionsMemoOptions? options,
+  );
+  Future<Memo> patchMemo(String memoId, Memo memo, PatchMemoOptions? options);
+
+  Future<ApiResult<Memo>> patchMemoWithHttpInfo(
+    String memoId,
+    Memo memo,
+    PatchMemoOptions? options,
+  );
   Future<Order> placeOrder(Order? order, PlaceOrderOptions? options);
 
   Future<ApiResult<Order>> placeOrderWithHttpInfo(
@@ -170,6 +223,12 @@ abstract interface class StoreApiInterface {
 
   Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(
     SearchStoreOptions? options,
+  );
+  Future<void> traceMemo(String memoId, TraceMemoOptions? options);
+
+  Future<ApiResult<void>> traceMemoWithHttpInfo(
+    String memoId,
+    TraceMemoOptions? options,
   );
   Future<SseStream<String>> watchNoticesStream(
     WatchNoticesOptions? options, [
@@ -809,6 +868,102 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     );
   }
 
+  /// Reads a memo from the server its path declares
+  /// `memoId` The memo to address
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<Memo> getMemo(
+    String memoId,
+    GetMemoServer? server,
+    GetMemoOptions? options,
+  ) async {
+    final result = await getMemoWithHttpInfo(memoId, server, options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Memo` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getMemo but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getMemo operation and returns the full API result.
+  @override
+  Future<ApiResult<Memo>> getMemoWithHttpInfo(
+    String memoId,
+    GetMemoServer? server,
+    GetMemoOptions? options,
+  ) async {
+    if (memoId == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'memoId' when calling StoreApi.getMemo",
+      );
+    }
+
+    var path = '/store/memos/{memoId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll(
+      '{'
+      'memoId'
+      '}',
+      serializeStyled(
+        'memoId',
+        memoId,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+    if (server != null) {
+      final serverUrl = server.getUrl();
+      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+        path = serverUrl + path;
+      }
+    }
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Memo>(
+      method: 'GET',
+      operation: 'StoreApi.getMemo',
+      operationId: 'getMemo',
+      urlTemplate: '/store/memos/{memoId}',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Memo',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) => deserialize(body, Memo.fromJson) as Memo,
+    );
+  }
+
   /// Reads values of the formats the SDKs type natively.
   /// `options` options for query, header, form, and cookie parameters
   @override
@@ -1389,6 +1544,233 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     );
   }
 
+  /// Checks that a memo exists with a HEAD request
+  /// `memoId` The memo to address
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<void> headMemo(String memoId, HeadMemoOptions? options) async {
+    await headMemoWithHttpInfo(memoId, options);
+  }
+
+  /// Performs the headMemo operation and returns the full API result.
+  @override
+  Future<ApiResult<void>> headMemoWithHttpInfo(
+    String memoId,
+    HeadMemoOptions? options,
+  ) async {
+    if (memoId == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'memoId' when calling StoreApi.headMemo",
+      );
+    }
+
+    var path = '/store/memos/{memoId}/revisions';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll(
+      '{'
+      'memoId'
+      '}',
+      serializeStyled(
+        'memoId',
+        memoId,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<void>(
+      method: 'HEAD',
+      operation: 'StoreApi.headMemo',
+      operationId: 'headMemo',
+      urlTemplate: '/store/memos/{memoId}/revisions',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: 'application/json',
+      returnType: '',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+    );
+  }
+
+  /// Lists the methods a memo accepts with an OPTIONS request
+  /// `memoId` The memo to address
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<void> optionsMemo(String memoId, OptionsMemoOptions? options) async {
+    await optionsMemoWithHttpInfo(memoId, options);
+  }
+
+  /// Performs the optionsMemo operation and returns the full API result.
+  @override
+  Future<ApiResult<void>> optionsMemoWithHttpInfo(
+    String memoId,
+    OptionsMemoOptions? options,
+  ) async {
+    if (memoId == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'memoId' when calling StoreApi.optionsMemo",
+      );
+    }
+
+    var path = '/store/memos/{memoId}/revisions';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll(
+      '{'
+      'memoId'
+      '}',
+      serializeStyled(
+        'memoId',
+        memoId,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<void>(
+      method: 'OPTIONS',
+      operation: 'StoreApi.optionsMemo',
+      operationId: 'optionsMemo',
+      urlTemplate: '/store/memos/{memoId}/revisions',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: 'application/json',
+      returnType: '',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+    );
+  }
+
+  /// Changes a memo with a PATCH request
+  /// `memoId` The memo to address
+  /// `memo` The fields of the memo to change
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<Memo> patchMemo(
+    String memoId,
+    Memo memo,
+    PatchMemoOptions? options,
+  ) async {
+    final result = await patchMemoWithHttpInfo(memoId, memo, options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Memo` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for patchMemo but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the patchMemo operation and returns the full API result.
+  @override
+  Future<ApiResult<Memo>> patchMemoWithHttpInfo(
+    String memoId,
+    Memo memo,
+    PatchMemoOptions? options,
+  ) async {
+    if (memoId == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'memoId' when calling StoreApi.patchMemo",
+      );
+    }
+
+    var path = '/store/memos/{memoId}/revisions';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll(
+      '{'
+      'memoId'
+      '}',
+      serializeStyled(
+        'memoId',
+        memoId,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object requestBody = memo;
+
+    return invokeApiForResult<Memo>(
+      method: 'PATCH',
+      operation: 'StoreApi.patchMemo',
+      operationId: 'patchMemo',
+      urlTemplate: '/store/memos/{memoId}/revisions',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Memo',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) => deserialize(body, Memo.fromJson) as Memo,
+    );
+  }
+
   /// Place an order for a pet
   /// `options` options carrying the per-call timeout, headers and retry budget
   /// Throws `BadRequestException` on HTTP 400.
@@ -1618,6 +2000,74 @@ class StoreApi extends BaseApi implements StoreApiInterface {
 
       deserialize: (body) =>
           deserializeList(body, Order.fromJson) as List<Order>,
+    );
+  }
+
+  /// Echoes a memo request with a TRACE request
+  /// `memoId` The memo to address
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<void> traceMemo(String memoId, TraceMemoOptions? options) async {
+    await traceMemoWithHttpInfo(memoId, options);
+  }
+
+  /// Performs the traceMemo operation and returns the full API result.
+  @override
+  Future<ApiResult<void>> traceMemoWithHttpInfo(
+    String memoId,
+    TraceMemoOptions? options,
+  ) async {
+    if (memoId == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'memoId' when calling StoreApi.traceMemo",
+      );
+    }
+
+    var path = '/store/memos/{memoId}/revisions';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll(
+      '{'
+      'memoId'
+      '}',
+      serializeStyled(
+        'memoId',
+        memoId,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<void>(
+      method: 'TRACE',
+      operation: 'StoreApi.traceMemo',
+      operationId: 'traceMemo',
+      urlTemplate: '/store/memos/{memoId}/revisions',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: 'application/json',
+      returnType: '',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
     );
   }
 

@@ -74,7 +74,14 @@ final class FileRoleNormaliser {
       for (JsonNode tag : root.path("tags")) {
         names.tags.add(roleName(tag.path("name").asText()));
       }
-      for (JsonNode path : root.path("paths")) {
+      for (JsonNode declared : root.path("paths")) {
+        // A path item may be a $ref to components.pathItems; its operations are the spec's too.
+        JsonNode path = declared;
+        String ref = declared.path("$ref").asText("");
+        if (ref.startsWith("#/components/pathItems/")) {
+          path = root.path("components").path("pathItems")
+              .path(ref.substring("#/components/pathItems/".length()));
+        }
         for (JsonNode operation : path) {
           if (operation.isObject() && operation.has("operationId")) {
             String operationId = roleName(operation.get("operationId").asText());

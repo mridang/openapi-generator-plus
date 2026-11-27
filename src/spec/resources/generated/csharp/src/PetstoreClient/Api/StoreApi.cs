@@ -14,6 +14,22 @@ using PetstoreClient.Models;
 namespace PetstoreClient.Api;
 
 /// <summary>
+/// Server type for the GetMemo operation.
+/// </summary>
+public abstract class GetMemoServer
+{
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
+
+/// <summary>Memos</summary>
+public sealed class GetMemoServerMemos : GetMemoServer
+{
+    /// <inheritdoc />
+    public override string Url => "https://memos.example.com/v1";
+}
+
+/// <summary>
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
 /// </summary>
@@ -37,6 +53,8 @@ public class StoreApi : BaseApi, IStoreApi
 
     private static readonly string[] GetMatrixAccepts = ["application/json"];
 
+    private static readonly string[] GetMemoAccepts = ["application/json"];
+
     private static readonly string[] GetNativeValuesAccepts = ["application/json"];
 
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
@@ -52,6 +70,8 @@ public class StoreApi : BaseApi, IStoreApi
     private static readonly string[] GetTimestampGroupsAccepts = ["application/json"];
 
     private static readonly string[] GetTreeAccepts = ["application/json"];
+
+    private static readonly string[] PatchMemoAccepts = ["application/json"];
 
     private static readonly string[] PlaceOrderAccepts = ["application/json"];
 
@@ -891,6 +911,129 @@ public class StoreApi : BaseApi, IStoreApi
     }
 
     /// <summary>
+    /// Reads a memo from the server its path declares
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[Memo]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Memo> GetMemoAsync(
+        string memoId,
+        GetMemoServer? server = null,
+        GetMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<Memo>> task = GetMemoWithHttpInfoAsync(
+            memoId,
+            server,
+            options,
+            cancellationToken
+        );
+        ApiResult<Memo> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetMemo but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Reads a memo from the server its path declares (with HTTP info)
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="server">Optional per-operation server override.</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Memo>> GetMemoWithHttpInfoAsync(
+        string memoId,
+        GetMemoServer? server = null,
+        GetMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/memos/{memoId}";
+
+        if (memoId.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'memoId' when calling StoreApi.GetMemo",
+                nameof(memoId)
+            );
+        }
+
+        path = path.Replace(
+            "{" + nameof(memoId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(memoId),
+                    memoId,
+                    "path",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+        if (server != null)
+        {
+            string serverUrl = server.Url;
+            if (
+                serverUrl.StartsWith("http://", StringComparison.Ordinal)
+                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+            )
+            {
+                path = serverUrl + path;
+            }
+        }
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<Memo>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetMemoAccepts,
+                "application/json",
+                typeof(Memo),
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetMemo",
+                operationId: "getMemo",
+                urlTemplate: "/store/memos/{memoId}",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Reads values of the formats the SDKs type natively.
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
@@ -1633,6 +1776,286 @@ public class StoreApi : BaseApi, IStoreApi
     }
 
     /// <summary>
+    /// Checks that a memo exists with a HEAD request
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task HeadMemoAsync(
+        string memoId,
+        HeadMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<object?>> task = HeadMemoWithHttpInfoAsync(
+            memoId,
+            options,
+            cancellationToken
+        );
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Checks that a memo exists with a HEAD request (with HTTP info)
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<object?>> HeadMemoWithHttpInfoAsync(
+        string memoId,
+        HeadMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/memos/{memoId}/revisions";
+
+        if (memoId.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'memoId' when calling StoreApi.HeadMemo",
+                nameof(memoId)
+            );
+        }
+
+        path = path.Replace(
+            "{" + nameof(memoId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(memoId),
+                    memoId,
+                    "path",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<object?>(
+                "HEAD",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                [],
+                "application/json",
+                null,
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.HeadMemo",
+                operationId: "headMemo",
+                urlTemplate: "/store/memos/{memoId}/revisions",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the methods a memo accepts with an OPTIONS request
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task OptionsMemoAsync(
+        string memoId,
+        OptionsMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<object?>> task = OptionsMemoWithHttpInfoAsync(
+            memoId,
+            options,
+            cancellationToken
+        );
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the methods a memo accepts with an OPTIONS request (with HTTP info)
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<object?>> OptionsMemoWithHttpInfoAsync(
+        string memoId,
+        OptionsMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/memos/{memoId}/revisions";
+
+        if (memoId.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'memoId' when calling StoreApi.OptionsMemo",
+                nameof(memoId)
+            );
+        }
+
+        path = path.Replace(
+            "{" + nameof(memoId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(memoId),
+                    memoId,
+                    "path",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<object?>(
+                "OPTIONS",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                [],
+                "application/json",
+                null,
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.OptionsMemo",
+                operationId: "optionsMemo",
+                urlTemplate: "/store/memos/{memoId}/revisions",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Changes a memo with a PATCH request
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="memo">The fields of the memo to change</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[Memo]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Memo> PatchMemoAsync(
+        string memoId,
+        Memo memo,
+        PatchMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<Memo>> task = PatchMemoWithHttpInfoAsync(
+            memoId,
+            memo,
+            options,
+            cancellationToken
+        );
+        ApiResult<Memo> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for PatchMemo but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Changes a memo with a PATCH request (with HTTP info)
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="memo">The fields of the memo to change</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Memo>> PatchMemoWithHttpInfoAsync(
+        string memoId,
+        Memo memo,
+        PatchMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/memos/{memoId}/revisions";
+
+        if (memoId.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'memoId' when calling StoreApi.PatchMemo",
+                nameof(memoId)
+            );
+        }
+
+        path = path.Replace(
+            "{" + nameof(memoId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(memoId),
+                    memoId,
+                    "path",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<Memo>(
+                "PATCH",
+                path,
+                queryParams,
+                headerParams,
+                memo,
+                PatchMemoAccepts,
+                "application/json",
+                typeof(Memo),
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.PatchMemo",
+                operationId: "patchMemo",
+                urlTemplate: "/store/memos/{memoId}/revisions",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Place an order for a pet
     /// </summary>
     /// <param name="order"></param>
@@ -1945,6 +2368,90 @@ public class StoreApi : BaseApi, IStoreApi
                 operationName: "StoreApi.SearchStore",
                 operationId: "searchStore",
                 urlTemplate: "/store/search",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Echoes a memo request with a TRACE request
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task TraceMemoAsync(
+        string memoId,
+        TraceMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<object?>> task = TraceMemoWithHttpInfoAsync(
+            memoId,
+            options,
+            cancellationToken
+        );
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Echoes a memo request with a TRACE request (with HTTP info)
+    /// </summary>
+    /// <param name="memoId">The memo to address</param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<object?>> TraceMemoWithHttpInfoAsync(
+        string memoId,
+        TraceMemoOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/memos/{memoId}/revisions";
+
+        if (memoId.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'memoId' when calling StoreApi.TraceMemo",
+                nameof(memoId)
+            );
+        }
+
+        path = path.Replace(
+            "{" + nameof(memoId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(memoId),
+                    memoId,
+                    "path",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<object?>(
+                "TRACE",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                [],
+                "application/json",
+                null,
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.TraceMemo",
+                operationId: "traceMemo",
+                urlTemplate: "/store/memos/{memoId}/revisions",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

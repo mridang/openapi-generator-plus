@@ -26,7 +26,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `string`, `format: binary` | `BodySource` for a raw request body; `ByteStream` for a response | the response body is read as you consume it and the request body is sent as it is read, see Streaming |
 | `string`, `format: uri` | `java.net.URI` | Keeps the text it was built from, so a value is written back byte for byte; it rejects a square bracket in a path, as RFC 3986 does; `uri-reference` and `uri-template` stay `String` |
 | `string`, `format: email`, `hostname`, and plain `string` | `String` | no dedicated type |
-| `string`, `format: ipv4`, `ipv6` | `String` | the JVM has no address parser that accepts only a literal before Java 22, so the text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D134) |
+| `string`, `format: ipv4`, `ipv6` | `String` | the JVM has no address parser that accepts only a literal before Java 22, so the text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D146) |
 | `integer`, `format: int32` | `Int` | |
 | `integer`, `format: int64` | `Long` | |
 | `integer`, no format | `Long` | 64 bits, the same as `int64` |

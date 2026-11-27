@@ -209,7 +209,7 @@ Test: generated `ValueSerializerTest`, `ObjectSerializerTest`.
 
 ### Decoding rules (D58, D62, D64, D83)
 Rule: `format: byte` decode is strict RFC 4648 standard alphabet with required padding in `Base64ByteArraySerializer`; `format: uri` is checked as an absolute RFC 3986 URI before `Url(...)` and the normalisation is recorded as forced; non-discriminated oneOf and anyOf variants are tried in declaration order in the per-model build path; `format: number` decodes to `BigDecimal` text-exact.
-Rule (D134): `format: ipv4` and `ipv6` stay `String` but decode strictly through `Ipv4StringSerializer` and `Ipv6StringSerializer` (`Ipv4StringListSerializer`/`Ipv6StringListSerializer` for a list); a malformed address fails the decode with the SDK `SerializationException`.
+Rule (D146): `format: ipv4` and `ipv6` stay `String` but decode strictly through `Ipv4StringSerializer` and `Ipv6StringSerializer` (`Ipv4StringListSerializer`/`Ipv6StringListSerializer` for a list); a malformed address fails the decode with the SDK `SerializationException`.
 Why: one decode contract.
 Where: `object_serializer.mustache`, `models/model.mustache`.
 Test: generated `ObjectSerializerTest`.

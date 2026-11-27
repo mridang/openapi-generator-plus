@@ -21,7 +21,7 @@ Types are the typespecs that appear in the generated modules.
 | `string` / `uuid` | `String.t()` | Neither Elixir nor Erlang has a UUID type. Written in lower case and validated when sent as a parameter. |
 | `string` / `byte` | `binary()` | Base64 with `Base`. |
 | `string` / `binary`, file bodies | `BodySource` for a raw binary request body (a multipart file part stays `binary()`); `ByteStream` (an `Enumerable` of binaries) for a response | The response body is read as you consume it, and a raw upload is sent as it is read, see Streaming. |
-| `string` / `uri` | `String.t()` | Checked as an absolute URI on decode. Not `URI.t()`, because `URI.to_string/1` lowercases the scheme and drops a default port, and `URI.new/1` refuses a square bracket in a path, so the text would not round-trip (D134). |
+| `string` / `uri` | `String.t()` | Checked as an absolute URI on decode. Not `URI.t()`, because `URI.to_string/1` lowercases the scheme and drops a default port, and `URI.new/1` refuses a square bracket in a path, so the text would not round-trip (D146). |
 | `integer` (any format) | `integer()` | BEAM integers are unbounded. `int32` and `int64` are not range checked. |
 | `number` / `float`, `double`, and no format | `float()` | |
 | `number` / `decimal` | `Decimal.t()` | Exact (D135). The digits are read from the JSON text, never through a float, and written back as a bare JSON number in plain notation with every digit. A number with more than 34 significant digits after a decimal point, which the `decimal` package refuses to parse, fails with `SerializationError` instead of being rounded; an integer of any length is exact. |

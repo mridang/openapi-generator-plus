@@ -185,7 +185,7 @@ Test: `BaseApiTest`, `DefaultApiClientTest`, golden `PetApiTest`.
 
 ### Value serialisation (D48, D49, D51, D58, D62, D81)
 Rule: a path value of exactly `.` or `..` throws `IllegalArgumentException`; `allowReserved` leaves literal only the RFC 3986 query set and always encodes `#`, `[` and `]`; `format: byte` parameters are base64 with padding (`ObjectSerializer.stringify`) and decoded with a strict RFC 4648 standard-alphabet pattern before `Base64.getDecoder()`; `format: uri` must be absolute (`URI.create` alone accepts relative); `format: time` is `HH:mm:ss`, plus `.SSS` only when the millisecond part is non-zero.
-Rule (D134): `format: ipv4` and `ipv6` stay `String` but decode strictly through `ObjectSerializer.Ipv4StringDeserializer` and `Ipv6StringDeserializer` (builder `@JsonDeserialize`, `contentUsing` for a list); a leading zero, prefix length, zone id, brackets, whitespace or the other family is a `SerializationException`.
+Rule (D146): `format: ipv4` and `ipv6` stay `String` but decode strictly through `ObjectSerializer.Ipv4StringDeserializer` and `Ipv6StringDeserializer` (builder `@JsonDeserialize`, `contentUsing` for a list); a leading zero, prefix length, zone id, brackets, whitespace or the other family is a `SerializationException`.
 Why: byte-identical wire output across the twelve.
 Where: `value_serializer.mustache`, `object_serializer.mustache`.
 Test: `ValueSerializerTest`, `ObjectSerializerTest`.

@@ -22,6 +22,7 @@ import com.example.petstore.api.options.GetDepartmentOptions;
 import com.example.petstore.api.options.GetGroupedCategoriesOptions;
 import com.example.petstore.api.options.GetInventoryOptions;
 import com.example.petstore.api.options.GetMatrixOptions;
+import com.example.petstore.api.options.GetMemoOptions;
 import com.example.petstore.api.options.GetNativeValuesOptions;
 import com.example.petstore.api.options.GetOrderByIdOptions;
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions;
@@ -30,9 +31,13 @@ import com.example.petstore.api.options.GetSwatchGroupsOptions;
 import com.example.petstore.api.options.GetSwatchOptions;
 import com.example.petstore.api.options.GetTimestampGroupsOptions;
 import com.example.petstore.api.options.GetTreeOptions;
+import com.example.petstore.api.options.HeadMemoOptions;
+import com.example.petstore.api.options.OptionsMemoOptions;
+import com.example.petstore.api.options.PatchMemoOptions;
 import com.example.petstore.api.options.PlaceOrderOptions;
 import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
+import com.example.petstore.api.options.TraceMemoOptions;
 import com.example.petstore.api.options.WatchNoticesOptions;
 import com.example.petstore.api.options.WatchOrdersOptions;
 import com.example.petstore.errors.ApiException;
@@ -41,6 +46,7 @@ import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
+import com.example.petstore.models.Memo;
 import com.example.petstore.models.NativeValues;
 import com.example.petstore.models.Order;
 import com.example.petstore.models.ReserveStockResponse;
@@ -523,6 +529,84 @@ public interface StoreApiInterface {
   ApiResult<List<List<Integer>>> getMatrixWithHttpInfo(@Nullable GetMatrixOptions options);
 
   /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  default Memo getMemo(String memoId, @Nullable GetMemoOptions options) {
+    return getMemo(memoId, null, options);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Memo> getMemoWithHttpInfo(String memoId, @Nullable GetMemoOptions options) {
+    return getMemoWithHttpInfo(memoId, null, options);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  default Memo getMemo(String memoId) {
+    return getMemo(memoId, null);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Memo> getMemoWithHttpInfo(String memoId) {
+    return getMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  Memo getMemo(
+      String memoId, @Nullable StoreApi.GetMemoServer server, @Nullable GetMemoOptions options);
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Memo> getMemoWithHttpInfo(
+      String memoId, @Nullable StoreApi.GetMemoServer server, @Nullable GetMemoOptions options);
+
+  /**
    * Reads values of the formats the SDKs type natively.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -910,6 +994,157 @@ public interface StoreApiInterface {
   ApiResult<TreeNode> getTreeWithHttpInfo(@Nullable GetTreeOptions options);
 
   /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @throws ApiException if fails to make API call
+   */
+  default void headMemo(String memoId) {
+    headMemo(memoId, null);
+  }
+
+  /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Void> headMemoWithHttpInfo(String memoId) {
+    return headMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  void headMemo(String memoId, @Nullable HeadMemoOptions options);
+
+  /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Void> headMemoWithHttpInfo(String memoId, @Nullable HeadMemoOptions options);
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @throws ApiException if fails to make API call
+   */
+  default void optionsMemo(String memoId) {
+    optionsMemo(memoId, null);
+  }
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Void> optionsMemoWithHttpInfo(String memoId) {
+    return optionsMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  void optionsMemo(String memoId, @Nullable OptionsMemoOptions options);
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Void> optionsMemoWithHttpInfo(String memoId, @Nullable OptionsMemoOptions options);
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  default Memo patchMemo(String memoId, Memo memo) {
+    return patchMemo(memoId, memo, null);
+  }
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Memo> patchMemoWithHttpInfo(String memoId, Memo memo) {
+    return patchMemoWithHttpInfo(memoId, memo, null);
+  }
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  Memo patchMemo(String memoId, Memo memo, @Nullable PatchMemoOptions options);
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Memo> patchMemoWithHttpInfo(
+      String memoId, Memo memo, @Nullable PatchMemoOptions options);
+
+  /**
    * Place an order for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -1089,6 +1324,54 @@ public interface StoreApiInterface {
    * @throws ApiException if fails to make API call
    */
   ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options);
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @throws ApiException if fails to make API call
+   */
+  default void traceMemo(String memoId) {
+    traceMemo(memoId, null);
+  }
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Void> traceMemoWithHttpInfo(String memoId) {
+    return traceMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  void traceMemo(String memoId, @Nullable TraceMemoOptions options);
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Void> traceMemoWithHttpInfo(String memoId, @Nullable TraceMemoOptions options);
 
   /**
    * Streams plain text notices as server-sent events

@@ -325,6 +325,127 @@ class AbstractBetterCodegenTest {
     }
   }
 
+  /**
+   * OpenAPI 3.1 makes {@code paths} optional, so a document may hold only
+   * components. Every SDK must still generate its models from one.
+   */
+  @Test
+  @DisplayName("every SDK generates the models of a document without paths")
+  void everySdkGeneratesTheModelsOfADocumentWithoutPaths() throws IOException {
+    final Path work = Path.of("target", "probe-no-paths").toAbsolutePath();
+    Files.createDirectories(work);
+    final Path spec = work.resolve("openapi.yaml");
+    Files.writeString(
+        spec,
+        "openapi: 3.1.0\n"
+            + "info:\n  title: Bare\n  version: '1'\n"
+            + "components:\n  schemas:\n    Gadget:\n      type: object\n"
+            + "      properties:\n        code:\n          type: string\n");
+    for (final String generator : ProbeGenerator.ALL_GENERATORS) {
+      final Path out = work.resolve(generator);
+      ProbeGenerator.generate(
+          generator,
+          Map.of("packageName", "bare", "skipFormatter", "true"),
+          out,
+          spec.toString());
+      try (Stream<Path> files = Files.walk(out)) {
+        assertTrue(
+            files.anyMatch(
+                f -> f.getFileName().toString().toLowerCase(Locale.ROOT).startsWith("gadget")
+                    && Files.isRegularFile(f)),
+            generator + " must generate the Gadget model");
+      }
+    }
+  }
+
+  /**
+   * A document without {@code servers} means a single server whose URL is
+   * {@code /}, relative to where the document is served. An SDK has no such
+   * location, so every SDK falls back to the same default base URL,
+   * {@code http://localhost}, which the caller is expected to replace.
+   */
+  @Test
+  @DisplayName("every SDK gives a document without servers the same default base URL")
+  void everySdkGivesADocumentWithoutServersTheSameDefaultBaseUrl() throws IOException {
+    final Path work = Path.of("target", "probe-no-servers").toAbsolutePath();
+    Files.createDirectories(work);
+    final Path spec = work.resolve("openapi.yaml");
+    Files.writeString(
+        spec,
+        "openapi: 3.1.0\n"
+            + "info:\n  title: Bare\n  version: '1'\n"
+            + "paths:\n  /ping:\n    get:\n      operationId: ping\n"
+            + "      responses:\n        '200':\n          description: ok\n");
+    for (final String generator : ProbeGenerator.ALL_GENERATORS) {
+      final Path out = work.resolve(generator);
+      ProbeGenerator.generate(
+          generator,
+          Map.of("packageName", "bare", "skipFormatter", "true"),
+          out,
+          spec.toString());
+      try (Stream<Path> files = Files.walk(out)) {
+        assertTrue(
+            files.filter(Files::isRegularFile)
+                .filter(f -> f.getFileName().toString().toLowerCase(Locale.ROOT)
+                    .matches("configuration\\.[a-z]+"))
+                .anyMatch(f -> read(f).contains("http://localhost")),
+            generator + " must default the base URL of a server-less document to http://localhost");
+      }
+    }
+  }
+
+  private static String read(Path file) {
+    try {
+      return Files.readString(file);
+    } catch (IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * OpenAPI 3.0 marks a schema as accepting null with {@code nullable: true}
+   * and writes exclusive bounds as booleans. The probe fixture's {@code Gauge}
+   * carries both, and every SDK must read them as the 3.1 forms are read.
+   */
+  @Test
+  @DisplayName("every SDK reads the OAS 3.0 nullable keyword and boolean exclusive bounds")
+  void everySdkReadsTheOas30NullableKeywordAndBooleanExclusiveBounds() throws IOException {
+    final String text =
+        new String(
+            Objects.requireNonNull(
+                    AbstractBetterCodegenTest.class
+                        .getClassLoader()
+                        .getResourceAsStream("specs/probe/openapi.yaml"))
+                .readAllBytes(),
+            java.nio.charset.StandardCharsets.UTF_8);
+    final io.swagger.v3.parser.core.models.ParseOptions options =
+        new io.swagger.v3.parser.core.models.ParseOptions();
+    options.setResolve(true);
+    final OpenAPI api =
+        new io.swagger.parser.OpenAPIParser().readContents(text, null, options).getOpenAPI();
+    final Schema<?> gauge =
+        Objects.requireNonNull(api.getComponents().getSchemas().get("Gauge"));
+    for (final String language : CODEGENS.keySet()) {
+      final AbstractBetterCodegen codegen = codegen(language);
+      codegen.setOpenAPI(api);
+      final CodegenModel model = codegen.fromModel("Gauge", gauge);
+      final Map<String, CodegenProperty> vars =
+          model.vars.stream().collect(Collectors.toMap(v -> v.baseName, v -> v));
+      for (final String name : List.of("needle", "dial", "bezel", "crown")) {
+        assertTrue(Objects.requireNonNull(vars.get(name)).isNullable,
+            language + " " + name + " must be nullable");
+      }
+      assertTrue(Objects.requireNonNull(vars.get("needle")).required, language);
+      assertTrue(Objects.requireNonNull(vars.get("dial")).required, language);
+      assertFalse(Objects.requireNonNull(vars.get("bezel")).required, language);
+      assertFalse(Objects.requireNonNull(vars.get("crown")).required, language);
+      final CodegenProperty span = Objects.requireNonNull(vars.get("span"));
+      assertFalse(span.isNullable, language);
+      assertTrue(span.exclusiveMinimum, language);
+      assertTrue(span.exclusiveMaximum, language);
+    }
+  }
+
   private static ModelsMap modelsMapOf(CodegenModel model) {
     final ModelMap modelMap = new ModelMap();
     modelMap.setModel(model);
@@ -605,6 +726,57 @@ class AbstractBetterCodegenTest {
     assertEquals("on-hold", property.vendorExtensions.get("siblingDefault"));
     assertEquals(true, property.vendorExtensions.get("siblingDefaultIsEnum"));
     assertEquals("Availability", property.vendorExtensions.get("siblingDefaultEnumType"));
+  }
+
+  @Test
+  @DisplayName("a default the referenced enum component declares reaches the property")
+  void aComponentEnumDefaultIsCarriedOntoTheProperty() {
+    final StringSchema swatch = new StringSchema();
+    swatch.setEnum(List.of("red", "green", "blue"));
+    swatch.setDefault("green");
+    final AbstractBetterCodegen codegen = codegen("java");
+    codegen.setOpenAPI(new OpenAPI().components(new Components().addSchemas("Swatch", swatch)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Swatch");
+
+    final CodegenProperty property = codegen.fromProperty("swatch", reference, false, false);
+
+    assertEquals("green", property.vendorExtensions.get("siblingDefault"));
+    assertEquals(true, property.vendorExtensions.get("siblingDefaultIsEnum"));
+    assertEquals("Swatch", property.vendorExtensions.get("siblingDefaultEnumType"));
+    assertEquals("GREEN", property.vendorExtensions.get("siblingDefaultEnumVar"));
+  }
+
+  @Test
+  @DisplayName("a default written next to a $ref wins over the enum component's own default")
+  void aRefSiblingDefaultWinsOverTheComponentDefault() {
+    final StringSchema swatch = new StringSchema();
+    swatch.setEnum(List.of("red", "green", "blue"));
+    swatch.setDefault("green");
+    final AbstractBetterCodegen codegen = codegen("java");
+    codegen.setOpenAPI(new OpenAPI().components(new Components().addSchemas("Swatch", swatch)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Swatch");
+    reference.setDefault("blue");
+
+    final CodegenProperty property = codegen.fromProperty("swatch", reference, false, false);
+
+    assertEquals("blue", property.vendorExtensions.get("siblingDefault"));
+  }
+
+  @Test
+  @DisplayName("a $ref to a schema that is not an enum takes no default from the component")
+  void aNonEnumComponentDefaultIsNotCarried() {
+    final StringSchema label = new StringSchema();
+    label.setDefault("untitled");
+    final AbstractBetterCodegen codegen = codegen("java");
+    codegen.setOpenAPI(new OpenAPI().components(new Components().addSchemas("Label", label)));
+    final Schema<?> reference = new Schema<>();
+    reference.set$ref("#/components/schemas/Label");
+
+    final CodegenProperty property = codegen.fromProperty("label", reference, false, false);
+
+    assertEquals(null, property.vendorExtensions.get("siblingDefault"));
   }
 
   @Test

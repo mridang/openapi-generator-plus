@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -301,8 +302,18 @@ func (c *otelReplayClient) SendRequestWithOptions(method, url string, headers ma
 func TestBhvTelemetry008_OtelHook_TheRequestCountIsIncrementedOncePerCallWithTheAttributesOfTheSpan(t *testing.T) {
 	t.Parallel()
 	h := newOtelHarness(t, otelStubReply{status: 404, body: `{}`})
-	_ = h.get(t)
-	span := h.span(t)
+	callerContext, caller := h.tracer.Tracer("caller").Start(context.Background(), "caller")
+	_, _ = h.api.GetPetById(callerContext, int64(1), nil)
+	caller.End()
+	var span sdktrace.ReadOnlySpan
+	for _, ended := range h.spans.Ended() {
+		if ended.Name() == "getPetById" {
+			span = ended
+		}
+	}
+	if span == nil {
+		t.Fatal("expected the client span")
+	}
 	_, byName := h.metrics(t)
 	count := byName["http.client.request.count"]
 	sum := count.Data.(metricdata.Sum[int64])
@@ -311,6 +322,11 @@ func TestBhvTelemetry008_OtelHook_TheRequestCountIsIncrementedOncePerCallWithThe
 	}
 	if got, want := attributeMap(sum.DataPoints[0].Attributes.ToSlice()), attributeMap(span.Attributes()); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("expected the span's attributeMap %v, got %v", want, got)
+	}
+	// The count is recorded in the caller's context, so its exemplar names the caller's span.
+	want := caller.SpanContext().SpanID()
+	if exemplars := sum.DataPoints[0].Exemplars; len(exemplars) != 1 || !bytes.Equal(exemplars[0].SpanID, want[:]) {
+		t.Errorf("expected one exemplar naming the caller's span %s, got %+v", want, exemplars)
 	}
 }
 

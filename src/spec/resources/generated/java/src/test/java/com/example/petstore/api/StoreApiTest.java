@@ -761,4 +761,45 @@ class StoreApiTest {
     assertThat(created.getActualInstance())
         .isInstanceOf(com.example.petstore.models.ReservationReceipt.class);
   }
+
+  @Test
+  void bhvServers031AnOperationUnderAPathItemWithItsOwnServersIsSentToTheChosenOne()
+      throws Exception {
+    String[] capturedUrl = new String[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          return new ApiHttpResponse(
+              200, "{\"memoId\":\"m1\"}", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.getMemo("m1", new StoreApi.GetMemoServer.Memos(), null);
+
+    assertThat(capturedUrl[0]).startsWith("https://memos.example.com/v1/store/memos/m1");
+  }
+
+  @Test
+  void bhvOperations166PatchHeadOptionsAndTraceAreSentWithTheirOwnMethod() throws Exception {
+    List<String> methods = new java.util.ArrayList<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          methods.add(method);
+          if ("PATCH".equals(method)) {
+            return new ApiHttpResponse(
+                200, "{\"memoId\":\"m1\"}", Map.of("Content-Type", "application/json"));
+          }
+          return new ApiHttpResponse(204, "", Map.of());
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.patchMemo("m1", new com.example.petstore.models.Memo("m1"));
+    mockedApi.headMemo("m1");
+    mockedApi.optionsMemo("m1");
+    mockedApi.traceMemo("m1");
+
+    assertThat(methods).containsExactly("PATCH", "HEAD", "OPTIONS", "TRACE");
+  }
 }

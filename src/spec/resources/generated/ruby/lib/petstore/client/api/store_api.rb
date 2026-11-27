@@ -10,6 +10,21 @@
 # :nodoc:
 module Petstore::Client
   module Api
+    # Server type for the get_memo operation.
+    class GetMemoServer
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+
+    # Memos
+    class GetMemoServerMemos < GetMemoServer
+      def url
+        'https://memos.example.com/v1'
+      end
+    end
+
     # StoreApi provides methods for the Store API group.
     # Access to Petstore orders
     class StoreApi < BaseApi
@@ -466,6 +481,66 @@ module Petstore::Client
         )
       end
 
+      # Reads a memo from the server its path declares
+      # @param memo_id [String] The memo to address
+      # @param options [GetMemoOptions] per-call options: the optional timeout, headers and max_retries
+      # @return [Memo]
+      # @raise [ApiError] if fails to make API call
+      def get_memo(memo_id, options = nil, server: nil)
+        result = get_memo_with_http_info(memo_id, options, server: server)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for get_memo but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_memo_with_http_info(memo_id, options = nil, server: nil)
+        if memo_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.get_memo"
+        end
+
+        if memo_id == ''
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.get_memo"
+        end
+
+        path = '/store/memos/{memoId}'
+        path = path.gsub('{memoId}', ::Petstore::Client::ValueSerializer.serialize_styled('memoId', memo_id, :path, 'String', nil, 'simple', false).to_s)
+        if server
+          server_url = server.url
+          path = server_url + path if server_url.start_with?('http://', 'https://')
+        end
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Memo',
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.get_memo',
+          spec_operation_id: 'getMemo',
+          url_template: '/store/memos/{memoId}',
+          request_options: options
+        )
+      end
+
       # Reads values of the formats the SDKs type natively.
       # @param options [GetNativeValuesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
       # @return [NativeValues]
@@ -874,6 +949,158 @@ module Petstore::Client
         )
       end
 
+      # Checks that a memo exists with a HEAD request
+      # @param memo_id [String] The memo to address
+      # @param options [HeadMemoOptions] per-call options: the optional timeout, headers and max_retries
+      # @return [nil]
+      # @raise [ApiError] if fails to make API call
+      def head_memo(memo_id, options = nil)
+        head_memo_with_http_info(memo_id, options).data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def head_memo_with_http_info(memo_id, options = nil)
+        if memo_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.head_memo"
+        end
+
+        if memo_id == ''
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.head_memo"
+        end
+
+        path = '/store/memos/{memoId}/revisions'
+        path = path.gsub('{memoId}', ::Petstore::Client::ValueSerializer.serialize_styled('memoId', memo_id, :path, 'String', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :HEAD, path, query_params, header_params, request_body,
+          [],
+          'application/json',
+          nil,
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.head_memo',
+          spec_operation_id: 'headMemo',
+          url_template: '/store/memos/{memoId}/revisions',
+          request_options: options
+        )
+      end
+
+      # Lists the methods a memo accepts with an OPTIONS request
+      # @param memo_id [String] The memo to address
+      # @param options [OptionsMemoOptions] per-call options: the optional timeout, headers and max_retries
+      # @return [nil]
+      # @raise [ApiError] if fails to make API call
+      def options_memo(memo_id, options = nil)
+        options_memo_with_http_info(memo_id, options).data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def options_memo_with_http_info(memo_id, options = nil)
+        if memo_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.options_memo"
+        end
+
+        if memo_id == ''
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.options_memo"
+        end
+
+        path = '/store/memos/{memoId}/revisions'
+        path = path.gsub('{memoId}', ::Petstore::Client::ValueSerializer.serialize_styled('memoId', memo_id, :path, 'String', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :OPTIONS, path, query_params, header_params, request_body,
+          [],
+          'application/json',
+          nil,
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.options_memo',
+          spec_operation_id: 'optionsMemo',
+          url_template: '/store/memos/{memoId}/revisions',
+          request_options: options
+        )
+      end
+
+      # Changes a memo with a PATCH request
+      # @param memo_id [String] The memo to address
+      # @param memo [Memo] The fields of the memo to change
+      # @param options [PatchMemoOptions] per-call options: the optional timeout, headers and max_retries
+      # @return [Memo]
+      # @raise [ApiError] if fails to make API call
+      def patch_memo(memo_id, memo, options = nil)
+        result = patch_memo_with_http_info(memo_id, memo, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for patch_memo but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def patch_memo_with_http_info(memo_id, memo, options = nil)
+        if memo_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.patch_memo"
+        end
+
+        if memo_id == ''
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.patch_memo"
+        end
+
+        if memo.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'memo' when calling StoreApi.patch_memo"
+        end
+
+        path = '/store/memos/{memoId}/revisions'
+        path = path.gsub('{memoId}', ::Petstore::Client::ValueSerializer.serialize_styled('memoId', memo_id, :path, 'String', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        # A oneOf union body resolves to a bare Ruby value (e.g. a
+        # `format: byte` variant is a plain base64-bearing String), so the
+        # union's own wire-form rules are re-applied here before
+        # serialization. #encode_oneof_body is a no-op for non-union bodies
+        # (primitives, plain models) and for discriminated / model-ref unions,
+        # whose resolved value already serializes correctly.
+        request_body = ::Petstore::Client::ObjectSerializer.encode_oneof_body(memo, 'Memo')
+        invoke_api_for_result(
+          :PATCH, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Memo',
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.patch_memo',
+          spec_operation_id: 'patchMemo',
+          url_template: '/store/memos/{memoId}/revisions',
+          request_options: options
+        )
+      end
+
       # Place an order for a pet
       # @param order [Order]
       # @param options [PlaceOrderOptions] per-call options: the optional timeout, headers and max_retries
@@ -1032,6 +1259,48 @@ module Petstore::Client
           operation_id: 'StoreApi.search_store',
           spec_operation_id: 'searchStore',
           url_template: '/store/search',
+          request_options: options
+        )
+      end
+
+      # Echoes a memo request with a TRACE request
+      # @param memo_id [String] The memo to address
+      # @param options [TraceMemoOptions] per-call options: the optional timeout, headers and max_retries
+      # @return [nil]
+      # @raise [ApiError] if fails to make API call
+      def trace_memo(memo_id, options = nil)
+        trace_memo_with_http_info(memo_id, options).data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def trace_memo_with_http_info(memo_id, options = nil)
+        if memo_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.trace_memo"
+        end
+
+        if memo_id == ''
+          raise ArgumentError,
+                "Missing the required parameter 'memo_id' when calling StoreApi.trace_memo"
+        end
+
+        path = '/store/memos/{memoId}/revisions'
+        path = path.gsub('{memoId}', ::Petstore::Client::ValueSerializer.serialize_styled('memoId', memo_id, :path, 'String', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :TRACE, path, query_params, header_params, request_body,
+          [],
+          'application/json',
+          nil,
+          ::Petstore::Client::Api::BaseApi::NO_AUTH,
+          operation_id: 'StoreApi.trace_memo',
+          spec_operation_id: 'traceMemo',
+          url_template: '/store/memos/{memoId}/revisions',
           request_options: options
         )
       end

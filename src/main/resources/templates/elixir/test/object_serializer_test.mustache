@@ -2676,6 +2676,12 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert item.tier == :medium
     end
 
+    test "bhv enums 013 a referenced enum property whose enum declares a default starts at that member when absent" do
+      assert %{{moduleName}}.Models.Defaults{}.swatch == :green
+      item = {{moduleName}}.ObjectSerializer.deserialize("{}", "Defaults")
+      assert item.swatch == :green
+    end
+
     test "bhv enums 008 encoding writes the wire value and decoding a supplied name gives the catch-all member" do
       item = %{{moduleName}}.Models.Subscription{rank: :low, tier: :medium}
       assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(item))["tier"] == "m"

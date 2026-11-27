@@ -4,7 +4,7 @@ The `swift-plus` generator (`BetterSwiftCodegen`) produces a Swift package. Mode
 
 ## Versions and support policy
 
-The generated `Package.swift` uses `swift-tools-version: 6.0` and declares these platform minimums: macOS 13, iOS 16, tvOS 16 and watchOS 9, the first releases with the standard library `Duration` that `format: duration` uses (D133). The package builds in the Swift 5 language mode (`swiftLanguageModes: [.v5]`), because the authenticator and `AnyCodable` classes are not yet clean under Swift 6 strict concurrency. The generated README says Swift 6.0 or newer.
+The generated `Package.swift` uses `swift-tools-version: 6.0` and declares these platform minimums: macOS 13, iOS 16, tvOS 16 and watchOS 9, the first releases with the standard library `Duration` that `format: duration` uses (D145). The package builds in the Swift 5 language mode (`swiftLanguageModes: [.v5]`), because the authenticator and `AnyCodable` classes are not yet clean under Swift 6 strict concurrency. The generated README says Swift 6.0 or newer.
 
 Swift has no end-of-life policy for toolchains. Tools version 6.0 is the oldest the generated code and its Swift Testing based tests need, so it is the floor. A toolchain or platform that its vendor stops supporting is dropped in a major release. The generator builds and lints the golden package in a Swift 6.2 image.
 

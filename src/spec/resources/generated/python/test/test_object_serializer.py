@@ -4050,6 +4050,15 @@ class TestEnumMemberNames:
             is Tier.MEDIUM
         )
 
+    def test_bhv_enums_013_a_referenced_enum_default_starts_at_that_member_when_absent(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+        from petstore_client.models.swatch import Swatch
+
+        assert Defaults().swatch is Swatch.GREEN
+        assert ObjectSerializer().deserialize("{}", "Defaults").swatch is Swatch.GREEN
+
     def test_bhv_enums_008_only_the_wire_value_is_on_the_wire(self) -> None:
         from petstore_client.models.tier import Tier
 

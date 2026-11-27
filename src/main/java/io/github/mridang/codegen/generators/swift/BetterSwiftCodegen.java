@@ -94,7 +94,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         // 4.8: format:time and format:duration. Foundation has no civil-time
         // type (Date is an instant, not a wall-clock HH:MM:SS), so `time`
         // stays a String validated at the call site. `duration` maps to
-        // the standard library's Duration (D133), which keeps every
+        // the standard library's Duration (D145), which keeps every
         // nanosecond and needs macOS 13 / iOS 16 / tvOS 16 / watchOS 9. The
         // wire format is google.protobuf.Duration's protobuf-JSON form
         // ("<seconds>s", e.g. "3600s", "1.500s"); the generated

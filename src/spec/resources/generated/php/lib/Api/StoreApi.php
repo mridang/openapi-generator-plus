@@ -32,6 +32,7 @@ use PetstoreClient\Api\Options\GetDepartmentOptions;
 use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
 use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\Options\GetMatrixOptions;
+use PetstoreClient\Api\Options\GetMemoOptions;
 use PetstoreClient\Api\Options\GetNativeValuesOptions;
 use PetstoreClient\Api\Options\GetOrderByIdOptions;
 use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
@@ -40,9 +41,13 @@ use PetstoreClient\Api\Options\GetSwatchOptions;
 use PetstoreClient\Api\Options\GetSwatchGroupsOptions;
 use PetstoreClient\Api\Options\GetTimestampGroupsOptions;
 use PetstoreClient\Api\Options\GetTreeOptions;
+use PetstoreClient\Api\Options\HeadMemoOptions;
+use PetstoreClient\Api\Options\OptionsMemoOptions;
+use PetstoreClient\Api\Options\PatchMemoOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\TraceMemoOptions;
 use PetstoreClient\Api\Options\WatchNoticesOptions;
 use PetstoreClient\Api\Options\WatchOrdersOptions;
 use PetstoreClient\Models\Swatch;
@@ -802,6 +807,108 @@ class StoreApi extends BaseApi implements StoreApiInterface
     }
 
     /**
+     * Reads a memo from the server its path declares
+     * @param string $memoId The memo to address
+     * @param GetMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function getMemo(string $memoId, ?GetMemoServer $server = null, ?GetMemoOptions $options = null): \PetstoreClient\Models\Memo
+    {
+        $apiResult = $this->getMemoWithHttpInfo($memoId, $server, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for getMemo but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Memo $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param string $memoId The memo to address
+     * @param GetMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Memo>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function getMemoWithHttpInfo(string $memoId, ?GetMemoServer $server = null, ?GetMemoOptions $options = null): ApiResult
+    {
+        if ($memoId === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'memoId' when calling StoreApi.getMemo");
+        }
+        $path = '/store/memos/{memoId}';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'memoId',
+            $memoId,
+            'path',
+            'string',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'memoId' . '}', $pathValue, $path);
+        if ($server instanceof \PetstoreClient\Api\GetMemoServer) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
+        }
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Memo> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\Memo::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'getMemo',
+            urlTemplate: '/store/memos/{memoId}',
+        );
+        return $result;
+    }
+
+    /**
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -1480,6 +1587,264 @@ class StoreApi extends BaseApi implements StoreApiInterface
     }
 
     /**
+     * Checks that a memo exists with a HEAD request
+     * @param string $memoId The memo to address
+     * @param HeadMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function headMemo(string $memoId, ?HeadMemoOptions $options = null): void
+    {
+        $this->headMemoWithHttpInfo($memoId, $options);
+    }
+
+    /**
+     * @param string $memoId The memo to address
+     * @param HeadMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function headMemoWithHttpInfo(string $memoId, ?HeadMemoOptions $options = null): ApiResult
+    {
+        if ($memoId === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'memoId' when calling StoreApi.headMemo");
+        }
+        $path = '/store/memos/{memoId}/revisions';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'memoId',
+            $memoId,
+            'path',
+            'string',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'memoId' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
+            'HEAD',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [],
+            'application/json',
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'headMemo',
+            urlTemplate: '/store/memos/{memoId}/revisions',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists the methods a memo accepts with an OPTIONS request
+     * @param string $memoId The memo to address
+     * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function optionsMemo(string $memoId, ?OptionsMemoOptions $options = null): void
+    {
+        $this->optionsMemoWithHttpInfo($memoId, $options);
+    }
+
+    /**
+     * @param string $memoId The memo to address
+     * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function optionsMemoWithHttpInfo(string $memoId, ?OptionsMemoOptions $options = null): ApiResult
+    {
+        if ($memoId === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'memoId' when calling StoreApi.optionsMemo");
+        }
+        $path = '/store/memos/{memoId}/revisions';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'memoId',
+            $memoId,
+            'path',
+            'string',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'memoId' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
+            'OPTIONS',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [],
+            'application/json',
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'optionsMemo',
+            urlTemplate: '/store/memos/{memoId}/revisions',
+        );
+        return $result;
+    }
+
+    /**
+     * Changes a memo with a PATCH request
+     * @param string $memoId The memo to address
+     * @param \PetstoreClient\Models\Memo $memo The fields of the memo to change
+     * @param PatchMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function patchMemo(string $memoId, \PetstoreClient\Models\Memo $memo, ?PatchMemoOptions $options = null): \PetstoreClient\Models\Memo
+    {
+        $apiResult = $this->patchMemoWithHttpInfo($memoId, $memo, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for patchMemo but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Memo $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param string $memoId The memo to address
+     * @param \PetstoreClient\Models\Memo $memo The fields of the memo to change
+     * @param PatchMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Memo>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function patchMemoWithHttpInfo(string $memoId, \PetstoreClient\Models\Memo $memo, ?PatchMemoOptions $options = null): ApiResult
+    {
+        if ($memoId === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'memoId' when calling StoreApi.patchMemo");
+        }
+        $path = '/store/memos/{memoId}/revisions';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'memoId',
+            $memoId,
+            'path',
+            'string',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'memoId' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = $memo;
+
+        /** @var ApiResult<\PetstoreClient\Models\Memo> $result */
+        $result = $this->invokeApiForResult(
+            'PATCH',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\Memo::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'patchMemo',
+            urlTemplate: '/store/memos/{memoId}/revisions',
+        );
+        return $result;
+    }
+
+    /**
      * Place an order for a pet
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
@@ -1729,6 +2094,86 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'searchStore',
             urlTemplate: '/store/search',
+        );
+        return $result;
+    }
+
+    /**
+     * Echoes a memo request with a TRACE request
+     * @param string $memoId The memo to address
+     * @param TraceMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function traceMemo(string $memoId, ?TraceMemoOptions $options = null): void
+    {
+        $this->traceMemoWithHttpInfo($memoId, $options);
+    }
+
+    /**
+     * @param string $memoId The memo to address
+     * @param TraceMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function traceMemoWithHttpInfo(string $memoId, ?TraceMemoOptions $options = null): ApiResult
+    {
+        if ($memoId === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'memoId' when calling StoreApi.traceMemo");
+        }
+        $path = '/store/memos/{memoId}/revisions';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'memoId',
+            $memoId,
+            'path',
+            'string',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'memoId' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
+            'TRACE',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [],
+            'application/json',
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'traceMemo',
+            urlTemplate: '/store/memos/{memoId}/revisions',
         );
         return $result;
     }

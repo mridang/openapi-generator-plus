@@ -23,6 +23,7 @@ import com.example.petstore.api.options.GetDepartmentOptions
 import com.example.petstore.api.options.GetGroupedCategoriesOptions
 import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.GetMatrixOptions
+import com.example.petstore.api.options.GetMemoOptions
 import com.example.petstore.api.options.GetNativeValuesOptions
 import com.example.petstore.api.options.GetOrderByIdOptions
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions
@@ -31,9 +32,13 @@ import com.example.petstore.api.options.GetSwatchGroupsOptions
 import com.example.petstore.api.options.GetSwatchOptions
 import com.example.petstore.api.options.GetTimestampGroupsOptions
 import com.example.petstore.api.options.GetTreeOptions
+import com.example.petstore.api.options.HeadMemoOptions
+import com.example.petstore.api.options.OptionsMemoOptions
+import com.example.petstore.api.options.PatchMemoOptions
 import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
+import com.example.petstore.api.options.TraceMemoOptions
 import com.example.petstore.api.options.WatchNoticesOptions
 import com.example.petstore.api.options.WatchOrdersOptions
 import com.example.petstore.models.Account
@@ -41,6 +46,7 @@ import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
+import com.example.petstore.models.Memo
 import com.example.petstore.models.NativeValues
 import com.example.petstore.models.Order
 import com.example.petstore.models.ReserveStockResponse
@@ -137,6 +143,32 @@ interface StoreApiInterface {
     /** The `getMatrix` operation with its status code, headers and body. */
     suspend fun getMatrixWithHttpInfo(options: GetMatrixOptions? = null): ApiResult<List<List<Int>>>
 
+    /** Same as [getMemo] but sends the request to the default server. */
+    suspend fun getMemo(
+        memoId: String,
+        options: GetMemoOptions? = null,
+    ): Memo = getMemo(memoId = memoId, options = options, server = null)
+
+    /** Same as [getMemoWithHttpInfo] but sends the request to the default server. */
+    suspend fun getMemoWithHttpInfo(
+        memoId: String,
+        options: GetMemoOptions? = null,
+    ): ApiResult<Memo> = getMemoWithHttpInfo(memoId = memoId, options = options, server = null)
+
+    /** The `getMemo` operation. */
+    suspend fun getMemo(
+        memoId: String,
+        server: StoreApi.GetMemoServer? = null,
+        options: GetMemoOptions? = null,
+    ): Memo
+
+    /** The `getMemo` operation with its status code, headers and body. */
+    suspend fun getMemoWithHttpInfo(
+        memoId: String,
+        server: StoreApi.GetMemoServer? = null,
+        options: GetMemoOptions? = null,
+    ): ApiResult<Memo>
+
     /** The `getNativeValues` operation. */
     suspend fun getNativeValues(options: GetNativeValuesOptions? = null): NativeValues
 
@@ -197,6 +229,44 @@ interface StoreApiInterface {
     /** The `getTree` operation with its status code, headers and body. */
     suspend fun getTreeWithHttpInfo(options: GetTreeOptions? = null): ApiResult<TreeNode>
 
+    /** The `headMemo` operation. */
+    suspend fun headMemo(
+        memoId: String,
+        options: HeadMemoOptions? = null,
+    ): Unit
+
+    /** The `headMemo` operation with its status code, headers and body. */
+    suspend fun headMemoWithHttpInfo(
+        memoId: String,
+        options: HeadMemoOptions? = null,
+    ): ApiResult<Unit>
+
+    /** The `optionsMemo` operation. */
+    suspend fun optionsMemo(
+        memoId: String,
+        options: OptionsMemoOptions? = null,
+    ): Unit
+
+    /** The `optionsMemo` operation with its status code, headers and body. */
+    suspend fun optionsMemoWithHttpInfo(
+        memoId: String,
+        options: OptionsMemoOptions? = null,
+    ): ApiResult<Unit>
+
+    /** The `patchMemo` operation. */
+    suspend fun patchMemo(
+        memoId: String,
+        memo: Memo,
+        options: PatchMemoOptions? = null,
+    ): Memo
+
+    /** The `patchMemo` operation with its status code, headers and body. */
+    suspend fun patchMemoWithHttpInfo(
+        memoId: String,
+        memo: Memo,
+        options: PatchMemoOptions? = null,
+    ): ApiResult<Memo>
+
     /** The `placeOrder` operation. */
     suspend fun placeOrder(
         order: Order? = null,
@@ -220,6 +290,18 @@ interface StoreApiInterface {
 
     /** The `searchStore` operation with its status code, headers and body. */
     suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions? = null): ApiResult<List<Order>>
+
+    /** The `traceMemo` operation. */
+    suspend fun traceMemo(
+        memoId: String,
+        options: TraceMemoOptions? = null,
+    ): Unit
+
+    /** The `traceMemo` operation with its status code, headers and body. */
+    suspend fun traceMemoWithHttpInfo(
+        memoId: String,
+        options: TraceMemoOptions? = null,
+    ): ApiResult<Unit>
 
     /** The `watchNotices` operation as a stream; it has no buffered form. */
     suspend fun watchNoticesStream(

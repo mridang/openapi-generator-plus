@@ -24,6 +24,7 @@ import com.example.petstore.api.options.GetDepartmentOptions;
 import com.example.petstore.api.options.GetGroupedCategoriesOptions;
 import com.example.petstore.api.options.GetInventoryOptions;
 import com.example.petstore.api.options.GetMatrixOptions;
+import com.example.petstore.api.options.GetMemoOptions;
 import com.example.petstore.api.options.GetNativeValuesOptions;
 import com.example.petstore.api.options.GetOrderByIdOptions;
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions;
@@ -32,9 +33,13 @@ import com.example.petstore.api.options.GetSwatchGroupsOptions;
 import com.example.petstore.api.options.GetSwatchOptions;
 import com.example.petstore.api.options.GetTimestampGroupsOptions;
 import com.example.petstore.api.options.GetTreeOptions;
+import com.example.petstore.api.options.HeadMemoOptions;
+import com.example.petstore.api.options.OptionsMemoOptions;
+import com.example.petstore.api.options.PatchMemoOptions;
 import com.example.petstore.api.options.PlaceOrderOptions;
 import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
+import com.example.petstore.api.options.TraceMemoOptions;
 import com.example.petstore.api.options.WatchNoticesOptions;
 import com.example.petstore.api.options.WatchOrdersOptions;
 import com.example.petstore.auth.Authenticator;
@@ -44,6 +49,7 @@ import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
+import com.example.petstore.models.Memo;
 import com.example.petstore.models.NativeValues;
 import com.example.petstore.models.Order;
 import com.example.petstore.models.ReserveStockResponse;
@@ -89,6 +95,9 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   private static final java.lang.reflect.Type getMatrixTypeRef =
       new TypeReference<List<List<Integer>>>() {}.getType();
 
+  private static final java.lang.reflect.Type getMemoTypeRef =
+      new TypeReference<Memo>() {}.getType();
+
   private static final java.lang.reflect.Type getNativeValuesTypeRef =
       new TypeReference<NativeValues>() {}.getType();
 
@@ -113,6 +122,9 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   private static final java.lang.reflect.Type getTreeTypeRef =
       new TypeReference<TreeNode>() {}.getType();
 
+  private static final java.lang.reflect.Type patchMemoTypeRef =
+      new TypeReference<Memo>() {}.getType();
+
   private static final java.lang.reflect.Type placeOrderTypeRef =
       new TypeReference<Order>() {}.getType();
 
@@ -124,6 +136,26 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
 
   private static final java.lang.reflect.Type watchOrdersItemType =
       new TypeReference<Order>() {}.getType();
+
+  /** Server type for the getMemo operation. */
+  public sealed interface GetMemoServer {
+    /**
+     * Returns the resolved base URL for this server.
+     *
+     * @return the resolved base URL
+     */
+    String getUrl();
+
+    /** Memos */
+    record Memos() implements GetMemoServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://memos.example.com/v1";
+        return url;
+      }
+    }
+  }
 
   /** Creates an instance with the default client and configuration. */
   public StoreApi() {
@@ -992,6 +1024,135 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Memo getMemo(String memoId, @Nullable GetMemoOptions options) {
+    return getMemo(memoId, null, options);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Memo> getMemoWithHttpInfo(String memoId, @Nullable GetMemoOptions options) {
+    return getMemoWithHttpInfo(memoId, null, options);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Memo getMemo(String memoId) {
+    return getMemo(memoId, null);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Memo> getMemoWithHttpInfo(String memoId) {
+    return getMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Memo getMemo(
+      String memoId, @Nullable GetMemoServer server, @Nullable GetMemoOptions options) {
+    return requireBody(getMemoWithHttpInfo(memoId, server, options), "getMemo");
+  }
+
+  /**
+   * Reads a memo from the server its path declares
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param server the server to send the request to, or {@code null} for the default
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Memo> getMemoWithHttpInfo(
+      String memoId, @Nullable GetMemoServer server, @Nullable GetMemoOptions options) {
+    if (memoId == null || memoId.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'memoId' when calling StoreApi.getMemo");
+    }
+    String path =
+        "/store/memos/{memoId}"
+            .replace(
+                "{" + "memoId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "memoId", memoId, "path", "String", null, "simple", false));
+    if (server != null) {
+      String serverUrl = server.getUrl();
+      if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+        path = serverUrl + path;
+      }
+    }
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "getMemo",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getMemoTypeRef,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "getMemo",
+        "/store/memos/{memoId}");
+  }
+
+  /**
    * Reads values of the formats the SDKs type natively.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -1707,6 +1868,291 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public void headMemo(String memoId) {
+    headMemo(memoId, null);
+  }
+
+  /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Void> headMemoWithHttpInfo(String memoId) {
+    return headMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public void headMemo(String memoId, @Nullable HeadMemoOptions options) {
+    headMemoWithHttpInfo(memoId, options);
+  }
+
+  /**
+   * Checks that a memo exists with a HEAD request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Void> headMemoWithHttpInfo(String memoId, @Nullable HeadMemoOptions options) {
+    if (memoId == null || memoId.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'memoId' when calling StoreApi.headMemo");
+    }
+    String path =
+        "/store/memos/{memoId}/revisions"
+            .replace(
+                "{" + "memoId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "memoId", memoId, "path", "String", null, "simple", false));
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "headMemo",
+        "HEAD",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {},
+        "application/json",
+        null,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "headMemo",
+        "/store/memos/{memoId}/revisions");
+  }
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public void optionsMemo(String memoId) {
+    optionsMemo(memoId, null);
+  }
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Void> optionsMemoWithHttpInfo(String memoId) {
+    return optionsMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public void optionsMemo(String memoId, @Nullable OptionsMemoOptions options) {
+    optionsMemoWithHttpInfo(memoId, options);
+  }
+
+  /**
+   * Lists the methods a memo accepts with an OPTIONS request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Void> optionsMemoWithHttpInfo(
+      String memoId, @Nullable OptionsMemoOptions options) {
+    if (memoId == null || memoId.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'memoId' when calling StoreApi.optionsMemo");
+    }
+    String path =
+        "/store/memos/{memoId}/revisions"
+            .replace(
+                "{" + "memoId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "memoId", memoId, "path", "String", null, "simple", false));
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "optionsMemo",
+        "OPTIONS",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {},
+        "application/json",
+        null,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "optionsMemo",
+        "/store/memos/{memoId}/revisions");
+  }
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Memo patchMemo(String memoId, Memo memo) {
+    return patchMemo(memoId, memo, null);
+  }
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Memo> patchMemoWithHttpInfo(String memoId, Memo memo) {
+    return patchMemoWithHttpInfo(memoId, memo, null);
+  }
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Memo patchMemo(String memoId, Memo memo, @Nullable PatchMemoOptions options) {
+    return requireBody(patchMemoWithHttpInfo(memoId, memo, options), "patchMemo");
+  }
+
+  /**
+   * Changes a memo with a PATCH request
+   *
+   * @param memoId The memo to address (required)
+   * @param memo The fields of the memo to change (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Memo}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Memo> patchMemoWithHttpInfo(
+      String memoId, Memo memo, @Nullable PatchMemoOptions options) {
+    if (memoId == null || memoId.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'memoId' when calling StoreApi.patchMemo");
+    }
+    if (memo == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'memo' when calling StoreApi.patchMemo");
+    }
+    String path =
+        "/store/memos/{memoId}/revisions"
+            .replace(
+                "{" + "memoId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "memoId", memoId, "path", "String", null, "simple", false));
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "patchMemo",
+        "PATCH",
+        path,
+        queryParams,
+        headerParams,
+        memo,
+        new String[] {"application/json"},
+        "application/json",
+        patchMemoTypeRef,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "patchMemo",
+        "/store/memos/{memoId}/revisions");
+  }
+
+  /**
    * Place an order for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -2024,6 +2470,97 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         "searchStore",
         "/store/search");
+  }
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public void traceMemo(String memoId) {
+    traceMemo(memoId, null);
+  }
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param memoId The memo to address (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Void> traceMemoWithHttpInfo(String memoId) {
+    return traceMemoWithHttpInfo(memoId, null);
+  }
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public void traceMemo(String memoId, @Nullable TraceMemoOptions options) {
+    traceMemoWithHttpInfo(memoId, options);
+  }
+
+  /**
+   * Echoes a memo request with a TRACE request
+   *
+   * @param memoId The memo to address (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Void> traceMemoWithHttpInfo(String memoId, @Nullable TraceMemoOptions options) {
+    if (memoId == null || memoId.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'memoId' when calling StoreApi.traceMemo");
+    }
+    String path =
+        "/store/memos/{memoId}/revisions"
+            .replace(
+                "{" + "memoId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "memoId", memoId, "path", "String", null, "simple", false));
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "traceMemo",
+        "TRACE",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {},
+        "application/json",
+        null,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "traceMemo",
+        "/store/memos/{memoId}/revisions");
   }
 
   /**

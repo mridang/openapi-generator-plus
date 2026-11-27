@@ -7,6 +7,23 @@
 
 import Foundation
 
+/// Protocol for per-operation server URLs for getMemo.
+public protocol GetMemoServer {
+  /// Returns the server URL.
+  func getUrl() -> String
+}
+
+/// Memos
+public struct GetMemoServerMemos: GetMemoServer {
+
+  public init() {
+  }
+
+  public func getUrl() -> String {
+    return "https://memos.example.com/v1"
+  }
+}
+
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
 public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
@@ -541,6 +558,73 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: [[Int]].self)
   }
 
+  /// Reads a memo from the server its path declares
+  ///
+  /// - Parameters:
+  ///   - memoId: The memo to address
+  ///   - server: Optional per-operation server override.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func getMemo(
+    memoId: String, server: (any GetMemoServer)? = nil, options: GetMemoOptions? = nil
+  ) async throws -> Memo {
+    let result = try await getMemoWithHTTPInfo(memoId: memoId, server: server, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getMemo but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getMemo operation and returns the full API result.
+  public func getMemoWithHTTPInfo(
+    memoId: String, server: (any GetMemoServer)? = nil, options: GetMemoOptions? = nil
+  ) async throws -> ApiResult<Memo> {
+    try ValueSerializer.requirePathParam(
+      "memoId", memoId, style: "simple", operation: "StoreApi.getMemo")
+
+    var path = "/store/memos/{memoId}"
+    path = path.replacingOccurrences(
+      of: "{" + "memoId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("memoId", value: memoId, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+    if let server = server {
+      let serverUrl = server.getUrl()
+      if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+        path = serverUrl + path
+      }
+    }
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Memo",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getMemo",
+      operationId: "getMemo",
+      urlTemplate: "/store/memos/{memoId}",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: Memo.self)
+  }
+
   /// Reads values of the formats the SDKs type natively.
   ///
   /// - Parameters:
@@ -1002,6 +1086,167 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: TreeNode.self)
   }
 
+  /// Checks that a memo exists with a HEAD request
+  ///
+  /// - Parameters:
+  ///   - memoId: The memo to address
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func headMemo(memoId: String, options: HeadMemoOptions? = nil) async throws {
+    let result = try await headMemoWithHTTPInfo(memoId: memoId, options: options)
+    _ = result
+  }
+
+  /// Performs the headMemo operation and returns the full API result.
+  public func headMemoWithHTTPInfo(memoId: String, options: HeadMemoOptions? = nil) async throws
+    -> ApiResult<Void>
+  {
+    try ValueSerializer.requirePathParam(
+      "memoId", memoId, style: "simple", operation: "StoreApi.headMemo")
+
+    var path = "/store/memos/{memoId}/revisions"
+    path = path.replacingOccurrences(
+      of: "{" + "memoId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("memoId", value: memoId, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "HEAD",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.headMemo",
+      operationId: "headMemo",
+      urlTemplate: "/store/memos/{memoId}/revisions",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForEmptyResult(params)
+  }
+
+  /// Lists the methods a memo accepts with an OPTIONS request
+  ///
+  /// - Parameters:
+  ///   - memoId: The memo to address
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func optionsMemo(memoId: String, options: OptionsMemoOptions? = nil) async throws {
+    let result = try await optionsMemoWithHTTPInfo(memoId: memoId, options: options)
+    _ = result
+  }
+
+  /// Performs the optionsMemo operation and returns the full API result.
+  public func optionsMemoWithHTTPInfo(memoId: String, options: OptionsMemoOptions? = nil)
+    async throws -> ApiResult<Void>
+  {
+    try ValueSerializer.requirePathParam(
+      "memoId", memoId, style: "simple", operation: "StoreApi.optionsMemo")
+
+    var path = "/store/memos/{memoId}/revisions"
+    path = path.replacingOccurrences(
+      of: "{" + "memoId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("memoId", value: memoId, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "OPTIONS",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.optionsMemo",
+      operationId: "optionsMemo",
+      urlTemplate: "/store/memos/{memoId}/revisions",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForEmptyResult(params)
+  }
+
+  /// Changes a memo with a PATCH request
+  ///
+  /// - Parameters:
+  ///   - memoId: The memo to address
+  ///   - memo: The fields of the memo to change
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func patchMemo(memoId: String, memo: Memo, options: PatchMemoOptions? = nil) async throws
+    -> Memo
+  {
+    let result = try await patchMemoWithHTTPInfo(memoId: memoId, memo: memo, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for patchMemo but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the patchMemo operation and returns the full API result.
+  public func patchMemoWithHTTPInfo(memoId: String, memo: Memo, options: PatchMemoOptions? = nil)
+    async throws -> ApiResult<Memo>
+  {
+    try ValueSerializer.requirePathParam(
+      "memoId", memoId, style: "simple", operation: "StoreApi.patchMemo")
+
+    var path = "/store/memos/{memoId}/revisions"
+    path = path.replacingOccurrences(
+      of: "{" + "memoId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("memoId", value: memoId, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = memo
+    let params = InvokeAPIParams(
+      method: "PATCH",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Memo",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.patchMemo",
+      operationId: "patchMemo",
+      urlTemplate: "/store/memos/{memoId}/revisions",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: Memo.self)
+  }
+
   /// Place an order for a pet
   ///
   /// - Parameters:
@@ -1223,6 +1468,56 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: [Order].self)
+  }
+
+  /// Echoes a memo request with a TRACE request
+  ///
+  /// - Parameters:
+  ///   - memoId: The memo to address
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func traceMemo(memoId: String, options: TraceMemoOptions? = nil) async throws {
+    let result = try await traceMemoWithHTTPInfo(memoId: memoId, options: options)
+    _ = result
+  }
+
+  /// Performs the traceMemo operation and returns the full API result.
+  public func traceMemoWithHTTPInfo(memoId: String, options: TraceMemoOptions? = nil) async throws
+    -> ApiResult<Void>
+  {
+    try ValueSerializer.requirePathParam(
+      "memoId", memoId, style: "simple", operation: "StoreApi.traceMemo")
+
+    var path = "/store/memos/{memoId}/revisions"
+    path = path.replacingOccurrences(
+      of: "{" + "memoId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("memoId", value: memoId, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "TRACE",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.traceMemo",
+      operationId: "traceMemo",
+      urlTemplate: "/store/memos/{memoId}/revisions",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForEmptyResult(params)
   }
 
   /// Streams plain text notices as server-sent events

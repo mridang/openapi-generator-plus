@@ -786,5 +786,64 @@ class StoreApiTest {
             assertEquals(1, seen.size)
             assertEquals("1", seen.single().headers["X-Call"])
         }
+
+        @Test
+        @DisplayName("bhvServers031 an operation under a path item that declares its own servers is sent to the server chosen from them")
+        fun bhvServers031PathItemServersAreUsed() {
+            var capturedUrl: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedUrl = request.url.toString()
+                    respond(
+                        content = """{"memoId":"m1"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking { api.getMemo("m1", server = StoreApi.GetMemoServer.Memos) }
+
+            assertTrue(capturedUrl!!.startsWith("https://memos.example.com/v1/store/memos/m1"))
+        }
+
+        @Test
+        @DisplayName("bhvOperations166 a PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method")
+        fun bhvOperations166EachMethodIsSentAsItself() {
+            val methods = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    methods.add(request.method.value)
+                    if (request.method.value == "PATCH") {
+                        respond(
+                            content = """{"memoId":"m1"}""",
+                            status = HttpStatusCode.OK,
+                            headers = headersOf("Content-Type", "application/json"),
+                        )
+                    } else {
+                        respond(content = "", status = HttpStatusCode.NoContent)
+                    }
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.patchMemo("m1", {{modelPackage}}.Memo(memoId = "m1"))
+                api.headMemo("m1")
+                api.optionsMemo("m1")
+                api.traceMemo("m1")
+            }
+
+            assertEquals(listOf("PATCH", "HEAD", "OPTIONS", "TRACE"), methods)
+        }
     }
 }

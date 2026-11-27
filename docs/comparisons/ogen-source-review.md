@@ -108,7 +108,7 @@ This page compares the Go SDK of this project (`go-plus`) with ogen, a Go OpenAP
 | Format | ogen | Ours |
 |---|---|---|
 | `date`, `time`, `date-time`, `http-date` | `time.Time` (`schema_gen_primitive.go:189-207`, `json/time.go`) | `date`, `time`: `string`; `date-time`: `models.DateTime` (`docs/languages/go.md`). Issue #126 |
-| `duration` | `time.Duration` (`json/std_duration.go`) | `time.Duration` (D133), protobuf-JSON form |
+| `duration` | `time.Duration` (`json/std_duration.go`) | `time.Duration` (D145), protobuf-JSON form |
 | `uuid` | `uuid.UUID` | `uuid.UUID` |
 | `ip`, `ipv4`, `ipv6` | `net.IP` | `string` |
 | `mac` | `net.HardwareAddr` | `string` |

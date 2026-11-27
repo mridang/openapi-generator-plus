@@ -577,3 +577,47 @@ class TestStoreApiContentParameters:
             await api.search_store(SearchStoreOptions(q=photo))
 
         assert seen == {}
+
+
+class _MethodRecordingApiClient:
+    """In-memory transport that records the method and URL of every request."""
+
+    def __init__(self) -> None:
+        self.methods: list[str] = []
+        self.urls: list[str] = []
+
+    def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        self.methods.append(method)
+        self.urls.append(url)
+        if method in ('GET', 'PATCH'):
+            return ApiHttpResponse(status_code=200, body='{"memoId":"m1"}', headers={'content-type': 'application/json'})
+        return ApiHttpResponse(status_code=200 if method == 'HEAD' else 204, body='', headers={})
+
+
+class TestStoreApiMemoOperations:
+    """The memo operations pick their own server and HTTP method."""
+
+    async def test_bhv_servers_031_a_path_item_server_is_the_one_the_call_is_sent_to(self) -> None:
+        from {{packageName}}.api.store_api import GetMemoServerMemos
+
+        client = _MethodRecordingApiClient()
+        api = StoreApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+
+        memo = await api.get_memo('m1', GetMemoServerMemos())
+
+        assert memo.memo_id == 'm1'
+        assert len(client.urls) == 1
+        assert client.urls[0].startswith('https://memos.example.com/v1/store/memos/m1')
+
+    async def test_bhv_operations_166_a_patch_head_options_or_trace_operation_is_sent_with_its_own_method(self) -> None:
+        from {{packageName}}.models.memo import Memo
+
+        client = _MethodRecordingApiClient()
+        api = StoreApi(api_client=client, config=Configuration.builder().base_url('http://localhost').build())
+
+        await api.patch_memo('m1', Memo(memoId='m1'))
+        await api.head_memo('m1')
+        await api.options_memo('m1')
+        await api.trace_memo('m1')
+
+        assert client.methods == ['PATCH', 'HEAD', 'OPTIONS', 'TRACE']

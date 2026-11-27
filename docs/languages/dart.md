@@ -26,7 +26,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | `string` with `format: uuid` | `UuidValue` | A class the SDK defines itself, which validates on construction. It deliberately shadows the type of the same name in `package:uuid`, whose `fromString` does not validate. |
 | `string` with `format: uri` | `String` | Checked as an absolute RFC 3986 URI when decoded. Not `Uri`, because `dart:core` `Uri` rewrites `[`, `]` and the apostrophe, which would change the text on a round trip. |
 | `string` with `format: email`, `hostname` | `String` | |
-| `string` with `format: ipv4`, `ipv6` | `String` | `InternetAddress` is in `dart:io`, which the models cannot import when the SDK builds for the web. The text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D134). |
+| `string` with `format: ipv4`, `ipv6` | `String` | `InternetAddress` is in `dart:io`, which the models cannot import when the SDK builds for the web. The text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D146). |
 | `string` with `format: byte`, and a `format: binary` multipart file part | `Uint8List` | The body is held in memory. |
 | `string` with `format: binary` as a raw request body | `BodySource` | The body is sent as it is read, see Streaming. |
 | `string` with `format: binary` in a success response | `ByteStream`, a `Stream<List<int>>` | The body is read as you consume it, see Streaming. |

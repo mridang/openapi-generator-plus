@@ -155,7 +155,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         // just for a struct. The generated iso8601.go ships FormatTimeOfDay /
         // ParseTimeOfDay for callers who want a time.Time.
         //
-        // format:duration maps to the standard library's time.Duration (D133).
+        // format:duration maps to the standard library's time.Duration (D145).
         // encoding/json writes a time.Duration as int64 nanoseconds, so the
         // models and the serializer rewrite it to and from the protobuf-JSON
         // google.protobuf.Duration string ("3600s") through the generated
@@ -1717,7 +1717,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      * {@code hasDurationFields} and, for a typed additional-properties bucket of
      * durations, {@code hasDurationAdditionalProperties}. encoding/json writes a
      * {@code time.Duration} as nanoseconds, so the model template rewrites these
-     * keys to and from the protobuf-JSON string (D133). The file then imports the
+     * keys to and from the protobuf-JSON string (D145). The file then imports the
      * internal codec, flagged as {@code hasProtoDurationImport}. Enums and unions
      * have no such fields of their own and are left unmarked.
      *

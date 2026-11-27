@@ -14,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
+import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum, Swatch } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -3149,6 +3149,11 @@ describe('toBinary', () => {
     test('bhv enums 007 a default on a referenced enum property starts at the supplied member', () => {
       expect(new Subscription({ rank: Rank.LOW }).tier).toBe(Tier.Medium);
       expect(ObjectSerializer.deserialize({ rank: 1 }, Subscription)!.tier).toBe(Tier.Medium);
+    });
+
+    test('bhv enums 013 a referenced enum property whose enum component declares a default starts at that member when it is absent', () => {
+      expect(new Defaults().swatch).toBe(Swatch.Green);
+      expect(ObjectSerializer.deserialize({}, Defaults)!.swatch).toBe(Swatch.Green);
     });
 
     test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', () => {

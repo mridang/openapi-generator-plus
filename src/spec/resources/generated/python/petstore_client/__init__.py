@@ -88,6 +88,7 @@ __all__ = [
     "Ledger",
     "Medication",
     "MemberNotFound",
+    "Memo",
     "Metadata",
     "Moments",
     "NativeValues",
@@ -283,6 +284,9 @@ from petstore_client.models.medication import (
 )
 from petstore_client.models.member_not_found import (
     MemberNotFound as MemberNotFound,
+)
+from petstore_client.models.memo import (
+    Memo as Memo,
 )
 from petstore_client.models.metadata import (
     Metadata as Metadata,

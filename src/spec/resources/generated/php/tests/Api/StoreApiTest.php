@@ -713,3 +713,64 @@ test('bhv misc 085 a non canonical uuid text is refused as a type error when it 
     expect(fn () => callUnchecked($api, 'getOrderByTrackingId', 'not-a-uuid'))->toThrow(\TypeError::class);
     expect(fn () => newUnchecked(Order::class, ['trackingId' => 'not-a-uuid']))->toThrow(\TypeError::class);
 });
+
+/**
+ * Builds a StoreApi backed by a fake client that records the method and URL of
+ * every request. A GET or PATCH is answered with a canned memo, anything else
+ * with an empty reply of the status its operation declares.
+ *
+ * @return array{0: StoreApi, 1: \stdClass}
+ */
+function newMethodRecordingStoreApi(): array
+{
+    $recorded = new \stdClass();
+    /** @var list<string> $methods */
+    $methods = [];
+    /** @var list<string> $urls */
+    $urls = [];
+    $recorded->methods = $methods;
+    $recorded->urls = $urls;
+    $client = new readonly class ($recorded) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $recorded)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->recorded->methods[] = $method;
+            $this->recorded->urls[] = $url;
+            if ($method === 'GET' || $method === 'PATCH') {
+                return new \PetstoreClient\ApiHttpResponse(200, '{"memoId":"m1"}', ['Content-Type' => 'application/json']);
+            }
+            return new \PetstoreClient\ApiHttpResponse($method === 'HEAD' ? 200 : 204, '', []);
+        }
+    };
+    $config = Configuration::builder()->baseUrl('http://localhost:9999')->build();
+
+    return [new StoreApi(apiClient: $client, config: $config), $recorded];
+}
+
+test('bhv servers 031 an operation under a path item that declares its own servers is sent to the server chosen from them', function (): void {
+    [$api, $recorded] = newMethodRecordingStoreApi();
+
+    $memo = $api->getMemo('m1', new \PetstoreClient\Api\GetMemoServerMemos());
+
+    expect($memo->memoId)->toBe('m1');
+    expect($recorded->urls)->toHaveCount(1);
+    expect($recorded->urls[0])->toStartWith('https://memos.example.com/v1/store/memos/m1');
+});
+
+test('bhv operations 166 a patch, head, options or trace operation is sent with its own http method', function (): void {
+    [$api, $recorded] = newMethodRecordingStoreApi();
+
+    $api->patchMemo('m1', new \PetstoreClient\Models\Memo('m1'));
+    $api->headMemo('m1');
+    $api->optionsMemo('m1');
+    $api->traceMemo('m1');
+
+    expect($recorded->methods)->toBe(['PATCH', 'HEAD', 'OPTIONS', 'TRACE']);
+});

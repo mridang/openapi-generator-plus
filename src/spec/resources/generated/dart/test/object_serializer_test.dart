@@ -4530,6 +4530,17 @@ void main() {
     );
 
     test(
+      'bhv enums 013 a referenced enum property whose enum component declares a default starts at that member when it is absent',
+      () {
+        expect(const Defaults().swatch, equals(Swatch.green));
+        expect(
+          deserialize<Defaults>('{}', Defaults.fromJson)!.swatch,
+          equals(Swatch.green),
+        );
+      },
+    );
+
+    test(
       'bhv enums 008 encoding writes the wire value and decoding rejects a supplied name',
       () {
         expect(

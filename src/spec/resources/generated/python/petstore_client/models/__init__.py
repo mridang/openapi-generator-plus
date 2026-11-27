@@ -29,6 +29,7 @@ from petstore_client.models.freeform import Freeform as Freeform
 from petstore_client.models.ledger import Ledger as Ledger
 from petstore_client.models.medication import Medication as Medication
 from petstore_client.models.member_not_found import MemberNotFound as MemberNotFound
+from petstore_client.models.memo import Memo as Memo
 from petstore_client.models.metadata import Metadata as Metadata
 from petstore_client.models.moments import Moments as Moments
 from petstore_client.models.native_values import NativeValues as NativeValues

@@ -1,6 +1,6 @@
 # Swift SDK generator
 
-Generates a Swift package (`swift-plus`, class `BetterSwiftCodegen`): `Sources/<Package>/` with models as `Codable` structs, an `async throws` API class per tag, `DefaultApiClient` over `URLSession` (FoundationNetworking on Linux, with a bundled zlib inflater for gzip and deflate), a hand-written `ObjectSerializer`/`ValueSerializer` pair on top of Foundation's `JSONDecoder`/`JSONEncoder`, and the shared error, auth, configuration and transport-options surface. Generated tests use Swift Testing (`import Testing`, run with `swift test --enable-swift-testing --disable-xctest`) plus testcontainers-swift against the shared petstore runtime container; the package also pulls opentelemetry-swift as a test-only dependency. Floor: `swift-tools-version: 6.0`, `swiftLanguageModes: [.v5]` (the authenticator and `AnyCodable` classes are not Sendable-clean), platforms macOS 13, iOS 16, tvOS 16, watchOS 9 (the first with the standard library `Duration`, D133), built and linted in the `swift:6.2` image pinned by digest in `SwiftSpec`.
+Generates a Swift package (`swift-plus`, class `BetterSwiftCodegen`): `Sources/<Package>/` with models as `Codable` structs, an `async throws` API class per tag, `DefaultApiClient` over `URLSession` (FoundationNetworking on Linux, with a bundled zlib inflater for gzip and deflate), a hand-written `ObjectSerializer`/`ValueSerializer` pair on top of Foundation's `JSONDecoder`/`JSONEncoder`, and the shared error, auth, configuration and transport-options surface. Generated tests use Swift Testing (`import Testing`, run with `swift test --enable-swift-testing --disable-xctest`) plus testcontainers-swift against the shared petstore runtime container; the package also pulls opentelemetry-swift as a test-only dependency. Floor: `swift-tools-version: 6.0`, `swiftLanguageModes: [.v5]` (the authenticator and `AnyCodable` classes are not Sendable-clean), platforms macOS 13, iOS 16, tvOS 16, watchOS 9 (the first with the standard library `Duration`, D145), built and linted in the `swift:6.2` image pinned by digest in `SwiftSpec`.
 
 ## Read first
 
@@ -40,7 +40,7 @@ Generates a Swift package (`swift-plus`, class `BetterSwiftCodegen`): `Sources/<
 | Union accessor | `actualInstance` plus the generic `actualInstance(as:)` overload | the type witness is a metatype |
 | Async | `async throws` folds sync and async into one method | keyword-coloured async |
 | Cancellation | native `Task` cancellation; a cancelled request throws `CancellationError`, never a timeout error | S7, no new parameter |
-| `format: duration` (`retryAfter`) | standard library `Duration`, wire form `"3600s"` via the `ISO8601Duration` helpers; `stringify` and the form and multipart encoders treat it as a scalar | D133: the native type, exact to the nanosecond |
+| `format: duration` (`retryAfter`) | standard library `Duration`, wire form `"3600s"` via the `ISO8601Duration` helpers; `stringify` and the form and multipart encoders treat it as a scalar | D145: the native type, exact to the nanosecond |
 | Decimal and `format: number` | `Double`, documented lossy in the README | `JSONDecoder` parses numbers to `Double` |
 | `format: date`, `time`, `uri` | `String` | Foundation has no civil date or time type |
 | Recursive models | `@Indirect` wrapper (`Indirect.swift`) | structs are value types |
