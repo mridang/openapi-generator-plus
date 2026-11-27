@@ -3974,11 +3974,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
     wire = captured_body()
 
     assert wire =~
-             "Content-Disposition: form-data; name=\"caption\"\r\n" <>
+             ~s(Content-Disposition: form-data; name="caption"\r\n) <>
                "Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello"
 
     assert wire =~
-             "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" <>
+             ~s(Content-Disposition: form-data; name="file"; filename="file"\r\n) <>
                "Content-Type: application/octet-stream\r\n\r\n" <> <<1, 2, 3>>
   end
 
