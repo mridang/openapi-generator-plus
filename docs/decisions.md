@@ -319,6 +319,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A call that used to fail after 10 seconds now waits up to 60; set the transport `timeout` to keep the old budget. No method gained a parameter. Streamed calls keep D121: their timeout stops at the response headers and the idle timeout bounds the body.
 
+## D138: A maximum response size on the default HTTP client
+
+**Decision.** The transport options of the default HTTP client take `maxResponseBytes` (`max_response_bytes` in Python, Ruby, Rust and Elixir, `MaxResponseBytes` in C# and Go). It is off by default. When it is set, the default client counts every buffered response body it reads, a success or an error body, both on the wire and after decompression, and stops reading and decoding as soon as the count passes the limit, so neither a large body nor a decompression bomb is read into memory. The call then fails with `ResponseTooLargeError` (`ResponseTooLargeException` where the SDK's errors end in Exception), an `ApiError` that carries the response's status and headers and the limit, and is never retried. The option belongs to the transport, not to the API client or to an operation, because it says how bytes travel, like the timeout and the proxy (#112, owner decision).
+
+**Consequences.** Nothing changes until a caller sets the option. Streamed responses are read by the caller and are not counted, and a custom `ApiClient` is untouched. PHP and Elixir decode Brotli and zstd bodies whole and check the size afterwards, because those decoders have no incremental API there; Node and Swift count the decoded bytes, because `fetch` and `URLSession` decompress before the SDK sees the body, and check the wire size through `Content-Length`.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -362,7 +368,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 
 * **Streaming responses and uploads (#114).** The transport contract reads a whole response and sends a whole body in all twelve SDKs, so server-sent events, JSON Lines and very large files cannot be expressed. The shape has to be chosen once for all twelve, so nothing was built in one language first. Until then you can pass your own HTTP client.
 * **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
-* **A maximum response size (#112).** No transport limits how much it reads or decompresses, so a hostile server can make a client read a very large body. The option and its default must be the same in all twelve.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
 
@@ -391,7 +396,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#109](https://github.com/mridang/openapi-generator-plus/issues/109): serialize object-valued query and header parameters per the OpenAPI style rules.
 * [#110](https://github.com/mridang/openapi-generator-plus/issues/110): generate a nonce and validate `id_token` claims in the OIDC authenticator.
 * [#111](https://github.com/mridang/openapi-generator-plus/issues/111): compile the README and `SKILLS.md` code fences and test the minimum supported runtimes.
-* [#112](https://github.com/mridang/openapi-generator-plus/issues/112): add a maximum response size transport option.
 * [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients (built, decisions D118 to D122, D125 to D127).
 * [#115](https://github.com/mridang/openapi-generator-plus/issues/115): cover the Dart browser client and derive the keyword lists from the toolchains.
 * [#117](https://github.com/mridang/openapi-generator-plus/issues/117): decode error bodies against the operation's declared error schema.

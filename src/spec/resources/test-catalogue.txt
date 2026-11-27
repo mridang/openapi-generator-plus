@@ -1842,6 +1842,7 @@ operations163 | A request with no body sends no Content-Type header, whatever th
 operations164 | A call with a missing or nil required parameter raises an argument error and sends no request.
 operations165 | A path parameter is written into the request path using the serialization style the operation declares.
 options068 | Configuring a proxy with a SOCKS scheme fails at construction with the documented error message.
+options069 | maxResponseBytes is off by default, keeps a positive value and refuses zero or a negative value with the canonical message
 redirects046 | A redirect chain within the configured redirect limit is followed to its target, and a redirect past the limit raises a too-many-redirects error that carries the 3xx status and the canonical message.
 redirects047 | A redirect refusal or a successful redirect in one request does not change the outcome of other requests running at the same time.
 redirects048 | A 301 or 302 response turns a POST follow-up into a GET with no body, while PUT, PATCH, DELETE, HEAD and GET keep their method.
@@ -1939,6 +1940,8 @@ transport091 | The SDK leaves a caller-supplied file or upload stream open after
 transport092 | A caller-supplied HTTP client or connection pool receives the SDK's request.
 transport093 | A server whose certificate is signed by a CA other than the configured one is rejected with a network error.
 transport094 | A per-call timeout bounds the whole call, body included: a body that trickles in past the budget fails with the network timeout error within the budget.
+transport095 | With maxResponseBytes set, a buffered body larger than it fails with the response-too-large error carrying the status and the limit; with no limit the same body is returned.
+transport096 | With maxResponseBytes set, a small compressed body that inflates past it fails with the response-too-large error.
 unions044 | Each variant of a union has a typed constructor or factory and a typed accessor that identify the variant the value was built from or decoded as.
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.

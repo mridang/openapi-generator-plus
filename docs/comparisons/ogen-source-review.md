@@ -128,7 +128,7 @@ This page compares the Go SDK of this project (`go-plus`) with ogen, a Go OpenAP
 | Trailing data rejected | `response_decode.tmpl:136-138` | UNVERIFIED | | client |
 | Streaming JSON bodies (`x-ogen-json-streaming`) | `parse_mediatype.go:189`, `request_encode.tmpl:109-122`, `response_decode.tmpl:123-125` | no | #114 | client |
 | Depth guard | UNVERIFIED in ogen | yes | `maxJSONDepth` 1000 on success and error bodies (`G/pkg/errors/api_error.go:19-60`) | client |
-| Response size cap | none (`io.ReadAll`, `response_decode.tmpl:126`) | no (same) | #112 | client |
+| Response size cap | none (`io.ReadAll`, `response_decode.tmpl:126`) | yes, `MaxResponseBytes` (D138) | #112 | client |
 | Server-Sent Events client with reconnect, `Last-Event-ID`, three event shapes (`x-ogen-sse-event-shape`) | `client.tmpl:70-236,555-752`, `schema/sse_stream.tmpl`, `sse/`, `parse_mediatype.go:211` | no | #114 | client |
 
 ### A7. Parameters and bodies
