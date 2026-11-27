@@ -1,6 +1,7 @@
 package io.github.mridang.codegen.generators;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.core.util.Yaml;
 import java.io.File;
 import java.io.IOException;
@@ -87,6 +88,9 @@ public final class RawSpecReader {
         return identifier.asText().trim();
     }
 
+    @SuppressFBWarnings(
+            value = "PATH_TRAVERSAL_IN",
+            justification = "The location is the input specification the generator was asked to read")
     @Nullable private static JsonNode read(@Nullable final String location) {
         if (location == null) {
             return null;
