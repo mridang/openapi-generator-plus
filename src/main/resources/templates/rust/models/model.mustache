@@ -456,7 +456,10 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
         D: serde::Deserializer<'de>,
     {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
+        /* The variant is decoded from the exact JSON text, never from a
+         * serde_json::Value, so a decimal inside it keeps every digit. */
+        let text = crate::object_serializer::json_text(deserializer)?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(D::Error::custom)?;
         let discriminator = value
             .get("{{discriminator.propertyBaseName}}")
             .and_then(|v| v.as_str())
@@ -468,7 +471,7 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
             })?;
         match discriminator {
 {{#mappedModels}}
-            "{{{mappingName}}}" => serde_json::from_value::<{{{modelName}}}>(value)
+            "{{{mappingName}}}" => crate::object_serializer::from_json_text::<{{{modelName}}}>(&text)
                 .map({{classname}}::{{{modelName}}})
                 .map_err(D::Error::custom),
 {{/mappedModels}}
@@ -495,7 +498,7 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
     scalar byte variant before the array variant, so a base64 STRING matches the
     scalar `Vec<u8>` first (the base64::vec deserializer expects a JSON array and
     rejects a string), never being mis-parsed element-by-element into a list. }}
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum {{classname}} {
 {{#composedSchemas.oneOf}}
@@ -518,6 +521,59 @@ pub enum {{classname}} {
 {{/isArray}}
 {{/isByteArray}}
 {{/composedSchemas.oneOf}}
+}
+
+{{! Hand-rolled Deserialize with serde's untagged semantics: the variants are
+    tried in declaration order and the first that decodes wins. Each is decoded
+    from the exact JSON text (json_text) rather than from serde's buffered copy,
+    which holds a number as an f64, so a decimal inside a variant keeps every
+    digit. A byte variant goes through a local newtype carrying its base64
+    adapter. }}
+impl<'de> serde::Deserialize<'de> for {{classname}} {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let text = crate::object_serializer::json_text(deserializer)?;
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+        {
+            #[derive(serde::Deserialize)]
+            struct Variant(#[serde(with = "super::base64_serde")] {{{dataType}}});
+            if let Ok(Variant(value)) = crate::object_serializer::from_json_text::<Variant>(&text) {
+                return Ok({{classname}}::{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}(value));
+            }
+        }
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+        {
+            #[derive(serde::Deserialize)]
+            struct Variant(#[serde(with = "super::base64_serde::vec")] {{{dataType}}});
+            if let Ok(Variant(value)) = crate::object_serializer::from_json_text::<Variant>(&text) {
+                return Ok({{classname}}::{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}(value));
+            }
+        }
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+        if let Ok(value) = crate::object_serializer::from_json_text::<{{{dataType}}}>(&text) {
+            return Ok({{classname}}::{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}(value));
+        }
+{{/items.isByteArray}}
+{{/isArray}}
+{{^isArray}}
+        if let Ok(value) = crate::object_serializer::from_json_text::<{{{dataType}}}>(&text) {
+            return Ok({{classname}}::{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}(value));
+        }
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.oneOf}}
+        Err(D::Error::custom(
+            "data did not match any variant of untagged enum {{classname}}",
+        ))
+    }
 }
 {{/discriminator}}
 {{/-first}}
@@ -607,10 +663,12 @@ impl<'de> serde::Deserialize<'de> for {{classname}} {
         D: serde::Deserializer<'de>,
     {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
+        /* Each member is decoded from the exact JSON text, never from a
+         * serde_json::Value, so a decimal inside it keeps every digit. */
+        let text = crate::object_serializer::json_text(deserializer)?;
         let mut composite = {{classname}}::default();
 {{#composedSchemas.anyOf}}
-        if let Ok(variant) = serde_json::from_value::<{{{dataType}}}>(value.clone()) {
+        if let Ok(variant) = crate::object_serializer::from_json_text::<{{{dataType}}}>(&text) {
             composite.{{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}} = Some(variant);
         }
 {{/composedSchemas.anyOf}}

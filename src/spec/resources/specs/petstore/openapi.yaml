@@ -2841,6 +2841,10 @@ components:
         weightKg:
           type: number
           format: double
+        # A decimal inside a oneOf variant (PetFood) keeps every digit too.
+        pricePerKg:
+          type: number
+          format: decimal
 
     WetFood:
       type: object

@@ -168,7 +168,7 @@ try {
 ## Known limits
 
 - The generated README states that the Symfony serializer takes `int64` values through `float`, so values above 2^53 may lose precision on 64-bit PHP. See Under review.
-- A bare `number` (and `format: float` or `double`) is a `float`, so `0.1 + 0.2` is not exact. `format: decimal` is an exact `BigDecimal`.
+- A bare `number` (and `format: float` or `double`) is a `float`, so `0.1 + 0.2` is not exact. `format: decimal` is an exact `BigDecimal`, also inside a `oneOf` or `anyOf` variant decoded from a response (#188); a decimal in a non-discriminated `oneOf` or an `anyOf` held in a model field is still read from its `float`.
 - `date` and `date-time` are mutable `\DateTime` objects, which can be changed in place even inside a `readonly` model.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory; a raw binary request body is a `BodySource` and is sent as it is read. A binary response is a `ByteStream`, and a JSON Lines or server-sent events response is a stream returned by a `...Stream` method; see Streaming.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked by the SDK; the model layer checks only declared types, required properties and base64 for `format: byte`.

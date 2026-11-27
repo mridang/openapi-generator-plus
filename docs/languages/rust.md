@@ -183,7 +183,7 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 - An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
 
 - A `number` with no format, `float` or `double` is a binary float (`f32`, `f64`) and loses exactness; use `format: decimal` for money.
-- A `format: decimal` value holds at most 28 significant digits (the limit of `rust_decimal`); a longer value fails to decode rather than being rounded. A decimal inside a `oneOf` or `anyOf` member, or in a response with a repeated key, passes through `serde_json::Value`, which holds a number as an `f64`, so only about 17 significant digits survive there. A `uniqueItems` set or a map of decimals uses `rust_decimal`'s own serde form, which writes a JSON string.
+- A `format: decimal` value holds at most 28 significant digits (the limit of `rust_decimal`); a longer value fails to decode rather than being rounded. A decimal inside a `oneOf` or `anyOf` member is decoded from the JSON text and keeps every digit (#188); one in a response with a repeated key, or written back by an `anyOf`, passes through `serde_json::Value`, which holds a number as an `f64`, so only about 17 significant digits survive there. A `uniqueItems` set or a map of decimals uses `rust_decimal`'s own serde form, which writes a JSON string.
 - A JSON, text, form or multipart request body and a JSON, text or form response body are read whole into memory. Only a raw binary request body and a binary, a JSON Lines and a server-sent events response is a stream.
 - Typed maps (`HashMap`) do not keep key order, while `JsonValue` does.
 - An optional nullable property cannot tell an absent key from an explicit `null`. Both are `None`.
