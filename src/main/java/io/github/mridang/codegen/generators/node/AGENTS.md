@@ -410,6 +410,7 @@ Where: `auth/oauth/openid_connect_authenticator.mustache`. Test: `test/openid-co
 - F1103: the CA read failure appends the cause (`failed to read CA certificate from "<path>": <cause>`); the parse message is unchanged. Test: `test/default-api-client-unit.test.mustache` (missing file, directory, empty file, garbage).
 - F1160: `ApiResult.headers` is a frozen copy of the transport map (D27). Test: `test/base-api.test.mustache`.
 - F1071: the doc comment names the parameter (`@example petId: Small breed ID - 1`, `@example options.<name>: ...` for options). Test: `NodeFormattingSpec.pluralExamplesShouldBeAttributedToParameter`.
+- D169, D170: the operation and stream method doc comments (`api/operation_doc_examples.mustache`, after the response summaries and before the block tags, so JSDoc does not fold them into the last tag) list each request body and success response example (`<heading> example: <summary>`, the description, the value) and then each exposed vendor extension (`Extension <name>: <value>`); a typed response header field adds `Example: <value>`, and an Options field documents its parameter's examples as `@example <name>: <summary> - <value>`.
 
 ### Tooling and documentation
 - F1088: `make lint` also runs `prettier --check .`. F1077: `make audit` runs `npm audit --omit=dev`; the README has a "Dependency audit" section.

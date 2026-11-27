@@ -26,6 +26,13 @@ pub struct {{className}} {
 {{#description}}
     /// {{{.}}}
 {{/description}}
+{{#pluralExamples}}
+    /// ## {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/pluralExamples}}
 {{#deprecated}}
     #[deprecated]
 {{/deprecated}}

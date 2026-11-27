@@ -13,6 +13,12 @@ pub struct {{className}} {
 {{^hasDescription}}
     /// The `{{wireName}}` response header.
 {{/hasDescription}}
+{{#hasExample}}
+    /// Example:
+    /// ```json
+    /// {{{example}}}
+    /// ```
+{{/hasExample}}
     {{varName}}: Option<{{{dataType}}}>,
 {{/responseHeaders}}
 }
@@ -120,6 +126,12 @@ impl {{className}} {
 {{^hasDescription}}
     /// The `{{wireName}}` response header.
 {{/hasDescription}}
+{{#hasExample}}
+    /// Example:
+    /// ```json
+    /// {{{example}}}
+    /// ```
+{{/hasExample}}
 {{#isArray}}
     pub fn {{varName}}(&self) -> Option<&[{{{itemDataType}}}]> {
         self.{{varName}}.as_deref()

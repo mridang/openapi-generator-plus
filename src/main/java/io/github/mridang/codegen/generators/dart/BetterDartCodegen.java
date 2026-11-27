@@ -1886,6 +1886,13 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("name", p.paramName);
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // D169: the parameter's examples, documented on the Options field.
+            Object pluralExamples = p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (pluralExamples == null && p.examples != null && !p.examples.isEmpty()) {
+                pluralExamples = buildPluralExamplesList(p.examples);
+            }
+            param.put("pluralExamples", pluralExamples);
+            param.put("hasPluralExamples", pluralExamples instanceof List && !((List<?>) pluralExamples).isEmpty());
             param.put("requiredNullable", isRequiredNullableQuery(p));
             // Thread the native CodegenParameter.deprecated flag so the
             // options template can emit @Deprecated on the field, mirroring

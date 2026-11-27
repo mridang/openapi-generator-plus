@@ -12,12 +12,25 @@ import {{{.}}}
  */
 class {{className}}(
 {{#rows}}
+{{#hasExample}}
+    /**
+{{#hasDescription}}
+     * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/hasDescription}}
+{{^hasDescription}}
+     * The `{{{wireName}}}` response header; null when the response does not carry it.
+{{/hasDescription}}
+     * Example: `{{#lambda.kdoc}}{{{example}}}{{/lambda.kdoc}}`
+     */
+{{/hasExample}}
+{{^hasExample}}
 {{#hasDescription}}
     /** {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}} */
 {{/hasDescription}}
 {{^hasDescription}}
     /** The `{{{wireName}}}` response header; null when the response does not carry it. */
 {{/hasDescription}}
+{{/hasExample}}
     val {{varName}}: {{{dataType}}}? = null,
 {{/rows}}
 ) {

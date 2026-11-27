@@ -255,6 +255,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "clients enable this to ship a harmonized unit-test suite "
                         + "without the petstore-coupled tests (default: false).")
                 .defaultValue("false"));
+        cliOptions.add(new CliOption("exposedExtensions",
+                "Comma-separated vendor extension names (each starting with x-) of an operation "
+                        + "that the SDK documents on the operation (default: none)."));
         cliOptions.add(CliOption.newBoolean("generateExamples",
                 "Whether to generate examples/quickstart, one complete program that "
                         + "builds a client, calls one operation and closes the client, "
@@ -3924,6 +3927,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
                 description = ex.getDescription();
                 value = ex.getValue();
+                // D169: an example kept in another document is shown by its URL.
+                if (value == null && ex.getExternalValue() != null) {
+                    value = ex.getExternalValue();
+                }
             } else if (exObj instanceof Map) {
                 final Map<String, Object> ex = (Map<String, Object>) exObj;
                 if (ex.get("summary") != null) {
@@ -3932,7 +3939,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 if (ex.get("description") != null) {
                     description = String.valueOf(ex.get("description"));
                 }
-                value = ex.get("value");
+                value = ex.get("value") != null ? ex.get("value") : ex.get("externalValue");
             } else {
                 value = exObj;
             }
@@ -4962,6 +4969,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     private void populateResponseHeaders(CodegenOperation op, Map<String, Object> d, String pascal) {
         final List<Map<String, Object>> rows = new ArrayList<>();
         final Set<String> seen = new HashSet<>();
+        final Object rawDeclared =
+                op.vendorExtensions == null ? null : op.vendorExtensions.get("declaredResponseHeaders");
+        @SuppressWarnings("unchecked")
+        final Map<String, Map<String, String>> declaredHeaders = rawDeclared instanceof Map
+                ? (Map<String, Map<String, String>>) rawDeclared
+                : Collections.emptyMap();
         if (op.responses != null) {
             for (final CodegenResponse response : op.responses) {
                 if (response == null || !response.is2xx || response.headers == null) {
@@ -5002,8 +5015,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     row.put("isNumber", "number".equals(kind));
                     row.put("isBoolean", "boolean".equals(kind));
                     row.put("isArray", header.isArray);
-                    row.put("description", header.description == null ? "" : header.description);
-                    row.put("hasDescription", header.description != null && !header.description.isEmpty());
+                    final Map<String, String> declared = declaredHeaders.get(lower);
+                    String description = header.description == null ? "" : header.description;
+                    if (description.isEmpty() && declared != null) {
+                        description = declared.getOrDefault("description", "");
+                    }
+                    final String example = declared == null ? "" : declared.getOrDefault("example", "");
+                    row.put("description", description);
+                    row.put("hasDescription", !description.isEmpty());
+                    row.put("example", example);
+                    row.put("hasExample", !example.isEmpty());
                     rows.add(row);
                 }
             }
@@ -5440,6 +5461,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final Parameter resolved = parameter == null
                 ? null
                 : org.openapitools.codegen.utils.ModelUtils.getReferencedParameter(openAPI, parameter);
+        // D169: a parameter's single `example` (with no `examples`) is shown like a named one.
+        if (resolved != null && resolved.getExample() != null
+                && (resolved.getExamples() == null || resolved.getExamples().isEmpty())) {
+            if (cp.vendorExtensions == null) {
+                cp.vendorExtensions = new HashMap<>();
+            }
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("summary", "Example");
+            entry.put("description", "");
+            entry.put("value", renderExampleValue(resolved.getExample()));
+            cp.vendorExtensions.put("pluralExamples", new ArrayList<>(List.of(entry)));
+        }
         if (resolved != null && Boolean.TRUE.equals(resolved.getAllowReserved())) {
             if (cp.vendorExtensions == null) {
                 cp.vendorExtensions = new HashMap<>();
@@ -7425,7 +7458,179 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         opDecorator.put("hasAllOfGroup", allOf);
+        // D169: the request body and success response examples.
+        final List<Map<String, Object>> examples = operationExamples(operation);
+        opDecorator.put("operationExamples", examples);
+        opDecorator.put("hasOperationExamples", !examples.isEmpty());
+        // D168, D169: description and example of each declared success response header, read
+        // from the document so a header reached through $ref keeps them.
+        op.vendorExtensions.put("declaredResponseHeaders", declaredResponseHeaders(operation));
+        // D170: the vendor extensions the exposedExtensions option names.
+        final List<Map<String, Object>> exposed = exposedExtensionsOf(operation);
+        opDecorator.put("exposedExtensions", exposed);
+        opDecorator.put("hasExposedExtensions", !exposed.isEmpty());
         return op;
+    }
+
+    /**
+     * D169: the examples of an operation, as rows of {@code heading} ("Request body" or
+     * "Response <status>"), {@code summary}, {@code description} and {@code value} (compact
+     * JSON or the plain value; an external example's URL). Read from the first media type of
+     * the request body and of each 2xx response, from its {@code examples} or else its
+     * {@code example}.
+     */
+    private List<Map<String, Object>> operationExamples(Operation operation) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        if (operation.getRequestBody() != null) {
+            final io.swagger.v3.oas.models.parameters.RequestBody body =
+                    org.openapitools.codegen.utils.ModelUtils.getReferencedRequestBody(
+                            openAPI, operation.getRequestBody());
+            if (body != null) {
+                addMediaTypeExamples(rows, "Request body", body.getContent());
+            }
+        }
+        if (operation.getResponses() != null) {
+            for (final Map.Entry<String, io.swagger.v3.oas.models.responses.ApiResponse> entry
+                    : operation.getResponses().entrySet()) {
+                if (!entry.getKey().startsWith("2")) {
+                    continue;
+                }
+                final io.swagger.v3.oas.models.responses.ApiResponse response =
+                        org.openapitools.codegen.utils.ModelUtils.getReferencedApiResponse(
+                                openAPI, entry.getValue());
+                if (response != null) {
+                    addMediaTypeExamples(rows, "Response " + entry.getKey(), response.getContent());
+                }
+            }
+        }
+        return rows;
+    }
+
+    private void addMediaTypeExamples(
+            List<Map<String, Object>> rows,
+            String heading,
+            @Nullable io.swagger.v3.oas.models.media.Content content) {
+        if (content == null || content.isEmpty()) {
+            return;
+        }
+        final io.swagger.v3.oas.models.media.MediaType media = content.values().iterator().next();
+        if (media == null) {
+            return;
+        }
+        List<Map<String, Object>> found = new ArrayList<>();
+        if (media.getExamples() != null && !media.getExamples().isEmpty()) {
+            final Map<String, Object> resolved = new LinkedHashMap<>();
+            for (final Map.Entry<String, io.swagger.v3.oas.models.examples.Example> e
+                    : media.getExamples().entrySet()) {
+                io.swagger.v3.oas.models.examples.Example ex = e.getValue();
+                if (ex != null && ex.get$ref() != null && openAPI != null
+                        && openAPI.getComponents() != null
+                        && openAPI.getComponents().getExamples() != null) {
+                    final String ref = ex.get$ref();
+                    final io.swagger.v3.oas.models.examples.Example target = openAPI.getComponents()
+                            .getExamples().get(ref.substring(ref.lastIndexOf('/') + 1));
+                    if (target != null) {
+                        ex = target;
+                    }
+                }
+                resolved.put(e.getKey(), ex);
+            }
+            found = buildPluralExamplesList(resolved);
+        } else if (media.getExample() != null) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("summary", "Example");
+            entry.put("description", "");
+            entry.put("value", renderExampleValue(media.getExample()));
+            found.add(entry);
+        }
+        for (final Map<String, Object> entry : found) {
+            if (String.valueOf(entry.get("value")).isEmpty()) {
+                continue;
+            }
+            entry.put("heading", heading);
+            entry.put("hasDescription", !String.valueOf(entry.get("description")).isEmpty());
+            rows.add(entry);
+        }
+    }
+
+    /**
+     * The description and example of every header the 2xx responses declare, keyed by the
+     * lower-cased name (first declaration wins), with header references resolved.
+     */
+    private Map<String, Map<String, String>> declaredResponseHeaders(Operation operation) {
+        final Map<String, Map<String, String>> out = new HashMap<>();
+        if (operation.getResponses() == null) {
+            return out;
+        }
+        for (final Map.Entry<String, io.swagger.v3.oas.models.responses.ApiResponse> entry
+                : operation.getResponses().entrySet()) {
+            if (!entry.getKey().startsWith("2")) {
+                continue;
+            }
+            final io.swagger.v3.oas.models.responses.ApiResponse response =
+                    org.openapitools.codegen.utils.ModelUtils.getReferencedApiResponse(
+                            openAPI, entry.getValue());
+            if (response == null || response.getHeaders() == null) {
+                continue;
+            }
+            for (final Map.Entry<String, io.swagger.v3.oas.models.headers.Header> h
+                    : response.getHeaders().entrySet()) {
+                io.swagger.v3.oas.models.headers.Header header = h.getValue();
+                if (header != null && header.get$ref() != null) {
+                    header = org.openapitools.codegen.utils.ModelUtils.getReferencedHeader(openAPI, header);
+                }
+                if (header == null) {
+                    continue;
+                }
+                final Map<String, String> info = new HashMap<>();
+                info.put("description", header.getDescription() == null ? "" : header.getDescription());
+                Object example = header.getExample();
+                if (example == null && header.getSchema() != null) {
+                    example = header.getSchema().getExample();
+                }
+                info.put("example", example == null ? "" : renderExampleValue(example));
+                out.putIfAbsent(h.getKey().toLowerCase(Locale.ROOT), info);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * D170: the operation's vendor extensions named by the {@code exposedExtensions} option,
+     * in the option's order, as rows of {@code name} and {@code value} (the plain value or
+     * compact JSON).
+     */
+    private List<Map<String, Object>> exposedExtensionsOf(Operation operation) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        if (operation.getExtensions() == null) {
+            return rows;
+        }
+        for (final String name : exposedExtensionNames()) {
+            if (!operation.getExtensions().containsKey(name)) {
+                continue;
+            }
+            final Map<String, Object> row = new HashMap<>();
+            row.put("name", name);
+            row.put("value", renderExampleValue(operation.getExtensions().get(name)));
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    /** The names listed in the {@code exposedExtensions} option, each starting with {@code x-}. */
+    private List<String> exposedExtensionNames() {
+        final Object raw = additionalProperties.get("exposedExtensions");
+        final List<String> names = new ArrayList<>();
+        if (raw == null) {
+            return names;
+        }
+        for (final String part : java.util.regex.Pattern.compile(",").split(String.valueOf(raw), -1)) {
+            final String name = part.trim();
+            if (name.startsWith("x-") && !names.contains(name)) {
+                names.add(name);
+            }
+        }
+        return names;
     }
 
     /**

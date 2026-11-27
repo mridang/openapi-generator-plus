@@ -27,6 +27,9 @@ class {{className}}:
 {{#hasDescription}}
     #: {{{description}}}
 {{/hasDescription}}
+{{#hasExample}}
+    #: Example: >>> {{{example}}}
+{{/hasExample}}
     {{varName}}: Optional[{{#isArray}}List[{{/isArray}}{{#isString}}str{{/isString}}{{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{#isNumber}}float{{/isNumber}}{{#isBoolean}}bool{{/isBoolean}}{{#isArray}}]{{/isArray}}] = None
 {{/responseHeaders}}
 

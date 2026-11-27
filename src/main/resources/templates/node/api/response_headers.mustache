@@ -8,12 +8,25 @@ import { SerializationError } from '../../errors/serialization-error.js';
  */
 export class {{className}} {
 {{#headers}}
+{{#hasExample}}
+  /**
+{{#hasDescription}}
+   * {{{description}}}
+{{/hasDescription}}
+{{^hasDescription}}
+   * The `{{{wireName}}}` response header.
+{{/hasDescription}}
+   * Example: {{#lambda.tsComment}}{{{example}}}{{/lambda.tsComment}}
+   */
+{{/hasExample}}
+{{^hasExample}}
 {{#hasDescription}}
   /** {{{description}}} */
 {{/hasDescription}}
 {{^hasDescription}}
   /** The `{{{wireName}}}` response header. */
 {{/hasDescription}}
+{{/hasExample}}
   readonly {{fieldName}}: {{tsType}} | undefined;
 {{/headers}}
 

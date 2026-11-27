@@ -11,6 +11,9 @@ public struct {{className}}: Sendable {
 {{^hasDescription}}
     /// The `{{{wireName}}}` response header.
 {{/hasDescription}}
+{{#hasExample}}
+    /// Example: {{#lambda.singleLine}}{{{example}}}{{/lambda.singleLine}}
+{{/hasExample}}
     public let {{varName}}: {{{dataType}}}?
 {{/rows}}
 

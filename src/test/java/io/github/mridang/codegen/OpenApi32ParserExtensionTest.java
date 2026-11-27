@@ -412,14 +412,24 @@ class OpenApi32ParserExtensionTest {
                                     "the style: cookie parameter is not written as cookie pairs"),
                             () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
                                     .contains("allowreservedinpath"),
-                                    "the allowReserved path parameter keeps no reserved character"));
+                                    "the allowReserved path parameter keeps no reserved character"),
+                            () -> assertTrue(all.contains("books/2024.csv"),
+                                    "the single parameter example is not documented"),
+                            () -> assertTrue(all.contains("OPEN-1") && all.contains("An opening balance"),
+                                    "the request body example is not documented"),
+                            () -> assertTrue(all.contains("https://example.com/ledgers/archived.json"),
+                                    "the external example is not documented"),
+                            () -> assertTrue(all.contains("x-audience") && all.contains("ledger-team"),
+                                    "the exposed extension is not documented"));
                 }));
     }
 
     /** Generates one SDK from the fixture and returns the text of every file it wrote. */
     static String generate(final String generator) throws Exception {
         final Path out = Path.of("target", "oas32", generator).toAbsolutePath();
-        ProbeGenerator.generate(generator, Map.of("skipFormatter", "true"), out, fixturePath());
+        ProbeGenerator.generate(
+                generator, Map.of("skipFormatter", "true", "exposedExtensions", "x-audience"), out,
+                fixturePath());
         try (Stream<Path> files = Files.walk(out)) {
             return files.filter(Files::isRegularFile)
                     .map(OpenApi32ParserExtensionTest::readQuietly)

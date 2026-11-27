@@ -1,0 +1,22 @@
+{{#vendorExtensions.op.operationExamples}}
+{{#-first}}
+     *
+     * <p>{{{heading}}} example: {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/-first}}
+{{^-first}}
+     * {{{heading}}} example: {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/-first}}
+{{#hasDescription}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/hasDescription}}
+     * {@code {{{value}}}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.exposedExtensions}}
+{{#-first}}
+     *
+     * <p>Extension {{#lambda.javadocDescription}}{{{name}}}{{/lambda.javadocDescription}}: {{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}
+{{/-first}}
+{{^-first}}
+     * Extension {{#lambda.javadocDescription}}{{{name}}}{{/lambda.javadocDescription}}: {{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}
+{{/-first}}
+{{/vendorExtensions.op.exposedExtensions}}

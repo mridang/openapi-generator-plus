@@ -349,6 +349,8 @@ Rule: the call before `exchange_code/2` raises `Must call exchange_code() before
 
 Rule: the named examples of an optional parameter are written into the `@moduledoc` of its `Api.Options.*` module as `### <name> example` blocks, the way the operation function documents a required parameter. Where: `BetterElixirCodegen.toExampleDocs`, `api/options.mustache`. Test: `BetterElixirCodegenTest`.
 
+The operation `@doc` (and the stream-only operation's `@doc`) renders `operationExamples` as `<heading> example: <summary>` lines with the value as an indented code block, then each `exposedExtensions` row as `Extension <name>: <value>`, after the Parameters section and before Returns, all through `elixirHeredoc` (D169, D170); a typed response header with an example gets an `Example:` code block under its bullet in `api/response_headers.mustache`.
+
 ### Documentation layout
 
 Rule: SKILLS `Configuration` follows the java and kotlin order and level: `Custom Transport Options`, `Retries`, `Custom HTTP client` (renamed from `Custom HTTP Transport`), `Cancellation`, `Closing the client`, and `Raw responses, timeouts and the request id` (replaces `Timeouts and retries`). README gained a `Dependency audit` section. Where: `skills.mustache`, `readme.mustache`.

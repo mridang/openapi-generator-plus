@@ -188,6 +188,24 @@ public class {{classname}} : BaseApi, I{{classname}}
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
 {{/-first}}{{/-last}}{{/consumes}}
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+{{#vendorExtensions.op.operationExamples}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <example>
+    /// <para>{{#lambda.escapeXml}}{{{heading}}} example: {{{summary}}}{{/lambda.escapeXml}}</para>
+{{#hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</para>
+{{/hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{value}}}{{/lambda.escapeXml}}</para>
+    /// </example>
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.exposedExtensions}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <remarks>{{#lambda.escapeXml}}Extension {{{name}}}: {{{value}}}{{/lambda.escapeXml}}</remarks>
+{{/vendorExtensions.op.exposedExtensions}}
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
@@ -291,6 +309,24 @@ public class {{classname}} : BaseApi, I{{classname}}
     /// <param name="streamOptions">The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults.</param>
 {{/vendorExtensions.op.streamOnly}}
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+{{#vendorExtensions.op.operationExamples}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <example>
+    /// <para>{{#lambda.escapeXml}}{{{heading}}} example: {{{summary}}}{{/lambda.escapeXml}}</para>
+{{#hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</para>
+{{/hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{value}}}{{/lambda.escapeXml}}</para>
+    /// </example>
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.exposedExtensions}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <remarks>{{#lambda.escapeXml}}Extension {{{name}}}: {{{value}}}{{/lambda.escapeXml}}</remarks>
+{{/vendorExtensions.op.exposedExtensions}}
 {{#vendorExtensions.op.streamOnly}}
     /// <returns>The open stream; dispose it (<c>await using</c>) when you stop early.</returns>
 {{/vendorExtensions.op.streamOnly}}

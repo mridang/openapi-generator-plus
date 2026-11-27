@@ -20,6 +20,7 @@ openapi: 3.2.0
 #   - a querystring parameter carries the whole query as form pairs (#63)
 #   - a cookie parameter uses style: cookie (#65)
 #   - a path parameter allows reserved characters (#66)
+#   - examples of a parameter and a request body, one external, and an exposed extension (#64, #93)
 $self: shared/openapi.yaml
 jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
 info:
@@ -62,6 +63,7 @@ paths:
       tags:
         - audits
       operationId: auditLedger
+      x-audience: ledger-team
       requestBody:
         required: true
         content:
@@ -76,6 +78,9 @@ paths:
                   balance: 125
               closing:
                 serializedValue: '{"code":"CLOSE-9","balance":0}'
+              archived:
+                summary: An archived ledger book
+                externalValue: https://example.com/ledgers/archived.json
       responses:
         '204':
           description: Audited
@@ -156,6 +161,7 @@ paths:
           in: path
           required: true
           allowReserved: true
+          example: books/2024.csv
           schema:
             type: string
         - name: region

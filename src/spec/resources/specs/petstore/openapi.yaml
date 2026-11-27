@@ -1973,6 +1973,9 @@ paths:
       summary: Reads a memo from the server its path declares
       operationId: getMemo
       security: []
+      # D170: shown in the operation documentation because the golden generation lists it in
+      # the exposedExtensions option.
+      x-audience: internal-tools
       responses:
         '200':
           $ref: '#/components/responses/MemoFound'
@@ -3705,6 +3708,8 @@ components:
       description: The memo to address
       schema:
         type: string
+      # D169: a single example is shown in the operation documentation.
+      example: m1
 
   responses:
     MemoFound:
@@ -3723,6 +3728,7 @@ components:
           description: Whether the memo is archived
           schema:
             type: boolean
+          example: false
       content:
         application/json:
           schema:
@@ -3742,6 +3748,10 @@ components:
           examples:
             memo:
               $ref: '#/components/examples/MemoExample'
+            # D169: an example kept in another document is shown by its URL.
+            stored:
+              summary: A memo kept as a file
+              externalValue: https://example.com/memos/m1.json
 
   headers:
     Revision:

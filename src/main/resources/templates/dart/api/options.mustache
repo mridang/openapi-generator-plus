@@ -18,6 +18,13 @@ class {{className}} {
 {{#description}}
   /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/description}}
+{{#pluralExamples}}
+  /// ### `{{name}}` — {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/pluralExamples}}
 {{#deprecated}}
   @Deprecated('This parameter is deprecated.')
 {{/deprecated}}

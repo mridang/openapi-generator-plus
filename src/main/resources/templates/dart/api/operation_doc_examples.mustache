@@ -1,0 +1,18 @@
+{{#vendorExtensions.op.hasOperationExamples}}
+  ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  /// {{{heading}}} example: {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{#hasDescription}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/hasDescription}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+  ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  /// Extension {{#lambda.dartDocLines}}{{{name}}}{{/lambda.dartDocLines}}: {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+{{/vendorExtensions.op.exposedExtensions}}

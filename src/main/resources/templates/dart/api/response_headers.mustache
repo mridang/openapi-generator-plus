@@ -12,6 +12,10 @@ class {{className}} {
   /// The `{{wireName}}` response header, or null when the response did not
   /// carry it.
 {{/hasDescription}}
+{{#hasExample}}
+  ///
+  /// Example: `{{#lambda.dartDocLines}}{{{example}}}{{/lambda.dartDocLines}}`
+{{/hasExample}}
   final {{{dartType}}}? {{varName}};
 
 {{/rows}}

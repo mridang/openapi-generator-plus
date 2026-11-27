@@ -439,8 +439,8 @@ Where: `BetterRubyCodegen.java`.
 Test: `BetterRubyCodegenTest`.
 
 ### Examples are attributed to their parameter
-Rule: a named example reads `# Example for +<param>+ — <summary>: <value>` under the parameter in the API class, and the same line is written for each optional parameter in its options file (it was dropped there). The old three-line summary/description/value block is gone.
-Where: `api/api.mustache`, `api/options.mustache`, `BetterRubyCodegen.generateOptionsFileContent`.
+Rule: a named example reads `# Example for +<param>+ — <summary>: <value>` under the parameter in the API class, and the same line is written for each optional parameter in its options file (it was dropped there). The old three-line summary/description/value block is gone. Request body and response examples (D169) follow the parameter docs of the method and its stream variant as `# <heading> example: <summary>`, the description and the value each on their own line through the `rubyComment` lambda, then each exposed vendor extension (D170) as `# Extension <name>: <value>`, both from `api/operation_doc_examples.mustache`; a typed response header's example is the `Example: <value>` line of its attribute doc in `api/response_headers.mustache`.
+Where: `api/api.mustache`, `api/operation_doc_examples.mustache`, `api/response_headers.mustache`, `api/options.mustache`, `BetterRubyCodegen.generateOptionsFileContent`.
 Test: `RubyFormattingSpec` (`pluralExamplesShouldBeAttributedToParameter`, `pluralExamplesOfAnOptionalParameterShouldBeAttributedToParameter`).
 
 ### The redirect middleware gem is gone

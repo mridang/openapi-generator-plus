@@ -453,6 +453,8 @@ Where: `BetterJavaCodegen` (`cliOptions`, `processOpts`), `pom.mustache`, `readm
 Rule: batch 10 rendered the examples in `options.mustache` but the shared pass captures them only after the Options files are written, so the golden showed none. `generateOptionsFileContent` now captures them first (`capturePluralExamplesForParameters`), so `FindPetsByStatusOptions.status` carries `Example — Available only: {@code available}`.
 Where: `BetterJavaCodegen`. Test: the generated Options javadoc in the golden (`JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` covers the required ones).
 
+D169 and D170: the operation javadoc (method, `WithHttpInfo` and stream variants, through `api/operation_doc_examples.mustache` after the response summaries, since javadoc block tags must come last) renders each request-body and success-response example as `<p>{heading} example: {summary}`, its description and `{@code value}`, then each option-listed vendor extension as `<p>Extension {name}: {value}`, and each typed response-header accessor in `api/response_headers.mustache` adds `<p>Example: {@code value}`.
+
 ### README notes
 Rule: the README Caveats say that optional and nullable are one `null` (except required plus nullable), that an unknown enum or discriminator value fails, that repeated response headers are joined with `, `, which compression is negotiated, that the SDK has no logging hook, that a binary response is a stream (see the Streaming section), that `Configuration` and `TransportOptions` stay separate, and what the version means; a Usage section covers per-call options, error context, immutable models and unions.
 Where: `readme.mustache`, `skills.mustache`.

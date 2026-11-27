@@ -16,6 +16,9 @@ public sealed class {{className}}
 {{^hasDescription}}
     /// <summary>The {{{wireName}}} response header, or null when the response does not carry it.</summary>
 {{/hasDescription}}
+{{#hasExample}}
+    /// <example>{{#lambda.escapeXml}}Example: {{{example}}}{{/lambda.escapeXml}}</example>
+{{/hasExample}}
     public {{{fieldType}}}? {{propertyName}} { get; private init; }
 {{/rows}}
 

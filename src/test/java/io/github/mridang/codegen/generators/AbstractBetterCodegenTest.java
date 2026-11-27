@@ -1536,4 +1536,63 @@ class AbstractBetterCodegenTest {
                 () -> assertEquals(true, rows.get(1).get("isArray")),
                 () -> assertEquals("boolean", rows.get(2).get("kind")));
     }
+
+    @Test
+    @DisplayName("examples of a parameter, the request body, the responses and their headers, and the listed extensions reach the operation (D169, D170)")
+    @SuppressWarnings("unchecked")
+    void examplesAndListedExtensionsReachTheOperation() {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths:",
+                "  /items/{id}:",
+                "    put:",
+                "      operationId: putItem",
+                "      x-audience: internal",
+                "      x-other: hidden",
+                "      parameters:",
+                "        - {name: id, in: path, required: true, example: i1, schema: {type: string}}",
+                "      requestBody:",
+                "        content:",
+                "          application/json:",
+                "            schema: {type: object}",
+                "            examples:",
+                "              small: {summary: A small one, value: {a: 1}}",
+                "              stored: {summary: Kept elsewhere, externalValue: 'https://example.com/i.json'}",
+                "      responses:",
+                "        '200':",
+                "          description: ok",
+                "          headers:",
+                "            X-Count: {description: How many, example: 3, schema: {type: integer}}",
+                "          content:",
+                "            text/plain:",
+                "              schema: {type: string}",
+                "              example: done"));
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.additionalProperties().put("exposedExtensions", "x-audience, x-missing");
+        codegen.setOpenAPI(api);
+        final io.swagger.v3.oas.models.Operation operation =
+                Objects.requireNonNull(Objects.requireNonNull(api.getPaths().get("/items/{id}")).getPut());
+        final org.openapitools.codegen.CodegenOperation op =
+                codegen.fromOperation("/items/{id}", "put", operation, new ArrayList<>());
+        codegen.populateOperationDecorators(op);
+        final Map<String, Object> deco =
+                Objects.requireNonNull((Map<String, Object>) op.vendorExtensions.get("op"));
+        final List<Map<String, Object>> examples =
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("operationExamples"));
+        final List<Map<String, Object>> headers =
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("responseHeaders"));
+        final List<Map<String, Object>> param = Objects.requireNonNull(
+                (List<Map<String, Object>>) op.pathParams.get(0).vendorExtensions.get("pluralExamples"));
+        assertAll(
+                () -> assertEquals(List.of("Request body", "Request body", "Response 200"),
+                        examples.stream().map(r -> r.get("heading")).collect(Collectors.toList())),
+                () -> assertEquals("{\"a\":1}", examples.get(0).get("value")),
+                () -> assertEquals("https://example.com/i.json", examples.get(1).get("value")),
+                () -> assertEquals("done", examples.get(2).get("value")),
+                () -> assertEquals("3", headers.get(0).get("example")),
+                () -> assertEquals("i1", param.get(0).get("value")),
+                () -> assertEquals(List.of(Map.of("name", "x-audience", "value", "internal")),
+                        deco.get("exposedExtensions")));
+    }
 }

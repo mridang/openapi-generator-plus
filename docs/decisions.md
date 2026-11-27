@@ -487,6 +487,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The petstore `getMemo` response declares `X-Revision`, `X-Labels` and `X-Archived` (`headers501`, `headers502` in all twelve). The README section on raw responses names the type. The description of a header reached through `$ref` is not carried to the field's documentation yet.
 
+## D169: Parameter, body, response and header examples are documented
+
+**Decision.** Every SDK documents, on the operation, the examples of its request body and of each 2xx response (the first media type of each: its `examples`, or else its single `example`) as `<Request body | Response NNN> example: <summary>`, the example's description and its value; a parameter's single `example` is documented like a named one; an example kept elsewhere (`externalValue`) is shown by its URL; a declared response header's example is documented on its field of the D168 headers type. node, dart and rust now document a parameter's examples on the Options field as the other nine do. The lines sit with the operation's other trailing documentation (before the tags in javadoc, KDoc, JSDoc and PHPDoc, where prose after a tag joins it); the `WithHttpInfo` variants that carry no parameter documentation carry none of it either. Values are written as compact JSON through each language's existing doc-comment escaping (#64).
+
+**Consequences.** Documentation only; nothing on the wire changes. The petstore memo operations and the 3.2 fixture carry the examples, and `OpenApi32ParserExtensionTest` checks all twelve render them; `GlobalFeature.Examples` stays unclaimed because the generator still does not build example requests.
+
+## D170: Listed vendor extensions are documented on the operation
+
+**Decision.** The generator option `exposedExtensions` (comma-separated names, each starting with `x-`, default none) names the operation-level vendor extensions an SDK documents: each one present on an operation is written into its documentation as `Extension <name>: <value>` (a plain value, or compact JSON). Nothing is exposed by default, since an extension is often internal to the API's authors, and nothing reaches the runtime: a call hook that needs such a value can be given it by the application. Extensions on other objects (schemas, parameters, tags) are not exposed (#93).
+
+**Consequences.** The golden generation lists `x-audience`, which the petstore `getMemo` carries; `OpenApi32ParserExtensionTest` checks all twelve render it from the 3.2 fixture.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

@@ -10,6 +10,13 @@ defmodule {{moduleName}}.Api.ResponseHeaders.{{className}} do
   @typedoc """
 {{#headers}}
   * `{{name}}` - The `{{wireName}}` header.{{#hasDescription}} {{{description}}}{{/hasDescription}}
+{{#hasExample}}
+
+    Example:
+
+        {{#lambda.elixirHeredoc}}{{{example}}}{{/lambda.elixirHeredoc}}
+
+{{/hasExample}}
 {{/headers}}
   """
   @type t :: %__MODULE__{

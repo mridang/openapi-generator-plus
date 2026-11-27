@@ -42,6 +42,8 @@ Some rules need no configuration because the generator applies them to every doc
 
 The `x-internal` rule is how the shared test specification works: transport-test endpoints (echo, delay, compression, redirects, error statuses) live in the same file that the mock server serves, and are removed before generation so they do not become SDK methods.
 
+The generator option `exposedExtensions` lists operation-level vendor extensions (such as `x-audience`) that every SDK writes into that operation's documentation as `Extension <name>: <value>`; by default none are (D170). The operation documentation also shows the examples of the request body, of each success response and of each parameter (D169).
+
 Every run also has a warning pass over the specification, after the stock normalisation and before the rules above. It logs each `$ref` that does not resolve inside the document (a dangling reference, or a reference that is not a local JSON pointer) each construct the generators ignore (callbacks, webhooks, Link Objects and the `xml` object), each path template or server URL that breaks the OpenAPI 3.2 grammar or names a parameter or variable that is not declared (D162), and each 3.2 operation or parameter the 3.2 loader had to leave out (D160, D161), with the JSON pointer of the place where it was found, such as `#/paths/~1pets/get/responses/200`. Each JSON Schema keyword the generators read and ignore (such as `not`, `if`/`then`/`else` or `patternProperties`) is logged once as well. By default the run stays lenient and carries on. Pass `-DstrictSpec=true` to the JVM and any of these warnings fails the run after all of them have been logged (D142).
 
 ### The shared generator

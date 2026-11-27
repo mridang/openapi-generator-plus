@@ -128,6 +128,24 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
     /// ```
 {{/vendorExtensions.pluralExamples}}
 {{/allParams}}
+{{#vendorExtensions.op.hasOperationExamples}}
+    ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+    /// {{#lambda.singleLine}}{{{heading}}} example: {{{summary}}}{{/lambda.singleLine}}
+{{#hasDescription}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+{{/hasDescription}}
+    /// ```json
+    /// {{#lambda.singleLine}}{{{value}}}{{/lambda.singleLine}}
+    /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+    ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+    /// {{#lambda.singleLine}}Extension {{{name}}}: {{{value}}}{{/lambda.singleLine}}
+{{/vendorExtensions.op.exposedExtensions}}
 {{#vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
     @available(*, deprecated, message: "This operation is deprecated.")

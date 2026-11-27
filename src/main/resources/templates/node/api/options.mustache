@@ -15,6 +15,20 @@ import type { {{brandImports}} } from '../../brand.js';
  */
 export interface {{className}} {
 {{#params}}
+{{#hasPluralExamples}}
+  /**
+{{#description}}
+   * {{{description}}}
+{{/description}}
+{{#pluralExamples}}
+   * @example {{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/pluralExamples}}
+{{#deprecated}}
+   * @deprecated This parameter is deprecated.
+{{/deprecated}}
+   */
+{{/hasPluralExamples}}
+{{^hasPluralExamples}}
 {{#deprecated}}
 {{#description}}
   /**
@@ -32,6 +46,7 @@ export interface {{className}} {
   /** {{{description}}} */
 {{/description}}
 {{/deprecated}}
+{{/hasPluralExamples}}
   readonly {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
 {{/params}}
 }

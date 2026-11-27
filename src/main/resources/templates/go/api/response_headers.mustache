@@ -32,6 +32,10 @@ type {{className}} struct {
 //
 // {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
 {{/hasDescription}}
+{{#hasExample}}
+//
+// Example: {{#goLineComment}}{{{example}}}{{/goLineComment}}
+{{/hasExample}}
 func (h *{{className}}) {{goGetterName}}() {{goFieldType}} {
 	return h.{{goFieldName}}
 }

@@ -185,7 +185,7 @@ Where: `models/model.mustache`.
 Test: `MetadataTests`, `ComposedSchemaTests` templates.
 
 ### Deprecation, required-parameter text, field examples
-Rule: every public variant of a deprecated operation carries `@available(*, deprecated, ...)`; the missing-parameter message reads `Missing the required parameter '...'`; model field docs carry `/// Example:` and descriptions go through `unescapeDocComment`.
+Rule: every public variant of a deprecated operation carries `@available(*, deprecated, ...)`; the missing-parameter message reads `Missing the required parameter '...'`; model field docs carry `/// Example:` and descriptions go through `unescapeDocComment`. The operation doc of `api.mustache` ends, after the parameter examples, with each `operationExamples` row (`<heading> example: <summary>`, its description, the value in a ```` ```json ```` fence) and then each `exposedExtensions` row as `Extension <name>: <value>`, every value through `lambda.singleLine` so it cannot leave the `///` comment, and a typed response header documents its `Example:` in `api/response_headers.mustache` (D169, D170).
 Why: R6 and R7 harmonisation; the synthesised `"null"` example is nulled in the shared base, so do not re-add a guard.
 Where: `api/api.mustache`, `value_serializer.mustache`, `models/model.mustache`.
 Test: `ValueSerializerTests`, `SwiftFormattingSpec`.

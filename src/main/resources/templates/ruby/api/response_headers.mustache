@@ -13,6 +13,9 @@ module {{moduleName}}
 {{#headers}}
       # @!attribute [r] {{varName}}
       #   @return [{{{dataType}}}, nil] the +{{wireName}}+ header{{#hasDescription}}: {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/hasDescription}}
+{{#hasExample}}
+      #   Example: {{#lambda.rubyComment}}{{{example}}}{{/lambda.rubyComment}}
+{{/hasExample}}
 {{/headers}}
       class {{className}}
         # A decimal number: an optional sign, digits with an optional fraction,

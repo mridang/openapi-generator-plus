@@ -209,6 +209,27 @@ defmodule {{moduleName}}.Api.{{classname}} do
     * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+{{#vendorExtensions.op.hasOperationExamples}}
+
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  {{#lambda.elixirHeredoc}}{{{heading}}}{{/lambda.elixirHeredoc}} example: {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+  {{#hasDescription}}
+
+  {{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}
+  {{/hasDescription}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{^-last}}
+
+{{/-last}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  Extension {{#lambda.elixirHeredoc}}{{{name}}}{{/lambda.elixirHeredoc}}: {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.op.exposedExtensions}}
 
   ## Returns
 
@@ -808,6 +829,27 @@ defmodule {{moduleName}}.Api.{{classname}} do
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}.
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
     * `opts` - Keyword list. The per-call settings `:timeout`, `:headers` and `:max_retries`, and the stream settings `:idle_timeout`{{#vendorExtensions.op.streamsSse}}, `:max_reconnects`, `:reconnect_delay`, `:last_event_id`{{/vendorExtensions.op.streamsSse}}, `:max_event_bytes`.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type`.{{/consumes.1}}
+{{#vendorExtensions.op.hasOperationExamples}}
+
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  {{#lambda.elixirHeredoc}}{{{heading}}}{{/lambda.elixirHeredoc}} example: {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+  {{#hasDescription}}
+
+  {{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}
+  {{/hasDescription}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{^-last}}
+
+{{/-last}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  Extension {{#lambda.elixirHeredoc}}{{{name}}}{{/lambda.elixirHeredoc}}: {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.op.exposedExtensions}}
 
   ## Returns
 

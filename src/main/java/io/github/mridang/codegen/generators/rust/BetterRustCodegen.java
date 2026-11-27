@@ -1905,6 +1905,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("name", NamingConvention.SNAKE_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // D169: the parameter's examples, documented on the Options field.
+            Object pluralExamples = p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (pluralExamples == null && p.examples != null && !p.examples.isEmpty()) {
+                pluralExamples = buildPluralExamplesList(p.examples);
+            }
+            param.put("pluralExamples", pluralExamples);
+            param.put("hasPluralExamples", pluralExamples instanceof List && !((List<?>) pluralExamples).isEmpty());
             param.put("requiredNullable", isRequiredNullableQuery(p));
             // Propagate the spec-level deprecation flag so the options template
             // can emit `#[deprecated]` on the corresponding field/accessor,

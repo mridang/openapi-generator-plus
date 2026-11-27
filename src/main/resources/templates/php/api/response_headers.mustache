@@ -15,6 +15,9 @@ final class {{className}}
     /**
 {{#responseHeaders}}
      * @param {{phpDocType}}|null ${{varName}} The `{{wireName}}` header{{#hasDescription}}: {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}{{/hasDescription}}
+{{#hasExample}}
+     *     Example: {{#lambda.phpdocDescription}}{{{example}}}{{/lambda.phpdocDescription}}
+{{/hasExample}}
 {{/responseHeaders}}
      */
     public function __construct(

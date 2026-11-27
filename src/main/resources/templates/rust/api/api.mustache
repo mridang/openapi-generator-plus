@@ -192,6 +192,24 @@ impl {{classname}} {
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
     /// * `stream_options`: the stream settings, or `None` for the defaults.
+{{#vendorExtensions.op.hasOperationExamples}}
+    ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+    /// {{heading}} example: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{#hasDescription}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/hasDescription}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+    ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+    /// Extension {{{name}}}: {{{value}}}
+{{/vendorExtensions.op.exposedExtensions}}
     pub async fn {{vendorExtensions.op.streamMethodName}}(
         &self,
 {{#vendorExtensions.op.signatureArgs}}
@@ -268,7 +286,27 @@ impl {{classname}} {
     /// ```json
     /// {{{value}}}
     /// ```
-{{/vendorExtensions.pluralExamples}}{{/allParams}}    pub async fn {{operationId}}(
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#vendorExtensions.op.hasOperationExamples}}
+    ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+    /// {{heading}} example: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{#hasDescription}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/hasDescription}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+    ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+    /// Extension {{{name}}}: {{{value}}}
+{{/vendorExtensions.op.exposedExtensions}}
+    pub async fn {{operationId}}(
         &self,
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}        {{paramName}}: {{{dataType}}},

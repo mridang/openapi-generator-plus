@@ -146,6 +146,16 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
   /// `streamOptions` the stream settings, or null for the defaults
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+  /// ### `{{paramName}}` — {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{>api/operation_doc_examples}}
 {{#externalDocs}}
   /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/externalDocs}}
@@ -240,6 +250,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
   /// ```
 {{/vendorExtensions.pluralExamples}}
 {{/allParams}}
+{{>api/operation_doc_examples}}
 {{#externalDocs}}
   /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/externalDocs}}
