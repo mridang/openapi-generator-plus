@@ -1,6 +1,8 @@
 package io.github.mridang.codegen.rules;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.parser.OpenAPIV3Parser;
@@ -10,8 +12,22 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class WarnUnsupportedKeywordsRuleTest {
+
+    private static final Logger SILENT = LoggerFactory.getLogger(WarnUnsupportedKeywordsRuleTest.class);
+
+    private static OpenAPI spec(String schemas) {
+        return new OpenAPIV3Parser()
+                .readContents(
+                        "openapi: 3.1.0\ninfo: {title: t, version: '1'}\npaths: {}\n"
+                                + "components:\n  schemas:\n"
+                                + schemas,
+                        null,
+                        null)
+                .getOpenAPI();
+    }
 
     private List<String> warnings(String schemas) {
         final List<String> out = new ArrayList<>();
@@ -26,16 +42,7 @@ class WarnUnsupportedKeywordsRuleTest {
                                     }
                                     return null;
                                 });
-        final OpenAPI api =
-                new OpenAPIV3Parser()
-                        .readContents(
-                                "openapi: 3.1.0\ninfo: {title: t, version: '1'}\npaths: {}\n"
-                                        + "components:\n  schemas:\n"
-                                        + schemas,
-                                null,
-                                null)
-                        .getOpenAPI();
-        WarnUnsupportedKeywordsRule.check(api, log);
+        WarnUnsupportedKeywordsRule.check(spec(schemas), false, log);
         return out;
     }
 
@@ -55,5 +62,31 @@ class WarnUnsupportedKeywordsRuleTest {
         assertEquals(
                 0,
                 warnings("    A: {type: object, properties: {not: {type: string}}}\n").size());
+    }
+
+    @Test
+    @DisplayName("strict mode fails the run on an unsupported keyword")
+    void strictModeFailsOnAnUnsupportedKeyword() {
+        final OpenAPI api = spec("    A: {not: {type: string}}\n");
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> WarnUnsupportedKeywordsRule.check(api, true, SILENT));
+    }
+
+    @Test
+    @DisplayName("the default stays lenient on an unsupported keyword")
+    void theDefaultStaysLenient() {
+        final OpenAPI api = spec("    A: {not: {type: string}}\n");
+
+        assertDoesNotThrow(() -> WarnUnsupportedKeywordsRule.check(api, false, SILENT));
+    }
+
+    @Test
+    @DisplayName("strict mode passes a document without unsupported keywords")
+    void strictModePassesACleanDocument() {
+        final OpenAPI api = spec("    A: {type: object, properties: {not: {type: string}}}\n");
+
+        assertDoesNotThrow(() -> WarnUnsupportedKeywordsRule.check(api, true, SILENT));
     }
 }
