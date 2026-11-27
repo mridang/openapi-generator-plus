@@ -121,6 +121,9 @@ class {{classname}} : BaseApi, {{classname}}Interface {
 {{#notes}}
      * {{{.}}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.kdoc}}{{{.}}}{{/lambda.kdoc}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
      * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/pathParams}}
@@ -192,6 +195,9 @@ class {{classname}} : BaseApi, {{classname}}Interface {
 {{#notes}}
      * {{{.}}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.kdoc}}{{{.}}}{{/lambda.kdoc}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
      * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}

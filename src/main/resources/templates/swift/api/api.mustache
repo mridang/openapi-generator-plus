@@ -75,6 +75,9 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
 {{#notes}}
     /// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+    /// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#externalDocs}}
     /// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
 {{/externalDocs}}

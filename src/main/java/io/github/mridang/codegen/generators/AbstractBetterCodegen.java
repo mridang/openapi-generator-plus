@@ -796,6 +796,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         putInfoMetadata(openAPI.getInfo());
+        responseSummaries = RawSpecReader.responseSummaries(getInputSpec());
+        System.err.println("DBG76 spec=" + getInputSpec() + " n=" + responseSummaries.size());
         computeSchemeEnvVars(openAPI);
         // Webhooks are out of scope (S11); the stock generator would write each one into an API
         // class as an ordinary operation and overwrite the untagged operations of the document.
@@ -1927,6 +1929,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /** Whether the user supplied {@code licenseUrl}. */
     private boolean licenseUrlExplicit;
+
+    /**
+     * Response Object summaries read from the raw document, keyed by {@code "METHOD path"}; see
+     * {@link RawSpecReader}. Empty until {@link #processOpenAPI} runs.
+     */
+    private Map<String, Map<String, String>> responseSummaries = Map.of();
 
     /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
     private static final Set<String> SAFE_HTTP_METHODS =
@@ -7026,6 +7034,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
+        }
+        System.err.println("DBG76 key=" + httpMethod + " " + path + " known=" + responseSummaries.keySet());
+        final Map<String, String> summaries =
+                responseSummaries.get(httpMethod.toUpperCase(Locale.ROOT) + " " + path);
+        if (summaries != null) {
+            if (op.vendorExtensions == null) {
+                op.vendorExtensions = new HashMap<>();
+            }
+            final List<String> lines = new ArrayList<>();
+            summaries.forEach((code, summary) -> lines.add("Response " + code + ": " + summary));
+            decoratorMap(op.vendorExtensions, OP_DECORATOR_NS).put("responseSummaries", lines);
         }
         // No-auth sentinel gate. The sentinel that suppresses the client
         // authenticator must fire ONLY for an EXPLICIT empty security list: an

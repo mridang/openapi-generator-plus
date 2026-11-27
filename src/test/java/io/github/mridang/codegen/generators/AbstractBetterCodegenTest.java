@@ -1143,5 +1143,41 @@ class AbstractBetterCodegenTest {
                 () -> assertFalse(codegen.additionalProperties().containsKey("appSummary")));
     }
 
+    @Test
+    @DisplayName("an inline response summary reaches the operation decorator as a labelled line")
+    @SuppressWarnings("unchecked")
+    void responseSummaryReachesOperation(@TempDir final Path dir) throws IOException {
+        final Path spec = dir.resolve("openapi.yaml");
+        Files.writeString(spec, "openapi: 3.2.0\n"
+                + "paths:\n"
+                + "  /items:\n"
+                + "    get:\n"
+                + "      responses:\n"
+                + "        '200':\n"
+                + "          summary: Items listed\n"
+                + "          description: OK\n");
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setInputSpec(spec.toString());
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI());
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setOperationId("listItems");
+        operation.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses()
+                .addApiResponse("200", new io.swagger.v3.oas.models.responses.ApiResponse().description("OK")));
+        final Map<String, Object> decorator = Objects.requireNonNull((Map<String, Object>) codegen
+                .fromOperation("/items", "get", operation, new ArrayList<>()).vendorExtensions.get("op"));
+        assertEquals(List.of("Response 200: Items listed"), decorator.get("responseSummaries"));
+    }
 
+    @Test
+    @DisplayName("an operation with no response summary carries no summary lines")
+    void operationWithoutSummaryHasNoLines() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI());
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setOperationId("listItems");
+        operation.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses());
+        final CodegenOperation op = codegen.fromOperation("/items", "get", operation, new ArrayList<>());
+        assertFalse(op.vendorExtensions.containsKey("op")
+                && ((Map<?, ?>) op.vendorExtensions.get("op")).containsKey("responseSummaries"));
+    }
 }
