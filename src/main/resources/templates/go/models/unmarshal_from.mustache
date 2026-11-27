@@ -82,6 +82,12 @@ func (o *{{classname}}) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	if err != nil {
 		return err
 	}
+{{#vendorExtensions.decodeAppliesOptionalDefaults}}
+	/* Rather than pre-seed optional fields that declare a schema default
+	 * before decoding, the decode records which keys it read and gives each
+	 * absent one its default here; a key that is present, null included,
+	 * keeps what it decoded to, matching the other SDKs. */
+{{/vendorExtensions.decodeAppliesOptionalDefaults}}
 {{#vars}}
 {{#vendorExtensions.decodeRequiresKey}}
 	if !seen{{name}} {

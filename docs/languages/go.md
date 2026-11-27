@@ -19,7 +19,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `string` / `time` | `string` | No standard library type. `iso8601.go` ships `FormatTimeOfDay` and `ParseTimeOfDay` for callers who want a `time.Time`. |
 | `string` / `duration` | `time.Duration` | The standard library type (D133). The models and the serializer write it as the protobuf-JSON string such as `"3600s"`, not ISO 8601 and not `encoding/json`'s nanosecond count. |
 | `string` / `uuid` | `uuid.UUID` | From `github.com/google/uuid`. Written in lower case. |
-| `string` / `byte` | `[]byte` | `encoding/json` encodes it as padded standard base64. |
+| `string` / `byte` | `[]byte` | Written as padded standard base64; anything else, a line break included, fails the decode. |
 | `string` / `binary`, file bodies | `*ByteStream` (an `io.ReadCloser`) for downloads, `*BodySource` for a raw upload (a multipart file part stays `io.Reader`) | The response body is read as you consume it and the request body is sent as it is read, see Streaming. |
 | `string` / `uri` | `string` | Checked as an absolute URI on decode. Not `url.URL`, because `url.Parse` lowercases the scheme, so the text would not round-trip (D134). |
 | `integer` / `int32` | `int32` | |
@@ -46,6 +46,7 @@ Runtime modules, from the generated `go.mod`:
 | `github.com/andybalholm/brotli` | v1.2.1 | Decoding `br` responses |
 | `github.com/klauspost/compress` | v1.18.6 | Decoding `zstd` responses |
 | `github.com/google/uuid` | v1.6.0 | The `uuid` type |
+| `github.com/go-json-experiment/json` | v0.0.0-20260213210345-44df1a37e875 | Reading JSON with the JSON v2 API (D143); the standard library's `encoding/json/v2` is experimental before Go 1.27 |
 | `github.com/shopspring/decimal` | v1.6.0 | The `decimal.Decimal` type for `format: decimal` (pure Go, arbitrary precision) |
 | `cloud.google.com/go` | v0.121.4 | The `civil.Date` type for `format: date` (the `civil` package imports only the standard library) |
 | `go.opentelemetry.io/otel`, `otel/metric` and `otel/trace` | v1.47.0 | Trace-context propagation, and the `pkg/otelhook` adapter (the core package imports none of them) |
@@ -185,12 +186,13 @@ These are ideas from a type review in November 2026. None of them is decided, an
 
 - Add an SDK-owned `models.TimeOfDay` type so `time` is validated. This needs agreement with the other SDKs because it adds public API.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
-- Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.
+- Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on. The SDK already reads JSON with the JSON v2 API (D143); at a Go 1.27 floor its module import becomes the standard library `encoding/json/v2`.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `InjectTraceContext(ctx, headers)` hands the call context to the propagator; Go has no ambient context.
 
 ## Behaviour notes
 
+- A model reads its JSON object in one pass with the JSON v2 API (D143): a key matches its declared name exactly, so `"NAME"` is not `name`, a repeated key keeps its last value, and a required key that is missing or null fails as soon as the object ends. `json.Unmarshal` from `encoding/json` and from the JSON v2 package give the same result and the same error.
 - A security requirement that names several schemes together (`security: [{bearer: [], apiKey: []}]`) sends the credential of every scheme in it, chosen from the `Credentials` struct; an operation whose alternatives are single schemes still uses the first scheme you hold a credential for.
 - A multipart request body keeps the subtype the spec declares (`multipart/mixed`) with a generated boundary; a declared value that is not a plain `multipart/<token>` is sent as `multipart/form-data`.
 - `OAuth2TokenManager.Stop()` ends the manager; later token requests fail with an `*OAuth2TokenError` and send nothing. Stopping twice does nothing.

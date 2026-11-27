@@ -1633,7 +1633,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      *       missing key; only on a model that neither keeps nor rejects
      *       undeclared keys, as before
      *   <li>{@code decodeTracksPresence}: any of the three above, so the decode
-     *       records whether the key was read
+     *       records whether the key was read; the model is marked {@code
+     *       decodeAppliesOptionalDefaults} when one property has an optional default
      *   <li>{@code hasDecodeCheck} and {@code decodeCheck}: the check that sees
      *       the value's JSON text before it is decoded (absolute URI, IPv4,
      *       IPv6, canonical UUID, decimal shape)
@@ -1657,6 +1658,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         final boolean keepsOrRejectsExtras =
                 model.isAdditionalPropertiesTrue
                         || Boolean.TRUE.equals(modelMap.get("isUnevaluatedPropertiesFalse"));
+        boolean appliesOptionalDefaults = false;
         for (final CodegenProperty property : model.vars) {
             final boolean hasDefault =
                     property.defaultValue != null && !property.defaultValue.isEmpty();
@@ -1669,12 +1671,14 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             property.vendorExtensions.put("decodeRequiresKey", requiresKey);
             property.vendorExtensions.put("decodeRequiredDefault", requiredDefault);
             property.vendorExtensions.put("decodeOptionalDefault", optionalDefault);
+            appliesOptionalDefaults |= optionalDefault;
             property.vendorExtensions.put(
                     "decodeTracksPresence", requiresKey || requiredDefault || optionalDefault);
             final String check = decodeCheck(property);
             property.vendorExtensions.put("hasDecodeCheck", !check.isEmpty());
             property.vendorExtensions.put("decodeCheck", check);
         }
+        model.vendorExtensions.put("decodeAppliesOptionalDefaults", appliesOptionalDefaults);
         modelsMap.put("hasJsontextImport", true);
     }
 
