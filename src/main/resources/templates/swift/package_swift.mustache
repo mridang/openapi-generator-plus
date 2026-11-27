@@ -72,7 +72,8 @@ let package = Package(
                 .product(name: "InMemoryExporter", package: "opentelemetry-swift")
             ],
             path: "Tests",
-            exclude: ["Fixtures"]
+            exclude: ["Fixtures"],
+            swiftSettings: strictSettings
         )
     ],
     // Swift 6 strict concurrency mode is enabled at the toolchain level
