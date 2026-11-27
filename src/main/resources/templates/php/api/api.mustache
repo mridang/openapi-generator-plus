@@ -34,9 +34,15 @@ use {{invokerPackage}}\Models\{{.}};
 {{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+{{/tagSummary}}
 {{#tagDescription}}
  * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagDescription}}
+{{#tagParent}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+{{/tagParent}}
 {{#tagExternalDocs}}
  * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagExternalDocs}}

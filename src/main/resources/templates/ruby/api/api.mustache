@@ -74,9 +74,15 @@ module {{moduleName}}
 {{/serverTypeDefs}}
 
     # {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+    # {{#lambda.rubyComment}}{{{tagSummary}}}{{/lambda.rubyComment}}
+{{/tagSummary}}
 {{#tagDescription}}
     # {{#lambda.rubyComment}}{{{tagDescription}}}{{/lambda.rubyComment}}
 {{/tagDescription}}
+{{#tagParent}}
+    # {{#lambda.rubyComment}}It belongs to the {{{tagParent}}} API group.{{/lambda.rubyComment}}
+{{/tagParent}}
 {{#tagExternalDocs}}
     # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/tagExternalDocs}}

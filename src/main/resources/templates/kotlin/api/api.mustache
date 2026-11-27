@@ -47,9 +47,15 @@ import {{modelPackage}}.{{{returnType}}}
 {{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{{.}}}
+{{/tagSummary}}
 {{#tagDescription}}
  * {{{.}}}
 {{/tagDescription}}
+{{#tagParent}}
+ * It belongs to the {{{.}}} API group.
+{{/tagParent}}
 {{#tagExternalDocs}}
  * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/tagExternalDocs}}

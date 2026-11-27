@@ -166,9 +166,15 @@ class {{classname}}Protocol(Protocol):
 
 class {{classname}}(BaseApi):
     """{{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagSummary}}
 {{#tagDescription}}
     {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
 {{/tagDescription}}
+{{#tagParent}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 
     .. seealso::

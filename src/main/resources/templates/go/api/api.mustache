@@ -88,9 +88,15 @@ func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
 {{/serverTypeDefs}}
 
 // {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/tagSummary}}
 {{#tagDescription}}
 // {{#goLineComment}}{{{.}}}{{/goLineComment}}
 {{/tagDescription}}
+{{#tagParent}}
+// {{#goLineComment}}It belongs to the {{{.}}} API group.{{/goLineComment}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 // See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/tagExternalDocs}}

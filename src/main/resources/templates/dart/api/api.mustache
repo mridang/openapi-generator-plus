@@ -71,9 +71,15 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{/serverTypeDefs}}
 
 /// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagSummary}}
 {{#tagDescription}}
 /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/tagExternalDocs}}

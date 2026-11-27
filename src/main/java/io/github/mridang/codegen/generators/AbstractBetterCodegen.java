@@ -7009,13 +7009,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return name.isEmpty() ? getVarCasing().apply("api") : getVarCasing().apply(name);
     }
 
+    /** Puts a non-blank tag carrier value under {@code key}, HTML entities decoded. */
+    private static void putTagCarrier(
+            final Tag tag, final String carrier, final String key, final Map<String, Object> operations) {
+        final Object value = tag.getExtensions() == null ? null : tag.getExtensions().get(carrier);
+        if (value instanceof String && !((String) value).isBlank()) {
+            operations.put(key, htmlUnescape(((String) value).trim()));
+        }
+    }
+
     /**
      * Injects tag description and external documentation into
      * the operations template context so API class-level
      * Javadoc or docstrings can render the tag metadata from
      * the OpenAPI spec. All operations in a group share the
      * same tag, so the first operation's tag is used to look
-     * up the description and external docs.
+     * up the description and external docs, and the OpenAPI 3.2
+     * tag summary, parent and kind (D157).
      */
     @SuppressWarnings("unchecked")
     private void injectTagMetadata(Map<String, Object> operations) {
@@ -7039,6 +7049,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (tagName.equals(tag.getName())) {
                 Optional.ofNullable(tag.getDescription())
                         .ifPresent(desc -> operations.put("tagDescription", desc));
+                // OpenAPI 3.2 nested tags (D157), carried by the 3.2 loader: the summary and
+                // the parent are documentation; the kind is handed on for templates as is.
+                putTagCarrier(tag, OpenApi32ParserExtension.TAG_SUMMARY, "tagSummary", operations);
+                putTagCarrier(tag, OpenApi32ParserExtension.TAG_PARENT, "tagParent", operations);
+                putTagCarrier(tag, OpenApi32ParserExtension.TAG_KIND, "tagKind", operations);
                 Optional.ofNullable(tag.getExternalDocs())
                         .ifPresent(
                                 extDocs -> {

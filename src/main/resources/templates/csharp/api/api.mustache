@@ -82,9 +82,15 @@ public sealed class {{serverTypeName}}{{variantName}} : {{serverTypeName}}
 
 /// <summary>
 /// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+{{/tagSummary}}
 {{#tagDescription}}
 /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 {{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.escapeXml}}It belongs to the {{{.}}} API group.{{/lambda.escapeXml}}
+{{/tagParent}}
 /// </summary>
 {{#tagExternalDocs}}
 /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>

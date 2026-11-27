@@ -112,10 +112,18 @@ end
 defmodule {{moduleName}}.Api.{{classname}} do
   @moduledoc ~S"""
   {{classname}} provides functions for the {{baseName}} API group.
+  {{#tagSummary}}
+
+  {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+  {{/tagSummary}}
   {{#tagDescription}}
 
   {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
   {{/tagDescription}}
+  {{#tagParent}}
+
+  {{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}
+  {{/tagParent}}
   {{#tagExternalDocs}}
 
   See [{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}]({{{url}}})

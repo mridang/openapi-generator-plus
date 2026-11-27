@@ -136,9 +136,15 @@ export interface {{classname}}Interface {
 
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
+{{/tagSummary}}
 {{#tagDescription}}
  * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
 {{/tagDescription}}
+{{#tagParent}}
+ * {{#lambda.tsComment}}It belongs to the {{{.}}} API group.{{/lambda.tsComment}}
+{{/tagParent}}
 {{#tagExternalDocs}}
  * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/tagExternalDocs}}

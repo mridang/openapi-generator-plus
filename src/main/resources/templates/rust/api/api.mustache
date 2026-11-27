@@ -107,9 +107,15 @@ impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
 {{/serverTypeDefs}}
 
 /// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
+{{/tagSummary}}
 {{#tagDescription}}
 /// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 /// See <{{url}}> {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/tagExternalDocs}}

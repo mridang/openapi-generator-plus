@@ -242,7 +242,11 @@ class OpenApi32ParserExtensionTest {
                             () -> assertTrue(all.contains("One ledger book"),
                                     "the path item summary is missing"),
                             () -> assertTrue(all.contains("The code of the ledger book to read"),
-                                    "the reference description override is missing"));
+                                    "the reference description override is missing"),
+                            () -> assertTrue(all.contains("Account audits"),
+                                    "the tag summary is missing"),
+                            () -> assertTrue(all.contains("It belongs to the accounts API group."),
+                                    "the tag parent is missing"));
                 }));
     }
 

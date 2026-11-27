@@ -415,6 +415,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The text is documentation only; no request or response changes.
 
+## D157: Nested tags document an API group and do not regroup it
+
+**Decision.** An OpenAPI 3.2 Tag Object's `summary`, `parent` and `kind` reach the templates as `tagSummary`, `tagParent` and `tagKind` of the API group the tag names. Every SDK prints the summary in the API group's documentation before the description, and for a tag with a parent the sentence "It belongs to the <parent> API group." after it, in the same words in all twelve. The API groups themselves stay one flat class or module per tag: the specification gives `parent` and `kind` no meaning for code (`kind` is free text and `nav` only a convention), and nesting the groups would change the public names of existing SDKs. No template reads `tagKind` today (#80).
+
+**Consequences.** A 3.2 document's tag hierarchy is visible in the generated documentation, and a later navigation feature (a README index grouped by parent where `kind` is `nav`) can use the values without a generator change.
+
 ## D158: An Example Object's `dataValue` and `serializedValue` become its value
 
 **Decision.** In a 3.2 document an Example Object's `dataValue` becomes its `value`, which is what the generated README examples and documentation read. Without a `dataValue`, a `serializedValue` under a JSON media type is parsed into the value (and kept as a string when it is not valid JSON); a `serializedValue` of a parameter, a header or a non-JSON media type is not turned into a value, because it is the serialised form and not the data. An explicit `value` always wins (#79).
