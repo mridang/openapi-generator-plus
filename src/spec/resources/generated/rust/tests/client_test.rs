@@ -2020,7 +2020,7 @@ impl StoreApiTrait for FakeStoreApi {
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Memo, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_memo({:?}, options={})",
             memo_id,
@@ -2035,8 +2035,7 @@ impl StoreApiTrait for FakeStoreApi {
         memo_id: String,
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Memo>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_memo_with_http_info({:?}, options={})",
             memo_id,
@@ -2254,7 +2253,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "head_memo({:?}, options={})",
             memo_id,
@@ -2268,7 +2267,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         memo_id: String,
         options: Option<&HeadMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "head_memo_with_http_info({:?}, options={})",
             memo_id,
@@ -2281,7 +2280,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "options_memo({:?}, options={})",
             memo_id,
@@ -2295,7 +2294,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         memo_id: String,
         options: Option<&OptionsMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "options_memo_with_http_info({:?}, options={})",
             memo_id,
@@ -2309,7 +2308,7 @@ impl StoreApiTrait for FakeStoreApi {
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<Memo, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "patch_memo({:?}, options={})",
             memo_id,
@@ -2324,8 +2323,7 @@ impl StoreApiTrait for FakeStoreApi {
         memo_id: String,
         memo: Memo,
         options: Option<&PatchMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
-    {
+    ) -> impl Future<Output = Result<ApiResult<Memo>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "patch_memo_with_http_info({:?}, options={})",
             memo_id,
@@ -2409,7 +2407,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "trace_memo({:?}, options={})",
             memo_id,
@@ -2423,7 +2421,7 @@ impl StoreApiTrait for FakeStoreApi {
         &self,
         memo_id: String,
         options: Option<&TraceMemoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "trace_memo_with_http_info({:?}, options={})",
             memo_id,
