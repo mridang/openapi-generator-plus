@@ -625,12 +625,12 @@ class DefaultApiClient internal constructor(
         val rawBytes =
             try {
                 decodeContentEncoding(wireBytes, contentEncoding, maxResponseBytes ?: Long.MAX_VALUE)
-            } catch (e: BodyTooLarge) {
+            } catch (expected: BodyTooLarge) {
                 // D138: the decoded body passed the limit, and decoding stopped there.
                 throw ResponseTooLargeException(
                     hop.response.status.value,
                     responseHeaders,
-                    e.limit,
+                    expected.limit,
                     method,
                     requestPathOf(url),
                 )
