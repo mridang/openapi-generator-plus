@@ -125,6 +125,15 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{#notes}}
     /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+{{#-first}}
+    /// <remarks>
+{{/-first}}
+    /// <para>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</para>
+{{#-last}}
+    /// </remarks>
+{{/-last}}
+{{/vendorExtensions.op.responseSummaries}}
     {{#pathParams}}
     /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{#vendorExtensions.pluralExamples}}
@@ -229,6 +238,15 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{#notes}}
     /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+{{#-first}}
+    /// <remarks>
+{{/-first}}
+    /// <para>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</para>
+{{#-last}}
+    /// </remarks>
+{{/-last}}
+{{/vendorExtensions.op.responseSummaries}}
     {{#pathParams}}
     /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/pathParams}}

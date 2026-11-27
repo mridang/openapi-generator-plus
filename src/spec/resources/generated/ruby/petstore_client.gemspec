@@ -15,10 +15,11 @@ Gem::Specification.new do |s|
   s.name        = 'petstore_client'
   s.version     = ::Petstore::Client::VERSION
   s.platform    = Gem::Platform::RUBY
-  s.authors     = ['Swagger Petstore - OpenAPI 3.0']
+  s.authors     = ['Petstore API support']
+  s.email       = 'support@example.com'
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'
   s.description = 'A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.'
-  s.license     = 'MIT'
+  s.license     = 'Apache-2.0'
   s.required_ruby_version = '>= 3.2'
   s.metadata['rubygems_mfa_required'] = 'true'
 
@@ -35,6 +36,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'dry-struct', '~> 1.6'
   s.add_dependency 'dry-types', '~> 1.7'
   s.add_dependency 'faraday', '~> 2.0'
+  s.add_dependency 'faraday-net_http_persistent', '~> 2.3'
   s.add_dependency 'iso8601', '~> 0.13'
   s.add_dependency 'json', '~> 2.6'
   s.add_dependency 'set', '~> 1.1'

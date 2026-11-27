@@ -419,7 +419,11 @@ import Testing
   }
 
   @Test func testBhvLangswift046ReadmeListsTheLicenseInThePackageSection() throws {
-    #expect(try readme().contains("- License: MIT"))
+    #expect(try readme().contains("- License: Apache-2.0"))
+  }
+
+  @Test func testBhvMetadata001ReadmeHasTheApiInformationSection() throws {
+    #expect(try readme().contains("\n## API information\n"))
   }
 
   // MARK: - Compiled examples

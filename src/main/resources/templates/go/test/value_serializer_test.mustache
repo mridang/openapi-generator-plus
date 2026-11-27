@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
+
 	pkgerrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 )
@@ -227,11 +229,11 @@ func TestBhvSerializationparam083_ValueSerializer_SerializeValue_SetExpandsLikeL
 func TestBhvSerializationparam027_ValueSerializer_FormatDatePathParam_DayAndYearBoundaryIsDateOnly(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		when time.Time
+		when civil.Date
 		want string
 	}{
-		{time.Date(2024, time.December, 31, 23, 59, 59, 0, time.UTC), "2024-12-31"},
-		{time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC), "2025-01-01"},
+		{civil.Date{Year: 2024, Month: time.December, Day: 31}, "2024-12-31"},
+		{civil.Date{Year: 2025, Month: time.January, Day: 1}, "2025-01-01"},
 	}
 	for _, tc := range cases {
 		if got := stringifyDate(tc.when); got != tc.want {
@@ -901,7 +903,7 @@ func TestBhvSerializationparam117_ValueSerializer_SerializeStyled_FormNoExplodeS
 
 func TestBhvSerializationparam110_ValueSerializer_StringifyDate_UTCMidnightIsYYYYMMDD(t *testing.T) {
 	t.Parallel()
-	when := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+	when := civil.Date{Year: 2025, Month: time.January, Day: 1}
 	if got := stringifyDate(when); got != "2025-01-01" {
 		t.Errorf("expected '2025-01-01', got %q", got)
 	}
@@ -909,9 +911,9 @@ func TestBhvSerializationparam110_ValueSerializer_StringifyDate_UTCMidnightIsYYY
 
 func TestBhvSerializationparam120_ValueSerializer_DateArrayWritesEachElementAsYYYYMMDD(t *testing.T) {
 	t.Parallel()
-	days := []string{
-		stringifyDate(time.Date(2024, time.January, 15, 10, 30, 0, 0, time.UTC)),
-		stringifyDate(time.Date(2024, time.February, 1, 23, 59, 0, 0, time.UTC)),
+	days := []civil.Date{
+		{Year: 2024, Month: time.January, Day: 15},
+		{Year: 2024, Month: time.February, Day: 1},
 	}
 	if got := serializeValue(days, "query", "array", "csv"); got != "2024-01-15,2024-02-01" {
 		t.Errorf("expected '2024-01-15,2024-02-01', got %v", got)
@@ -1175,32 +1177,33 @@ func TestBhvSerializationparam029_ValueSerializer_DotSegmentPathParamIsInvalidPa
 
 // ── N3/W3 parity: format:date path parameter emits YYYY-MM-DD ──
 //
-// Go has only time.Time (no separate date-only type), so the codegen
-// routes `format: date` path params through StringifyDate to strip the
-// time component. Without this, a date param would go out as a full
-// ISO+offset string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
-// Ruby/Elixir) with native LocalDate types.
+// Go's civil.Date is the date-only type, so a `format: date` path parameter is
+// written as its YYYY-MM-DD text with no time and no offset, matching the
+// other SDKs' native date types.
 
-func TestBhvSerializationparam054_ValueSerializer_FormatDatePathParam_TimeReturnsDateOnly(t *testing.T) {
+func TestBhvSerializationparam054_ValueSerializer_FormatDatePathParam_ReturnsDateOnly(t *testing.T) {
 	t.Parallel()
-	when := time.Date(2024, time.January, 15, 14, 30, 45, 0, time.UTC)
+	when := civil.Date{Year: 2024, Month: time.January, Day: 15}
 	if got := stringifyDate(when); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
 	}
 }
 
-func TestBhvSerializationparam048_ValueSerializer_FormatDatePathParam_StringPassesThrough(t *testing.T) {
+func TestBhvSerializationparam048_ValueSerializer_FormatDatePathParam_ZeroDateIsRefused(t *testing.T) {
 	t.Parallel()
-	if got := stringifyDate("2024-01-15"); got != "2024-01-15" {
-		t.Errorf("expected '2024-01-15', got %q", got)
+	// The zero civil.Date is 0000-00-00, which is not a date a caller meant to
+	// send: a required date path parameter left unset is refused before sending.
+	err := requirePathParam("bornOn", civil.Date{})
+	if !errors.Is(err, ErrMissingRequiredParameter) {
+		t.Errorf("expected ErrMissingRequiredParameter for an unset date, got %v", err)
 	}
 }
 
 func TestBhvSerializationparam028_ValueSerializer_FormatDatePathParam_MidnightUtcReturnsDateOnly(t *testing.T) {
 	t.Parallel()
-	// UTC/midnight edge: a time.Time at exactly midnight UTC must still emit
-	// the bare date with no time/offset suffix, matching Node/Swift/Dart.
-	when := time.Date(2024, time.January, 15, 0, 0, 0, 0, time.UTC)
+	// A civil.Date has no clock, so the midnight edge is the day itself: the
+	// bare date with no time or offset suffix, matching Node/Swift/Dart.
+	when := civil.Date{Year: 2024, Month: time.January, Day: 15}
 	if got := stringifyDate(when); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
 	}

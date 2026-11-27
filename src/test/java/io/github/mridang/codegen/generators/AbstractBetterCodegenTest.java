@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.io.TempDir;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
@@ -1080,5 +1081,103 @@ class AbstractBetterCodegenTest {
     @DisplayName("a derived member named like what the enum type declares itself gets the suffix too")
     void derivedReservedMemberNamesAreSuffixed() {
         assertEquals("VALUES2", enumVars("ruby", List.of("values"), new HashMap<>(), "String").get(0).get("name"));
+    }
+
+    @Test
+    @DisplayName("the info summary stands in for a missing description and the contact and license reach templates")
+    void infoMetadataReachesTemplates() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI()
+                .info(new io.swagger.v3.oas.models.info.Info()
+                        .title("Widget API")
+                        .summary("Widgets in one place")
+                        .termsOfService("https://example.com/terms")
+                        .contact(new io.swagger.v3.oas.models.info.Contact()
+                                .name("Widget team")
+                                .email("team@example.com")
+                                .url("https://example.com/help"))
+                        .license(new io.swagger.v3.oas.models.info.License()
+                                .name("Apache 2.0")
+                                .identifier("Apache-2.0"))));
+        final Map<String, Object> props = codegen.additionalProperties();
+        assertAll(
+                () -> assertEquals("Widgets in one place", props.get("appDescription")),
+                () -> assertEquals("Widgets in one place", props.get("appSummary")),
+                () -> assertEquals("Widget team", props.get("infoContactName")),
+                () -> assertEquals("team@example.com", props.get("infoContactEmail")),
+                () -> assertEquals("https://example.com/help", props.get("infoContactUrl")),
+                () -> assertEquals("Apache 2.0", props.get("licenseName")),
+                () -> assertEquals("https://example.com/terms", props.get("infoTermsOfService")),
+                () -> assertEquals("Apache-2.0", props.get("licenseId")),
+                () -> assertTrue(Boolean.TRUE.equals(props.get("hasInfoBlock"))));
+    }
+
+    @Test
+    @DisplayName("a license identifier the parsed model dropped is read from the document")
+    void licenseIdentifierFallsBackToTheDocument(@TempDir final Path dir) throws IOException {
+        final Path spec = dir.resolve("openapi.yaml");
+        Files.writeString(spec, "openapi: 3.1.0\n"
+                + "info:\n"
+                + "  title: T\n"
+                + "  license:\n"
+                + "    name: Apache 2.0\n"
+                + "    identifier: Apache-2.0\n");
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setInputSpec(spec.toString());
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI()
+                .info(new io.swagger.v3.oas.models.info.Info()
+                        .title("T")
+                        .license(new io.swagger.v3.oas.models.info.License().name("Apache 2.0"))));
+        assertEquals("Apache-2.0", codegen.additionalProperties().get("licenseId"));
+    }
+
+    @Test
+    @DisplayName("a document with no info metadata leaves the info block out")
+    void infoBlockIsAbsentWithoutMetadata() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI()
+                .info(new io.swagger.v3.oas.models.info.Info().title("Bare").version("1")));
+        assertAll(
+                () -> assertFalse(Boolean.TRUE.equals(codegen.additionalProperties().get("hasInfoBlock"))),
+                () -> assertFalse(codegen.additionalProperties().containsKey("infoContactName")),
+                () -> assertFalse(codegen.additionalProperties().containsKey("appSummary")));
+    }
+
+    @Test
+    @DisplayName("an inline response summary reaches the operation decorator as a labelled line")
+    @SuppressWarnings("unchecked")
+    void responseSummaryReachesOperation(@TempDir final Path dir) throws IOException {
+        final Path spec = dir.resolve("openapi.yaml");
+        Files.writeString(spec, "openapi: 3.2.0\n"
+                + "paths:\n"
+                + "  /items:\n"
+                + "    get:\n"
+                + "      responses:\n"
+                + "        '200':\n"
+                + "          summary: Items listed\n"
+                + "          description: OK\n");
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setInputSpec(spec.toString());
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI());
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setOperationId("listItems");
+        operation.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses()
+                .addApiResponse("200", new io.swagger.v3.oas.models.responses.ApiResponse().description("OK")));
+        final Map<String, Object> decorator = Objects.requireNonNull((Map<String, Object>) codegen
+                .fromOperation("/items", "get", operation, new ArrayList<>()).vendorExtensions.get("op"));
+        assertEquals(List.of("Response 200: Items listed"), decorator.get("responseSummaries"));
+    }
+
+    @Test
+    @DisplayName("an operation with no response summary carries no summary lines")
+    void operationWithoutSummaryHasNoLines() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI());
+        final io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+        operation.setOperationId("listItems");
+        operation.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses());
+        final CodegenOperation op = codegen.fromOperation("/items", "get", operation, new ArrayList<>());
+        assertFalse(op.vendorExtensions.containsKey("op")
+                && ((Map<?, ?>) op.vendorExtensions.get("op")).containsKey("responseSummaries"));
     }
 }

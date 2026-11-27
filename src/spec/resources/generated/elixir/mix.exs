@@ -45,7 +45,7 @@ defmodule PetstoreClient.MixProject do
     [
       description:
         "A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and \#{x}.",
-      licenses: ["MIT"],
+      licenses: ["Apache-2.0"],
       maintainers: ["Ada Lovelace", "Grace Hopper"],
       links: %{
         "Repository" => "https://example.com/acme/petstore-client",

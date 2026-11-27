@@ -39,6 +39,14 @@ describe("Metadata", () => {
       expect(pkg.description!.length).toBeGreaterThan(0);
     });
 
+    test("bhv metadata 001 the README has an API information section", () => {
+      const readme = fs.readFileSync(
+        path.resolve(__dirname, "..", "README.md"),
+        "utf-8",
+      );
+      expect(readme).toContain("\n## API information\n");
+    });
+
     test("bhv mocking 009 the README has a Testing your code section naming the group interface and the client interface", () => {
       const readme = fs.readFileSync(
         path.resolve(__dirname, "..", "README.md"),

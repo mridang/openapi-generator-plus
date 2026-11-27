@@ -4,6 +4,8 @@ package options
 
 import (
 	. "petstore/pkg/models"
+
+	"cloud.google.com/go/civil"
 )
 
 // SetPetPreferencesOptions carries the parameters for the SetPetPreferences operation.
@@ -11,7 +13,7 @@ type SetPetPreferencesOptions struct {
 	Nickname     string
 	Tags         *[]string
 	Note         *string
-	RenewalDate  *string
+	RenewalDate  *civil.Date
 	Reminder     *DateTime
 	IntervalDays *int32
 	Ratio        *float64

@@ -110,6 +110,14 @@ func TestBhvLanggo089_Readme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) 
 	}
 }
 
+func TestBhvMetadata001_Readme_HasTheApiInformationSection(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "\n## API information\n") {
+		t.Errorf("expected the README to carry the API information section")
+	}
+}
+
 func TestBhvLanggo090_Readme_Skills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")

@@ -646,6 +646,13 @@ fn test_bhv_serialization_121_a_model_sent_as_a_multipart_part_uses_wire_names_a
     assert_eq!(parsed["createdAt"], "2024-01-02T03:04:05.000+00:00", "got: {part}");
     assert!(parsed.get("created_at").is_none(), "snake_case key leaked into the part: {part}");
 }
+
+#[test]
+fn test_bhv_metadata_001_readme_has_the_api_information_section() {
+    let readme_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("README.md");
+    let readme = std::fs::read_to_string(&readme_path).expect("failed to read README.md");
+    assert!(readme.contains("\n## API information\n"), "the README has an API information section");
+}
 {{#generateExamples}}
 
 fn read_root_file(name: &str) -> String {

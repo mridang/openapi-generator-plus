@@ -162,6 +162,9 @@ impl {{classname}} {
 {{#notes}}
     /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/vendorExtensions.op.responseSummaries}}
     ///
     /// The response is returned as a stream that is read as it arrives; the call
     /// returns once the response headers have arrived, and a status that is not a
@@ -222,6 +225,9 @@ impl {{classname}} {
 {{#notes}}
     /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#isDeprecated}}
     #[deprecated]
 {{/isDeprecated}}

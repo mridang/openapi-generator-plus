@@ -1,6 +1,31 @@
 # {{appNameBase}} SDK
 
 Auto-generated Ruby SDK client for the {{appName}} API.
+{{#hasInfoBlock}}
+
+## API information
+
+{{#appSummary}}
+{{{appSummary}}}
+
+{{/appSummary}}
+{{#infoContactName}}
+- **Contact:** {{{infoContactName}}}
+{{/infoContactName}}
+{{#infoContactEmail}}
+- **Contact email:** {{{infoContactEmail}}}
+{{/infoContactEmail}}
+{{#infoContactUrl}}
+- **Contact URL:** {{{infoContactUrl}}}
+{{/infoContactUrl}}
+{{#licenseName}}
+- **License:** {{{licenseName}}}{{#licenseUrl}} ({{{licenseUrl}}}){{/licenseUrl}}
+{{/licenseName}}
+{{#infoTermsOfService}}
+- **Terms of service:** {{{infoTermsOfService}}}
+{{/infoTermsOfService}}
+
+{{/hasInfoBlock}}
 
 ## Requirements
 
@@ -147,7 +172,7 @@ The generator finds a paged operation by its names and shape. The operation must
 
 ### Custom HTTP client
 
-`TransportOptions.builder.connection(faraday_connection)` supplies your own `Faraday::Connection`. The SDK keeps applying its timeout, user agent, redirect policy and query encoding, and never closes a connection you supplied.
+`TransportOptions.builder.connection(faraday_connection)` supplies your own `Faraday::Connection`. The SDK keeps applying its timeout, user agent, redirect policy and query encoding, and never closes a connection you supplied. The SDK's own connection keeps up to 100 sockets alive between calls through `faraday-net_http_persistent`, closing each after 5 seconds idle. A connection you supply can use any Faraday adapter, and its pool is yours to manage.
 
 ### Testing your code
 

@@ -2,6 +2,16 @@
 
 Auto-generated C# SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## API information
+
+Pets, owners and orders for integration tests
+
+- **Contact:** Petstore API support
+- **Contact email:** support@example.com
+- **Contact URL:** https://example.com/support
+- **License:** Apache 2.0 (https://spdx.org/licenses/Apache-2.0.html)
+- **Terms of service:** https://example.com/terms
+
 ## Requirements
 
 - **.NET 10** (Long Term Support, supported until November 2028) runtime / SDK or newer
@@ -450,7 +460,7 @@ Fails when a direct or transitive NuGet package has a known vulnerability (`dotn
 
 - Name: `PetstoreClient`
 - Version: `1.0.0`
-- License: MIT
+- License: Apache-2.0
 
 The package follows semantic versioning: a patch release only fixes bugs, a minor
 release only adds members, and a major release may change the public API. The
@@ -565,7 +575,7 @@ through a local HTTP-CONNECT bridge or configure it at the OS level.
 
 ### `LICENSE` file is not auto-emitted
 
-The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+The package manifest declares Apache-2.0, but no `LICENSE` / `LICENSE.md` file
 is generated alongside the sources. Drop the appropriate license text
 into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing

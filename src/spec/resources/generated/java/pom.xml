@@ -10,10 +10,15 @@
 
     <licenses>
         <license>
-            <name>MIT</name>
-            <url>https://opensource.org/licenses/MIT</url>
+            <name>Apache-2.0</name>
+            <url>https://spdx.org/licenses/Apache-2.0.html</url>
         </license>
     </licenses>
+
+    <organization>
+        <name>Petstore API support</name>
+        <url>https://example.com/support</url>
+    </organization>
 
     <build>
         <plugins>
@@ -465,7 +470,7 @@
         <google-java-format-version>1.28.0</google-java-format-version>
         <checkstyle-plugin-version>3.6.0</checkstyle-plugin-version>
         <checkstyle-version>10.20.2</checkstyle-version>
-        <openrewrite-plugin-version>6.13.0</openrewrite-plugin-version>
+        <openrewrite-plugin-version>6.19.0</openrewrite-plugin-version>
         <openrewrite-recipes-version>3.18.0</openrewrite-recipes-version>
     </properties>
 </project>

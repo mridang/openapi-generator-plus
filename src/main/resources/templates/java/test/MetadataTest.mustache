@@ -330,6 +330,12 @@ class MetadataTest {
     }
 
     @Test
+    void bhvMetadata001ReadmeHasTheApiInformationSection() throws IOException {
+        String readme = Files.readString(Path.of("README.md"));
+        assertThat(readme).contains("## API information");
+    }
+
+    @Test
     void bhvLangjava037TestDeclaredDevDependenciesAreInTheProjectManifest() throws IOException {
         {{! dev-dependency-drift: a generated test may import a package that only }}
         {{! the generator knows about, and every real client keep-lists its own }}

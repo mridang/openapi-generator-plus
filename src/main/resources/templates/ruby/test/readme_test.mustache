@@ -15,6 +15,10 @@ describe 'README' do
     _(readme).wont_include 'TransportOptions.proxy()'
   end
 
+  it 'bhv_metadata_001 has an API information section for the spec metadata' do
+    _(readme).must_include "\n## API information\n"
+  end
+
   it 'bhv_langruby_068 documents the schema constraints and uniqueItems ordering' do
     _(readme).must_include '### Schema constraints'
     _(readme).must_include '`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,'

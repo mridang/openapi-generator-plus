@@ -3,6 +3,9 @@
 {{#notes}}
      * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/vendorExtensions.op.responseSummaries}}
 {{>api/operation_doc_args}}
 {{>api/operation_doc_options}}
 {{#returnType}}

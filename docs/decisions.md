@@ -50,7 +50,7 @@ A `oneOf` or `anyOf` model is built from a variant, not from an untyped value, a
 
 ## Credentials come from an argument, then the environment
 
-An authenticator takes its credential as an argument. When you pass none, most SDKs read an environment variable once, when the client or authenticator is built, and an empty value counts as unset. An argument always wins over the environment. A credential that is found in neither place fails at construction time, not on the first request. A bearer token or an API key that rotates can instead come from a provider function that is called for every request. The variable names differ by language and by generated package, so they are listed on each language page. The OAuth 2 and OpenID Connect authenticators of Dart and PHP do not read the environment yet; that is issue #119.
+An authenticator takes its credential as an argument. When you pass none, most SDKs read an environment variable once, when the client or authenticator is built, and an empty value counts as unset. An argument always wins over the environment. A credential that is found in neither place fails at construction time, not on the first request. A bearer token or an API key that rotates can instead come from a provider function that is called for every request. The variable names differ by language and by generated package, so they are listed on each language page. The OAuth 2 and OpenID Connect authenticators of every SDK, Dart and PHP included, read the environment the same way (#119).
 
 ## Errors say which request failed
 
@@ -271,6 +271,24 @@ A query parameter that is required and nullable is kept the same way: when its v
 **Consequences.** The catalogue ids pagination004, 005, 006 and 029 are covered by one test per language on the petstore operations `listPetOffsets`, `listPetPageNumbers`, `listPetsAfter` and `listPetNextUrl`, with the fake transport. The design page section 4.2 is the source of the detection rules. D128 stands for tier 1 and tier 3 and is superseded for tiers 2, 4 and 5 only.
 
 
+## D130: A date is a calendar date type in Go
+
+**Decision.** In Go a `format: date` value is `civil.Date` from `cloud.google.com/go/civil`, in every position: a path, query, header or cookie parameter, a form field, an option, a model field and an array of dates. Its text form is `YYYY-MM-DD` both ways. Decoding refuses a value that is not a real calendar date, such as `2024-02-30`, with the SDK's `SerializationError`, and a required date path parameter that is left at its zero value is refused as a missing parameter before anything is sent. `civil` has no clock and no location, so a date never shifts with the time zone of the machine that sends it.
+
+**Consequences.** Every date parameter, option and field of the Go SDK changes its type from `string` to `civil.Date`, which is a breaking change for Go callers and nothing else. The package is part of `cloud.google.com/go`, whose only dependency for this use is the standard library, so the SDK adds one module to its requirements and no transitive code. `format: time` stays a plain string, because Go's standard library has no time-of-day type that the SDK must not reimplement. This is the owner's choice of #126 over an SDK-owned date type.
+
+## D131: The Ruby client keeps connections alive
+
+**Decision.** The Ruby client sends every call through Faraday with the `faraday-net_http_persistent` adapter, so connections to a host are pooled and reused instead of opened per call, and `close` on the client shuts the pool.
+
+**Consequences.** The gem gains one runtime dependency. Every other SDK already reuses connections through its HTTP library, so this brings Ruby in line rather than adding a difference.
+
+## D132: Swift and Elixir keep escaping reserved names
+
+**Decision.** The Swift and Elixir SDKs escape every name that is a reserved word in the language, including property names where the language would accept the bare word. This is intentional and settled by the owner (#128).
+
+**Consequences.** Some Swift and Elixir property names carry an escape that is not strictly required. This is not a defect: do not raise it in reviews or audits, and do not open an issue for it.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -319,7 +337,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **A typed error from Rust operations (#113).** Every Rust operation returns `Box<dyn Error>`. A concrete error type is a public API break for that SDK alone.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
-* **A date type for Go (#126), keep-alive connections in the Ruby client (#127) and escaping of reserved property names in Swift and Elixir (#128).** Each is one language and waits for an owner decision on the shape.
 
 ### Settled differences between languages
 
@@ -353,13 +370,9 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#116](https://github.com/mridang/openapi-generator-plus/issues/116): add a per-call timeout and make the end-to-end timeout hold while the body is read.
 * [#117](https://github.com/mridang/openapi-generator-plus/issues/117): decode error bodies against the operation's declared error schema.
 * [#118](https://github.com/mridang/openapi-generator-plus/issues/118) and [#121](https://github.com/mridang/openapi-generator-plus/issues/121): compare the generated test suites of the twelve languages and close the gaps.
-* [#119](https://github.com/mridang/openapi-generator-plus/issues/119): read OAuth credentials from the environment in the Dart and PHP authenticators.
 * [#120](https://github.com/mridang/openapi-generator-plus/issues/120): build the generated documentation in every language as part of the specs.
 * [#122](https://github.com/mridang/openapi-generator-plus/issues/122): guard the public API surface of every SDK and stop internals from leaking.
 * [#123](https://github.com/mridang/openapi-generator-plus/issues/123): generate a typed error hierarchy per status and per declared error schema.
 * [#124](https://github.com/mridang/openapi-generator-plus/issues/124): sweep the build, lint, format, test and docs logs of every SDK for warnings.
 * [#163](https://github.com/mridang/openapi-generator-plus/issues/163): generate a paged method for every paged operation (built, decisions D123, D124 and D128).
-* [#126](https://github.com/mridang/openapi-generator-plus/issues/126): type `format: date` values in the Go SDK.
-* [#127](https://github.com/mridang/openapi-generator-plus/issues/127): keep connections alive in the Ruby client.
-* [#128](https://github.com/mridang/openapi-generator-plus/issues/128): stop escaping reserved property names that need no escape in the Swift and Elixir SDKs.
 * [#129](https://github.com/mridang/openapi-generator-plus/issues/129): re-check the audit leads that were deferred without an issue.

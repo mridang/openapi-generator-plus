@@ -2,6 +2,16 @@
 
 Auto-generated Rust SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## API information
+
+Pets, owners and orders for integration tests
+
+- **Contact:** Petstore API support
+- **Contact email:** support@example.com
+- **Contact URL:** https://example.com/support
+- **License:** Apache 2.0 (https://spdx.org/licenses/Apache-2.0.html)
+- **Terms of service:** https://example.com/terms
+
 ## Requirements
 
 - Rust **1.85+** (MSRV; Rust edition 2021)
@@ -445,7 +455,7 @@ cargo deny check
 - Version: `1.0.0`
 - Edition: `2021`
 - MSRV: `1.85`
-- License: MIT
+- License: Apache-2.0
 
 ## Caveats
 
@@ -535,7 +545,7 @@ the browser. Use the SDK from a native process.
 
 ### `LICENSE` file is not auto-emitted
 
-The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+The package manifest declares Apache-2.0, but no `LICENSE` / `LICENSE.md` file
 is generated alongside the sources. Drop the appropriate license text
 into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing

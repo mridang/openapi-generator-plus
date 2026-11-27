@@ -17,6 +17,10 @@ import (
 
 	"github.com/google/uuid"
 {{/hasUuidImport}}
+{{#hasCivilImport}}
+
+	"cloud.google.com/go/civil"
+{{/hasCivilImport}}
 
 	. "{{packageName}}/pkg/models"
 {{#optionsImports}}
@@ -126,6 +130,9 @@ var _ {{classname}}Interface = (*{{classname}})(nil)
 {{#notes}}
 // {{#goLineComment}}{{{.}}}{{/goLineComment}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#externalDocs}}
 // See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/externalDocs}}

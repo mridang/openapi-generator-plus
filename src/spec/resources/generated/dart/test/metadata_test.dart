@@ -127,6 +127,12 @@ void main() {
         contains('Authors: Acme Platform Team'),
       );
     });
+    test('bhv metadata 001 the README has an API information section', () {
+      expect(
+        File('${Directory.current.path}/README.md').readAsStringSync(),
+        contains('\n## API information\n'),
+      );
+    });
     test(
       'bhv langdart 051 the README documents the per-call, credential and model features',
       () {

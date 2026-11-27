@@ -195,6 +195,9 @@ class {{classname}}(BaseApi):
 {{#notes}}
         {{{.}}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+        {{{.}}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
         :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/pathParams}}
@@ -291,6 +294,9 @@ class {{classname}}(BaseApi):
 {{#notes}}
         {{{.}}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+        {{{.}}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
         :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
@@ -400,6 +406,9 @@ class {{classname}}(BaseApi):
 {{#notes}}
         {{{.}}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+        {{{.}}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
         :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
 {{/pathParams}}

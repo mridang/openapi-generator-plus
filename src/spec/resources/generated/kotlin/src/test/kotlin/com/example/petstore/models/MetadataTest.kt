@@ -594,6 +594,13 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("bhvMetadata001 the README has the API information section")
+    fun bhvMetadata001TheReadmeHasTheApiInformationSection() {
+        val readme = java.io.File("README.md").readText()
+        assertTrue(readme.contains("## API information"), "the README must have the API information section")
+    }
+
+    @Test
     @DisplayName("bhvLangkotlin056 the quickstart reads the host and the token from the environment variables the README names")
     fun bhvLangkotlin056TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() {
         val quickstart = quickstart()

@@ -18,6 +18,15 @@
             <url>{{licenseUrl}}</url>
         </license>
     </licenses>
+{{#infoContactName}}
+
+    <organization>
+        <name>{{infoContactName}}</name>
+{{#infoContactUrl}}
+        <url>{{infoContactUrl}}</url>
+{{/infoContactUrl}}
+    </organization>
+{{/infoContactName}}
 {{#authorList}}
 {{#-first}}
 
@@ -501,7 +510,7 @@
         <google-java-format-version>1.28.0</google-java-format-version>
         <checkstyle-plugin-version>3.6.0</checkstyle-plugin-version>
         <checkstyle-version>10.20.2</checkstyle-version>
-        <openrewrite-plugin-version>6.13.0</openrewrite-plugin-version>
+        <openrewrite-plugin-version>6.19.0</openrewrite-plugin-version>
         <openrewrite-recipes-version>3.18.0</openrewrite-recipes-version>
     </properties>
 </project>

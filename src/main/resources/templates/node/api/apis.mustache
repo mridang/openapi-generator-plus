@@ -162,6 +162,9 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#notes}}
    * {{&notes}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+   * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/pathParams}}
@@ -239,6 +242,9 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#notes}}
    * {{&notes}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+   * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
