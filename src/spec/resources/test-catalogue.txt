@@ -1090,6 +1090,14 @@ authoidc030 | A discovery document served with max-age=0 is fetched again on eve
 authoidc031 | A cached discovery document is fetched again once its Cache-Control max-age has elapsed
 authoidc032 | A discovered endpoint that is not https is rejected
 authoidc033 | A failed discovery request reports its method and path in the error
+authoidc034 | Each authorization url carries a fresh nonce
+authoidc035 | An id_token with the nonce, the discovered issuer, the client id in its audience and a future expiry is accepted
+authoidc036 | An id_token whose nonce differs from the authorization url is rejected with the OAuth2 token error
+authoidc037 | An id_token whose issuer differs from the discovered issuer is rejected with the OAuth2 token error
+authoidc038 | An id_token whose audience does not contain the client id is rejected with the OAuth2 token error
+authoidc039 | An id_token that expired beyond the clock skew is rejected with the OAuth2 token error
+authoidc040 | An id_token that is not a decodable JWT is rejected with the OAuth2 token error
+authoidc041 | A rejected id_token leaves no session behind
 authscheme009 | A credential passed explicitly wins over its environment variable
 authscheme010 | An empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable
 authscheme011 | An empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable
@@ -1614,7 +1622,7 @@ misc074 | An alternative whose requirement names two schemes sends the credentia
 misc075 | A credential keyed to a security scheme the API does not declare is refused when the client is built.
 misc076 | A call made during a code exchange, or after a dropped one, reuses the discovered configuration and sees the code as not yet exchanged.
 misc077 | A generated PKCE verifier is 43 characters from the unreserved set and differs on every call.
-misc078 | An OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce.
+misc078 | An OpenID Connect authorization URL carries an S256 PKCE challenge and a nonce.
 misc079 | When an operation declares different body types for several success statuses, each response is decoded as the type declared for the status it arrived with.
 misc080 | A response body is decoded with the schema of its own status code, so a body that fits another status's schema is refused with an error.
 misc081 | A string result whose response arrives under a binary content type is the decoded body, never the transport's base64 text.

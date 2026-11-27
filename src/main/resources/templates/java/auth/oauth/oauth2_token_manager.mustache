@@ -51,6 +51,9 @@ public class OAuth2TokenManager {
     @Nullable private String    refreshToken;
     private boolean             exchanged;
     private boolean             stopped;
+    /** The id_token of the last token response: null when it carried none, an
+     * empty string when its value was not a JSON string. */
+    @Nullable private String    lastIdToken;
 
     /**
      * Create a new token manager.
@@ -191,6 +194,27 @@ public class OAuth2TokenManager {
      */
     public synchronized String exchange(String tokenUrl, Map<String, String> params,
             Map<String, String> extraHeaders) {
+        return exchange(tokenUrl, params, extraHeaders, null);
+    }
+
+    /**
+     * POST an authorization-code style grant and replace the session, after
+     * handing the response's {@code id_token} to a check.
+     *
+     * <p>The check receives the id_token (null when the response carried none,
+     * an empty string when it was not a JSON string) before the session is
+     * committed; when it throws, the previous session is restored and the
+     * error propagates. OpenID Connect uses this to validate the id_token.
+     *
+     * @param tokenUrl     the OAuth2 token endpoint URL
+     * @param params       the token request parameters, sent unchanged
+     * @param extraHeaders additional headers to include on the token request
+     * @param idTokenCheck a check of the response's id_token, or null for none
+     * @return the new access token
+     */
+    public synchronized String exchange(String tokenUrl, Map<String, String> params,
+            Map<String, String> extraHeaders,
+            @Nullable java.util.function.Consumer<String> idTokenCheck) {
         requireRunning();
         String previousAccessToken = accessToken;
         Instant previousExpiry = tokenExpiry;
@@ -205,6 +229,9 @@ public class OAuth2TokenManager {
             String token = accessToken;
             if (token == null) {
                 throw new OAuth2TokenException("Token fetch did not return an access token");
+            }
+            if (idTokenCheck != null) {
+                idTokenCheck.accept(lastIdToken);
             }
             exchanged = true;
             succeeded = true;
@@ -314,6 +341,10 @@ public class OAuth2TokenManager {
                 throw new OAuth2TokenException("Unsupported token_type in token response");
             }
             this.accessToken = accessTokenNode.asText();
+            JsonNode idTokenNode = json.get("id_token");
+            this.lastIdToken = idTokenNode == null || idTokenNode.isNull()
+                    ? null
+                    : idTokenNode.isTextual() ? idTokenNode.asText() : "";
             if (json.has("refresh_token")) {
                 /* Require a JSON string (like access_token above): asText() would
                  * otherwise coerce a numeric/boolean refresh_token into a string,
