@@ -876,6 +876,8 @@ class TestMocking:
         assert "get_inventory_with_http_info" in store_listed
         assert "get_matrix" in store_listed
         assert "get_matrix_with_http_info" in store_listed
+        assert "get_memo" in store_listed
+        assert "get_memo_with_http_info" in store_listed
         assert "get_native_values" in store_listed
         assert "get_native_values_with_http_info" in store_listed
         assert "get_order_by_id" in store_listed
@@ -892,12 +894,20 @@ class TestMocking:
         assert "get_timestamp_groups_with_http_info" in store_listed
         assert "get_tree" in store_listed
         assert "get_tree_with_http_info" in store_listed
+        assert "head_memo" in store_listed
+        assert "head_memo_with_http_info" in store_listed
+        assert "options_memo" in store_listed
+        assert "options_memo_with_http_info" in store_listed
+        assert "patch_memo" in store_listed
+        assert "patch_memo_with_http_info" in store_listed
         assert "place_order" in store_listed
         assert "place_order_with_http_info" in store_listed
         assert "reserve_stock" in store_listed
         assert "reserve_stock_with_http_info" in store_listed
         assert "search_store" in store_listed
         assert "search_store_with_http_info" in store_listed
+        assert "trace_memo" in store_listed
+        assert "trace_memo_with_http_info" in store_listed
         assert "watch_notices_stream" in store_listed
         assert "watch_orders_stream" in store_listed
         client.close()

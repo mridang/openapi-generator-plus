@@ -2079,6 +2079,36 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn get_memo(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_memo({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_memo_with_http_info(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_memo_with_http_info({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
@@ -2297,6 +2327,90 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn head_memo(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "head_memo({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn head_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "head_memo_with_http_info({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn options_memo(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "options_memo({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn options_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "options_memo_with_http_info({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn patch_memo(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "patch_memo({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn patch_memo_with_http_info(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "patch_memo_with_http_info({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn place_order(
         &self,
         order: Option<Order>,
@@ -2368,6 +2482,33 @@ impl StoreApiTrait for FakeStoreApi {
     {
         self.calls.lock().expect("calls lock").push(format!(
             "search_store_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn trace_memo(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "trace_memo({:?}, options={})",
+            memo_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn trace_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "trace_memo_with_http_info({:?}, options={})",
+            memo_id,
             options.is_some()
         ));
         let failure = self.failure();
@@ -2552,6 +2693,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"get_inventory_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_matrix".to_string()));
     assert!(store_listed.contains(&"get_matrix_with_http_info".to_string()));
+    assert!(store_listed.contains(&"get_memo".to_string()));
+    assert!(store_listed.contains(&"get_memo_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_native_values".to_string()));
     assert!(store_listed.contains(&"get_native_values_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_order_by_id".to_string()));
@@ -2568,12 +2711,20 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"get_timestamp_groups_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_tree".to_string()));
     assert!(store_listed.contains(&"get_tree_with_http_info".to_string()));
+    assert!(store_listed.contains(&"head_memo".to_string()));
+    assert!(store_listed.contains(&"head_memo_with_http_info".to_string()));
+    assert!(store_listed.contains(&"options_memo".to_string()));
+    assert!(store_listed.contains(&"options_memo_with_http_info".to_string()));
+    assert!(store_listed.contains(&"patch_memo".to_string()));
+    assert!(store_listed.contains(&"patch_memo_with_http_info".to_string()));
     assert!(store_listed.contains(&"place_order".to_string()));
     assert!(store_listed.contains(&"place_order_with_http_info".to_string()));
     assert!(store_listed.contains(&"reserve_stock".to_string()));
     assert!(store_listed.contains(&"reserve_stock_with_http_info".to_string()));
     assert!(store_listed.contains(&"search_store".to_string()));
     assert!(store_listed.contains(&"search_store_with_http_info".to_string()));
+    assert!(store_listed.contains(&"trace_memo".to_string()));
+    assert!(store_listed.contains(&"trace_memo_with_http_info".to_string()));
     assert!(store_listed.contains(&"watch_notices_stream".to_string()));
     assert!(store_listed.contains(&"watch_orders_stream".to_string()));
 }

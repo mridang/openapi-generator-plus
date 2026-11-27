@@ -20,7 +20,6 @@ public class NormalizeConstRule extends SchemaWalkingRule {
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     protected void visit(Schema<?> schema, Logger logger) {
-        System.err.println("CONST " + schema.getClass().getSimpleName() + " " + schema.getName() + " " + schema.getProperties() + " " + schema.getConst() + " " + schema.getType() + " " + schema.getTypes() + " " + schema.getOneOf());
         if (schema.getConst() != null && schema.getType() == null && schema.getTypes() == null) {
             final String inferred = typeOf(schema.getConst());
             if (inferred != null) {

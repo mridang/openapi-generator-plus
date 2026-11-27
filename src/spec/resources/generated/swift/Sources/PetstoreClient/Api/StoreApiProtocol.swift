@@ -43,6 +43,10 @@ public protocol StoreApiProtocol: Sendable {
   >
   func getMatrix(options: GetMatrixOptions?) async throws -> [[Int]]
   func getMatrixWithHTTPInfo(options: GetMatrixOptions?) async throws -> ApiResult<[[Int]]>
+  func getMemo(memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?) async throws
+    -> Memo
+  func getMemoWithHTTPInfo(memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?)
+    async throws -> ApiResult<Memo>
   func getNativeValues(options: GetNativeValuesOptions?) async throws -> NativeValues
   func getNativeValuesWithHTTPInfo(options: GetNativeValuesOptions?) async throws -> ApiResult<
     NativeValues
@@ -67,6 +71,16 @@ public protocol StoreApiProtocol: Sendable {
     -> ApiResult<[[String: Date]]>
   func getTree(options: GetTreeOptions?) async throws -> TreeNode
   func getTreeWithHTTPInfo(options: GetTreeOptions?) async throws -> ApiResult<TreeNode>
+  func headMemo(memoId: String, options: HeadMemoOptions?) async throws
+  func headMemoWithHTTPInfo(memoId: String, options: HeadMemoOptions?) async throws -> ApiResult<
+    Void
+  >
+  func optionsMemo(memoId: String, options: OptionsMemoOptions?) async throws
+  func optionsMemoWithHTTPInfo(memoId: String, options: OptionsMemoOptions?) async throws
+    -> ApiResult<Void>
+  func patchMemo(memoId: String, memo: Memo, options: PatchMemoOptions?) async throws -> Memo
+  func patchMemoWithHTTPInfo(memoId: String, memo: Memo, options: PatchMemoOptions?) async throws
+    -> ApiResult<Memo>
   func placeOrder(order: Order?, options: PlaceOrderOptions?) async throws -> Order
   func placeOrderWithHTTPInfo(order: Order?, options: PlaceOrderOptions?) async throws -> ApiResult<
     Order
@@ -77,6 +91,10 @@ public protocol StoreApiProtocol: Sendable {
   >
   func searchStore(options: SearchStoreOptions?) async throws -> [Order]
   func searchStoreWithHTTPInfo(options: SearchStoreOptions?) async throws -> ApiResult<[Order]>
+  func traceMemo(memoId: String, options: TraceMemoOptions?) async throws
+  func traceMemoWithHTTPInfo(memoId: String, options: TraceMemoOptions?) async throws -> ApiResult<
+    Void
+  >
   func watchNoticesStream(options: WatchNoticesOptions?, streamOptions: StreamOptions?) async throws
     -> SseStream<String>
   func watchOrdersStream(options: WatchOrdersOptions?, streamOptions: StreamOptions?) async throws
@@ -180,6 +198,16 @@ extension StoreApiProtocol {
     try await getMatrixWithHTTPInfo(options: nil)
   }
 
+  /// The `getMemo` operation with every optional parameter left out.
+  public func getMemo(memoId: String) async throws -> Memo {
+    try await getMemo(memoId: memoId, server: nil, options: nil)
+  }
+
+  /// The `getMemoWithHTTPInfo` operation with every optional parameter left out.
+  public func getMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Memo> {
+    try await getMemoWithHTTPInfo(memoId: memoId, server: nil, options: nil)
+  }
+
   /// The `getNativeValues` operation with every optional parameter left out.
   public func getNativeValues() async throws -> NativeValues {
     try await getNativeValues(options: nil)
@@ -260,6 +288,36 @@ extension StoreApiProtocol {
     try await getTreeWithHTTPInfo(options: nil)
   }
 
+  /// The `headMemo` operation with every optional parameter left out.
+  public func headMemo(memoId: String) async throws {
+    try await headMemo(memoId: memoId, options: nil)
+  }
+
+  /// The `headMemoWithHTTPInfo` operation with every optional parameter left out.
+  public func headMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Void> {
+    try await headMemoWithHTTPInfo(memoId: memoId, options: nil)
+  }
+
+  /// The `optionsMemo` operation with every optional parameter left out.
+  public func optionsMemo(memoId: String) async throws {
+    try await optionsMemo(memoId: memoId, options: nil)
+  }
+
+  /// The `optionsMemoWithHTTPInfo` operation with every optional parameter left out.
+  public func optionsMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Void> {
+    try await optionsMemoWithHTTPInfo(memoId: memoId, options: nil)
+  }
+
+  /// The `patchMemo` operation with every optional parameter left out.
+  public func patchMemo(memoId: String, memo: Memo) async throws -> Memo {
+    try await patchMemo(memoId: memoId, memo: memo, options: nil)
+  }
+
+  /// The `patchMemoWithHTTPInfo` operation with every optional parameter left out.
+  public func patchMemoWithHTTPInfo(memoId: String, memo: Memo) async throws -> ApiResult<Memo> {
+    try await patchMemoWithHTTPInfo(memoId: memoId, memo: memo, options: nil)
+  }
+
   /// The `placeOrder` operation with every optional parameter left out.
   public func placeOrder() async throws -> Order {
     try await placeOrder(order: nil, options: nil)
@@ -288,6 +346,16 @@ extension StoreApiProtocol {
   /// The `searchStoreWithHTTPInfo` operation with every optional parameter left out.
   public func searchStoreWithHTTPInfo() async throws -> ApiResult<[Order]> {
     try await searchStoreWithHTTPInfo(options: nil)
+  }
+
+  /// The `traceMemo` operation with every optional parameter left out.
+  public func traceMemo(memoId: String) async throws {
+    try await traceMemo(memoId: memoId, options: nil)
+  }
+
+  /// The `traceMemoWithHTTPInfo` operation with every optional parameter left out.
+  public func traceMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Void> {
+    try await traceMemoWithHTTPInfo(memoId: memoId, options: nil)
   }
 
   /// The `watchNoticesStream` operation with every optional parameter left out.

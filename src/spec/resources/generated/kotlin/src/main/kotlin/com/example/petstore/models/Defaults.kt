@@ -44,7 +44,7 @@ data class Defaults(
      * The `swatch` property.
      */
     @SerialName("swatch")
-    val swatch: Swatch? = null,
+    val swatch: Swatch? = Swatch.GREEN,
     /**
      * The `ratio` property.
      */

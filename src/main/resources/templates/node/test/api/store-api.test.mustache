@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import * as http from 'node:http';
-import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
+import { GetMemoServerMemos, StoreApi } from '../../src/api/store-api{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
 import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
@@ -11,6 +11,7 @@ import { BadGatewayError, BadRequestError, ClientError, ConflictError, Forbidden
 import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
+import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder()
@@ -771,5 +772,41 @@ describe('StoreApi misc behaviours', () => {
     } finally {
       close();
     }
+  });
+
+  describe('against a recording client', () => {
+    const recorded: Array<{ method: string; url: string }> = [];
+    const recordingClient: ApiClient = {
+      async sendRequest(method: string, url: string): Promise<ApiHttpResponse> {
+        recorded.push({ method, url });
+        return method === 'PATCH' || method === 'GET'
+          ? { statusCode: 200, body: '{"memoId":"m1"}', headers: { 'content-type': 'application/json' } }
+          : { statusCode: method === 'HEAD' ? 200 : 204, body: '', headers: {} };
+      },
+    };
+    const recordingApi = new StoreApi(
+      recordingClient,
+      Configuration.builder().baseUrl('https://client-base.example.com').build(),
+    );
+
+    beforeEach(() => {
+      recorded.length = 0;
+    });
+
+    test('bhv servers 031 getMemo is sent to the server chosen from its path item servers', async () => {
+      await recordingApi.getMemo('m1', new GetMemoServerMemos());
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url.startsWith('https://memos.example.com/v1/store/memos/m1')).toBe(true);
+    });
+
+    test('bhv operations 166 a PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method', async () => {
+      await recordingApi.patchMemo('m1', { memoId: 'm1' });
+      await recordingApi.headMemo('m1');
+      await recordingApi.optionsMemo('m1');
+      await recordingApi.traceMemo('m1');
+
+      expect(recorded.map((entry) => entry.method)).toEqual(['PATCH', 'HEAD', 'OPTIONS', 'TRACE']);
+    });
   });
 });

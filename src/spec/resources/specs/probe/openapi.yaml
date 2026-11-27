@@ -251,3 +251,34 @@ components:
       additionalProperties:
         type: integer
         format: int32
+
+    # The OAS 3.0 spellings the 3.1 petstore cannot carry: `nullable: true` on
+    # required and optional properties, with and without a default, and the
+    # boolean forms of exclusiveMinimum and exclusiveMaximum. 3.1 spells the
+    # first as a type array and the others as numbers.
+    Gauge:
+      type: object
+      required: [needle, dial]
+      properties:
+        needle:
+          type: string
+          nullable: true
+        dial:
+          type: integer
+          format: int32
+          nullable: true
+          default: 7
+        bezel:
+          type: string
+          nullable: true
+        crown:
+          type: string
+          nullable: true
+          default: sapphire
+        span:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 100
+          exclusiveMaximum: true

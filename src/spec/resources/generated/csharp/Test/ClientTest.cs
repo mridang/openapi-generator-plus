@@ -740,6 +740,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("GetInventoryWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetMatrixAsync", StoreListed);
         Assert.Contains("GetMatrixWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetMemoAsync", StoreListed);
+        Assert.Contains("GetMemoWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetNativeValuesAsync", StoreListed);
         Assert.Contains("GetNativeValuesWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetOrderByIdAsync", StoreListed);
@@ -756,12 +758,20 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("GetTimestampGroupsWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetTreeAsync", StoreListed);
         Assert.Contains("GetTreeWithHttpInfoAsync", StoreListed);
+        Assert.Contains("HeadMemoAsync", StoreListed);
+        Assert.Contains("HeadMemoWithHttpInfoAsync", StoreListed);
+        Assert.Contains("OptionsMemoAsync", StoreListed);
+        Assert.Contains("OptionsMemoWithHttpInfoAsync", StoreListed);
+        Assert.Contains("PatchMemoAsync", StoreListed);
+        Assert.Contains("PatchMemoWithHttpInfoAsync", StoreListed);
         Assert.Contains("PlaceOrderAsync", StoreListed);
         Assert.Contains("PlaceOrderWithHttpInfoAsync", StoreListed);
         Assert.Contains("ReserveStockAsync", StoreListed);
         Assert.Contains("ReserveStockWithHttpInfoAsync", StoreListed);
         Assert.Contains("SearchStoreAsync", StoreListed);
         Assert.Contains("SearchStoreWithHttpInfoAsync", StoreListed);
+        Assert.Contains("TraceMemoAsync", StoreListed);
+        Assert.Contains("TraceMemoWithHttpInfoAsync", StoreListed);
         Assert.Contains("WatchNoticesStreamAsync", StoreListed);
         Assert.Contains("WatchOrdersStreamAsync", StoreListed);
     }

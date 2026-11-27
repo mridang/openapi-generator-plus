@@ -9,6 +9,32 @@ require 'test_helper'
 # steep:ignore for that one diagnostic.
 require 'socket'
 
+# An in-memory client that records the method and URL of every request. A GET
+# or PATCH is answered with a canned memo, anything else with an empty reply of
+# the status its operation declares.
+class MemoRecordingStoreClient
+  attr_reader :methods_sent, :urls
+
+  def initialize
+    @methods_sent = []
+    @urls = []
+  end
+
+  def send_request(method, url, _headers, _body, **_kwargs)
+    verb = method.to_s
+    @methods_sent << verb
+    @urls << url
+    if %w[GET PATCH].include?(verb)
+      return Petstore::Client::ApiHttpResponse.new(
+        status_code: 200,
+        body: '{"memoId":"m1"}',
+        headers: { 'content-type' => 'application/json' }
+      )
+    end
+    Petstore::Client::ApiHttpResponse.new(status_code: verb == 'HEAD' ? 200 : 204, body: '', headers: {})
+  end
+end
+
 describe Petstore::Client::Api::StoreApi do
   parallelize_me!
 
@@ -825,5 +851,34 @@ describe Petstore::Client::Api::StoreApi do
       _(names).wont_include "#{operation}_with_http_info"
     end
     _(Petstore::Client::Api::StoreApi.instance_method(:export_orders_stream).parameters.map(&:last)).must_include :stream_options
+  end
+
+  describe 'memo operations' do
+    def new_memo_recording_store_api
+      client = MemoRecordingStoreClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      [Petstore::Client::Api::StoreApi.new(client, config), client]
+    end
+
+    it 'bhv_servers_031 an operation under a path item that declares its own servers is sent to the server chosen from them' do
+      api, client = new_memo_recording_store_api
+
+      memo = api.get_memo('m1', server: Petstore::Client::Api::GetMemoServerMemos.new)
+
+      _(memo.memo_id).must_equal 'm1'
+      _(client.urls.length).must_equal 1
+      _(client.urls.first).must_match(%r{\Ahttps://memos\.example\.com/v1/store/memos/m1})
+    end
+
+    it 'bhv_operations_166 a PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method' do
+      api, client = new_memo_recording_store_api
+
+      api.patch_memo('m1', Petstore::Client::Models::Memo.new(memo_id: 'm1'))
+      api.head_memo('m1')
+      api.options_memo('m1')
+      api.trace_memo('m1')
+
+      _(client.methods_sent).must_equal %w[PATCH HEAD OPTIONS TRACE]
+    end
   end
 end

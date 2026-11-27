@@ -187,6 +187,8 @@ describe 'Client' do
       GetStagingPetInfoServerEnvironment
       GetStagingPetInfoServerVersion
       GetStagingPetInfoServerStagingServer
+      GetMemoServer
+      GetMemoServerMemos
     ]
 
     top_level = 'Petstore::Client'.split('::').first
@@ -673,6 +675,10 @@ describe 'Client' do
     _(listed).must_include 'get_matrix_with_http_info'
     _(group).must_respond_to :get_matrix
     _(group).must_respond_to :get_matrix_with_http_info
+    _(listed).must_include 'get_memo'
+    _(listed).must_include 'get_memo_with_http_info'
+    _(group).must_respond_to :get_memo
+    _(group).must_respond_to :get_memo_with_http_info
     _(listed).must_include 'get_native_values'
     _(listed).must_include 'get_native_values_with_http_info'
     _(group).must_respond_to :get_native_values
@@ -705,6 +711,18 @@ describe 'Client' do
     _(listed).must_include 'get_tree_with_http_info'
     _(group).must_respond_to :get_tree
     _(group).must_respond_to :get_tree_with_http_info
+    _(listed).must_include 'head_memo'
+    _(listed).must_include 'head_memo_with_http_info'
+    _(group).must_respond_to :head_memo
+    _(group).must_respond_to :head_memo_with_http_info
+    _(listed).must_include 'options_memo'
+    _(listed).must_include 'options_memo_with_http_info'
+    _(group).must_respond_to :options_memo
+    _(group).must_respond_to :options_memo_with_http_info
+    _(listed).must_include 'patch_memo'
+    _(listed).must_include 'patch_memo_with_http_info'
+    _(group).must_respond_to :patch_memo
+    _(group).must_respond_to :patch_memo_with_http_info
     _(listed).must_include 'place_order'
     _(listed).must_include 'place_order_with_http_info'
     _(group).must_respond_to :place_order
@@ -717,6 +735,10 @@ describe 'Client' do
     _(listed).must_include 'search_store_with_http_info'
     _(group).must_respond_to :search_store
     _(group).must_respond_to :search_store_with_http_info
+    _(listed).must_include 'trace_memo'
+    _(listed).must_include 'trace_memo_with_http_info'
+    _(group).must_respond_to :trace_memo
+    _(group).must_respond_to :trace_memo_with_http_info
     _(listed).must_include 'watch_notices_stream'
     _(group).must_respond_to :watch_notices_stream
     _(listed).must_include 'watch_orders_stream'

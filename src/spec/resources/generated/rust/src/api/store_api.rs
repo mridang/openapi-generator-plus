@@ -28,6 +28,22 @@ use crate::stream_options::StreamOptions;
 use crate::value_serializer;
 use crate::value_serializer::SerializedValue;
 
+/// Per-operation server URL trait for get_memo.
+pub trait GetMemoServer {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+
+/// Memos
+#[derive(Debug, Clone)]
+pub struct GetMemoServerMemos {}
+
+impl GetMemoServer for GetMemoServerMemos {
+    fn get_url(&self) -> String {
+        "https://memos.example.com/v1".to_string()
+    }
+}
+
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
 #[derive(Clone)]
@@ -1003,6 +1019,141 @@ impl StoreApi {
             .await
     }
 
+    /// Reads a memo from the server its path declares
+    /// * `memo_id`: The memo to address
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_memo(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> Result<Memo, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self
+            .get_memo_with_http_info(memo_id, server, options)
+            .await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for get_memo but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_memo operation and returns the full API result.
+    pub async fn get_memo_with_http_info(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.get_memo_invoke(memo_id, server, options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_memo operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_memo_invoke(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>> {
+        if memo_id.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling StoreApi.get_memo",
+                    "memo_id"
+                )),
+            ));
+        }
+        /* A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+         * URL parser would collapse it and silently re-route the request. */
+        if memo_id == "." || memo_id == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "memoId"
+                )),
+            ));
+        }
+
+        let mut path = "/store/memos/{memoId}".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "memoId",
+            Some(&object_serializer::stringify_param(
+                &memo_id, "simple", false,
+            )?),
+            None,
+            "path",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
+            path = path.replace("{memoId}", &v);
+        }
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.get_memo",
+            method: "GET",
+            path: &path,
+            operation_id: "getMemo",
+            url_template: "/store/memos/{memoId}",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Memo",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Memo>(params).await
+    }
+
     /// Reads values of the formats the SDKs type natively.
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_native_values(
@@ -1876,6 +2027,358 @@ impl StoreApi {
         self.base.invoke_api_for_result::<TreeNode>(params).await
     }
 
+    /// Checks that a memo exists with a HEAD request
+    /// * `memo_id`: The memo to address
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn head_memo(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.head_memo_with_http_info(memo_id, options).await?;
+        let _ = result;
+        Ok(())
+    }
+
+    /// Performs the head_memo operation and returns the full API result.
+    pub async fn head_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.head_memo_invoke(memo_id, options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the head_memo operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn head_memo_invoke(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        if memo_id.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling StoreApi.head_memo",
+                    "memo_id"
+                )),
+            ));
+        }
+        /* A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+         * URL parser would collapse it and silently re-route the request. */
+        if memo_id == "." || memo_id == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "memoId"
+                )),
+            ));
+        }
+
+        let mut path = "/store/memos/{memoId}/revisions".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "memoId",
+            Some(&object_serializer::stringify_param(
+                &memo_id, "simple", false,
+            )?),
+            None,
+            "path",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
+            path = path.replace("{memoId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.head_memo",
+            method: "HEAD",
+            path: &path,
+            operation_id: "headMemo",
+            url_template: "/store/memos/{memoId}/revisions",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec![],
+            content_type: request_content_type,
+            return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_empty_result(params).await
+    }
+
+    /// Lists the methods a memo accepts with an OPTIONS request
+    /// * `memo_id`: The memo to address
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn options_memo(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.options_memo_with_http_info(memo_id, options).await?;
+        let _ = result;
+        Ok(())
+    }
+
+    /// Performs the options_memo operation and returns the full API result.
+    pub async fn options_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.options_memo_invoke(memo_id, options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the options_memo operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn options_memo_invoke(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        if memo_id.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling StoreApi.options_memo",
+                    "memo_id"
+                )),
+            ));
+        }
+        /* A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+         * URL parser would collapse it and silently re-route the request. */
+        if memo_id == "." || memo_id == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "memoId"
+                )),
+            ));
+        }
+
+        let mut path = "/store/memos/{memoId}/revisions".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "memoId",
+            Some(&object_serializer::stringify_param(
+                &memo_id, "simple", false,
+            )?),
+            None,
+            "path",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
+            path = path.replace("{memoId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.options_memo",
+            method: "OPTIONS",
+            path: &path,
+            operation_id: "optionsMemo",
+            url_template: "/store/memos/{memoId}/revisions",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec![],
+            content_type: request_content_type,
+            return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_empty_result(params).await
+    }
+
+    /// Changes a memo with a PATCH request
+    /// * `memo_id`: The memo to address
+    /// * `memo`: The fields of the memo to change
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn patch_memo(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> Result<Memo, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self
+            .patch_memo_with_http_info(memo_id, memo, options)
+            .await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for patch_memo but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the patch_memo operation and returns the full API result.
+    pub async fn patch_memo_with_http_info(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.patch_memo_invoke(memo_id, memo, options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the patch_memo operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn patch_memo_invoke(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>> {
+        if memo_id.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling StoreApi.patch_memo",
+                    "memo_id"
+                )),
+            ));
+        }
+        /* A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+         * URL parser would collapse it and silently re-route the request. */
+        if memo_id == "." || memo_id == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "memoId"
+                )),
+            ));
+        }
+
+        let mut path = "/store/memos/{memoId}/revisions".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "memoId",
+            Some(&object_serializer::stringify_param(
+                &memo_id, "simple", false,
+            )?),
+            None,
+            "path",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
+            path = path.replace("{memoId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body = Some(object_serializer::serialize(&memo)?.into_bytes());
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.patch_memo",
+            method: "PATCH",
+            path: &path,
+            operation_id: "patchMemo",
+            url_template: "/store/memos/{memoId}/revisions",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Memo",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Memo>(params).await
+    }
+
     /// Place an order for a pet
     /// * `options`: Options for query, header, form, and cookie parameters.
     /// # Errors
@@ -2229,6 +2732,117 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Vec<Order>>(params).await
     }
 
+    /// Echoes a memo request with a TRACE request
+    /// * `memo_id`: The memo to address
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn trace_memo(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.trace_memo_with_http_info(memo_id, options).await?;
+        let _ = result;
+        Ok(())
+    }
+
+    /// Performs the trace_memo operation and returns the full API result.
+    pub async fn trace_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.trace_memo_invoke(memo_id, options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the trace_memo operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn trace_memo_invoke(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        if memo_id.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling StoreApi.trace_memo",
+                    "memo_id"
+                )),
+            ));
+        }
+        /* A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+         * URL parser would collapse it and silently re-route the request. */
+        if memo_id == "." || memo_id == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "memoId"
+                )),
+            ));
+        }
+
+        let mut path = "/store/memos/{memoId}/revisions".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "memoId",
+            Some(&object_serializer::stringify_param(
+                &memo_id, "simple", false,
+            )?),
+            None,
+            "path",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
+            path = path.replace("{memoId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.trace_memo",
+            method: "TRACE",
+            path: &path,
+            operation_id: "traceMemo",
+            url_template: "/store/memos/{memoId}/revisions",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec![],
+            content_type: request_content_type,
+            return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_empty_result(params).await
+    }
+
     /// Streams plain text notices as server-sent events
     ///
     /// The response is returned as a stream that is read as it arrives; the call
@@ -2509,6 +3123,18 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&GetMatrixOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_memo(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_memo_with_http_info(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
@@ -2597,6 +3223,38 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&GetTreeOptions>,
     ) -> impl Future<Output = Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn head_memo(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn head_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn options_memo(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn options_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn patch_memo(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>>;
+    fn patch_memo_with_http_info(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>;
     fn place_order(
         &self,
         order: Option<Order>,
@@ -2625,6 +3283,16 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&SearchStoreOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn trace_memo(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>;
+    fn trace_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
     fn watch_notices_stream(
         &self,
         options: Option<&WatchNoticesOptions>,
@@ -2798,6 +3466,24 @@ impl StoreApiTrait for StoreApi {
     {
         StoreApi::get_matrix_with_http_info(self, options)
     }
+    fn get_memo(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_memo(self, memo_id, server, options)
+    }
+
+    fn get_memo_with_http_info(
+        &self,
+        memo_id: String,
+        server: Option<&dyn GetMemoServer>,
+        options: Option<&GetMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_memo_with_http_info(self, memo_id, server, options)
+    }
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
@@ -2932,6 +3618,54 @@ impl StoreApiTrait for StoreApi {
     {
         StoreApi::get_tree_with_http_info(self, options)
     }
+    fn head_memo(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::head_memo(self, memo_id, options)
+    }
+
+    fn head_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&HeadMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::head_memo_with_http_info(self, memo_id, options)
+    }
+    fn options_memo(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::options_memo(self, memo_id, options)
+    }
+
+    fn options_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&OptionsMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::options_memo_with_http_info(self, memo_id, options)
+    }
+    fn patch_memo(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> impl Future<Output = Result<Memo, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::patch_memo(self, memo_id, memo, options)
+    }
+
+    fn patch_memo_with_http_info(
+        &self,
+        memo_id: String,
+        memo: Memo,
+        options: Option<&PatchMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Memo>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::patch_memo_with_http_info(self, memo_id, memo, options)
+    }
     fn place_order(
         &self,
         order: Option<Order>,
@@ -2977,6 +3711,21 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>
     {
         StoreApi::search_store_with_http_info(self, options)
+    }
+    fn trace_memo(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::trace_memo(self, memo_id, options)
+    }
+
+    fn trace_memo_with_http_info(
+        &self,
+        memo_id: String,
+        options: Option<&TraceMemoOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::trace_memo_with_http_info(self, memo_id, options)
     }
     fn watch_notices_stream(
         &self,

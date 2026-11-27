@@ -3323,3 +3323,6 @@ pagination029 | A next URL in the body is followed and a next URL on another ori
 pagination030 | A vendor extension on an operation is read as a hint, and the override option wins over it
 pagination031 | The repeated-cursor failure is a PaginationError and is not a network error or an API error
 pagination032 | An operation that is streamed is never also given a paged method
+enums013 | A referenced enum property whose enum component declares a default starts at that member when it is absent
+servers031 | An operation under a path item that declares its own servers is sent to the server chosen from them
+operations166 | A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method

@@ -43,6 +43,46 @@ StoreApi _storeApiFor(HttpServer server) {
   return StoreApi(apiClient: DefaultApiClient(), config: config);
 }
 
+/// Records the method and URL of every call and answers it without a
+/// network, so a call to a host that does not resolve can still be checked.
+class _RecordingApiClient implements ApiClient {
+  final List<String> methods = [];
+  final List<String> urls = [];
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) async {
+    methods.add(method);
+    urls.add(url);
+    if (method == 'GET' || method == 'PATCH') {
+      return ApiHttpResponse(
+        statusCode: 200,
+        body: '{"memoId":"m1"}',
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    return ApiHttpResponse(
+      statusCode: method == 'HEAD' ? 200 : 204,
+      body: '',
+      headers: {},
+    );
+  }
+}
+
+StoreApi _recordingStoreApi(_RecordingApiClient client) {
+  final config = ConfigurationBuilder()
+      .baseUrl('https://client-base.example.com')
+      .build();
+  return StoreApi(apiClient: client, config: config);
+}
+
 void main() {
   setUpAll(() async {
     await setUpContainers();
@@ -1017,5 +1057,37 @@ void main() {
         await server.close();
       }
     });
+
+    test(
+      'bhv servers 031 an operation under a path item that declares its own servers is sent to the server chosen from them',
+      () async {
+        final client = _RecordingApiClient();
+
+        await _recordingStoreApi(
+          client,
+        ).getMemo('m1', GetMemoServerMemos(), null);
+
+        expect(client.urls, hasLength(1));
+        expect(
+          client.urls.single,
+          startsWith('https://memos.example.com/v1/store/memos/m1'),
+        );
+      },
+    );
+
+    test(
+      'bhv operations 166 a PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method',
+      () async {
+        final client = _RecordingApiClient();
+        final api = _recordingStoreApi(client);
+
+        await api.patchMemo('m1', const Memo(memoId: 'm1'), null);
+        await api.headMemo('m1', null);
+        await api.optionsMemo('m1', null);
+        await api.traceMemo('m1', null);
+
+        expect(client.methods, equals(['PATCH', 'HEAD', 'OPTIONS', 'TRACE']));
+      },
+    );
   });
 }
