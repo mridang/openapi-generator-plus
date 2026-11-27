@@ -3343,3 +3343,5 @@ pagination032 | An operation that is streamed is never also given a paged method
 enums013 | A referenced enum property whose enum component declares a default starts at that member when it is absent
 servers031 | An operation under a path item that declares its own servers is sent to the server chosen from them
 operations166 | A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method
+servers501 | A server keeps the name it was built with, and a server built without a name has none
+servers502 | Looking up a server by a name no server has fails with the argument error that lists the known names

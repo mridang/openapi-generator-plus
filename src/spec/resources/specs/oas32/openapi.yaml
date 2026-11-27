@@ -22,10 +22,10 @@ info:
   version: 1.0.0
 servers:
   - url: https://ledger.example.com/v1
-    name: primary
+    name: main-region
     description: The primary region
   - url: https://ledger-backup.example.com/v1
-    name: backup
+    name: spare-region
 tags:
   - name: accounts
     summary: Account books

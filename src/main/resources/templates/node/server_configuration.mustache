@@ -57,21 +57,27 @@ export class ServerConfiguration {
   /** The server variables and their definitions. */
   public readonly variables: Readonly<Record<string, ServerVariable>>;
 
+  /** The name the specification gives this server (OpenAPI 3.2 `name`), or null if it has none. */
+  public readonly name: string | null;
+
   /**
    * Create a new server configuration.
    *
    * @param urlTemplate the URL template, possibly containing `{variable}` placeholders
    * @param description human-readable description of this server, or null
    * @param variables map of variable names to their definitions
+   * @param name the name the specification gives this server, or null
    */
   constructor(
     urlTemplate: string,
     description: string | null = null,
-    variables: Record<string, ServerVariable> = {}
+    variables: Record<string, ServerVariable> = {},
+    name: string | null = null
   ) {
     this.urlTemplate = urlTemplate;
     this.description = description;
     this.variables = Object.freeze({ ...variables });
+    this.name = name;
   }
 
   /**

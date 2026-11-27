@@ -79,6 +79,9 @@ pub struct ServerConfiguration {
 
     /// The server variables and their definitions.
     variables: HashMap<String, ServerVariable>,
+
+    /// The name the specification gives this server (empty when it has none).
+    name: String,
 }
 
 impl ServerConfiguration {
@@ -97,7 +100,22 @@ impl ServerConfiguration {
             url_template,
             description,
             variables,
+            name: String::new(),
         }
+    }
+
+    /// Returns this server configuration with the name the specification gives
+    /// the server (OpenAPI 3.2 `name`).
+    #[must_use]
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    /// The name the specification gives this server (OpenAPI 3.2 `name`), or
+    /// an empty string when it has none.
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// The raw URL template before variable substitution.

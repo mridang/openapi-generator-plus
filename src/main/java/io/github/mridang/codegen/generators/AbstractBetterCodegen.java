@@ -71,6 +71,7 @@ import org.openapitools.codegen.meta.features.SecurityFeature;
 import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
 
+import io.github.mridang.codegen.OpenApi32ParserExtension;
 import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
@@ -911,6 +912,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             serverMap.put("serverIndex", String.valueOf(i));
             serverMap.put("serverUrl", Optional.ofNullable(server.getUrl()).orElse(""));
             serverMap.put("serverDescription", server.getDescription());
+            // OpenAPI 3.2 Server `name` (D153), carried by the 3.2 loader because the model has
+            // no field for it; null for a server without one and for every 3.0 or 3.1 document.
+            final Object name = server.getExtensions() == null
+                    ? null
+                    : server.getExtensions().get(OpenApi32ParserExtension.SERVER_NAME);
+            serverMap.put("serverName",
+                    name instanceof String && !((String) name).isBlank() ? name : null);
 
             final boolean hasVariables =
                     Optional.ofNullable(server.getVariables())

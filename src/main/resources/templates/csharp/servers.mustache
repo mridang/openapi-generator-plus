@@ -27,7 +27,7 @@ public static class Servers
     ///
     /// {{#lambda.escapeXml}}{{{serverDescription}}}{{/lambda.escapeXml}}{{/serverDescription}}
     /// </summary>
-    {{^hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new("{{#lambda.stringLiteral}}{{{serverUrl}}}{{/lambda.stringLiteral}}", {{#serverDescription}}"{{#lambda.stringLiteral}}{{{serverDescription}}}{{/lambda.stringLiteral}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, []);{{/hasVariables}}{{#hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new(
+    {{^hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new("{{#lambda.stringLiteral}}{{{serverUrl}}}{{/lambda.stringLiteral}}", {{#serverDescription}}"{{#lambda.stringLiteral}}{{{serverDescription}}}{{/lambda.stringLiteral}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, []{{#serverName}}, "{{#lambda.stringLiteral}}{{{serverName}}}{{/lambda.stringLiteral}}"{{/serverName}});{{/hasVariables}}{{#hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new(
         "{{#lambda.stringLiteral}}{{{serverUrl}}}{{/lambda.stringLiteral}}",
         {{#serverDescription}}"{{#lambda.stringLiteral}}{{{serverDescription}}}{{/lambda.stringLiteral}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
         new Dictionary<string, ServerVariable>
@@ -36,7 +36,8 @@ public static class Servers
                 "{{#lambda.stringLiteral}}{{{varDefault}}}{{/lambda.stringLiteral}}",
                 {{#varDescription}}"{{#lambda.stringLiteral}}{{{varDescription}}}{{/lambda.stringLiteral}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
                 {{#hasEnumValues}}[{{#varEnumValues}}"{{#lambda.stringLiteral}}{{{.}}}{{/lambda.stringLiteral}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}),
-{{/serverVariables}}        }
+{{/serverVariables}}        }{{#serverName}},
+        "{{#lambda.stringLiteral}}{{{serverName}}}{{/lambda.stringLiteral}}"{{/serverName}}
     );{{/hasVariables}}
 
 {{/serverConfigs}}
@@ -44,4 +45,30 @@ public static class Servers
     /// All server configurations in declaration order.
     /// </summary>
     public static readonly IReadOnlyList<ServerConfiguration> All = [{{#serverConfigs}}Server{{serverIndex}}{{^-last}}, {{/-last}}{{/serverConfigs}}];
+
+    /// <summary>
+    /// The server the specification gives the name <paramref name="name"/> (OpenAPI 3.2 <c>name</c>).
+    /// </summary>
+    /// <param name="name">The server name.</param>
+    /// <returns>The server with that name.</returns>
+    /// <exception cref="ArgumentException">If no server has that name; the message lists the known names.</exception>
+    public static ServerConfiguration ByName(string name)
+    {
+        List<string> known = [];
+        foreach (ServerConfiguration server in All)
+        {
+            if (server.Name is null)
+            {
+                continue;
+            }
+            if (server.Name == name)
+            {
+                return server;
+            }
+            known.Add(server.Name);
+        }
+        throw new ArgumentException(
+            $"Unknown server name '{name}'. Known names: [{string.Join(", ", known)}]"
+        );
+    }
 }

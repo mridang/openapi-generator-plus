@@ -31,6 +31,7 @@ SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
             {{#hasEnumValues}}enum_values=({{#varEnumValues}}{{#lambda.quotedLiteral}}{{{.}}}{{/lambda.quotedLiteral}},{{^-last}} {{/-last}}{{/varEnumValues}}),{{/hasEnumValues}}{{^hasEnumValues}}enum_values=(),{{/hasEnumValues}}
         ),
 {{/serverVariables}}    },{{/hasVariables}}{{^hasVariables}}variables={},{{/hasVariables}}
+    {{#serverName}}name={{#lambda.quotedLiteral}}{{{serverName}}}{{/lambda.quotedLiteral}},{{/serverName}}{{^serverName}}name=None,{{/serverName}}
 )
 """Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
 
@@ -43,3 +44,22 @@ ALL: Tuple[ServerConfiguration, ...] = (
 {{#serverConfigs}}    SERVER_{{serverIndex}},
 {{/serverConfigs}})
 """All server configurations in declaration order, as an immutable tuple."""
+
+
+def by_name(name: str) -> ServerConfiguration:
+    """Return the server the specification gives the name ``name`` (OpenAPI 3.2 ``name``).
+
+    Args:
+        name: The server name.
+
+    Returns:
+        The server with that name.
+
+    Raises:
+        ValueError: If no server has that name; the message lists the known names.
+    """
+    known = [server.name for server in ALL if server.name is not None]
+    for server in ALL:
+        if server.name == name:
+            return server
+    raise ValueError(f"Unknown server name '{name}'. Known names: [{', '.join(known)}]")

@@ -74,7 +74,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Error classes end in `Exception`. Their `cause` is a plain field, for example `NetworkException(cause:)`, because Dart has no built-in exception chaining. The root exception class is sealed.
 - `Client`, `DefaultApiClient` and `AbstractApiClient` take an extra trailing `http.Client`, which lets you supply your own.
 - `BaseApi` and the serializers expose public helpers, because Dart has no visibility between libraries other than private-to-library.
-- Server URLs are the top-level constants `SERVER_0`, `SERVER_1` and so on, with `allServers`.
+- Server URLs are the top-level constants `server0`, `server1` and so on, with `allServers`; `serverByName(name)` returns the server an OpenAPI 3.2 document names (`ArgumentError` for an unknown name), and a server without a name has the empty string as its `name`.
 - Builder setters name their parameter `val`.
 - `TraceContextUtil.propagator` is a registration hook that you set if you want trace headers, because Dart cannot detect an optional OpenTelemetry dependency at run time.
 - The call hook is `CallHook` with `start(CallInfo info, Map<String, String> headers)` returning a `CallObserver?`, whose `finish(CallOutcome outcome)` is called once when the call has ended; `chainCallHooks(List<CallHook>)` combines several. Set it with `ConfigurationBuilder.callHook(hook)` or with the `callHook:` argument of `Client` and `Client.withToken`. `CallInfo` carries `operationId` (as written in the spec), `method`, `urlTemplate`, `url` and `serverAddress`; `CallOutcome` carries `statusCode` (0 when no response arrived), `headers` (lower-cased, `null` when no response arrived) and `error`.

@@ -3,6 +3,7 @@ package io.github.mridang.codegen.generators;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.mridang.codegen.generators.csharp.BetterCSharpCodegen;
@@ -1351,5 +1352,22 @@ class AbstractBetterCodegenTest {
         final CodegenOperation op = codegen.fromOperation("/items", "get", operation, new ArrayList<>());
         assertFalse(op.vendorExtensions.containsKey("op")
                 && ((Map<?, ?>) op.vendorExtensions.get("op")).containsKey("responseSummaries"));
+    }
+
+    @Test
+    @DisplayName("a server name carried from a 3.2 document reaches the server configs, and a server without one has none")
+    @SuppressWarnings("unchecked")
+    void serverNameReachesTheServerConfigs() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        final io.swagger.v3.oas.models.servers.Server named =
+                new io.swagger.v3.oas.models.servers.Server().url("https://a.example.com");
+        named.addExtension(io.github.mridang.codegen.OpenApi32ParserExtension.SERVER_NAME, "main");
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI()
+                .servers(List.of(named, new io.swagger.v3.oas.models.servers.Server().url("https://b.example.com"))));
+        final List<Map<String, Object>> configs = Objects.requireNonNull(
+                (List<Map<String, Object>>) codegen.additionalProperties().get("serverConfigs"));
+        assertAll(
+                () -> assertEquals("main", configs.get(0).get("serverName")),
+                () -> assertNull(configs.get(1).get("serverName")));
     }
 }

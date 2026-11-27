@@ -101,6 +101,24 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvServers501AServerKeepsItsNameAndAServerWithoutOneHasNone()
+    {
+        var named = new ServerConfiguration("https://api.example.com", null, null, "primary");
+        var unnamed = new ServerConfiguration("https://api.example.com");
+
+        Assert.Equal("primary", named.Name);
+        Assert.Null(unnamed.Name);
+    }
+
+    [Fact]
+    public void BhvServers502AnUnknownServerNameIsRejectedWithTheKnownNames()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => Servers.ByName("missing"));
+
+        Assert.Equal("Unknown server name 'missing'. Known names: []", ex.Message);
+    }
+
+    [Fact]
     public void BhvServers012GetUrlRejectionMessageNamesTheValueTheVariableAndTheAllowedValues()
     {
         var server = new ServerConfiguration(

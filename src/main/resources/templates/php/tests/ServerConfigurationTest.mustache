@@ -124,6 +124,19 @@ test('bhv servers 012 rejected override message names the value, the variable an
         );
 });
 
+test('bhv servers 501 a server keeps its name and a server built without one has none', function (): void {
+    $named = new ServerConfiguration(urlTemplate: 'https://api.example.com', name: 'primary');
+    $unnamed = new ServerConfiguration(urlTemplate: 'https://api.example.com');
+
+    expect($named->name)->toBe('primary');
+    expect($unnamed->name)->toBeNull();
+});
+
+test('bhv servers 502 an unknown server name is rejected with the known names', function (): void {
+    expect(fn () => Servers::byName('missing'))
+        ->toThrow(\InvalidArgumentException::class, "Unknown server name 'missing'. Known names: []");
+});
+
 test('bhv servers 004 default value outside the enum is rejected', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',

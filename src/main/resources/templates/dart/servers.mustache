@@ -35,6 +35,7 @@ const server{{serverIndex}} = ServerConfiguration(
       enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{#lambda.dartString}}{{{.}}}{{/lambda.dartString}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
     ),
 {{/serverVariables}}  }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}},
+  name: '{{#serverName}}{{#lambda.dartString}}{{{serverName}}}{{/lambda.dartString}}{{/serverName}}',
 );
 {{/serverConfigs}}
 
@@ -45,3 +46,20 @@ const server{{serverIndex}} = ServerConfiguration(
 const allServers = <ServerConfiguration>[
 {{#serverConfigs}}  server{{serverIndex}},
 {{/serverConfigs}}];
+
+/// The server the specification gives the name [name] (OpenAPI 3.2 `name`).
+///
+/// Throws [ArgumentError] if no server has that name; the message lists the
+/// known names.
+ServerConfiguration serverByName(String name) {
+  for (final server in allServers) {
+    if (server.name.isNotEmpty && server.name == name) {
+      return server;
+    }
+  }
+  final known = [
+    for (final server in allServers)
+      if (server.name.isNotEmpty) server.name,
+  ];
+  throw ArgumentError("Unknown server name '$name'. Known names: $known");
+}

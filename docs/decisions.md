@@ -391,6 +391,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Nothing changes for a document in the OpenAPI dialect. A document in another dialect generates as before and now says so.
 
+## D153: A named server is found by its name
+
+**Decision.** An OpenAPI 3.2 Server Object's `name` is kept on the generated server configuration in all twelve SDKs, and the list of servers can be searched by it: java and kotlin `Servers.byName`, csharp `Servers.ByName`, php `Servers::byName`, python `servers.by_name`, ruby `Servers.by_name`, node `Servers.byName`, dart `serverByName`, go `ServerByName`, rust `servers::by_name`, swift `Servers.byName` and elixir `Servers.by_name/1`. A name that no server has fails with the error each SDK already raises for a server variable outside its enum, or its argument error where that one is specific to variables: `IllegalArgumentException`, `ArgumentException`, `\InvalidArgumentException`, `ValueError`, `ArgumentError`, `TypeError`, go's sentinel `ErrUnknownServer`, rust's `ConfigurationError::InvalidArgument` and swift's `ConfigurationError.invalidArgument`, with the message `Unknown server name '<name>'. Known names: [<a>, <b>]`. A server without a name has no name: null where the language has it, the empty string in dart, go, rust and swift, which use the empty string for an absent description too. The index constants stay, so nothing existing changes; the name is additive (a new accessor, a new optional constructor argument, `NewNamedServerConfiguration` in go and `with_name` in rust, whose constructors take no optional arguments). Only the document's top-level servers are searched; a path-level or operation-level server is chosen through its operation, as before (#55).
+
+**Consequences.** A 3.0 or 3.1 document has no server names, so every lookup fails and lists no names. Rust and swift reuse their argument error instead of adding a variant, because a new variant would break an exhaustive match in callers' code.
+
 ## D154: A reusable Media Type Object is inlined where it is referenced
 
 **Decision.** A `$ref` to `#/components/mediaTypes/<name>` in a request body, a response, a parameter or a header is replaced by a copy of the Media Type Object it names (following a chain of such references), and `components.mediaTypes` is then removed. The operation generates exactly what the inline object generates (#57).

@@ -71,11 +71,16 @@ class ServerConfiguration {
   /// Maps variable names to their [ServerVariable] definitions.
   final Map<String, ServerVariable> variables;
 
+  /// The name the specification gives this server (OpenAPI 3.2 `name`), or an
+  /// empty string if it has none.
+  final String name;
+
   /// Create a new server configuration.
   const ServerConfiguration({
     required this.urlTemplate,
     this.description = '',
     this.variables = const {},
+    this.name = '',
   });
 
   /// Resolve the URL template, substituting variable values.

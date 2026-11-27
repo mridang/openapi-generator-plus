@@ -133,7 +133,8 @@
     attr_reader url_template: String
     attr_reader description: String?
     attr_reader variables: Hash[String, ServerVariable]
-    def initialize: (url_template: String, ?description: String?, ?variables: Hash[String, ServerVariable]) -> void
+    attr_reader name: String?
+    def initialize: (url_template: String, ?description: String?, ?variables: Hash[String, ServerVariable], ?name: String?) -> void
     def url: (?Hash[String, String]) -> String
   end
 
@@ -142,6 +143,7 @@
     SERVER_{{serverIndex}}: ServerConfiguration
 {{/serverConfigs}}
     ALL: Array[ServerConfiguration]
+    def self.by_name: (String) -> ServerConfiguration
   end
 
   class ApiHttpResponse

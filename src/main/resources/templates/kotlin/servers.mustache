@@ -35,7 +35,8 @@ object Servers {
                 "{{#lambda.kotlinString}}{{{varDefault}}}{{/lambda.kotlinString}}",
                 {{#varDescription}}"{{#lambda.kotlinString}}{{{varDescription}}}{{/lambda.kotlinString}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
                 {{#hasEnumValues}}listOf({{#varEnumValues}}"{{#lambda.kotlinString}}{{{.}}}{{/lambda.kotlinString}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}emptyList(){{/hasEnumValues}}){{^-last}},{{/-last}}
-{{/serverVariables}}        ){{/hasVariables}}{{^hasVariables}}emptyMap(){{/hasVariables}}
+{{/serverVariables}}        ){{/hasVariables}}{{^hasVariables}}emptyMap(){{/hasVariables}},
+        {{#serverName}}"{{#lambda.kotlinString}}{{{serverName}}}{{/lambda.kotlinString}}"{{/serverName}}{{^serverName}}null{{/serverName}}
     )
 
 {{/serverConfigs}}
@@ -43,4 +44,17 @@ object Servers {
     val ALL: List<ServerConfiguration> = listOf(
 {{#serverConfigs}}        SERVER_{{serverIndex}}{{^-last}},{{/-last}}
 {{/serverConfigs}}    )
+
+    /**
+     * The server the specification gives the name [name] (OpenAPI 3.2 `name`).
+     *
+     * @param name the server name
+     * @return the server with that name
+     * @throws IllegalArgumentException if no server has that name; the message lists the known names
+     */
+    fun byName(name: String): ServerConfiguration {
+        val known = ALL.mapNotNull { it.name }
+        return ALL.firstOrNull { it.name == name }
+            ?: throw IllegalArgumentException("Unknown server name '$name'. Known names: $known")
+    }
 }

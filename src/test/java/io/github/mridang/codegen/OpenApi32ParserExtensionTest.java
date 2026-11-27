@@ -209,7 +209,7 @@ class OpenApi32ParserExtensionTest {
         final OpenAPI api = parse(fixturePath());
         final io.swagger.v3.oas.models.tags.Tag audits = api.getTags().get(1);
         assertAll(
-                () -> assertEquals("primary", api.getServers().get(0).getExtensions()
+                () -> assertEquals("main-region", api.getServers().get(0).getExtensions()
                         .get(OpenApi32ParserExtension.SERVER_NAME)),
                 () -> assertEquals("accounts", audits.getExtensions().get(OpenApi32ParserExtension.TAG_PARENT)),
                 () -> assertEquals("nav", audits.getExtensions().get(OpenApi32ParserExtension.TAG_KIND)),
@@ -234,7 +234,9 @@ class OpenApi32ParserExtensionTest {
                     assertAll(
                             () -> assertTrue(all.contains("balance"), "the $self-resolved schema is missing"),
                             () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
-                                    .contains("auditledger"), "the operation is missing"));
+                                    .contains("auditledger"), "the operation is missing"),
+                            () -> assertTrue(all.contains("main-region") && all.contains("spare-region"),
+                                    "the server names are missing"));
                 }));
     }
 

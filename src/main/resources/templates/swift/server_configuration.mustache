@@ -55,16 +55,25 @@ public struct ServerConfiguration: Sendable {
     /// The server variables and their definitions.
     public let variables: [String: ServerVariable]
 
+    /// The name the specification gives this server (OpenAPI 3.2 `name`), or an
+    /// empty string when it has none.
+    public let name: String
+
     /// Create a new server configuration.
     ///
     /// - Parameters:
     ///   - urlTemplate: The URL template, possibly containing `{variable}` placeholders.
     ///   - description: Human-readable description of this server.
     ///   - variables: Map of variable names to their definitions.
-    public init(urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:]) {
+    ///   - name: The name the specification gives this server, or an empty string.
+    public init(
+        urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:],
+        name: String = ""
+    ) {
         self.urlTemplate = urlTemplate
         self.description = description
         self.variables = variables
+        self.name = name
     }
 
     /// Resolve the URL template, substituting the given variable overrides.
