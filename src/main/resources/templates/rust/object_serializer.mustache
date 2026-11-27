@@ -1221,6 +1221,10 @@ mod tests {
         let map = sample_object();
 
         assert_eq!(
+            "breed,lab,min_age,3",
+            object_serializer::stringify_param(&map, "simple", false).unwrap()
+        );
+        assert_eq!(
             "breed=lab,min_age=3",
             object_serializer::stringify_param(&map, "simple", true).unwrap()
         );
