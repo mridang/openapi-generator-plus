@@ -4966,6 +4966,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * {@code description}. {@code hasResponseHeaders} and {@code responseHeadersClassName}
      * ({@code <OperationId>ResponseHeaders}) go with it.
      */
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
     private void populateResponseHeaders(CodegenOperation op, Map<String, Object> d, String pascal) {
         final List<Map<String, Object>> rows = new ArrayList<>();
         final Set<String> seen = new HashSet<>();
@@ -5577,6 +5578,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * ignored (the specification describes them elsewhere), and a header without a fixed
      * value, or with a name or value that cannot be written as a header, is not sent.
      */
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
     private void applyMultipartEncoding(
             io.swagger.v3.oas.models.parameters.RequestBody body, List<CodegenParameter> params) {
         final io.swagger.v3.oas.models.media.MediaType multipart = multipartMediaType(body);

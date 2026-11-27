@@ -1974,6 +1974,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      * @param objs the processed operations map
      */
     @SuppressWarnings("unchecked")
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
     private void writeResponseHeadersFiles(final OperationsMap objs) {
         final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
         if (operations == null) {

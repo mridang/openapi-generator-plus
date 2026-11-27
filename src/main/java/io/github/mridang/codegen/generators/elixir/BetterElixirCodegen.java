@@ -113,6 +113,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
      * no unused private function is generated.
      */
     @SuppressWarnings("unchecked")
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
     private void writeResponseHeadersFile(final CodegenOperation op) {
         final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
         if (!(decorators instanceof Map)) {
