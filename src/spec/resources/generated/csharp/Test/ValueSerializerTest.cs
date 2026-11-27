@@ -1582,12 +1582,12 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
         Assert.Throws<SerializationException>(() =>
             ValueSerializer.SerializeStyled("c", listed, "query", "object", null, "form", true)
         );
-        var model = new PetNotePage
+        var model = new NativeValues
         {
-            Rows = new List<string> { "a", "b" },
+            Addresses = new List<System.Net.IPAddress> { System.Net.IPAddress.IPv6Loopback },
         };
         Assert.Throws<SerializationException>(() =>
-            ValueSerializer.SerializeStyled("c", model, "query", "PetNotePage", null, "form", true)
+            ValueSerializer.SerializeStyled("c", model, "query", "NativeValues", null, "form", true)
         );
     }
 

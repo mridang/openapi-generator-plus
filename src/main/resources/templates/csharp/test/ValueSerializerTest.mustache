@@ -1084,8 +1084,8 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
         Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true));
         var listed = new Dictionary<string, object?> { { "tags", new List<string> { "a", "b" } } };
         Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", listed, "query", "object", null, "form", true));
-        var model = new PetNotePage { Rows = new List<string> { "a", "b" } };
-        Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", model, "query", "PetNotePage", null, "form", true));
+        var model = new NativeValues { Addresses = new List<System.Net.IPAddress> { System.Net.IPAddress.IPv6Loopback } };
+        Assert.Throws<SerializationException>(() => ValueSerializer.SerializeStyled("c", model, "query", "NativeValues", null, "form", true));
     }
     [Fact]
     public void BhvSerialization107AnExplodedArrayQueryParameterRepeatsItsKeyPerElement()
