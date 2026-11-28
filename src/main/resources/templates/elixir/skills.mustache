@@ -485,7 +485,7 @@ The client takes one optional credential for each security scheme, named after t
 ```elixir file
 defmodule SchemeCredential do
   def client(credential) do
-    {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+    {{moduleName}}.{{clientClassName}}.new(nil, nil{{#clientSchemes}}{{#-first}}, {{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
   end
 end
 ```

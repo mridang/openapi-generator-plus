@@ -253,6 +253,7 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "rust", "jsonvalue", "rust dynamic JSON value type");
     allow(ALLOWED_EXTRA, "go", "pathutils", "go path-template helpers");
     allow(ALLOWED_EXTRA, "php", "psr18apiclient", "the PSR-18 client implementation");
+    allow(ALLOWED_EXTRA, "php", "encodedpart", "PHP multipart part carrying its Encoding Object headers");
     allow(ALLOWED_EXTRA, "php", "rawhttpresponse", "PHP wrapper for the PSR-7 response");
     allow(ALLOWED_EXTRA, "go", "requestoption", "go functional request options");
     for (String language : Arrays.asList("java", "php", "ruby")) {
