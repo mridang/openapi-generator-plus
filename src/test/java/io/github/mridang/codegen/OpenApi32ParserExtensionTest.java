@@ -34,7 +34,12 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
+/* Isolated: swagger-parser's OpenAPI 3.1 dereferencer is a process-wide singleton, and this
+ * fixture's references to other files leaked into the petstore generations running beside it
+ * (missing security schemes, a ConcurrentModificationException). */
+@Isolated
 class OpenApi32ParserExtensionTest {
 
     private static final String FIXTURE = "specs/oas32/openapi.yaml";
