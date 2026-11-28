@@ -64,8 +64,8 @@ module Petstore::Client
         def self.parse_value(name, kind, parser, value)
           parsed =
             case parser
-            when 'integer' then parse_integer(value, 2**31)
-            when 'long' then parse_integer(value, 2**63)
+            when 'integer' then parse_integer(value, 2_147_483_648)
+            when 'long' then parse_integer(value, 9_223_372_036_854_775_808)
             when 'decimal' then BigDecimal(value) if value.match?(DECIMAL)
             when 'float' then Float(value) if value.match?(DECIMAL)
             when 'boolean' then { 'true' => true, 'false' => false }[value]

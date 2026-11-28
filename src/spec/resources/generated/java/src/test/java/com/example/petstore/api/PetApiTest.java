@@ -1268,12 +1268,22 @@ class PetApiTest {
       String wireText = new String(capturedBody[0], StandardCharsets.UTF_8);
       assertThat(wireText)
           .contains(
-              "Content-Disposition: form-data; name=\"caption\"\r\n"
-                  + "Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello");
+              String.join(
+                  "\r\n",
+                  "Content-Disposition: form-data; name=\"caption\"",
+                  "Content-Type: text/markdown",
+                  "X-Caption-Format: commonmark",
+                  "",
+                  "hello"));
       assertThat(wireText)
           .contains(
-              "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n"
-                  + "Content-Type: application/octet-stream\r\n\r\nabc\r\n");
+              String.join(
+                  "\r\n",
+                  "Content-Disposition: form-data; name=\"file\"; filename=\"file\"",
+                  "Content-Type: application/octet-stream",
+                  "",
+                  "abc",
+                  ""));
     } finally {
       server.stop(0);
     }

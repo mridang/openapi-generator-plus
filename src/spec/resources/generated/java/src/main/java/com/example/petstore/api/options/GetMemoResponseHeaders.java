@@ -67,7 +67,7 @@ public final class GetMemoResponseHeaders {
    */
   @Nullable
   public List<String> xLabels() {
-    return xLabels;
+    return xLabels == null ? null : List.copyOf(xLabels);
   }
 
   /**

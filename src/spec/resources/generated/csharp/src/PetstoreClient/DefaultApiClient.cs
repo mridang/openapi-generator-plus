@@ -960,6 +960,19 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 request.Content.Headers.ContentType =
                     System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
             }
+            else if (
+                contentType != null
+                && body is Dictionary<string, object>
+                && request.Content.Headers.ContentType != null
+                && contentType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase)
+                && System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType).MediaType
+                    is string multipartType
+            )
+            {
+                /* A multipart body declared under another subtype (multipart/mixed)
+                 * keeps the boundary the transport chose and names that subtype. */
+                request.Content.Headers.ContentType.MediaType = multipartType;
+            }
         }
         else if (
             string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)

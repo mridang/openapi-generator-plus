@@ -50,6 +50,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -465,7 +466,12 @@ public final class ObjectSerializer {
    * @param headers the declared part headers, in declaration order
    */
   public record EncodedPart(
-      Object value, @Nullable String contentType, Map<String, String> headers) {}
+      Object value, @Nullable String contentType, Map<String, String> headers) {
+    /** Keeps an unmodifiable copy of the headers, in declaration order. */
+    public EncodedPart {
+      headers = Collections.unmodifiableMap(new LinkedHashMap<>(headers));
+    }
+  }
 
   /**
    * The plain value of a form field: an {@link EncodedPart} is unwrapped, anything else is returned

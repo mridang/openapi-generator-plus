@@ -182,7 +182,7 @@ module {{moduleName}}
       value = value.to_a if value.is_a?(Set)
       fields = object_fields(value)
       if fields
-        pairs = fields.reject { |_key, field| field.nil? }.map do |key, field|
+        pairs = fields.compact.map do |key, field|
           [cookie_octets(name, key.to_s), cookie_octets(name, object_field_text(key, field))]
         end
         return '' if pairs.empty?

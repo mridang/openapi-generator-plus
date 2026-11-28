@@ -605,7 +605,16 @@ public abstract class BaseApi
             url += (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + query;
         }
 
-        bool isMultipart = contentType == "multipart/form-data";
+        /* Every multipart/* body (form-data, mixed, ...) is a form-style
+           Dictionary sent as parts. Only multipart/form-data leaves the
+           Content-Type to the transport; another subtype is passed on so the
+           transport can name it beside the boundary. */
+        bool isMultipart = contentType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase);
+        bool isFormData = string.Equals(
+            contentType,
+            "multipart/form-data",
+            StringComparison.OrdinalIgnoreCase
+        );
         /* The request headers, rebuilt from scratch on every call so a retry
            or a replay after a 401 carries current authentication headers. */
         /* The edits the call hook made to the headers, kept as a delta and
@@ -618,7 +627,7 @@ public abstract class BaseApi
             Dictionary<string, string> built = HeaderSelector.SelectHeaders(
                 accepts,
                 contentType,
-                isMultipart
+                isFormData
             );
 
             foreach (KeyValuePair<string, string> header in Config.DefaultHeaders)

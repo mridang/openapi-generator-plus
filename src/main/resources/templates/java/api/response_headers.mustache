@@ -81,7 +81,12 @@ public final class {{className}} {
      */
     @Nullable
     public {{{javaType}}} {{varName}}() {
+{{#isArray}}
+        return {{varName}} == null ? null : List.copyOf({{varName}});
+{{/isArray}}
+{{^isArray}}
         return {{varName}};
+{{/isArray}}
     }
 {{/headers}}
 

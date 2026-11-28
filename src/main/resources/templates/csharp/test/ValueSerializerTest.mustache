@@ -984,53 +984,6 @@ public class ValueSerializerTest
         Assert.Equal("v1/beta", wrapped.Value);
         Assert.Null(ValueSerializer.MaybeAllowReserved(null, true));
     }
-}
-
-/// <summary>
-/// A stand-in enum for the wire-value tests above. It is declared here rather
-/// than taken from the generated models so the test holds for EVERY spec this
-/// SDK is generated from — no spec is guaranteed to contain a string enum. It
-/// mirrors how the generator emits enums: a [JsonConverter] maps each member to
-/// its OpenAPI wire string, which is what ObjectSerializer.Stringify round-trips
-/// through.
-/// </summary>
-[System.Text.Json.Serialization.JsonConverter(typeof(TestHueConverter))]
-public enum TestHue
-{
-    Red,
-    Blue,
-    Green,
-}
-
-public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
-{
-    public override TestHue Read(
-        ref System.Text.Json.Utf8JsonReader reader,
-        Type typeToConvert,
-        System.Text.Json.JsonSerializerOptions options)
-    {
-        return reader.GetString() switch
-        {
-            "red" => TestHue.Red,
-            "blue" => TestHue.Blue,
-            "green" => TestHue.Green,
-            _ => throw new System.Text.Json.JsonException(),
-        };
-    }
-
-    public override void Write(
-        System.Text.Json.Utf8JsonWriter writer,
-        TestHue value,
-        System.Text.Json.JsonSerializerOptions options)
-    {
-        writer.WriteStringValue(value switch
-        {
-            TestHue.Red => "red",
-            TestHue.Blue => "blue",
-            TestHue.Green => "green",
-            _ => throw new System.Text.Json.JsonException(),
-        });
-    }
 
     [Fact]
     public void BhvMisc083ARawQueryKeepsItsRepeatedKeysValuesAndEscapesAsWritten()
@@ -1167,5 +1120,51 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
             ValueSerializer.AllowReservedInPath(ValueSerializer.EncodePathSegment("a?b#c[d]e%f g")));
         Assert.Equal("/", ValueSerializer.AllowReservedInPath("%2f"));
     }
+}
 
+/// <summary>
+/// A stand-in enum for the wire-value tests above. It is declared here rather
+/// than taken from the generated models so the test holds for EVERY spec this
+/// SDK is generated from — no spec is guaranteed to contain a string enum. It
+/// mirrors how the generator emits enums: a [JsonConverter] maps each member to
+/// its OpenAPI wire string, which is what ObjectSerializer.Stringify round-trips
+/// through.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(TestHueConverter))]
+public enum TestHue
+{
+    Red,
+    Blue,
+    Green,
+}
+
+public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
+{
+    public override TestHue Read(
+        ref System.Text.Json.Utf8JsonReader reader,
+        Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options)
+    {
+        return reader.GetString() switch
+        {
+            "red" => TestHue.Red,
+            "blue" => TestHue.Blue,
+            "green" => TestHue.Green,
+            _ => throw new System.Text.Json.JsonException(),
+        };
+    }
+
+    public override void Write(
+        System.Text.Json.Utf8JsonWriter writer,
+        TestHue value,
+        System.Text.Json.JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value switch
+        {
+            TestHue.Red => "red",
+            TestHue.Blue => "blue",
+            TestHue.Green => "green",
+            _ => throw new System.Text.Json.JsonException(),
+        });
+    }
 }
