@@ -1342,6 +1342,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         // SerializersModule.
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
         property.vendorExtensions.put("isLocalTime", "LocalTime".equals(property.dataType));
+        if (property.isContainer && property.dataType != null) {
+            property.dataType = annotateContextualElements(property.dataType);
+        }
     }
 
     /**
@@ -1904,6 +1907,20 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             property.dataType = annotateAnyAsContextual(property.dataType);
         }
         return property;
+    }
+
+    /**
+     * Annotates the element types of a container that kotlinx.serialization can only
+     * serialize through a contextual serializer ({@code BigDecimal}, the {@code java.time}
+     * types, {@code Uuid} and {@code URI}) in a model property. A scalar property gets
+     * {@code @Contextual} on the property itself; inside {@code List<...>} or
+     * {@code Map<..., ...>} the annotation has to sit on the type argument, or the
+     * compiler fails with "Serializer has not been found". Idempotent.
+     */
+    private static String annotateContextualElements(String dataType) {
+        return dataType.replaceAll(
+                "(?<=[<,]\\s{0,1})(BigDecimal|OffsetDateTime|LocalDate|LocalTime|Duration|Uuid|URI)(?![A-Za-z0-9_])",
+                "@Contextual $1");
     }
 
     /**

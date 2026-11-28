@@ -652,10 +652,6 @@ abstract class BaseApi {
         return failure
     }
 
-    /**
-     * The path of [url] without its query string or fragment, the path the failed request
-     * is reported with.
-     */
 {{#hasDigestAuth}}
     /** The request target of a URL for a Digest answer: its path and query, without the fragment. */
     private fun requestTargetOf(url: String): String {
@@ -666,6 +662,10 @@ abstract class BaseApi {
     }
 
 {{/hasDigestAuth}}
+    /**
+     * The path of [url] without its query string or fragment, the path the failed request
+     * is reported with.
+     */
     private fun requestPathOf(url: String): String {
         val stripped = url.substringBefore('#').substringBefore('?')
         val path =
