@@ -162,6 +162,34 @@ module Petstore::Client
           end
         end
 
+        # POST +params+ as a form to +url+ through the shared API client, the
+        # way a token request is sent, and return the body of a 2xx answer;
+        # the session is not touched. The device authorization request
+        # (RFC 8628 section 3.1) goes through here.
+        #
+        # @api private
+        # @param url [String] the endpoint URL
+        # @param params [Hash{String => String}] the form parameters, in order
+        # @return [String] the response body
+        # @raise [::Petstore::Client::Errors::OAuth2ServerError] if the endpoint answers with a non-2xx status
+        def post_form(url, params)
+          @mutex.synchronize do
+            raise_if_stopped
+            post_token_form(url, params, {}).body.to_s
+          end
+        end
+
+        # A lifetime in whole seconds read like a token response's
+        # +expires_in+: an integer, a floored float or a plain decimal string;
+        # anything else is 0, and a value past one year is one year.
+        #
+        # @api private
+        # @param raw [Object] the JSON value
+        # @return [Integer]
+        def lifetime_seconds(raw)
+          parse_expires_in(raw)
+        end
+
         # Invalidate the cached access token so that the next call to
         # {#get_access_token} fetches a fresh token from the token endpoint.
         # Intended for tests and recovery flows.
@@ -215,6 +243,12 @@ module Petstore::Client
         # @raise [::Petstore::Client::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
         # @raise [::Petstore::Client::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
         def fetch_token(token_url, params, extra_headers = {})
+          apply_token_response(parse_token_response(post_token_form(token_url, params, extra_headers).body))
+        end
+
+        # POST the form to +token_url+ and return the 2xx response; a non-2xx
+        # response raises the OAuth2ServerError it describes.
+        def post_token_form(token_url, params, extra_headers)
           client = require_api_client
           headers = {
             'Content-Type' => 'application/x-www-form-urlencoded',
@@ -251,7 +285,7 @@ module Petstore::Client
           # object.
           raise parse_oauth2_server_error(status, response.body) unless (200..299).cover?(status)
 
-          apply_token_response(parse_token_response(response.body))
+          response
         end
 
         # A 2xx token response that is not a JSON object cannot yield a

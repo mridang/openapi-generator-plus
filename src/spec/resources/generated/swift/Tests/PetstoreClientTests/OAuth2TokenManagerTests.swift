@@ -1514,4 +1514,253 @@ import Testing
     #expect(error?.code == nil)
     #expect(error?.errorDescription?.contains("plain text failure") == true)
   }
+
+  // MARK: - Device authorization (RFC 8628)
+
+  /// A clock the device authenticator's sleep moves forward, recording every wait.
+  private final class FakeDeviceClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _now: TimeInterval = 1_000
+    private var _waits: [Int] = []
+
+    var waits: [Int] {
+      lock.withLock { _waits }
+    }
+
+    func now() -> TimeInterval {
+      lock.withLock { _now }
+    }
+
+    func sleep(_ seconds: Int) {
+      lock.withLock {
+        _waits.append(seconds)
+        _now += TimeInterval(seconds)
+      }
+    }
+  }
+
+  /// A device authorization authenticator against the mock client, waiting on the fake clock.
+  private func makeDeviceAuthenticator(
+    client: MockApiClient, clock: FakeDeviceClock = FakeDeviceClock(), scopes: [String] = []
+  ) -> OAuth2DeviceAuthorizationAuthenticator {
+    let auth = OAuth2DeviceAuthorizationAuthenticator(
+      host: "https://api.example.com",
+      clientID: "device-client",
+      deviceAuthorizationURL: "https://auth.example.com/device",
+      tokenURL: "https://auth.example.com/token",
+      scopes: scopes
+    )
+    auth.setApiClient(client)
+    auth.sleep = { seconds in clock.sleep(seconds) }
+    auth.now = { clock.now() }
+    return auth
+  }
+
+  /* The device authorization request is a form POST of the client id and the scopes in declared order, and the answer is read into DeviceAuthorization, with an interval of 5 seconds when the server sends none. */
+  @Test func testBhvAuthoauthtwodevice700DeviceAuthorizationRequestAndResponse() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body:
+          "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://auth.example.com/activate\",\"verification_uri_complete\":\"https://auth.example.com/activate?user_code=ABCD-EFGH\",\"expires_in\":1800,\"interval\":7}"
+      ))
+    client.responses.append(
+      makeResponse(
+        body:
+          "{\"device_code\":\"dev-2\",\"user_code\":\"WXYZ\",\"verification_uri\":\"https://auth.example.com/activate\",\"expires_in\":\"600\"}"
+      ))
+    let auth = makeDeviceAuthenticator(client: client, scopes: ["read", "write"])
+
+    let first = try await auth.requestDeviceAuthorization()
+    #expect(
+      first
+        == DeviceAuthorization(
+          deviceCode: "dev-1",
+          userCode: "ABCD-EFGH",
+          verificationURI: "https://auth.example.com/activate",
+          verificationURIComplete: "https://auth.example.com/activate?user_code=ABCD-EFGH",
+          expiresIn: 1800,
+          interval: 7))
+    let second = try await auth.requestDeviceAuthorization()
+    #expect(second.interval == 5)
+    #expect(second.expiresIn == 600)
+    #expect(second.verificationURIComplete == nil)
+    #expect(client.requests[0].url == "https://auth.example.com/device")
+    #expect(client.requests[0].body == "client_id=device-client&scope=read+write")
+    #expect(client.lastMethod == "POST")
+    #expect(client.lastHeaders["Content-Type"] == "application/x-www-form-urlencoded")
+
+    let unscoped = MockApiClient()
+    unscoped.responses.append(
+      makeResponse(
+        body:
+          "{\"device_code\":\"d\",\"user_code\":\"u\",\"verification_uri\":\"v\",\"expires_in\":60}"
+      ))
+    _ = try await makeDeviceAuthenticator(client: unscoped).requestDeviceAuthorization()
+    #expect(unscoped.requests[0].body == "client_id=device-client")
+  }
+
+  /* An unusable device authorization answer is an OAuth2TokenError with a fixed message, and a non-2xx answer is an OAuth2ServerError. */
+  @Test func testBhvAuthoauthtwodevice701UnusableDeviceAuthorizationResponsesAreTyped() async throws
+  {
+    let cases: [(String, String)] = [
+      ("<html>ok</html>", "Device authorization response is not valid JSON"),
+      ("[\"a\"]", "Device authorization response is not a JSON object"),
+      (
+        "{\"user_code\":\"u\",\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty device_code field"
+      ),
+      (
+        "{\"device_code\":\"\",\"user_code\":\"u\",\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty device_code field"
+      ),
+      (
+        "{\"device_code\":7,\"user_code\":\"u\",\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty device_code field"
+      ),
+      (
+        "{\"device_code\":\"d\",\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty user_code field"
+      ),
+      (
+        "{\"device_code\":\"d\",\"user_code\":\"u\"}",
+        "Device authorization response missing or empty verification_uri field"
+      ),
+    ]
+    for (body, message) in cases {
+      let client = MockApiClient()
+      client.responses.append(makeResponse(body: body))
+      let auth = makeDeviceAuthenticator(client: client)
+      let error = await #expect(throws: OAuth2TokenError.self) {
+        _ = try await auth.requestDeviceAuthorization()
+      }
+      #expect(error == .invalidResponse(message), "\(body)")
+      #expect(error?.localizedDescription == message)
+    }
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+    let auth = makeDeviceAuthenticator(client: client)
+    let error = await #expect(throws: OAuth2ServerError.self) {
+      _ = try await auth.requestDeviceAuthorization()
+    }
+    #expect(error?.statusCode == 401)
+    #expect(error?.code == "invalid_client")
+  }
+
+  /* Polling posts the device code grant to the token URL and keeps polling while the server answers authorization_pending. */
+  @Test func testBhvAuthoauthtwodevice702PollForTokenPostsTheDeviceCodeGrantUntilApproved()
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+    client.responses.append(
+      makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\"}"))
+    let auth = makeDeviceAuthenticator(client: client)
+
+    try await auth.pollForToken(
+      DeviceAuthorization(
+        deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+
+    #expect(client.requests.count == 3)
+    for request in client.requests {
+      #expect(request.url == "https://auth.example.com/token")
+      #expect(
+        request.body
+          == "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-1"
+      )
+    }
+  }
+
+  /* A slow_down answer adds five seconds to the polling interval. */
+  @Test func testBhvAuthoauthtwodevice703SlowDownAddsFiveSecondsToTheInterval() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"error\":\"slow_down\"}", statusCode: 400))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\"}"))
+    let clock = FakeDeviceClock()
+    let auth = makeDeviceAuthenticator(client: client, clock: clock)
+
+    try await auth.pollForToken(
+      DeviceAuthorization(
+        deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+
+    #expect(clock.waits == [5, 10])
+  }
+
+  /* Any other token error ends polling with the OAuth2ServerError, and polling past expires_in ends with an OAuth2TokenError. */
+  @Test func testBhvAuthoauthtwodevice704PollingEndsOnOtherErrorsAndOnExpiry() async throws {
+    let denied = MockApiClient()
+    denied.responses.append(
+      makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+    denied.responses.append(makeResponse(body: "{\"error\":\"access_denied\"}", statusCode: 400))
+    let deniedAuth = makeDeviceAuthenticator(client: denied)
+    let serverError = await #expect(throws: OAuth2ServerError.self) {
+      try await deniedAuth.pollForToken(
+        DeviceAuthorization(
+          deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+    }
+    #expect(serverError?.code == "access_denied")
+
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+    client.responses.append(
+      makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+    let auth = makeDeviceAuthenticator(client: client)
+    let tokenError = await #expect(throws: OAuth2TokenError.self) {
+      try await auth.pollForToken(
+        DeviceAuthorization(
+          deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 12, interval: 5))
+    }
+    #expect(
+      tokenError == .invalidResponse("Device authorization expired before the user approved it"))
+    #expect(client.requests.count == 2)
+  }
+
+  /* Before a token is obtained the authenticator refuses to authenticate; after it, the bearer header carries the polled access token. */
+  @Test func testBhvAuthoauthtwodevice705AuthHeadersNeedAPolledToken() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"device-token\",\"expires_in\":3600}"))
+    let auth = makeDeviceAuthenticator(client: client)
+
+    let error = await #expect(throws: OAuth2AuthorizationCodeError.self) {
+      _ = try await auth.authHeaders()
+    }
+    #expect(error == .deviceTokenNotPolled)
+    #expect(error?.localizedDescription == "Must call pollForToken() before making API requests")
+
+    try await auth.pollForToken(
+      DeviceAuthorization(
+        deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+    let headers = try await auth.authHeaders()
+    #expect(headers["Authorization"] == "Bearer device-token")
+  }
+
+  /* The per-scheme wrapper passes the spec's device authorization URL, token URL and scopes in declared order. */
+  @Test func testBhvAuthoauthtwodevice706TheDeviceAuthWrapperSendsTheSpecScopesAndUrls()
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body:
+          "{\"device_code\":\"dev-1\",\"user_code\":\"u\",\"verification_uri\":\"v\",\"expires_in\":600}"
+      ))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\"}"))
+    let clock = FakeDeviceClock()
+    let auth = try DeviceAuthDeviceAuthorizationAuthenticator(
+      host: "https://api.example.com", clientId: "device-client")
+    auth.setApiClient(client)
+    auth.sleep = { seconds in clock.sleep(seconds) }
+    auth.now = { clock.now() }
+
+    let authorization = try await auth.requestDeviceAuthorization()
+    try await auth.pollForToken(authorization)
+
+    #expect(client.requests[0].url == "https://auth.example.com/oauth/device")
+    #expect(client.requests[0].body == "client_id=device-client&scope=pets%3Aread+pets%3Awrite")
+    #expect(client.requests[1].url == "https://auth.example.com/oauth/token")
+  }
 }

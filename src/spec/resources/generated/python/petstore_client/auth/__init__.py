@@ -15,6 +15,9 @@ from petstore_client.auth.http_aware_authenticator import (
 from petstore_client.auth.basic_authenticator import (
     BasicAuthenticator as BasicAuthenticator,
 )
+from petstore_client.auth.digest_authenticator import (
+    DigestAuthenticator as DigestAuthenticator,
+)
 from petstore_client.auth.bearer_authenticator import (
     BearerAuthenticator as BearerAuthenticator,
 )
@@ -28,6 +31,7 @@ __all__ = [
     "BaseAuthenticator",
     "HttpAwareAuthenticator",
     "BasicAuthenticator",
+    "DigestAuthenticator",
     "BearerAuthenticator",
     "ApiKeyAuthenticator",
     "ApiKeyLocation",

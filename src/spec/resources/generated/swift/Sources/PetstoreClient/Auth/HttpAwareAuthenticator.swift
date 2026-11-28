@@ -43,3 +43,19 @@ public protocol AccessTokenInvalidating: Authenticator {
   /// Drops the cached access token so the next call fetches a fresh one.
   func invalidateAccessToken()
 }
+
+/// An authenticator that answers a server's 401 challenge, the HTTP Digest
+/// authenticator. Its answer depends on the method and the request target,
+/// which ``Authenticator/authHeaders()`` does not carry, so ``BaseApi`` asks it
+/// directly: ``authorization(method:requestTarget:)`` before every request, and
+/// ``acceptChallenge(_:)`` with the `WWW-Authenticate` value of a 401, after
+/// which the request is replayed once when the challenge was accepted.
+protocol ChallengeAuthenticating: Authenticator {
+  /// The Authorization header for a request, or nil before any challenge was
+  /// accepted. `requestTarget` is the path and query of the URL.
+  func authorization(method: String, requestTarget: String) -> String?
+
+  /// Remembers the first challenge of a `WWW-Authenticate` value it can
+  /// answer and returns whether there was one.
+  func acceptChallenge(_ wwwAuthenticate: String) -> Bool
+}

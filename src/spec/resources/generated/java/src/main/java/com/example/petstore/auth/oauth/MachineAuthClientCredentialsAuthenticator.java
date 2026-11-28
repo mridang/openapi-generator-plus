@@ -21,6 +21,12 @@ import javax.annotation.Nullable;
 public final class MachineAuthClientCredentialsAuthenticator
     extends OAuth2ClientCredentialsAuthenticator {
   /**
+   * The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+   */
+  public static final String METADATA_URL =
+      "https://auth.example.com/.well-known/oauth-authorization-server";
+
+  /**
    * Creates an authenticator for the {@code machineAuth} security scheme.
    *
    * @param host the host credential

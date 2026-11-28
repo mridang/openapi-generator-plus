@@ -298,6 +298,7 @@ func clientWithSchemeCredential(authenticator: any Authenticator) throws -> Clie
 |---|---|---|
 | `petStoreBasic` | `petStoreBasic` | `PetStoreBasicAuthenticator` |
 | `adminBasic` | `adminBasic` | `AdminBasicAuthenticator` |
+| `archiveDigest` | `archiveDigest` | `ArchiveDigestAuthenticator` |
 | `petStoreBearer` | `petStoreBearer` | `PetStoreBearerAuthenticator` |
 | `serviceToken` | `serviceToken` | `ServiceTokenAuthenticator` |
 | `apiKeyHeader` | `apiKeyHeader` | `ApiKeyHeaderAuthenticator` |
@@ -308,6 +309,7 @@ func clientWithSchemeCredential(authenticator: any Authenticator) throws -> Clie
 | `legacyAuth` | `legacyAuth` | `LegacyAuthPasswordAuthenticator` |
 | `userAuth` | `userAuth` | `UserAuthAuthorizationCodeAuthenticator` |
 | `browserAuth` | `browserAuth` | `BrowserAuthImplicitAuthenticator` |
+| `deviceAuth` | `deviceAuth` | `DeviceAuthDeviceAuthorizationAuthenticator` |
 | `ssoAuth` | `ssoAuth` | `SsoAuthAuthenticator` |
 
 Each operation uses the credential of the first scheme its own spec lists that you
@@ -319,6 +321,10 @@ operation none of whose schemes has a credential uses the single authenticator o
 without a credential otherwise. A credential that makes HTTP calls of its own (OAuth2,
 OpenID Connect) is given the client's transport, so it shares its proxy, TLS and
 timeout settings.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
 
 ## Closing the client
 
@@ -562,7 +568,10 @@ variable names start with `SWAGGER_PETSTORE_OPEN_API_3_0`; the `envVarPrefix` ge
 | `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
 | `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
 | `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `archiveDigest` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` |
+| `archiveDigest` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` |
 | `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
 | `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
 | `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
 | `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
@@ -689,6 +698,8 @@ before the network round trip, plug in a JSON Schema validator library.
 
 `uniqueItems` arrays are sent in the collection's natural order and are not
 sorted.
+
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ### SOCKS proxies
 

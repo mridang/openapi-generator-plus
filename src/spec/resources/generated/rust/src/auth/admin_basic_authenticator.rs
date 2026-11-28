@@ -12,6 +12,8 @@ use super::BasicAuthenticator;
 /// Scheme-specific authenticator for the adminBasic security scheme.
 ///
 /// Delegates to [`BasicAuthenticator`].
+///
+/// Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
 pub struct AdminBasicAuthenticator(BasicAuthenticator);
 
 impl AdminBasicAuthenticator {
@@ -114,6 +116,14 @@ impl crate::auth::Authenticator for AdminBasicAuthenticator {
         &'a self,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
         self.0.invalidate_access_token()
+    }
+
+    fn challenge_authorization(&self, method: &str, request_target: &str) -> Option<String> {
+        self.0.challenge_authorization(method, request_target)
+    }
+
+    fn accept_challenge(&self, www_authenticate: &str) -> bool {
+        self.0.accept_challenge(www_authenticate)
     }
 
     fn as_http_aware_mut(&mut self) -> Option<&mut dyn crate::auth::HttpAwareAuthenticator> {

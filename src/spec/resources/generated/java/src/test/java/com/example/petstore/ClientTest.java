@@ -119,6 +119,7 @@ class ClientTest {
         java.util.List.of(
                 "petStoreBasic",
                 "adminBasic",
+                "archiveDigest",
                 "petStoreBearer",
                 "serviceToken",
                 "apiKeyHeader",
@@ -129,6 +130,7 @@ class ClientTest {
                 "legacyAuth",
                 "userAuth",
                 "browserAuth",
+                "deviceAuth",
                 "ssoAuth",
                 "build",
                 "callHook",
@@ -565,6 +567,8 @@ class ClientTest {
     assertTrue(storeListed.contains("getMatrixWithHttpInfo"));
     assertTrue(storeListed.contains("getMemo"));
     assertTrue(storeListed.contains("getMemoWithHttpInfo"));
+    assertTrue(storeListed.contains("getNativeAmount"));
+    assertTrue(storeListed.contains("getNativeAmountWithHttpInfo"));
     assertTrue(storeListed.contains("getNativeValues"));
     assertTrue(storeListed.contains("getNativeValuesWithHttpInfo"));
     assertTrue(storeListed.contains("getOrderById"));
@@ -583,6 +587,8 @@ class ClientTest {
     assertTrue(storeListed.contains("getTreeWithHttpInfo"));
     assertTrue(storeListed.contains("headMemo"));
     assertTrue(storeListed.contains("headMemoWithHttpInfo"));
+    assertTrue(storeListed.contains("listNativeAmounts"));
+    assertTrue(storeListed.contains("listNativeAmountsWithHttpInfo"));
     assertTrue(storeListed.contains("optionsMemo"));
     assertTrue(storeListed.contains("optionsMemoWithHttpInfo"));
     assertTrue(storeListed.contains("patchMemo"));
@@ -593,6 +599,8 @@ class ClientTest {
     assertTrue(storeListed.contains("reserveStockWithHttpInfo"));
     assertTrue(storeListed.contains("searchStore"));
     assertTrue(storeListed.contains("searchStoreWithHttpInfo"));
+    assertTrue(storeListed.contains("submitAllowance"));
+    assertTrue(storeListed.contains("submitAllowanceWithHttpInfo"));
     assertTrue(storeListed.contains("traceMemo"));
     assertTrue(storeListed.contains("traceMemoWithHttpInfo"));
     assertTrue(storeListed.contains("watchNoticesStream"));
@@ -881,6 +889,7 @@ class ClientTest {
     java.util.stream.Stream.of(
             com.example.petstore.auth.PetStoreBasicAuthenticator.class,
             com.example.petstore.auth.AdminBasicAuthenticator.class,
+            com.example.petstore.auth.ArchiveDigestAuthenticator.class,
             com.example.petstore.auth.PetStoreBearerAuthenticator.class,
             com.example.petstore.auth.ServiceTokenAuthenticator.class,
             com.example.petstore.auth.ApiKeyHeaderAuthenticator.class,
@@ -891,6 +900,7 @@ class ClientTest {
             com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator.class,
             com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator.class,
             com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator.class,
+            com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator.class,
             com.example.petstore.auth.oauth.SsoAuthAuthenticator.class,
             Authenticator.class)
         .forEach(

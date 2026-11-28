@@ -341,6 +341,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
+        self.base.validate_request_body(&pet)?;
         let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
@@ -599,6 +600,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
+        self.base.validate_request_body(&pet_treatment)?;
         let request_body = Some(object_serializer::serialize(&pet_treatment)?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
@@ -5177,6 +5179,8 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
+        self.base
+            .validate_request_body(&set_pet_avatar_thumbnail_request)?;
         let request_body =
             Some(object_serializer::serialize(&set_pet_avatar_thumbnail_request)?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
@@ -5437,6 +5441,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
+        self.base.validate_request_body(&pet)?;
         let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 

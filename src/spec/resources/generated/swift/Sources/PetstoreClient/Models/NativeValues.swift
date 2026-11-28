@@ -18,6 +18,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   public let homepage: String?
   /// Example: 12.345678901234567
   public let amount: Decimal?
+  public let amounts: [Decimal]?
   /// Example: 12.50
   public let ledger: Decimal?
   /// Example: 3600s
@@ -35,6 +36,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     case addresses = "addresses"
     case homepage = "homepage"
     case amount = "amount"
+    case amounts = "amounts"
     case ledger = "ledger"
     case wait = "wait"
     case since = "since"
@@ -45,14 +47,16 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Creates a new NativeValues instance.
   public init(
     address4: String? = nil, address6: String? = nil, addresses: [String]? = nil,
-    homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil, wait: Duration? = nil,
-    since: String? = nil, host: String? = nil, contact: String? = nil
+    homepage: String? = nil, amount: Decimal? = nil, amounts: [Decimal]? = nil,
+    ledger: Decimal? = nil, wait: Duration? = nil, since: String? = nil, host: String? = nil,
+    contact: String? = nil
   ) {
     self.address4 = address4
     self.address6 = address6
     self.addresses = addresses
     self.homepage = homepage
     self.amount = amount
+    self.amounts = amounts
     self.ledger = ledger
     self.wait = wait
     self.since = since
@@ -65,15 +69,16 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// `.some(nil)`, since a bare `nil` also means "keep".
   public func copy(
     address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none,
-    homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none,
-    wait: Duration?? = .none, since: String?? = .none, host: String?? = .none,
-    contact: String?? = .none
+    homepage: String?? = .none, amount: Decimal?? = .none, amounts: [Decimal]?? = .none,
+    ledger: Decimal?? = .none, wait: Duration?? = .none, since: String?? = .none,
+    host: String?? = .none, contact: String?? = .none
   ) -> NativeValues {
     return NativeValues(
       address4: address4 ?? self.address4, address6: address6 ?? self.address6,
       addresses: addresses ?? self.addresses, homepage: homepage ?? self.homepage,
-      amount: amount ?? self.amount, ledger: ledger ?? self.ledger, wait: wait ?? self.wait,
-      since: since ?? self.since, host: host ?? self.host, contact: contact ?? self.contact)
+      amount: amount ?? self.amount, amounts: amounts ?? self.amounts,
+      ledger: ledger ?? self.ledger, wait: wait ?? self.wait, since: since ?? self.since,
+      host: host ?? self.host, contact: contact ?? self.contact)
   }
 
   /// Decodes this instance from the given decoder.
@@ -94,6 +99,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
     /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
     self.amount = try container.decodeDecimalNumberIfPresent(forKey: .amount)
+    self.amounts = try container.decodeIfPresent([Decimal].self, forKey: .amounts)
     self.ledger = try container.decodeIfPresent(String.self, forKey: .ledger).map {
       try ObjectSerializer.decodeDecimalString($0)
     }
@@ -121,6 +127,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(ObjectSerializer.ordered(addresses), forKey: .addresses)
     try container.encodeIfPresent(ObjectSerializer.ordered(homepage), forKey: .homepage)
     try container.encodeIfPresent(ObjectSerializer.ordered(amount), forKey: .amount)
+    try container.encodeIfPresent(ObjectSerializer.ordered(amounts), forKey: .amounts)
     try container.encodeIfPresent(ledger.map { $0.description }, forKey: .ledger)
     try container.encodeIfPresent(
       try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)

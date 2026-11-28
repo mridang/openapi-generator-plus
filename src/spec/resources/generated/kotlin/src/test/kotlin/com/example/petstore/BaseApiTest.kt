@@ -349,6 +349,87 @@ class BaseApiTest {
         assertEquals(1, auth.invalidations)
     }
 
+    // Answers with the given statuses in turn (the last one repeats); a 401 carries a Digest challenge.
+    class DigestChallengeApiClient(
+        private val statuses: List<Int>,
+    ) : ApiClient {
+        val sentHeaders = mutableListOf<Map<String, String>>()
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse {
+            sentHeaders.add(headers.toMap())
+            val status = statuses[minOf(sentHeaders.size - 1, statuses.size - 1)]
+            val responseHeaders = mutableMapOf("Content-Type" to "application/json")
+            if (status == 401) {
+                responseHeaders["WWW-Authenticate"] = "Basic realm=\"test\", Digest realm=\"test\", qop=\"auth\", nonce=\"abc\""
+            }
+            return ApiHttpResponse(status, "{}", responseHeaders)
+        }
+    }
+
+    private fun digestCall(
+        client: ApiClient,
+        auth: com.example.petstore.auth.DigestAuthenticator,
+    ) {
+        val api =
+            object : com.example.petstore.api.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+                suspend fun call() =
+                    invokeApi(
+                        "POST",
+                        "/test/echo",
+                        mutableMapOf(),
+                        mutableMapOf(),
+                        "{}",
+                        arrayOf("application/json"),
+                        "application/json",
+                        auth,
+                    )
+            }
+        runBlocking { api.call() }
+    }
+
+    @Test
+    @DisplayName("authdigest702 a Digest challenge is answered and the request replayed once; a second 401 stands")
+    fun bhvAuthdigest702ChallengeIsAnsweredAndReplayedOnce() {
+        val client = DigestChallengeApiClient(listOf(401, 200))
+        val auth =
+            com.example.petstore.auth
+                .DigestAuthenticator("http://localhost", "alice", listOf("s3", "cret").joinToString(""))
+        digestCall(client, auth)
+        assertEquals(2, client.sentHeaders.size)
+        assertNull(client.sentHeaders[0]["Authorization"])
+        val answer = client.sentHeaders[1]["Authorization"].orEmpty()
+        assertTrue(
+            Regex(
+                "Digest username=\"alice\", realm=\"test\", nonce=\"abc\", uri=\"/test/echo\", " +
+                    "response=\"[0-9a-f]{32}\", qop=auth, nc=00000001, cnonce=\"[0-9a-f]{32}\"",
+            ).matches(answer),
+            answer,
+        )
+        val refused = DigestChallengeApiClient(listOf(401))
+        assertThrowsExactly(UnauthorizedException::class.java) { digestCall(refused, auth) }
+        assertEquals(2, refused.sentHeaders.size)
+    }
+
+    @Test
+    @DisplayName("authdigest703 a later request answers the remembered challenge up front with nc 00000002")
+    fun bhvAuthdigest703LaterRequestAnswersUpFrontWithTheNextNonceCount() {
+        val client = DigestChallengeApiClient(listOf(401, 200, 200))
+        val auth =
+            com.example.petstore.auth
+                .DigestAuthenticator("http://localhost", "alice", listOf("s3", "cret").joinToString(""))
+        digestCall(client, auth)
+        digestCall(client, auth)
+        assertEquals(3, client.sentHeaders.size)
+        val answer = client.sentHeaders[2]["Authorization"].orEmpty()
+        assertTrue(answer.contains(", nc=00000002, "), answer)
+    }
+
     @Test
     @DisplayName("bhvRetries003 F855: a multipart body is not replayed after a 401")
     fun aMultipartBodyIsNotReplayed() {
@@ -4939,5 +5020,142 @@ class BaseApiTest {
             assertTrue(pagesMethodsOf(StoreApi::class.java).isEmpty())
             assertTrue(StoreApi::class.java.methods.any { it.name == "exportOrdersStream" })
         }
+    }
+
+    // D189: the opt-in check of a request body against the validation keywords of its schema.
+    @Nested
+    @DisplayName("Constraint validation")
+    inner class ConstraintValidation {
+        private fun storeApi(
+            client: ScriptedApiClient,
+            validateConstraints: Boolean,
+        ): StoreApi =
+            StoreApi(
+                client,
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .validateConstraints(validateConstraints)
+                    .build(),
+            )
+
+        private val tier =
+            com.example.petstore.models
+                .AllowanceTier(level = 0, name = "ab")
+
+        private val valid =
+            com.example.petstore.models.Allowance(
+                label = "abc",
+                count = 5,
+                ratio = 0.5,
+                step = 10,
+                codes = listOf("a"),
+                limits = mapOf("a" to 1),
+                tier = tier,
+                parts = listOf(tier),
+            )
+
+        @Test
+        @DisplayName("bhvModels706 constraint validation is off by default and a body that breaks a keyword is sent unchanged")
+        fun bhvModels706ConstraintValidationIsOffByDefault() =
+            runBlocking<Unit> {
+                val client = ScriptedApiClient(listOf(204))
+                val api = StoreApi(client, Configuration.builder().baseUrl("http://localhost").build())
+                api.submitAllowance(valid.copy(label = "a", count = 0))
+                assertFalse(Configuration.defaultConfiguration().validateConstraints)
+                assertEquals(1, client.sentHeaders.size)
+            }
+
+        @Test
+        @DisplayName("bhvModels707 with constraint validation on a body that breaks one keyword is refused before it is sent")
+        fun bhvModels707ABodyThatBreaksOneKeywordIsRefusedBeforeItIsSent() {
+            val rows =
+                listOf(
+                    Triple("minLength", valid.copy(label = "a"), "Invalid request body: label must be at least 2 characters long"),
+                    Triple("maxLength", valid.copy(label = "abcdef"), "Invalid request body: label must be at most 5 characters long"),
+                    Triple("pattern", valid.copy(label = "ab1"), "Invalid request body: label must match the pattern ^[a-z]+\$"),
+                    Triple("minimum", valid.copy(count = 0), "Invalid request body: count must be greater than or equal to 1"),
+                    Triple("maximum", valid.copy(count = 11), "Invalid request body: count must be less than or equal to 10"),
+                    Triple("exclusiveMinimum", valid.copy(ratio = 0.0), "Invalid request body: ratio must be greater than 0"),
+                    Triple("exclusiveMaximum", valid.copy(ratio = 1.0), "Invalid request body: ratio must be less than 1"),
+                    Triple("multipleOf", valid.copy(step = 7), "Invalid request body: step must be a multiple of 5"),
+                    Triple("minItems", valid.copy(codes = emptyList()), "Invalid request body: codes must have at least 1 items"),
+                    Triple(
+                        "maxItems",
+                        valid.copy(codes = listOf("a", "b", "c", "d")),
+                        "Invalid request body: codes must have at most 3 items",
+                    ),
+                    Triple(
+                        "minProperties",
+                        valid.copy(limits = emptyMap()),
+                        "Invalid request body: limits must have at least 1 properties",
+                    ),
+                    Triple(
+                        "maxProperties",
+                        valid.copy(limits = mapOf("a" to 1, "b" to 2, "c" to 3)),
+                        "Invalid request body: limits must have at most 2 properties",
+                    ),
+                )
+            for ((keyword, body, message) in rows) {
+                val client = ScriptedApiClient(listOf(204))
+                val refused =
+                    assertThrowsExactly(IllegalArgumentException::class.java, {
+                        runBlocking { storeApi(client, true).submitAllowance(body) }
+                    }, keyword)
+                assertEquals(message, refused.message, keyword)
+                assertEquals(0, client.sentHeaders.size, keyword)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvModels708 with constraint validation on a violation inside a held model or a list of models names its path")
+        fun bhvModels708AViolationInsideAHeldModelOrAListNamesItsPath() {
+            val client = ScriptedApiClient(listOf(204))
+            val ok =
+                com.example.petstore.models
+                    .AllowanceTier(level = 1, name = "ab")
+            val negative =
+                com.example.petstore.models
+                    .AllowanceTier(level = -1)
+            val held =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    runBlocking { storeApi(client, true).submitAllowance(valid.copy(tier = negative)) }
+                }
+            assertEquals("Invalid request body: tier.level must be greater than or equal to 0", held.message)
+            val listed =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    runBlocking { storeApi(client, true).submitAllowance(valid.copy(parts = listOf(ok, negative))) }
+                }
+            assertEquals("Invalid request body: parts[1].level must be greater than or equal to 0", listed.message)
+            val named =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    runBlocking { storeApi(client, true).submitAllowance(valid.copy(tier = ok.copy(name = "abcd"))) }
+                }
+            assertEquals("Invalid request body: tier.name must be at most 3 characters long", named.message)
+            assertEquals(0, client.sentHeaders.size)
+        }
+
+        @Test
+        @DisplayName("bhvModels709 with constraint validation on a body within every constraint is sent and a null value is not checked")
+        fun bhvModels709ABodyWithinEveryConstraintIsSentAndANullValueIsNotChecked() =
+            runBlocking<Unit> {
+                val client = ScriptedApiClient(listOf(204))
+                val api = storeApi(client, true)
+                api.submitAllowance(valid)
+                assertEquals(1, client.sentHeaders.size)
+                api.submitAllowance(
+                    com.example.petstore.models
+                        .Allowance(),
+                )
+                api.submitAllowance(
+                    com.example.petstore.models
+                        .Allowance(
+                            tier =
+                                com.example.petstore.models
+                                    .AllowanceTier(),
+                        ),
+                )
+                assertEquals(3, client.sentHeaders.size)
+            }
     }
 }

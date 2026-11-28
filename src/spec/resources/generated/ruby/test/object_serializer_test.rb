@@ -1753,6 +1753,57 @@ describe Petstore::Client::ObjectSerializer do
     end
   end
 
+  # #98: OAS 3.1 type arrays become a union of their types; type null is an
+  # untyped nullable value.
+  describe 'type arrays and the null type' do
+    it 'bhv_models_700 decodes each type of a scalar type array and writes it back' do
+      text = Petstore::Client::ObjectSerializer.deserialize('{"level":"high","inlineLevel":3}', 'Reading')
+      _(Petstore::Client::Models::ReadingLevel.actual_instance(text.level)).must_equal('high')
+      _(Petstore::Client::Models::ReadingInlineLevel.actual_instance(text.inline_level)).must_equal(3)
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(text))['level']).must_equal('high')
+      number = Petstore::Client::ObjectSerializer.deserialize('{"level":7}', 'Reading')
+      _(Petstore::Client::Models::ReadingLevel.actual_instance(number.level)).must_equal(7)
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(number))['level']).must_equal(7)
+    end
+
+    it 'bhv_models_701 decodes both shapes of an array and object type array and writes them back' do
+      list = Petstore::Client::ObjectSerializer.deserialize('{"level":1,"shape":["a","b"]}', 'Reading')
+      _(Petstore::Client::Models::ReadingShape.actual_instance(list.shape)).must_equal(%w[a b])
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(list))['shape']).must_equal(%w[a b])
+      map = Petstore::Client::ObjectSerializer.deserialize('{"level":1,"shape":{"k":"v"}}', 'Reading')
+      _(Petstore::Client::Models::ReadingShape.actual_instance(map.shape)).must_equal({ 'k' => 'v' })
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(map))['shape']).must_equal({ 'k' => 'v' })
+    end
+
+    it 'bhv_unions_700 decodes a missing or unlisted discriminator value as the defaultMapping variant' do
+      unlisted = Petstore::Client::ObjectSerializer.deserialize('{"kind":"postcard","pages":2}', 'Parcel')
+      _(unlisted).must_be_instance_of(Petstore::Client::Models::Letter)
+      _(unlisted.pages).must_equal(2)
+      _(Petstore::Client::ObjectSerializer.deserialize('{"pages":3}', 'Parcel')).must_be_instance_of(Petstore::Client::Models::Letter)
+      _(Petstore::Client::ObjectSerializer.deserialize('{"kind":"packet","weightKg":1.5}', 'Parcel')).must_be_instance_of(Petstore::Client::Models::Packet)
+    end
+
+    it 'bhv_models_705 reads the then and else properties as optional properties without the condition' do
+      shipment = Petstore::Client::ObjectSerializer.deserialize('{"kind":"domestic","customsCode":"C2","postcode":"2000"}', 'Shipment')
+      _(shipment.customs_code).must_equal('C2')
+      _(shipment.postcode).must_equal('2000')
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(shipment))['customsCode']).must_equal('C2')
+    end
+
+    it 'bhv_models_703 does not enforce the validation-only JSON Schema keywords' do
+      audit = Petstore::Client::ObjectSerializer.deserialize('{"tags":["a","b"],"score":-5,"payload":"not json"}', 'Audit')
+      _(audit.tags).must_equal(%w[a b])
+      _(audit.score).must_equal(-5)
+      _(audit.payload).must_equal('not json')
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(audit))['score']).must_equal(-5)
+    end
+
+    it 'bhv_models_702 accepts null for a property of type null' do
+      reading = Petstore::Client::ObjectSerializer.deserialize('{"level":1,"nothing":null}', 'Reading')
+      _(reading.nothing).must_be_nil
+    end
+  end
+
   # ── format: time (Tod::TimeOfDay surface, 4.8) ──
 
   describe 'format: time round-tripping' do

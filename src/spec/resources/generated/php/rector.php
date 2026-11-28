@@ -17,8 +17,6 @@ return RectorConfig::configure()
     ])
     ->withSkip([
         __DIR__ . '/vendor',
-        // Mustache cannot produce PHP string interpolation ("$var") syntax
-        \Rector\CodeQuality\Rector\Concat\JoinStringConcatRector::class,
         // Temp variables needed for PHPStan @var type assertions
         \Rector\DeadCode\Rector\Assign\RemoveUnusedVariableAssignRector::class,
         // Constructor property promotion (PHP 8.0+) collapses explicit
@@ -31,10 +29,9 @@ return RectorConfig::configure()
         // Same for per-property: OAuth2TokenManager state mutates;
         // we avoid `readonly` to keep mustache emission uniform.
         \Rector\Php81\Rector\Property\ReadOnlyPropertyRector::class,
-        // Both write fully-qualified class names into the code (an
-        // instanceof in place of a null check, a return type on an arrow
-        // function), which pushes generated lines past PSR-12's 120 columns.
-        \Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector::class,
+        // Writes a fully-qualified class name into the code (a return type
+        // on an arrow function), which pushes generated lines past PSR-12's
+        // 120 columns.
         \Rector\TypeDeclaration\Rector\ArrowFunction\AddArrowFunctionReturnTypeRector::class,
         // Reads the redirect loop's `($response->headers['location'] ??
         // [null])[0]` as always null, rewrites the guard under it into an

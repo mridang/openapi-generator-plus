@@ -27,6 +27,7 @@ import com.example.petstore.api.options.GetGroupedCategoriesOptions
 import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.GetMatrixOptions
 import com.example.petstore.api.options.GetMemoOptions
+import com.example.petstore.api.options.GetNativeAmountOptions
 import com.example.petstore.api.options.GetNativeValuesOptions
 import com.example.petstore.api.options.GetOrderByIdOptions
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions
@@ -36,11 +37,13 @@ import com.example.petstore.api.options.GetSwatchOptions
 import com.example.petstore.api.options.GetTimestampGroupsOptions
 import com.example.petstore.api.options.GetTreeOptions
 import com.example.petstore.api.options.HeadMemoOptions
+import com.example.petstore.api.options.ListNativeAmountsOptions
 import com.example.petstore.api.options.OptionsMemoOptions
 import com.example.petstore.api.options.PatchMemoOptions
 import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
+import com.example.petstore.api.options.SubmitAllowanceOptions
 import com.example.petstore.api.options.TraceMemoOptions
 import com.example.petstore.api.options.WatchNoticesOptions
 import com.example.petstore.api.options.WatchOrdersOptions
@@ -48,6 +51,7 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.Account
+import com.example.petstore.models.Allowance
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
@@ -61,6 +65,7 @@ import com.example.petstore.models.ReserveStockResponse
 import com.example.petstore.models.StockItem
 import com.example.petstore.models.Swatch
 import com.example.petstore.models.TreeNode
+import java.math.BigDecimal
 import java.time.OffsetDateTime
 import kotlin.collections.List
 import kotlin.collections.Map
@@ -660,6 +665,50 @@ class StoreApi :
     }
 
     /**
+     * Reads one exact decimal as the whole response body.
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @return BigDecimal
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun getNativeAmount(options: GetNativeAmountOptions?): BigDecimal =
+        getNativeAmountWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getNativeAmount but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [getNativeAmount] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun getNativeAmountWithHttpInfo(options: GetNativeAmountOptions?): ApiResult<BigDecimal> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/native-values/amount"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<BigDecimal>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            NoAuth,
+            "StoreApi.getNativeAmount",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "getNativeAmount",
+            urlTemplate = "/store/native-values/amount",
+        )
+    }
+
+    /**
      * Reads values of the formats the SDKs type natively.
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
@@ -1135,6 +1184,50 @@ class StoreApi :
     }
 
     /**
+     * Reads a list of exact decimals as the whole response body.
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @return List<BigDecimal>
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listNativeAmounts(options: ListNativeAmountsOptions?): List<BigDecimal> =
+        listNativeAmountsWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listNativeAmounts but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listNativeAmounts] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listNativeAmountsWithHttpInfo(options: ListNativeAmountsOptions?): ApiResult<List<BigDecimal>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/native-values/amounts"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<List<BigDecimal>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            NoAuth,
+            "StoreApi.listNativeAmounts",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listNativeAmounts",
+            urlTemplate = "/store/native-values/amounts",
+        )
+    }
+
+    /**
      * Lists the methods a memo accepts with an OPTIONS request
      * @param memoId The memo to address (required)
      * @param options the per-call timeout, headers and maxRetries
@@ -1427,6 +1520,53 @@ class StoreApi :
             callMaxRetries = callMaxRetries,
             operationId = "searchStore",
             urlTemplate = "/store/search",
+        )
+    }
+
+    /**
+     * Submit an allowance whose schema uses every validation keyword
+     * @param allowance  (required)
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun submitAllowance(
+        allowance: Allowance,
+        options: SubmitAllowanceOptions?,
+    ) {
+        submitAllowanceWithHttpInfo(allowance, options)
+    }
+
+    /** Same as [submitAllowance] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun submitAllowanceWithHttpInfo(
+        allowance: Allowance,
+        options: SubmitAllowanceOptions?,
+    ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        requireNotNull(allowance) {
+            "Missing the required parameter 'allowance' when calling StoreApi.submitAllowance"
+        }
+        var path = "/store/allowance"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Unit>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            allowance,
+            arrayOf(),
+            "application/json",
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
+            "StoreApi.submitAllowance",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "submitAllowance",
+            urlTemplate = "/store/allowance",
         )
     }
 

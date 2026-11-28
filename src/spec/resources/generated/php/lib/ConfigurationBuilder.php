@@ -30,6 +30,9 @@ final class ConfigurationBuilder
     /** @var CallHook|null Hook called once around every operation call. */
     private ?CallHook $callHook = null;
 
+    /** @var bool Whether every request body is checked against its schema's validation keywords. */
+    private bool $validateConstraints = false;
+
     /**
      * Set the base URL for all API requests.
      *
@@ -83,6 +86,20 @@ final class ConfigurationBuilder
     }
 
     /**
+     * Turn the check of every request body against the validation keywords of
+     * its schema on or off. Off by default; when on, a body that breaks one is
+     * refused with an \InvalidArgumentException before anything is sent.
+     *
+     * @param bool $validateConstraints whether request bodies are checked
+     * @return self this builder
+     */
+    public function validateConstraints(bool $validateConstraints): self
+    {
+        $this->validateConstraints = $validateConstraints;
+        return $this;
+    }
+
+    /**
      * Set the base URL by resolving a server configuration with optional variable overrides.
      *
      * Enum validation is performed by {@see ServerConfiguration::getUrl()}.
@@ -109,6 +126,7 @@ final class ConfigurationBuilder
             baseUrl: $this->baseUrl,
             defaultHeaders: $this->defaultHeaders,
             callHook: $this->callHook,
+            validateConstraints: $this->validateConstraints,
         );
     }
 }

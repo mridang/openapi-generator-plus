@@ -241,7 +241,7 @@ describe 'Client' do
     keywords = Petstore::Client::Petstore.instance_method(:initialize).parameters
                                                   .filter_map { |kind, name| name if kind == :key }
 
-    _(keywords).must_equal %i[pet_store_basic admin_basic pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth sso_auth call_hook]
+    _(keywords).must_equal %i[pet_store_basic admin_basic archive_digest pet_store_bearer service_token api_key_header internal_api_key api_key_query session_cookie machine_auth legacy_auth user_auth browser_auth device_auth sso_auth call_hook]
   end
 
   it 'bhv_lifecycle_030 the base URL comes from the authenticator first, then from the first scheme credential' do
@@ -679,6 +679,10 @@ describe 'Client' do
     _(listed).must_include 'get_memo_with_http_info'
     _(group).must_respond_to :get_memo
     _(group).must_respond_to :get_memo_with_http_info
+    _(listed).must_include 'get_native_amount'
+    _(listed).must_include 'get_native_amount_with_http_info'
+    _(group).must_respond_to :get_native_amount
+    _(group).must_respond_to :get_native_amount_with_http_info
     _(listed).must_include 'get_native_values'
     _(listed).must_include 'get_native_values_with_http_info'
     _(group).must_respond_to :get_native_values
@@ -715,6 +719,10 @@ describe 'Client' do
     _(listed).must_include 'head_memo_with_http_info'
     _(group).must_respond_to :head_memo
     _(group).must_respond_to :head_memo_with_http_info
+    _(listed).must_include 'list_native_amounts'
+    _(listed).must_include 'list_native_amounts_with_http_info'
+    _(group).must_respond_to :list_native_amounts
+    _(group).must_respond_to :list_native_amounts_with_http_info
     _(listed).must_include 'options_memo'
     _(listed).must_include 'options_memo_with_http_info'
     _(group).must_respond_to :options_memo
@@ -735,6 +743,10 @@ describe 'Client' do
     _(listed).must_include 'search_store_with_http_info'
     _(group).must_respond_to :search_store
     _(group).must_respond_to :search_store_with_http_info
+    _(listed).must_include 'submit_allowance'
+    _(listed).must_include 'submit_allowance_with_http_info'
+    _(group).must_respond_to :submit_allowance
+    _(group).must_respond_to :submit_allowance_with_http_info
     _(listed).must_include 'trace_memo'
     _(listed).must_include 'trace_memo_with_http_info'
     _(group).must_respond_to :trace_memo

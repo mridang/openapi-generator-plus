@@ -130,6 +130,11 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
     protected function getAttributeValue(object $object, string $attribute, ?string $format = null, array $context = []): mixed
     {
         $value = $this->propertyAccessor->getValue($object, $attribute);
+        /* A oneOf or anyOf property (the union an OAS 3.1 type array becomes)
+         * is written as the value it holds, not as the wrapper's own fields. */
+        if (is_object($value) && method_exists($value, 'getActualInstance')) {
+            return \PetstoreClient\ObjectSerializer::unionWireValue($value);
+        }
         $shape = \PetstoreClient\ObjectSerializer::byteProperties($object::class)[$attribute] ?? null;
 
         return $shape === null ? $value : $this->encodeBytes($value, $shape);
@@ -226,6 +231,17 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
         $parameterType = $parameter->getType();
         if ($parameterType instanceof \ReflectionNamedType) {
             $className = $parameterType->getName();
+            /* A oneOf or anyOf property holds a wire value that need not be an
+             * object (a scalar or a list for an OAS 3.1 type array), so it is
+             * resolved through the union's own build() rules. */
+            if (
+                $parameterData !== null
+                && class_exists($className)
+                && method_exists($className, 'build')
+                && method_exists($className, 'getActualInstance')
+            ) {
+                return $className::build($parameterData);
+            }
             if (in_array($className, self::DS_CONTAINER_CLASSES, true)) {
                 if ($parameterData === null) {
                     return null;

@@ -27,6 +27,7 @@ use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
 use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\Options\GetMatrixOptions;
 use PetstoreClient\Api\Options\GetMemoOptions;
+use PetstoreClient\Api\Options\GetNativeAmountOptions;
 use PetstoreClient\Api\Options\GetNativeValuesOptions;
 use PetstoreClient\Api\Options\GetOrderByIdOptions;
 use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
@@ -36,11 +37,13 @@ use PetstoreClient\Api\Options\GetSwatchGroupsOptions;
 use PetstoreClient\Api\Options\GetTimestampGroupsOptions;
 use PetstoreClient\Api\Options\GetTreeOptions;
 use PetstoreClient\Api\Options\HeadMemoOptions;
+use PetstoreClient\Api\Options\ListNativeAmountsOptions;
 use PetstoreClient\Api\Options\OptionsMemoOptions;
 use PetstoreClient\Api\Options\PatchMemoOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\SubmitAllowanceOptions;
 use PetstoreClient\Api\Options\TraceMemoOptions;
 use PetstoreClient\Api\Options\WatchNoticesOptions;
 use PetstoreClient\Api\Options\WatchOrdersOptions;
@@ -215,6 +218,20 @@ interface StoreApiInterface
     public function getMemoWithHttpInfo(string $memoId, ?GetMemoServer $server = null, ?GetMemoOptions $options = null): ApiResult;
 
     /**
+     * Reads one exact decimal as the whole response body.
+     * @param GetNativeAmountOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getNativeAmount(?GetNativeAmountOptions $options = null): \Brick\Math\BigDecimal;
+
+    /**
+     * @param GetNativeAmountOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\Brick\Math\BigDecimal>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getNativeAmountWithHttpInfo(?GetNativeAmountOptions $options = null): ApiResult;
+
+    /**
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -351,6 +368,21 @@ interface StoreApiInterface
     public function headMemoWithHttpInfo(string $memoId, ?HeadMemoOptions $options = null): ApiResult;
 
     /**
+     * Reads a list of exact decimals as the whole response body.
+     * @param ListNativeAmountsOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \Ds\Vector<\Brick\Math\BigDecimal>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listNativeAmounts(?ListNativeAmountsOptions $options = null): \Ds\Vector;
+
+    /**
+     * @param ListNativeAmountsOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\Ds\Vector<\Brick\Math\BigDecimal>>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listNativeAmountsWithHttpInfo(?ListNativeAmountsOptions $options = null): ApiResult;
+
+    /**
      * Lists the methods a memo accepts with an OPTIONS request
      * @param string $memoId The memo to address
      * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
@@ -431,6 +463,20 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function searchStoreWithHttpInfo(?SearchStoreOptions $options = null): ApiResult;
+
+    /**
+     * Submit an allowance whose schema uses every validation keyword
+     * @param SubmitAllowanceOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function submitAllowance(\PetstoreClient\Models\Allowance $allowance, ?SubmitAllowanceOptions $options = null): void;
+
+    /**
+     * @param SubmitAllowanceOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function submitAllowanceWithHttpInfo(\PetstoreClient\Models\Allowance $allowance, ?SubmitAllowanceOptions $options = null): ApiResult;
 
     /**
      * Echoes a memo request with a TRACE request

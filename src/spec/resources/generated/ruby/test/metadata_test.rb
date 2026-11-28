@@ -112,6 +112,14 @@ describe 'Metadata', 'typed additional properties' do
     _(Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES_TYPE).must_equal('String')
   end
 
+  it 'bhv_models_704 types the extra properties by the patternProperties schema' do
+    sensors = serializer.deserialize('{"site":"north","s1":3,"s2":4}', 'Sensors')
+
+    _(sensors.additional_properties).must_equal({ 's1' => 3, 's2' => 4 })
+    _(Petstore::Client::Models::Sensors::ADDITIONAL_PROPERTIES_TYPE).must_equal('Integer')
+    _ { serializer.deserialize('{"s1":"three"}', 'Sensors') }.must_raise(failure)
+  end
+
   it 'bhv_models_025 an additional property of the wrong JSON type fails the decode, and instances that differ only in extra properties are not equal' do
     ['{"a":2.5}', '{"a":"2"}'].each do |body|
       _ { serializer.deserialize(body, 'Counters') }.must_raise(failure)

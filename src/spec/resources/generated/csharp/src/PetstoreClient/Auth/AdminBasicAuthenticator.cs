@@ -17,6 +17,7 @@ namespace PetstoreClient.Auth;
 /// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME</c> for <c>username</c></description></item>
 /// <item><description><c>SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD</c> for <c>password</c></description></item>
 /// </list>
+/// <para>Deprecated: the API marks the security scheme 'adminBasic' as deprecated.</para>
 /// </summary>
 public sealed class AdminBasicAuthenticator : BasicAuthenticator
 {

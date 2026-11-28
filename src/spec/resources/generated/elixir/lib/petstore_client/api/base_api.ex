@@ -304,6 +304,12 @@ defmodule PetstoreClient.Api.BaseApi do
         call \\ [],
         errors \\ %{}
       ) do
+    # With validate_constraints on, a body that breaks a validation keyword of
+    # its schema is refused before anything is built, hooked or sent.
+    if Map.get(state.config, :validate_constraints) && body != nil do
+      PetstoreClient.ConstraintValidator.validate!(body)
+    end
+
     # A call that starts after `close/1` fails with the one canonical error. A
     # call admitted before it runs to the end: the processes its authenticators
     # started are stopped when the last such call is over. A transport that is
@@ -435,7 +441,7 @@ defmodule PetstoreClient.Api.BaseApi do
       build_request(
         state,
         effective_auth,
-        {url, query_params, header_params},
+        {method, url, query_params, header_params},
         body,
         {accepts, content_type},
         call,
@@ -526,7 +532,7 @@ defmodule PetstoreClient.Api.BaseApi do
   defp build_request(
          state,
          effective_auth,
-         {url, query_params, header_params},
+         {method, url, query_params, header_params},
          body,
          {accepts, content_type},
          call,
@@ -618,6 +624,14 @@ defmodule PetstoreClient.Api.BaseApi do
           else
             headers
           end
+      end
+
+    # HTTP Digest (D192): the answer to the remembered challenge, for this
+    # method and request target, once the authenticator has one.
+    headers =
+      case digest_authorization(effective_auth, method, url) do
+        nil -> headers
+        answer -> put_header(headers, "Authorization", answer)
       end
 
     headers = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
@@ -891,8 +905,7 @@ defmodule PetstoreClient.Api.BaseApi do
       not replayable?(serialized_body) ->
         result
 
-      not ctx.replayed and unauthorized?(result) and
-          invalidate_access_token(effective_auth) == :ok ->
+      not ctx.replayed and unauthorized?(result) and reauthenticate(effective_auth, result) == :ok ->
         # A failed re-authentication keeps the 401 it replaces, as in the other SDKs.
         case build_for_replay(build_request) do
           {:ok, request} ->
@@ -1066,6 +1079,58 @@ defmodule PetstoreClient.Api.BaseApi do
   end
 
   defp invalidate_access_token(_auth), do: :unsupported
+
+  # Readies the replay after a 401: an OAuth2 or OpenID Connect authenticator
+  # drops its cached token, and a digest authenticator (D192) takes the Digest
+  # challenge of the response. `:unsupported` leaves the 401 as it is.
+  defp reauthenticate(effective_auth, result) do
+    case invalidate_access_token(effective_auth) do
+      :ok -> :ok
+      :unsupported -> accept_challenge(effective_auth, result)
+    end
+  end
+
+  defp accept_challenge(%{__struct__: mod} = auth, {:ok, %{headers: headers}})
+       when is_map(headers) do
+    challenges =
+      Enum.flat_map(headers, fn {name, value} ->
+        if String.downcase(to_string(name)) == "www-authenticate", do: List.wrap(value), else: []
+      end)
+
+    if challenges != [] and challenge_authenticator?(mod) and
+         mod.accept_challenge(auth, challenges),
+       do: :ok,
+       else: :unsupported
+  end
+
+  defp accept_challenge(_auth, _result), do: :unsupported
+
+  # The Authorization value a digest authenticator gives for one request, or nil.
+  defp digest_authorization(%{__struct__: mod} = auth, method, url) do
+    if challenge_authenticator?(mod),
+      do: mod.authorization(auth, method |> to_string() |> String.upcase(), request_target(url))
+  end
+
+  defp digest_authorization(_auth, _method, _url), do: nil
+
+  # An authenticator that answers a server challenge (HTTP Digest, D192)
+  # exports `authorization/3` and `accept_challenge/2`.
+  defp challenge_authenticator?(mod) do
+    Code.ensure_loaded?(mod) and function_exported?(mod, :accept_challenge, 2) and
+      function_exported?(mod, :authorization, 3)
+  end
+
+  # The request target of a URL: its path and query, without the scheme, the
+  # host or a fragment.
+  defp request_target(url) do
+    target =
+      url
+      |> String.split("#", parts: 2)
+      |> hd()
+      |> String.replace(~r/\A[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\/?]*/, "")
+
+    if String.starts_with?(target, "/"), do: target, else: "/" <> target
+  end
 
   # How long to wait before the next retry, or :none when the result is not
   # worth retrying, the retries are used up, or the wait would end past the

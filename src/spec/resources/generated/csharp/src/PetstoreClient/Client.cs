@@ -96,6 +96,7 @@ public sealed class Client : IClient
     /// <param name="host">API base URL.</param>
     /// <param name="petStoreBasic">Credential for the <c>petStoreBasic</c> security scheme, or null for none.</param>
     /// <param name="adminBasic">Credential for the <c>adminBasic</c> security scheme, or null for none.</param>
+    /// <param name="archiveDigest">Credential for the <c>archiveDigest</c> security scheme, or null for none.</param>
     /// <param name="petStoreBearer">Credential for the <c>petStoreBearer</c> security scheme, or null for none.</param>
     /// <param name="serviceToken">Credential for the <c>serviceToken</c> security scheme, or null for none.</param>
     /// <param name="apiKeyHeader">Credential for the <c>apiKeyHeader</c> security scheme, or null for none.</param>
@@ -106,6 +107,7 @@ public sealed class Client : IClient
     /// <param name="legacyAuth">Credential for the <c>legacyAuth</c> security scheme, or null for none.</param>
     /// <param name="userAuth">Credential for the <c>userAuth</c> security scheme, or null for none.</param>
     /// <param name="browserAuth">Credential for the <c>browserAuth</c> security scheme, or null for none.</param>
+    /// <param name="deviceAuth">Credential for the <c>deviceAuth</c> security scheme, or null for none.</param>
     /// <param name="ssoAuth">Credential for the <c>ssoAuth</c> security scheme, or null for none.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
     /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
@@ -113,6 +115,7 @@ public sealed class Client : IClient
         string host,
         PetstoreClient.Auth.PetStoreBasicAuthenticator? petStoreBasic = null,
         PetstoreClient.Auth.AdminBasicAuthenticator? adminBasic = null,
+        PetstoreClient.Auth.ArchiveDigestAuthenticator? archiveDigest = null,
         PetstoreClient.Auth.PetStoreBearerAuthenticator? petStoreBearer = null,
         PetstoreClient.Auth.ServiceTokenAuthenticator? serviceToken = null,
         PetstoreClient.Auth.ApiKeyHeaderAuthenticator? apiKeyHeader = null,
@@ -123,6 +126,7 @@ public sealed class Client : IClient
         PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator? legacyAuth = null,
         PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator? userAuth = null,
         PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator? browserAuth = null,
+        PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator? deviceAuth = null,
         PetstoreClient.Auth.OAuth.SsoAuthAuthenticator? ssoAuth = null,
         TransportOptions? transportOptions = null,
         ICallHook? callHook = null
@@ -133,6 +137,7 @@ public sealed class Client : IClient
             SchemeAuthenticatorMap(
                 ("petStoreBasic", petStoreBasic),
                 ("adminBasic", adminBasic),
+                ("archiveDigest", archiveDigest),
                 ("petStoreBearer", petStoreBearer),
                 ("serviceToken", serviceToken),
                 ("apiKeyHeader", apiKeyHeader),
@@ -143,6 +148,7 @@ public sealed class Client : IClient
                 ("legacyAuth", legacyAuth),
                 ("userAuth", userAuth),
                 ("browserAuth", browserAuth),
+                ("deviceAuth", deviceAuth),
                 ("ssoAuth", ssoAuth)
             ),
             transportOptions,

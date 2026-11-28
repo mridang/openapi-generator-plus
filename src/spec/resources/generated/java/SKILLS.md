@@ -160,6 +160,7 @@ import com.example.petstore.Client;
 import com.example.petstore.TransportOptions;
 import com.example.petstore.auth.PetStoreBasicAuthenticator;
 import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.ArchiveDigestAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.auth.ServiceTokenAuthenticator;
 import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
@@ -170,12 +171,14 @@ import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator
 import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
 import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
 import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator;
 import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
 
 class Credentials {
     static Client build(
             PetStoreBasicAuthenticator petStoreBasic,
             AdminBasicAuthenticator adminBasic,
+            ArchiveDigestAuthenticator archiveDigest,
             PetStoreBearerAuthenticator petStoreBearer,
             ServiceTokenAuthenticator serviceToken,
             ApiKeyHeaderAuthenticator apiKeyHeader,
@@ -186,11 +189,13 @@ class Credentials {
             LegacyAuthPasswordAuthenticator legacyAuth,
             UserAuthAuthorizationCodeAuthenticator userAuth,
             BrowserAuthImplicitAuthenticator browserAuth,
+            DeviceAuthDeviceAuthorizationAuthenticator deviceAuth,
             SsoAuthAuthenticator ssoAuth,
             TransportOptions transportOptions) {
         return Client.builder("https://api.example.com")
             .petStoreBasic(petStoreBasic)
             .adminBasic(adminBasic)
+            .archiveDigest(archiveDigest)
             .petStoreBearer(petStoreBearer)
             .serviceToken(serviceToken)
             .apiKeyHeader(apiKeyHeader)
@@ -201,6 +206,7 @@ class Credentials {
             .legacyAuth(legacyAuth)
             .userAuth(userAuth)
             .browserAuth(browserAuth)
+            .deviceAuth(deviceAuth)
             .ssoAuth(ssoAuth)
             .transportOptions(transportOptions)
             .build();
@@ -218,7 +224,10 @@ The authenticator generated for a security scheme (in the `auth` package, named 
 | `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
 | `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
 | `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `archiveDigest` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` |
+| `archiveDigest` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` |
 | `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
 | `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
 | `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
 | `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |

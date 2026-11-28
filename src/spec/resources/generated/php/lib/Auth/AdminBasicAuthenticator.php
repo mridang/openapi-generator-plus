@@ -15,6 +15,8 @@ namespace PetstoreClient\Auth;
 
 /**
  * Scheme-specific authenticator for the adminBasic security scheme.
+ *
+ * Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
  */
 final class AdminBasicAuthenticator extends BasicAuthenticator
 {

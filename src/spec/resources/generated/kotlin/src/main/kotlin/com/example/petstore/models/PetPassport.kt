@@ -75,7 +75,11 @@ data class PetPassport(
         } else if (other.scans != null) {
             return false
         }
-        if (issuedAt != other.issuedAt) return false
+        if (issuedAt == null) {
+            if (other.issuedAt != null) return false
+        } else if (!issuedAt.equals(other.issuedAt)) {
+            return false
+        }
         if (biometricChip != null) {
             if (other.biometricChip == null) return false
             if (!biometricChip.contentEquals(other.biometricChip)) return false

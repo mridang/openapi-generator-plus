@@ -26,6 +26,7 @@ module Petstore::Client
         addresses: 'addresses',
         homepage: 'homepage',
         amount: 'amount',
+        amounts: 'amounts',
         ledger: 'ledger',
         wait: 'wait',
         since: 'since',
@@ -45,6 +46,7 @@ module Petstore::Client
         addresses: 'Array<IPAddr>',
         homepage: 'String',
         amount: 'BigDecimal',
+        amounts: 'Array<BigDecimal>',
         ledger: 'BigDecimal',
         wait: 'ISO8601::Duration',
         since: 'Date',
@@ -137,6 +139,7 @@ module Petstore::Client
       attribute :homepage, Types::Any.optional.meta(omittable: true)
       # @example 12.345678901234567
       attribute :amount, Types::Any.optional.meta(omittable: true)
+      attribute :amounts, Types::Any.optional.meta(omittable: true)
       # @example 12.50
       attribute :ledger, Types::Any.optional.meta(omittable: true)
       # @example 3600s

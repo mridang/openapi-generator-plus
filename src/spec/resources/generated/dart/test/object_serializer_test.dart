@@ -1545,6 +1545,116 @@ void main() {
     );
 
     test(
+      'bhv models 700 a type array of scalars decodes each type into its union and writes it back',
+      () {
+        final text = deserialize<Reading>(
+          '{"level":"high","inlineLevel":3}',
+          Reading.fromJson,
+        )!;
+        expect(text.level.actualInstance, equals('high'));
+        expect(text.inlineLevel!.actualInstance, equals(3));
+        expect(
+          (jsonDecode(serialize(text)) as Map<String, dynamic>)['level'],
+          equals('high'),
+        );
+        final number = deserialize<Reading>('{"level":7}', Reading.fromJson)!;
+        expect(number.level.actualInstance, equals(7));
+        expect(
+          (jsonDecode(serialize(number)) as Map<String, dynamic>)['level'],
+          equals(7),
+        );
+      },
+    );
+
+    test(
+      'bhv models 701 a type array of array and object decodes both shapes and writes them back',
+      () {
+        final list = deserialize<Reading>(
+          '{"level":1,"shape":["a","b"]}',
+          Reading.fromJson,
+        )!;
+        expect(list.shape!.actualInstance, equals(['a', 'b']));
+        expect(
+          (jsonDecode(serialize(list)) as Map<String, dynamic>)['shape'],
+          equals(['a', 'b']),
+        );
+        final map = deserialize<Reading>(
+          '{"level":1,"shape":{"k":"v"}}',
+          Reading.fromJson,
+        )!;
+        expect(map.shape!.actualInstance, equals({'k': 'v'}));
+        expect(
+          (jsonDecode(serialize(map)) as Map<String, dynamic>)['shape'],
+          equals({'k': 'v'}),
+        );
+      },
+    );
+
+    test(
+      'bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant',
+      () {
+        final unlisted = deserialize<Parcel>(
+          '{"kind":"postcard","pages":2}',
+          Parcel.fromJson,
+        )!;
+        expect(unlisted.asLetter?.pages, equals(2));
+        expect(
+          deserialize<Parcel>('{"pages":3}', Parcel.fromJson)!.isLetter,
+          isTrue,
+        );
+        expect(
+          deserialize<Parcel>(
+            '{"kind":"packet","weightKg":1.5}',
+            Parcel.fromJson,
+          )!.isPacket,
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'bhv models 705 the properties of then and else are optional properties and the condition is not enforced',
+      () {
+        final shipment = deserialize<Shipment>(
+          '{"kind":"domestic","customsCode":"C2","postcode":"2000"}',
+          Shipment.fromJson,
+        )!;
+        expect(shipment.customsCode, equals('C2'));
+        expect(shipment.postcode, equals('2000'));
+        expect(
+          (jsonDecode(serialize(shipment))
+              as Map<String, dynamic>)['customsCode'],
+          equals('C2'),
+        );
+      },
+    );
+
+    test(
+      'bhv models 703 the validation-only JSON Schema keywords are not enforced',
+      () {
+        final audit = deserialize<Audit>(
+          '{"tags":["a","b"],"score":-5,"payload":"not json"}',
+          Audit.fromJson,
+        )!;
+        expect(audit.tags, equals(['a', 'b']));
+        expect(audit.score, equals(-5));
+        expect(audit.payload, equals('not json'));
+        expect(
+          (jsonDecode(serialize(audit)) as Map<String, dynamic>)['score'],
+          equals(-5),
+        );
+      },
+    );
+
+    test('bhv models 702 a property of type null accepts null', () {
+      final reading = deserialize<Reading>(
+        '{"level":1,"nothing":null}',
+        Reading.fromJson,
+      )!;
+      expect(reading.nothing, isNull);
+    });
+
+    test(
       'bhv serializationobject 006 a JSON object with a duplicate key resolves to the last value',
       () {
         expect(deserializeRaw('{"a":1,"a":2}'), equals({'a': 2}));
@@ -4426,6 +4536,33 @@ void main() {
           expect(values.amount, isA<Decimal>());
           expect(values.ledger, isA<Decimal>());
           expect(values.amount! + values.ledger!, equals(Decimal.parse('0.3')));
+
+          const listed = '{"amounts":[12.345678901234567890123,1.50]}';
+          expect(
+            decode(listed).amounts!.first,
+            equals(Decimal.parse('12.345678901234567890123')),
+          );
+          expect(serialize(decode(listed)), equals(listed));
+
+          // The two response shapes StoreApi.getNativeAmount and listNativeAmounts decode.
+          expect(
+            readDecimalBody(' 12.345678901234567890123 '),
+            equals(Decimal.parse('12.345678901234567890123')),
+          );
+          expect(
+            deserializeArrayFromJson(
+              '[12.345678901234567890123,0.1]',
+              (e) => readDecimalValue(e),
+            ),
+            equals([
+              Decimal.parse('12.345678901234567890123'),
+              Decimal.parse('0.1'),
+            ]),
+          );
+          expect(
+            () => readDecimalBody('"12.5"'),
+            throwsA(isA<SerializationException>()),
+          );
         },
       );
     });

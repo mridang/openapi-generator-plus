@@ -123,3 +123,20 @@ type ContextAuthenticator interface {
 	 * call. */
 	AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error)
 }
+
+// ChallengeAuthenticator is implemented by an authenticator that answers a
+// server's 401 challenge, the HTTP Digest authenticator. Its answer depends on
+// the method and the request target, which AuthHeaders does not carry, so the
+// client asks it directly: Authorization before every request, and
+// AcceptChallenge with the WWW-Authenticate value of a 401, after which the
+// request is replayed once when the challenge was accepted.
+type ChallengeAuthenticator interface {
+	/* Authorization returns the Authorization header for a request, and false
+	 * before any challenge was accepted. requestTarget is the path and query
+	 * of the URL. */
+	Authorization(method, requestTarget string) (string, bool)
+
+	/* AcceptChallenge remembers the first challenge of a WWW-Authenticate
+	 * value it can answer and reports whether there was one. */
+	AcceptChallenge(wwwAuthenticate string) bool
+}

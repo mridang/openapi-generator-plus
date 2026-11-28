@@ -12,6 +12,7 @@ import {
   durationToProtoJson,
   isTemporalValue,
   decodePlainNumber,
+  decodePlainNumberArray,
   decodeStringDecimal,
   plainDate,
   isIpv4Address,
@@ -74,6 +75,13 @@ export class NativeValues {
     toClassOnly: true,
   })
   readonly amount?: Decimal;
+  @Expose({ name: "amounts" })
+  /* Each element of an array of decimals is a JSON number: decode keeps its
+   * exact text (no float coercion) and rejects a quoted string. */
+  @Transform(({ obj }) => decodePlainNumberArray(obj, "amounts"), {
+    toClassOnly: true,
+  })
+  readonly amounts?: Array<Decimal>;
   /** @example 12.50 */
   @Expose({ name: "ledger" })
   /* A `type: string` decimal is a JSON string: decode keeps its text and
@@ -123,6 +131,9 @@ export class NativeValues {
       this.addresses = Object.freeze([
         ...this.addresses,
       ]) as typeof this.addresses;
+    }
+    if (Array.isArray(this.amounts)) {
+      this.amounts = Object.freeze([...this.amounts]) as typeof this.amounts;
     }
   }
 
@@ -205,6 +216,15 @@ export class NativeValues {
     if (this.amount != null && !Decimal.isDecimal(this.amount)) {
       throw new TypeError(
         `amount must be a Decimal, got ${typeof this.amount}`,
+      );
+    }
+    if (
+      this.amounts != null &&
+      !Array.isArray(this.amounts) &&
+      !((this.amounts as unknown) instanceof Set)
+    ) {
+      throw new TypeError(
+        `amounts must be an array, got ${typeof this.amounts}`,
       );
     }
     /* A `type: string` decimal is decoded into a decimal.js Decimal. */
@@ -317,6 +337,15 @@ export class NativeValues {
     }
     if (
       !NativeValues.__deepEquals(
+        this.amounts,
+        (other as NativeValues).amounts,
+        true,
+      )
+    ) {
+      return false;
+    }
+    if (
+      !NativeValues.__deepEquals(
         this.ledger,
         (other as NativeValues).ledger,
         true,
@@ -381,7 +410,7 @@ export class NativeValues {
       if (a.length !== b.length) {
         return false;
       }
-      return a.every((v, i) => NativeValues.__deepEquals(v, b[i]));
+      return a.every((v, i) => NativeValues.__deepEquals(v, b[i], decimal));
     }
     if (a instanceof Set && b instanceof Set) {
       if (a.size !== b.size) {

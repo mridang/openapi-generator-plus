@@ -72,7 +72,7 @@ class ApiExceptionTest {
         val api = ApiException.fromResponse(503, null, null)
         val server = ServerException(503, "down", cause = api)
 
-        assertTrue(server is OpenAPIException)
+        assertInstanceOf(OpenAPIException::class.java, server)
         assertSame(api, server.cause)
     }
 
@@ -141,20 +141,20 @@ class ApiExceptionTest {
     @Test
     @DisplayName("bhvErrors094 every error type the SDK raises is the branded root")
     fun bhvErrors094EveryRaisedErrorIsTheBrandedRoot() {
-        assertTrue(SerializationException("decode failed") is OpenAPIException)
-        assertTrue(NetworkException("connection refused", java.io.IOException("refused")) is OpenAPIException)
-        assertTrue(ApiException.fromResponse(404, null, null) is OpenAPIException)
+        assertInstanceOf(OpenAPIException::class.java, SerializationException("decode failed"))
+        assertInstanceOf(OpenAPIException::class.java, NetworkException("connection refused", java.io.IOException("refused")))
+        assertInstanceOf(OpenAPIException::class.java, ApiException.fromResponse(404, null, null))
     }
 
     @Test
     @DisplayName("bhvErrors095 a typed error is matched by its status-class family")
     fun bhvErrors095TypedErrorIsMatchedByItsStatusClass() {
         val notFound = ApiException.fromResponse(404, null, null)
-        assertTrue(notFound is ClientException)
+        assertInstanceOf(ClientException::class.java, notFound)
         assertFalse(notFound is ServerException)
 
         val internal = ApiException.fromResponse(500, null, null)
-        assertTrue(internal is ServerException)
+        assertInstanceOf(ServerException::class.java, internal)
     }
 
     @Test
@@ -172,7 +172,7 @@ class ApiExceptionTest {
     @Test
     @DisplayName("bhvErrors097 an unrecognised 4xx status raises the generic client error")
     fun bhvErrors097UnrecognisedClientStatusIsTheGenericClientError() {
-        assertTrue(ApiException.fromResponse(499, null, null) is ClientException)
+        assertInstanceOf(ClientException::class.java, ApiException.fromResponse(499, null, null))
     }
 
     @Test
@@ -222,8 +222,8 @@ class ApiExceptionTest {
                 responseBody = "the body",
             )
 
-        assertTrue(ex is Exception)
-        assertTrue(ex is OpenAPIException)
+        assertInstanceOf(Exception::class.java, ex)
+        assertInstanceOf(OpenAPIException::class.java, ex)
         assertEquals("boom", ex.message)
         assertEquals(
             "boom" +
@@ -302,9 +302,9 @@ class ApiExceptionTest {
                 responseBody = null,
             )
 
-        assertTrue(ex is ClientException)
-        assertTrue(ex is ApiException)
-        assertTrue(ex is OpenAPIException)
+        assertInstanceOf(ClientException::class.java, ex)
+        assertInstanceOf(ApiException::class.java, ex)
+        assertInstanceOf(OpenAPIException::class.java, ex)
         assertEquals(400, ex.statusCode)
     }
 
@@ -313,9 +313,9 @@ class ApiExceptionTest {
     fun bhvErrors061BadRequestIsAClientErrorAnApiErrorAndAnOpenApiError() {
         val ex = BadRequestException(message = "bad request", responseHeaders = null, responseBody = null)
 
-        assertTrue(ex is ClientException)
-        assertTrue(ex is ApiException)
-        assertTrue(ex is OpenAPIException)
+        assertInstanceOf(ClientException::class.java, ex)
+        assertInstanceOf(ApiException::class.java, ex)
+        assertInstanceOf(OpenAPIException::class.java, ex)
     }
 
     @Test
@@ -373,11 +373,11 @@ class ApiExceptionTest {
             com.example.petstore.errors
                 .NetworkTimeoutException("timed out", cause)
 
-        assertTrue(network is ApiException)
+        assertInstanceOf(ApiException::class.java, network)
         assertEquals(0, network.statusCode)
         assertSame(cause, network.cause)
-        assertTrue(timeout is com.example.petstore.errors.NetworkException)
-        assertTrue(timeout is ApiException)
+        assertInstanceOf(com.example.petstore.errors.NetworkException::class.java, timeout)
+        assertInstanceOf(ApiException::class.java, timeout)
         assertEquals(0, timeout.statusCode)
         assertSame(cause, timeout.cause)
     }
@@ -392,8 +392,8 @@ class ApiExceptionTest {
             com.example.petstore.errors
                 .OAuth2TokenException("no access_token")
 
-        assertTrue(server is OpenAPIException)
-        assertTrue(token is OpenAPIException)
+        assertInstanceOf(OpenAPIException::class.java, server)
+        assertInstanceOf(OpenAPIException::class.java, token)
         assertFalse(ApiException::class.java.isInstance(server))
         assertFalse(ApiException::class.java.isInstance(token))
     }
@@ -404,9 +404,9 @@ class ApiExceptionTest {
             com.example.petstore.errors
                 .InternalServerErrorException("boom")
 
-        assertTrue(ex is ServerException)
-        assertTrue(ex is ApiException)
-        assertTrue(ex is OpenAPIException)
+        assertInstanceOf(ServerException::class.java, ex)
+        assertInstanceOf(ApiException::class.java, ex)
+        assertInstanceOf(OpenAPIException::class.java, ex)
         assertEquals(500, ex.statusCode)
     }
 
@@ -416,7 +416,7 @@ class ApiExceptionTest {
         // SDK error surface via the single branded root.
         val ex = SerializationException("decode failed")
 
-        assertTrue(ex is OpenAPIException)
+        assertInstanceOf(OpenAPIException::class.java, ex)
     }
 
     @Test
@@ -822,9 +822,9 @@ class ApiExceptionTest {
     @DisplayName("bhvErrors052 a typed client error is caught by a base API error catch and chains to the API error root")
     fun bhvErrors052TypedClientErrorIsCaughtByTheBaseApiErrorCatch() {
         val ex: Exception = BadRequestException("bad request")
-        assertTrue(ex is ClientException)
-        assertTrue(ex is ApiException)
-        assertTrue(ex is OpenAPIException)
+        assertInstanceOf(ClientException::class.java, ex)
+        assertInstanceOf(ApiException::class.java, ex)
+        assertInstanceOf(OpenAPIException::class.java, ex)
         val caught = assertThrows(ApiException::class.java) { throw BadRequestException("bad request") }
         assertEquals(400, caught.statusCode)
     }
@@ -912,7 +912,7 @@ class ApiExceptionTest {
                 } catch (e: com.example.petstore.errors.OpenAPIException) {
                     e
                 }
-            assertTrue(caught is ApiException)
+            assertInstanceOf(ApiException::class.java, caught)
             assertEquals(404, (caught as ApiException).statusCode)
         }
 

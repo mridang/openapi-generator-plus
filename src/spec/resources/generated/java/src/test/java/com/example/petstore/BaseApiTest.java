@@ -553,6 +553,70 @@ public class BaseApiTest {
           UnauthorizedException.class, () -> callWith(client, null, "{}", "application/json"));
       assertEquals(1, client.sentHeaders.size());
     }
+
+    @Test
+    @DisplayName("authdigest702 a Digest challenge is answered and the request replayed once")
+    void bhvAuthDigest702ChallengeIsAnsweredAndReplayedOnce() throws ApiException {
+      var client = new DigestChallengeApiClient(401, 200);
+      var auth =
+          new com.example.petstore.auth.DigestAuthenticator(
+              "http://localhost", "alice", String.join("", "s3", "cret"));
+      callWith(client, auth, "{}", "application/json");
+      assertEquals(2, client.sentHeaders.size());
+      assertNull(client.sentHeaders.get(0).get("Authorization"));
+      assertTrue(
+          String.valueOf(client.sentHeaders.get(1).get("Authorization"))
+              .matches(
+                  "Digest username=\"alice\", realm=\"test\", nonce=\"abc\", uri=\"/test/echo\","
+                      + " response=\"[0-9a-f]{32}\", qop=auth, nc=00000001,"
+                      + " cnonce=\"[0-9a-f]{32}\""),
+          client.sentHeaders.get(1).get("Authorization"));
+      var refused = new DigestChallengeApiClient(401);
+      assertThrowsExactly(
+          UnauthorizedException.class, () -> callWith(refused, auth, "{}", "application/json"));
+      assertEquals(2, refused.sentHeaders.size());
+    }
+
+    @Test
+    @DisplayName("authdigest703 a later request answers the remembered challenge with nc 00000002")
+    void bhvAuthDigest703LaterRequestAnswersUpFrontWithTheNextNonceCount() throws ApiException {
+      var client = new DigestChallengeApiClient(401, 200, 200);
+      var auth =
+          new com.example.petstore.auth.DigestAuthenticator(
+              "http://localhost", "alice", String.join("", "s3", "cret"));
+      callWith(client, auth, "{}", "application/json");
+      callWith(client, auth, "{}", "application/json");
+      assertEquals(3, client.sentHeaders.size());
+      assertTrue(
+          String.valueOf(client.sentHeaders.get(2).get("Authorization"))
+              .contains(", nc=00000002, "),
+          client.sentHeaders.get(2).get("Authorization"));
+    }
+  }
+
+  /** Answers each request with the next scripted status; a 401 carries a Digest challenge. */
+  static class DigestChallengeApiClient implements ApiClient {
+    final java.util.List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+    private final int[] statuses;
+
+    DigestChallengeApiClient(int... statuses) {
+      this.statuses = statuses;
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      int index = Math.min(sentHeaders.size(), statuses.length - 1);
+      sentHeaders.add(new HashMap<>(headers));
+      Map<String, String> responseHeaders = new HashMap<>();
+      responseHeaders.put("Content-Type", "application/json");
+      if (statuses[index] == 401) {
+        responseHeaders.put(
+            "WWW-Authenticate",
+            "Basic realm=\"test\", Digest realm=\"test\", qop=\"auth\", nonce=\"abc\"");
+      }
+      return new ApiHttpResponse(statuses[index], "{}", responseHeaders);
+    }
   }
 
   private TestableApi api() {
@@ -5550,6 +5614,185 @@ public class BaseApiTest {
       assertTrue(
           java.util.Arrays.stream(StoreApi.class.getMethods())
               .anyMatch(m -> m.getName().equals("exportOrdersStream")));
+    }
+  }
+
+  /** D189: the opt-in check of a request body against the validation keywords of its schema. */
+  @Nested
+  @DisplayName("Constraint validation")
+  class ConstraintValidation {
+
+    private StoreApi storeApi(ScriptedApiClient client, boolean validateConstraints) {
+      return new StoreApi(
+          client,
+          Configuration.builder()
+              .baseUrl("http://localhost")
+              .validateConstraints(validateConstraints)
+              .build());
+    }
+
+    private com.example.petstore.models.Allowance.Builder valid() {
+      com.example.petstore.models.AllowanceTier tier =
+          com.example.petstore.models.AllowanceTier.builder().level(0).name("ab").build();
+      return com.example.petstore.models.Allowance.builder()
+          .label("abc")
+          .count(5)
+          .ratio(0.5)
+          .step(10)
+          .codes(List.of("a"))
+          .limits(Map.of("a", 1))
+          .tier(tier)
+          .parts(List.of(tier));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels706 constraint validation is off by default and a body that breaks a keyword is"
+            + " sent unchanged")
+    void bhvModels706ConstraintValidationIsOffByDefault() {
+      ScriptedApiClient client = new ScriptedApiClient(204);
+      StoreApi api =
+          new StoreApi(client, Configuration.builder().baseUrl("http://localhost").build());
+      api.submitAllowance(valid().label("a").count(0).build());
+      assertFalse(Configuration.defaultConfiguration().isValidateConstraints());
+      assertEquals(1, client.sentHeaders.size());
+    }
+
+    static Stream<Arguments> violations() {
+      return Stream.of(
+          Arguments.of(
+              "minLength",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.label("a"),
+              "Invalid request body: label must be at least 2 characters long"),
+          Arguments.of(
+              "maxLength",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.label("abcdef"),
+              "Invalid request body: label must be at most 5 characters long"),
+          Arguments.of(
+              "pattern",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.label("ab1"),
+              "Invalid request body: label must match the pattern ^[a-z]+$"),
+          Arguments.of(
+              "minimum",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.count(0),
+              "Invalid request body: count must be greater than or equal to 1"),
+          Arguments.of(
+              "maximum",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.count(11),
+              "Invalid request body: count must be less than or equal to 10"),
+          Arguments.of(
+              "exclusiveMinimum",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.ratio(0.0),
+              "Invalid request body: ratio must be greater than 0"),
+          Arguments.of(
+              "exclusiveMaximum",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.ratio(1.0),
+              "Invalid request body: ratio must be less than 1"),
+          Arguments.of(
+              "multipleOf",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.step(7),
+              "Invalid request body: step must be a multiple of 5"),
+          Arguments.of(
+              "minItems",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.codes(List.of()),
+              "Invalid request body: codes must have at least 1 items"),
+          Arguments.of(
+              "maxItems",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.codes(List.of("a", "b", "c", "d")),
+              "Invalid request body: codes must have at most 3 items"),
+          Arguments.of(
+              "minProperties",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.limits(Map.of()),
+              "Invalid request body: limits must have at least 1 properties"),
+          Arguments.of(
+              "maxProperties",
+              (java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder>)
+                  b -> b.limits(Map.of("a", 1, "b", 2, "c", 3)),
+              "Invalid request body: limits must have at most 2 properties"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("violations")
+    @DisplayName(
+        "bhvModels707 with constraint validation on a body that breaks one keyword is refused"
+            + " before it is sent")
+    void bhvModels707ABodyThatBreaksOneKeywordIsRefusedBeforeItIsSent(
+        String keyword,
+        java.util.function.UnaryOperator<com.example.petstore.models.Allowance.Builder> breakIt,
+        String message) {
+      ScriptedApiClient client = new ScriptedApiClient(204);
+      com.example.petstore.models.Allowance body = breakIt.apply(valid()).build();
+      IllegalArgumentException refused =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () -> storeApi(client, true).submitAllowance(body),
+              keyword);
+      assertEquals(message, refused.getMessage(), keyword);
+      assertEquals(0, client.sentHeaders.size(), keyword);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels708 with constraint validation on a violation inside a held model or a list of"
+            + " models names its path")
+    void bhvModels708AViolationInsideAHeldModelOrAListNamesItsPath() {
+      ScriptedApiClient client = new ScriptedApiClient(204);
+      com.example.petstore.models.AllowanceTier ok =
+          com.example.petstore.models.AllowanceTier.builder().level(1).name("ab").build();
+      com.example.petstore.models.AllowanceTier negative =
+          com.example.petstore.models.AllowanceTier.builder().level(-1).build();
+      IllegalArgumentException held =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () -> storeApi(client, true).submitAllowance(valid().tier(negative).build()));
+      assertEquals(
+          "Invalid request body: tier.level must be greater than or equal to 0", held.getMessage());
+      IllegalArgumentException listed =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () ->
+                  storeApi(client, true)
+                      .submitAllowance(valid().parts(List.of(ok, negative)).build()));
+      assertEquals(
+          "Invalid request body: parts[1].level must be greater than or equal to 0",
+          listed.getMessage());
+      IllegalArgumentException named =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () ->
+                  storeApi(client, true)
+                      .submitAllowance(valid().tier(ok.toBuilder().name("abcd").build()).build()));
+      assertEquals(
+          "Invalid request body: tier.name must be at most 3 characters long", named.getMessage());
+      assertEquals(0, client.sentHeaders.size());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels709 with constraint validation on a body within every constraint is sent and a"
+            + " null value is not checked")
+    void bhvModels709ABodyWithinEveryConstraintIsSentAndANullValueIsNotChecked() {
+      ScriptedApiClient client = new ScriptedApiClient(204);
+      StoreApi api = storeApi(client, true);
+      api.submitAllowance(valid().build());
+      assertEquals(1, client.sentHeaders.size());
+      api.submitAllowance(com.example.petstore.models.Allowance.builder().build());
+      api.submitAllowance(
+          com.example.petstore.models.Allowance.builder()
+              .tier(com.example.petstore.models.AllowanceTier.builder().build())
+              .build());
+      assertEquals(3, client.sentHeaders.size());
     }
   }
 }

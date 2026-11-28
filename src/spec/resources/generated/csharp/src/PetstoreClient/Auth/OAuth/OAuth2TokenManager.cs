@@ -362,8 +362,32 @@ public sealed class OAuth2TokenManager
         _snapshot = new TokenSnapshot(token, null);
     }
 
-    private async Task<string> FetchTokenAsync(
-        Uri tokenUrl,
+    /// <summary>
+    /// POSTs a device authorization request (RFC 8628 section 3.1) through the same
+    /// transport, encoding and error handling as a token request and returns the body
+    /// of the 2xx answer. A non-2xx answer is an <see cref="OAuth2ServerException"/>.
+    /// </summary>
+    /// <param name="url">The device authorization endpoint URL.</param>
+    /// <param name="parameters">The request parameters (client_id, scope).</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The body of the 2xx answer.</returns>
+    internal Task<string> PostDeviceAuthorizationAsync(
+        Uri url,
+        Dictionary<string, string> parameters,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_stopped)
+        {
+            return StoppedTask();
+        }
+
+        return PostFormAsync(url, parameters, null, cancellationToken);
+    }
+
+    /* POSTs a form-encoded OAuth2 request; a non-2xx answer is an OAuth2ServerException. */
+    private async Task<string> PostFormAsync(
+        Uri url,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders,
         CancellationToken cancellationToken
@@ -414,7 +438,7 @@ public sealed class OAuth2TokenManager
         ApiHttpResponse response = await _apiClient
             .SendRequestAsync(
                 "POST",
-                tokenUrl,
+                url,
                 headers,
                 body,
                 noRedirect: true,
@@ -436,7 +460,24 @@ public sealed class OAuth2TokenManager
             throw ParseOAuth2ServerError(response.StatusCode, response.Body);
         }
 
-        using JsonDocument doc = ParseTokenResponse(response.Body);
+        return response.Body;
+    }
+
+    private async Task<string> FetchTokenAsync(
+        Uri tokenUrl,
+        Dictionary<string, string> parameters,
+        Dictionary<string, string>? extraHeaders,
+        CancellationToken cancellationToken
+    )
+    {
+        string responseBody = await PostFormAsync(
+                tokenUrl,
+                parameters,
+                extraHeaders,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        using JsonDocument doc = ParseTokenResponse(responseBody);
         JsonElement root = doc.RootElement;
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -578,7 +619,7 @@ public sealed class OAuth2TokenManager
     /// non-positive. Accepts integers, floors floats, and parses digit strings
     /// (e.g. <c>"3600"</c> from Salesforce).
     /// </summary>
-    private static long ParseExpiresIn(JsonElement element)
+    internal static long ParseExpiresIn(JsonElement element)
     {
         switch (element.ValueKind)
         {

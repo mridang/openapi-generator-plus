@@ -148,6 +148,7 @@ impl StoreApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
+        self.base.validate_request_body(&account)?;
         let request_body = Some(object_serializer::serialize(&account)?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
@@ -1158,6 +1159,92 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Memo>(params).await
     }
 
+    /// Reads one exact decimal as the whole response body.
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_native_amount(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> Result<rust_decimal::Decimal, crate::Error> {
+        let result = self.get_native_amount_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(crate::Error::from(ApiError::new(
+                status_code,
+                "Expected a response body for get_native_amount but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            ))),
+        }
+    }
+
+    /// Performs the get_native_amount operation and returns the full API result.
+    pub async fn get_native_amount_with_http_info(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> Result<ApiResult<rust_decimal::Decimal>, crate::Error> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.get_native_amount_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
+    }
+
+    /// Shared implementation for the get_native_amount operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_native_amount_invoke(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<rust_decimal::Decimal>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/native-values/amount".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.get_native_amount",
+            method: "GET",
+            path: &path,
+            operation_id: "getNativeAmount",
+            url_template: "/store/native-values/amount",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "rust_decimal::Decimal",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base
+            .invoke_api_for_result::<rust_decimal::Decimal>(params)
+            .await
+    }
+
     /// Reads values of the formats the SDKs type natively.
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_native_values(
@@ -2145,6 +2232,93 @@ impl StoreApi {
         self.base.invoke_api_for_empty_result(params).await
     }
 
+    /// Reads a list of exact decimals as the whole response body.
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_native_amounts(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> Result<Vec<rust_decimal::Decimal>, crate::Error> {
+        let result = self.list_native_amounts_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(crate::Error::from(ApiError::new(
+                status_code,
+                "Expected a response body for list_native_amounts but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            ))),
+        }
+    }
+
+    /// Performs the list_native_amounts operation and returns the full API result.
+    pub async fn list_native_amounts_with_http_info(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> Result<ApiResult<Vec<rust_decimal::Decimal>>, crate::Error> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_native_amounts_invoke(options, "application/json")
+            .await
+            .map_err(crate::Error::from)
+    }
+
+    /// Shared implementation for the list_native_amounts operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_native_amounts_invoke(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Vec<rust_decimal::Decimal>>, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let mut path = "/store/native-values/amounts".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.list_native_amounts",
+            method: "GET",
+            path: &path,
+            operation_id: "listNativeAmounts",
+            url_template: "/store/native-values/amounts",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Vec<rust_decimal::Decimal>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base
+            .invoke_api_for_result::<Vec<rust_decimal::Decimal>>(params)
+            .await
+    }
+
     /// Lists the methods a memo accepts with an OPTIONS request
     /// * `memo_id`: The memo to address
     /// * `options`: Options for query, header, form, and cookie parameters.
@@ -2358,6 +2532,7 @@ impl StoreApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
+        self.base.validate_request_body(&memo)?;
         let request_body = Some(object_serializer::serialize(&memo)?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
@@ -2456,6 +2631,7 @@ impl StoreApi {
          * treat differently from an absent body. */
         let mut request_body: Option<Vec<u8>> = None;
         if let Some(body) = &order {
+            self.base.validate_request_body(body)?;
             request_body = Some(object_serializer::serialize(body)?.into_bytes());
         }
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
@@ -2744,6 +2920,80 @@ impl StoreApi {
         };
 
         self.base.invoke_api_for_result::<Vec<Order>>(params).await
+    }
+
+    /// Submit an allowance whose schema uses every validation keyword
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn submit_allowance(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> Result<(), crate::Error> {
+        let result = self
+            .submit_allowance_with_http_info(allowance, options)
+            .await?;
+        let _ = result;
+        Ok(())
+    }
+
+    /// Performs the submit_allowance operation and returns the full API result.
+    pub async fn submit_allowance_with_http_info(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> Result<ApiResult<()>, crate::Error> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.submit_allowance_invoke(allowance, options, "application/json")
+            .await
+            .map_err(crate::Error::from)
+    }
+
+    /// Shared implementation for the submit_allowance operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn submit_allowance_invoke(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/allowance".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        self.base.validate_request_body(&allowance)?;
+        let request_body = Some(object_serializer::serialize(&allowance)?.into_bytes());
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.submit_allowance",
+            method: "POST",
+            path: &path,
+            operation_id: "submitAllowance",
+            url_template: "/store/allowance",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec![],
+            content_type: request_content_type,
+            return_type: "",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* This operation inherits the global security requirement; pass
+             * None so BaseApi falls back to the client-level authenticator. */
+            auth: None,
+        };
+
+        self.base.invoke_api_for_empty_result(params).await
     }
 
     /// Echoes a memo request with a TRACE request
@@ -3134,6 +3384,14 @@ pub trait StoreApiTrait {
         server: Option<&dyn GetMemoServer>,
         options: Option<&GetMemoOptions>,
     ) -> impl Future<Output = Result<ApiResult<Memo>, crate::Error>>;
+    fn get_native_amount(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> impl Future<Output = Result<rust_decimal::Decimal, crate::Error>>;
+    fn get_native_amount_with_http_info(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> impl Future<Output = Result<ApiResult<rust_decimal::Decimal>, crate::Error>>;
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
@@ -3224,6 +3482,14 @@ pub trait StoreApiTrait {
         memo_id: String,
         options: Option<&HeadMemoOptions>,
     ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
+    fn list_native_amounts(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> impl Future<Output = Result<Vec<rust_decimal::Decimal>, crate::Error>>;
+    fn list_native_amounts_with_http_info(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<rust_decimal::Decimal>>, crate::Error>>;
     fn options_memo(
         &self,
         memo_id: String,
@@ -3272,6 +3538,16 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&SearchStoreOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, crate::Error>>;
+    fn submit_allowance(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> impl Future<Output = Result<(), crate::Error>>;
+    fn submit_allowance_with_http_info(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>>;
     fn trace_memo(
         &self,
         memo_id: String,
@@ -3449,6 +3725,19 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<Memo>, crate::Error>> {
         StoreApi::get_memo_with_http_info(self, memo_id, server, options)
     }
+    fn get_native_amount(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> impl Future<Output = Result<rust_decimal::Decimal, crate::Error>> {
+        StoreApi::get_native_amount(self, options)
+    }
+
+    fn get_native_amount_with_http_info(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> impl Future<Output = Result<ApiResult<rust_decimal::Decimal>, crate::Error>> {
+        StoreApi::get_native_amount_with_http_info(self, options)
+    }
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
@@ -3585,6 +3874,19 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
         StoreApi::head_memo_with_http_info(self, memo_id, options)
     }
+    fn list_native_amounts(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> impl Future<Output = Result<Vec<rust_decimal::Decimal>, crate::Error>> {
+        StoreApi::list_native_amounts(self, options)
+    }
+
+    fn list_native_amounts_with_http_info(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<rust_decimal::Decimal>>, crate::Error>> {
+        StoreApi::list_native_amounts_with_http_info(self, options)
+    }
     fn options_memo(
         &self,
         memo_id: String,
@@ -3657,6 +3959,21 @@ impl StoreApiTrait for StoreApi {
         options: Option<&SearchStoreOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, crate::Error>> {
         StoreApi::search_store_with_http_info(self, options)
+    }
+    fn submit_allowance(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> impl Future<Output = Result<(), crate::Error>> {
+        StoreApi::submit_allowance(self, allowance, options)
+    }
+
+    fn submit_allowance_with_http_info(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, crate::Error>> {
+        StoreApi::submit_allowance_with_http_info(self, allowance, options)
     }
     fn trace_memo(
         &self,

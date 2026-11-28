@@ -402,7 +402,7 @@ An operation's options struct also takes `timeout` (milliseconds, greater than z
 
 ### One credential per security scheme
 
-`Client(host:...)` takes one optional ``Authenticator`` per security scheme, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the credential of the first scheme its own spec lists that you gave the client; there is no per-call authenticator, an operation declared with `security: []` carries none, and an operation none of whose schemes has a credential uses the authenticator of `Client(authenticator:)` if the client was built from one and sends none otherwise.
+`Client(host:...)` takes one optional ``Authenticator`` per security scheme, named after the scheme: `petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth`. Each operation uses the credential of the first scheme its own spec lists that you gave the client; there is no per-call authenticator, an operation declared with `security: []` carries none, and an operation none of whose schemes has a credential uses the authenticator of `Client(authenticator:)` if the client was built from one and sends none otherwise.
 
 ### Closing the client
 
@@ -422,7 +422,10 @@ Each scheme authenticator takes its credentials as optional arguments and reads 
 - `adminBasic` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`
 - `apiKeyHeader` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY`
 - `apiKeyQuery` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY`
+- `archiveDigest` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME`
+- `archiveDigest` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD`
 - `browserAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`
+- `deviceAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID`
 - `internalApiKey` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY`
 - `legacyAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID`
 - `legacyAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`

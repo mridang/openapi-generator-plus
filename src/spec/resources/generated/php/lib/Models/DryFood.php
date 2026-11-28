@@ -20,6 +20,9 @@ class DryFood implements \Ds\Hashable, \Stringable
     #[SerializedName('weightKg')]
     public readonly float $weightKg;
 
+    #[SerializedName('pricePerKg')]
+    public readonly ?\Brick\Math\BigDecimal $pricePerKg;
+
     #[SerializedName('foodType')]
     public readonly string $foodType;
 
@@ -27,9 +30,11 @@ class DryFood implements \Ds\Hashable, \Stringable
      */
     public function __construct(
         float $weightKg,
+        ?\Brick\Math\BigDecimal $pricePerKg = null,
         string $foodType = 'dry',
     ) {
         $this->weightKg = $weightKg;
+        $this->pricePerKg = $pricePerKg;
         $this->foodType = $foodType;
     }
 
@@ -40,6 +45,19 @@ class DryFood implements \Ds\Hashable, \Stringable
     {
         return new self(
             weightKg: $weightKg,
+            pricePerKg: $this->pricePerKg,
+            foodType: $this->foodType,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with pricePerKg replaced. This model is not changed.
+     */
+    public function withPricePerKg(?\Brick\Math\BigDecimal $pricePerKg): self
+    {
+        return new self(
+            weightKg: $this->weightKg,
+            pricePerKg: $pricePerKg,
             foodType: $this->foodType,
         );
     }
@@ -51,6 +69,7 @@ class DryFood implements \Ds\Hashable, \Stringable
     {
         return new self(
             weightKg: $this->weightKg,
+            pricePerKg: $this->pricePerKg,
             foodType: $foodType,
         );
     }

@@ -8,11 +8,38 @@
  */
 
 /// SetPetAvatarThumbnailRequest is a union type (oneOf).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum SetPetAvatarThumbnailRequest {
     #[serde(with = "super::base64_serde")]
     VecU8(Vec<u8>),
     #[serde(with = "super::base64_serde::vec")]
     VecVecU8(Vec<Vec<u8>>),
+}
+
+impl<'de> serde::Deserialize<'de> for SetPetAvatarThumbnailRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let text = crate::object_serializer::json_text(deserializer)?;
+        {
+            #[derive(serde::Deserialize)]
+            struct Variant(#[serde(with = "super::base64_serde")] Vec<u8>);
+            if let Ok(Variant(value)) = crate::object_serializer::from_json_text::<Variant>(&text) {
+                return Ok(SetPetAvatarThumbnailRequest::VecU8(value));
+            }
+        }
+        {
+            #[derive(serde::Deserialize)]
+            struct Variant(#[serde(with = "super::base64_serde::vec")] Vec<Vec<u8>>);
+            if let Ok(Variant(value)) = crate::object_serializer::from_json_text::<Variant>(&text) {
+                return Ok(SetPetAvatarThumbnailRequest::VecVecU8(value));
+            }
+        }
+        Err(D::Error::custom(
+            "data did not match any variant of untagged enum SetPetAvatarThumbnailRequest",
+        ))
+    }
 }

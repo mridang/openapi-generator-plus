@@ -75,6 +75,7 @@ from .get_grouped_categories_options import (
 from .get_inventory_options import GetInventoryOptions as GetInventoryOptions
 from .get_matrix_options import GetMatrixOptions as GetMatrixOptions
 from .get_memo_options import GetMemoOptions as GetMemoOptions
+from .get_native_amount_options import GetNativeAmountOptions as GetNativeAmountOptions
 from .get_native_values_options import GetNativeValuesOptions as GetNativeValuesOptions
 from .get_order_by_id_options import GetOrderByIdOptions as GetOrderByIdOptions
 from .get_order_by_tracking_id_options import (
@@ -88,11 +89,15 @@ from .get_timestamp_groups_options import (
 )
 from .get_tree_options import GetTreeOptions as GetTreeOptions
 from .head_memo_options import HeadMemoOptions as HeadMemoOptions
+from .list_native_amounts_options import (
+    ListNativeAmountsOptions as ListNativeAmountsOptions,
+)
 from .options_memo_options import OptionsMemoOptions as OptionsMemoOptions
 from .patch_memo_options import PatchMemoOptions as PatchMemoOptions
 from .place_order_options import PlaceOrderOptions as PlaceOrderOptions
 from .reserve_stock_options import ReserveStockOptions as ReserveStockOptions
 from .search_store_options import SearchStoreOptions as SearchStoreOptions
+from .submit_allowance_options import SubmitAllowanceOptions as SubmitAllowanceOptions
 from .trace_memo_options import TraceMemoOptions as TraceMemoOptions
 from .watch_notices_options import WatchNoticesOptions as WatchNoticesOptions
 from .watch_orders_options import WatchOrdersOptions as WatchOrdersOptions

@@ -66,6 +66,15 @@ class TestMetadataTypedAdditionalProperties:
         assert isinstance(metadata.additional_properties, dict)
         assert isinstance(metadata.additional_properties["customField"], str)
 
+    def test_bhv_models_704_pattern_properties_type_the_extra_properties(self) -> None:
+        sensors = ObjectSerializer().deserialize(
+            '{"site":"north","s1":3,"s2":4}', "Sensors"
+        )
+        assert sensors is not None
+        assert sensors.additional_properties == {"s1": 3, "s2": 4}
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"s1":"three"}', "Sensors")
+
     def test_bhv_models_025_an_additional_property_of_the_wrong_json_type_fails_the_decode(
         self,
     ) -> None:
@@ -412,6 +421,7 @@ class TestReadmeAndSkillsText:
         for name in [
             "pet_store_basic",
             "admin_basic",
+            "archive_digest",
             "pet_store_bearer",
             "service_token",
             "api_key_header",
@@ -422,6 +432,7 @@ class TestReadmeAndSkillsText:
             "legacy_auth",
             "user_auth",
             "browser_auth",
+            "device_auth",
             "sso_auth",
         ]:
             assert f"`{name}`" in self._read("README.md")
@@ -1026,6 +1037,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "get_native_amount",
+            "GetNativeAmountOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "get_native_values",
             "GetNativeValuesOptions",
             False,
@@ -1089,6 +1107,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "list_native_amounts",
+            "ListNativeAmountsOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "options_memo",
             "OptionsMemoOptions",
             True,
@@ -1120,6 +1145,13 @@ class TestEveryOperationTakesOptions:
             "search_store",
             "SearchStoreOptions",
             False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "submit_allowance",
+            "SubmitAllowanceOptions",
+            True,
         ),
         (
             "petstore_client.api.store_api",

@@ -112,7 +112,7 @@ function getDefaultsWithinTwoSeconds(Client $client): void
 
 ### Credentials
 
-The client takes one optional credential per security scheme, named after the scheme (`new Client(petStoreBasic: $credential)`): `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Each operation uses the scheme its security requirement names (the first alternative whose schemes are all configured; the schemes of one alternative are sent together) and sends no credential of another scheme. An operation has no per-call authenticator. The authenticator given first (`Client::withToken()`) is used for a secured operation only when no scheme credential is configured.
+The client takes one optional credential per security scheme, named after the scheme (`new Client(petStoreBasic: $credential)`): `petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth`. Each operation uses the scheme its security requirement names (the first alternative whose schemes are all configured; the schemes of one alternative are sent together) and sends no credential of another scheme. An operation has no per-call authenticator. The authenticator given first (`Client::withToken()`) is used for a secured operation only when no scheme credential is configured.
 
 The authenticator of a basic, bearer, API key or OAuth 2 security scheme takes its credentials as arguments, or reads each one from an environment variable when you pass `null`. Every variable is named `SWAGGER_PETSTORE_OPEN_API_3_0_` followed by the field (`TOKEN`, `USERNAME`, `PASSWORD`, `API_KEY`, `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`); when two schemes have a field of the same name, the scheme id sits between the two so that no scheme reads another's secret. Set the prefix with the `envVarPrefix` generator option.
 
@@ -120,6 +120,8 @@ The authenticator of a basic, bearer, API key or OAuth 2 security scheme takes i
 - `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` for `password`.
 - `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` for `username`.
 - `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` for `password`.
+- `ArchiveDigestAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` for `username`.
+- `ArchiveDigestAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` for `password`.
 - `PetStoreBearerAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` for `token`.
 - `ServiceTokenAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` for `token`.
 - `ApiKeyHeaderAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` for `apiKey`.
@@ -136,8 +138,13 @@ The authenticator of a basic, bearer, API key or OAuth 2 security scheme takes i
 - `UserAuthAuthorizationCodeAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` for `clientSecret`.
 - `UserAuthAuthorizationCodeAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` for `redirectUri`.
 - `BrowserAuthImplicitAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` for `clientId`.
+- `DeviceAuthDeviceAuthorizationAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` for `clientId`.
 
 An argument always wins over the environment, an empty variable counts as unset, and the variable is read once, when the authenticator is built. A credential that is neither passed nor in the environment throws `InvalidArgumentException` at that point, so a missing credential never waits for the first request. Pass a `\Closure` token provider (`new BearerAuthenticator($host, null, fn (): string => $vault->token())`) to supply a rotating credential; it is called for every request. The base classes `BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator` and the OAuth 2 authenticators read no variable: only the generated authenticator of a scheme knows its name. The OpenID Connect authenticator takes its credentials as arguments only.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
 
 ### Request id
 
@@ -475,6 +482,8 @@ declared types, required properties and `format: byte` base64 on decode, so a
 value that violates a constraint is sent as given and a response that violates
 one is decoded as given. Arrays declared `uniqueItems` are sent in the order of
 the collection the caller holds (insertion order of the `\Ds\Set`), not sorted.
+
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ## Not supported
 

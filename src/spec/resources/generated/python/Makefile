@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck docs examples examples-run clean
+.PHONY: install build test lint format typecheck audit docs examples examples-run clean
 
 install:
 	pip install --quiet -e . --group dev
@@ -29,6 +29,10 @@ examples: install
 
 examples-run: install
 	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN=placeholder python examples/quickstart.py
+
+# Fails when an installed distribution has a known vulnerability.
+audit: install
+	pip-audit --skip-editable
 
 docs: install
 	rm -rf .out/docs-src .out/docs

@@ -201,3 +201,177 @@ fn test_bhv_auth_036_a_basic_username_containing_a_colon_is_rejected() {
         ),
     }
 }
+
+/// The RFC 7616 section 3.9.1 example: its nonce, opaque and client nonce.
+const DIGEST_NONCE: &str = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v";
+const DIGEST_OPAQUE: &str = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS";
+const DIGEST_CNONCE: &str = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ";
+
+/// The RFC 7616 example user's DigestAuthenticator with the example's client nonce.
+fn digest_authenticator() -> petstore::auth::DigestAuthenticator {
+    petstore::auth::DigestAuthenticator::new("https://api.example.com", "Mufasa", "Circle of Life")
+        .expect("valid credentials")
+        .with_cnonce(DIGEST_CNONCE)
+}
+
+/// Feeds a challenge and returns the answer for GET /dir/index.html.
+fn digest_answer(challenge: &str) -> String {
+    let auth = digest_authenticator();
+    assert!(
+        auth.accept_challenge(challenge),
+        "expected {} to be accepted",
+        challenge
+    );
+    auth.challenge_authorization("GET", "/dir/index.html")
+        .unwrap_or_else(|| panic!("expected an answer to {}", challenge))
+}
+
+/// The MD5 answer to the RFC 7616 example challenge has the published response
+/// and the header fields in the fixed order.
+#[test]
+fn test_bhv_authdigest_700_the_md5_answer_to_the_rfc7616_example_is_the_published_one() {
+    let got = digest_answer(&format!(
+        "Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm=MD5, nonce=\"{}\", opaque=\"{}\"",
+        DIGEST_NONCE, DIGEST_OPAQUE
+    ));
+    assert_eq!(
+        format!(
+            "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", algorithm=MD5, response=\"8ca523f5e9506fed4657c9700eebdbec\", qop=auth, nc=00000001, cnonce=\"{}\", opaque=\"{}\"",
+            DIGEST_NONCE, DIGEST_CNONCE, DIGEST_OPAQUE
+        ),
+        got
+    );
+}
+
+/// The SHA-256 answer to the RFC 7616 example has the published response, and
+/// the -sess variants hash the first value again with the nonce and the cnonce.
+#[test]
+fn test_bhv_authdigest_701_the_sha256_and_sess_answers_are_the_published_ones() {
+    for (algorithm, response) in [
+        (
+            "SHA-256",
+            "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1",
+        ),
+        ("MD5-sess", "e783283f46242139c486a698fec7211d"),
+        (
+            "SHA-256-sess",
+            "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7",
+        ),
+    ] {
+        let got = digest_answer(&format!(
+            "Basic realm=\"other\", Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm={}, nonce=\"{}\", opaque=\"{}\", Digest realm=\"http-auth@example.org\", algorithm=MD5, nonce=\"other\"",
+            algorithm, DIGEST_NONCE, DIGEST_OPAQUE
+        ));
+        assert_eq!(
+            format!(
+                "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", algorithm={}, response=\"{}\", qop=auth, nc=00000001, cnonce=\"{}\", opaque=\"{}\"",
+                DIGEST_NONCE, algorithm, response, DIGEST_CNONCE, DIGEST_OPAQUE
+            ),
+            got,
+            "{}",
+            algorithm
+        );
+    }
+}
+
+/// A challenge without qop is answered in the RFC 2069 form, with no qop, nc or
+/// cnonce; opaque is echoed only when sent and algorithm only when named, as
+/// written.
+#[test]
+fn test_bhv_authdigest_704_a_challenge_without_qop_is_answered_in_the_rfc2069_form() {
+    let plain = digest_answer(&format!(
+        "Digest realm=\"http-auth@example.org\", nonce=\"{}\"",
+        DIGEST_NONCE
+    ));
+    assert_eq!(
+        format!(
+            "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", response=\"7b2cc3b30e75b4777ea31027084363fd\"",
+            DIGEST_NONCE
+        ),
+        plain
+    );
+    let named = digest_answer(&format!(
+        "digest realm=\"http-auth@example.org\", nonce=\"{}\", algorithm=md5, opaque=\"{}\"",
+        DIGEST_NONCE, DIGEST_OPAQUE
+    ));
+    assert_eq!(
+        format!(
+            "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", algorithm=md5, response=\"7b2cc3b30e75b4777ea31027084363fd\", opaque=\"{}\"",
+            DIGEST_NONCE, DIGEST_OPAQUE
+        ),
+        named
+    );
+}
+
+/// A challenge that offers only qop=auth-int, or names an unknown algorithm, is
+/// not answered: nothing is accepted and no header is produced.
+#[test]
+fn test_bhv_authdigest_705_an_auth_int_only_or_unknown_algorithm_challenge_is_not_answered() {
+    for challenge in [
+        "Digest realm=\"r\", nonce=\"n\", qop=\"auth-int\"",
+        "Digest realm=\"r\", nonce=\"n\", algorithm=SHA-512-256",
+        "Basic realm=\"r\"",
+    ] {
+        let auth = digest_authenticator();
+        assert!(
+            !auth.accept_challenge(challenge),
+            "expected {} not to be accepted",
+            challenge
+        );
+        assert_eq!(
+            None,
+            auth.challenge_authorization("GET", "/dir/index.html"),
+            "{}",
+            challenge
+        );
+    }
+}
+
+/// An empty username, a line break or NUL in either field, or a double quote in
+/// the username fails at construction, and the string form masks the password.
+#[test]
+fn test_bhv_authdigest_706_digest_credentials_are_checked_at_construction_and_the_password_is_masked(
+) {
+    for (username, password, expected) in [
+        ("", "pw", "Digest username must not be empty"),
+        (
+            "ali\nce",
+            "pw",
+            "Digest credentials must not contain a line break or NUL",
+        ),
+        (
+            "alice",
+            "p\rw",
+            "Digest credentials must not contain a line break or NUL",
+        ),
+        (
+            "alice",
+            "p\0w",
+            "Digest credentials must not contain a line break or NUL",
+        ),
+        (
+            "ali\"ce",
+            "pw",
+            "Digest username must not contain a double quote",
+        ),
+    ] {
+        match petstore::auth::DigestAuthenticator::new(
+            "https://api.example.com",
+            username,
+            password,
+        ) {
+            Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(expected, reason),
+            other => panic!(
+                "expected InvalidArgument for ({:?}, {:?}), got {:?}",
+                username, password, other
+            ),
+        }
+    }
+    let auth =
+        petstore::auth::DigestAuthenticator::new("https://api.example.com", "alice", "s3cret")
+            .expect("valid credentials");
+    assert_eq!(
+        "DigestAuthenticator { host: \"https://api.example.com\", username: \"alice\", password: \"***\" }",
+        format!("{:?}", auth)
+    );
+}

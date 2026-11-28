@@ -43,6 +43,9 @@ pub mod date_time;
  * API, so the module itself is crate-private. */
 pub(crate) mod default_api_client;
 pub mod errors;
+/* Internal check of a request body against the validation keywords of its
+ * schema, run by `base_api` when `validate_constraints` is on. */
+pub(crate) mod constraint_validator;
 /* Internal content-negotiation helper used by `base_api`; not part of the
  * public surface. */
 pub(crate) mod header_selector;

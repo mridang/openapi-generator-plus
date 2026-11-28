@@ -93,7 +93,7 @@ public class SetPetAvatarThumbnailRequest {
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
         throws java.io.IOException {
-      com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      com.fasterxml.jackson.databind.JsonNode node = ctxt.readTree(p);
       for (com.fasterxml.jackson.core.type.TypeReference<?> schema : ONE_OF_SCHEMAS) {
         try {
           com.fasterxml.jackson.databind.JavaType type =

@@ -1608,6 +1608,100 @@ class TestFixtureModelsOnTheWire:
             "deck",
         ]
 
+    def test_bhv_models_700_a_type_array_of_scalars_decodes_each_type_into_its_union(
+        self,
+    ) -> None:
+        import json
+        from petstore_client.models.reading import Reading
+
+        text = ObjectSerializer().deserialize(
+            '{"level":"high","inlineLevel":3}', "Reading"
+        )
+        assert isinstance(text, Reading)
+        assert text.level.actual_instance == "high"
+        assert text.inline_level is not None
+        assert text.inline_level.actual_instance == 3
+        assert json.loads(ObjectSerializer().serialize(text))["level"] == "high"
+        number = ObjectSerializer().deserialize('{"level":7}', "Reading")
+        assert isinstance(number, Reading)
+        assert number.level.actual_instance == 7
+        assert json.loads(ObjectSerializer().serialize(number))["level"] == 7
+
+    def test_bhv_models_701_a_type_array_of_array_and_object_decodes_both_shapes(
+        self,
+    ) -> None:
+        import json
+        from petstore_client.models.reading import Reading
+
+        listed = ObjectSerializer().deserialize(
+            '{"level":1,"shape":["a","b"]}', "Reading"
+        )
+        assert isinstance(listed, Reading)
+        assert listed.shape is not None
+        assert listed.shape.actual_instance == ["a", "b"]
+        assert json.loads(ObjectSerializer().serialize(listed))["shape"] == ["a", "b"]
+        mapped = ObjectSerializer().deserialize(
+            '{"level":1,"shape":{"k":"v"}}', "Reading"
+        )
+        assert isinstance(mapped, Reading)
+        assert mapped.shape is not None
+        assert mapped.shape.actual_instance == {"k": "v"}
+        assert json.loads(ObjectSerializer().serialize(mapped))["shape"] == {"k": "v"}
+
+    def test_bhv_unions_700_default_mapping_catches_missing_and_unlisted_values(
+        self,
+    ) -> None:
+        from petstore_client.models.packet import Packet
+        from petstore_client.models.letter import Letter
+
+        unlisted = ObjectSerializer().deserialize(
+            '{"kind":"postcard","pages":2}', "Parcel"
+        )
+        assert isinstance(unlisted.actual_instance, Letter)
+        assert unlisted.actual_instance.pages == 2
+        missing = ObjectSerializer().deserialize('{"pages":3}', "Parcel")
+        assert isinstance(missing.actual_instance, Letter)
+        box = ObjectSerializer().deserialize(
+            '{"kind":"packet","weightKg":1.5}', "Parcel"
+        )
+        assert isinstance(box.actual_instance, Packet)
+
+    def test_bhv_models_705_the_then_and_else_properties_are_optional_properties(
+        self,
+    ) -> None:
+        import json
+        from petstore_client.models.shipment import Shipment
+
+        shipment = ObjectSerializer().deserialize(
+            '{"kind":"domestic","customsCode":"C2","postcode":"2000"}', "Shipment"
+        )
+        assert isinstance(shipment, Shipment)
+        assert shipment.customs_code == "C2"
+        assert shipment.postcode == "2000"
+        assert json.loads(ObjectSerializer().serialize(shipment))["customsCode"] == "C2"
+
+    def test_bhv_models_703_the_validation_only_keywords_are_not_enforced(self) -> None:
+        import json
+        from petstore_client.models.audit import Audit
+
+        audit = ObjectSerializer().deserialize(
+            '{"tags":["a","b"],"score":-5,"payload":"not json"}', "Audit"
+        )
+        assert isinstance(audit, Audit)
+        assert audit.tags == ["a", "b"]
+        assert audit.score == -5
+        assert audit.payload == "not json"
+        assert json.loads(ObjectSerializer().serialize(audit))["score"] == -5
+
+    def test_bhv_models_702_a_property_of_type_null_accepts_null(self) -> None:
+        from petstore_client.models.reading import Reading
+
+        reading = ObjectSerializer().deserialize(
+            '{"level":1,"nothing":null}', "Reading"
+        )
+        assert isinstance(reading, Reading)
+        assert reading.nothing is None
+
     def test_bhv_serializationobject_117_properties_named_after_keywords_and_literals_keep_their_wire_keys(
         self,
     ) -> None:
@@ -2220,9 +2314,10 @@ class TestConstructionKeepsWhatItIsGiven:
     ) -> None:
         from petstore_client.models.pet import PetStatusEnum
 
-        assert (
-            self._built(status="bogus").status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
-        )
+        # Reading a field the spec marks deprecated warns; the warning is part of the contract.
+        with pytest.deprecated_call():
+            status = self._built(status="bogus").status
+        assert status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_lang_python_139_a_valid_value_is_still_coerced(self) -> None:
         assert self._built(photoUrls=["a", "b"]).photo_urls == {"a", "b"}
@@ -2300,7 +2395,9 @@ class TestDecodeValidates:
         pet = ObjectSerializer().deserialize(
             '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
         )
-        assert pet.status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        with pytest.deprecated_call():
+            status = pet.status
+        assert status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_lang_python_216_a_value_outside_the_declared_constraints_is_rejected(
         self,

@@ -202,6 +202,22 @@ func TestBhvModels009_Metadata_AdditionalPropertiesAreAMapOfTheValueType(t *test
 	}
 }
 
+func TestBhvModels704_Sensors_PatternPropertiesTypeTheExtraProperties(t *testing.T) {
+	t.Parallel()
+	var sensors models.Sensors
+	if err := json.Unmarshal([]byte(`{"site":"north","s1":3,"s2":4}`), &sensors); err != nil {
+		t.Fatalf("failed to deserialize Sensors: %v", err)
+	}
+	var extras map[string]int32 = sensors.AdditionalProperties
+	if extras["s1"] != 3 || extras["s2"] != 4 {
+		t.Errorf("expected s1=3 and s2=4, got %v", extras)
+	}
+	var wrong models.Sensors
+	if err := json.Unmarshal([]byte(`{"s1":"three"}`), &wrong); err == nil {
+		t.Error("expected a string extra to fail the decode")
+	}
+}
+
 func TestBhvModels025_AdditionalPropertiesFailTheWrongTypeAndTakePartInEquality(t *testing.T) {
 	t.Parallel()
 	t.Run("wrongJsonTypeFailsTheDecode", func(t *testing.T) {

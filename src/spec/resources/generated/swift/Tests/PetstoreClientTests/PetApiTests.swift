@@ -2036,7 +2036,7 @@ final class PetApiTests {
     mockClient.responseHeaders = ["Content-Type": "application/json"]
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
-    try await api.uploadPetDocument(
+    _ = try await api.uploadPetDocument(
       petId: 1, options: UploadPetDocumentOptions(file: Data("document-bytes".utf8)))
     let sent = mockClient.lastBody ?? Data()
     #expect(sent.range(of: Data("document-bytes".utf8)) != nil)
@@ -2096,7 +2096,7 @@ final class PetApiTests {
     mockClient.responseHeaders = ["Content-Type": "application/json"]
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
-    try await api.uploadPetDocument(
+    _ = try await api.uploadPetDocument(
       petId: 1, options: UploadPetDocumentOptions(file: Data("file-content-echo".utf8)))
     let sent = mockClient.lastBody ?? Data()
     #expect(sent.range(of: Data("file-content-echo".utf8)) != nil)
@@ -2244,7 +2244,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func addPet(pet: Pet, options: AddPetOptions?) async throws -> Pet {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "addPet(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2252,7 +2252,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions?) async throws -> ApiResult<Pet> {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "addPetWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2260,10 +2260,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "addPetPhotos(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2271,10 +2272,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws
     -> ApiResult<[Photo]>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "addPetPhotosWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2282,8 +2284,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func addPetTreatment(
     petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?
   ) async throws -> PetTreatment {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "addPetTreatment(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2293,8 +2296,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func addPetTreatmentWithHTTPInfo(
     petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?
   ) async throws -> ApiResult<PetTreatment> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "addPetTreatmentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2304,10 +2308,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws
     -> ApiResponse
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "attachPetFiles(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2315,17 +2320,19 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
     -> ApiResult<ApiResponse>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "attachPetFilesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
 
   public func deletePet(petId: Int64, options: DeletePetOptions?) async throws {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "deletePet(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2335,8 +2342,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions?) async throws
     -> ApiResult<Void>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "deletePetWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2346,9 +2354,10 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
   ) async throws -> ByteStream {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: documentId))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: documentId),
+    ]
     var call = "downloadPetDocument(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2358,9 +2367,10 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
   ) async throws -> ApiResult<ByteStream> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: documentId))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: documentId),
+    ]
     var call = "downloadPetDocumentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2369,8 +2379,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func findPetsBornOn(bornOn: String, options: FindPetsBornOnOptions?) async throws -> [Pet]
   {
-    var parts: [String] = []
-    parts.append(String(describing: bornOn))
+    let parts: [String] = [
+      String(describing: bornOn)
+    ]
     var call = "findPetsBornOn(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2380,8 +2391,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func findPetsBornOnWithHTTPInfo(bornOn: String, options: FindPetsBornOnOptions?)
     async throws -> ApiResult<[Pet]>
   {
-    var parts: [String] = []
-    parts.append(String(describing: bornOn))
+    let parts: [String] = [
+      String(describing: bornOn)
+    ]
     var call = "findPetsBornOnWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2390,7 +2402,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   @available(*, deprecated, message: "This operation is deprecated.")
   public func findPetsByStatus(options: FindPetsByStatusOptions?) async throws -> [Pet] {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "findPetsByStatus(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2401,7 +2413,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions?) async throws
     -> ApiResult<[Pet]>
   {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "findPetsByStatusWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2411,8 +2423,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getExternalPetInfo(
     petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?
   ) async throws -> Pet {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getExternalPetInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2422,8 +2435,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getExternalPetInfoWithHTTPInfo(
     petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?
   ) async throws -> ApiResult<Pet> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getExternalPetInfoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2433,8 +2447,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getMultiServerPetInfo(
     petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
   ) async throws -> Pet {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getMultiServerPetInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2444,8 +2459,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getMultiServerPetInfoWithHTTPInfo(
     petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
   ) async throws -> ApiResult<Pet> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getMultiServerPetInfoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2453,8 +2469,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> ByteStream {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetAvatar(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2464,8 +2481,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
     -> ApiResult<ByteStream>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetAvatarWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2475,8 +2493,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions?)
     async throws -> Data
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetAvatarThumbnail(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2486,8 +2505,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetAvatarThumbnailWithHTTPInfo(
     petId: Int64, options: GetPetAvatarThumbnailOptions?
   ) async throws -> ApiResult<Data> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetAvatarThumbnailWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2498,8 +2518,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetById(petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?)
     async throws -> Pet
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetById(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2510,8 +2531,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetByIdWithHTTPInfo(
     petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?
   ) async throws -> ApiResult<Pet> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetByIdWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2519,10 +2541,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
-    var parts: [String] = []
-    parts.append(String(describing: name))
+    let parts: [String] = [
+      String(describing: name)
+    ]
     var call = "getPetByName(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2530,27 +2553,28 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
     -> ApiResult<Pet>
   {
-    var parts: [String] = []
-    parts.append(String(describing: name))
+    let parts: [String] = [
+      String(describing: name)
+    ]
     var call = "getPetByNameWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
 
   public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "getPetByNote(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
 
   public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
   {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "getPetByNoteWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2558,8 +2582,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws
     -> PetPassport
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetPassport(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2569,8 +2594,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions?) async throws
     -> ApiResult<PetPassport>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getPetPassportWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2580,9 +2606,10 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws
     -> ByteStream
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: photoId))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: photoId),
+    ]
     var call = "getPetPhoto(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2592,9 +2619,10 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
     async throws -> ApiResult<ByteStream>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: photoId))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: photoId),
+    ]
     var call = "getPetPhotoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2604,11 +2632,12 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
     -> String
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: asOf))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: asOf),
+    ]
     var call = "getPetSummary(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2616,11 +2645,12 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
     async throws -> ApiResult<String>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: asOf))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: asOf),
+    ]
     var call = "getPetSummaryWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2628,9 +2658,10 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions?) async throws
     -> Pet
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: tagName))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: tagName),
+    ]
     var call = "getPetTag(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2640,9 +2671,10 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions?)
     async throws -> ApiResult<Pet>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
-    parts.append(String(describing: tagName))
+    let parts: [String] = [
+      String(describing: petId),
+      String(describing: tagName),
+    ]
     var call = "getPetTagWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2652,8 +2684,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getStagingPetInfo(
     petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?
   ) async throws -> Pet {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getStagingPetInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2663,8 +2696,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func getStagingPetInfoWithHTTPInfo(
     petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?
   ) async throws -> ApiResult<Pet> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "getStagingPetInfoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2672,7 +2706,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetArchive(options: ListPetArchiveOptions?) async throws -> PetArchivePage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetArchive(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2682,7 +2716,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetArchiveWithHTTPInfo(options: ListPetArchiveOptions?) async throws -> ApiResult<
     PetArchivePage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetArchiveWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2690,7 +2724,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetCatalog(options: ListPetCatalogOptions?) async throws -> PetCatalogPage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetCatalog(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2700,7 +2734,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions?) async throws -> ApiResult<
     PetCatalogPage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetCatalogWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2718,7 +2752,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetEvents(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2728,7 +2762,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetEventsWithHTTPInfo(options: ListPetEventsOptions?) async throws -> ApiResult<
     PetEventPage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetEventsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2746,7 +2780,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet] {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetFeed(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2755,7 +2789,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions?) async throws -> ApiResult<[Pet]>
   {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetFeedWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2773,7 +2807,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetMatches(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2783,7 +2817,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions?) async throws -> ApiResult<
     PetMatchPage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetMatchesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2791,7 +2825,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetNextUrl(options: ListPetNextUrlOptions?) async throws -> PetNextUrlPage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetNextUrl(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2801,7 +2835,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetNextUrlWithHTTPInfo(options: ListPetNextUrlOptions?) async throws -> ApiResult<
     PetNextUrlPage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetNextUrlWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2819,7 +2853,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetNotes(options: ListPetNotesOptions?) async throws -> PetNotePage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetNotes(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2829,7 +2863,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetNotesWithHTTPInfo(options: ListPetNotesOptions?) async throws -> ApiResult<
     PetNotePage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetNotesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2847,7 +2881,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetOffsets(options: ListPetOffsetsOptions?) async throws -> PetOffsetPage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetOffsets(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2857,7 +2891,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetOffsetsWithHTTPInfo(options: ListPetOffsetsOptions?) async throws -> ApiResult<
     PetOffsetPage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetOffsetsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2877,7 +2911,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetPageNumbers(options: ListPetPageNumbersOptions?) async throws
     -> PetPageNumberPage
   {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetPageNumbers(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2887,7 +2921,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetPageNumbersWithHTTPInfo(options: ListPetPageNumbersOptions?) async throws
     -> ApiResult<PetPageNumberPage>
   {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetPageNumbersWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2905,7 +2939,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func listPetsAfter(options: ListPetsAfterOptions?) async throws -> PetAfterPage {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetsAfter(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2915,7 +2949,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func listPetsAfterWithHTTPInfo(options: ListPetsAfterOptions?) async throws -> ApiResult<
     PetAfterPage
   > {
-    var parts: [String] = []
+    let parts: [String] = []
     var call = "listPetsAfterWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2935,8 +2969,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func setPetAvatar(
     petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "setPetAvatar(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2946,8 +2981,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func setPetAvatarWithHTTPInfo(
     petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws -> ApiResult<Void> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "setPetAvatarWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2958,8 +2994,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
     options: SetPetAvatarThumbnailOptions?
   ) async throws {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "setPetAvatarThumbnail(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2970,8 +3007,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
     options: SetPetAvatarThumbnailOptions?
   ) async throws -> ApiResult<Void> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "setPetAvatarThumbnailWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -2981,10 +3019,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
     -> ApiResponse
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "setPetPreferences(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -2992,17 +3031,19 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions)
     async throws -> ApiResult<ApiResponse>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "setPetPreferencesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
 
   public func updatePet(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws -> Pet {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "updatePet(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -3012,8 +3053,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func updatePetWithHTTPInfo(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws
     -> ApiResult<Pet>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "updatePetWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
@@ -3023,10 +3065,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
     -> ApiResponse
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "uploadPetCertificate(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -3034,10 +3077,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions)
     async throws -> ApiResult<ApiResponse>
   {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "uploadPetCertificateWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -3045,10 +3089,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func uploadPetDocument(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?
   ) async throws -> ApiResponse {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "uploadPetDocument(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }
@@ -3056,10 +3101,11 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   public func uploadPetDocumentWithHTTPInfo(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?
   ) async throws -> ApiResult<ApiResponse> {
-    var parts: [String] = []
-    parts.append(String(describing: petId))
+    let parts: [String] = [
+      String(describing: petId)
+    ]
     var call = "uploadPetDocumentWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
+    call += " options=set"
     record(call)
     throw NotFoundError(message: "missing")
   }

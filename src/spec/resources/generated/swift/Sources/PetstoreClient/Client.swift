@@ -76,6 +76,7 @@ public final class Client: ClientProtocol, Sendable {
   ///   - host: API base URL.
   ///   - petStoreBasic: Credential for the `petStoreBasic` security scheme (typically ``PetStoreBasicAuthenticator``), or nil for none.
   ///   - adminBasic: Credential for the `adminBasic` security scheme (typically ``AdminBasicAuthenticator``), or nil for none.
+  ///   - archiveDigest: Credential for the `archiveDigest` security scheme (typically ``ArchiveDigestAuthenticator``), or nil for none.
   ///   - petStoreBearer: Credential for the `petStoreBearer` security scheme (typically ``PetStoreBearerAuthenticator``), or nil for none.
   ///   - serviceToken: Credential for the `serviceToken` security scheme (typically ``ServiceTokenAuthenticator``), or nil for none.
   ///   - apiKeyHeader: Credential for the `apiKeyHeader` security scheme (typically ``ApiKeyHeaderAuthenticator``), or nil for none.
@@ -86,6 +87,7 @@ public final class Client: ClientProtocol, Sendable {
   ///   - legacyAuth: Credential for the `legacyAuth` security scheme (typically ``LegacyAuthPasswordAuthenticator``), or nil for none.
   ///   - userAuth: Credential for the `userAuth` security scheme (typically ``UserAuthAuthorizationCodeAuthenticator``), or nil for none.
   ///   - browserAuth: Credential for the `browserAuth` security scheme (typically ``BrowserAuthImplicitAuthenticator``), or nil for none.
+  ///   - deviceAuth: Credential for the `deviceAuth` security scheme (typically ``DeviceAuthDeviceAuthorizationAuthenticator``), or nil for none.
   ///   - ssoAuth: Credential for the `ssoAuth` security scheme (typically ``SsoAuthAuthenticator``), or nil for none.
   ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
   ///     default transport settings when omitted.
@@ -96,6 +98,7 @@ public final class Client: ClientProtocol, Sendable {
     host: String,
     petStoreBasic: Authenticator? = nil,
     adminBasic: Authenticator? = nil,
+    archiveDigest: Authenticator? = nil,
     petStoreBearer: Authenticator? = nil,
     serviceToken: Authenticator? = nil,
     apiKeyHeader: Authenticator? = nil,
@@ -106,6 +109,7 @@ public final class Client: ClientProtocol, Sendable {
     legacyAuth: Authenticator? = nil,
     userAuth: Authenticator? = nil,
     browserAuth: Authenticator? = nil,
+    deviceAuth: Authenticator? = nil,
     ssoAuth: Authenticator? = nil,
     transportOptions: TransportOptions? = nil,
     callHook: (any CallHook)? = nil
@@ -116,6 +120,9 @@ public final class Client: ClientProtocol, Sendable {
     }
     if let credential = adminBasic {
       schemes["adminBasic"] = credential
+    }
+    if let credential = archiveDigest {
+      schemes["archiveDigest"] = credential
     }
     if let credential = petStoreBearer {
       schemes["petStoreBearer"] = credential
@@ -146,6 +153,9 @@ public final class Client: ClientProtocol, Sendable {
     }
     if let credential = browserAuth {
       schemes["browserAuth"] = credential
+    }
+    if let credential = deviceAuth {
+      schemes["deviceAuth"] = credential
     }
     if let credential = ssoAuth {
       schemes["ssoAuth"] = credential

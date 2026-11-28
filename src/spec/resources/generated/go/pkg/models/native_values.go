@@ -35,7 +35,8 @@ type NativeValues struct {
 	// Example: https://example.com/a
 	Homepage *string `json:"homepage,omitempty"`
 	// Example: 12.345678901234567
-	Amount *decimal.Decimal `json:"amount,omitempty"`
+	Amount  *decimal.Decimal   `json:"amount,omitempty"`
+	Amounts *[]decimal.Decimal `json:"amounts,omitempty"`
 	// Example: 12.50
 	Ledger *decimal.Decimal `json:"ledger,omitempty"`
 	// Example: 3600s
@@ -136,6 +137,18 @@ func (o NativeValues) WithoutAmount() NativeValues {
 	return o
 }
 
+// WithAmounts returns a copy of the model with Amounts replaced; the receiver is unchanged.
+func (o NativeValues) WithAmounts(value []decimal.Decimal) NativeValues {
+	o.Amounts = &value
+	return o
+}
+
+// WithoutAmounts returns a copy of the model with Amounts left unset; the receiver is unchanged.
+func (o NativeValues) WithoutAmounts() NativeValues {
+	o.Amounts = nil
+	return o
+}
+
 // WithLedger returns a copy of the model with Ledger replaced; the receiver is unchanged.
 func (o NativeValues) WithLedger(value decimal.Decimal) NativeValues {
 	o.Ledger = &value
@@ -213,7 +226,7 @@ func (o NativeValues) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
-	if b, err = exactdecimal.EncodeFields(b, exactdecimal.Field{Key: "amount", Value: o.Amount}, exactdecimal.Field{Key: "ledger", Value: o.Ledger, Quoted: true}); err != nil {
+	if b, err = exactdecimal.EncodeFields(b, exactdecimal.Field{Key: "amount", Value: o.Amount}, exactdecimal.Field{Key: "amounts", Value: o.Amounts}, exactdecimal.Field{Key: "ledger", Value: o.Ledger, Quoted: true}); err != nil {
 		return nil, err
 	}
 	return b, nil
@@ -246,6 +259,8 @@ func (o *NativeValues) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 			return decodeChecked(dec, &out.Homepage, key, checkAbsoluteURI)
 		case "amount":
 			return decodeChecked(dec, &out.Amount, key, checkDecimalNumber)
+		case "amounts":
+			return decodeChecked(dec, &out.Amounts, key, checkDecimalNumber)
 		case "ledger":
 			return decodeChecked(dec, &out.Ledger, key, checkDecimalString)
 		case "wait":

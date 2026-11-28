@@ -480,6 +480,7 @@ void main() {
         expect(() => Client(), throwsArgumentError);
         expect(() => Client(petStoreBasic: null), throwsArgumentError);
         expect(() => Client(adminBasic: null), throwsArgumentError);
+        expect(() => Client(archiveDigest: null), throwsArgumentError);
         expect(() => Client(petStoreBearer: null), throwsArgumentError);
         expect(() => Client(serviceToken: null), throwsArgumentError);
         expect(() => Client(apiKeyHeader: null), throwsArgumentError);
@@ -490,6 +491,7 @@ void main() {
         expect(() => Client(legacyAuth: null), throwsArgumentError);
         expect(() => Client(userAuth: null), throwsArgumentError);
         expect(() => Client(browserAuth: null), throwsArgumentError);
+        expect(() => Client(deviceAuth: null), throwsArgumentError);
         expect(() => Client(ssoAuth: null), throwsArgumentError);
       },
     );
@@ -515,6 +517,7 @@ void main() {
         expect(ApiKeyHeaderAuthenticator, isNotNull);
         expect(ApiKeyQueryAuthenticator, isNotNull);
         expect(BrowserAuthImplicitAuthenticator, isNotNull);
+        expect(DeviceAuthDeviceAuthorizationAuthenticator, isNotNull);
         expect(InternalApiKeyAuthenticator, isNotNull);
         expect(LegacyAuthPasswordAuthenticator, isNotNull);
         expect(MachineAuthClientCredentialsAuthenticator, isNotNull);
@@ -982,6 +985,8 @@ void main() {
         expect(storeInterface, contains(' getMatrixWithHttpInfo('));
         expect(storeInterface, contains(' getMemo('));
         expect(storeInterface, contains(' getMemoWithHttpInfo('));
+        expect(storeInterface, contains(' getNativeAmount('));
+        expect(storeInterface, contains(' getNativeAmountWithHttpInfo('));
         expect(storeInterface, contains(' getNativeValues('));
         expect(storeInterface, contains(' getNativeValuesWithHttpInfo('));
         expect(storeInterface, contains(' getOrderById('));
@@ -1000,6 +1005,8 @@ void main() {
         expect(storeInterface, contains(' getTreeWithHttpInfo('));
         expect(storeInterface, contains(' headMemo('));
         expect(storeInterface, contains(' headMemoWithHttpInfo('));
+        expect(storeInterface, contains(' listNativeAmounts('));
+        expect(storeInterface, contains(' listNativeAmountsWithHttpInfo('));
         expect(storeInterface, contains(' optionsMemo('));
         expect(storeInterface, contains(' optionsMemoWithHttpInfo('));
         expect(storeInterface, contains(' patchMemo('));
@@ -1010,6 +1017,8 @@ void main() {
         expect(storeInterface, contains(' reserveStockWithHttpInfo('));
         expect(storeInterface, contains(' searchStore('));
         expect(storeInterface, contains(' searchStoreWithHttpInfo('));
+        expect(storeInterface, contains(' submitAllowance('));
+        expect(storeInterface, contains(' submitAllowanceWithHttpInfo('));
         expect(storeInterface, contains(' traceMemo('));
         expect(storeInterface, contains(' traceMemoWithHttpInfo('));
         expect(storeInterface, contains(' watchNoticesStream('));

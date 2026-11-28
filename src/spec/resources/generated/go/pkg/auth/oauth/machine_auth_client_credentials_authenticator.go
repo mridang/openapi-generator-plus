@@ -8,6 +8,9 @@ type MachineAuthClientCredentialsAuthenticator struct {
 	*OAuth2ClientCredentialsAuthenticator
 }
 
+// MachineAuthClientCredentialsAuthenticatorMetadataURL is the OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+const MachineAuthClientCredentialsAuthenticatorMetadataURL = "https://auth.example.com/.well-known/oauth-authorization-server"
+
 // String prints the wrapper's own name with the OAuth2ClientCredentialsAuthenticator's redacted fields,
 // instead of the promoted method naming the base type. The value receiver keeps
 // a dereferenced wrapper redacted too.

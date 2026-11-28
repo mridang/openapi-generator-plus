@@ -24,6 +24,14 @@ class ComposedSchemaTest {
             coerceInputValues = true
         }
 
+    /* Writes every default, so a variant's discriminator appears on the wire, and leaves
+     * out an optional property that is null. */
+    private val encodingDefaults =
+        Json {
+            encodeDefaults = true
+            explicitNulls = false
+        }
+
     @Nested
     @DisplayName("oneOf with discriminator - DryFood")
     inner class DryFoodTests {
@@ -126,7 +134,11 @@ class ComposedSchemaTest {
 
             assertTrue(food.isDryFood)
             assertEquals(2.5, food.asDryFood()?.weightKg)
-            val encodingJson = Json { encodeDefaults = true }
+            val encodingJson =
+                Json {
+                    encodeDefaults = true
+                    explicitNulls = false
+                }
             assertEquals("""{"foodType":"dry","weightKg":2.5}""", encodingJson.encodeToString(food))
         }
 
@@ -201,6 +213,7 @@ class ComposedSchemaTest {
                 Json {
                     ignoreUnknownKeys = true
                     encodeDefaults = true
+                    explicitNulls = false
                     isLenient = true
                     coerceInputValues = true
                 }
@@ -839,7 +852,7 @@ class ComposedSchemaTest {
     fun bhvMisc292OneOfWrapperWritesTheBarePayloadAndReadsItBack() =
         runBlocking<Unit> {
             val food = PetFood.fromDryFood(DryFood(weightKg = 2.5))
-            val wire = Json { encodeDefaults = true }.encodeToString(food)
+            val wire = encodingDefaults.encodeToString(food)
             assertEquals("""{"foodType":"dry","weightKg":2.5}""", wire)
             assertEquals(2.5, json.decodeFromString<PetFood>(wire).asDryFood()?.weightKg)
         }

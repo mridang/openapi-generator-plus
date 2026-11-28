@@ -1,4 +1,4 @@
-.PHONY: all build test lint format format-check fmt gofumpt vet staticcheck docs examples examples-run clean
+.PHONY: all build test lint format format-check fmt gofumpt vet staticcheck audit docs examples examples-run clean
 
 all: build
 
@@ -30,6 +30,10 @@ vet:
 
 staticcheck:
 	go tool staticcheck ./...
+
+# Fails when code the module calls has a known vulnerability.
+audit:
+	go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 
 docs:
 	go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0

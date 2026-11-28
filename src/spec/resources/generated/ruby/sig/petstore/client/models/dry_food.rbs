@@ -11,5 +11,6 @@ module Petstore::Client::Models
     def with: (**untyped) -> DryFood
     attr_reader food_type: String
     attr_reader weight_kg: Float
+    attr_reader price_per_kg: BigDecimal?
   end
 end

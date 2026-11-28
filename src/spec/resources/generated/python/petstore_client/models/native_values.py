@@ -27,6 +27,7 @@ class NativeValues(ApiModel):
     homepage: Optional[UrlStr] = Field(default=None, alias="homepage")
     # Example: 12.345678901234567
     amount: Optional[JsonNumber] = Field(default=None, alias="amount")
+    amounts: Optional[List[JsonNumber]] = Field(default=None, alias="amounts")
     # Example: '12.50'
     ledger: Optional[DecimalStr] = Field(default=None, alias="ledger")
     # Example: '3600s'

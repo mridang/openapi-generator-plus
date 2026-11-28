@@ -487,4 +487,147 @@ void main() {
       },
     );
   });
+
+  group('DigestAuthenticator', () {
+    /* The example of RFC 7616 section 3.9.1. */
+    const nonce = '7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v';
+    const opaque = 'FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS';
+    const cnonce = 'f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ';
+
+    DigestAuthenticator rfcDigest() => DigestAuthenticator(
+      host: 'https://api.example.com',
+      username: 'Mufasa',
+      password: 'Circle of Life',
+    )..cnonceSource = () => cnonce;
+
+    String rfcChallenge(String algorithm) =>
+        'Digest realm="http-auth@example.org", qop="auth, auth-int", algorithm=$algorithm, '
+        'nonce="$nonce", opaque="$opaque"';
+
+    String rfcHeader(String algorithm, String response) =>
+        'Digest username="Mufasa", realm="http-auth@example.org", nonce="$nonce", '
+        'uri="/dir/index.html", algorithm=$algorithm, response="$response", qop=auth, nc=00000001, '
+        'cnonce="$cnonce", opaque="$opaque"';
+
+    test(
+      'bhv authdigest 700 the RFC 7616 MD5 example challenge is answered with the exact header',
+      () {
+        final auth = rfcDigest();
+
+        expect(auth.authorization('GET', '/dir/index.html'), isNull);
+        expect(auth.acceptChallenge(rfcChallenge('MD5')), isTrue);
+        expect(
+          auth.authorization('GET', '/dir/index.html'),
+          equals(rfcHeader('MD5', '8ca523f5e9506fed4657c9700eebdbec')),
+        );
+        expect(auth.authHeaders(), isEmpty);
+      },
+    );
+
+    test(
+      'bhv authdigest 701 the RFC 7616 SHA-256 example is answered and a -sess variant hashes the first value with the nonces',
+      () {
+        final expected = {
+          'SHA-256':
+              '753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1',
+          'MD5-sess': 'e783283f46242139c486a698fec7211d',
+          'SHA-256-sess':
+              '2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7',
+        };
+        expected.forEach((algorithm, response) {
+          final auth = rfcDigest();
+          expect(auth.acceptChallenge(rfcChallenge(algorithm)), isTrue);
+          expect(
+            auth.authorization('GET', '/dir/index.html'),
+            equals(rfcHeader(algorithm, response)),
+          );
+        });
+      },
+    );
+
+    test(
+      'bhv authdigest 704 a challenge without qop is answered in the RFC 2069 form, echoing only what was sent',
+      () {
+        final auth = rfcDigest();
+
+        expect(
+          auth.acceptChallenge(
+            r'Basic realm="other", digest realm="r\"1", nonce="n1"',
+          ),
+          isTrue,
+        );
+        expect(
+          auth.authorization('GET', '/a?b=c'),
+          equals(
+            r'Digest username="Mufasa", realm="r\"1", nonce="n1", uri="/a?b=c", '
+            'response="e119dfcbcd05c2cbb623a0bf16ce90d9"',
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv authdigest 705 a challenge offering only auth-int or naming an unknown algorithm is not accepted',
+      () {
+        final auth = rfcDigest();
+
+        expect(
+          auth.acceptChallenge('Digest realm="r", nonce="n", qop="auth-int"'),
+          isFalse,
+        );
+        expect(
+          auth.acceptChallenge(
+            'Digest realm="r", nonce="n", qop="auth", algorithm=SHA-512-256',
+          ),
+          isFalse,
+        );
+        expect(auth.authorization('GET', '/'), isNull);
+      },
+    );
+
+    test(
+      'bhv authdigest 706 unusable credentials are refused at construction and the password is masked',
+      () {
+        final cases = [
+          ('', 'pw', 'Digest username must not be empty'),
+          (
+            'al\nice',
+            'pw',
+            'Digest credentials must not contain a line break or NUL',
+          ),
+          (
+            'alice',
+            'p\rw',
+            'Digest credentials must not contain a line break or NUL',
+          ),
+          (
+            'alice',
+            'p\u0000w',
+            'Digest credentials must not contain a line break or NUL',
+          ),
+          ('al"ice', 'pw', 'Digest username must not contain a double quote'),
+        ];
+        for (final (username, secret, message) in cases) {
+          expect(
+            () => DigestAuthenticator(
+              host: 'https://api.example.com',
+              username: username,
+              password: secret,
+            ),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals(message),
+              ),
+            ),
+          );
+        }
+        final shown = rfcDigest().toString();
+
+        expect(shown, contains('***'));
+        expect(shown, isNot(contains('Circle of Life')));
+      },
+    );
+  });
 }

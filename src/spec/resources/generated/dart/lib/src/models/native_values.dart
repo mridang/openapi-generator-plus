@@ -25,6 +25,8 @@ class NativeValues {
   /// Example: `12.345678901234567`
   final Decimal? amount;
 
+  final List<Decimal>? amounts;
+
   /// Example: `12.50`
   final Decimal? ledger;
 
@@ -46,6 +48,7 @@ class NativeValues {
     this.addresses,
     this.homepage,
     this.amount,
+    this.amounts,
     this.ledger,
     this.wait,
     this.since,
@@ -78,6 +81,12 @@ class NativeValues {
 
         amount: readDecimalOrNull(json, 'amount'),
 
+        amounts: json['amounts'] != null
+            ? deserializeArray(
+                json['amounts'] as List,
+                (e) => readDecimalValue(e),
+              )
+            : null,
         ledger: parseDecimalStringOrNull(json['ledger']),
 
         wait: json['wait'] != null
@@ -115,6 +124,9 @@ class NativeValues {
     if (amount != null) {
       json['amount'] = amount;
     }
+    if (amounts != null) {
+      json['amounts'] = wireListOrNull(amounts, amounts);
+    }
     if (ledger != null) {
       json['ledger'] = ledger == null ? null : decimalText(ledger!);
     }
@@ -144,6 +156,7 @@ class NativeValues {
     Object? addresses = copyUnset,
     Object? homepage = copyUnset,
     Object? amount = copyUnset,
+    Object? amounts = copyUnset,
     Object? ledger = copyUnset,
     Object? wait = copyUnset,
     Object? since = copyUnset,
@@ -156,6 +169,7 @@ class NativeValues {
       addresses: copyField<List<String>>(addresses, this.addresses),
       homepage: copyField<String>(homepage, this.homepage),
       amount: copyField<Decimal>(amount, this.amount),
+      amounts: copyField<List<Decimal>>(amounts, this.amounts),
       ledger: copyField<Decimal>(ledger, this.ledger),
       wait: copyField<Duration>(wait, this.wait),
       since: copyField<DateTime>(since, this.since),
@@ -177,6 +191,7 @@ class NativeValues {
         const DeepCollectionEquality().equals(addresses, other.addresses) &&
         homepage == other.homepage &&
         amount == other.amount &&
+        const DeepCollectionEquality().equals(amounts, other.amounts) &&
         ledger == other.ledger &&
         wait == other.wait &&
         since == other.since &&
@@ -196,6 +211,7 @@ class NativeValues {
     const DeepCollectionEquality().hash(addresses),
     homepage,
     amount,
+    const DeepCollectionEquality().hash(amounts),
     ledger,
     wait,
     since,
@@ -209,5 +225,5 @@ class NativeValues {
   /// unchanged.
   @override
   String toString() =>
-      'NativeValues(address4: $address4, address6: $address6, addresses: $addresses, homepage: $homepage, amount: $amount, ledger: $ledger, wait: $wait, since: $since, host: $host, contact: $contact)';
+      'NativeValues(address4: $address4, address6: $address6, addresses: $addresses, homepage: $homepage, amount: $amount, amounts: $amounts, ledger: $ledger, wait: $wait, since: $since, host: $host, contact: $contact)';
 }

@@ -385,22 +385,9 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     return now
   }
 
-  private func requestToken(
-    tokenURL: String,
-    params: [String: String],
-    extraHeaders: [String: String] = [:]
-  ) async throws -> TokenResult {
-    let client: ApiClient = try lock.withLock {
-      guard let client = apiClient else {
-        throw ConfigurationError.invalidState(
-          "ApiClient has not been injected. "
-            + "Ensure the Client constructor calls setApiClient "
-            + "on HttpAwareAuthenticator before making API requests"
-        )
-      }
-      return client
-    }
-
+  /// The form-urlencoded body of a token request: the params in the fixed
+  /// cross-SDK key order, then any other key sorted.
+  static func encodeForm(_ params: [String: String]) -> Data? {
     /* Percent-encode both key and value per RFC 6749 §B / RFC 3986
      * (form-urlencoded body). Raw concatenation would corrupt the
      * request when client_secret, username, or password contains any
@@ -425,15 +412,64 @@ public final class OAuth2TokenManager: @unchecked Sendable {
       let ri = priority.firstIndex(of: rhs.key) ?? priority.count
       return li != ri ? li < ri : lhs.key < rhs.key
     }
-    let body = ordered.map { entry -> String in
+    return ordered.map { entry -> String in
       let key = (entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key)
         .replacingOccurrences(of: "%20", with: "+")
       let value =
         (entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value)
         .replacingOccurrences(of: "%20", with: "+")
       return "\(key)=\(value)"
-    }.joined(separator: "&")
-    let bodyData = body.data(using: .utf8)
+    }.joined(separator: "&").data(using: .utf8)
+  }
+
+  /// POSTs `params` as a form to `url` through the injected ``ApiClient``,
+  /// with redirects refused, and returns the body of a 2xx answer; any other
+  /// answer is an ``OAuth2ServerError``. The device authorization request
+  /// uses it; it leaves the session alone.
+  func postForm(url: String, params: [String: String]) async throws -> String {
+    let client: ApiClient = try lock.withLock {
+      guard let client = apiClient else {
+        throw ConfigurationError.invalidState(
+          "ApiClient has not been injected. "
+            + "Ensure the Client constructor calls setApiClient "
+            + "on HttpAwareAuthenticator before making API requests"
+        )
+      }
+      return client
+    }
+    let response = try await client.sendRequest(
+      method: "POST",
+      url: url,
+      headers: [
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+      ],
+      body: Self.encodeForm(params),
+      noRedirect: true
+    )
+    guard response.statusCode >= 200 && response.statusCode < 300 else {
+      throw Self.parseOAuth2ServerError(statusCode: response.statusCode, body: response.body)
+    }
+    return response.body
+  }
+
+  private func requestToken(
+    tokenURL: String,
+    params: [String: String],
+    extraHeaders: [String: String] = [:]
+  ) async throws -> TokenResult {
+    let client: ApiClient = try lock.withLock {
+      guard let client = apiClient else {
+        throw ConfigurationError.invalidState(
+          "ApiClient has not been injected. "
+            + "Ensure the Client constructor calls setApiClient "
+            + "on HttpAwareAuthenticator before making API requests"
+        )
+      }
+      return client
+    }
+
+    let bodyData = Self.encodeForm(params)
 
     var headers = [
       "Content-Type": "application/x-www-form-urlencoded",

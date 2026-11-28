@@ -691,6 +691,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "addPet",
       "/pet",
+      "Pet",
     );
   }
 
@@ -887,6 +888,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "addPetTreatment",
       "/pet/{petId}/treatment",
+      "PetTreatment",
     );
   }
 
@@ -3993,6 +3995,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "setPetAvatarThumbnail",
       "/pet/{petId}/avatar/thumbnail",
+      "SetPetAvatarThumbnailRequest",
     );
   }
 
@@ -4218,6 +4221,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       "updatePet",
       "/pet/{petId}",
+      "Pet",
     );
   }
 

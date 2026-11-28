@@ -41,10 +41,18 @@ class Configuration {
   /// `http.Client`. It is not part of [toString], which would print it.
   final CallHook? callHook;
 
+  /// Whether every request body is checked against the validation keywords
+  /// of its schema (minLength, pattern, minimum, ...) before it is sent.
+  ///
+  /// Off by default. When on, a body that breaks one throws an
+  /// [ArgumentError] and nothing is sent.
+  final bool validateConstraints;
+
   Configuration._({
     required this.baseUrl,
     required Map<String, String> defaultHeaders,
     this.callHook,
+    this.validateConstraints = false,
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Default headers included in every API request.
@@ -90,6 +98,7 @@ class ConfigurationBuilder {
   String _baseUrl = '/api/v3';
   final Map<String, String> _defaultHeaders = {};
   CallHook? _callHook;
+  bool _validateConstraints = false;
 
   /// Set the base URL for all API requests.
   ConfigurationBuilder baseUrl(String val) {
@@ -117,6 +126,16 @@ class ConfigurationBuilder {
     return this;
   }
 
+  /// Turn the check of every request body against the validation keywords
+  /// of its schema on or off.
+  ///
+  /// Off by default. When on, a body that breaks one throws an
+  /// [ArgumentError] before anything is sent.
+  ConfigurationBuilder validateConstraints(bool val) {
+    _validateConstraints = val;
+    return this;
+  }
+
   /// Set the base URL by resolving a server configuration with optional
   /// variable overrides.
   ///
@@ -138,6 +157,7 @@ class ConfigurationBuilder {
       baseUrl: _baseUrl,
       defaultHeaders: Map<String, String>.from(_defaultHeaders),
       callHook: _callHook,
+      validateConstraints: _validateConstraints,
     );
   }
 }

@@ -19,6 +19,9 @@ import Foundation
 public final class MachineAuthClientCredentialsAuthenticator: OAuth2ClientCredentialsAuthenticator,
   @unchecked Sendable
 {
+  /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+  public static let metadataUrl = "https://auth.example.com/.well-known/oauth-authorization-server"
+
   /// Creates the authenticator from explicit credentials and the process environment.
   public convenience init(host: String, clientId: String? = nil, clientSecret: String? = nil) throws
   {

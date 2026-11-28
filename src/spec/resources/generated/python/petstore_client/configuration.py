@@ -56,6 +56,15 @@ class Configuration:
     string form.
     """
 
+    validate_constraints: bool = False
+    """Whether every request body is checked against the validation keywords of its schema.
+
+    Off by default. When on, the body of every call is checked against
+    ``minLength``, ``pattern``, ``minimum``, ``maxItems`` and the other
+    validation keywords before anything is sent, and a body that breaks one
+    raises ``ValueError``.
+    """
+
     def __post_init__(self) -> None:
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(
@@ -99,6 +108,7 @@ class ConfigurationBuilder:
         self._base_url: str = "/api/v3"
         self._default_headers: Dict[str, str] = {}
         self._call_hook: Optional[CallHook] = None
+        self._validate_constraints: bool = False
 
     def base_url(self, base_url: str) -> "ConfigurationBuilder":
         """Set the base URL for all API requests.
@@ -150,6 +160,19 @@ class ConfigurationBuilder:
         self._call_hook = hook
         return self
 
+    def validate_constraints(self, validate: bool) -> "ConfigurationBuilder":
+        """Turn the check of every request body against its schema on or off.
+
+        Args:
+            validate: Whether request bodies are checked against the
+                validation keywords of their schema before they are sent.
+
+        Returns:
+            This builder.
+        """
+        self._validate_constraints = validate
+        return self
+
     def server(
         self,
         server_config: ServerConfiguration,
@@ -187,4 +210,5 @@ class ConfigurationBuilder:
             base_url=self._base_url,
             default_headers=self._default_headers,
             call_hook=self._call_hook,
+            validate_constraints=self._validate_constraints,
         )

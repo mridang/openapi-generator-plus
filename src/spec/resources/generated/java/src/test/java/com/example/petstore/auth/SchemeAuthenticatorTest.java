@@ -691,6 +691,13 @@ class SchemeAuthenticatorTest {
   }
 
   @Test
+  void bhvAuthScheme700ExposesTheDeclaredOAuth2MetadataUrlAsAConstant() {
+    assertEquals(
+        "https://auth.example.com/.well-known/oauth-authorization-server",
+        com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator.METADATA_URL);
+  }
+
+  @Test
   void bhvAuthScheme001ReadsOnlyItsOwnVariable() {
     {
       Map<String, String> environment =

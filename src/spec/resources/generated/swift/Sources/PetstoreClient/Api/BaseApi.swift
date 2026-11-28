@@ -317,6 +317,18 @@ public class BaseApi: @unchecked Sendable {
       method: params.method, url: requestURL, headers: headers, body: serializedBody,
       refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
 
+    /* A 401 with a challenge the challenge authenticator (HTTP Digest)
+     * accepts is answered: the request is replayed once with the answer. */
+    if response.statusCode == 401, call.isReplayable,
+      let answer = Self.answerChallenge(
+        effectiveAuth, response.headers, method: params.method, url: requestURL)
+    {
+      headers = Self.mergeHeaders(headers, overriding: ["Authorization": answer])
+      response = try await send(
+        method: params.method, url: requestURL, headers: headers, body: serializedBody,
+        refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
+    }
+
     /* A revoked or rotated token keeps failing while it is cached. On a 401
      * from a request that carried a token this SDK fetched, drop the token,
      * obtain a new one (a refresh grant first) and replay the request once.
@@ -348,6 +360,39 @@ public class BaseApi: @unchecked Sendable {
     }
 
     return (response, ApiError.pathOfRequestURL(requestURL))
+  }
+
+  /// The answer of a challenge authenticator (HTTP Digest) for a request, or
+  /// nil for any other authenticator and before any challenge was accepted.
+  private static func challengeAnswer(_ auth: Authenticator, method: String, url: String) -> String?
+  {
+    guard let challenger = auth as? ChallengeAuthenticating else { return nil }
+    return challenger.authorization(method: method, requestTarget: requestTarget(of: url))
+  }
+
+  /// Hands the `WWW-Authenticate` value of a 401 to a challenge authenticator
+  /// and returns its answer when it accepted the challenge, else nil.
+  private static func answerChallenge(
+    _ auth: Authenticator?, _ responseHeaders: [String: String], method: String, url: String
+  ) -> String? {
+    guard let challenger = auth as? ChallengeAuthenticating,
+      let challenge = responseHeaders.first(where: {
+        $0.key.caseInsensitiveCompare("WWW-Authenticate") == .orderedSame
+      })?.value,
+      challenger.acceptChallenge(challenge)
+    else { return nil }
+    return challenger.authorization(method: method, requestTarget: requestTarget(of: url))
+  }
+
+  /// The path and query of a request URL, the request target a challenge
+  /// answer covers.
+  private static func requestTarget(of url: String) -> String {
+    guard let components = URLComponents(string: url) else { return url }
+    let path = components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath
+    if let query = components.percentEncodedQuery {
+      return path + "?" + query
+    }
+    return path
   }
 
   /// The absolute URL of a call path: the path itself when it is absolute, else
@@ -390,6 +435,11 @@ public class BaseApi: @unchecked Sendable {
   /// runs the hook's `start` and returns the request, ready to send. Shared by
   /// the buffered and the stream calls, so both send the same request.
   private func prepareCall(_ params: InvokeAPIParams, run: CallRun) async throws -> PreparedCall {
+    /* With validateConstraints on, the body is checked before anything
+     * else: before it is serialized, before the hook and before any send. */
+    if config.validateConstraints, let body = params.body {
+      try ConstraintValidator.validateRequestBody(body)
+    }
     var requestURL = resolveURL(params.path)
 
     /* Resolve authentication into three distinct states (the sentinel
@@ -455,6 +505,12 @@ public class BaseApi: @unchecked Sendable {
     /* Merge auth headers */
     if let auth = effectiveAuth {
       headers = Self.mergeHeaders(headers, overriding: try await auth.authHeaders())
+      /* A challenge authenticator (HTTP Digest) answers the challenge it
+       * accepted for this method and request target; before any
+       * challenge it adds nothing. */
+      if let answer = Self.challengeAnswer(auth, method: params.method, url: requestURL) {
+        headers = Self.mergeHeaders(headers, overriding: ["Authorization": answer])
+      }
       /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
        * parsers don't URL-decode, so `=` (base64 padding) would arrive
        * as literal `%3D` and break JWT/session cookies. Validate and
@@ -504,7 +560,16 @@ public class BaseApi: @unchecked Sendable {
 
     var refresh: (@Sendable () async throws -> [String: String])? = nil
     if let auth = effectiveAuth {
-      refresh = { try await auth.authHeaders() }
+      /* A Digest answer carries a nonce count, so a retry answers again. */
+      let method = params.method
+      let url = requestURL
+      refresh = {
+        var fresh = try await auth.authHeaders()
+        if let answer = Self.challengeAnswer(auth, method: method, url: url) {
+          fresh["Authorization"] = answer
+        }
+        return fresh
+      }
     }
     return PreparedCall(
       method: params.method, url: requestURL, headers: headers, body: serializedBody,
@@ -538,6 +603,17 @@ public class BaseApi: @unchecked Sendable {
     let call = try await prepareCall(params, run: run)
     var headers = call.headers
     var response = try await sendStream(call, headers: headers, params: params)
+
+    /* The Digest answer of a buffered call: the refused response is closed
+     * unread and the request is sent once more with the answer. */
+    if response.statusCode == 401, call.isReplayable,
+      let answer = Self.answerChallenge(
+        call.effectiveAuth, response.headers, method: call.method, url: call.url)
+    {
+      response.close()
+      headers = Self.mergeHeaders(headers, overriding: ["Authorization": answer])
+      response = try await sendStream(call, headers: headers, params: params)
+    }
 
     /* The 401 replay of a buffered call: the refused response is closed
      * unread, the token is dropped and the request is sent once more. */

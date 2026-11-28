@@ -31,6 +31,8 @@ public class OAuth2TokenManagerTest
         public bool LastNoRedirect { get; private set; }
         public Dictionary<string, string> LastHeaders { get; private set; } = new();
         public int CallCount { get; private set; }
+        public List<Uri> Urls { get; } = [];
+        public List<string?> Bodies { get; } = [];
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -51,6 +53,8 @@ public class OAuth2TokenManagerTest
             LastUrl = url;
             LastHeaders = new Dictionary<string, string>(headers);
             LastBody = body?.ToString();
+            Urls.Add(url);
+            Bodies.Add(LastBody);
             LastNoRedirect = noRedirect;
             return Task.FromResult(_responses.Dequeue());
         }
@@ -2093,5 +2097,267 @@ public class OAuth2TokenManagerTest
         );
 
         Assert.Equal("tok2", second);
+    }
+
+    private static readonly Uri DeviceUrl = new("https://auth.example.com/device");
+    private static readonly string[] DeviceScopes = ["read", "write"];
+    private static readonly long[] SlowDownDelays = [5L, 10L, 10L];
+    private const string DeviceGrantBody =
+        "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=my-client&device_code=dev-code";
+    private static readonly string?[] DeviceGrantBodies =
+    [
+        DeviceGrantBody,
+        DeviceGrantBody,
+        DeviceGrantBody,
+    ];
+
+    private static OAuth2DeviceAuthorizationAuthenticator DeviceAuthenticator(
+        FakeApiClient client,
+        List<long>? slept = null
+    )
+    {
+        var auth = new OAuth2DeviceAuthorizationAuthenticator(
+            "https://api.example.com",
+            "my-client",
+            DeviceUrl,
+            TokenUrl,
+            DeviceScopes
+        );
+        auth.SetApiClient(client);
+        auth.Delay = (wait, _) =>
+        {
+            slept?.Add((long)wait.TotalSeconds);
+            return Task.CompletedTask;
+        };
+        return auth;
+    }
+
+    private static DeviceAuthorization DeviceCode(long expiresIn, long interval) =>
+        new(
+            "dev-code",
+            "USER-CODE",
+            "https://auth.example.com/activate",
+            null,
+            expiresIn,
+            interval
+        );
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice700RequestDeviceAuthorizationPostsTheClientAndScopesAndReturnsTheFields()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"device_code\":\"dc\",\"user_code\":\"UC-1\",\"verification_uri\":\"https://auth.example.com/activate\","
+                + "\"verification_uri_complete\":\"https://auth.example.com/activate?user_code=UC-1\",\"expires_in\":600,\"interval\":7}"
+        );
+        client.Enqueue(
+            "{\"device_code\":\"dc2\",\"user_code\":\"UC-2\",\"verification_uri\":\"https://auth.example.com/activate\","
+                + "\"expires_in\":\"900\"}"
+        );
+        var auth = DeviceAuthenticator(client);
+
+        var first = await auth.RequestDeviceAuthorizationAsync(
+            TestContext.Current.CancellationToken
+        );
+        var second = await auth.RequestDeviceAuthorizationAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(new[] { DeviceUrl, DeviceUrl }, client.Urls);
+        Assert.Equal("client_id=my-client&scope=read+write", client.Bodies[0]);
+        Assert.Equal(
+            new DeviceAuthorization(
+                "dc",
+                "UC-1",
+                "https://auth.example.com/activate",
+                "https://auth.example.com/activate?user_code=UC-1",
+                600L,
+                7L
+            ),
+            first
+        );
+        Assert.Equal(
+            new DeviceAuthorization(
+                "dc2",
+                "UC-2",
+                "https://auth.example.com/activate",
+                null,
+                900L,
+                5L
+            ),
+            second
+        );
+    }
+
+    [Theory]
+    [InlineData("not json", "Device authorization response is not valid JSON")]
+    [InlineData("[1]", "Device authorization response is not a JSON object")]
+    [InlineData(
+        "{\"user_code\":\"u\",\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty device_code field"
+    )]
+    [InlineData(
+        "{\"device_code\":\"\",\"user_code\":\"u\",\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty device_code field"
+    )]
+    [InlineData(
+        "{\"device_code\":\"d\",\"user_code\":7,\"verification_uri\":\"v\"}",
+        "Device authorization response missing or empty user_code field"
+    )]
+    [InlineData(
+        "{\"device_code\":\"d\",\"user_code\":\"u\"}",
+        "Device authorization response missing or empty verification_uri field"
+    )]
+    public async Task BhvAuthoauthtwodevice701AnUnusableDeviceAuthorizationResponseIsATokenError(
+        string body,
+        string expected
+    )
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(body);
+        var auth = DeviceAuthenticator(client);
+
+        var thrown = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            auth.RequestDeviceAuthorizationAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(expected, thrown.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice701ANonSuccessDeviceAuthorizationAnswerIsAServerError()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"invalid_client\"}", 400);
+        var auth = DeviceAuthenticator(client);
+
+        var thrown = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            auth.RequestDeviceAuthorizationAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(400, thrown.StatusCode);
+        Assert.Equal("invalid_client", thrown.Code);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice702PollForTokenPostsTheDeviceCodeGrantAndKeepsPollingWhilePending()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"authorization_pending\"}", 400);
+        client.Enqueue("{\"error\":\"authorization_pending\"}", 400);
+        client.Enqueue("{\"access_token\":\"device-token\",\"expires_in\":3600}");
+        var auth = DeviceAuthenticator(client);
+
+        await auth.PollForTokenAsync(DeviceCode(600, 5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(DeviceGrantBodies, client.Bodies);
+        Assert.Equal(new[] { TokenUrl, TokenUrl, TokenUrl }, client.Urls);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice703ASlowDownAnswerAddsFiveSecondsToTheInterval()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"slow_down\"}", 400);
+        client.Enqueue("{\"error\":\"authorization_pending\"}", 400);
+        client.Enqueue("{\"access_token\":\"device-token\",\"expires_in\":3600}");
+        var slept = new List<long>();
+        var auth = DeviceAuthenticator(client, slept);
+
+        await auth.PollForTokenAsync(DeviceCode(600, 5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SlowDownDelays, slept);
+    }
+
+    [Theory]
+    [InlineData("access_denied")]
+    [InlineData("expired_token")]
+    [InlineData("invalid_grant")]
+    public async Task BhvAuthoauthtwodevice704AnyOtherTokenErrorEndsPollingWithTheServerError(
+        string code
+    )
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"authorization_pending\"}", 400);
+        client.Enqueue("{\"error\":\"" + code + "\"}", 400);
+        var auth = DeviceAuthenticator(client);
+
+        var thrown = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            auth.PollForTokenAsync(DeviceCode(600, 5), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(code, thrown.Code);
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice704PollingPastExpiresInIsATokenError()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"authorization_pending\"}", 400);
+        client.Enqueue("{\"error\":\"authorization_pending\"}", 400);
+        var auth = DeviceAuthenticator(client);
+        long milliseconds = 0;
+        auth.Delay = (wait, _) =>
+        {
+            milliseconds += (long)wait.TotalMilliseconds;
+            return Task.CompletedTask;
+        };
+        auth.MonotonicMilliseconds = () => milliseconds;
+
+        var thrown = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            auth.PollForTokenAsync(DeviceCode(12, 5), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal("Device authorization expired before the user approved it", thrown.Message);
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice705TheBearerHeaderNeedsAPolledToken()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"device-token\",\"expires_in\":3600}");
+        var auth = DeviceAuthenticator(client);
+
+        var before = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+        await auth.PollForTokenAsync(DeviceCode(600, 5), TestContext.Current.CancellationToken);
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Must call PollForTokenAsync() before making API requests", before.Message);
+        Assert.Equal("Bearer device-token", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwodevice706TheSchemeWrapperPassesTheSpecUrlsAndScopes()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"device_code\":\"dc\",\"user_code\":\"uc\",\"verification_uri\":\"https://auth.example.com/activate\",\"expires_in\":600}"
+        );
+        client.Enqueue("{\"access_token\":\"device-token\",\"expires_in\":3600}");
+        var auth = new DeviceAuthDeviceAuthorizationAuthenticator(
+            "https://api.example.com",
+            "my-client"
+        );
+        auth.SetApiClient(client);
+        auth.Delay = (_, _) => Task.CompletedTask;
+
+        await auth.PollForTokenAsync(
+            await auth.RequestDeviceAuthorizationAsync(TestContext.Current.CancellationToken),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(
+            new[]
+            {
+                new Uri("https://auth.example.com/oauth/device"),
+                new Uri("https://auth.example.com/oauth/token"),
+            },
+            client.Urls
+        );
+        Assert.Equal("client_id=my-client&scope=pets%3Aread+pets%3Awrite", client.Bodies[0]);
     }
 }

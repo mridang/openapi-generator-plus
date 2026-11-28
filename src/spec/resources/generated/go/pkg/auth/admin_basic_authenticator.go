@@ -2,6 +2,7 @@
 
 package auth
 
+// AdminBasicAuthenticator authenticates the adminBasic security scheme. Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
 type AdminBasicAuthenticator struct {
 	*BasicAuthenticator
 }

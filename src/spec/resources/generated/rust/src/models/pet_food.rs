@@ -36,18 +36,19 @@ impl<'de> serde::Deserialize<'de> for PetFood {
         D: serde::Deserializer<'de>,
     {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let discriminator = value
-            .get("foodType")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                D::Error::custom("missing discriminator field `foodType` for PetFood".to_string())
-            })?;
+        /* The variant is decoded from the exact JSON text, never from a
+         * serde_json::Value, so a decimal inside it keeps every digit. */
+        let text = crate::object_serializer::json_text(deserializer)?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(D::Error::custom)?;
+        let found = value.get("foodType").and_then(|v| v.as_str());
+        let discriminator = found.ok_or_else(|| {
+            D::Error::custom("missing discriminator field `foodType` for PetFood".to_string())
+        })?;
         match discriminator {
-            "dry" => serde_json::from_value::<DryFood>(value)
+            "dry" => crate::object_serializer::from_json_text::<DryFood>(&text)
                 .map(PetFood::DryFood)
                 .map_err(D::Error::custom),
-            "wet" => serde_json::from_value::<WetFood>(value)
+            "wet" => crate::object_serializer::from_json_text::<WetFood>(&text)
                 .map(PetFood::WetFood)
                 .map_err(D::Error::custom),
             other => Err(D::Error::custom(format!(

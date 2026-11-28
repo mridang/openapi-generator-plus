@@ -68,8 +68,11 @@ __all__ = [
     "OAuth2ServerException",
     "OAuth2TokenException",
     "Account",
+    "Allowance",
+    "AllowanceTier",
     "ApiResponse",
     "AttachPetFilesRequest",
+    "Audit",
     "Availability",
     "BinaryVault",
     "Blobs",
@@ -86,6 +89,7 @@ __all__ = [
     "Error",
     "Freeform",
     "Ledger",
+    "Letter",
     "Medication",
     "MemberNotFound",
     "Memo",
@@ -93,6 +97,8 @@ __all__ = [
     "Moments",
     "NativeValues",
     "Order",
+    "Packet",
+    "Parcel",
     "Pet",
     "PetAfterPage",
     "PetArchivePage",
@@ -114,6 +120,10 @@ __all__ = [
     "Priority",
     "ProjectNotFound",
     "Rank",
+    "Reading",
+    "ReadingInlineLevel",
+    "ReadingLevel",
+    "ReadingShape",
     "RejectedRequest",
     "RequiredNullable",
     "Reservation",
@@ -121,10 +131,12 @@ __all__ = [
     "ReserveStockResponse",
     "Result",
     "Roster",
+    "Sensors",
     "Separator",
     "SetPetAvatarRequest",
     "SetPetAvatarThumbnailRequest",
     "Shape",
+    "Shipment",
     "Sparse",
     "Square",
     "Stage",
@@ -225,11 +237,20 @@ from petstore_client.errors import OAuth2TokenException as OAuth2TokenException
 from petstore_client.models.account import (
     Account as Account,
 )
+from petstore_client.models.allowance import (
+    Allowance as Allowance,
+)
+from petstore_client.models.allowance_tier import (
+    AllowanceTier as AllowanceTier,
+)
 from petstore_client.models.api_response import (
     ApiResponse as ApiResponse,
 )
 from petstore_client.models.attach_pet_files_request import (
     AttachPetFilesRequest as AttachPetFilesRequest,
+)
+from petstore_client.models.audit import (
+    Audit as Audit,
 )
 from petstore_client.models.availability import (
     Availability as Availability,
@@ -279,6 +300,9 @@ from petstore_client.models.freeform import (
 from petstore_client.models.ledger import (
     Ledger as Ledger,
 )
+from petstore_client.models.letter import (
+    Letter as Letter,
+)
 from petstore_client.models.medication import (
     Medication as Medication,
 )
@@ -299,6 +323,12 @@ from petstore_client.models.native_values import (
 )
 from petstore_client.models.order import (
     Order as Order,
+)
+from petstore_client.models.packet import (
+    Packet as Packet,
+)
+from petstore_client.models.parcel import (
+    Parcel as Parcel,
 )
 from petstore_client.models.pet import (
     Pet as Pet,
@@ -363,6 +393,18 @@ from petstore_client.models.project_not_found import (
 from petstore_client.models.rank import (
     Rank as Rank,
 )
+from petstore_client.models.reading import (
+    Reading as Reading,
+)
+from petstore_client.models.reading_inline_level import (
+    ReadingInlineLevel as ReadingInlineLevel,
+)
+from petstore_client.models.reading_level import (
+    ReadingLevel as ReadingLevel,
+)
+from petstore_client.models.reading_shape import (
+    ReadingShape as ReadingShape,
+)
 from petstore_client.models.rejected_request import (
     RejectedRequest as RejectedRequest,
 )
@@ -384,6 +426,9 @@ from petstore_client.models.result import (
 from petstore_client.models.roster import (
     Roster as Roster,
 )
+from petstore_client.models.sensors import (
+    Sensors as Sensors,
+)
 from petstore_client.models.separator import (
     Separator as Separator,
 )
@@ -395,6 +440,9 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
 )
 from petstore_client.models.shape import (
     Shape as Shape,
+)
+from petstore_client.models.shipment import (
+    Shipment as Shipment,
 )
 from petstore_client.models.sparse import (
     Sparse as Sparse,

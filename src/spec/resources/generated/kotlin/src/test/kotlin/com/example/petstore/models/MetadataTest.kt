@@ -178,6 +178,20 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("bhvModels704 patternProperties type the extra properties")
+    fun testPatternPropertiesTypeTheExtraProperties() {
+        val serializer = ObjectSerializer()
+        val sensors = serializer.deserialize<com.example.petstore.models.Sensors>("{\"site\":\"north\",\"s1\":3,\"s2\":4}")!!
+
+        val extras: MutableMap<String, Int> = sensors.additionalProperties
+        assertEquals(3, extras["s1"])
+        assertEquals(4, extras["s2"])
+        assertThrows(com.example.petstore.errors.SerializationException::class.java) {
+            serializer.deserialize<com.example.petstore.models.Sensors>("{\"s1\":\"three\"}")
+        }
+    }
+
+    @Test
     @DisplayName("bhvModels025 an additional property of the wrong JSON type fails the decode")
     fun testWrongTypedAdditionalPropertyFailsTheDecode() {
         val serializer = ObjectSerializer()

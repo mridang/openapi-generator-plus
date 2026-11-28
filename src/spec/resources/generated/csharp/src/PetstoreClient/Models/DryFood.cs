@@ -44,6 +44,9 @@ public record DryFood : PetFood
     [JsonPropertyName("weightKg")]
     public required double WeightKg { get; init; }
 
+    [JsonPropertyName("pricePerKg")]
+    public decimal? PricePerKg { get; init; }
+
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
@@ -54,6 +57,7 @@ public record DryFood : PetFood
                 ReferenceEquals(this, other)
                 || EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
                     && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg)
+                    && EqualityComparer<decimal?>.Default.Equals(this.PricePerKg, other.PricePerKg)
             );
     }
 
@@ -62,6 +66,7 @@ public record DryFood : PetFood
         HashCode hash = default;
         hash.Add(this.FoodType);
         hash.Add(this.WeightKg);
+        hash.Add(this.PricePerKg);
         return hash.ToHashCode();
     }
 
@@ -74,6 +79,8 @@ public record DryFood : PetFood
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.FoodType));
         sb.Append(", WeightKg=")
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.WeightKg));
+        sb.Append(", PricePerKg=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.PricePerKg));
         sb.Append('}');
         return sb.ToString();
     }

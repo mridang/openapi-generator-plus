@@ -303,9 +303,36 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     end)
   end
 
-  defp fetch_token(state, token_url, params, extra_headers) do
-    client = state.api_client
+  @doc false
+  # POSTs `params` as a form to `url` through the injected ApiClient, the way a
+  # token request is sent, and returns the body of a 2xx answer; the session is
+  # not touched. A non-2xx answer raises the OAuth2ServerError it describes.
+  # The device authorization request (RFC 8628 section 3.1) goes through here.
+  @spec post_form(pid(), String.t(), %{optional(String.t()) => String.t()}) :: String.t()
+  def post_form(manager, url, params) do
+    client = Agent.get(manager, & &1.api_client)
+    send_form(client, url, params, %{}).body || ""
+  catch
+    :exit, {reason, _} when reason in [:noproc, :normal, :shutdown] ->
+      raise PetstoreClient.Errors.OAuth2TokenError,
+        message: "The token manager is stopped (the client was closed)"
+  end
 
+  @doc false
+  # A lifetime in whole seconds read like a token response's `expires_in`: an
+  # integer, a floored float or a plain decimal string; anything else is 0, and
+  # a value past one year is one year.
+  @spec lifetime_seconds(term()) :: non_neg_integer()
+  def lifetime_seconds(value) do
+    value |> parse_expires_in() |> max(0) |> min(@max_expires_in_seconds)
+  end
+
+  defp fetch_token(state, token_url, params, extra_headers) do
+    response = send_form(state.api_client, token_url, params, extra_headers)
+    apply_token_response(state, response)
+  end
+
+  defp send_form(client, token_url, params, extra_headers) do
     if is_nil(client) do
       raise "ApiClient has not been injected. " <>
               "Ensure the Client constructor calls set_api_client " <>
@@ -357,6 +384,10 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
       raise parse_oauth2_server_error(response.status_code, response.body)
     end
 
+    response
+  end
+
+  defp apply_token_response(state, response) do
     # A 2xx answer the SDK cannot use is an OAuth2TokenError, never a leaked
     # Jason.DecodeError.
     parsed =

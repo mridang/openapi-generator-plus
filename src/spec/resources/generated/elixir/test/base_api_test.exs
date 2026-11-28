@@ -7293,4 +7293,123 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert paged == []
     assert Keyword.has_key?(functions, :export_orders_stream)
   end
+
+  # ---------------------------------------------------------------------------
+  # D192: a Digest challenge is answered and the request replayed once
+  # ---------------------------------------------------------------------------
+
+  # Answers each streaming call from a list of statuses, every 401 with a
+  # Digest challenge, and records the headers of every request.
+  defmodule DigestStreamApiClient do
+    defstruct [:agent, :statuses]
+
+    def new(statuses) do
+      {:ok, agent} = Agent.start_link(fn -> [] end)
+      %__MODULE__{agent: agent, statuses: statuses}
+    end
+
+    def send_streaming(%__MODULE__{} = client, _method, _url, headers, _body, _opts) do
+      index = Agent.get_and_update(client.agent, fn sent -> {length(sent), sent ++ [headers]} end)
+      status = Enum.at(client.statuses, index) || List.last(client.statuses)
+
+      %PetstoreClient.ApiStreamResponse{
+        status_code: status,
+        headers: digest_challenge_headers(status),
+        body: ["ok"],
+        close: fn -> :ok end
+      }
+    end
+
+    def sent(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
+
+    def digest_challenge_headers(401),
+      do: %{"www-authenticate" => ~s(Digest realm="api", nonce="abc", qop="auth")}
+
+    def digest_challenge_headers(_status), do: %{"content-type" => "application/octet-stream"}
+  end
+
+  defp digest_state(client) do
+    auth =
+      PetstoreClient.Auth.DigestAuthenticator.new("https://api.example.com", "alice", "wonder")
+
+    auth = %{auth | cnonce_source: fn -> "0a4f113b" end}
+
+    %{
+      config: PetstoreClient.Configuration.new(base_url: "https://api.example.com"),
+      api_client: client,
+      authenticator: auth
+    }
+  end
+
+  defp digest_answer(statuses) do
+    fn _url, _headers, requests ->
+      status = Enum.at(statuses, length(requests) - 1) || List.last(statuses)
+
+      %PetstoreClient.ApiHttpResponse{
+        status_code: status,
+        headers: DigestStreamApiClient.digest_challenge_headers(status),
+        body: ""
+      }
+    end
+  end
+
+  defp digest_header(method, target, count) do
+    hash = fn text -> :md5 |> :crypto.hash(text) |> Base.encode16(case: :lower) end
+
+    response =
+      hash.(
+        "#{hash.("alice:api:wonder")}:abc:#{count}:0a4f113b:auth:#{hash.("#{method}:#{target}")}"
+      )
+
+    ~s(Digest username="alice", realm="api", nonce="abc", uri="#{target}", response="#{response}", ) <>
+      ~s(qop=auth, nc=#{count}, cnonce="0a4f113b")
+  end
+
+  defp sent_authorization(client),
+    do:
+      Enum.map(ScriptedApiClient.requests(client), fn {_, headers} -> headers["Authorization"] end)
+
+  test "bhv authdigest 702 a Digest challenge is answered and the request replayed once, buffered and streamed" do
+    client = ScriptedApiClient.new(digest_answer([401, 200]))
+
+    assert {:ok, _} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               digest_state(client),
+               :get,
+               "/things",
+               [{"page", "2"}],
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
+
+    assert sent_authorization(client) == [nil, digest_header("GET", "/things?page=2", "00000001")]
+
+    streaming = DigestStreamApiClient.new([401, 200])
+    assert {:ok, _result} = streaming |> digest_state() |> stream_call()
+
+    assert Enum.map(DigestStreamApiClient.sent(streaming), & &1["Authorization"]) == [
+             nil,
+             digest_header("GET", "/items/blob", "00000001")
+           ]
+
+    refused = ScriptedApiClient.new(digest_answer([401, 401, 200]))
+
+    assert {:error, %PetstoreClient.Errors.UnauthorizedError{status_code: 401}} =
+             put_thing(digest_state(refused), nil, "application/json")
+
+    assert length(ScriptedApiClient.requests(refused)) == 2
+  end
+
+  test "bhv authdigest 703 a later request answers the remembered challenge up front with nc 00000002" do
+    client = ScriptedApiClient.new(digest_answer([401, 200, 200]))
+    state = digest_state(client)
+
+    assert {:ok, _} = put_thing(state, nil, "application/json")
+    assert {:ok, _} = put_thing(state, nil, "application/json")
+    assert List.last(sent_authorization(client)) == digest_header("PUT", "/things", "00000002")
+    assert length(ScriptedApiClient.requests(client)) == 3
+  end
 end

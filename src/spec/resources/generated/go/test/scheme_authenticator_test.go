@@ -291,6 +291,102 @@ func schemeAdminBasicAuthenticatorFailsByMode(t *testing.T) {
 	}
 }
 
+var schemeArchiveDigestAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD"}
+
+var schemeArchiveDigestAuthenticatorFields = []string{"username", "password"}
+
+func requireSchemeArchiveDigestAuthenticatorCredentials(t *testing.T, a *auth.ArchiveDigestAuthenticator, valueOf func(string) string) {
+	t.Helper()
+}
+
+func schemeArchiveDigestAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, "", "")
+
+	a, err := auth.NewArchiveDigestAuthenticator(schemeHost, "", "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeArchiveDigestAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeArchiveDigestAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, "", "")
+
+	a, err := auth.NewArchiveDigestAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeArchiveDigestAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeArchiveDigestAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeArchiveDigestAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, variable, "empty")
+
+			a, err := auth.NewArchiveDigestAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeArchiveDigestAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeArchiveDigestAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeArchiveDigestAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeArchiveDigestAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewArchiveDigestAuthenticator(schemeHost, "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeArchiveDigestAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeArchiveDigestAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeArchiveDigestAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewArchiveDigestAuthenticator(schemeHost, "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeArchiveDigestAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeArchiveDigestAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeArchiveDigestAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewArchiveDigestAuthenticator(schemeHost, "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
 var schemePetStoreBearerAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"}
 
 var schemePetStoreBearerAuthenticatorFields = []string{"token"}
@@ -1381,6 +1477,105 @@ func schemeBrowserAuthImplicitAuthenticatorFailsByMode(t *testing.T) {
 	}
 }
 
+var schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID"}
+
+var schemeDeviceAuthDeviceAuthorizationAuthenticatorFields = []string{"clientId"}
+
+func requireSchemeDeviceAuthDeviceAuthorizationAuthenticatorCredentials(t *testing.T, a *oauth.DeviceAuthDeviceAuthorizationAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+}
+
+func schemeDeviceAuthDeviceAuthorizationAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, "", "")
+
+	a, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeDeviceAuthDeviceAuthorizationAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeDeviceAuthDeviceAuthorizationAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, "", "")
+
+	a, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, schemeArgValue("clientId"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeDeviceAuthDeviceAuthorizationAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeDeviceAuthDeviceAuthorizationAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, variable, "empty")
+
+			a, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, schemeArgValue("clientId"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeDeviceAuthDeviceAuthorizationAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeDeviceAuthDeviceAuthorizationAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeDeviceAuthDeviceAuthorizationAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeDeviceAuthDeviceAuthorizationAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeDeviceAuthDeviceAuthorizationAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeDeviceAuthDeviceAuthorizationAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeDeviceAuthDeviceAuthorizationAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
 var schemeSsoAuthAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI"}
 
 var schemeSsoAuthAuthenticatorFields = []string{"clientId", "clientSecret", "redirectUri"}
@@ -1490,6 +1685,8 @@ func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEvery
 
 func TestBhvLanggo116_SchemeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
 
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorReadsEveryCredential)
+
 	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorReadsEveryCredential)
 
 	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorReadsEveryCredential)
@@ -1509,6 +1706,8 @@ func TestBhvLanggo116_SchemeAuthenticator_ReadsEveryCredentialFromItsVariable(t 
 	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorReadsEveryCredential)
 
 	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorReadsEveryCredential)
+
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorReadsEveryCredential)
 
 	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorReadsEveryCredential)
 
@@ -1530,6 +1729,8 @@ func TestBhvLanggo117_SchemeAuthenticator_PrefersTheArgumentsOverTheEnvironment(
 
 	t.Run("AdminBasicAuthenticator", schemeAdminBasicAuthenticatorPrefersTheArguments)
 
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorPrefersTheArguments)
+
 	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorPrefersTheArguments)
 
 	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorPrefersTheArguments)
@@ -1546,6 +1747,8 @@ func TestBhvLanggo117_SchemeAuthenticator_PrefersTheArgumentsOverTheEnvironment(
 
 	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorPrefersTheArguments)
 
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorPrefersTheArguments)
+
 	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorPrefersTheArguments)
 
 }
@@ -1557,6 +1760,8 @@ func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitAr
 func TestBhvLanggo118_SchemeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
 
 	t.Run("PetStoreBasicAuthenticator", schemePetStoreBasicAuthenticatorPrefersTheArguments)
+
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorPrefersTheArguments)
 
 	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorPrefersTheArguments)
 
@@ -1578,6 +1783,8 @@ func TestBhvLanggo118_SchemeAuthenticator_ExplicitArgumentWinsWhileTheVariableIs
 
 	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorPrefersTheArguments)
 
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorPrefersTheArguments)
+
 	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorPrefersTheArguments)
 
 }
@@ -1591,6 +1798,8 @@ func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableC
 }
 
 func TestBhvLanggo119_SchemeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorEmptyVariableIsUnset)
 
 	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorEmptyVariableIsUnset)
 
@@ -1611,6 +1820,8 @@ func TestBhvLanggo119_SchemeAuthenticator_AnEmptyVariableCountsAsUnset(t *testin
 	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorEmptyVariableIsUnset)
 
 	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorEmptyVariableIsUnset)
 
 	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorEmptyVariableIsUnset)
 
@@ -1691,6 +1902,8 @@ func TestBhvAuthscheme008_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAV
 
 func TestBhvLanggo121_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorFailsNamingVariable)
+
 	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorFailsNamingVariable)
 
 	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorFailsNamingVariable)
@@ -1702,6 +1915,8 @@ func TestBhvLanggo121_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset
 	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorFailsNamingVariable)
 
 	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorFailsNamingVariable)
+
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorFailsNamingVariable)
 
 }
 
@@ -1735,6 +1950,8 @@ func TestBhvLanggo122_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset
 
 	t.Run("AdminBasicAuthenticator", schemeAdminBasicAuthenticatorFailsByIdentifier)
 
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorFailsByIdentifier)
+
 	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorFailsByIdentifier)
 
 	t.Run("ApiKeyHeaderAuthenticator", schemeApiKeyHeaderAuthenticatorFailsByIdentifier)
@@ -1742,6 +1959,8 @@ func TestBhvLanggo122_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset
 	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorFailsByIdentifier)
 
 	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorFailsByIdentifier)
+
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorFailsByIdentifier)
 
 	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorFailsByIdentifier)
 
@@ -1756,6 +1975,8 @@ func TestBhvLanggo123_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset
 	t.Run("PetStoreBasicAuthenticator", schemePetStoreBasicAuthenticatorFailsByMode)
 
 	t.Run("AdminBasicAuthenticator", schemeAdminBasicAuthenticatorFailsByMode)
+
+	t.Run("ArchiveDigestAuthenticator", schemeArchiveDigestAuthenticatorFailsByMode)
 
 	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorFailsByMode)
 
@@ -1774,6 +1995,8 @@ func TestBhvLanggo123_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset
 	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorFailsByMode)
 
 	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorFailsByMode)
+
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", schemeDeviceAuthDeviceAuthorizationAuthenticatorFailsByMode)
 
 	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorFailsByMode)
 
@@ -1893,6 +2116,13 @@ func TestBhvMisc196_SchemeAuthenticator_WithNoTokenFromArgumentOrEnvironmentFail
 			t.Error("expected an error when no token is passed or set in the environment")
 		}
 	})
+	t.Run("ArchiveDigestAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewArchiveDigestAuthenticator(schemeHost, "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
 	t.Run("PetStoreBearerAuthenticator", func(t *testing.T) {
 		setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "*", "")
 
@@ -1963,6 +2193,13 @@ func TestBhvMisc196_SchemeAuthenticator_WithNoTokenFromArgumentOrEnvironmentFail
 			t.Error("expected an error when no token is passed or set in the environment")
 		}
 	})
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, "*", "")
+
+		if _, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
 	t.Run("SsoAuthAuthenticator", func(t *testing.T) {
 		setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "*", "")
 
@@ -1984,6 +2221,12 @@ func TestBhvMisc205_SchemeAuthenticator_MissingCredentialErrorNamesTheVariable(t
 
 		_, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")
 		requireMissingCredential(t, err, schemeAdminBasicAuthenticatorVariables[0])
+	})
+	t.Run("ArchiveDigestAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeArchiveDigestAuthenticatorVariables, schemeArchiveDigestAuthenticatorFields, "*", "")
+
+		_, err := auth.NewArchiveDigestAuthenticator(schemeHost, "", "")
+		requireMissingCredential(t, err, schemeArchiveDigestAuthenticatorVariables[0])
 	})
 	t.Run("PetStoreBearerAuthenticator", func(t *testing.T) {
 		setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "*", "")
@@ -2045,10 +2288,22 @@ func TestBhvMisc205_SchemeAuthenticator_MissingCredentialErrorNamesTheVariable(t
 		_, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
 		requireMissingCredential(t, err, schemeBrowserAuthImplicitAuthenticatorVariables[0])
 	})
+	t.Run("DeviceAuthDeviceAuthorizationAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables, schemeDeviceAuthDeviceAuthorizationAuthenticatorFields, "*", "")
+
+		_, err := oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeDeviceAuthDeviceAuthorizationAuthenticatorVariables[0])
+	})
 	t.Run("SsoAuthAuthenticator", func(t *testing.T) {
 		setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "*", "")
 
 		_, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
 		requireMissingCredential(t, err, schemeSsoAuthAuthenticatorVariables[0])
 	})
+}
+
+func TestBhvAuthscheme700_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ExposesTheMetadataURLTheSchemeDeclares(t *testing.T) {
+	if got := oauth.MachineAuthClientCredentialsAuthenticatorMetadataURL; got != "https://auth.example.com/.well-known/oauth-authorization-server" {
+		t.Errorf("MachineAuthClientCredentialsAuthenticatorMetadataURL = %q, want %q", got, "https://auth.example.com/.well-known/oauth-authorization-server")
+	}
 }

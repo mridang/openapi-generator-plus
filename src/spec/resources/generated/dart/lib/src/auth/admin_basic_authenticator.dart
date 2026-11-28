@@ -8,6 +8,8 @@
 import 'basic_authenticator.dart';
 
 /// Authenticator for the `adminBasic` security scheme.
+///
+/// Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
 class AdminBasicAuthenticator extends BasicAuthenticator {
   /// Creates an authenticator for the `adminBasic` security scheme.
   AdminBasicAuthenticator({

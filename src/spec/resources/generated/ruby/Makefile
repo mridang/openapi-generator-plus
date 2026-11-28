@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck docs clean examples examples-run
+.PHONY: install build test lint format typecheck audit docs clean examples examples-run
 
 install:
 	bundle install --quiet
@@ -16,6 +16,10 @@ format: install
 
 typecheck: install
 	bundle exec steep check
+
+# Fails when a locked gem has a known vulnerability.
+audit: install
+	bundle exec bundle-audit check --update
 
 docs: install
 	bundle exec yard doc --output-dir .out/docs --fail-on-warning

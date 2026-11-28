@@ -877,6 +877,15 @@ mod machine_auth_client_credentials_authenticator {
     }
 
     #[test]
+    fn test_bhv_authscheme_700_a_scheme_that_declares_oauth2_metadata_url_exposes_it_as_a_constant()
+    {
+        assert_eq!(
+            MachineAuthClientCredentialsAuthenticator::METADATA_URL,
+            "https://auth.example.com/.well-known/oauth-authorization-server"
+        );
+    }
+
+    #[test]
     fn test_bhv_authscheme_013_an_empty_variable_is_unset_and_fails_naming_it() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(

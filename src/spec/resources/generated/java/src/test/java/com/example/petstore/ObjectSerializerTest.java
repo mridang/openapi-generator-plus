@@ -2929,6 +2929,109 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName(
+        "bhvModels700 a type array of scalars decodes each type into its union and writes it back")
+    void bhvModels700ScalarTypeArrayDecodesEachType() {
+      com.example.petstore.models.Reading text =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"level\":\"high\",\"inlineLevel\":3}",
+                  com.example.petstore.models.Reading.class));
+      assertEquals("high", text.level.getActualInstance());
+      assertEquals(
+          Long.valueOf(3), java.util.Objects.requireNonNull(text.inlineLevel).getActualInstance());
+      assertTrue(serializer.serialize(text).contains("\"level\":\"high\""));
+      com.example.petstore.models.Reading number =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize("{\"level\":7}", com.example.petstore.models.Reading.class));
+      assertEquals(Long.valueOf(7), number.level.getActualInstance());
+      assertTrue(serializer.serialize(number).contains("\"level\":7"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels701 a type array of array and object decodes both shapes and writes them back")
+    void bhvModels701ArrayAndObjectTypeArrayDecodesBothShapes() {
+      com.example.petstore.models.Reading list =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"level\":1,\"shape\":[\"a\",\"b\"]}",
+                  com.example.petstore.models.Reading.class));
+      assertEquals(
+          java.util.List.of("a", "b"),
+          java.util.Objects.requireNonNull(list.shape).getActualInstance());
+      assertTrue(serializer.serialize(list).contains("\"shape\":[\"a\",\"b\"]"));
+      com.example.petstore.models.Reading map =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"level\":1,\"shape\":{\"k\":\"v\"}}",
+                  com.example.petstore.models.Reading.class));
+      assertEquals(
+          java.util.Map.of("k", "v"),
+          java.util.Objects.requireNonNull(map.shape).getActualInstance());
+      assertTrue(serializer.serialize(map).contains("\"shape\":{\"k\":\"v\"}"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions700 a missing or unlisted discriminator value decodes as the defaultMapping"
+            + " variant")
+    void bhvUnions700DefaultMappingCatchesMissingAndUnlistedValues() {
+      com.example.petstore.models.Parcel unlisted =
+          serializer.deserialize(
+              "{\"kind\":\"postcard\",\"pages\":2}", com.example.petstore.models.Parcel.class);
+      assertEquals(
+          Integer.valueOf(2),
+          assertInstanceOf(com.example.petstore.models.Letter.class, unlisted).pages);
+      assertInstanceOf(
+          com.example.petstore.models.Letter.class,
+          serializer.deserialize("{\"pages\":3}", com.example.petstore.models.Parcel.class));
+      assertInstanceOf(
+          com.example.petstore.models.Packet.class,
+          serializer.deserialize(
+              "{\"kind\":\"packet\",\"weightKg\":1.5}", com.example.petstore.models.Parcel.class));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvModels705 the properties of then and else are optional properties and the condition is"
+            + " not enforced")
+    void bhvModels705ConditionalBranchPropertiesAreOptionalProperties() {
+      com.example.petstore.models.Shipment shipment =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"kind\":\"domestic\",\"customsCode\":\"C2\",\"postcode\":\"2000\"}",
+                  com.example.petstore.models.Shipment.class));
+      assertEquals("C2", shipment.customsCode);
+      assertEquals("2000", shipment.postcode);
+      assertTrue(serializer.serialize(shipment).contains("\"customsCode\":\"C2\""));
+    }
+
+    @Test
+    @DisplayName("bhvModels703 the validation-only JSON Schema keywords are not enforced")
+    void bhvModels703ValidationOnlyKeywordsAreNotEnforced() {
+      com.example.petstore.models.Audit audit =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"tags\":[\"a\",\"b\"],\"score\":-5,\"payload\":\"not json\"}",
+                  com.example.petstore.models.Audit.class));
+      assertEquals(java.util.List.of("a", "b"), audit.tags);
+      assertEquals(Integer.valueOf(-5), audit.score);
+      assertEquals("not json", audit.payload);
+      assertTrue(serializer.serialize(audit).contains("\"score\":-5"));
+    }
+
+    @Test
+    @DisplayName("bhvModels702 a property of type null accepts null")
+    void bhvModels702NullTypePropertyAcceptsNull() {
+      com.example.petstore.models.Reading reading =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"level\":1,\"nothing\":null}", com.example.petstore.models.Reading.class));
+      assertNull(reading.nothing);
+    }
+
+    @Test
+    @DisplayName(
         "bhvSerializationObject002 a bare type: number is exact and written in plain notation")
     void bhvSerializationObject002DecimalIsExactAndPlain() {
       com.example.petstore.models.Pet pet =

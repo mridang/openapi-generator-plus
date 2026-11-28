@@ -283,6 +283,7 @@ class TestClientSchemeCredentials:
             "call_hook",
             "pet_store_basic",
             "admin_basic",
+            "archive_digest",
             "pet_store_bearer",
             "service_token",
             "api_key_header",
@@ -293,6 +294,7 @@ class TestClientSchemeCredentials:
             "legacy_auth",
             "user_auth",
             "browser_auth",
+            "device_auth",
             "sso_auth",
         ]
 
@@ -302,6 +304,7 @@ class TestClientSchemeCredentials:
         for name in [
             "pet_store_basic",
             "admin_basic",
+            "archive_digest",
             "pet_store_bearer",
             "service_token",
             "api_key_header",
@@ -312,6 +315,7 @@ class TestClientSchemeCredentials:
             "legacy_auth",
             "user_auth",
             "browser_auth",
+            "device_auth",
             "sso_auth",
         ]:
             assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
@@ -330,6 +334,11 @@ class TestClientSchemeCredentials:
         client = Client(admin_basic=held)
 
         assert _schemes(client) == {"adminBasic": held}
+        held = BearerAuthenticator("https://archive_digest.example.com", "tok")
+
+        client = Client(archive_digest=held)
+
+        assert _schemes(client) == {"archiveDigest": held}
         held = BearerAuthenticator("https://pet_store_bearer.example.com", "tok")
 
         client = Client(pet_store_bearer=held)
@@ -380,6 +389,11 @@ class TestClientSchemeCredentials:
         client = Client(browser_auth=held)
 
         assert _schemes(client) == {"browserAuth": held}
+        held = BearerAuthenticator("https://device_auth.example.com", "tok")
+
+        client = Client(device_auth=held)
+
+        assert _schemes(client) == {"deviceAuth": held}
         held = BearerAuthenticator("https://sso_auth.example.com", "tok")
 
         client = Client(sso_auth=held)
@@ -878,6 +892,8 @@ class TestMocking:
         assert "get_matrix_with_http_info" in store_listed
         assert "get_memo" in store_listed
         assert "get_memo_with_http_info" in store_listed
+        assert "get_native_amount" in store_listed
+        assert "get_native_amount_with_http_info" in store_listed
         assert "get_native_values" in store_listed
         assert "get_native_values_with_http_info" in store_listed
         assert "get_order_by_id" in store_listed
@@ -896,6 +912,8 @@ class TestMocking:
         assert "get_tree_with_http_info" in store_listed
         assert "head_memo" in store_listed
         assert "head_memo_with_http_info" in store_listed
+        assert "list_native_amounts" in store_listed
+        assert "list_native_amounts_with_http_info" in store_listed
         assert "options_memo" in store_listed
         assert "options_memo_with_http_info" in store_listed
         assert "patch_memo" in store_listed
@@ -906,6 +924,8 @@ class TestMocking:
         assert "reserve_stock_with_http_info" in store_listed
         assert "search_store" in store_listed
         assert "search_store_with_http_info" in store_listed
+        assert "submit_allowance" in store_listed
+        assert "submit_allowance_with_http_info" in store_listed
         assert "trace_memo" in store_listed
         assert "trace_memo_with_http_info" in store_listed
         assert "watch_notices_stream" in store_listed

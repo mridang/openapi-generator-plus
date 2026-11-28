@@ -60,11 +60,20 @@ import {
   Subscription,
   SubscriptionIntervalEnum,
   Swatch,
+  Reading,
+  Audit,
+  Shipment,
+  Parcel,
+  Letter,
+  Packet,
 } from "../src/models/index.js";
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from "../src/models/index.js";
 import { uuid, isUuid, Decimal } from "../src/brand.js";
+import { StoreApi } from "../src/api/store-api.js";
+import { Configuration } from "../src/configuration.js";
+import type { ApiClient } from "../src/api-client.js";
 import { Temporal } from "temporal-polyfill";
 
 describe("ObjectSerializer", () => {
@@ -3905,6 +3914,94 @@ describe("toBinary", () => {
       ]);
     });
 
+    test("bhv models 700 a type array of scalars decodes each type into its union and writes it back", () => {
+      const text = ObjectSerializer.deserialize(
+        { level: "high", inlineLevel: 3 },
+        Reading,
+      )!;
+
+      expect(text.level.getActualInstance()).toBe("high");
+      expect(text.inlineLevel!.getActualInstance()).toBe(3);
+      expect(JSON.parse(ObjectSerializer.serialize(text)).level).toBe("high");
+      const number = ObjectSerializer.deserialize({ level: 7 }, Reading)!;
+      expect(number.level.getActualInstance()).toBe(7);
+      expect(JSON.parse(ObjectSerializer.serialize(number)).level).toBe(7);
+    });
+
+    test("bhv models 701 a type array of array and object decodes both shapes and writes them back", () => {
+      const list = ObjectSerializer.deserialize(
+        { level: 1, shape: ["a", "b"] },
+        Reading,
+      )!;
+
+      expect(list.shape!.getActualInstance()).toEqual(["a", "b"]);
+      expect(JSON.parse(ObjectSerializer.serialize(list)).shape).toEqual([
+        "a",
+        "b",
+      ]);
+      const map = ObjectSerializer.deserialize(
+        { level: 1, shape: { k: "v" } },
+        Reading,
+      )!;
+      expect(map.shape!.getActualInstance()).toEqual({ k: "v" });
+      expect(JSON.parse(ObjectSerializer.serialize(map)).shape).toEqual({
+        k: "v",
+      });
+    });
+
+    test("bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant", () => {
+      const unlisted = ObjectSerializer.deserialize(
+        { kind: "postcard", pages: 2 },
+        Parcel,
+      )!.getActualInstance();
+
+      expect(unlisted).toBeInstanceOf(Letter);
+      expect((unlisted as Letter).pages).toBe(2);
+      expect(
+        ObjectSerializer.deserialize({ pages: 3 }, Parcel)!.getActualInstance(),
+      ).toBeInstanceOf(Letter);
+      expect(
+        ObjectSerializer.deserialize(
+          { kind: "packet", weightKg: 1.5 },
+          Parcel,
+        )!.getActualInstance(),
+      ).toBeInstanceOf(Packet);
+    });
+
+    test("bhv models 705 the properties of then and else are optional properties and the condition is not enforced", () => {
+      const shipment = ObjectSerializer.deserialize(
+        { kind: "domestic", customsCode: "C2", postcode: "2000" },
+        Shipment,
+      )!;
+
+      expect(shipment.customsCode).toBe("C2");
+      expect(shipment.postcode).toBe("2000");
+      expect(JSON.parse(ObjectSerializer.serialize(shipment)).customsCode).toBe(
+        "C2",
+      );
+    });
+
+    test("bhv models 703 the validation-only JSON Schema keywords are not enforced", () => {
+      const audit = ObjectSerializer.deserialize(
+        { tags: ["a", "b"], score: -5, payload: "not json" },
+        Audit,
+      )!;
+
+      expect(audit.tags).toEqual(["a", "b"]);
+      expect(audit.score).toBe(-5);
+      expect(audit.payload).toBe("not json");
+      expect(JSON.parse(ObjectSerializer.serialize(audit)).score).toBe(-5);
+    });
+
+    test("bhv models 702 a property of type null accepts null", () => {
+      const reading = ObjectSerializer.deserialize(
+        { level: 1, nothing: null },
+        Reading,
+      )!;
+
+      expect(reading.nothing ?? null).toBeNull();
+    });
+
     test("bhv serializationobject 006 a duplicate object key resolves to the last value", () => {
       expect(ObjectSerializer.parseJson('{"id":1,"id":2}')).toEqual({ id: 2 });
     });
@@ -4078,7 +4175,7 @@ describe("toBinary", () => {
       expect(ObjectSerializer.serialize(values)).toBe(`{"amount":${digits}}`);
     });
 
-    test("bhv serializationobject 413 a decimal field, number- or string-shaped, is the exact Decimal type and never a float", () => {
+    test("bhv serializationobject 413 a decimal field, number- or string-shaped, is the exact Decimal type and never a float", async () => {
       const values = decode('{"amount":0.1,"ledger":"0.1"}');
 
       expect(values.amount).toBeInstanceOf(Decimal);
@@ -4086,6 +4183,42 @@ describe("toBinary", () => {
       expect(
         values.amount!.plus(new Decimal("0.2")).eq(new Decimal("0.3")),
       ).toBe(true);
+
+      const listed = decode('{"amounts":[12.345678901234567890123,1.50]}');
+
+      expect(
+        listed.amounts![0]!.eq(new Decimal("12.345678901234567890123")),
+      ).toBe(true);
+      expect(ObjectSerializer.serialize(listed)).toBe(
+        '{"amounts":[12.345678901234567890123,1.50]}',
+      );
+
+      const answering = (body: string): StoreApi =>
+        new StoreApi(
+          {
+            sendRequest: async () => ({
+              statusCode: 200,
+              body,
+              headers: { "content-type": "application/json" },
+            }),
+          } as unknown as ApiClient,
+          Configuration.builder().baseUrl("http://localhost").build(),
+        );
+      const amount = await answering(
+        " 12.345678901234567890123 ",
+      ).getNativeAmount();
+      const amounts = await answering(
+        "[12.345678901234567890123,0.1]",
+      ).listNativeAmounts();
+
+      expect(amount.eq(new Decimal("12.345678901234567890123"))).toBe(true);
+      expect(amounts[0]!.eq(new Decimal("12.345678901234567890123"))).toBe(
+        true,
+      );
+      expect(amounts[1]!.eq(new Decimal("0.1"))).toBe(true);
+      await expect(answering('"12.5"').getNativeAmount()).rejects.toThrow(
+        SerializationError,
+      );
     });
   });
 

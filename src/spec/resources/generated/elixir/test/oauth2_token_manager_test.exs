@@ -1890,4 +1890,230 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert Enum.all?(seen, &(&1 in tokens))
     end
   end
+
+  describe "OAuth2DeviceAuthorizationAuthenticator" do
+    alias PetstoreClient.Auth.OAuth.DeviceAuthorization
+    alias PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator
+
+    defp json_response(status, body) do
+      %PetstoreClient.ApiHttpResponse{
+        status_code: status,
+        body: if(is_binary(body), do: body, else: Jason.encode!(body))
+      }
+    end
+
+    # A device authenticator on `fake_client` whose pauses are recorded and
+    # advance a fake monotonic clock instead of sleeping.
+    defp device_authenticator(fake_client, scopes \\ ["read", "write"]) do
+      {:ok, clock} = Agent.start_link(fn -> %{now: 0, pauses: []} end)
+
+      auth =
+        OAuth2DeviceAuthorizationAuthenticator.new(
+          "https://api.example.com",
+          "device_client",
+          "https://auth.example.com/device",
+          "https://auth.example.com/token",
+          scopes,
+          sleep: fn seconds ->
+            Agent.update(clock, fn state ->
+              %{now: state.now + seconds * 1000, pauses: state.pauses ++ [seconds]}
+            end)
+          end,
+          clock: fn -> Agent.get(clock, & &1.now) end
+        )
+        |> OAuth2DeviceAuthorizationAuthenticator.set_api_client(fake_client)
+
+      {auth, fn -> Agent.get(clock, & &1.pauses) end}
+    end
+
+    defp device_authorization(expires_in \\ 600, interval \\ 5) do
+      %DeviceAuthorization{
+        device_code: "dev_code",
+        user_code: "USER-CODE",
+        verification_uri: "https://auth.example.com/activate",
+        expires_in: expires_in,
+        interval: interval
+      }
+    end
+
+    test "bhv authoauthtwodevice 700 posts the client id and the scopes and returns the device authorization" do
+      fake_client =
+        FakeApiClient.new([
+          json_response(200, %{
+            "device_code" => "dev_code",
+            "user_code" => "USER-CODE",
+            "verification_uri" => "https://auth.example.com/activate",
+            "verification_uri_complete" =>
+              "https://auth.example.com/activate?user_code=USER-CODE",
+            "expires_in" => 600,
+            "interval" => 7
+          }),
+          json_response(200, %{
+            "device_code" => "dev_code",
+            "user_code" => "USER-CODE",
+            "verification_uri" => "https://auth.example.com/activate",
+            "expires_in" => "300"
+          })
+        ])
+
+      {auth, _pauses} = device_authenticator(fake_client)
+
+      first = OAuth2DeviceAuthorizationAuthenticator.request_device_authorization(auth)
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/device"
+
+      assert FakeApiClient.last_headers(fake_client)["Content-Type"] ==
+               "application/x-www-form-urlencoded"
+
+      assert FakeApiClient.last_body(fake_client) == "client_id=device_client&scope=read+write"
+
+      assert first == %DeviceAuthorization{
+               device_code: "dev_code",
+               user_code: "USER-CODE",
+               verification_uri: "https://auth.example.com/activate",
+               verification_uri_complete: "https://auth.example.com/activate?user_code=USER-CODE",
+               expires_in: 600,
+               interval: 7
+             }
+
+      second = OAuth2DeviceAuthorizationAuthenticator.request_device_authorization(auth)
+      assert second.verification_uri_complete == nil
+      assert second.expires_in == 300
+      assert second.interval == 5
+    end
+
+    test "bhv authoauthtwodevice 701 an unusable device authorization response fails with the exact error" do
+      cases = [
+        {"not json", "Device authorization response is not valid JSON"},
+        {"[1]", "Device authorization response is not a JSON object"},
+        {~s({"user_code":"u","verification_uri":"https://v"}),
+         "Device authorization response missing or empty device_code field"},
+        {~s({"device_code":"d","user_code":"","verification_uri":"https://v"}),
+         "Device authorization response missing or empty user_code field"},
+        {~s({"device_code":"d","user_code":"u","verification_uri":7}),
+         "Device authorization response missing or empty verification_uri field"}
+      ]
+
+      for {body, message} <- cases do
+        {auth, _pauses} = device_authenticator(FakeApiClient.new([json_response(200, body)]))
+
+        assert_raise PetstoreClient.Errors.OAuth2TokenError, message, fn ->
+          OAuth2DeviceAuthorizationAuthenticator.request_device_authorization(auth)
+        end
+      end
+
+      {auth, _pauses} =
+        device_authenticator(
+          FakeApiClient.new([json_response(400, %{"error" => "invalid_client"})])
+        )
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+          OAuth2DeviceAuthorizationAuthenticator.request_device_authorization(auth)
+        end
+
+      assert error.status_code == 400
+      assert error.code == "invalid_client"
+    end
+
+    test "bhv authoauthtwodevice 702 polls the token url with the device code grant while authorization is pending" do
+      fake_client =
+        FakeApiClient.new([
+          json_response(400, %{"error" => "authorization_pending"}),
+          json_response(400, %{"error" => "authorization_pending"}),
+          json_response(200, %{"access_token" => "device_tok", "expires_in" => 3600})
+        ])
+
+      {auth, pauses} = device_authenticator(fake_client)
+
+      OAuth2DeviceAuthorizationAuthenticator.poll_for_token(auth, device_authorization())
+      assert FakeApiClient.call_count(fake_client) == 3
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/token"
+
+      assert Enum.uniq(FakeApiClient.bodies(fake_client)) == [
+               "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device_client&device_code=dev_code"
+             ]
+
+      assert pauses.() == [5, 5, 5]
+    end
+
+    test "bhv authoauthtwodevice 703 a slow_down answer adds five seconds to the interval" do
+      fake_client =
+        FakeApiClient.new([
+          json_response(400, %{"error" => "slow_down"}),
+          json_response(200, %{"access_token" => "device_tok", "expires_in" => 3600})
+        ])
+
+      {auth, pauses} = device_authenticator(fake_client)
+
+      OAuth2DeviceAuthorizationAuthenticator.poll_for_token(auth, device_authorization())
+      assert pauses.() == [5, 10]
+    end
+
+    test "bhv authoauthtwodevice 704 any other error ends polling and so does the expiry of the device code" do
+      for code <- ["access_denied", "expired_token"] do
+        {auth, _pauses} =
+          device_authenticator(FakeApiClient.new([json_response(400, %{"error" => code})]))
+
+        error =
+          assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+            OAuth2DeviceAuthorizationAuthenticator.poll_for_token(auth, device_authorization())
+          end
+
+        assert error.code == code
+      end
+
+      fake_client =
+        FakeApiClient.new([
+          json_response(400, %{"error" => "authorization_pending"}),
+          json_response(400, %{"error" => "authorization_pending"})
+        ])
+
+      {auth, pauses} = device_authenticator(fake_client)
+
+      assert_raise PetstoreClient.Errors.OAuth2TokenError,
+                   "Device authorization expired before the user approved it",
+                   fn ->
+                     OAuth2DeviceAuthorizationAuthenticator.poll_for_token(
+                       auth,
+                       device_authorization(12, 5)
+                     )
+                   end
+
+      assert pauses.() == [5, 5]
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
+    test "bhv authoauthtwodevice 705 refuses to authenticate before a token is polled and sends it after" do
+      {auth, _pauses} =
+        device_authenticator(
+          FakeApiClient.new([
+            json_response(200, %{"access_token" => "device_tok", "expires_in" => 3600})
+          ])
+        )
+
+      assert_raise RuntimeError, "Must call poll_for_token() before making API requests", fn ->
+        OAuth2DeviceAuthorizationAuthenticator.auth_headers(auth)
+      end
+
+      OAuth2DeviceAuthorizationAuthenticator.poll_for_token(auth, device_authorization())
+
+      assert OAuth2DeviceAuthorizationAuthenticator.auth_headers(auth) == %{
+               "Authorization" => "Bearer device_tok"
+             }
+
+      assert inspect(auth) =~ ~s(client_id: "device_client")
+    end
+
+    test "bhv authoauthtwodevice 706 the scheme wrapper passes its spec urls and scopes" do
+      auth =
+        PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator.new(
+          "https://api.example.com",
+          "wrapper_id"
+        )
+
+      assert auth.device_authorization_url == "https://auth.example.com/oauth/device"
+      assert auth.token_url == "https://auth.example.com/oauth/token"
+      assert auth.scopes == ["pets:read", "pets:write"]
+    end
+  end
 end

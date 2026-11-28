@@ -22,8 +22,8 @@ class PetTreatment implements \Ds\Hashable
     private static function anyOfCandidates(): array
     {
         return [
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Medication::class)),
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Surgery::class)),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize(is_string($d) ? json_encode($d, JSON_THROW_ON_ERROR) : $d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Medication::class)),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize(is_string($d) ? json_encode($d, JSON_THROW_ON_ERROR) : $d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Surgery::class)),
         ];
     }
 

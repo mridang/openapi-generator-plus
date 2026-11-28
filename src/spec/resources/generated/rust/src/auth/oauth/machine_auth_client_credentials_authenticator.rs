@@ -15,6 +15,10 @@ use super::OAuth2ClientCredentialsAuthenticator;
 pub struct MachineAuthClientCredentialsAuthenticator(OAuth2ClientCredentialsAuthenticator);
 
 impl MachineAuthClientCredentialsAuthenticator {
+    /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+    pub const METADATA_URL: &'static str =
+        "https://auth.example.com/.well-known/oauth-authorization-server";
+
     /// Creates an authenticator for the machineAuth security scheme.
     ///
     /// Each credential is optional. A value passed here wins, even an empty one
@@ -120,6 +124,14 @@ impl crate::auth::Authenticator for MachineAuthClientCredentialsAuthenticator {
         &'a self,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
         self.0.invalidate_access_token()
+    }
+
+    fn challenge_authorization(&self, method: &str, request_target: &str) -> Option<String> {
+        self.0.challenge_authorization(method, request_target)
+    }
+
+    fn accept_challenge(&self, www_authenticate: &str) -> bool {
+        self.0.accept_challenge(www_authenticate)
     }
 
     fn as_http_aware_mut(&mut self) -> Option<&mut dyn crate::auth::HttpAwareAuthenticator> {

@@ -55,6 +55,8 @@ public class StoreApi : BaseApi, IStoreApi
 
     private static readonly string[] GetMemoAccepts = ["application/json"];
 
+    private static readonly string[] GetNativeAmountAccepts = ["application/json"];
+
     private static readonly string[] GetNativeValuesAccepts = ["application/json"];
 
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
@@ -70,6 +72,8 @@ public class StoreApi : BaseApi, IStoreApi
     private static readonly string[] GetTimestampGroupsAccepts = ["application/json"];
 
     private static readonly string[] GetTreeAccepts = ["application/json"];
+
+    private static readonly string[] ListNativeAmountsAccepts = ["application/json"];
 
     private static readonly string[] PatchMemoAccepts = ["application/json"];
 
@@ -1034,6 +1038,85 @@ public class StoreApi : BaseApi, IStoreApi
     }
 
     /// <summary>
+    /// Reads one exact decimal as the whole response body.
+    /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[decimal]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<decimal> GetNativeAmountAsync(
+        GetNativeAmountOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<decimal>> task = GetNativeAmountWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<decimal> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetNativeAmount but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Reads one exact decimal as the whole response body. (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<decimal>> GetNativeAmountWithHttpInfoAsync(
+        GetNativeAmountOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/native-values/amount";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<decimal>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetNativeAmountAccepts,
+                "application/json",
+                typeof(decimal),
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetNativeAmount",
+                operationId: "getNativeAmount",
+                urlTemplate: "/store/native-values/amount",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Reads values of the formats the SDKs type natively.
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
@@ -1860,6 +1943,85 @@ public class StoreApi : BaseApi, IStoreApi
     }
 
     /// <summary>
+    /// Reads a list of exact decimals as the whole response body.
+    /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[List<decimal>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<decimal>> ListNativeAmountsAsync(
+        ListNativeAmountsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<List<decimal>>> task = ListNativeAmountsWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<List<decimal>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListNativeAmounts but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Reads a list of exact decimals as the whole response body. (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<decimal>>> ListNativeAmountsWithHttpInfoAsync(
+        ListNativeAmountsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/native-values/amounts";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<List<decimal>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListNativeAmountsAccepts,
+                "application/json",
+                typeof(List<decimal>),
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.ListNativeAmounts",
+                operationId: "listNativeAmounts",
+                urlTemplate: "/store/native-values/amounts",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Lists the methods a memo accepts with an OPTIONS request
     /// </summary>
     /// <param name="memoId">The memo to address</param>
@@ -2368,6 +2530,67 @@ public class StoreApi : BaseApi, IStoreApi
                 operationName: "StoreApi.SearchStore",
                 operationId: "searchStore",
                 urlTemplate: "/store/search",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Submit an allowance whose schema uses every validation keyword
+    /// </summary>
+    /// <param name="allowance"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task SubmitAllowanceAsync(
+        Allowance allowance,
+        SubmitAllowanceOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<object?>> task = SubmitAllowanceWithHttpInfoAsync(
+            allowance,
+            options,
+            cancellationToken
+        );
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Submit an allowance whose schema uses every validation keyword (with HTTP info)
+    /// </summary>
+    /// <param name="allowance"></param>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<object?>> SubmitAllowanceWithHttpInfoAsync(
+        Allowance allowance,
+        SubmitAllowanceOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/allowance";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<object?>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                allowance,
+                [],
+                "application/json",
+                null,
+                null,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.SubmitAllowance",
+                operationId: "submitAllowance",
+                urlTemplate: "/store/allowance",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

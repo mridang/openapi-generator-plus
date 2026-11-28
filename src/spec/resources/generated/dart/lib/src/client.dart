@@ -101,7 +101,7 @@ class Client implements ClientInterface {
   /// Creates a new client from its credentials and transport options.
   ///
   /// Each security scheme of the API has one optional credential, named after
-  /// the scheme (`petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`). An operation uses the credential
+  /// the scheme (`petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth`). An operation uses the credential
   /// of the scheme its spec requires, and there is no per-call override. When
   /// no scheme you configured matches, the operation uses [authenticator] if
   /// one is given and otherwise fails before a request is sent. The base URL
@@ -122,6 +122,7 @@ class Client implements ClientInterface {
     Authenticator? authenticator,
     Authenticator? petStoreBasic,
     Authenticator? adminBasic,
+    Authenticator? archiveDigest,
     Authenticator? petStoreBearer,
     Authenticator? serviceToken,
     Authenticator? apiKeyHeader,
@@ -132,6 +133,7 @@ class Client implements ClientInterface {
     Authenticator? legacyAuth,
     Authenticator? userAuth,
     Authenticator? browserAuth,
+    Authenticator? deviceAuth,
     Authenticator? ssoAuth,
     TransportOptions? transportOptions,
     CallHook? callHook,
@@ -139,6 +141,7 @@ class Client implements ClientInterface {
     final schemes = <String, Authenticator>{
       if (petStoreBasic != null) 'petStoreBasic': petStoreBasic,
       if (adminBasic != null) 'adminBasic': adminBasic,
+      if (archiveDigest != null) 'archiveDigest': archiveDigest,
       if (petStoreBearer != null) 'petStoreBearer': petStoreBearer,
       if (serviceToken != null) 'serviceToken': serviceToken,
       if (apiKeyHeader != null) 'apiKeyHeader': apiKeyHeader,
@@ -149,6 +152,7 @@ class Client implements ClientInterface {
       if (legacyAuth != null) 'legacyAuth': legacyAuth,
       if (userAuth != null) 'userAuth': userAuth,
       if (browserAuth != null) 'browserAuth': browserAuth,
+      if (deviceAuth != null) 'deviceAuth': deviceAuth,
       if (ssoAuth != null) 'ssoAuth': ssoAuth,
     };
     final host =

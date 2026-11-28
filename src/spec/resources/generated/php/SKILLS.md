@@ -26,7 +26,7 @@ try {
 
 ## Authentication
 
-Configure one optional credential per security scheme on the client, by name: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth` (`new Client(petStoreBasic: $credential)`). Each operation uses the scheme its security requirement names; there is no per-call authenticator.
+Configure one optional credential per security scheme on the client, by name: `petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth` (`new Client(petStoreBasic: $credential)`). Each operation uses the scheme its security requirement names; there is no per-call authenticator.
 
 All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
@@ -46,6 +46,8 @@ A generated authenticator of a basic, bearer, API key or OAuth 2 scheme reads ea
 - `PetStoreBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` for `password`.
 - `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` for `username`.
 - `AdminBasicAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` for `password`.
+- `ArchiveDigestAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` for `username`.
+- `ArchiveDigestAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` for `password`.
 - `PetStoreBearerAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` for `token`.
 - `ServiceTokenAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` for `token`.
 - `ApiKeyHeaderAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` for `apiKey`.
@@ -62,6 +64,7 @@ A generated authenticator of a basic, bearer, API key or OAuth 2 scheme reads ea
 - `UserAuthAuthorizationCodeAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` for `clientSecret`.
 - `UserAuthAuthorizationCodeAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` for `redirectUri`.
 - `BrowserAuthImplicitAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` for `clientId`.
+- `DeviceAuthDeviceAuthorizationAuthenticator` reads `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` for `clientId`.
 
 The prefix `SWAGGER_PETSTORE_OPEN_API_3_0` comes from the `envVarPrefix` generator option. Pass a `\Closure` as the third argument of `BearerAuthenticator` to supply a rotating token on every request. The base classes read no variable; the OAuth 2 and OpenID Connect authenticators take their credentials as arguments.
 

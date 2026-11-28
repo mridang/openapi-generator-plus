@@ -36,11 +36,14 @@ final class Configuration
      * @param string               $baseUrl        Base URL for all API requests
      * @param array<string, string> $defaultHeaders Headers to include in every API request
      * @param CallHook|null        $callHook       Hook called once around every operation call, or null for none
+     * @param bool                 $validateConstraints Whether every request body is checked against the
+     *                                                  validation keywords of its schema before it is sent
      */
     public function __construct(
         public readonly string $baseUrl = '/api/v3',
         public readonly array $defaultHeaders = [],
         public readonly ?CallHook $callHook = null,
+        public readonly bool $validateConstraints = false,
     ) {
     }
 

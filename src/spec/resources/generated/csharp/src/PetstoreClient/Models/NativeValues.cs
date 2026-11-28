@@ -33,6 +33,9 @@ public record NativeValues
     [JsonPropertyName("amount")]
     public decimal? Amount { get; init; }
 
+    [JsonPropertyName("amounts")]
+    public List<decimal>? Amounts { get; init; }
+
     /// <example>12.50</example>
     [JsonConverter(typeof(DecimalStringConverter))]
     [JsonPropertyName("ledger")]
@@ -74,6 +77,10 @@ public record NativeValues
                     )
                     && EqualityComparer<Uri?>.Default.Equals(this.Homepage, other.Homepage)
                     && EqualityComparer<decimal?>.Default.Equals(this.Amount, other.Amount)
+                    && global::PetstoreClient.ObjectSerializer.StructuralEquals(
+                        this.Amounts,
+                        other.Amounts
+                    )
                     && EqualityComparer<decimal?>.Default.Equals(this.Ledger, other.Ledger)
                     && EqualityComparer<TimeSpan?>.Default.Equals(this.Wait, other.Wait)
                     && EqualityComparer<DateOnly?>.Default.Equals(this.Since, other.Since)
@@ -90,6 +97,7 @@ public record NativeValues
         hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Addresses));
         hash.Add(this.Homepage);
         hash.Add(this.Amount);
+        hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Amounts));
         hash.Add(this.Ledger);
         hash.Add(this.Wait);
         hash.Add(this.Since);
@@ -113,6 +121,8 @@ public record NativeValues
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Homepage));
         sb.Append(", Amount=")
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Amount));
+        sb.Append(", Amounts=")
+            .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Amounts));
         sb.Append(", Ledger=")
             .Append(global::PetstoreClient.ObjectSerializer.Describe(this.Ledger));
         sb.Append(", Wait=").Append(global::PetstoreClient.ObjectSerializer.Describe(this.Wait));

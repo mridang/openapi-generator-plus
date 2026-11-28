@@ -17,6 +17,9 @@ use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Errors\OAuth2ServerException;
 use PetstoreClient\Errors\OAuth2TokenException;
 use PetstoreClient\Auth\OAuth\OAuth2TokenManager;
+use PetstoreClient\Auth\OAuth\DeviceAuthorization;
+use PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator;
+use PetstoreClient\Auth\OAuth\DeviceAuthDeviceAuthorizationAuthenticator;
 
 function makeOAuth2TokenManagerResponse(
     string $accessToken,
@@ -1286,4 +1289,207 @@ test('bhv auth 030 setting and reading token state from interleaved tasks only e
     expect(['first', 'second', 'late'])->toContain(
         $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials'])
     );
+});
+
+function deviceAnswer(int $status, string $body): ApiHttpResponse
+{
+    return new ApiHttpResponse($status, $body, ['Content-Type' => 'application/json']);
+}
+
+function devicePending(): ApiHttpResponse
+{
+    return deviceAnswer(400, '{"error":"authorization_pending"}');
+}
+
+function deviceGranted(): ApiHttpResponse
+{
+    return deviceAnswer(200, '{"access_token":"device-token","token_type":"Bearer","expires_in":3600}');
+}
+
+function deviceAuthenticator(MockTokenApiClient $client): OAuth2DeviceAuthorizationAuthenticator
+{
+    $authenticator = new OAuth2DeviceAuthorizationAuthenticator(
+        'https://api.example.com',
+        'device-client',
+        'https://auth.example.com/device',
+        'https://auth.example.com/token',
+        ['read', 'write']
+    );
+    $authenticator->setApiClient($client);
+
+    return $authenticator;
+}
+
+/**
+ * Replaces the wait between polls and the clock with a fake one that advances by each wait.
+ *
+ * @return \ArrayObject<int, int> the waits, in seconds
+ */
+function deviceFakeTime(OAuth2DeviceAuthorizationAuthenticator $authenticator): \ArrayObject
+{
+    /** @var \ArrayObject<int, int> $slept */
+    $slept = new \ArrayObject();
+    $now = new \ArrayObject([0.0]);
+    (new \ReflectionProperty(OAuth2DeviceAuthorizationAuthenticator::class, 'sleep'))->setValue(
+        $authenticator,
+        static function (int $seconds) use ($slept, $now): void {
+            $slept->append($seconds);
+            $now[0] = (float) $now[0] + $seconds;
+        }
+    );
+    (new \ReflectionProperty(OAuth2DeviceAuthorizationAuthenticator::class, 'clock'))->setValue(
+        $authenticator,
+        static fn (): float => (float) $now[0]
+    );
+
+    return $slept;
+}
+
+function deviceAuthorization(int $interval, int $expiresIn = 600): DeviceAuthorization
+{
+    return new DeviceAuthorization('dev-code', 'USER-CODE', 'https://auth.example.com/activate', null, $expiresIn, $interval);
+}
+
+test('bhv authoauthtwodevice 700 requestDeviceAuthorization posts the client id and scopes and returns the device authorization', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(deviceAnswer(200, '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","verification_uri_complete":"https://auth.example.com/activate?user_code=USER-CODE","expires_in":600,"interval":7}'));
+    $client->enqueueResponse(deviceAnswer(200, '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","expires_in":"900"}'));
+    $authenticator = deviceAuthenticator($client);
+
+    $first = $authenticator->requestDeviceAuthorization();
+    $second = $authenticator->requestDeviceAuthorization();
+
+    expect(array_column($client->capturedRequests, 'url'))->toBe(['https://auth.example.com/device', 'https://auth.example.com/device']);
+    expect($client->capturedRequests[0]['body'])->toBe('client_id=device-client&scope=read+write');
+    expect($first)->toEqual(new DeviceAuthorization(
+        'dev-code',
+        'USER-CODE',
+        'https://auth.example.com/activate',
+        'https://auth.example.com/activate?user_code=USER-CODE',
+        600,
+        7
+    ));
+    expect($second->verificationUriComplete)->toBeNull();
+    expect($second->expiresIn)->toBe(900);
+    expect($second->interval)->toBe(5);
+});
+
+test('bhv authoauthtwodevice 701 an unusable device authorization response fails with the exact OAuth2 token error', function (string $body, string $message): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(deviceAnswer(200, $body));
+
+    expect(fn () => deviceAuthenticator($client)->requestDeviceAuthorization())
+        ->toThrow(new OAuth2TokenException($message));
+})->with([
+    ['<html>', 'Device authorization response is not valid JSON'],
+    ['["device_code"]', 'Device authorization response is not a JSON object'],
+    ['{"user_code":"U","verification_uri":"https://v"}', 'Device authorization response missing or empty device_code field'],
+    ['{"device_code":"D","user_code":"","verification_uri":"https://v"}', 'Device authorization response missing or empty user_code field'],
+    ['{"device_code":"D","user_code":"U","verification_uri":7}', 'Device authorization response missing or empty verification_uri field'],
+]);
+
+test('bhv authoauthtwodevice 701 a non-2xx device authorization answer fails with the OAuth2 server error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(deviceAnswer(400, '{"error":"invalid_client"}'));
+
+    try {
+        deviceAuthenticator($client)->requestDeviceAuthorization();
+        $caught = null;
+    } catch (OAuth2ServerException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(OAuth2ServerException::class);
+    expect($caught?->errorCode)->toBe('invalid_client');
+    expect($caught?->getMessage())->toBe('Token request failed with status 400: invalid_client');
+});
+
+test('bhv authoauthtwodevice 702 pollForToken posts the device code grant to the token URL and keeps polling while authorization is pending', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(devicePending());
+    $client->enqueueResponse(devicePending());
+    $client->enqueueResponse(deviceGranted());
+    $authenticator = deviceAuthenticator($client);
+    deviceFakeTime($authenticator);
+
+    $authenticator->pollForToken(deviceAuthorization(5));
+
+    expect(array_column($client->capturedRequests, 'url'))->toBe(array_fill(0, 3, 'https://auth.example.com/token'));
+    expect($client->capturedRequests[2]['body'])
+        ->toBe('grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-code');
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer device-token']);
+});
+
+test('bhv authoauthtwodevice 703 a slow_down answer adds five seconds to the polling interval', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(deviceAnswer(400, '{"error":"slow_down"}'));
+    $client->enqueueResponse(devicePending());
+    $client->enqueueResponse(deviceGranted());
+    $authenticator = deviceAuthenticator($client);
+    $slept = deviceFakeTime($authenticator);
+
+    $authenticator->pollForToken(deviceAuthorization(5));
+
+    expect($slept->getArrayCopy())->toBe([5, 10, 10]);
+});
+
+test('bhv authoauthtwodevice 704 a refused grant ends polling with the OAuth2 server error', function (string $code): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(devicePending());
+    $client->enqueueResponse(deviceAnswer(400, '{"error":"' . $code . '"}'));
+    $authenticator = deviceAuthenticator($client);
+    deviceFakeTime($authenticator);
+
+    try {
+        $authenticator->pollForToken(deviceAuthorization(5));
+        $caught = null;
+    } catch (OAuth2ServerException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(OAuth2ServerException::class);
+    expect($caught?->errorCode)->toBe($code);
+})->with(['access_denied', 'expired_token']);
+
+test('bhv authoauthtwodevice 704 polling past expires_in ends with the OAuth2 token error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(devicePending());
+    $client->enqueueResponse(devicePending());
+    $client->enqueueResponse(devicePending());
+    $authenticator = deviceAuthenticator($client);
+    deviceFakeTime($authenticator);
+
+    expect(fn () => $authenticator->pollForToken(deviceAuthorization(5, 12)))
+        ->toThrow(new OAuth2TokenException('Device authorization expired before the user approved it'));
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv authoauthtwodevice 705 the authenticator refuses before a token is polled and sends the bearer token after', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(deviceGranted());
+    $authenticator = deviceAuthenticator($client);
+    deviceFakeTime($authenticator);
+
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(new \LogicException('Must call pollForToken() before making API requests'));
+
+    $authenticator->pollForToken(deviceAuthorization(5));
+
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer device-token']);
+    expect(print_r($authenticator, true))->not->toContain('device-token');
+});
+
+test('bhv authoauthtwodevice 706 the scheme wrapper passes the spec device authorization URL, token URL and scopes', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(deviceAnswer(200, '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","expires_in":600}'));
+    $client->enqueueResponse(deviceGranted());
+    $authenticator = new DeviceAuthDeviceAuthorizationAuthenticator('https://api.example.com', 'device-client');
+    $authenticator->setApiClient($client);
+    deviceFakeTime($authenticator);
+
+    $authenticator->pollForToken($authenticator->requestDeviceAuthorization());
+
+    expect(array_column($client->capturedRequests, 'url'))->toBe(['https://auth.example.com/oauth/device', 'https://auth.example.com/oauth/token']);
+    parse_str((string) $client->capturedRequests[0]['body'], $form);
+    expect($form['scope'] ?? null)->toBe('pets:read pets:write');
 });

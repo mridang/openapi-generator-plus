@@ -95,6 +95,13 @@ class ObjectSerializer
 
     private static bool $numberTextsBuilt = false;
 
+    /**
+     * @var list<int|string>|null where the payload a union's build() is deciding on sits in the
+     *                            JSON text being decoded, so the variant it hands to deserialize()
+     *                            reads its decimals from their digits; null outside a union
+     */
+    private static ?array $unionPath = null;
+
     /** @var string|null the per-process marker of a number-shaped decimal on its way to json_encode */
     private static ?string $decimalMarker = null;
 
@@ -329,6 +336,17 @@ class ObjectSerializer
      *
      * @return mixed sanitized form of $data
      */
+    /**
+     * The wire value of a oneOf or anyOf wrapper held by a model property, built
+     * by the same rules as a top-level union.
+     *
+     * @internal
+     */
+    public static function unionWireValue(object $union): mixed
+    {
+        return self::sanitizeForSerialization($union);
+    }
+
     private static function sanitizeForSerialization(mixed $data): mixed
     {
         /* A self-referencing array (or model) would recurse until PHP's stack is exhausted, which
@@ -418,16 +436,19 @@ class ObjectSerializer
                 $keyed = false;
                 foreach ($instances as $instance) {
                     $sanitized = self::sanitizeForSerialization($instance);
+                    if (!is_array($sanitized) && !$sanitized instanceof \ArrayObject) {
+                        /* A scalar variant (an OAS 3.1 type array) cannot be
+                         * merged field by field; it is the whole value. */
+                        return $sanitized;
+                    }
                     if ($sanitized instanceof \ArrayObject) {
                         $keyed = true;
                         $sanitized = $sanitized->getArrayCopy();
                     }
-                    if (is_array($sanitized)) {
-                        /* array_replace keeps integer keys where array_merge
-                         * would renumber them, so numeric additionalProperties
-                         * keys survive the union. */
-                        $merged = array_replace($merged, $sanitized);
-                    }
+                    /* array_replace keeps integer keys where array_merge
+                     * would renumber them, so numeric additionalProperties
+                     * keys survive the union. */
+                    $merged = array_replace($merged, $sanitized);
                 }
                 return $keyed ? self::asJsonObject($merged) : $merged;
             }
@@ -855,14 +876,22 @@ class ObjectSerializer
         $outerText = self::$sourceText;
         $outerNumbers = self::$numberTexts;
         $outerBuilt = self::$numberTextsBuilt;
-        self::$sourceText = is_string($data) ? $data : null;
-        self::$numberTexts = null;
-        self::$numberTextsBuilt = false;
+        $outerUnionPath = self::$unionPath;
+        /* A variant a union's build() decodes is the payload at the union's place in the text
+         * still being decoded, so it keeps that text and reads its decimals from their digits.
+         * The place is used once: anything the variant decodes in turn starts afresh. */
+        $path = is_string($data) ? [] : $outerUnionPath;
+        self::$unionPath = null;
+        if ($path === null || is_string($data)) {
+            self::$sourceText = is_string($data) ? $data : null;
+            self::$numberTexts = null;
+            self::$numberTextsBuilt = false;
+        }
         try {
             if (is_string($data)) {
                 self::assertJsonDepth($data);
             }
-            $decoded = self::deserializeInternal($data, $class, $httpHeaders, false, is_string($data) ? [] : null);
+            $decoded = self::deserializeInternal($data, $class, $httpHeaders, false, $path);
             self::assertWireFormats($decoded, 0);
 
             return $decoded;
@@ -884,6 +913,7 @@ class ObjectSerializer
             self::$sourceText = $outerText;
             self::$numberTexts = $outerNumbers;
             self::$numberTextsBuilt = $outerBuilt;
+            self::$unionPath = $outerUnionPath;
         }
     }
 
@@ -1444,8 +1474,14 @@ class ObjectSerializer
             $payload = !$decoded && is_string($data)
                 ? json_decode($data, true, self::JSON_DECODE_DEPTH)
                 : $data;
-            /** @var object $built */
-            $built = $class::build($payload);
+            $outerUnionPath = self::$unionPath;
+            self::$unionPath = $path;
+            try {
+                /** @var object $built */
+                $built = $class::build($payload);
+            } finally {
+                self::$unionPath = $outerUnionPath;
+            }
             return $built;
         }
 
@@ -2579,6 +2615,19 @@ class ObjectSerializer
      */
     private static function concreteClass(string $class, array $payload): string
     {
+        /* A discriminated oneOf names its variant the same way, so the decimals of a union held
+         * in a model are read from their digits before the union is built from them. */
+        if (
+            method_exists($class, 'getActualInstance')
+            && (new \ReflectionClass($class))->hasConstant('DISCRIMINATOR_MAPPING')
+        ) {
+            $property = (new \ReflectionClassConstant($class, 'DISCRIMINATOR_PROPERTY'))->getValue();
+            $mapping = (new \ReflectionClassConstant($class, 'DISCRIMINATOR_MAPPING'))->getValue();
+            $value = is_string($property) ? ($payload[$property] ?? null) : null;
+            $variant = is_string($value) && is_array($mapping) ? ($mapping[$value] ?? null) : null;
+
+            return is_string($variant) ? $variant : $class;
+        }
         if (!method_exists($class, 'subtypeClass')) {
             return $class;
         }

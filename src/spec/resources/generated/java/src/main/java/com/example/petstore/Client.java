@@ -14,6 +14,7 @@ import com.example.petstore.api.StoreApi;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
 import com.example.petstore.auth.ApiKeyQueryAuthenticator;
+import com.example.petstore.auth.ArchiveDigestAuthenticator;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.auth.HttpAwareAuthenticator;
@@ -23,6 +24,7 @@ import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.auth.ServiceTokenAuthenticator;
 import com.example.petstore.auth.SessionCookieAuthenticator;
 import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator;
 import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
 import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
 import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
@@ -63,6 +65,7 @@ import javax.annotation.Nullable;
  * Client client = Client.builder(host)
  *     .petStoreBasic(...)
  *     .adminBasic(...)
+ *     .archiveDigest(...)
  *     .petStoreBearer(...)
  *     .serviceToken(...)
  *     .apiKeyHeader(...)
@@ -73,6 +76,7 @@ import javax.annotation.Nullable;
  *     .legacyAuth(...)
  *     .userAuth(...)
  *     .browserAuth(...)
+ *     .deviceAuth(...)
  *     .ssoAuth(...)
  *     .transportOptions(transport)
  *     .build();
@@ -200,6 +204,16 @@ public final class Client implements ClientInterface {
     }
 
     /**
+     * Sets the credential for the {@code archiveDigest} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder archiveDigest(@Nullable ArchiveDigestAuthenticator authenticator) {
+      return scheme("archiveDigest", authenticator);
+    }
+
+    /**
      * Sets the credential for the {@code petStoreBearer} security scheme.
      *
      * @param authenticator the credential, or {@code null} for none
@@ -297,6 +311,16 @@ public final class Client implements ClientInterface {
      */
     public Builder browserAuth(@Nullable BrowserAuthImplicitAuthenticator authenticator) {
       return scheme("browserAuth", authenticator);
+    }
+
+    /**
+     * Sets the credential for the {@code deviceAuth} security scheme.
+     *
+     * @param authenticator the credential, or {@code null} for none
+     * @return this builder
+     */
+    public Builder deviceAuth(@Nullable DeviceAuthDeviceAuthorizationAuthenticator authenticator) {
+      return scheme("deviceAuth", authenticator);
     }
 
     /**

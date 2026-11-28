@@ -1675,6 +1675,70 @@ test('bhv serializationobject 012 a prefixItems array of mixed element types rou
     expect(ObjectSerializer::serialize($pet))->toContain('"location":[1.5,2.5,"here"]');
 });
 
+test('bhv models 700 a type array of scalars decodes each type into its union and writes it back', function (): void {
+    /** @var \PetstoreClient\Models\Reading $text */
+    $text = ObjectSerializer::deserialize('{"level":"high","inlineLevel":3}', \PetstoreClient\Models\Reading::class);
+    expect($text->level->getActualInstance())->toBe('high');
+    expect($text->inlineLevel?->getActualInstance())->toBe(3);
+    expect(ObjectSerializer::serialize($text))->toContain('"level":"high"');
+
+    /** @var \PetstoreClient\Models\Reading $number */
+    $number = ObjectSerializer::deserialize('{"level":7}', \PetstoreClient\Models\Reading::class);
+    expect($number->level->getActualInstance())->toBe(7);
+    expect(ObjectSerializer::serialize($number))->toContain('"level":7');
+});
+
+test('bhv models 701 a type array of array and object decodes both shapes and writes them back', function (): void {
+    /** @var \PetstoreClient\Models\Reading $list */
+    $list = ObjectSerializer::deserialize('{"level":1,"shape":["a","b"]}', \PetstoreClient\Models\Reading::class);
+    expect($list->shape)->not->toBeNull();
+    expect(ObjectSerializer::serialize($list))->toContain('"shape":["a","b"]');
+
+    /** @var \PetstoreClient\Models\Reading $map */
+    $map = ObjectSerializer::deserialize('{"level":1,"shape":{"k":"v"}}', \PetstoreClient\Models\Reading::class);
+    expect($map->shape)->not->toBeNull();
+    expect(ObjectSerializer::serialize($map))->toContain('"shape":{"k":"v"}');
+});
+
+test('bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant', function (): void {
+    /** @var \PetstoreClient\Models\Parcel $unlisted */
+    $unlisted = ObjectSerializer::deserialize('{"kind":"postcard","pages":2}', \PetstoreClient\Models\Parcel::class);
+    $letter = $unlisted->getActualInstance();
+    expect($letter)->toBeInstanceOf(\PetstoreClient\Models\Letter::class);
+    expect($letter instanceof \PetstoreClient\Models\Letter ? $letter->pages : null)->toBe(2);
+
+    /** @var \PetstoreClient\Models\Parcel $missing */
+    $missing = ObjectSerializer::deserialize('{"pages":3}', \PetstoreClient\Models\Parcel::class);
+    expect($missing->getActualInstance())->toBeInstanceOf(\PetstoreClient\Models\Letter::class);
+
+    /** @var \PetstoreClient\Models\Parcel $box */
+    $box = ObjectSerializer::deserialize('{"kind":"packet","weightKg":1.5}', \PetstoreClient\Models\Parcel::class);
+    expect($box->getActualInstance())->toBeInstanceOf(\PetstoreClient\Models\Packet::class);
+});
+
+test('bhv models 705 the properties of then and else are optional properties and the condition is not enforced', function (): void {
+    /** @var \PetstoreClient\Models\Shipment $shipment */
+    $shipment = ObjectSerializer::deserialize('{"kind":"domestic","customsCode":"C2","postcode":"2000"}', \PetstoreClient\Models\Shipment::class);
+    expect($shipment->customsCode)->toBe('C2');
+    expect($shipment->postcode)->toBe('2000');
+    expect(ObjectSerializer::serialize($shipment))->toContain('"customsCode":"C2"');
+});
+
+test('bhv models 703 the validation-only JSON Schema keywords are not enforced', function (): void {
+    /** @var \PetstoreClient\Models\Audit $audit */
+    $audit = ObjectSerializer::deserialize('{"tags":["a","b"],"score":-5,"payload":"not json"}', \PetstoreClient\Models\Audit::class);
+    expect($audit->tags?->toArray())->toBe(['a', 'b']);
+    expect($audit->score)->toBe(-5);
+    expect($audit->payload)->toBe('not json');
+    expect(ObjectSerializer::serialize($audit))->toContain('"score":-5');
+});
+
+test('bhv models 702 a property of type null accepts null', function (): void {
+    /** @var \PetstoreClient\Models\Reading $reading */
+    $reading = ObjectSerializer::deserialize('{"level":1,"nothing":null}', \PetstoreClient\Models\Reading::class);
+    expect($reading->nothing)->toBeNull();
+});
+
 test('bhv serializationobject 161 every separator enum value decodes to its own case and re-encodes', function (): void {
     $cases = [];
     foreach ([' ', '@@', 'a-b', 'a_b'] as $wire) {
@@ -2736,6 +2800,14 @@ test('bhv serializationobject 413 a number or string decimal field is the exact 
     expect($values->amount)->toBeInstanceOf(\Brick\Math\BigDecimal::class);
     expect($values->ledger)->toBeInstanceOf(\Brick\Math\BigDecimal::class);
     expect($values->amount?->plus($values->ledger ?? 0)->toString())->toBe('0.3');
+
+    $food = ObjectSerializer::deserialize(
+        '{"foodType":"dry","weightKg":1.5,"pricePerKg":12.345678901234567890123}',
+        \PetstoreClient\Models\PetFood::class
+    );
+    assert($food instanceof \PetstoreClient\Models\PetFood);
+
+    expect($food->asDryFood()?->pricePerKg?->toString())->toBe('12.345678901234567890123');
 });
 
 test('bhv misc 088 a decimal decoded from text keeps the decimal places it was written with', function (): void {

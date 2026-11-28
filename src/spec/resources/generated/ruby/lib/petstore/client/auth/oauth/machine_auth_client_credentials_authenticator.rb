@@ -12,6 +12,9 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the machineAuth security scheme.
       class MachineAuthClientCredentialsAuthenticator < OAuth2ClientCredentialsAuthenticator
+        # The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+        METADATA_URL = 'https://auth.example.com/.well-known/oauth-authorization-server'
+
         # Every credential not given here is read, once, from the environment
         # variable of this scheme; an empty variable counts as unset, and a
         # credential still missing fails here with an ArgumentError.

@@ -39,11 +39,19 @@ module Petstore::Client
     # @return [#start, nil]
     attr_reader :call_hook
 
+    # Whether every request body is checked against the validation keywords
+    # of its schema (minLength, pattern, minimum, ...) before it is sent. Off
+    # by default; when on, a body that breaks one raises +ArgumentError+ and
+    # nothing is sent.
+    # @return [Boolean]
+    attr_reader :validate_constraints
+
     # @api private
-    def initialize(base_url:, default_headers:, call_hook: nil)
+    def initialize(base_url:, default_headers:, call_hook: nil, validate_constraints: false)
       @base_url = base_url
       @default_headers = default_headers.freeze
       @call_hook = call_hook
+      @validate_constraints = validate_constraints
       freeze
     end
 
@@ -78,6 +86,7 @@ module Petstore::Client
         @base_url = '/api/v3'
         @default_headers = {} # : Hash[String, String]
         @call_hook = nil
+        @validate_constraints = false
       end
 
       # Set the base URL for all API requests.
@@ -117,6 +126,16 @@ module Petstore::Client
         self
       end
 
+      # Turn the check of every request body against the validation keywords
+      # of its schema on or off. Off by default; when on, a body that breaks
+      # one raises +ArgumentError+ before anything is sent.
+      # @param val [Boolean] whether to check request bodies
+      # @return [self]
+      def validate_constraints(val)
+        @validate_constraints = val
+        self
+      end
+
       # Set the base URL from a server configuration with optional variable overrides.
       #
       # Resolves the server URL template with the given variable values (or
@@ -138,7 +157,8 @@ module Petstore::Client
         Configuration.new(
           base_url: @base_url,
           default_headers: @default_headers.dup,
-          call_hook: @call_hook
+          call_hook: @call_hook,
+          validate_constraints: @validate_constraints
         )
       end
     end

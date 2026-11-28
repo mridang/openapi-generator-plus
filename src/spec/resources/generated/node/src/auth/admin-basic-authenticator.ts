@@ -10,6 +10,8 @@ import { resolveCredential } from "./credentials.js";
 
 /**
  * Scheme-specific authenticator for the adminBasic security scheme.
+ *
+ * Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
  */
 export class AdminBasicAuthenticator extends BasicAuthenticator {
   constructor(host: string, username?: string, password?: string) {

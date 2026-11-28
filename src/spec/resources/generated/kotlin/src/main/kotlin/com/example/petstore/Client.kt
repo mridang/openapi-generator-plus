@@ -84,6 +84,7 @@ class Client : ClientInterface {
      * @param host API base URL
      * @param petStoreBasic credential for the `petStoreBasic` security scheme, or null for none
      * @param adminBasic credential for the `adminBasic` security scheme, or null for none
+     * @param archiveDigest credential for the `archiveDigest` security scheme, or null for none
      * @param petStoreBearer credential for the `petStoreBearer` security scheme, or null for none
      * @param serviceToken credential for the `serviceToken` security scheme, or null for none
      * @param apiKeyHeader credential for the `apiKeyHeader` security scheme, or null for none
@@ -94,6 +95,7 @@ class Client : ClientInterface {
      * @param legacyAuth credential for the `legacyAuth` security scheme, or null for none
      * @param userAuth credential for the `userAuth` security scheme, or null for none
      * @param browserAuth credential for the `browserAuth` security scheme, or null for none
+     * @param deviceAuth credential for the `deviceAuth` security scheme, or null for none
      * @param ssoAuth credential for the `ssoAuth` security scheme, or null for none
      * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
      * @param callHook the hook that runs around every operation call, or null for none
@@ -103,6 +105,7 @@ class Client : ClientInterface {
         host: String,
         petStoreBasic: com.example.petstore.auth.PetStoreBasicAuthenticator? = null,
         adminBasic: com.example.petstore.auth.AdminBasicAuthenticator? = null,
+        archiveDigest: com.example.petstore.auth.ArchiveDigestAuthenticator? = null,
         petStoreBearer: com.example.petstore.auth.PetStoreBearerAuthenticator? = null,
         serviceToken: com.example.petstore.auth.ServiceTokenAuthenticator? = null,
         apiKeyHeader: com.example.petstore.auth.ApiKeyHeaderAuthenticator? = null,
@@ -113,6 +116,7 @@ class Client : ClientInterface {
         legacyAuth: com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator? = null,
         userAuth: com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator? = null,
         browserAuth: com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator? = null,
+        deviceAuth: com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator? = null,
         ssoAuth: com.example.petstore.auth.oauth.SsoAuthAuthenticator? = null,
         transportOptions: TransportOptions? = null,
         callHook: CallHook? = null,
@@ -120,6 +124,7 @@ class Client : ClientInterface {
         mapOfNotNull(
             "petStoreBasic" to petStoreBasic,
             "adminBasic" to adminBasic,
+            "archiveDigest" to archiveDigest,
             "petStoreBearer" to petStoreBearer,
             "serviceToken" to serviceToken,
             "apiKeyHeader" to apiKeyHeader,
@@ -130,6 +135,7 @@ class Client : ClientInterface {
             "legacyAuth" to legacyAuth,
             "userAuth" to userAuth,
             "browserAuth" to browserAuth,
+            "deviceAuth" to deviceAuth,
             "ssoAuth" to ssoAuth,
         ),
         null,

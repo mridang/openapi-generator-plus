@@ -13,8 +13,11 @@
 <linker>
     <assembly fullname="PetstoreClient">
         <type fullname="PetstoreClient.Models.Account" preserve="all" />
+        <type fullname="PetstoreClient.Models.Allowance" preserve="all" />
+        <type fullname="PetstoreClient.Models.AllowanceTier" preserve="all" />
         <type fullname="PetstoreClient.Models.ApiResponse" preserve="all" />
         <type fullname="PetstoreClient.Models.AttachPetFilesRequest" preserve="all" />
+        <type fullname="PetstoreClient.Models.Audit" preserve="all" />
         <type fullname="PetstoreClient.Models.Availability" preserve="all" />
         <type fullname="PetstoreClient.Models.BinaryVault" preserve="all" />
         <type fullname="PetstoreClient.Models.Blobs" preserve="all" />
@@ -31,6 +34,7 @@
         <type fullname="PetstoreClient.Models.Error" preserve="all" />
         <type fullname="PetstoreClient.Models.Freeform" preserve="all" />
         <type fullname="PetstoreClient.Models.Ledger" preserve="all" />
+        <type fullname="PetstoreClient.Models.Letter" preserve="all" />
         <type fullname="PetstoreClient.Models.Medication" preserve="all" />
         <type fullname="PetstoreClient.Models.MemberNotFound" preserve="all" />
         <type fullname="PetstoreClient.Models.Memo" preserve="all" />
@@ -38,6 +42,8 @@
         <type fullname="PetstoreClient.Models.Moments" preserve="all" />
         <type fullname="PetstoreClient.Models.NativeValues" preserve="all" />
         <type fullname="PetstoreClient.Models.Order" preserve="all" />
+        <type fullname="PetstoreClient.Models.Packet" preserve="all" />
+        <type fullname="PetstoreClient.Models.Parcel" preserve="all" />
         <type fullname="PetstoreClient.Models.Pet" preserve="all" />
         <type fullname="PetstoreClient.Models.PetAfterPage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetArchivePage" preserve="all" />
@@ -59,6 +65,10 @@
         <type fullname="PetstoreClient.Models.Priority" preserve="all" />
         <type fullname="PetstoreClient.Models.ProjectNotFound" preserve="all" />
         <type fullname="PetstoreClient.Models.Rank" preserve="all" />
+        <type fullname="PetstoreClient.Models.Reading" preserve="all" />
+        <type fullname="PetstoreClient.Models.ReadingInlineLevel" preserve="all" />
+        <type fullname="PetstoreClient.Models.ReadingLevel" preserve="all" />
+        <type fullname="PetstoreClient.Models.ReadingShape" preserve="all" />
         <type fullname="PetstoreClient.Models.RejectedRequest" preserve="all" />
         <type fullname="PetstoreClient.Models.RequiredNullable" preserve="all" />
         <type fullname="PetstoreClient.Models.Reservation" preserve="all" />
@@ -66,10 +76,12 @@
         <type fullname="PetstoreClient.Models.ReserveStockResponse" preserve="all" />
         <type fullname="PetstoreClient.Models.Result" preserve="all" />
         <type fullname="PetstoreClient.Models.Roster" preserve="all" />
+        <type fullname="PetstoreClient.Models.Sensors" preserve="all" />
         <type fullname="PetstoreClient.Models.Separator" preserve="all" />
         <type fullname="PetstoreClient.Models.SetPetAvatarRequest" preserve="all" />
         <type fullname="PetstoreClient.Models.SetPetAvatarThumbnailRequest" preserve="all" />
         <type fullname="PetstoreClient.Models.Shape" preserve="all" />
+        <type fullname="PetstoreClient.Models.Shipment" preserve="all" />
         <type fullname="PetstoreClient.Models.Sparse" preserve="all" />
         <type fullname="PetstoreClient.Models.Square" preserve="all" />
         <type fullname="PetstoreClient.Models.Stage" preserve="all" />

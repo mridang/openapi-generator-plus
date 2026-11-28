@@ -46,6 +46,10 @@ pub struct Configuration {
 
     /// The hook that runs around every operation call, if any.
     call_hook: Option<Arc<dyn CallHook>>,
+
+    /// Whether every request body is checked against the validation keywords
+    /// of its schema before it is sent.
+    validate_constraints: bool,
 }
 
 impl std::fmt::Debug for Configuration {
@@ -59,6 +63,7 @@ impl std::fmt::Debug for Configuration {
                 &crate::transport_options::redact_headers(&self.default_headers),
             )
             .field("call_hook", &self.call_hook.as_ref().map(|_| "<hook>"))
+            .field("validate_constraints", &self.validate_constraints)
             .finish()
     }
 }
@@ -93,6 +98,12 @@ impl Configuration {
         self.call_hook = Some(hook);
         self
     }
+
+    /// Returns whether every request body is checked against the validation
+    /// keywords of its schema before it is sent. Off by default.
+    pub fn validate_constraints(&self) -> bool {
+        self.validate_constraints
+    }
 }
 
 impl Default for Configuration {
@@ -111,6 +122,7 @@ pub struct ConfigurationBuilder {
     base_url: String,
     default_headers: HashMap<String, String>,
     call_hook: Option<Arc<dyn CallHook>>,
+    validate_constraints: bool,
 }
 
 impl ConfigurationBuilder {
@@ -120,6 +132,7 @@ impl ConfigurationBuilder {
             base_url: "/api/v3".to_string(),
             default_headers: HashMap::new(),
             call_hook: None,
+            validate_constraints: false,
         }
     }
 
@@ -150,6 +163,17 @@ impl ConfigurationBuilder {
         self
     }
 
+    /// Turns on the check of every request body against the `minLength`,
+    /// `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`,
+    /// `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`,
+    /// `minProperties` and `maxProperties` keywords of its schema and of the
+    /// models it holds. A body that breaks one is refused before anything is
+    /// sent with [`ConfigurationError::InvalidRequestBody`]. Off by default.
+    pub fn validate_constraints(mut self, val: bool) -> Self {
+        self.validate_constraints = val;
+        self
+    }
+
     /// Uses a server configuration with variable overrides to set the base URL.
     ///
     /// Resolves the server URL template with the given variable overrides and
@@ -176,6 +200,7 @@ impl ConfigurationBuilder {
             base_url: self.base_url,
             default_headers: self.default_headers,
             call_hook: self.call_hook,
+            validate_constraints: self.validate_constraints,
         }
     }
 }

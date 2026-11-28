@@ -354,6 +354,15 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuthscheme700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant")
+    fun schemeWrapperExposesTheDeclaredMetadataUrl() {
+        assertEquals(
+            "https://auth.example.com/.well-known/oauth-authorization-server",
+            com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator.METADATA_URL,
+        )
+    }
+
+    @Test
     @DisplayName("bhvAuthscheme002 explicit arguments need no environment")
     fun explicitArgumentsNeedNoEnvironment() {
         val client = FakeApiClient()

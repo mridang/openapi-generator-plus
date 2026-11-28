@@ -23,6 +23,10 @@ from petstore_client.auth.oauth.oauth2_authorization_code_authenticator import (
 from petstore_client.auth.oauth.oauth2_implicit_authenticator import (
     OAuth2ImplicitAuthenticator as OAuth2ImplicitAuthenticator,
 )
+from petstore_client.auth.oauth.oauth2_device_authorization_authenticator import (
+    DeviceAuthorization as DeviceAuthorization,
+    OAuth2DeviceAuthorizationAuthenticator as OAuth2DeviceAuthorizationAuthenticator,
+)
 from petstore_client.auth.oauth.openid_connect_authenticator import (
     OpenIdConnectAuthenticator as OpenIdConnectAuthenticator,
 )

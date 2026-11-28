@@ -445,6 +445,20 @@ void main() {
       },
     );
 
+    test('bhv models 704 patternProperties type the extra properties', () {
+      final Map<String, int> extras = Sensors.fromJson({
+        'site': 'north',
+        's1': 3,
+        's2': 4,
+      }).additionalProperties;
+
+      expect(extras, equals({'s1': 3, 's2': 4}));
+      expect(
+        () => Sensors.fromJson({'s1': 'three'}),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
     test(
       'bhv models 025 an additional property of the wrong JSON type fails the decode',
       () {

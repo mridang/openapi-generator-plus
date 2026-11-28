@@ -71,6 +71,7 @@ class ClientTest {
                 "/api/v3",
                 petStoreBasic = null,
                 adminBasic = null,
+                archiveDigest = null,
                 petStoreBearer = null,
                 serviceToken = null,
                 apiKeyHeader = null,
@@ -81,6 +82,7 @@ class ClientTest {
                 legacyAuth = null,
                 userAuth = null,
                 browserAuth = null,
+                deviceAuth = null,
                 ssoAuth = null,
                 transportOptions = TransportOptions.builder().build(),
             )
@@ -569,6 +571,7 @@ class ClientTest {
     fun bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
         assertNotNull(com.example.petstore.auth.PetStoreBasicAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.AdminBasicAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.ArchiveDigestAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.PetStoreBearerAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.ServiceTokenAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.ApiKeyHeaderAuthenticator::class.java)
@@ -579,6 +582,7 @@ class ClientTest {
         assertNotNull(com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator::class.java)
+        assertNotNull(com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator::class.java)
         assertNotNull(com.example.petstore.auth.oauth.SsoAuthAuthenticator::class.java)
     }
 
@@ -717,6 +721,8 @@ class ClientTest {
         assertTrue("getMatrixWithHttpInfo" in storeListed)
         assertTrue("getMemo" in storeListed)
         assertTrue("getMemoWithHttpInfo" in storeListed)
+        assertTrue("getNativeAmount" in storeListed)
+        assertTrue("getNativeAmountWithHttpInfo" in storeListed)
         assertTrue("getNativeValues" in storeListed)
         assertTrue("getNativeValuesWithHttpInfo" in storeListed)
         assertTrue("getOrderById" in storeListed)
@@ -735,6 +741,8 @@ class ClientTest {
         assertTrue("getTreeWithHttpInfo" in storeListed)
         assertTrue("headMemo" in storeListed)
         assertTrue("headMemoWithHttpInfo" in storeListed)
+        assertTrue("listNativeAmounts" in storeListed)
+        assertTrue("listNativeAmountsWithHttpInfo" in storeListed)
         assertTrue("optionsMemo" in storeListed)
         assertTrue("optionsMemoWithHttpInfo" in storeListed)
         assertTrue("patchMemo" in storeListed)
@@ -745,6 +753,8 @@ class ClientTest {
         assertTrue("reserveStockWithHttpInfo" in storeListed)
         assertTrue("searchStore" in storeListed)
         assertTrue("searchStoreWithHttpInfo" in storeListed)
+        assertTrue("submitAllowance" in storeListed)
+        assertTrue("submitAllowanceWithHttpInfo" in storeListed)
         assertTrue("traceMemo" in storeListed)
         assertTrue("traceMemoWithHttpInfo" in storeListed)
         assertTrue("watchNoticesStream" in storeListed)

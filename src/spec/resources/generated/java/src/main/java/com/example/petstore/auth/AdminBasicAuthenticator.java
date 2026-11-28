@@ -16,6 +16,8 @@ import javax.annotation.Nullable;
  *
  * <p>A credential that is {@code null} is read once, when the authenticator is built, from its
  * environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
+ *
+ * <p>Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
  */
 public final class AdminBasicAuthenticator extends BaseAuthenticator {
   private final BasicAuthenticator delegate;

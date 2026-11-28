@@ -25,6 +25,7 @@ use PetstoreClient\CallInfo;
 use PetstoreClient\CallObserver;
 use PetstoreClient\CallOutcome;
 use PetstoreClient\Configuration;
+use PetstoreClient\ConstraintValidator;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\EventStream;
 use PetstoreClient\HeaderSelector;
@@ -37,6 +38,7 @@ use PetstoreClient\TraceContextUtil;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Auth\CompositeAuthenticator;
+use PetstoreClient\Auth\DigestAuthenticator;
 use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Auth\NoAuth;
 
@@ -707,6 +709,11 @@ class BaseApi
                 "Invalid maxRetries: must not be negative (got $maxRetries)"
             );
         }
+        /* The opt-in constraint check runs before anything is built or sent, so
+         * a refused body never reaches the call hook or the transport. */
+        if ($this->config->validateConstraints && $body !== null) {
+            ConstraintValidator::validate($body);
+        }
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             $url = $path;
         } else {
@@ -767,6 +774,8 @@ class BaseApi
             $headerParams,
             $effectiveAuth,
             $callHeaders,
+            $method,
+            $url,
         ): array {
             $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
             $headers = $this->mergeHeaders($headers, $this->config->defaultHeaders);
@@ -796,6 +805,13 @@ class BaseApi
                     $cookieStr = implode('; ', $cookieParts);
                     $existing = $headers['Cookie'] ?? '';
                     $headers['Cookie'] = $existing !== '' ? $existing . '; ' . $cookieStr : $cookieStr;
+                }
+                /* A digest authenticator answers the challenge it remembers (D192). */
+                if ($effectiveAuth instanceof DigestAuthenticator) {
+                    $answer = $effectiveAuth->authorization(strtoupper($method), $this->requestTarget($url));
+                    if ($answer !== null) {
+                        $headers = $this->mergeHeaders($headers, ['Authorization' => $answer]);
+                    }
                 }
             }
             foreach ($callHeaders ?? [] as $name => $value) {
@@ -919,6 +935,19 @@ class BaseApi
                     }
                 }
 
+                if (
+                    $response->statusCode === 401
+                    && $effectiveAuth instanceof DigestAuthenticator
+                    && $this->isReplayableBody($serializedBody)
+                    && $this->acceptsChallenge($effectiveAuth, $response->headers)
+                ) {
+                    /* HTTP Digest (D192): the challenge is answered and the request
+                     * replayed once; a second 401 stands. */
+                    $response = $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
+                    $statusCode = $response->statusCode;
+                    $responseHeaders = $response->headers;
+                }
+
                 if ($response->statusCode < 200 || $response->statusCode >= 300) {
                     throw ApiException::fromResponse(
                         $response->statusCode,
@@ -1024,6 +1053,26 @@ class BaseApi
                 $statusCode = $stream->statusCode;
                 $responseHeaders = $stream->headers;
             }
+        }
+
+        if (
+            $stream->statusCode === 401
+            && $effectiveAuth instanceof DigestAuthenticator
+            && $this->isReplayableBody($serializedBody)
+            && $this->acceptsChallenge($effectiveAuth, $stream->headers)
+        ) {
+            $stream->close();
+            $stream = $this->callStreaming(
+                $method,
+                $url,
+                $headersForAttempt,
+                $serializedBody,
+                $timeout,
+                $maxRetries,
+                $idleTimeoutMs
+            );
+            $statusCode = $stream->statusCode;
+            $responseHeaders = $stream->headers;
         }
 
         if ($stream->statusCode < 200 || $stream->statusCode >= 300) {
@@ -1599,6 +1648,31 @@ class BaseApi
         }
 
         return ObjectSerializer::serialize($body);
+    }
+
+    /** The request target of a URL: its path and query, without the scheme and host. */
+    private function requestTarget(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $query = parse_url($url, PHP_URL_QUERY);
+
+        return (is_string($path) ? $path : '') . (is_string($query) && $query !== '' ? '?' . $query : '');
+    }
+
+    /**
+     * Whether a 401 carries a challenge the digest authenticator accepts.
+     *
+     * @param array<string, string> $headers the response headers
+     */
+    private function acceptsChallenge(DigestAuthenticator $auth, array $headers): bool
+    {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp((string) $name, 'WWW-Authenticate') === 0) {
+                return $auth->acceptChallenge($value);
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -355,6 +355,8 @@ fn test_bhv_misc_073_a_credential_setter_exists_for_every_declared_scheme() {
     let _ = petstore::Credentials::new()
         .with_admin_basic(BearerAuthenticator::new(host, "test-token").unwrap());
     let _ = petstore::Credentials::new()
+        .with_archive_digest(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
         .with_pet_store_bearer(BearerAuthenticator::new(host, "test-token").unwrap());
     let _ = petstore::Credentials::new()
         .with_service_token(BearerAuthenticator::new(host, "test-token").unwrap());
@@ -374,6 +376,8 @@ fn test_bhv_misc_073_a_credential_setter_exists_for_every_declared_scheme() {
         .with_user_auth(BearerAuthenticator::new(host, "test-token").unwrap());
     let _ = petstore::Credentials::new()
         .with_browser_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_device_auth(BearerAuthenticator::new(host, "test-token").unwrap());
     let _ = petstore::Credentials::new()
         .with_sso_auth(BearerAuthenticator::new(host, "test-token").unwrap());
 }
@@ -2044,6 +2048,29 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn get_native_amount(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> impl Future<Output = Result<rust_decimal::Decimal, petstore::Error>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("get_native_amount( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_native_amount_with_http_info(
+        &self,
+        options: Option<&GetNativeAmountOptions>,
+    ) -> impl Future<Output = Result<ApiResult<rust_decimal::Decimal>, petstore::Error>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_native_amount_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn get_native_values(
         &self,
         options: Option<&GetNativeValuesOptions>,
@@ -2276,6 +2303,29 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn list_native_amounts(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> impl Future<Output = Result<Vec<rust_decimal::Decimal>, petstore::Error>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_native_amounts( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_native_amounts_with_http_info(
+        &self,
+        options: Option<&ListNativeAmountsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<rust_decimal::Decimal>>, petstore::Error>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_native_amounts_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn options_memo(
         &self,
         memo_id: String,
@@ -2398,6 +2448,31 @@ impl StoreApiTrait for FakeStoreApi {
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, petstore::Error>> {
         self.calls.lock().expect("calls lock").push(format!(
             "search_store_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn submit_allowance(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> impl Future<Output = Result<(), petstore::Error>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("submit_allowance( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn submit_allowance_with_http_info(
+        &self,
+        allowance: Allowance,
+        options: Option<&SubmitAllowanceOptions>,
+    ) -> impl Future<Output = Result<ApiResult<()>, petstore::Error>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "submit_allowance_with_http_info( options={})",
             options.is_some()
         ));
         let failure = self.failure();
@@ -2609,6 +2684,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"get_matrix_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_memo".to_string()));
     assert!(store_listed.contains(&"get_memo_with_http_info".to_string()));
+    assert!(store_listed.contains(&"get_native_amount".to_string()));
+    assert!(store_listed.contains(&"get_native_amount_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_native_values".to_string()));
     assert!(store_listed.contains(&"get_native_values_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_order_by_id".to_string()));
@@ -2627,6 +2704,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"get_tree_with_http_info".to_string()));
     assert!(store_listed.contains(&"head_memo".to_string()));
     assert!(store_listed.contains(&"head_memo_with_http_info".to_string()));
+    assert!(store_listed.contains(&"list_native_amounts".to_string()));
+    assert!(store_listed.contains(&"list_native_amounts_with_http_info".to_string()));
     assert!(store_listed.contains(&"options_memo".to_string()));
     assert!(store_listed.contains(&"options_memo_with_http_info".to_string()));
     assert!(store_listed.contains(&"patch_memo".to_string()));
@@ -2637,6 +2716,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"reserve_stock_with_http_info".to_string()));
     assert!(store_listed.contains(&"search_store".to_string()));
     assert!(store_listed.contains(&"search_store_with_http_info".to_string()));
+    assert!(store_listed.contains(&"submit_allowance".to_string()));
+    assert!(store_listed.contains(&"submit_allowance_with_http_info".to_string()));
     assert!(store_listed.contains(&"trace_memo".to_string()));
     assert!(store_listed.contains(&"trace_memo_with_http_info".to_string()));
     assert!(store_listed.contains(&"watch_notices_stream".to_string()));

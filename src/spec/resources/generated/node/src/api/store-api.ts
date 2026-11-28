@@ -18,9 +18,10 @@ import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { ValueSerializer } from "../value-serializer.js";
 import type { DeepInput } from "../deep-input.js";
-import type { UUID } from "../brand.js";
+import type { Decimal, UUID } from "../brand.js";
 import {
   Account,
+  Allowance,
   ApiResponse,
   Category,
   Defaults,
@@ -125,6 +126,10 @@ export interface StoreApiInterface {
     server?: GetMemoServer,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Memo>>;
+  getNativeAmount(requestOptions?: RequestOptions): Promise<Decimal>;
+  getNativeAmountWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Decimal>>;
   getNativeValues(
     options?: GetNativeValuesOptions,
     requestOptions?: RequestOptions,
@@ -182,6 +187,10 @@ export interface StoreApiInterface {
     memoId: string,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<void>>;
+  listNativeAmounts(requestOptions?: RequestOptions): Promise<Array<Decimal>>;
+  listNativeAmountsWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Decimal>>>;
   optionsMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>;
   optionsMemoWithHttpInfo(
     memoId: string,
@@ -217,6 +226,14 @@ export interface StoreApiInterface {
     options?: SearchStoreOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Array<Order>>>;
+  submitAllowance(
+    allowance: DeepInput<Allowance>,
+    requestOptions?: RequestOptions,
+  ): Promise<void>;
+  submitAllowanceWithHttpInfo(
+    allowance: DeepInput<Allowance>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<void>>;
   traceMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>;
   traceMemoWithHttpInfo(
     memoId: string,
@@ -307,6 +324,7 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "createAccount",
       "/store/account",
+      "Account",
     );
   }
 
@@ -952,6 +970,61 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "getMemo",
       "/store/memos/{memoId}",
+    );
+  }
+
+  /**
+   * Reads one exact decimal as the whole response body.
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return Decimal
+   * @throws {ApiError} if fails to make API call
+   */
+  async getNativeAmount(requestOptions?: RequestOptions): Promise<Decimal> {
+    const getNativeAmountResult =
+      await this.getNativeAmountWithHttpInfo(requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getNativeAmountResult.data == null) {
+      throw new ApiError(
+        getNativeAmountResult.statusCode,
+        "Expected a response body for getNativeAmount but received none",
+        getNativeAmountResult.headers,
+        getNativeAmountResult.rawBody,
+        null,
+      );
+    }
+    return getNativeAmountResult.data as Decimal;
+  }
+
+  /**
+   * Reads one exact decimal as the whole response body. (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async getNativeAmountWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Decimal>> {
+    const path = `/store/native-values/amount`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserializeDecimal(json, false)!,
+      NO_AUTH,
+      false,
+      "model",
+      "getNativeAmount",
+      requestOptions,
+      undefined,
+      "getNativeAmount",
+      "/store/native-values/amount",
     );
   }
 
@@ -1616,6 +1689,66 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
+   * Reads a list of exact decimals as the whole response body.
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return Array<Decimal>
+   * @throws {ApiError} if fails to make API call
+   */
+  async listNativeAmounts(
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Decimal>> {
+    const listNativeAmountsResult =
+      await this.listNativeAmountsWithHttpInfo(requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listNativeAmountsResult.data == null) {
+      throw new ApiError(
+        listNativeAmountsResult.statusCode,
+        "Expected a response body for listNativeAmounts but received none",
+        listNativeAmountsResult.headers,
+        listNativeAmountsResult.rawBody,
+        null,
+      );
+    }
+    return listNativeAmountsResult.data as Array<Decimal>;
+  }
+
+  /**
+   * Reads a list of exact decimals as the whole response body. (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listNativeAmountsWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Decimal>>> {
+    const path = `/store/native-values/amounts`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserializeArray(json, (x: unknown) =>
+          ObjectSerializer.deserializeDecimal(x, false),
+        ),
+      NO_AUTH,
+      false,
+      "model",
+      "listNativeAmounts",
+      requestOptions,
+      undefined,
+      "listNativeAmounts",
+      "/store/native-values/amounts",
+    );
+  }
+
+  /**
    * Lists the methods a memo accepts with an OPTIONS request
    * @param memoId The memo to address (required)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
@@ -1764,6 +1897,7 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "patchMemo",
       "/store/memos/{memoId}/revisions",
+      "Memo",
     );
   }
 
@@ -1828,6 +1962,7 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "placeOrder",
       "/store/order",
+      "Order",
     );
   }
 
@@ -2012,6 +2147,57 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "searchStore",
       "/store/search",
+    );
+  }
+
+  /**
+   * Submit an allowance whose schema uses every validation keyword
+   * @param allowance  (required)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async submitAllowance(
+    allowance: DeepInput<Allowance>,
+    requestOptions?: RequestOptions,
+  ): Promise<void> {
+    await this.submitAllowanceWithHttpInfo(allowance, requestOptions);
+  }
+
+  /**
+   * Submit an allowance whose schema uses every validation keyword (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async submitAllowanceWithHttpInfo(
+    allowance: DeepInput<Allowance>,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<void>> {
+    if (allowance == null) {
+      throw new TypeError(
+        "Missing the required parameter 'allowance' when calling StoreApi.submitAllowance",
+      );
+    }
+    const path = `/store/allowance`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "POST",
+      path,
+      queryParams,
+      headerParams,
+      allowance,
+      [],
+      "application/json",
+      null,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
+      false,
+      undefined,
+      "submitAllowance",
+      requestOptions,
+      undefined,
+      "submitAllowance",
+      "/store/allowance",
+      "Allowance",
     );
   }
 

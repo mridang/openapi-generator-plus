@@ -62,6 +62,11 @@ data class NativeValues(
     @Contextual
     val amount: BigDecimal? = null,
     /**
+     * The `amounts` property.
+     */
+    @SerialName("amounts")
+    val amounts: List<@Contextual BigDecimal>? = null,
+    /**
      * The `ledger` property.
      *
      * Example: `12.50`
@@ -122,14 +127,23 @@ data class NativeValues(
         } else if (other.amount != null) {
             return false
         }
+        if (amounts != other.amounts) return false
         if (ledger != null) {
             if (other.ledger == null) return false
             if (ledger.compareTo(other.ledger) != 0) return false
         } else if (other.ledger != null) {
             return false
         }
-        if (wait != other.wait) return false
-        if (since != other.since) return false
+        if (wait == null) {
+            if (other.wait != null) return false
+        } else if (!wait.equals(other.wait)) {
+            return false
+        }
+        if (since == null) {
+            if (other.since != null) return false
+        } else if (!since.equals(other.since)) {
+            return false
+        }
         if (host != other.host) return false
         if (contact != other.contact) return false
         return true
@@ -142,6 +156,7 @@ data class NativeValues(
         result = 31 * result + (addresses?.hashCode() ?: 0)
         result = 31 * result + (homepage?.hashCode() ?: 0)
         result = 31 * result + (amount?.stripTrailingZeros()?.hashCode() ?: 0)
+        result = 31 * result + (amounts?.hashCode() ?: 0)
         result = 31 * result + (ledger?.stripTrailingZeros()?.hashCode() ?: 0)
         result = 31 * result + (wait?.hashCode() ?: 0)
         result = 31 * result + (since?.hashCode() ?: 0)
@@ -163,6 +178,7 @@ data class NativeValues(
             "addresses=" + renderForToString(addresses),
             "homepage=" + renderForToString(homepage),
             "amount=" + renderForToString(amount),
+            "amounts=" + renderForToString(amounts),
             "ledger=" + renderForToString(ledger),
             "wait=" + renderForToString(wait),
             "since=" + renderForToString(since),

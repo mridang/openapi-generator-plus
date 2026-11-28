@@ -91,6 +91,19 @@ Decimal? readDecimalOrNull(Map<String, dynamic> json, String key) =>
 Decimal readDecimalValue(Object? value) =>
     _decimalFromNumber(value, _pendingNumberSource, null);
 
+/// Reads [data], a response body that is one `format: decimal` JSON number, as
+/// an exact [Decimal]. The body's own text is the number's source text, so
+/// every digit is kept; a quoted string, `null` or any other non-number raises
+/// a [SerializationException].
+Decimal readDecimalBody(String data) {
+  final decoded = deserializeRaw(data);
+  return _decimalFromNumber(
+    decoded,
+    decoded is num ? _stripBom(data).trim() : null,
+    null,
+  );
+}
+
 Decimal _decimalFromNumber(Object? value, String? source, String? key) {
   if (value is! num) {
     final field = key == null ? '' : " for '$key'";

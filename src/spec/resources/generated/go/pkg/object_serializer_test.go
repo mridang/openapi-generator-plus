@@ -715,6 +715,148 @@ func TestBhvSerializationobject115_ObjectSerializer_PetPassport_BiometricChipRou
 	}
 }
 
+// #98: a type array of scalars is a union of its types; each decodes and is written back.
+func TestBhvModels700_ObjectSerializer_Reading_ScalarTypeArrayDecodesEachType(t *testing.T) {
+	t.Parallel()
+	var text models.Reading
+	if err := deserialize([]byte(`{"level":"high","inlineLevel":3}`), &text); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := text.Level.AsString(); !ok || got != "high" {
+		t.Errorf("expected the string variant high, got %v", text.Level.ActualInstance())
+	}
+	if text.InlineLevel == nil || text.InlineLevel.ActualInstance() != int64(3) {
+		t.Errorf("expected the inline integer variant 3, got %v", text.InlineLevel)
+	}
+	var number models.Reading
+	if err := deserialize([]byte(`{"level":7}`), &number); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, ok := number.Level.AsInt64(); !ok || got != 7 {
+		t.Errorf("expected the integer variant 7, got %v", number.Level.ActualInstance())
+	}
+	for wire, model := range map[string]models.Reading{`"level":"high"`: text, `"level":7`: number} {
+		data, err := serialize(model)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(string(data), wire) {
+			t.Errorf("expected %s on the wire, got %s", wire, data)
+		}
+	}
+}
+
+// #98: a type array of array and object decodes both shapes and writes them back.
+func TestBhvModels701_ObjectSerializer_Reading_ArrayAndObjectTypeArrayDecodesBothShapes(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"array":  `["a","b"]`,
+		"object": `{"k":"v"}`,
+	}
+	for name, shape := range cases {
+		var reading models.Reading
+		if err := deserialize([]byte(`{"level":1,"shape":`+shape+`}`), &reading); err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if reading.Shape == nil {
+			t.Fatalf("%s: expected a shape", name)
+		}
+		_, isList := reading.Shape.AsStringSlice()
+		_, isMap := reading.Shape.AsStringMap()
+		if isList != (name == "array") || isMap != (name == "object") {
+			t.Errorf("%s: wrong variant %T", name, reading.Shape.ActualInstance())
+		}
+		data, err := serialize(reading)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", name, err)
+		}
+		if !strings.Contains(string(data), `"shape":`+shape) {
+			t.Errorf("%s: expected shape %s on the wire, got %s", name, shape, data)
+		}
+	}
+}
+
+// #87: a missing or unlisted discriminator value decodes as the defaultMapping variant.
+func TestBhvUnions700_ObjectSerializer_Parcel_DefaultMappingCatchesMissingAndUnlistedValues(t *testing.T) {
+	t.Parallel()
+	var unlisted models.Parcel
+	if err := deserialize([]byte(`{"kind":"postcard","pages":2}`), &unlisted); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if letter, ok := unlisted.AsLetter(); !ok || letter.Pages == nil || *letter.Pages != 2 {
+		t.Errorf("expected a Letter with two pages, got %#v", unlisted.ActualInstance())
+	}
+	var missing models.Parcel
+	if err := deserialize([]byte(`{"pages":3}`), &missing); err != nil || !missing.IsLetter() {
+		t.Errorf("expected a Letter, got %#v (%v)", missing.ActualInstance(), err)
+	}
+	var box models.Parcel
+	if err := deserialize([]byte(`{"kind":"packet","weightKg":1.5}`), &box); err != nil || !box.IsPacket() {
+		t.Errorf("expected a Packet, got %#v (%v)", box.ActualInstance(), err)
+	}
+}
+
+// #86: the properties of then and else are optional properties of the model, and the
+// if condition is not enforced.
+func TestBhvModels705_ObjectSerializer_Shipment_ConditionalBranchPropertiesAreOptionalProperties(t *testing.T) {
+	t.Parallel()
+	var shipment models.Shipment
+	if err := deserialize([]byte(`{"kind":"domestic","customsCode":"C2","postcode":"2000"}`), &shipment); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if shipment.CustomsCode == nil || *shipment.CustomsCode != "C2" {
+		t.Errorf("expected customsCode C2, got %v", shipment.CustomsCode)
+	}
+	if shipment.Postcode == nil || *shipment.Postcode != "2000" {
+		t.Errorf("expected postcode 2000, got %v", shipment.Postcode)
+	}
+	data, err := serialize(shipment)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"customsCode":"C2"`) {
+		t.Errorf("expected the customs code on the wire, got %s", data)
+	}
+}
+
+// #82: contains, minContains, maxContains, unevaluatedItems, not and contentSchema
+// are read and not enforced, so a value they would refuse decodes as given.
+func TestBhvModels703_ObjectSerializer_Audit_ValidationOnlyKeywordsAreNotEnforced(t *testing.T) {
+	t.Parallel()
+	var audit models.Audit
+	if err := deserialize([]byte(`{"tags":["a","b"],"score":-5,"payload":"not json"}`), &audit); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if audit.Tags == nil || len(*audit.Tags) != 2 || (*audit.Tags)[0] != "a" {
+		t.Errorf("expected tags [a b], got %v", audit.Tags)
+	}
+	if audit.Score == nil || *audit.Score != -5 {
+		t.Errorf("expected score -5, got %v", audit.Score)
+	}
+	if audit.Payload == nil || *audit.Payload != "not json" {
+		t.Errorf("expected the payload as given, got %v", audit.Payload)
+	}
+	data, err := serialize(audit)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"score":-5`) {
+		t.Errorf("expected the score on the wire, got %s", data)
+	}
+}
+
+// #98: a property of type null is an untyped nullable value.
+func TestBhvModels702_ObjectSerializer_Reading_NullTypePropertyAcceptsNull(t *testing.T) {
+	t.Parallel()
+	var reading models.Reading
+	if err := deserialize([]byte(`{"level":1,"nothing":null}`), &reading); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reading.Nothing != nil && *reading.Nothing != nil {
+		t.Errorf("expected no value, got %v", *reading.Nothing)
+	}
+}
+
 // F1175: the prefixItems tuple of Pet.location degrades to an open list. A
 // number decodes as float64 (so 2 and 2.0 are the same value), the string keeps
 // its position, a null element survives, and the elements re-encode in order.

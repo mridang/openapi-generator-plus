@@ -93,6 +93,15 @@ test('bhv models 009 additional properties are a string-keyed map of the value t
     expect($source)->toContain('\Ds\Map<string, string>');
 });
 
+test('bhv models 704 patternProperties type the extra properties', function (): void {
+    /** @var \PetstoreClient\Models\Sensors $sensors */
+    $sensors = ObjectSerializer::deserialize('{"site":"north","s1":3,"s2":4}', \PetstoreClient\Models\Sensors::class);
+
+    expect($sensors->additionalProperties->toArray())->toBe(['s1' => 3, 's2' => 4]);
+    expect(fn () => ObjectSerializer::deserialize('{"s1":"three"}', \PetstoreClient\Models\Sensors::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
 test('bhv models 025 an additional property of the wrong JSON type fails the decode', function (): void {
     foreach (['{"a":2.5}', '{"a":"2"}', '{"a":3000000000}'] as $body) {
         expect(fn () => ObjectSerializer::deserialize($body, \PetstoreClient\Models\Counters::class))

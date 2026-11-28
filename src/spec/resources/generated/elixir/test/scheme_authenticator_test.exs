@@ -16,6 +16,11 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
        {"username", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME"},
        {"password", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"}
      ]},
+    {PetstoreClient.Auth.ArchiveDigestAuthenticator,
+     [
+       {"username", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME"},
+       {"password", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD"}
+     ]},
     {PetstoreClient.Auth.PetStoreBearerAuthenticator,
      [{"token", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"}]},
     {PetstoreClient.Auth.ServiceTokenAuthenticator,
@@ -48,6 +53,8 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
      ]},
     {PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator,
      [{"client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"}]},
+    {PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator,
+     [{"client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID"}]},
     {PetstoreClient.Auth.OAuth.SsoAuthAuthenticator,
      [
        {"client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"},
@@ -255,6 +262,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
     for module <- [
           PetstoreClient.Auth.PetStoreBasicAuthenticator,
           PetstoreClient.Auth.AdminBasicAuthenticator,
+          PetstoreClient.Auth.ArchiveDigestAuthenticator,
           PetstoreClient.Auth.PetStoreBearerAuthenticator,
           PetstoreClient.Auth.ServiceTokenAuthenticator,
           PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
@@ -265,6 +273,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
           PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator,
           PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator,
           PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator,
+          PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator,
           PetstoreClient.Auth.OAuth.SsoAuthAuthenticator
         ] do
       assert Code.ensure_loaded?(module)
@@ -293,6 +302,11 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
 
   test "bhv authscheme 008 the SsoAuth scheme authenticator treats an empty environment variable as unset and names it" do
     assert_empty_variables_are_named(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator)
+  end
+
+  test "bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator" do
+    assert PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.metadata_url() ==
+             "https://auth.example.com/.well-known/oauth-authorization-server"
   end
 
   describe "generated basic scheme wrappers" do

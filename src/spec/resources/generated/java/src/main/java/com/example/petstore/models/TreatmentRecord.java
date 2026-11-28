@@ -16,7 +16,23 @@ import javax.annotation.Nullable;
     using = TreatmentRecord.TreatmentRecordDeserializer.class)
 public class TreatmentRecord {
 
-  private static final Class<?>[] ANY_OF_SCHEMAS = {Surgery.class, Medication.class};
+  /* Variant type tokens in schema declaration order. TypeReference (not
+   * Class.class) keeps a generic variant such as List<String> representable;
+   * the erased classes check that a retained value is one of the variants. */
+  private static final java.util.List<com.fasterxml.jackson.core.type.TypeReference<?>>
+      ANY_OF_SCHEMAS =
+          java.util.List.of(
+              new com.fasterxml.jackson.core.type.TypeReference<Surgery>() {},
+              new com.fasterxml.jackson.core.type.TypeReference<Medication>() {});
+
+  private static final java.util.List<Class<?>> ANY_OF_CLASSES =
+      ANY_OF_SCHEMAS.stream()
+          .<Class<?>>map(
+              schema ->
+                  com.fasterxml.jackson.databind.type.TypeFactory.defaultInstance()
+                      .constructType(schema)
+                      .getRawClass())
+          .toList();
 
   /* anyOf is inclusive: a payload may satisfy several variants at once
    * (e.g. an object whose fields cover both Medication and Surgery). Unlike
@@ -74,7 +90,7 @@ public class TreatmentRecord {
     }
     for (Object instance : matchedInstances) {
       boolean isVariant = false;
-      for (Class<?> schema : ANY_OF_SCHEMAS) {
+      for (Class<?> schema : ANY_OF_CLASSES) {
         if (schema.isInstance(instance)) {
           isVariant = true;
           break;
@@ -224,9 +240,9 @@ public class TreatmentRecord {
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
         throws java.io.IOException {
-      com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      com.fasterxml.jackson.databind.JsonNode node = ctxt.readTree(p);
       java.util.List<Object> matched = new java.util.ArrayList<>();
-      for (Class<?> schema : ANY_OF_SCHEMAS) {
+      for (com.fasterxml.jackson.core.type.TypeReference<?> schema : ANY_OF_SCHEMAS) {
         /* anyOf is inclusive: keep scanning and retain EVERY variant that
         decodes. tryDecodeVariant probes one variant and returns null when
         it does not match, so the non-matching exception is converted to a
@@ -258,9 +274,9 @@ public class TreatmentRecord {
     private static Object tryDecodeVariant(
         com.fasterxml.jackson.databind.DeserializationContext ctxt,
         com.fasterxml.jackson.databind.JsonNode node,
-        Class<?> schema) {
+        com.fasterxml.jackson.core.type.TypeReference<?> schema) {
       try {
-        return ctxt.readTreeAsValue(node, schema);
+        return ctxt.readTreeAsValue(node, ctxt.getTypeFactory().constructType(schema));
       } catch (Exception variantDidNotMatch) {
         return null;
       }

@@ -61,6 +61,11 @@ public class NativeValues {
   @Nullable
   public final BigDecimal amount;
 
+  /** The {@code amounts} property. */
+  @JsonProperty("amounts")
+  @Nullable
+  public final List<BigDecimal> amounts;
+
   /**
    * The {@code ledger} property.
    *
@@ -126,6 +131,10 @@ public class NativeValues {
             : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.addresses));
     this.homepage = builder.homepage;
     this.amount = builder.amount;
+    this.amounts =
+        builder.amounts == null
+            ? null
+            : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(builder.amounts));
     this.ledger = builder.ledger;
     this.wait = builder.wait;
     this.since = builder.since;
@@ -155,6 +164,7 @@ public class NativeValues {
     builder.addresses = this.addresses;
     builder.homepage = this.homepage;
     builder.amount = this.amount;
+    builder.amounts = this.amounts;
     builder.ledger = this.ledger;
     builder.wait = this.wait;
     builder.since = this.since;
@@ -177,6 +187,7 @@ public class NativeValues {
     @Nullable private List<String> addresses;
     @Nullable private URI homepage;
     @Nullable private BigDecimal amount;
+    @Nullable private List<BigDecimal> amounts;
     @Nullable private BigDecimal ledger;
     @Nullable private Duration wait;
     @Nullable private LocalDate since;
@@ -251,6 +262,21 @@ public class NativeValues {
     @JsonProperty("amount")
     public Builder amount(@Nullable BigDecimal amount) {
       this.amount = amount;
+      return this;
+    }
+
+    /**
+     * Sets the "amounts" property.
+     *
+     * @param amounts the new value
+     * @return this builder
+     */
+    @JsonProperty("amounts")
+    public Builder amounts(@Nullable List<BigDecimal> amounts) {
+      this.amounts =
+          amounts == null
+              ? null
+              : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(amounts));
       return this;
     }
 
@@ -349,6 +375,7 @@ public class NativeValues {
         && com.example.petstore.ObjectSerializer.structuralEquals(this.addresses, other.addresses)
         && java.util.Objects.equals(this.homepage, other.homepage)
         && com.example.petstore.ObjectSerializer.structuralEquals(this.amount, other.amount)
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.amounts, other.amounts)
         && java.util.Objects.equals(this.ledger, other.ledger)
         && java.util.Objects.equals(this.wait, other.wait)
         && java.util.Objects.equals(this.since, other.since)
@@ -364,6 +391,7 @@ public class NativeValues {
         com.example.petstore.ObjectSerializer.structuralHashCode(addresses),
         homepage,
         com.example.petstore.ObjectSerializer.structuralHashCode(amount),
+        com.example.petstore.ObjectSerializer.structuralHashCode(amounts),
         ledger,
         wait,
         since,
@@ -381,6 +409,8 @@ public class NativeValues {
         .append(com.example.petstore.ObjectSerializer.structuralToString(addresses));
     sb.append(", homepage=").append(homepage);
     sb.append(", amount=").append(amount);
+    sb.append(", amounts=")
+        .append(com.example.petstore.ObjectSerializer.structuralToString(amounts));
     sb.append(", ledger=").append(ledger);
     sb.append(", wait=").append(wait);
     sb.append(", since=").append(since);

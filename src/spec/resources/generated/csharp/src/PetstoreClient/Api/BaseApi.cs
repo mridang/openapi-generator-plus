@@ -510,6 +510,35 @@ public abstract class BaseApi
         return cut >= 0 ? path[..cut] : path;
     }
 
+    /// <summary>The request target of a URL for a Digest answer: its path and query.</summary>
+    private static string RequestTargetOf(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ? parsed.PathAndQuery : url;
+    }
+
+    /// <summary>
+    /// Whether the authenticator answers Digest challenges and accepts the one the
+    /// <c>WWW-Authenticate</c> header of a 401 carries (D192).
+    /// </summary>
+    private static bool AcceptsChallenge(
+        IAuthenticator? auth,
+        IReadOnlyDictionary<string, string> headers
+    )
+    {
+        if (auth is not IChallengeAuthenticator challenged)
+        {
+            return false;
+        }
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            if (string.Equals(header.Key, "WWW-Authenticate", StringComparison.OrdinalIgnoreCase))
+            {
+                return challenged.AcceptChallenge(header.Value);
+            }
+        }
+        return false;
+    }
+
     /// <summary>The most of an error body a stream call reads before it raises the error.</summary>
     private const int StreamErrorBodyLimit = 64 * 1024;
 
@@ -552,6 +581,12 @@ public abstract class BaseApi
                 nameof(maxRetries),
                 "MaxRetries must not be negative"
             );
+        }
+        /* D189: with constraint validation on, a body that breaks a keyword of its schema is
+           refused here, before anything is encoded, the hook starts or a request is sent. */
+        if (body is not null && Config.ValidateConstraints)
+        {
+            ConstraintValidator.Validate(body);
         }
         /* Three-state auth resolution (the no-auth sentinel disambiguates the
            two meanings null used to carry):
@@ -640,6 +675,17 @@ public abstract class BaseApi
                 {
                     SetHeaderIgnoringCase(built, header.Key, header.Value);
                     _ = authKeys.Add(header.Key);
+                }
+
+                /* A Digest authenticator answers the challenge it remembers up front (D192). */
+                if (
+                    effectiveAuth is IChallengeAuthenticator challenged
+                    && challenged.Authorization(method.ToUpperInvariant(), RequestTargetOf(url))
+                        is string answer
+                )
+                {
+                    SetHeaderIgnoringCase(built, "Authorization", answer);
+                    _ = authKeys.Add("Authorization");
                 }
 
                 Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
@@ -920,14 +966,22 @@ public abstract class BaseApi
                rebuild the headers and replay the request once. A second 401 is
                reported below as the usual error. A stream or multipart body was
                consumed by the first send and is never replayed, and the API key,
-               basic and bearer authenticators never replay. */
+               basic and bearer authenticators never replay. A Digest
+               authenticator that accepts the response's challenge answers it in the
+               rebuilt headers and is replayed under the same rules (D192). */
             if (
                 response.StatusCode == 401
-                && effectiveAuth is IInvalidatableAuthenticator invalidatable
+                && (
+                    effectiveAuth is IInvalidatableAuthenticator
+                    || AcceptsChallenge(effectiveAuth, response.Headers)
+                )
                 && requestBody is null or string or byte[] or BodySource { IsReplayable: true }
             )
             {
-                invalidatable.InvalidateAccessToken();
+                if (effectiveAuth is IInvalidatableAuthenticator invalidatable)
+                {
+                    invalidatable.InvalidateAccessToken();
+                }
                 Dictionary<string, string>? replayHeaders = null;
                 try
                 {
