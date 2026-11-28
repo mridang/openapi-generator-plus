@@ -10,6 +10,7 @@ import {
   ServerConfiguration,
   ServerVariable,
 } from "../src/server-configuration.js";
+import { Servers } from "../src/servers.js";
 
 describe("ServerConfiguration", () => {
   it("bhv servers 028 a server configuration and its variables cannot be changed after creation", () => {
@@ -156,6 +157,24 @@ describe("ServerConfiguration", () => {
     expect(caught).not.toBeInstanceOf(OpenAPIError);
     expect((caught as Error).message).toBe(
       "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging",
+    );
+  });
+
+  it("bhv servers 501 a server keeps its name and a server built without one has none", () => {
+    const named = new ServerConfiguration(
+      "https://api.example.com",
+      null,
+      {},
+      "primary",
+    );
+    const unnamed = new ServerConfiguration("https://api.example.com");
+    expect(named.name).toBe("primary");
+    expect(unnamed.name).toBeNull();
+  });
+
+  it("bhv servers 502 an unknown server name is rejected with the known names", () => {
+    expect(() => Servers.byName("missing")).toThrow(
+      new TypeError("Unknown server name 'missing'. Known names: []"),
     );
   });
 

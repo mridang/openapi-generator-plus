@@ -61,6 +61,8 @@ public final class ClientGenerator {
     Map<String, Object> props = new HashMap<>(properties);
     props.put("generateTests", "true");
     props.put("generateExamples", "true");
+    // D170: the petstore's getMemo carries x-audience, documented on the operation.
+    props.putIfAbsent("exposedExtensions", "x-audience");
     // Two petstore operations are paged or left alone by this option alone, not by inference or a hint.
     props.putIfAbsent(
         "paginationOverrides",

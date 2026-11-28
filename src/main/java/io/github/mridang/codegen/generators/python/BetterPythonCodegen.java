@@ -100,6 +100,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
 
+    /** The typed response-header classes written so far (D168), exported by the options barrel. */
+    private final Set<String> responseHeadersClasses = new TreeSet<>();
+
     /**
      * Initializes the Python codegen with type mappings,
      * language primitives, and reserved words. Clears
@@ -464,6 +467,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             if (marked != null) {
                 for (final CodegenOperation op : marked) {
                     markBinaryStream(op);
+                    writeResponseHeadersFile(op);
                 }
             }
         }
@@ -2271,6 +2275,34 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 .toString();
     }
 
+    /**
+     * Writes the typed response-header class of an operation whose success response declares
+     * headers (D168), next to its Options class, from {@code api/response_headers.mustache}.
+     *
+     * @param op the operation, after the shared pass filled its decorators
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(CodegenOperation op) {
+        final Object decorator = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorator;
+        if (!Boolean.TRUE.equals(d.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = Objects.requireNonNull((String) d.get("responseHeadersClassName"));
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("responseHeaders", d.get("responseHeaders"));
+        final String content = renderOptionsTemplate("api/response_headers.mustache", context);
+        final String filePath = getOptionsFilePath(op.operationId, className);
+        writeFile(filePath, content);
+        postProcessFile(Path.of(filePath).toFile(), "source");
+        responseHeadersClasses.add(className);
+    }
+
     /** {@inheritDoc} */
     @Override
     public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
@@ -2279,6 +2311,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         for (final Map<String, String> meta : all) {
             final String className =
                     Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> export = new HashMap<>();
+            export.put("className", className);
+            export.put("moduleName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(export);
+        }
+        for (final String className : responseHeadersClasses) {
             final Map<String, String> export = new HashMap<>();
             export.put("className", className);
             export.put("moduleName", NamingConvention.SNAKE_CASE.apply(className));

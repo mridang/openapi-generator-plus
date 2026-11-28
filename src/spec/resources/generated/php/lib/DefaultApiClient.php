@@ -194,19 +194,25 @@ class DefaultApiClient extends AbstractApiClient
      * is dropped from the prepared headers.
      *
      * @param string|\Symfony\Component\Mime\Part\File $body the file or the raw bytes
+     * @param (\Closure(Headers): Headers)|null $finish rewrites the prepared headers of an encoded part
      */
     private function binaryFormPart(
         string|\Symfony\Component\Mime\Part\File $body,
         string $filename,
         string $mime,
         ?string $extendedFilename = null,
+        ?\Closure $finish = null,
     ): DataPart {
-        return new class ($body, $filename, $mime, $extendedFilename) extends DataPart {
+        return new class ($body, $filename, $mime, $extendedFilename, $finish) extends DataPart {
+            /**
+             * @param (\Closure(Headers): Headers)|null $finish
+             */
             public function __construct(
                 string|\Symfony\Component\Mime\Part\File $body,
                 string $filename,
                 string $mime,
                 private readonly ?string $extendedFilename,
+                private readonly ?\Closure $finish,
             ) {
                 parent::__construct($body, $filename, $mime);
             }
@@ -222,7 +228,7 @@ class DefaultApiClient extends AbstractApiClient
                     $disposition->setParameter('filename*', $this->extendedFilename);
                 }
 
-                return $headers;
+                return $this->finish instanceof \Closure ? ($this->finish)($headers) : $headers;
             }
         };
     }
@@ -235,17 +241,27 @@ class DefaultApiClient extends AbstractApiClient
      * Content-Transfer-Encoding of 8bit, which the in-memory multipart encoder
      * of {@see Psr18ApiClient} never sends; both headers are dropped so the two
      * transports put the same bytes on the wire.
+     *
+     * @param (\Closure(Headers): Headers)|null $finish rewrites the prepared headers of an encoded part
      */
-    private function plainFormPart(string $value): TextPart
+    private function plainFormPart(string $value, ?\Closure $finish = null): TextPart
     {
-        return new class ($value) extends TextPart {
+        return new class ($value, $finish) extends TextPart {
+            /**
+             * @param (\Closure(Headers): Headers)|null $finish
+             */
+            public function __construct(string $value, private readonly ?\Closure $finish)
+            {
+                parent::__construct($value);
+            }
+
             public function getPreparedHeaders(): Headers
             {
                 $headers = parent::getPreparedHeaders();
                 $headers->remove('Content-Type');
                 $headers->remove('Content-Transfer-Encoding');
 
-                return $headers;
+                return $this->finish instanceof \Closure ? ($this->finish)($headers) : $headers;
             }
         };
     }
@@ -257,11 +273,16 @@ class DefaultApiClient extends AbstractApiClient
      * `Content-Type: application/json`, like the in-memory encoder of
      * {@see Psr18ApiClient}. Symfony's DataPart would put Content-Type first
      * and add a Content-Transfer-Encoding of 8bit.
+     *
+     * @param (\Closure(Headers): Headers)|null $finish rewrites the prepared headers of an encoded part
      */
-    private function jsonFormPart(string $json): DataPart
+    private function jsonFormPart(string $json, ?\Closure $finish = null): DataPart
     {
-        return new class ($json) extends DataPart {
-            public function __construct(string $json)
+        return new class ($json, $finish) extends DataPart {
+            /**
+             * @param (\Closure(Headers): Headers)|null $finish
+             */
+            public function __construct(string $json, private readonly ?\Closure $finish)
             {
                 parent::__construct($json, null, 'application/json');
             }
@@ -276,8 +297,41 @@ class DefaultApiClient extends AbstractApiClient
                 }
                 $headers->addTextHeader('Content-Type', 'application/json');
 
-                return $headers;
+                return $this->finish instanceof \Closure ? ($this->finish)($headers) : $headers;
             }
+        };
+    }
+
+    /**
+     * Rewrites the prepared headers of a part whose Encoding Object declares a
+     * Content-Type or part headers: Content-Disposition first, then the declared
+     * Content-Type (or the one the part already had), then each declared header
+     * in declaration order. Null when the part has no declared encoding.
+     *
+     * @return (\Closure(Headers): Headers)|null
+     */
+    private function partEncoding(?EncodedPart $encoding): ?\Closure
+    {
+        if (!$encoding instanceof \PetstoreClient\EncodedPart) {
+            return null;
+        }
+
+        return static function (Headers $prepared) use ($encoding): Headers {
+            $headers = new Headers();
+            $headers->setMaxLineLength(\PHP_INT_MAX);
+            $disposition = $prepared->get('Content-Disposition');
+            if ($disposition instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
+                $headers->add($disposition);
+            }
+            $contentType = $encoding->contentType ?? $prepared->get('Content-Type')?->getBodyAsString();
+            if ($contentType !== null) {
+                $headers->addTextHeader('Content-Type', $contentType);
+            }
+            foreach ($encoding->headers as $name => $value) {
+                $headers->addTextHeader($name, $value);
+            }
+
+            return $headers;
         };
     }
 
@@ -342,17 +396,23 @@ class DefaultApiClient extends AbstractApiClient
                 $values = is_array($value) ? $value : [$value];
                 $parts = [];
                 foreach ($values as $v) {
+                    /* A part whose Encoding Object declares a Content-Type or part headers. */
+                    $finish = null;
+                    if ($v instanceof EncodedPart) {
+                        $finish = $this->partEncoding($v);
+                        $v = $v->value;
+                    }
                     /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
                      * text part in its stringify form with no part Content-Type; only
                      * a model or map is an application/json part. */
                     if (ObjectSerializer::isPrimitiveValue($v)) {
-                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
+                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v), $finish);
                     } elseif (
                         is_object($v)
                         && !($v instanceof \SplFileObject)
                         && !($v instanceof \Psr\Http\Message\StreamInterface)
                     ) {
-                        $parts[] = $this->jsonFormPart(ObjectSerializer::serialize($v));
+                        $parts[] = $this->jsonFormPart(ObjectSerializer::serialize($v), $finish);
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
                         $filename = $v->getFilename();
@@ -368,7 +428,7 @@ class DefaultApiClient extends AbstractApiClient
                         $effectiveFilename = $isAscii
                             ? $filename
                             : preg_replace('/[^\x20-\x7E]/u', '_', $filename) ?? $filename;
-                        $parts[] = $this->binaryFormPart(new \Symfony\Component\Mime\Part\File($path !== false ? $path : $v->getPathname()), $effectiveFilename, $mime, $isAscii ? null : "UTF-8''" . self::rfc5987EncodeValue($filename));
+                        $parts[] = $this->binaryFormPart(new \Symfony\Component\Mime\Part\File($path !== false ? $path : $v->getPathname()), $effectiveFilename, $mime, $isAscii ? null : "UTF-8''" . self::rfc5987EncodeValue($filename), $finish);
                     } elseif (
                         is_resource($v)
                         || $v instanceof \Psr\Http\Message\StreamInterface
@@ -382,9 +442,9 @@ class DefaultApiClient extends AbstractApiClient
                         self::validateMultipartFilename($filename);
                         $mime = $this->guessMimeType(null, $filename);
                         /* The caller owns the stream: it is read but never closed. */
-                        $parts[] = $this->binaryFormPart($this->readPartStream($v), $filename, $mime);
+                        $parts[] = $this->binaryFormPart($this->readPartStream($v), $filename, $mime, null, $finish);
                     } else {
-                        $parts[] = $this->plainFormPart('');
+                        $parts[] = $this->plainFormPart('', $finish);
                     }
                 }
                 $formFields[(string) $name] = count($parts) === 1 ? $parts[0] : $parts;

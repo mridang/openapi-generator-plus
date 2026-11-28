@@ -164,6 +164,8 @@ Rule: `User-Agent` and `X-Request-ID` are injected only when no `equalsIgnoreCas
 Why: RFC 9110 5.1; the published package name is the identifier users can look up. An explicit `artifactId` option still overrides the derived one.
 Where: `default_api_client.mustache`, `transport_options.mustache`, `BetterJavaCodegen` (`artifactId`, `userAgentDefault`).
 Test: `DefaultApiClientTest`, `TransportOptionsTest`.
+D167: `BaseApi.invokeCall` merges the operation's header parameters and per-call headers over the negotiated ones by `equalsIgnoreCase`, so a per-call `Accept` (any case) replaces the declared media-type list and is sent once (test `bhvOperations501` in `BaseApiTest`).
+D168: an operation whose 2xx responses declare headers gets `<Operation>ResponseHeaders` in the `options` package beside its Options class (`api/response_headers.mustache`, written by `BetterJavaCodegen.writeResponseHeadersFile`), with a nullable record-style accessor per header and `from(Map<String, String>)` that finds each header without regard to case and raises `SerializationException` on a value that does not parse (tests `bhvHeaders501`/`502` in `StoreApiTest`).
 
 ### Models: string form, equality, any-properties (D23, D24, D63)
 Rule: `toString` dumps `ClassName{prop=value, ...}` over all vars plus the additionalProperties bucket, a top-level `byte[]` through `Arrays.toString` and containers through `ObjectSerializer.structuralToString`; oneOf/anyOf wrappers delegate equality and hash to the held variant with `Objects.deepEquals`; the `@JsonAnyGetter` omits keys that equal declared property names so the declared value wins and the key is written once; a composed scheme wrapper prints the redacted base repr under its own class name.
@@ -179,6 +181,8 @@ Test: `BaseApiTest`, `DefaultApiClientTest`, `ApiResultTest`.
 
 ### Multipart and form encoding (D36, D39, D53, D90)
 Rule: a multipart primitive is a plain text part (`ObjectSerializer.toFormValue`, no part Content-Type), only models and maps are `application/json` parts; a form-urlencoded nested object or map is rejected with `SerializationException`; query, form and multipart parts use `LinkedHashMap` in declaration order; the multipart filename directive replaces each non-ASCII or control code point with one `_` (iterating `codePoints()`).
+D165: a form-urlencoded field whose Encoding Object sets `style` or `explode` (`formStyled`) is written by the prelude through `ValueSerializer.serializeStyled(..., "query", ...)` and `putQuery` into the form map, then form-encoded as usual (`aliases=a+b%7Cc`).
+D166: a multipart field with a declared part `contentType` or fixed part headers (`partEncoded`) is wrapped by `ValueSerializer.encodedPart` in the public `ObjectSerializer.EncodedPart` record (public because `DefaultApiClient` lives in another package); `addMultipartField` replaces the chosen part Content-Type with the declared one and writes each header after it, a list applies it to every item, and the form-urlencoded encoder, `extractBinaryPart` and `isReplayableBody` see through it with `ObjectSerializer.withoutPartEncoding`. Every declared `multipart/<subtype>` (such as `multipart/mixed`) now reaches the transport as multipart and keeps its subtype (`DefaultApiClient.multipartSubtype`).
 Why: one stringify form and one deterministic order across twelve SDKs.
 Where: `default_api_client.mustache` (`addMultipartField`, `buildFilenameDirective`), `base_api.mustache`, `api/api.mustache`.
 Test: `BaseApiTest`, `DefaultApiClientTest`, golden `PetApiTest`.
@@ -249,7 +253,7 @@ Rule: every API group has an interface and the client has one where the language
 
 ## Known limitations and out of scope
 
-Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; the pinned swagger-parser rejects 3.2 documents (#50).
+Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope (#53, #70, #78, #88, #90). OpenAPI 3.1 and 3.2 are tracked as epics #96 and #49; 3.2 documents load through the shared parser extension (D150).
 
 These java gaps are known:
 
@@ -448,6 +452,8 @@ Where: `BetterJavaCodegen` (`cliOptions`, `processOpts`), `pom.mustache`, `readm
 ### Named examples reach the Options setter
 Rule: batch 10 rendered the examples in `options.mustache` but the shared pass captures them only after the Options files are written, so the golden showed none. `generateOptionsFileContent` now captures them first (`capturePluralExamplesForParameters`), so `FindPetsByStatusOptions.status` carries `Example — Available only: {@code available}`.
 Where: `BetterJavaCodegen`. Test: the generated Options javadoc in the golden (`JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` covers the required ones).
+
+D169 and D170: the operation javadoc (method, `WithHttpInfo` and stream variants, through `api/operation_doc_examples.mustache` after the response summaries, since javadoc block tags must come last) renders each request-body and success-response example as `<p>{heading} example: {summary}`, its description and `{@code value}`, then each option-listed vendor extension as `<p>Extension {name}: {value}`, and each typed response-header accessor in `api/response_headers.mustache` adds `<p>Example: {@code value}`.
 
 ### README notes
 Rule: the README Caveats say that optional and nullable are one `null` (except required plus nullable), that an unknown enum or discriminator value fails, that repeated response headers are joined with `, `, which compression is negotiated, that the SDK has no logging hook, that a binary response is a stream (see the Streaming section), that `Configuration` and `TransportOptions` stay separate, and what the version means; a Usage section covers per-call options, error context, immutable models and unions.

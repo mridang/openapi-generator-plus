@@ -1679,3 +1679,60 @@ describe("ValueSerializer misc wire encoding behaviours", () => {
     expect(ValueSerializer.encodeQueryComponent("a b")).toBe("a%20b");
   });
 });
+
+describe("ValueSerializer cookie style and allowReserved in a path", () => {
+  test("bhv serializationparam 501 cookiePairs writes the cookie style fragment for scalars, arrays and objects", () => {
+    expect(ValueSerializer.cookiePairs("region", "eu", true)).toBe("region=eu");
+    expect(ValueSerializer.cookiePairs("region", ["a", "b"], false)).toBe(
+      "region=a,b",
+    );
+    expect(ValueSerializer.cookiePairs("region", ["a", "b"], true)).toBe(
+      "region=a; region=b",
+    );
+    expect(
+      ValueSerializer.cookiePairs("region", { k1: "v1", k2: "v2" }, false),
+    ).toBe("region=k1,v1,k2,v2");
+    expect(
+      ValueSerializer.cookiePairs("region", { k1: "v1", k2: "v2" }, true),
+    ).toBe("k1=v1; k2=v2");
+    expect(ValueSerializer.cookiePairs("region", "a%2Cb", true)).toBe(
+      "region=a%2Cb",
+    );
+    expect(ValueSerializer.cookiePairs("region", null, true)).toBe("");
+  });
+
+  test("bhv serializationparam 502 cookiePairs rejects a character outside the cookie-octet set", () => {
+    expect(() => ValueSerializer.cookiePairs("region", ["a b"], false)).toThrow(
+      TypeError,
+    );
+    expect(() => ValueSerializer.cookiePairs("region", ["a b"], false)).toThrow(
+      "'region'",
+    );
+    expect(() => ValueSerializer.cookiePairs("region", "a;b", true)).toThrow(
+      TypeError,
+    );
+    expect(() => ValueSerializer.cookiePairs("region", "a;b", true)).toThrow(
+      "'region'",
+    );
+    expect(() => ValueSerializer.cookiePairs("region", ["a,b"], true)).toThrow(
+      TypeError,
+    );
+    expect(() => ValueSerializer.cookiePairs("region", ["a,b"], true)).toThrow(
+      "'region'",
+    );
+  });
+
+  test("bhv serializationparam 503 allowReservedInPath keeps reserved characters literal and the rest encoded", () => {
+    expect(
+      ValueSerializer.allowReservedInPath(
+        ValueSerializer.encodePathSegment("v1.0/beta:rc1@x"),
+      ),
+    ).toBe("v1.0/beta:rc1@x");
+    expect(
+      ValueSerializer.allowReservedInPath(
+        ValueSerializer.encodePathSegment("a?b#c[d]e%f g"),
+      ),
+    ).toBe("a%3Fb%23c%5Bd%5De%25f%20g");
+    expect(ValueSerializer.allowReservedInPath("%2f")).toBe("/");
+  });
+});

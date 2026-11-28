@@ -683,6 +683,31 @@ async fn test_bhv_misc_178_a_declared_multipart_mixed_type_reaches_the_transport
     assert!(!header_text.contains("multipart/form-data"), "{}", header_text);
 }
 
+/* The caption part carries its declared Content-Type and part header; the
+ * file part keeps the Content-Type the client detects. */
+#[tokio::test]
+async fn test_bhv_serializationwire_503_multipart_part_carries_its_declared_content_type_and_headers() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let options = AttachPetFilesOptions::new(vec![1, 2, 3]).caption("hello".to_string());
+    let _ = api.attach_pet_files(1, Some(&options)).await;
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (_, body) = split_http_request(&raw);
+    let body_text = String::from_utf8_lossy(body).to_string();
+    assert!(
+        body_text.contains(
+            "Content-Disposition: form-data; name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello"
+        ),
+        "{:?}",
+        body_text
+    );
+    assert!(
+        body_text.contains("Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\n"),
+        "{:?}",
+        body_text
+    );
+}
+
 /* The options the caller passes by reference keep their parts after the call fails. */
 #[tokio::test]
 async fn test_bhv_misc_036_a_callers_multipart_part_stays_readable_after_the_request_fails() {

@@ -3,6 +3,7 @@ package io.github.mridang.codegen.generators;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.mridang.codegen.generators.csharp.BetterCSharpCodegen;
@@ -40,6 +41,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.model.ModelMap;
@@ -1351,5 +1353,274 @@ class AbstractBetterCodegenTest {
         final CodegenOperation op = codegen.fromOperation("/items", "get", operation, new ArrayList<>());
         assertFalse(op.vendorExtensions.containsKey("op")
                 && ((Map<?, ?>) op.vendorExtensions.get("op")).containsKey("responseSummaries"));
+    }
+
+    @Test
+    @DisplayName("a server name carried from a 3.2 document reaches the server configs, and a server without one has none")
+    @SuppressWarnings("unchecked")
+    void serverNameReachesTheServerConfigs() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        final io.swagger.v3.oas.models.servers.Server named =
+                new io.swagger.v3.oas.models.servers.Server().url("https://a.example.com");
+        named.addExtension(io.github.mridang.codegen.OpenApi32ParserExtension.SERVER_NAME, "main");
+        codegen.processOpenAPI(new io.swagger.v3.oas.models.OpenAPI()
+                .servers(List.of(named, new io.swagger.v3.oas.models.servers.Server().url("https://b.example.com"))));
+        final List<Map<String, Object>> configs = Objects.requireNonNull(
+                (List<Map<String, Object>>) codegen.additionalProperties().get("serverConfigs"));
+        assertAll(
+                () -> assertEquals("main", configs.get(0).get("serverName")),
+                () -> assertNull(configs.get(1).get("serverName")));
+    }
+
+    @Test
+    @DisplayName("a path item's summary and description reach an operation that has none, and an operation's own text wins")
+    void pathItemTextReachesOperationsWithoutTheirOwn() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        final io.swagger.v3.oas.models.Operation bare = new io.swagger.v3.oas.models.Operation();
+        final io.swagger.v3.oas.models.Operation own = new io.swagger.v3.oas.models.Operation()
+                .summary("Own summary").description("Own description");
+        final io.swagger.v3.oas.models.OpenAPI openAPI = new io.swagger.v3.oas.models.OpenAPI()
+                .path("/items", new io.swagger.v3.oas.models.PathItem()
+                        .summary("Item summary").description("Item description").get(bare).post(own));
+        codegen.preprocessOpenAPI(openAPI);
+        assertAll(
+                () -> assertEquals("Item summary", bare.getSummary()),
+                () -> assertEquals("Item description", bare.getDescription()),
+                () -> assertEquals("Own summary", own.getSummary()),
+                () -> assertEquals("Own description", own.getDescription()));
+    }
+
+    /** Parses an inline YAML document with references resolved. */
+    private static io.swagger.v3.oas.models.OpenAPI parseYaml(final String yaml) {
+        final io.swagger.v3.parser.core.models.ParseOptions options =
+                new io.swagger.v3.parser.core.models.ParseOptions();
+        options.setResolve(true);
+        return new io.swagger.parser.OpenAPIParser().readContents(yaml, null, options).getOpenAPI();
+    }
+
+    /** The form parameters of the request body of the only POST operation under /items. */
+    private static Map<String, CodegenParameter> formParameters(final String content) {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths:",
+                "  /items:",
+                "    post:",
+                "      operationId: send",
+                "      requestBody:",
+                "        content:",
+                content,
+                "      responses:",
+                "        '204': {description: ok}"));
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setOpenAPI(api);
+        final io.swagger.v3.oas.models.parameters.RequestBody body =
+                Objects.requireNonNull(Objects.requireNonNull(api.getPaths().get("/items")).getPost()).getRequestBody();
+        return codegen.fromRequestBodyToFormParameters(body, new java.util.HashSet<>()).stream()
+                .collect(Collectors.toMap(p -> p.baseName, p -> p));
+    }
+
+    @Test
+    @DisplayName("the style and explode of a form field's Encoding Object become its style (D165)")
+    void formEncodingStyleAndExplodeBecomeTheFieldStyle() {
+        final Map<String, CodegenParameter> params = formParameters(String.join("\n",
+                "          application/x-www-form-urlencoded:",
+                "            schema:",
+                "              type: object",
+                "              properties:",
+                "                piped: {type: array, items: {type: string}}",
+                "                joined: {type: array, items: {type: string}}",
+                "                deep: {type: object}",
+                "                plain: {type: array, items: {type: string}}",
+                "                reserved: {type: string}",
+                "            encoding:",
+                "              reserved: {allowReserved: true}",
+                "              piped: {style: pipeDelimited}",
+                "              joined: {explode: false}",
+                "              deep: {style: deepObject}"));
+        final CodegenParameter piped = Objects.requireNonNull(params.get("piped"));
+        final CodegenParameter joined = Objects.requireNonNull(params.get("joined"));
+        assertAll(
+                () -> assertEquals("pipeDelimited", piped.style),
+                () -> assertFalse(piped.isExplode),
+                () -> assertEquals(true, piped.vendorExtensions.get("formStyled")),
+                () -> assertEquals("form", joined.style),
+                () -> assertFalse(joined.isExplode),
+                () -> assertNull(Objects.requireNonNull(params.get("deep")).vendorExtensions.get("formStyled")),
+                () -> assertNull(Objects.requireNonNull(params.get("plain")).vendorExtensions.get("formStyled")),
+                () -> assertNull(Objects.requireNonNull(params.get("reserved")).vendorExtensions.get("formStyled")),
+                () -> assertEquals(true, Objects.requireNonNull(params.get("reserved")).vendorExtensions.get("allowReserved")));
+    }
+
+    @Test
+    @DisplayName("a multipart part's Encoding Object gives its Content-Type and fixed part headers (D166)")
+    @SuppressWarnings("unchecked")
+    void multipartEncodingGivesThePartContentTypeAndHeaders() {
+        final Map<String, CodegenParameter> params = formParameters(String.join("\n",
+                "          multipart/form-data:",
+                "            schema:",
+                "              type: object",
+                "              properties:",
+                "                note: {type: string}",
+                "                image: {type: string, format: binary}",
+                "                free: {type: string}",
+                "            encoding:",
+                "              note:",
+                "                contentType: text/markdown",
+                "                headers:",
+                "                  X-Format: {schema: {type: string, default: commonmark}}",
+                "                  X-Level: {schema: {type: integer, enum: [2]}}",
+                "                  X-Open: {schema: {type: string}}",
+                "                  Content-Type: {schema: {type: string, default: text/plain}}",
+                "              image: {contentType: 'image/png, image/jpeg'}",
+                "              free: {contentType: 'text/*'}"));
+        final CodegenParameter note = Objects.requireNonNull(params.get("note"));
+        final List<Map<String, Object>> headers =
+                (List<Map<String, Object>>) note.vendorExtensions.get("partHeaders");
+        assertAll(
+                () -> assertEquals(true, note.vendorExtensions.get("partEncoded")),
+                () -> assertEquals("text/markdown", note.vendorExtensions.get("partContentType")),
+                () -> assertEquals(List.of(
+                        Map.of("name", "X-Format", "value", "commonmark"),
+                        Map.of("name", "X-Level", "value", "2")), headers),
+                () -> assertNull(Objects.requireNonNull(params.get("image")).vendorExtensions.get("partEncoded")),
+                () -> assertNull(Objects.requireNonNull(params.get("free")).vendorExtensions.get("partEncoded")));
+    }
+
+    @Test
+    @DisplayName("the headers of the success responses become typed response header rows (D168)")
+    @SuppressWarnings("unchecked")
+    void successResponseHeadersBecomeTypedRows() {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths:",
+                "  /items:",
+                "    get:",
+                "      operationId: readItem",
+                "      responses:",
+                "        '200':",
+                "          description: ok",
+                "          headers:",
+                "            X-Count: {description: How many, schema: {type: integer, format: int32}}",
+                "            X-Tags: {schema: {type: array, items: {type: string}}}",
+                "            Content-Type: {schema: {type: string}}",
+                "        '201':",
+                "          description: made",
+                "          headers:",
+                "            x-count: {schema: {type: string}}",
+                "            X-Done: {schema: {type: boolean}}",
+                "        '404':",
+                "          description: missing",
+                "          headers:",
+                "            X-Error: {schema: {type: string}}"));
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setOpenAPI(api);
+        final io.swagger.v3.oas.models.Operation operation =
+                Objects.requireNonNull(Objects.requireNonNull(api.getPaths().get("/items")).getGet());
+        final org.openapitools.codegen.CodegenOperation op =
+                codegen.fromOperation("/items", "get", operation, new ArrayList<>());
+        codegen.populateOperationDecorators(op);
+        final Map<String, Object> deco =
+                Objects.requireNonNull((Map<String, Object>) op.vendorExtensions.get("op"));
+        final List<Map<String, Object>> rows =
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("responseHeaders"));
+        assertAll(
+                () -> assertEquals(true, deco.get("hasResponseHeaders")),
+                () -> assertEquals("ReadItemResponseHeaders", deco.get("responseHeadersClassName")),
+                () -> assertEquals(List.of("X-Count", "X-Tags", "X-Done"),
+                        rows.stream().map(r -> r.get("wireName")).collect(Collectors.toList())),
+                () -> assertEquals("integer", rows.get(0).get("kind")),
+                () -> assertEquals("How many", rows.get(0).get("description")),
+                () -> assertEquals("string", rows.get(1).get("kind")),
+                () -> assertEquals(true, rows.get(1).get("isArray")),
+                () -> assertEquals("boolean", rows.get(2).get("kind")));
+    }
+
+    @Test
+    @DisplayName("examples of a parameter, the request body, the responses and their headers, and the listed extensions reach the operation (D169, D170)")
+    @SuppressWarnings("unchecked")
+    void examplesAndListedExtensionsReachTheOperation() {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths:",
+                "  /items/{id}:",
+                "    put:",
+                "      operationId: putItem",
+                "      x-audience: internal",
+                "      x-other: hidden",
+                "      parameters:",
+                "        - {name: id, in: path, required: true, example: i1, schema: {type: string}}",
+                "      requestBody:",
+                "        content:",
+                "          application/json:",
+                "            schema: {type: object}",
+                "            examples:",
+                "              small: {summary: A small one, value: {a: 1}}",
+                "              stored: {summary: Kept elsewhere, externalValue: 'https://example.com/i.json'}",
+                "      responses:",
+                "        '200':",
+                "          description: ok",
+                "          headers:",
+                "            X-Count: {description: How many, example: 3, schema: {type: integer}}",
+                "          content:",
+                "            text/plain:",
+                "              schema: {type: string}",
+                "              example: done"));
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.additionalProperties().put("exposedExtensions", "x-audience, x-missing");
+        codegen.setOpenAPI(api);
+        final io.swagger.v3.oas.models.Operation operation =
+                Objects.requireNonNull(Objects.requireNonNull(api.getPaths().get("/items/{id}")).getPut());
+        final org.openapitools.codegen.CodegenOperation op =
+                codegen.fromOperation("/items/{id}", "put", operation, new ArrayList<>());
+        codegen.populateOperationDecorators(op);
+        final Map<String, Object> deco =
+                Objects.requireNonNull((Map<String, Object>) op.vendorExtensions.get("op"));
+        final List<Map<String, Object>> examples =
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("operationExamples"));
+        final List<Map<String, Object>> headers =
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("responseHeaders"));
+        final List<Map<String, Object>> param = Objects.requireNonNull(
+                (List<Map<String, Object>>) op.pathParams.get(0).vendorExtensions.get("pluralExamples"));
+        assertAll(
+                () -> assertEquals(List.of("Request body", "Request body", "Response 200"),
+                        examples.stream().map(r -> r.get("heading")).collect(Collectors.toList())),
+                () -> assertEquals("{\"a\":1}", examples.get(0).get("value")),
+                () -> assertEquals("https://example.com/i.json", examples.get(1).get("value")),
+                () -> assertEquals("done", examples.get(2).get("value")),
+                () -> assertEquals("3", headers.get(0).get("example")),
+                () -> assertEquals("i1", param.get(0).get("value")),
+                () -> assertEquals(List.of(Map.of("name", "x-audience", "value", "internal")),
+                        deco.get("exposedExtensions")));
+    }
+
+    @Test
+    @DisplayName("a security scheme that references another becomes a copy of it, keeping its own description")
+    void aSecuritySchemeReferenceBecomesACopyOfItsTarget() {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths: {}",
+                "components:",
+                "  securitySchemes:",
+                "    Key: {type: apiKey, in: header, name: X-Key, description: The key}",
+                "    Alias: {$ref: '#/components/securitySchemes/Key', description: Same key}",
+                "    Chain: {$ref: '#/components/securitySchemes/Alias'}",
+                "    Loop: {$ref: '#/components/securitySchemes/Loop'}"));
+        AbstractBetterCodegen.inlineSecuritySchemeReferences(api);
+        final Map<String, io.swagger.v3.oas.models.security.SecurityScheme> schemes =
+                Objects.requireNonNull(api.getComponents().getSecuritySchemes());
+        final io.swagger.v3.oas.models.security.SecurityScheme alias = Objects.requireNonNull(schemes.get("Alias"));
+        final io.swagger.v3.oas.models.security.SecurityScheme chain = Objects.requireNonNull(schemes.get("Chain"));
+        assertAll(
+                () -> assertEquals(io.swagger.v3.oas.models.security.SecurityScheme.Type.APIKEY, alias.getType()),
+                () -> assertEquals("X-Key", alias.getName()),
+                () -> assertEquals("Same key", alias.getDescription()),
+                () -> assertNull(alias.get$ref()),
+                () -> assertEquals("X-Key", chain.getName()),
+                () -> assertEquals("#/components/securitySchemes/Loop",
+                        Objects.requireNonNull(schemes.get("Loop")).get$ref()));
     }
 }

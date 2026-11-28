@@ -193,7 +193,7 @@ Where: `base_api.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`.
 
 ### Form values and multipart order (D39, D53)
-Rule: `form_scalar_to_string` returns a `Result` and rejects an object or nested array with `SerializationError` "form-urlencoded field <name> must be a scalar or array of scalars"; null array elements are skipped. Multipart parts are an ordered `Vec<(String, MultipartValue)>`, not a `HashMap`.
+Rule: `form_scalar_to_string` returns a `Result` and rejects an object or nested array with `SerializationError` "form-urlencoded field <name> must be a scalar or array of scalars"; null array elements are skipped. Multipart parts are an ordered `Vec<(String, MultipartValue)>`, not a `HashMap`. A form field whose Encoding Object declares `style`/`explode` (D165) is styled by `value_serializer::styled_form_pairs` (the query rules) and the result is form-encoded as text (`serializationwire_502`). A multipart field whose Encoding Object declares a part Content-Type or fixed part headers (D166) is wrapped in `MultipartValue::Encoded` (built by `MultipartValue::encoded`), whose Content-Type replaces the one `append_multipart_part` would choose and whose headers follow it in order (`serializationwire_503`).
 Why: `other.to_string()` emitted rust-specific repr; `HashMap` made part order nondeterministic.
 Where: `base_api.mustache`, `api_client.mustache`, `default_api_client.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`, pet API tests for `setPetPreferences`.
@@ -328,7 +328,7 @@ Limits: a decimal inside a `oneOf` or `anyOf` member, or in a body decoded by th
 
 ## Known limitations and out of scope
 
-Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and loading 3.2 documents is issue #50 (the pinned swagger-parser rejects it).
+Out of scope in every SDK, and the README says so (S11, closed backlog issues #53, #70, #78, #88, #90): callbacks and webhooks, XML bodies and `xml.nodeType`, Link Objects and mutual TLS. OpenAPI 3.2 and 3.1 are tracked by epics #49 and #96, and 3.2 documents load through the shared parser extension (D150).
 
 SOCKS proxies are rejected at construction (only `http://` and `https://`); enabling them needs extra reqwest features in all twelve. The SDK ships no `LICENSE` file.
 
@@ -562,3 +562,12 @@ Where: `default_api_client.mustache`, `api_client.mustache`.
 - **Operations return `crate::Error`.** Every operation, `_with_http_info`, `_stream` method and paginator page returns `Result<T, crate::Error>` (issue #113, owner decision). The enum lives in `errors/root_error.mustache` next to the `<Prefix>Error` marker trait and is re-exported from `errors/mod.mustache` and the crate root. Variants: each named status (`BadRequest` ... `Locked`, `InternalServerError` ... `GatewayTimeout`), `Client`, `Server`, `Api`, one per declared error schema under its class name, `Network`, `NetworkTimeout`, `Stream`, `Serialization`, `Pagination`, `OAuth2Server`, `OAuth2Token`, `OAuth2AuthorizationCode`, `Configuration`, `Other(Box<dyn Error + Send + Sync>)`. Every variant boxes its error, because clippy's `result_large_err` rejects an unboxed `ApiError` in a `Result`.
 - **Boundary conversion.** `BaseApi`, `ApiClient`, the `_invoke` helpers and the stream carriers keep the boxed error; the public methods convert with `From<Box<dyn Error + Send + Sync>> for Error`, which downcasts to each SDK type in turn (a boxed `Error` comes back as itself) and puts anything else in `Other`. `From<T>` exists for every SDK error type. `Display` and `source()` are those of the held error, so the source chain is unchanged. `api_error()`, `api_error_kind()`, `is::<T>()`, `downcast_ref::<T>()` and `AsRef<dyn Error + Send + Sync>` replace the removed `<Prefix>ErrorExt` trait; the crate-private `errors::api_error_of` reads a boxed error for `sse_stream`.
 - **Docs.** The README Usage paragraph and the SKILLS error section describe the enum, and the SKILLS example matches `Error::NotFound` and `api_error()` instead of walking the source chain. Test: `bhv langrust 078`-`080`, `094` in `test/api_error_test.mustache`; the fakes in `test/fake_group.mustache` return the enum.
+
+### D167 and D168: response media type and typed response headers
+
+- **D167.** A per-call `Accept` header replaces the operation's negotiated Accept list through the case-insensitive `insert_header`, so exactly one Accept goes on the wire; nothing in the transport changed. Test: `operations501` in `test/base_api_test.mustache` (getPetPhoto over the raw server).
+- **D168.** `BetterRustCodegen.writeResponseHeadersFile` renders `api/response_headers.mustache` into `src/api/options/<operation>_response_headers.rs` for every operation with `hasResponseHeaders`, and `emitBarrelFiles` re-exports it from the options `mod.rs`; the struct has private `Option` fields, one getter each (`Option<T>` for numbers and booleans, `Option<&str>` and `Option<&[T]>` otherwise) and `from_headers(&HashMap<String, String>) -> Result<Self, SerializationError>`. Test: `headers501` and `headers502` in `test/api/store_api_test.mustache`.
+
+### D169 and D170: examples and exposed extensions in the doc comments
+
+- **D169, D170.** `api/api.mustache` closes the doc comment of each operation method (and of the stream-only `_stream` method) with its `operationExamples` rows (`<heading> example: <summary>`, the description, then the value in a ```` ```json ```` block like a parameter example) and then its `exposedExtensions` rows (`Extension <name>: <value>`), each group after one blank `///` line; a typed response header's example follows its description in `api/response_headers.mustache`, and `api/options.mustache` renders a parameter's `pluralExamples` on its field once `BetterRustCodegen.generateOptionsFileContent` passes them (it does not yet).

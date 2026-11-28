@@ -59,7 +59,7 @@
                 "{{{path}}}"{{/-first}}
                         .replace(
                                 "{" + "{{baseName}}" + "}",
-                                {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(objectSerializer.serialize({{{paramName}}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}(String) ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}){{/vendorExtensions.param.queryContent}}){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
+                                {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(objectSerializer.serialize({{{paramName}}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}{{#vendorExtensions.param.pathAllowReserved}}ValueSerializer.allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}(String) ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}){{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}}{{/vendorExtensions.param.queryContent}}){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
 {{#servers}}
 {{#-first}}
         if (server != null) {
@@ -110,6 +110,16 @@
 {{#hasCookieParams}}
         java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
 {{#cookieParams}}
+{{#vendorExtensions.param.cookieStyle}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
+            /* OpenAPI 3.2 style: cookie, sent as-is; every item must already be cookie-octets. */
+            String {{paramName}}CookiePairs = ValueSerializer.cookiePairs("{{baseName}}", options.{{paramName}}(), {{isExplode}});
+            if (!{{paramName}}CookiePairs.isEmpty()) {
+                cookieJoiner.add({{paramName}}CookiePairs);
+            }
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             String {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}encodeContentCookie(objectSerializer.serialize(options.{{paramName}}())){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}String.valueOf(
                     ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}})){{/vendorExtensions.param.queryContent}};
@@ -130,6 +140,7 @@
             }
             cookieJoiner.add("{{baseName}}=" + {{paramName}}CookieValue);
         }
+{{/vendorExtensions.param.cookieStyle}}
 {{/cookieParams}}
         if (cookieJoiner.length() > 0) {
             headerParams.put("Cookie", cookieJoiner.toString());
@@ -139,11 +150,21 @@
         Map<String, Object> formBody = new LinkedHashMap<>();
 {{#formParams}}
 {{#required}}
-        formBody.put("{{baseName}}", options.{{paramName}}());
+{{#vendorExtensions.param.formStyled}}
+        ValueSerializer.putQuery(formBody, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}});
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+        formBody.put("{{baseName}}", {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart(options.{{paramName}}(), {{#vendorExtensions.param.partContentType}}"{{#lambda.javaString}}{{{vendorExtensions.param.partContentType}}}{{/lambda.javaString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, java.util.List.of({{#vendorExtensions.param.partHeaders}}java.util.Map.entry("{{#lambda.javaString}}{{{name}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}})){{/vendorExtensions.param.partEncoded}}{{^vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}(), true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}(){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.partEncoded}});
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            formBody.put("{{baseName}}", options.{{paramName}}());
+{{#vendorExtensions.param.formStyled}}
+            ValueSerializer.putQuery(formBody, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}});
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+            formBody.put("{{baseName}}", {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart(options.{{paramName}}(), {{#vendorExtensions.param.partContentType}}"{{#lambda.javaString}}{{{vendorExtensions.param.partContentType}}}{{/lambda.javaString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, java.util.List.of({{#vendorExtensions.param.partHeaders}}java.util.Map.entry("{{#lambda.javaString}}{{{name}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}})){{/vendorExtensions.param.partEncoded}}{{^vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}(), true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}(){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.partEncoded}});
+{{/vendorExtensions.param.formStyled}}
         }
 {{/required}}
 {{/formParams}}

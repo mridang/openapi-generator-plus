@@ -41,6 +41,8 @@ class SetPetPreferencesOptions:
     ratio: Optional[LaxFloat] = None
     urgent: Optional[StrictBool] = None
     snooze: Optional[ProtobufDuration] = None
+    route: Optional[StrictStr] = None
+    aliases: Optional[List[StrictStr]] = None
     timeout: Optional[int] = None
     headers: Optional[Mapping[str, str]] = None
     max_retries: Optional[int] = None

@@ -605,7 +605,16 @@ public abstract class BaseApi
             url += (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + query;
         }
 
-        bool isMultipart = contentType == "multipart/form-data";
+        /* Every multipart/* body (form-data, mixed, ...) is a form-style
+           Dictionary sent as parts. Only multipart/form-data leaves the
+           Content-Type to the transport; another subtype is passed on so the
+           transport can name it beside the boundary. */
+        bool isMultipart = contentType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase);
+        bool isFormData = string.Equals(
+            contentType,
+            "multipart/form-data",
+            StringComparison.OrdinalIgnoreCase
+        );
         /* The request headers, rebuilt from scratch on every call so a retry
            or a replay after a 401 carries current authentication headers. */
         /* The edits the call hook made to the headers, kept as a delta and
@@ -618,7 +627,7 @@ public abstract class BaseApi
             Dictionary<string, string> built = HeaderSelector.SelectHeaders(
                 accepts,
                 contentType,
-                isMultipart
+                isFormData
             );
 
             foreach (KeyValuePair<string, string> header in Config.DefaultHeaders)
@@ -803,7 +812,13 @@ public abstract class BaseApi
                      *     format:date value (DateOnly) is YYYY-MM-DD — never a
                      *     culture-dependent ToString() or a date-time;
                      *   - FormUrlEncode uses application/x-www-form-urlencoded
-                     *     rules, so a space becomes '+'. */
+                     *     rules, so a space becomes '+';
+                     *   - a field wrapped in AllowReservedValue (its Encoding
+                     *     Object sets allowReserved: true) keeps RFC 3986 reserved
+                     *     characters literal, like an allowReserved query value;
+                     *   - a field whose Encoding Object sets style or explode
+                     *     arrives already styled (a joined string, a list of
+                     *     items or ExplodedFields) and is form-encoded as is. */
                     List<string> parts = [];
                     foreach (KeyValuePair<string, object> kv in formParams)
                     {
@@ -811,10 +826,32 @@ public abstract class BaseApi
                         {
                             continue;
                         }
+                        object fieldValue = kv.Value is ValueSerializer.EncodedPart encodedField
+                            ? encodedField.Value
+                            : kv.Value;
+                        bool allowReserved = false;
+                        if (fieldValue is ValueSerializer.AllowReservedValue reservedField)
+                        {
+                            fieldValue = reservedField.Value;
+                            allowReserved = true;
+                        }
                         string key = FormUrlEncode(kv.Key);
-                        if (
-                            kv.Value is System.Collections.IEnumerable enumerable
-                            && !ObjectSerializer.IsScalar(kv.Value)
+                        if (fieldValue is ValueSerializer.ExplodedFields explodedField)
+                        {
+                            /* An exploded object field styled by its Encoding
+                             * Object: each property is its own form field. */
+                            foreach (KeyValuePair<string, string> field in explodedField.Fields)
+                            {
+                                parts.Add(
+                                    FormUrlEncode(field.Key)
+                                        + "="
+                                        + FormValueEncode(field.Value, allowReserved)
+                                );
+                            }
+                        }
+                        else if (
+                            fieldValue is System.Collections.IEnumerable enumerable
+                            && !ObjectSerializer.IsScalar(fieldValue)
                         )
                         {
                             foreach (object? element in enumerable)
@@ -828,18 +865,28 @@ public abstract class BaseApi
                                     throw NonScalarFormField(kv.Key);
                                 }
                                 parts.Add(
-                                    key + "=" + FormUrlEncode(ObjectSerializer.Stringify(element))
+                                    key
+                                        + "="
+                                        + FormValueEncode(
+                                            ObjectSerializer.Stringify(element),
+                                            allowReserved
+                                        )
                                 );
                             }
                         }
-                        else if (!ObjectSerializer.IsScalar(kv.Value))
+                        else if (!ObjectSerializer.IsScalar(fieldValue))
                         {
                             throw NonScalarFormField(kv.Key);
                         }
                         else
                         {
                             parts.Add(
-                                key + "=" + FormUrlEncode(ObjectSerializer.Stringify(kv.Value))
+                                key
+                                    + "="
+                                    + FormValueEncode(
+                                        ObjectSerializer.Stringify(fieldValue),
+                                        allowReserved
+                                    )
                             );
                         }
                     }
@@ -1544,6 +1591,15 @@ public abstract class BaseApi
         return Uri.EscapeDataString(value).Replace("%20", "+", StringComparison.Ordinal);
     }
 
+    /* Encodes a form field value: the allowReserved query encoder when the
+     * field's Encoding Object sets allowReserved, form encoding otherwise. */
+    private static string FormValueEncode(string value, bool allowReserved)
+    {
+        return allowReserved
+            ? ValueSerializer.EncodeQueryAllowingReserved(value)
+            : FormUrlEncode(value);
+    }
+
     /// <summary>
     /// Extract the single binary payload from a form-style body Dictionary when
     /// a raw-binary content-type (application/octet-stream or image/*) was
@@ -1563,9 +1619,12 @@ public abstract class BaseApi
     /// <exception cref="ApiException">Thrown when no binary part is present.</exception>
     private static object ExtractBinaryPart(Dictionary<string, object> formBody)
     {
-        foreach (object value in formBody.Values)
+        foreach (object wrapped in formBody.Values)
         {
-            if (value is System.IO.Stream || value is byte[] || value is BodySource)
+            if (
+                ValueSerializer.UnwrapFormValue(wrapped) is { } value
+                && (value is System.IO.Stream || value is byte[] || value is BodySource)
+            )
             {
                 return value;
             }

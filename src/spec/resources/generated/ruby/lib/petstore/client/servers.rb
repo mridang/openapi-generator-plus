@@ -28,7 +28,8 @@ module Petstore::Client
     SERVER_0 = ServerConfiguration.new(
       url_template: '/api/v3',
       description: 'Relative URL (no variables)',
-      variables: {}
+      variables: {},
+      name: nil
     ).freeze
 
     # Server 1: +https://{environment}.example.com/api/{version}+
@@ -48,7 +49,8 @@ module Petstore::Client
           description: 'API version',
           enum_values: %w[v2 v3]
         )
-      }
+      },
+      name: nil
     ).freeze
 
     # Server 2: +https://{tenant}.example.com/api+
@@ -63,7 +65,8 @@ module Petstore::Client
           description: 'Tenant\'s "id"',
           enum_values: %w[o'neil a&b]
         )
-      }
+      },
+      name: nil
     ).freeze
 
     # All server configurations in declaration order.
@@ -73,5 +76,18 @@ module Petstore::Client
       SERVER_1,
       SERVER_2
     ].freeze
+
+    # The server the specification gives the name +name+ (OpenAPI 3.2 +name+).
+    #
+    # @param name [String] the server name
+    # @return [ServerConfiguration] the server with that name
+    # @raise [ArgumentError] if no server has that name; the message lists the known names
+    def self.by_name(name)
+      found = ALL.find { |server| server.name == name }
+      return found if found
+
+      known = ALL.filter_map(&:name)
+      raise ArgumentError, "Unknown server name '#{name}'. Known names: [#{known.join(', ')}]"
+    end
   end
 end

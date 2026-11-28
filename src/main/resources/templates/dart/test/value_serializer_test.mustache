@@ -940,5 +940,35 @@ void main() {
       );
     });
   });
+
+  group('style: cookie and allowReserved in a path', () {
+    test('bhv serializationparam 501 cookiePairs writes the Cookie fragment of each style: cookie shape', () {
+      expect(cookiePairs('region', 'eu', true), equals('region=eu'));
+      expect(cookiePairs('region', ['a', 'b'], false), equals('region=a,b'));
+      expect(cookiePairs('region', ['a', 'b'], true), equals('region=a; region=b'));
+      expect(cookiePairs('region', <String, String>{'k1': 'v1', 'k2': 'v2'}, false),
+          equals('region=k1,v1,k2,v2'));
+      expect(cookiePairs('region', <String, String>{'k1': 'v1', 'k2': 'v2'}, true),
+          equals('k1=v1; k2=v2'));
+      expect(cookiePairs('region', 'a%2Cb', true), equals('region=a%2Cb'));
+      expect(cookiePairs('region', null, true), equals(''));
+    });
+
+    test('bhv serializationparam 502 cookiePairs refuses a value outside the RFC 6265 cookie-octet set', () {
+      final namesRegion = isA<ArgumentError>()
+          .having((e) => e.toString(), 'text', contains("'region'"));
+      expect(() => cookiePairs('region', ['a b'], false), throwsA(namesRegion));
+      expect(() => cookiePairs('region', 'a;b', true), throwsA(namesRegion));
+      expect(() => cookiePairs('region', ['a,b'], true), throwsA(namesRegion));
+    });
+
+    test('bhv serializationparam 503 allowReservedInPath keeps the reserved characters literal and the rest encoded', () {
+      expect(allowReservedInPath(encodePathSegment('v1.0/beta:rc1@x')),
+          equals('v1.0/beta:rc1@x'));
+      expect(allowReservedInPath(encodePathSegment('a?b#c[d]e%f g')),
+          equals('a%3Fb%23c%5Bd%5De%25f%20g'));
+      expect(allowReservedInPath('%2f'), equals('/'));
+    });
+  });
 }
 {{/generateTests}}

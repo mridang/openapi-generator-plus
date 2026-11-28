@@ -1,6 +1,8 @@
 {{>api_info}}
 package {{packageName}}
 
+import "fmt"
+
 // Generated server configurations from the OpenAPI specification.
 //
 // Each variable corresponds to a server entry defined in the spec's
@@ -21,7 +23,8 @@ var (
 {{#serverConfigs}}
 	/* Server{{serverIndex}} is the server configuration for: {{#goBlockComment}}{{{serverUrl}}}{{/goBlockComment}}{{#serverDescription}}
 	 * {{#goBlockComment}}{{{serverDescription}}}{{/goBlockComment}}{{/serverDescription}} */
-	Server{{serverIndex}} = NewServerConfiguration(
+	Server{{serverIndex}} = NewNamedServerConfiguration(
+		"{{#serverName}}{{#goStringLiteral}}{{{serverName}}}{{/goStringLiteral}}{{/serverName}}",
 		"{{#goStringLiteral}}{{{serverUrl}}}{{/goStringLiteral}}",
 		"{{#serverDescription}}{{#goStringLiteral}}{{{serverDescription}}}{{/goStringLiteral}}{{/serverDescription}}",
 		{{#hasVariables}}map[string]ServerVariable{
@@ -40,3 +43,20 @@ var (
 var AllServers = []*ServerConfiguration{
 {{#serverConfigs}}	Server{{serverIndex}},
 {{/serverConfigs}}}
+
+// ServerByName returns the server the specification gives the name name
+// (OpenAPI 3.2 name). When no server has that name it returns
+// ErrUnknownServer, and the message lists the known names.
+func ServerByName(name string) (*ServerConfiguration, error) {
+	known := make([]string, 0, len(AllServers))
+	for _, server := range AllServers {
+		if server.name == "" {
+			continue
+		}
+		if server.name == name {
+			return server, nil
+		}
+		known = append(known, server.name)
+	}
+	return nil, fmt.Errorf("%w: unknown server name '%s'. Known names: %s", ErrUnknownServer, name, bracketedList(known))
+}

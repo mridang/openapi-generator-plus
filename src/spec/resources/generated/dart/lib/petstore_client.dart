@@ -247,3 +247,8 @@ export 'src/api/options/search_store_options.dart';
 export 'src/api/options/trace_memo_options.dart';
 export 'src/api/options/watch_notices_options.dart';
 export 'src/api/options/watch_orders_options.dart';
+export 'src/api/options/list_pet_feed_response_headers.dart';
+export 'src/api/options/get_memo_response_headers.dart';
+export 'src/api/options/head_memo_response_headers.dart';
+export 'src/api/options/options_memo_response_headers.dart';
+export 'src/api/options/patch_memo_response_headers.dart';

@@ -20,4 +20,6 @@ type SetPetPreferencesOptions struct {
 	Ratio        *float64
 	Urgent       *bool
 	Snooze       *time.Duration
+	Route        *string
+	Aliases      *[]string
 }

@@ -88,9 +88,15 @@ func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
 {{/serverTypeDefs}}
 
 // {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/tagSummary}}
 {{#tagDescription}}
 // {{#goLineComment}}{{{.}}}{{/goLineComment}}
 {{/tagDescription}}
+{{#tagParent}}
+// {{#goLineComment}}It belongs to the {{{.}}} API group.{{/goLineComment}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 // See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/tagExternalDocs}}
@@ -171,6 +177,22 @@ var _ {{classname}}Interface = (*{{classname}})(nil)
 // Example for `{{paramName}}` — {{{summary}}}: {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{/allParams}}
+{{#vendorExtensions.op.hasOperationExamples}}
+//
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+// {{#goLineComment}}{{{heading}}} example: {{{summary}}}{{/goLineComment}}
+{{#hasDescription}}
+// {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/hasDescription}}
+// {{#goLineComment}}{{{value}}}{{/goLineComment}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+//
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+// {{#goLineComment}}Extension {{{name}}}: {{{value}}}{{/goLineComment}}
+{{/vendorExtensions.op.exposedExtensions}}
 {{#vendorExtensions.op.hasErrorResponses}}
 //
 // Declared errors:

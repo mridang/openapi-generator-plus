@@ -1,0 +1,16 @@
+{{#vendorExtensions.op.hasOperationExamples}}
+     *
+{{#vendorExtensions.op.operationExamples}}
+     * {{#lambda.phpdocDescription}}{{{heading}}} example: {{{summary}}}{{/lambda.phpdocDescription}}
+{{#hasDescription}}
+     * {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}
+{{/hasDescription}}
+     * {{#lambda.phpdocDescription}}{{{value}}}{{/lambda.phpdocDescription}}
+{{/vendorExtensions.op.operationExamples}}
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+     *
+{{#vendorExtensions.op.exposedExtensions}}
+     * {{#lambda.phpdocDescription}}Extension {{{name}}}: {{{value}}}{{/lambda.phpdocDescription}}
+{{/vendorExtensions.op.exposedExtensions}}
+{{/vendorExtensions.op.hasExposedExtensions}}

@@ -1,0 +1,20 @@
+module Petstore::Client
+  module Api
+    module Options
+      # The response headers an operation declares, read in their declared
+      # types; a header the response does not carry is nil. Instances are
+      # frozen after construction, so only readers are exposed.
+      class PatchMemoResponseHeaders
+        DECIMAL: Regexp
+        attr_reader x_revision: Integer?
+        attr_reader x_labels: Array[String]?
+        attr_reader x_archived: bool?
+        def initialize: (?x_revision: Integer?, ?x_labels: Array[String]?, ?x_archived: bool?) -> void
+        def self.from_headers: (Hash[String, String] headers) -> PatchMemoResponseHeaders
+        def self.header_value: (Hash[String, String] headers, String name) -> String?
+        def self.parse_value: (String name, String kind, String parser, String value) -> untyped
+        def self.parse_integer: (String value, Integer bound) -> Integer?
+      end
+    end
+  end
+end

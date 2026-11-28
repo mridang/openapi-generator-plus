@@ -881,5 +881,22 @@ describe {{moduleName}}::Api::StoreApi do
 
       _(client.methods_sent).must_equal %w[PATCH HEAD OPTIONS TRACE]
     end
+
+    it 'bhv_headers_501 reads the declared response headers in their declared types whatever their case' do
+      headers = {{moduleName}}::Api::Options::GetMemoResponseHeaders.from_headers(
+        { 'x-revision' => '7', 'X-LABELS' => 'a, b' }
+      )
+
+      _(headers.x_revision).must_equal 7
+      _(headers.x_labels).must_equal %w[a b]
+      _(headers.x_archived).must_be_nil
+    end
+
+    it 'bhv_headers_502 a response header that does not parse raises a serialization error naming it' do
+      err = _ { {{moduleName}}::Api::Options::GetMemoResponseHeaders.from_headers({ 'x-revision' => 'seven' }) }
+            .must_raise({{moduleName}}::Errors::SerializationError)
+
+      _(err.message).must_equal "Response header 'X-Revision' is not a valid integer: 'seven'"
+    end
   end
 end

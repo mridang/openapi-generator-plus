@@ -12,6 +12,10 @@ from .errors.serialization_exception import SerializationException
 from .object_serializer import ObjectSerializer
 
 
+_PATH_RESERVED_ESCAPE = re.compile(r'%(2F|3A|40|21|24|26|27|28|29|2A|2B|2C|3B|3D)', re.IGNORECASE)
+"""The percent-encoded reserved characters an ``allowReserved`` path value keeps literal."""
+
+
 class AllowReservedValue:
     """Wraps a query value so the query-string builder preserves RFC 3986
     reserved characters (OAS ``allowReserved: true``) instead of
@@ -27,6 +31,26 @@ class AllowReservedValue:
 
     def __init__(self, value: Union[str, List[str]]) -> None:
         self.value = value
+
+
+class EncodedPart:
+    """Wraps a multipart part value with the ``Content-Type`` and part headers
+    its Encoding Object declares. Produced by
+    :meth:`ValueSerializer.encoded_part` and unwrapped by the multipart
+    encoder, which writes the declared ``Content-Type`` in place of the one it
+    would choose and then each header, in declaration order. Every other
+    consumer of the form fields sees the plain value.
+
+    Holds the part value untouched (for a list, the multipart encoder applies
+    the encoding to each item).
+    """
+
+    __slots__ = ('value', 'content_type', 'headers')
+
+    def __init__(self, value: Any, content_type: Optional[str], headers: Dict[str, str]) -> None:
+        self.value = value
+        self.content_type = content_type
+        self.headers = headers
 
 
 class ValueSerializer:
@@ -159,16 +183,19 @@ class ValueSerializer:
 
     @staticmethod
     def maybe_allow_reserved(
-        value: Union[str, List[str], Dict[str, str], None],
+        value: Any,
         allow_reserved: bool,
-    ) -> Union[str, List[str], Dict[str, Any], "AllowReservedValue", None]:
+    ) -> Any:
         """Wrap ``value`` in :class:`AllowReservedValue` when the parameter
         declares ``allowReserved: true``; otherwise return it unchanged.
 
-        An exploded object (a dict of property entries) wraps each entry.
+        An exploded object (a dict of property entries) wraps each entry. A
+        form-urlencoded body field whose Encoding Object sets
+        ``allowReserved: true`` is wrapped the same way, and the form encoder
+        unwraps it.
 
         Args:
-            value: The serialized query value.
+            value: The serialized query value, or a form field value.
             allow_reserved: Whether the parameter preserves reserved characters.
 
         Returns:
@@ -180,6 +207,23 @@ class ValueSerializer:
         if isinstance(value, dict):
             return {key: AllowReservedValue(item) for key, item in value.items()}
         return AllowReservedValue(value)
+
+    @staticmethod
+    def encoded_part(value: Any, content_type: Optional[str], headers: Dict[str, str]) -> Any:
+        """Wrap a multipart field in :class:`EncodedPart` with the
+        ``Content-Type`` and part headers its Encoding Object declares.
+
+        Args:
+            value: The field value.
+            content_type: The declared part ``Content-Type``, or ``None``.
+            headers: The declared part headers, in declaration order.
+
+        Returns:
+            The wrapped value, or ``None`` when ``value`` is ``None``.
+        """
+        if value is None:
+            return None
+        return EncodedPart(value, content_type, headers)
 
     @staticmethod
     def query_entries(
@@ -224,6 +268,101 @@ class ValueSerializer:
             The encoded value with reserved characters preserved.
         """
         return quote(value, safe="/?@!$&'()*+,;=:")
+
+    @staticmethod
+    def allow_reserved_in_path(encoded: str) -> str:
+        """Turn the percent-encoded reserved characters of a path value back
+        into literal characters (OAS ``allowReserved: true`` on a path
+        parameter).
+
+        Takes the value after normal path encoding and decodes only
+        ``%2F %3A %40 %21 %24 %26 %27 %28 %29 %2A %2B %2C %3B %3D`` (either
+        hex case). ``?``, ``#``, ``[``, ``]``, ``%`` and a space stay encoded,
+        and a ``%25`` is never decoded, so a value the caller had already
+        percent-encoded is kept as it was sent.
+
+        Args:
+            encoded: The path-encoded value.
+
+        Returns:
+            The value with those reserved characters literal.
+        """
+        return _PATH_RESERVED_ESCAPE.sub(lambda match: chr(int(match.group(1), 16)), encoded)
+
+    @staticmethod
+    def _is_cookie_octets(value: str) -> bool:
+        """Whether every character is an RFC 6265 cookie-octet."""
+        for c in value:
+            code = ord(c)
+            if not (
+                code == 0x21
+                or 0x23 <= code <= 0x2B
+                or 0x2D <= code <= 0x3A
+                or 0x3C <= code <= 0x5B
+                or 0x5D <= code <= 0x7E
+            ):
+                return False
+        return True
+
+    @classmethod
+    def cookie_pairs(cls, name: str, value: Any, explode: bool) -> str:
+        """The Cookie header fragment for one ``style: cookie`` parameter
+        (OpenAPI 3.2).
+
+        A scalar is ``name=value``. An array is ``name=a,b`` unexploded and
+        ``name=a; name=b`` exploded. An object (a model under its wire names,
+        or a mapping, with ``None`` entries dropped) is ``name=k1,v1,k2,v2``
+        unexploded and ``k1=v1; k2=v2`` exploded. Nothing is percent-encoded.
+
+        Args:
+            name: The parameter name.
+            value: The parameter value.
+            explode: Whether the parameter is exploded.
+
+        Returns:
+            The fragment, or an empty string for ``None`` or an empty array or
+            object.
+
+        Raises:
+            ValueError: If an item, key or value holds a character outside
+                the RFC 6265 cookie-octet set.
+        """
+        if value is None:
+            return ''
+
+        def checked(text: str) -> str:
+            if not cls._is_cookie_octets(text):
+                raise ValueError(
+                    f"Cookie value for '{name}' contains characters outside the "
+                    "RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                )
+            return text
+
+        if isinstance(value, (set, frozenset, tuple)):
+            value = list(value)
+        if isinstance(value, (BaseModel, dict)):
+            fields = (
+                value.model_dump(by_alias=True, exclude_none=True)
+                if isinstance(value, BaseModel)
+                else {k: v for k, v in value.items() if v is not None}
+            )
+            pairs: List[Tuple[str, str]] = []
+            for key, item in fields.items():
+                cls._refuse_object_leaf(name, key, item)
+                pairs.append((checked(str(key)), checked(ObjectSerializer.stringify(item))))
+            if not pairs:
+                return ''
+            if explode:
+                return '; '.join(f'{key}={text}' for key, text in pairs)
+            return f'{name}=' + ','.join(part for pair in pairs for part in pair)
+        if isinstance(value, list):
+            items = [checked(ObjectSerializer.stringify(item)) for item in value]
+            if not items:
+                return ''
+            if explode:
+                return '; '.join(f'{name}={item}' for item in items)
+            return f'{name}=' + ','.join(items)
+        return f'{name}={checked(ObjectSerializer.stringify(value))}'
 
     @classmethod
     def serialize_styled(

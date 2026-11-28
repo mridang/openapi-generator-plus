@@ -1000,8 +1000,21 @@ public class BaseApi: @unchecked Sendable {
                     }
                     return value is String || isMultipartPrimitive(value) || value is Decimal
                 }
+                /* A field whose Encoding Object sets `allowReserved: true` arrives
+                 * wrapped; its values keep the RFC 3986 reserved characters literal
+                 * through the query allow-reserved encoder, which writes a space as
+                 * `%20`. The key is encoded as for every other field. */
+                func reservedEncode(_ s: String) -> String {
+                    return s.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowedReserved) ?? s
+                }
                 var parts: [String] = []
-                for (rawKey, rawValue) in params {
+                for (rawKey, field) in params {
+                    /* A part encoding has no effect on a form-urlencoded field. A
+                     * field whose Encoding Object sets style or explode arrives
+                     * already styled: a joined string, or a list that repeats the key. */
+                    let unwrapped = ValueSerializer.unwrapFormField(field)
+                    let rawValue = unwrapped.value
+                    let encodeValue: (String) -> String = unwrapped.allowReserved ? reservedEncode : formEncode
                     let elements: [Any] = (rawValue as? [Any]) ?? [rawValue]
                     if !elements.allSatisfy({ isFormScalar($0) }) {
                         throw SerializationError(
@@ -1015,10 +1028,10 @@ public class BaseApi: @unchecked Sendable {
                      * skipped rather than sent as an empty value. */
                     if let items = ObjectSerializer.toStringList(rawValue) {
                         for item in items {
-                            parts.append("\(key)=\(formEncode(item))")
+                            parts.append("\(key)=\(encodeValue(item))")
                         }
                     } else {
-                        parts.append("\(key)=\(formEncode(ObjectSerializer.stringify(rawValue)))")
+                        parts.append("\(key)=\(encodeValue(ObjectSerializer.stringify(rawValue)))")
                     }
                 }
                 return parts.joined(separator: "&").data(using: .utf8)
@@ -1078,21 +1091,40 @@ public class BaseApi: @unchecked Sendable {
     static func buildMultipartBody(ordered formFields: OrderedParams<Any>, boundary: String) throws -> Data {
         var body = Data()
 
-        for (name, value) in formFields {
+        for (name, field) in formFields {
+            /* allowReserved has no effect on a multipart part: the value is sent
+             * unchanged. A declared part encoding applies to every item of a list. */
+            let unwrapped = ValueSerializer.unwrapFormField(field)
+            let value = unwrapped.value
             if let list = value as? [Any] {
                 for item in list {
-                    try appendMultipartField(&body, boundary: boundary, name: name, value: item)
+                    try appendMultipartField(&body, boundary: boundary, name: name, value: item, part: unwrapped.part)
                 }
             } else {
-                try appendMultipartField(&body, boundary: boundary, name: name, value: value)
+                try appendMultipartField(&body, boundary: boundary, name: name, value: value, part: unwrapped.part)
             }
         }
         body.append(Data("--\(boundary)--\r\n".utf8))
         return body
     }
 
-    private static func appendMultipartField(_ body: inout Data, boundary: String, name: String, value: Any) throws {
+    private static func appendMultipartField(
+        _ body: inout Data, boundary: String, name: String, value: Any, part: ValueSerializer.EncodedPart? = nil
+    ) throws {
         let safeName = try sanitizeQuotedHeaderValue(name)
+        /* The part headers after Content-Disposition: a declared Content-Type
+         * replaces the one chosen here (a part with none gets it), then each
+         * declared header follows in declaration order. */
+        func partHeaders(_ chosen: String?) -> String {
+            var lines = ""
+            if let contentType = part?.contentType ?? chosen {
+                lines += "\r\nContent-Type: \(contentType)"
+            }
+            for header in part?.headers ?? [] {
+                lines += "\r\n\(header.name): \(header.value)"
+            }
+            return lines
+        }
 
         if let fileURL = value as? URL {
             let fileName = fileURL.lastPathComponent
@@ -1106,7 +1138,7 @@ public class BaseApi: @unchecked Sendable {
             }
             let mimeType = mimeTypeForFilename(fileName)
             let disposition = try buildContentDisposition(name: safeName, filename: fileName)
-            body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
+            body.append(Data("--\(boundary)\r\n\(disposition)\(partHeaders(mimeType))\r\n\r\n".utf8))
             body.append(fileData)
             body.append(Data("\r\n".utf8))
         } else if let stream = value as? InputStream {
@@ -1124,13 +1156,13 @@ public class BaseApi: @unchecked Sendable {
                 data.append(buffer, count: read)
             }
             let disposition = try buildContentDisposition(name: safeName, filename: name)
-            body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeTypeForFilename(name))\r\n\r\n".utf8))
+            body.append(Data("--\(boundary)\r\n\(disposition)\(partHeaders(mimeTypeForFilename(name)))\r\n\r\n".utf8))
             body.append(data)
             body.append(Data("\r\n".utf8))
         } else if let data = value as? Data {
             let mimeType = mimeTypeForFilename(name)
             let disposition = try buildContentDisposition(name: safeName, filename: name)
-            body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
+            body.append(Data("--\(boundary)\r\n\(disposition)\(partHeaders(mimeType))\r\n\r\n".utf8))
             body.append(data)
             body.append(Data("\r\n".utf8))
         } else if value is String || isMultipartPrimitive(value) {
@@ -1139,13 +1171,13 @@ public class BaseApi: @unchecked Sendable {
                Content-Type, its body the canonical stringify form; only models
                and maps become application/json parts. */
             let text = ObjectSerializer.stringify(value)
-            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(text)\r\n".utf8))
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\(partHeaders(nil))\r\n\r\n\(text)\r\n".utf8))
         } else {
             /* Model objects -- serialize to JSON */
             if let jsonString = try? ObjectSerializer.serialize(value) {
-                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".utf8))
+                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\(partHeaders("application/json"))\r\n\r\n\(jsonString)\r\n".utf8))
             } else {
-                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".utf8))
+                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\(partHeaders(nil))\r\n\r\n\(value)\r\n".utf8))
             }
         }
     }

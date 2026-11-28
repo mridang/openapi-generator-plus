@@ -1355,6 +1355,12 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param memoId: The memo to address
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+// Example for `memoId` — Example: m1
+//
+// Response 200 example: A short memo
+// {"memoId":"m1","text":"Restock on Friday"}
+//
+// Extension x-audience: internal-tools
 //
 // GET /store/memos/{memoId}
 func (a *StoreApi) GetMemo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (*Memo, error) {
@@ -2651,10 +2657,12 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 }
 
 // HeadMemo Checks that a memo exists with a HEAD request
+// Revisions of one memo, read and changed with the less common HTTP methods.
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-// param memoId: The memo to address
+// param memoId: The memo whose revisions are read or changed
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+// Example for `memoId` — Example: m1
 //
 // HEAD /store/memos/{memoId}/revisions
 func (a *StoreApi) HeadMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error {
@@ -2731,10 +2739,12 @@ func (a *StoreApi) HeadMemoWithHTTPInfo(ctx context.Context, memoId string, call
 }
 
 // OptionsMemo Lists the methods a memo accepts with an OPTIONS request
+// Revisions of one memo, read and changed with the less common HTTP methods.
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-// param memoId: The memo to address
+// param memoId: The memo whose revisions are read or changed
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+// Example for `memoId` — Example: m1
 //
 // OPTIONS /store/memos/{memoId}/revisions
 func (a *StoreApi) OptionsMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error {
@@ -2811,11 +2821,20 @@ func (a *StoreApi) OptionsMemoWithHTTPInfo(ctx context.Context, memoId string, c
 }
 
 // PatchMemo Changes a memo with a PATCH request
+// Revisions of one memo, read and changed with the less common HTTP methods.
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-// param memoId: The memo to address
+// param memoId: The memo whose revisions are read or changed
 // param memo: The fields of the memo to change
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+// Example for `memoId` — Example: m1
+//
+// Request body example: A short memo
+// {"memoId":"m1","text":"Restock on Friday"}
+// Request body example: A memo kept as a file
+// https://example.com/memos/m1.json
+// Response 200 example: A short memo
+// {"memoId":"m1","text":"Restock on Friday"}
 //
 // PATCH /store/memos/{memoId}/revisions
 func (a *StoreApi) PatchMemo(ctx context.Context, memoId string, memo Memo, callOptions ...RequestOption) (*Memo, error) {
@@ -3426,10 +3445,12 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 }
 
 // TraceMemo Echoes a memo request with a TRACE request
+// Revisions of one memo, read and changed with the less common HTTP methods.
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
-// param memoId: The memo to address
+// param memoId: The memo whose revisions are read or changed
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+// Example for `memoId` — Example: m1
 //
 // TRACE /store/memos/{memoId}/revisions
 func (a *StoreApi) TraceMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error {

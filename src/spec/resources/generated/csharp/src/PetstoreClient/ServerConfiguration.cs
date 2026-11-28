@@ -24,10 +24,12 @@ namespace PetstoreClient;
 /// <param name="urlTemplate">The URL template, possibly containing <c>{variable}</c> placeholders.</param>
 /// <param name="description">Human-readable description of this server, or <c>null</c>.</param>
 /// <param name="variables">Map of variable names to their definitions.</param>
+/// <param name="name">The name the specification gives this server, or <c>null</c>.</param>
 public sealed class ServerConfiguration(
     string urlTemplate,
     string? description = null,
-    Dictionary<string, ServerVariable>? variables = null
+    Dictionary<string, ServerVariable>? variables = null,
+    string? name = null
 )
 {
     /// <summary>
@@ -39,6 +41,11 @@ public sealed class ServerConfiguration(
     /// Human-readable description of this server, or <c>null</c> if not specified.
     /// </summary>
     public string? Description { get; } = description;
+
+    /// <summary>
+    /// The name the specification gives this server (OpenAPI 3.2 <c>name</c>), or <c>null</c> if it has none.
+    /// </summary>
+    public string? Name { get; } = name;
 
     /// <summary>
     /// The server variables and their definitions.

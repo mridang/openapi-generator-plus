@@ -31,19 +31,29 @@ public class IgnoreReservedHeadersRule implements CustomNormalizationRule {
             if (item == null) {
                 continue;
             }
-            strip(openAPI, item.getParameters(), "path item", logger);
+            item.setParameters(strip(openAPI, item.getParameters(), "path item", logger));
             for (Operation operation : item.readOperations()) {
-                strip(openAPI, operation.getParameters(), operation.getOperationId(), logger);
+                operation.setParameters(
+                        strip(openAPI, operation.getParameters(), operation.getOperationId(), logger));
             }
         }
     }
 
-    private static void strip(
+    /* Returns a filtered copy rather than removing in place: the parsed document can share a
+     * parameter list between generator runs, and removing from it while another run reads it
+     * throws ConcurrentModificationException. */
+    @Nullable private static List<Parameter> strip(
             OpenAPI openAPI, @Nullable List<Parameter> parameters, @Nullable String where, Logger logger) {
         if (parameters == null) {
-            return;
+            return null;
         }
-        parameters.removeIf(parameter -> isReserved(openAPI, parameter, where, logger));
+        final List<Parameter> kept = new java.util.ArrayList<>(parameters.size());
+        for (Parameter parameter : List.copyOf(parameters)) {
+            if (!isReserved(openAPI, parameter, where, logger)) {
+                kept.add(parameter);
+            }
+        }
+        return kept;
     }
 
     private static boolean isReserved(

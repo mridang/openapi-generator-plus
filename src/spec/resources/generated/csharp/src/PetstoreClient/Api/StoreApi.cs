@@ -914,9 +914,17 @@ public class StoreApi : BaseApi, IStoreApi
     /// Reads a memo from the server its path declares
     /// </summary>
     /// <param name="memoId">The memo to address</param>
+    /// <example>Example: m1</example>
     /// <param name="server">Optional per-operation server override.</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    ///
+    /// <example>
+    /// <para>Response 200 example: A short memo</para>
+    /// <para>{"memoId":"m1","text":"Restock on Friday"}</para>
+    /// </example>
+    ///
+    /// <remarks>Extension x-audience: internal-tools</remarks>
     /// <returns><![CDATA[Memo]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Memo> GetMemoAsync(
@@ -964,6 +972,13 @@ public class StoreApi : BaseApi, IStoreApi
     /// <param name="server">Optional per-operation server override.</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    ///
+    /// <example>
+    /// <para>Response 200 example: A short memo</para>
+    /// <para>{"memoId":"m1","text":"Restock on Friday"}</para>
+    /// </example>
+    ///
+    /// <remarks>Extension x-audience: internal-tools</remarks>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Memo>> GetMemoWithHttpInfoAsync(
@@ -1778,7 +1793,9 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Checks that a memo exists with a HEAD request
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
+    /// <example>Example: m1</example>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -1799,7 +1816,8 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Checks that a memo exists with a HEAD request (with HTTP info)
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
@@ -1862,7 +1880,9 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Lists the methods a memo accepts with an OPTIONS request
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
+    /// <example>Example: m1</example>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -1883,7 +1903,8 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Lists the methods a memo accepts with an OPTIONS request (with HTTP info)
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
@@ -1946,10 +1967,25 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Changes a memo with a PATCH request
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
+    /// <example>Example: m1</example>
     /// <param name="memo">The fields of the memo to change</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    ///
+    /// <example>
+    /// <para>Request body example: A short memo</para>
+    /// <para>{"memoId":"m1","text":"Restock on Friday"}</para>
+    /// </example>
+    /// <example>
+    /// <para>Request body example: A memo kept as a file</para>
+    /// <para>https://example.com/memos/m1.json</para>
+    /// </example>
+    /// <example>
+    /// <para>Response 200 example: A short memo</para>
+    /// <para>{"memoId":"m1","text":"Restock on Friday"}</para>
+    /// </example>
     /// <returns><![CDATA[Memo]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Memo> PatchMemoAsync(
@@ -1993,10 +2029,24 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Changes a memo with a PATCH request (with HTTP info)
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
     /// <param name="memo">The fields of the memo to change</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    ///
+    /// <example>
+    /// <para>Request body example: A short memo</para>
+    /// <para>{"memoId":"m1","text":"Restock on Friday"}</para>
+    /// </example>
+    /// <example>
+    /// <para>Request body example: A memo kept as a file</para>
+    /// <para>https://example.com/memos/m1.json</para>
+    /// </example>
+    /// <example>
+    /// <para>Response 200 example: A short memo</para>
+    /// <para>{"memoId":"m1","text":"Restock on Friday"}</para>
+    /// </example>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Memo>> PatchMemoWithHttpInfoAsync(
@@ -2378,7 +2428,9 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Echoes a memo request with a TRACE request
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
+    /// <example>Example: m1</example>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -2399,7 +2451,8 @@ public class StoreApi : BaseApi, IStoreApi
     /// <summary>
     /// Echoes a memo request with a TRACE request (with HTTP info)
     /// </summary>
-    /// <param name="memoId">The memo to address</param>
+    /// <remarks>Revisions of one memo, read and changed with the less common HTTP methods.</remarks>
+    /// <param name="memoId">The memo whose revisions are read or changed</param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>

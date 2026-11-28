@@ -205,6 +205,38 @@ void main() {
 
   group('ServerConfiguration variable validation', () {
     test(
+      'bhv servers 501 a server keeps its name and a server built without one has none',
+      () {
+        const named = ServerConfiguration(
+          urlTemplate: 'https://api.example.com',
+          name: 'primary',
+        );
+        const unnamed = ServerConfiguration(
+          urlTemplate: 'https://api.example.com',
+        );
+
+        expect(named.name, 'primary');
+        expect(unnamed.name, '');
+      },
+    );
+
+    test(
+      'bhv servers 502 an unknown server name is rejected with the known names',
+      () {
+        expect(
+          () => serverByName('missing'),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              "Unknown server name 'missing'. Known names: []",
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv servers 012 the rejection names the value, the variable and the allowed values',
       () {
         const config = ServerConfiguration(

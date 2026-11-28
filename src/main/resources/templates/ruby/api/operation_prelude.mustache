@@ -94,7 +94,7 @@
         path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.encode_path_segment(::<%moduleName%>::ObjectSerializer.serialize(<%paramName%>)))
 <%/vendorExtensions.param.queryContent%>
 <%^vendorExtensions.param.queryContent%>
-        path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%#isByteArray%>::<%moduleName%>::ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#isUuid%>::<%moduleName%>::ObjectSerializer.validate_uuid(<%paramName%>)<%/isUuid%><%^isUuid%><%paramName%><%/isUuid%><%/isByteArray%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
+        path = path.gsub('{<%baseName%>}', <%#vendorExtensions.param.pathAllowReserved%>::<%moduleName%>::ValueSerializer.allow_reserved_in_path(<%/vendorExtensions.param.pathAllowReserved%>::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%#isByteArray%>::<%moduleName%>::ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#isUuid%>::<%moduleName%>::ObjectSerializer.validate_uuid(<%paramName%>)<%/isUuid%><%^isUuid%><%paramName%><%/isUuid%><%/isByteArray%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s<%#vendorExtensions.param.pathAllowReserved%>)<%/vendorExtensions.param.pathAllowReserved%>)
 <%/vendorExtensions.param.queryContent%>
 <%={{ }}=%>
 {{/pathParams}}
@@ -163,6 +163,13 @@
 {{#cookieParams}}
 {{=<% %>=}}
         unless options.nil? || options.<%paramName%>.nil?
+<%#vendorExtensions.param.cookieStyle%>
+          # OAS 3.2 style: cookie writes its own name=value pairs, each piece
+          # checked against the RFC 6265 cookie-octet set and never encoded.
+          cookie_pairs = ::<%moduleName%>::ValueSerializer.cookie_pairs('<%baseName%>', options.<%paramName%>, <%isExplode%>)
+          cookie_parts << cookie_pairs unless cookie_pairs.empty?
+<%/vendorExtensions.param.cookieStyle%>
+<%^vendorExtensions.param.cookieStyle%>
           # RFC 6265 — validate the operation-level cookie value the same way
           # the auth-provided cookie path does in base_api, so a CR/LF or other
           # control character fails closed instead of being injected into the
@@ -178,6 +185,7 @@
             raise ArgumentError, "Cookie value for '<%baseName%>' contains characters forbidden by RFC 6265"
           end
           cookie_parts << "<%baseName%>=#{cookie_value}"
+<%/vendorExtensions.param.cookieStyle%>
         end
 <%={{ }}=%>
 {{/cookieParams}}
@@ -188,10 +196,36 @@
         request_body = {}
 {{#formParams}}
 {{#required}}
-        request_body['{{baseName}}'] = {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}
+{{#vendorExtensions.param.formStyled}}
+        # The field's Encoding Object sets style or explode, so the value is
+        # written with the query-parameter styling and then form-encoded.
+        request_body.merge!(
+          ::{{moduleName}}::ValueSerializer.query_entries(
+            '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', nil, '{{style}}', {{isExplode}},
+            {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}
+          )
+        )
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+        request_body['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}::{{moduleName}}::ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}::{{moduleName}}::ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}'{{{vendorExtensions.param.partContentType}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}['{{{name}}}', '{{{value}}}']{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
-        request_body['{{baseName}}'] = {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}} unless options.{{paramName}}.nil?
+{{#vendorExtensions.param.formStyled}}
+        # The field's Encoding Object sets style or explode, so the value is
+        # written with the query-parameter styling and then form-encoded.
+        unless options.{{paramName}}.nil?
+          request_body.merge!(
+            ::{{moduleName}}::ValueSerializer.query_entries(
+              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', nil, '{{style}}', {{isExplode}},
+              {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}
+            )
+          )
+        end
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+        request_body['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}::{{moduleName}}::ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}::{{moduleName}}::ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}'{{{vendorExtensions.param.partContentType}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}['{{{name}}}', '{{{value}}}']{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}} unless options.{{paramName}}.nil?
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

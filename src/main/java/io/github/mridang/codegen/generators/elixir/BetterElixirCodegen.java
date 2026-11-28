@@ -99,10 +99,87 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             if (ops != null) {
                 for (final CodegenOperation op : ops) {
                     markBinaryStream(op, moduleName);
+                    writeResponseHeadersFile(op);
                 }
             }
         }
         return processed;
+    }
+
+    /**
+     * D168: writes the {@code <OperationId>ResponseHeaders} struct of an operation whose success
+     * responses declare headers, next to its options struct, from {@code api/response_headers.mustache}.
+     * The flags {@code usesString} and the like tell the template which parse functions to emit, so
+     * no unused private function is generated.
+     */
+    @SuppressWarnings("unchecked")
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
+    private void writeResponseHeadersFile(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        if (!Boolean.TRUE.equals(d.get("hasResponseHeaders"))) {
+            return;
+        }
+        final Object declared = d.get("responseHeaders");
+        if (!(declared instanceof List)) {
+            return;
+        }
+        final List<Map<String, Object>> rows = (List<Map<String, Object>>) declared;
+        final String className = String.valueOf(d.get("responseHeadersClassName"));
+        final List<Map<String, Object>> headers = new ArrayList<>();
+        final Map<String, Object> context = new HashMap<>();
+        for (final Map<String, Object> row : rows) {
+            final Map<String, Object> header = new HashMap<>(row);
+            final String kind = String.valueOf(row.get("kind"));
+            final boolean array = Boolean.TRUE.equals(row.get("isArray"));
+            final boolean text = "string".equals(kind);
+            header.put("name", NamingConvention.SNAKE_CASE.apply(String.valueOf(row.get("varName"))));
+            header.put("lowerName", String.valueOf(row.get("wireName")).toLowerCase(Locale.ROOT));
+            header.put("parser", "long".equals(kind) ? "parse_integer" : "parse_" + kind);
+            header.put("typespec", (array ? "[" : "") + headerTypespec(kind) + (array ? "]" : ""));
+            header.put("plainText", text && !array);
+            header.put("textList", text && array);
+            header.put("parsedScalar", !text && !array);
+            header.put("parsedList", !text && array);
+            if (!(text && !array)) {
+                context.put("usesWithValue", true);
+            }
+            if (array) {
+                context.put("usesSplit", true);
+            }
+            if (!text) {
+                context.put("usesParser", true);
+                context.put("long".equals(kind) ? "usesInteger" : "uses" + Character.toUpperCase(kind.charAt(0))
+                        + kind.substring(1), true);
+            }
+            headers.add(header);
+        }
+        context.put("className", className);
+        context.put("moduleName", moduleName);
+        context.put("operationId", op.operationId);
+        context.put("headers", headers);
+        final String filePath = Path.of(getOutputDir(), "lib", packageName, "api", "response_headers",
+                NamingConvention.SNAKE_CASE.apply(className) + ".ex").toString();
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
+    }
+
+    /** The typespec of one header value of the given kind (D168). */
+    private static String headerTypespec(final String kind) {
+        switch (kind) {
+            case "integer":
+            case "long":
+                return "integer()";
+            case "number":
+                return "float()";
+            case "boolean":
+                return "boolean()";
+            default:
+                return "String.t()";
+        }
     }
 
     /**

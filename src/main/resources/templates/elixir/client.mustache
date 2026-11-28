@@ -33,7 +33,7 @@ defmodule {{moduleName}}.{{clientClassName}} do
 {{#hasClientSchemes}}
 
       # One credential per security scheme, no default authenticator
-      client = {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+      client = {{moduleName}}.{{clientClassName}}.new(nil, nil{{#clientSchemes}}{{#-first}}, {{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
 {{/hasClientSchemes}}
   """
 

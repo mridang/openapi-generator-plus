@@ -313,7 +313,7 @@ defmodule {{moduleName}}.ClientTest do
   test "bhv lifecycle 015 construct with one credential per security scheme and no authenticator" do
     credential = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "scheme-token")
 
-    client = {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+    client = {{moduleName}}.{{clientClassName}}.new(nil, nil{{#clientSchemes}}{{#-first}}, {{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
 
     assert client.authenticator == nil
     assert client.schemes == %{ {{#clientSchemes}}{{#-first}}"{{{schemeId}}}" => credential{{/-first}}{{/clientSchemes}} }
@@ -340,7 +340,7 @@ defmodule {{moduleName}}.ClientTest do
     with_default = {{moduleName}}.{{clientClassName}}.new(default, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
     assert with_default.{{clientPropertyName}}.config.base_url == "https://default.example.com"
 
-    schemes_only = {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+    schemes_only = {{moduleName}}.{{clientClassName}}.new(nil, nil{{#clientSchemes}}{{#-first}}, {{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
     assert schemes_only.{{clientPropertyName}}.config.base_url == "https://scheme.example.com"
 {{/-first}}
 {{/operations}}
@@ -405,7 +405,7 @@ defmodule {{moduleName}}.ClientTest do
     end
 
     assert_raise ArgumentError, ~r/At least one credential is required/, fn ->
-      {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: nil{{/-first}}{{/clientSchemes}})
+      {{moduleName}}.{{clientClassName}}.new(nil, nil{{#clientSchemes}}{{#-first}}, {{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: nil{{/-first}}{{/clientSchemes}})
     end
   end
 
@@ -643,7 +643,7 @@ defmodule {{moduleName}}.ClientTest do
     credential = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "first-token")
 
     client =
-      {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+      {{moduleName}}.{{clientClassName}}.new(nil, nil{{#clientSchemes}}{{#-first}}, {{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
 
     credential = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "second-token")
 

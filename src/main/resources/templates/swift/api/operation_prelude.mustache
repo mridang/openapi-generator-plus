@@ -72,7 +72,7 @@
 {{#pathParams}}
         path = path.replacingOccurrences(
             of: "{" + "{{baseName}}" + "}",
-            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodeStyledPathValue(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
+            with: {{#vendorExtensions.param.pathAllowReserved}}ValueSerializer.allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}{{#vendorExtensions.swiftContent}}ValueSerializer.encodeStyledPathValue(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}{{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}})
 {{/pathParams}}
 {{#servers.0}}
         if let server = server {
@@ -230,6 +230,13 @@
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
+{{#vendorExtensions.param.cookieStyle}}
+        let {{paramName}}CookiePairs = try ValueSerializer.cookiePairs("{{baseName}}", value: options.{{paramName}}, explode: {{isExplode}})
+        if !{{paramName}}CookiePairs.isEmpty {
+            cookieParts.append({{paramName}}CookiePairs)
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
         if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
             throw ConfigurationError.invalidArgument(
@@ -237,9 +244,17 @@
             )
         }
         cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/vendorExtensions.param.cookieStyle}}
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
+{{#vendorExtensions.param.cookieStyle}}
+            let {{paramName}}CookiePairs = try ValueSerializer.cookiePairs("{{baseName}}", value: val, explode: {{isExplode}})
+            if !{{paramName}}CookiePairs.isEmpty {
+                cookieParts.append({{paramName}}CookiePairs)
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
             let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
@@ -247,11 +262,19 @@
                 )
             }
             cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/vendorExtensions.param.cookieStyle}}
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
+{{#vendorExtensions.param.cookieStyle}}
+            let {{paramName}}CookiePairs = try ValueSerializer.cookiePairs("{{baseName}}", value: val, explode: {{isExplode}})
+            if !{{paramName}}CookiePairs.isEmpty {
+                cookieParts.append({{paramName}}CookiePairs)
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
             let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
             if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
                 throw ConfigurationError.invalidArgument(
@@ -259,6 +282,7 @@
                 )
             }
             cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/vendorExtensions.param.cookieStyle}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}
@@ -277,23 +301,23 @@
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
-        formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}
+        formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options {
-            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
 {{#vendorExtensions.op.optionsParamRequired}}
         if let val = options.{{paramName}} {
-            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}

@@ -42,6 +42,7 @@ use {{apiPackage}}\PetApi;
 use {{apiPackage}}\StoreApi;
 use {{apiPackage}}\Options\FindPetsByStatusOptions;
 use {{apiPackage}}\Options\AddPetOptions;
+use {{apiPackage}}\Options\AttachPetFilesOptions;
 use {{apiPackage}}\Options\DeletePetOptions;
 use {{apiPackage}}\Options\GetPetTagOptions;
 use {{apiPackage}}\Options\SetPetPreferencesOptions;
@@ -1259,6 +1260,64 @@ test('bhv serialization 040 form urlencoded body renders date-time, enum and num
     expect($client->capturedBody)->toBe(
         'at=2024-01-15T10%3A00%3A00.000%2B00%3A00&status=sold&ratio=1.0&flag=true&tags=a&tags=b'
     );
+});
+
+test('bhv serializationwire 501 an allowReserved form field keeps its reserved characters literal', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->setPetPreferences(7, new SetPetPreferencesOptions(nickname: 'rex', route: 'v1.0/beta:rc1 a#b'));
+    } catch (\Exception $e) {
+        /* Response deserialization may fail; only the captured body matters. */
+    }
+    expect($client->capturedBody)->toBe('nickname=rex&route=v1.0/beta:rc1%20a%23b');
+});
+
+test('bhv serializationwire 502 a form field with an encoding style is written with the query style rules', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->setPetPreferences(1, new SetPetPreferencesOptions(nickname: 'rex', aliases: ['a b', 'c']));
+    } catch (\Exception $e) {
+        /* Response deserialization may fail; only the captured body matters. */
+    }
+    expect($client->capturedBody)->toBe('nickname=rex&aliases=a+b%7Cc');
+});
+
+test('bhv serializationwire 503 a multipart part carries its declared content type and part headers', function (): void {
+    $sent = '';
+    $mock = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$sent): MockResponse {
+            $body = $options['body'] ?? '';
+            if ($body instanceof \Closure) {
+                while (is_string($chunk = $body(16384)) && $chunk !== '') {
+                    $sent .= $chunk;
+                }
+            } elseif (is_iterable($body)) {
+                foreach ($body as $chunk) {
+                    $sent .= is_string($chunk) ? $chunk : '';
+                }
+            } elseif (is_string($body)) {
+                $sent = $body;
+            }
+            return new MockResponse('{"code":200}', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']]);
+        }
+    );
+    $path = (string) tempnam(sys_get_temp_dir(), 'part_');
+    file_put_contents($path, 'file-bytes');
+    try {
+        $api = new PetApi(new StubbedDefaultApiClient($mock), new Configuration('http://localhost'));
+        $api->attachPetFiles(1, new AttachPetFilesOptions(file: new \SplFileObject($path), caption: 'hello'));
+    } catch (\Exception $e) {
+        /* Response deserialization may fail; only the sent body matters. */
+    } finally {
+        @unlink($path);
+    }
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello\r\n");
+    expect($sent)->toContain("name=\"file\"; filename=\"");
+    expect($sent)->toContain("\r\n\r\nfile-bytes\r\n");
+    expect(substr_count($sent, 'X-Caption-Format'))->toBe(1);
+    expect(substr_count($sent, 'text/markdown'))->toBe(1);
 });
 
 test('bhv serializationwire 014 form urlencoded body rejects a nested map field', function (): void {

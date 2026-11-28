@@ -764,10 +764,17 @@ class PetApi extends BaseApi implements PetApiInterface {
      *     filename-derived Content-Type instead of stringifying the bytes;
      *   - a scalar is stringified at the edge by the serializer.
      * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
+     * the wire (form-optional-null-omitted). A form-urlencoded field whose
+     * Encoding Object sets style or explode is written with the query
+     * styling, and a multipart field whose Encoding Object declares a part
+     * Content-Type or part headers is wrapped by encodedPart. */
     final formBody = <String, Object?>{};
     formBody['files'] = options.files;
-    formBody['metadata'] = options.metadata;
+    formBody['metadata'] = encodedPart(
+      options.metadata,
+      r'application/json',
+      const <String, String>{},
+    );
     final Object requestBody = formBody;
 
     return invokeApiForResult<List<Photo>>(
@@ -958,11 +965,18 @@ class PetApi extends BaseApi implements PetApiInterface {
      *     filename-derived Content-Type instead of stringifying the bytes;
      *   - a scalar is stringified at the edge by the serializer.
      * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
+     * the wire (form-optional-null-omitted). A form-urlencoded field whose
+     * Encoding Object sets style or explode is written with the query
+     * styling, and a multipart field whose Encoding Object declares a part
+     * Content-Type or part headers is wrapped by encodedPart. */
     final formBody = <String, Object?>{};
     formBody['file'] = options.file;
     if (options.caption != null) {
-      formBody['caption'] = options.caption;
+      formBody['caption'] = encodedPart(
+        options.caption,
+        r'text/markdown',
+        const <String, String>{r'X-Caption-Format': r'commonmark'},
+      );
     }
     final Object requestBody = formBody;
 
@@ -1040,25 +1054,17 @@ class PetApi extends BaseApi implements PetApiInterface {
     /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
        base_api. Operation cookie params are interpolated straight into the
        Cookie request header, so an attacker-controlled CR/LF/control-char
-       value would otherwise smuggle in extra headers. Validate every
-       assembled value the same way the auth-cookie path does and fail closed
-       with the same ArgumentError so header injection is impossible. */
-    final operationCookieValueRe = RegExp(
-      r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
-    );
-    void addCookiePart(String name, String value) {
-      if (!operationCookieValueRe.hasMatch(value)) {
-        throw ArgumentError(
-          "Cookie value for '$name' contains characters forbidden by RFC 6265",
-        );
-      }
-      cookieParts.add('$name=$value');
-    }
-
+       value would otherwise smuggle in extra headers. cookiePairs validates
+       every assembled value the same way the auth-cookie path does and fails
+       closed with the same ArgumentError so header injection is impossible;
+       a single styled string becomes exactly `name=value`. */
     if (options != null && options.apiKey != null) {
-      addCookiePart(
-        'api_key',
-        '${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}',
+      cookieParts.add(
+        cookiePairs(
+          'api_key',
+          '${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}',
+          false,
+        ),
       );
     }
     if (cookieParts.isNotEmpty) {
@@ -2275,6 +2281,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   /// `session` Session token: "a<b>" & it's required
   /// `days` Extra dates to summarise
   /// `options` options for query, header, form, and cookie parameters
+  ///
+  /// Response 200 example: Example
+  /// ```json
+  /// hello
+  /// ```
   /// Throws `NotFoundException` on HTTP 404.
   @override
   Future<String> getPetSummary(
@@ -2381,24 +2392,16 @@ class PetApi extends BaseApi implements PetApiInterface {
     /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
        base_api. Operation cookie params are interpolated straight into the
        Cookie request header, so an attacker-controlled CR/LF/control-char
-       value would otherwise smuggle in extra headers. Validate every
-       assembled value the same way the auth-cookie path does and fail closed
-       with the same ArgumentError so header injection is impossible. */
-    final operationCookieValueRe = RegExp(
-      r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
-    );
-    void addCookiePart(String name, String value) {
-      if (!operationCookieValueRe.hasMatch(value)) {
-        throw ArgumentError(
-          "Cookie value for '$name' contains characters forbidden by RFC 6265",
-        );
-      }
-      cookieParts.add('$name=$value');
-    }
-
-    addCookiePart(
-      'session',
-      '${serializeStyled('session', options.session, 'cookie', 'String', '', 'form', true)}',
+       value would otherwise smuggle in extra headers. cookiePairs validates
+       every assembled value the same way the auth-cookie path does and fails
+       closed with the same ArgumentError so header injection is impossible;
+       a single styled string becomes exactly `name=value`. */
+    cookieParts.add(
+      cookiePairs(
+        'session',
+        '${serializeStyled('session', options.session, 'cookie', 'String', '', 'form', true)}',
+        false,
+      ),
     );
     if (cookieParts.isNotEmpty) {
       headerParams['Cookie'] = cookieParts.join('; ');
@@ -3986,7 +3989,10 @@ class PetApi extends BaseApi implements PetApiInterface {
      *     filename-derived Content-Type instead of stringifying the bytes;
      *   - a scalar is stringified at the edge by the serializer.
      * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
+     * the wire (form-optional-null-omitted). A form-urlencoded field whose
+     * Encoding Object sets style or explode is written with the query
+     * styling, and a multipart field whose Encoding Object declares a part
+     * Content-Type or part headers is wrapped by encodedPart. */
     final formBody = <String, Object?>{};
     formBody['nickname'] = options.nickname;
     if (options.tags != null) {
@@ -4012,6 +4018,23 @@ class PetApi extends BaseApi implements PetApiInterface {
     }
     if (options.snooze != null) {
       formBody['snooze'] = options.snooze;
+    }
+    if (options.route != null) {
+      formBody['route'] = maybeAllowReserved(options.route, true);
+    }
+    if (options.aliases != null) {
+      formBody['aliases'] = maybeAllowReserved(
+        serializeStyled(
+          'aliases',
+          options.aliases,
+          'query',
+          'List<String>',
+          '',
+          'pipeDelimited',
+          false,
+        ),
+        false,
+      );
     }
     final Object requestBody = formBody;
 
@@ -4196,7 +4219,10 @@ class PetApi extends BaseApi implements PetApiInterface {
      *     filename-derived Content-Type instead of stringifying the bytes;
      *   - a scalar is stringified at the edge by the serializer.
      * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
+     * the wire (form-optional-null-omitted). A form-urlencoded field whose
+     * Encoding Object sets style or explode is written with the query
+     * styling, and a multipart field whose Encoding Object declares a part
+     * Content-Type or part headers is wrapped by encodedPart. */
     final formBody = <String, Object?>{};
     formBody['file'] = options.file;
     final Object requestBody = formBody;
@@ -4303,7 +4329,10 @@ class PetApi extends BaseApi implements PetApiInterface {
      *     filename-derived Content-Type instead of stringifying the bytes;
      *   - a scalar is stringified at the edge by the serializer.
      * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
+     * the wire (form-optional-null-omitted). A form-urlencoded field whose
+     * Encoding Object sets style or explode is written with the query
+     * styling, and a multipart field whose Encoding Object declares a part
+     * Content-Type or part headers is wrapped by encodedPart. */
     final formBody = <String, Object?>{};
     formBody['file'] = options.file;
     if (options.documentType != null) {

@@ -146,7 +146,7 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` field (e.g., `Servers.Server0`, `Servers.Server1`, ...) plus a `Servers.All` collection. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` field (e.g., `Servers.Server0`, `Servers.Server1`, ...) plus a `Servers.All` collection. A server the spec gives a name is also found by that name with `Servers.ByName("name")`, which fails with `ArgumentException` when no server has the name. Pass the desired server's URL to the client:
 
 ```csharp statements
 using PetstoreClient;

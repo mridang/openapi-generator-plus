@@ -21,7 +21,7 @@ This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart packag
 | `event_stream.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `retry_after.mustache` | The line reader and SSE parser, `JsonLinesStream<T>`, `SseStream<T>`, `ServerSentEvent<T>`, `StreamOptions`, and the shared `Retry-After` parser | JSON Lines and server-sent events |
 | `byte_stream.mustache`, `api_stream_response.mustache`, `errors/stream_exception.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (what `sendStreaming` returns) and `StreamException` | The streaming carriers and the failure after the headers |
 | `base_api.mustache`, `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache`, `deserialize_arg.mustache` | Parameter styles, query/form/multipart encoding, JSON (de)serialization, content negotiation | Anything about bytes on the wire |
-| `api/api.mustache`, `api/options*.mustache` | Per-tag API classes and per-operation Options classes | Operation signatures and doc comments |
+| `api/api.mustache`, `api/options*.mustache` | Per-tag API classes and per-operation Options classes | Operation signatures and doc comments (D169/D170: `api/operation_doc_examples.mustache` adds the request and response examples and the `exposedExtensions` lines after the parameter examples of the method and the stream method, `api/response_headers.mustache` adds each header's example, and `api/options.mustache` renders a parameter's `pluralExamples`, which `generateOptionsFileContent` does not pass yet) |
 | `models/model.mustache` | Models, enums, oneOf/anyOf wrappers | Models and unions |
 | `configuration.mustache`, `servers.mustache`, `server_configuration.mustache`, `client.mustache`, `barrel.mustache` | Builder, server constants, entry class, `lib/<package>.dart` barrel | Public entry surface |
 | `readme.mustache`, `skills.mustache` | README (Caveats, Not supported, Schema constraints) and SKILLS.md | Docs |
@@ -166,7 +166,7 @@ Where: `abstract_api_client.mustache` (`_proxyAuthHeader`).
 Test: `default_api_client_unit_test.mustache`.
 
 ### Query encoding is RFC 3986 with `%20` (D52, D49, D78)
-Rule: query and form-body components keep exactly `A-Za-z0-9-._~` literal and percent-encode `* ! ' ( )`; spaces are `%20` in queries. `allowReserved` leaves only the RFC 3986 query-legal reserved set literal, with `#`, `[` and `]` percent-encoded. `encodeRfc3986QueryComponent` in `value_serializer.mustache` is the one encoder; the OAuth copies are to be deleted (intended).
+Rule: query and form-body components keep exactly `A-Za-z0-9-._~` literal and percent-encode `* ! ' ( )`; spaces are `%20` in queries. `allowReserved` leaves only the RFC 3986 query-legal reserved set literal, with `#`, `[` and `]` percent-encoded. `encodeRfc3986QueryComponent` in `value_serializer.mustache` is the one encoder; the OAuth copies are to be deleted (intended). A form-urlencoded field whose Encoding Object sets `style` or `explode` is styled by `serializeStyled` like a query parameter and then form-encoded (D165); a multipart field whose Encoding Object declares a part Content-Type or fixed part headers is wrapped in `EncodedPart` (`encodedPart`), which `_buildMultipartBody` writes in place of the chosen Content-Type, followed by the headers in order (D166).
 Why: dart was the one SDK still diverging (D52). Forced exception (D78): `dart:core Uri` rewrites a literal `[`, `]` and `'` on dispatch, so the encoder output is the contract, not the final wire bytes.
 Where: `value_serializer.mustache`, `base_api.mustache`, `auth/oauth/*`.
 Test: `value_serializer_test.mustache`, `base_api_test.mustache`.
@@ -407,7 +407,7 @@ Test: `base_api_test` (pagination 007, 008, 023, 027).
 
 Cancellation has no per-call handle in dart today (see S7 above). Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only; `shift_jis` and the other multi-byte or iso-8859-x labels fall back to lenient UTF-8, because dart has no multi-charset stdlib (partial). Repeated multipart scalar parts carry `content-type: text/plain; charset=utf-8` (deferred, low priority). Bare `number` is a lossy `double` (`format: decimal` is an exact `Decimal`). A top-level response body that is a single bare decimal number is read from its double, because the source text is recorded per holding map or list. `format: byte` and `binary` map to `Uint8List`. SOCKS proxies are rejected. The warnings-fatal `make docs` target exists in the generated Makefile but no spec runs it (deferred). Model reuse across oneOf unions is under S4 (intended, not landed); allOf inheritance has landed.
 
-Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): callbacks and webhooks, XML bodies and XML `nodeType`, Link Objects, mutual TLS; the README says so under "Not supported". OpenAPI 3.2 and 3.1 support is tracked in epics #49 (3.2) and #96 (3.1) with sub-issues in #50-#100; loading 3.2 documents is #50, because the pinned swagger-parser rejects 3.2.
+Out of scope, per the closed backlog issues #53, #70, #78, #88 and #90 (S11): callbacks and webhooks, XML bodies and XML `nodeType`, Link Objects, mutual TLS; the README says so under "Not supported". OpenAPI 3.2 and 3.1 support is tracked in epics #49 (3.2) and #96 (3.1) with sub-issues in #50-#100; 3.2 documents load through the shared parser extension (D150).
 
 ## Build-breaking rules
 
@@ -502,6 +502,11 @@ Recorded, not implemented here:
 - F1087 (runtime floor): dart keeps `>=3.11.0`. Dart has no long-term support line, only the current stable is supported, so the floor is not newer than the oldest non-EOL release.
 - F866 (`$ref` sibling default) is landed in dart: `BetterDartCodegen.applySiblingEnumDefault` feeds the shared `siblingDefault` to `resolveEnumRefDefault`, so `StockItem.availability` starts at `Availability.onHold`, decodes to it when the key is absent and encodes it. Test: `object_serializer_test` and `BetterDartCodegenTest`.
 - F868 for collections: the lists and maps inside a model stay mutable; a `copyWith` shares them.
+
+## OpenAPI 3.2 round 2 (D167, D168)
+
+- D167: an operation sends every declared response media type in `Accept`, and a per-call `Accept` in the Options `headers` replaces it whatever its case (`BaseApi._mergeHeaders`), so the wire carries exactly the one the caller names. Test: `pet_api_test` (bhv operations 501).
+- D168: an operation whose 2xx responses declare headers gets `<OperationId>ResponseHeaders` in `lib/src/api/options/` (template `api/response_headers.mustache`, written by `BetterDartCodegen.writeResponseHeadersFile` and exported from the barrel), with a nullable `final` field per header typed by its kind (`String`, `int`, `double`, `bool` or a `List` of one) and `factory .from(Map<String, String> headers)` that reads each header case-insensitively and raises `SerializationException` on a value that does not parse. Test: `store_api_test` (bhv headers 501, 502).
 
 ## Gate lessons (what broke the gate and how to avoid it)
 

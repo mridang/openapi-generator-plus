@@ -31,7 +31,8 @@ public enum Servers {
   public static let server0 = ServerConfiguration(
     urlTemplate: "/api/v3",
     description: "Relative URL (no variables)",
-    variables: [:]
+    variables: [:],
+    name: ""
   )
 
   /// Server 1: `https://{environment}.example.com/api/{version}`
@@ -51,7 +52,8 @@ public enum Servers {
         description: "API version",
         enumValues: ["v2", "v3"]
       ),
-    ]
+    ],
+    name: ""
   )
 
   /// Server 2: `https://{tenant}.example.com/api`
@@ -66,7 +68,8 @@ public enum Servers {
         description: "Tenant's \"id\"",
         enumValues: ["o'neil", "a&b"]
       )
-    ]
+    ],
+    name: ""
   )
 
   /// All server configurations in declaration order.
@@ -75,4 +78,19 @@ public enum Servers {
     server1,
     server2,
   ]
+
+  /// The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+  ///
+  /// - Parameter name: The server name.
+  /// - Returns: The server with that name.
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` if no server has that
+  ///   name; the message lists the known names.
+  public static func byName(_ name: String) throws -> ServerConfiguration {
+    if let server = all.first(where: { !$0.name.isEmpty && $0.name == name }) {
+      return server
+    }
+    let known = all.map(\.name).filter { !$0.isEmpty }
+    throw ConfigurationError.invalidArgument(
+      "Unknown server name '\(name)'. Known names: [\(known.joined(separator: ", "))]")
+  }
 }

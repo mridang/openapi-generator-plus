@@ -30,7 +30,8 @@ module {{moduleName}}
           description: {{#varDescription}}'{{#lambda.rubyQuoted}}{{{varDescription}}}{{/lambda.rubyQuoted}}'{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
           enum_values: {{#hasEnumValues}}%w[{{#varEnumValues}}{{{.}}}{{^-last}} {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
         ){{^-last}},{{/-last}}
-{{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}}
+{{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}},
+      name: {{#serverName}}'{{#lambda.rubyQuoted}}{{{serverName}}}{{/lambda.rubyQuoted}}'{{/serverName}}{{^serverName}}nil{{/serverName}}
     ).freeze
 
 {{/serverConfigs}}
@@ -39,5 +40,18 @@ module {{moduleName}}
     ALL = [
 {{#serverConfigs}}      SERVER_{{serverIndex}}{{^-last}},{{/-last}}
 {{/serverConfigs}}    ].freeze
+
+    # The server the specification gives the name +name+ (OpenAPI 3.2 +name+).
+    #
+    # @param name [String] the server name
+    # @return [ServerConfiguration] the server with that name
+    # @raise [ArgumentError] if no server has that name; the message lists the known names
+    def self.by_name(name)
+      found = ALL.find { |server| server.name == name }
+      return found if found
+
+      known = ALL.filter_map(&:name)
+      raise ArgumentError, "Unknown server name '#{name}'. Known names: [#{known.join(', ')}]"
+    end
   end
 end

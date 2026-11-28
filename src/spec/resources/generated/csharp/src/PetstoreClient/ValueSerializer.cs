@@ -137,6 +137,42 @@ internal static class ValueSerializer
     public sealed record AllowReservedValue(object Value);
 
     /// <summary>
+    /// Wraps a multipart field value whose Encoding Object declares a part
+    /// Content-Type and/or part headers. The multipart encoder unwraps it: the
+    /// declared Content-Type replaces the one the SDK would choose, and each
+    /// header is written after it, in declaration order. A list value applies
+    /// the encoding to each item. Every other reader of the form map unwraps it
+    /// and uses <c>Value</c> unchanged.
+    /// </summary>
+    /// <param name="Value">The field value (possibly an <see cref="AllowReservedValue"/>).</param>
+    /// <param name="ContentType">The declared part Content-Type, or null to keep the SDK's choice.</param>
+    /// <param name="Headers">The declared part headers, in declaration order.</param>
+    public sealed record EncodedPart(
+        object Value,
+        string? ContentType,
+        IReadOnlyList<KeyValuePair<string, string>> Headers
+    );
+
+    /// <summary>
+    /// Removes the <see cref="EncodedPart"/> and <see cref="AllowReservedValue"/>
+    /// wrappers from a form field value.
+    /// </summary>
+    /// <param name="value">The form field value, wrapped or not.</param>
+    /// <returns>The bare value.</returns>
+    public static object? UnwrapFormValue(object? value)
+    {
+        if (value is EncodedPart part)
+        {
+            value = part.Value;
+        }
+        if (value is AllowReservedValue reserved)
+        {
+            value = reserved.Value;
+        }
+        return value;
+    }
+
+    /// <summary>
     /// Wraps <paramref name="value"/> in an <see cref="AllowReservedValue"/> when
     /// the parameter declares <c>allowReserved: true</c>; otherwise returns it
     /// unchanged.
@@ -204,6 +240,140 @@ internal static class ValueSerializer
             .Replace("%3B", ";", StringComparison.Ordinal)
             .Replace("%3D", "=", StringComparison.Ordinal);
         ;
+    }
+
+    /// <summary>
+    /// Builds the <c>Cookie</c> header fragment for one OpenAPI 3.2
+    /// <c>style: cookie</c> parameter.
+    /// </summary>
+    /// <remarks>
+    /// A scalar is <c>name=value</c>; an array is <c>name=a,b</c>, or
+    /// <c>name=a; name=b</c> when exploded; an object is
+    /// <c>name=k1,v1,k2,v2</c>, or <c>k1=v1; k2=v2</c> when exploded. Values are
+    /// never percent-encoded; every item, key and value must consist of RFC 6265
+    /// cookie-octets.
+    /// </remarks>
+    /// <param name="name">The cookie parameter name.</param>
+    /// <param name="value">The parameter value: a scalar, a list, a dictionary or a model.</param>
+    /// <param name="explode">Whether the parameter is exploded.</param>
+    /// <returns>The fragment, or the empty string when nothing is sent.</returns>
+    /// <exception cref="ArgumentException">
+    /// A value contains a character outside the RFC 6265 cookie-octet set.
+    /// </exception>
+    public static string CookiePairs(string name, object? value, bool explode)
+    {
+        if (value == null)
+        {
+            return "";
+        }
+
+        if (AsArray(value) is { } list)
+        {
+            List<string> items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
+            if (items.Count == 0)
+            {
+                return "";
+            }
+            foreach (string item in items)
+            {
+                RequireCookieOctets(name, item);
+            }
+            return explode
+                ? string.Join("; ", items.Select(i => name + "=" + i))
+                : name + "=" + string.Join(",", items);
+        }
+
+        if ((DictionaryFields(name, value) ?? ModelFields(value)) is { } fields)
+        {
+            if (fields.Count == 0)
+            {
+                return "";
+            }
+            foreach (KeyValuePair<string, string> field in fields)
+            {
+                RequireCookieOctets(name, field.Key);
+                RequireCookieOctets(name, field.Value);
+            }
+            return explode
+                ? string.Join("; ", fields.Select(f => f.Key + "=" + f.Value))
+                : name + "=" + string.Join(",", fields.SelectMany(f => new[] { f.Key, f.Value }));
+        }
+
+        string scalar = ObjectSerializer.Stringify(value);
+        RequireCookieOctets(name, scalar);
+        return name + "=" + scalar;
+    }
+
+    /* Refuses a cookie item outside the RFC 6265 cookie-octet set with the
+     * same ArgumentException an operation cookie value raises. */
+    private static void RequireCookieOctets(string name, string value)
+    {
+        foreach (char c in value)
+        {
+            bool ok =
+                c
+                is (char)0x21
+                    or >= (char)0x23
+                    and <= (char)0x2B
+                    or >= (char)0x2D
+                    and <= (char)0x3A
+                    or >= (char)0x3C
+                    and <= (char)0x5B
+                    or >= (char)0x5D
+                    and <= (char)0x7E;
+            if (!ok)
+            {
+                throw new ArgumentException(
+                    $"Cookie value for '{name}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Turns the percent-encoded reserved characters of an already encoded path
+    /// value back into their literal form, for a path parameter that declares
+    /// <c>allowReserved: true</c>.
+    /// </summary>
+    /// <remarks>
+    /// Only <c>%2F %3A %40 %21 %24 %26 %27 %28 %29 %2A %2B %2C %3B %3D</c> (either
+    /// hex case) are decoded; <c>?</c>, <c>#</c>, <c>[</c>, <c>]</c>, spaces and
+    /// <c>%25</c> stay encoded, so a value the caller had already encoded is kept.
+    /// </remarks>
+    /// <param name="encoded">The value after path-segment encoding.</param>
+    /// <returns>The value with the reserved characters restored.</returns>
+    public static string AllowReservedInPath(string encoded)
+    {
+        if (string.IsNullOrEmpty(encoded))
+        {
+            return encoded;
+        }
+        var builder = new System.Text.StringBuilder(encoded.Length);
+        int i = 0;
+        while (i < encoded.Length)
+        {
+            if (
+                encoded[i] == '%'
+                && i + 2 < encoded.Length
+                && int.TryParse(
+                    encoded.AsSpan(i + 1, 2),
+                    System.Globalization.NumberStyles.AllowHexSpecifier,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out int octet
+                )
+                && "/:@!$&'()*+,;=".Contains((char)octet, StringComparison.Ordinal)
+            )
+            {
+                builder.Append((char)octet);
+                i += 3;
+            }
+            else
+            {
+                builder.Append(encoded[i]);
+                i++;
+            }
+        }
+        return builder.ToString();
     }
 
     /// <summary>

@@ -81,14 +81,16 @@ describe {{moduleName}}::Api::PetApi do
       end
       request_line = client.gets.to_s.strip
       headers = {}
+      header_names = []
       while (line = client.gets)
         break if line.strip.empty?
 
         name, value = line.split(':', 2)
+        header_names << name.to_s.strip.downcase
         headers[name.to_s.strip.downcase] = value.to_s.strip
       end
       length = headers.fetch('content-length', '0').to_i
-      captured << { request_line: request_line, headers: headers,
+      captured << { request_line: request_line, headers: headers, header_names: header_names,
                     body: length.positive? ? client.read(length).to_s : '' }
       client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
                    "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
@@ -815,6 +817,22 @@ describe {{moduleName}}::Api::PetApi do
 
       _(result).wont_be_nil
       result.close
+    end
+
+    it 'bhv_operations_501 sends only the media type the caller names in the per-call Accept header' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        api.get_pet_photo(
+          1, 1, {{moduleName}}::Api::Options::GetPetPhotoOptions.new(headers: { 'Accept' => 'image/png' })
+        ).close
+        request = captured.pop
+
+        _(request[:header_names].count('accept')).must_equal 1
+        _(request[:headers]['accept']).must_equal 'image/png'
+      ensure
+        server.close
+        thread.join(2)
+      end
     end
   end
 
@@ -1695,6 +1713,56 @@ describe {{moduleName}}::Api::PetApi do
         _(sent).must_include 'tags=a&tags=b'
         _(sent).wont_include 'tags=a,b'
         _(sent).wont_include 'tags%5B%5D'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A form field whose Encoding Object sets allowReserved keeps the RFC 3986
+    # reserved characters literal and still encodes a space and a '#'.
+    it 'bhv_serializationwire_501 keeps the reserved characters of an allowReserved form field literal' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'rex', route: 'v1.0/beta:rc1 a#b'
+        )
+        api.set_pet_preferences(1, options)
+        _(captured.pop).must_equal 'nickname=rex&route=v1.0/beta:rc1%20a%23b'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A form field whose Encoding Object sets style is written with the
+    # query-parameter styling, then form-encoded as one field.
+    it 'bhv_serializationwire_502 writes a styled form field through the query styling' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'rex', aliases: ['a b', 'c']
+        )
+        api.set_pet_preferences(1, options)
+        _(captured.pop).must_equal 'nickname=rex&aliases=a+b%7Cc'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A multipart part whose Encoding Object declares a Content-Type and a
+    # part header carries both after its Content-Disposition line.
+    it 'bhv_serializationwire_503 writes the declared part Content-Type and headers of a multipart part' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::AttachPetFilesOptions.new(
+          file: StringIO.new('bin'), caption: 'hello'
+        )
+        api.attach_pet_files(1, options)
+        sent = captured.pop
+        _(sent).must_include "name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello\r\n"
+        _(sent).must_include "name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\nbin\r\n"
       ensure
         server.close
         thread.join(2)

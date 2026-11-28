@@ -134,7 +134,7 @@ Rule: a `format: binary` return is raw bytes, never JSON-parsed; `format: byte` 
 
 ### Request bodies: binary, multipart, form
 
-Rule: a binary body is sent verbatim under any selected content type (`{:raw_body, bytes}`); multipart scalar parts, including `DateTime`, `Date`, `Time` and `Duration`, are plain text parts built with `ObjectSerializer.stringify` and only a map or model becomes a JSON part; a form-urlencoded field that is a map or nested list raises `SerializationError` (`ensure_form_scalar!`). Query, form and multipart order follows spec declaration order through lists of `{key, value}` tuples. Why: no per-language repr of nested values on the wire. Where: `base_api.mustache`, `default_api_client.mustache`, `api/api.mustache`. Test: `test/base_api_test.mustache`, `test/default_api_client_test.mustache`.
+Rule: a binary body is sent verbatim under any selected content type (`{:raw_body, bytes}`); multipart scalar parts, including `DateTime`, `Date`, `Time` and `Duration`, are plain text parts built with `ObjectSerializer.stringify` and only a map or model becomes a JSON part; a form-urlencoded field that is a map or nested list raises `SerializationError` (`ensure_form_scalar!`). Query, form and multipart order follows spec declaration order through lists of `{key, value}` tuples. A form-urlencoded field whose Encoding Object declares `style` or `explode` (`formStyled`, D165) is serialized in the operation with `ValueSerializer.serialize_styled/7` as a query value and then form-encoded (`a b|c` is `a+b%7Cc`). A multipart field whose Encoding Object declares a part Content-Type or fixed part headers (`partEncoded`, D166) is wrapped by `ValueSerializer.encoded_part/3` (`{:encoded_part, value, content_type, headers}`); `DefaultApiClient.build_multipart_body/2` writes the declared Content-Type in place of its own and the headers after it, every other consumer sees the plain value, and a declared multipart subtype such as `multipart/mixed` keeps its subtype on the wire. Why: no per-language repr of nested values on the wire. Where: `base_api.mustache`, `default_api_client.mustache`, `api/api.mustache`. Test: `test/base_api_test.mustache` (`serializationwire502`, `serializationwire503`), `test/default_api_client_test.mustache`.
 
 ### Encoding: allowReserved, percent-encoding, path dots
 
@@ -202,7 +202,7 @@ Rule: every API group has an interface and the client has one where the language
 - Spec gates differ from the client `Makefile`: `make build` and `make lint` run plain `mix compile`, while `ElixirLintingSpec` adds `--warnings-as-errors`. The client suite does not use `--warnings-as-errors` because it calls deprecated operations.
 - SOCKS proxies are rejected at construction (README).
 - No per-field example or description in model docs; the `@moduledoc` carries the model description, named examples and the deprecated-field note.
-- Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11). OpenAPI 3.1 and 3.2 support is tracked in epics #96 and #49 with sub-issues; loading 3.2 documents is #50.
+- Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11). OpenAPI 3.1 and 3.2 support is tracked in epics #96 and #49 with sub-issues; 3.2 documents load through the shared parser extension (D150).
 
 ## Build-breaking rules
 
@@ -348,6 +348,8 @@ Rule: the call before `exchange_code/2` raises `Must call exchange_code() before
 ### Options modules document the examples of optional parameters
 
 Rule: the named examples of an optional parameter are written into the `@moduledoc` of its `Api.Options.*` module as `### <name> example` blocks, the way the operation function documents a required parameter. Where: `BetterElixirCodegen.toExampleDocs`, `api/options.mustache`. Test: `BetterElixirCodegenTest`.
+
+The operation `@doc` (and the stream-only operation's `@doc`) renders `operationExamples` as `<heading> example: <summary>` lines with the value as an indented code block, then each `exposedExtensions` row as `Extension <name>: <value>`, after the Parameters section and before Returns, all through `elixirHeredoc` (D169, D170); a typed response header with an example gets an `Example:` code block under its bullet in `api/response_headers.mustache`.
 
 ### Documentation layout
 
@@ -522,3 +524,7 @@ Rule: an id list (`of_id/6`) passes the `last_id` or `next_cursor` of each page 
 Where: `paginator.mustache`, `api/api.mustache` (one branch per style; the `isId`, `isOffset`, `isPage` and `isBody` blocks), `readme.mustache`, `skills.mustache`.
 Test: `bhv pagination 004` (offset), `005` (page number), `006` (id cursor), `029` (next URL in the body and a refused foreign origin), `024` (the paged function names).
 Language impossibility: none. Elixir needs no runtime type for the cursor, so the offset and page styles are plain integers.
+
+### Response media type and typed response headers (D167, D168)
+
+Rule: a caller picks the response media type with the per-call `Accept` header (`headers: %{"Accept" => "image/png"}`), which `BaseApi.put_header/3` puts in place of the declared list in any letter case, so exactly one Accept is sent. An operation whose 2xx responses declare headers gets `<Module>.Api.ResponseHeaders.<Operation>ResponseHeaders` (`lib/<package>/api/response_headers/`, rendered from `api/response_headers.mustache` by `BetterElixirCodegen.writeResponseHeadersFile`), whose `from_headers/1` reads `ApiResult.headers` case-insensitively into typed `nil`-able fields and raises `SerializationError` for a value that does not parse; only the parse functions a struct needs are emitted. Why: shared decisions. Where: `base_api.mustache`, `api/response_headers.mustache`. Test: `test/api/pet_api_test.mustache` (`operations 501`), `test/api/store_api_test.mustache` (`headers 501`, `headers 502`).

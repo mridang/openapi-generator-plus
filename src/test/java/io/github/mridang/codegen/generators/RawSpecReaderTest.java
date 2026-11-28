@@ -49,6 +49,31 @@ class RawSpecReaderTest {
     }
 
     @Test
+    @DisplayName("a QUERY operation and a custom method are read, keyed by their method and path")
+    void readsQueryAndAdditionalOperations(@TempDir final Path dir) throws IOException {
+        final Path spec =
+                write(dir,
+                        "openapi: 3.2.0\n"
+                                + "paths:\n"
+                                + "  /items:\n"
+                                + "    query:\n"
+                                + "      responses:\n"
+                                + "        '200':\n"
+                                + "          summary: Items found\n"
+                                + "          description: OK\n"
+                                + "    additionalOperations:\n"
+                                + "      LINK:\n"
+                                + "        responses:\n"
+                                + "          '204':\n"
+                                + "            summary: Items linked\n"
+                                + "            description: OK\n");
+        assertEquals(
+                Map.of("QUERY /items", Map.of("200", "Items found"),
+                        "LINK /items", Map.of("204", "Items linked")),
+                RawSpecReader.responseSummaries(spec.toString()));
+    }
+
+    @Test
     @DisplayName("a default response keeps its key and a response without a summary is skipped")
     void keepsDefaultAndSkipsPlainResponses(@TempDir final Path dir) throws IOException {
         final Path spec =

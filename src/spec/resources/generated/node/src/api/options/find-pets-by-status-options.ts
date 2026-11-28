@@ -4,7 +4,8 @@
 export interface FindPetsByStatusOptions {
   /**
    * Status values that need to be considered for filter
-   *
+   * @example status: Available only - available
+   * @example status: Sold pets - sold
    * @deprecated This parameter is deprecated.
    */
   readonly status?: string;

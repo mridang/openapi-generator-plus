@@ -23,6 +23,7 @@ import com.example.petstore.DefaultApiClient;
 import com.example.petstore.TransportOptions;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.AttachPetFilesOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
@@ -1207,6 +1208,85 @@ class PetApiTest {
     String wire = capturing.capturedBody.toString();
     assertThat(wire).contains("nickname=Good+Boy", "note=be+kind");
     assertThat(wire).doesNotContain("%20");
+  }
+
+  @Test
+  void bhvSerializationWire501AnAllowReservedFormFieldKeepsReservedCharactersLiteral()
+      throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    petApi.setPetPreferences(1L, new SetPetPreferencesOptions("rex").route("v1.0/beta:rc1 a#b"));
+
+    assertNotNull(capturing.capturedBody);
+    assertThat(capturing.capturedBody.toString())
+        .isEqualTo("nickname=rex&route=v1.0/beta:rc1%20a%23b");
+  }
+
+  @Test
+  void bhvSerializationWire502AStyledFormFieldIsWrittenWithItsStyleSeparator() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+    PetApi petApi = new PetApi(capturing, config);
+
+    petApi.setPetPreferences(1L, new SetPetPreferencesOptions("rex").aliases(List.of("a b", "c")));
+
+    assertNotNull(capturing.capturedBody);
+    assertThat(capturing.capturedBody.toString()).isEqualTo("nickname=rex&aliases=a+b%7Cc");
+  }
+
+  @Test
+  void bhvSerializationWire503AnEncodedMultipartPartCarriesItsContentTypeAndHeaders()
+      throws Exception {
+    final byte[][] capturedBody = new byte[1][];
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          capturedBody[0] = exchange.getRequestBody().readAllBytes();
+          byte[] responseBytes =
+              "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, responseBytes.length);
+          exchange.getResponseBody().write(responseBytes);
+          exchange.getResponseBody().close();
+        });
+    server.start();
+    try {
+      String baseUrl = "http://localhost:" + server.getAddress().getPort();
+      Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+      PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+      petApi.attachPetFiles(
+          1L,
+          new AttachPetFilesOptions(
+                  new ByteArrayInputStream("abc".getBytes(StandardCharsets.UTF_8)))
+              .caption("hello"));
+
+      assertNotNull(capturedBody[0]);
+      String wireText = new String(capturedBody[0], StandardCharsets.UTF_8);
+      assertThat(wireText)
+          .contains(
+              String.join(
+                  "\r\n",
+                  "Content-Disposition: form-data; name=\"caption\"",
+                  "Content-Type: text/markdown",
+                  "X-Caption-Format: commonmark",
+                  "",
+                  "hello"));
+      assertThat(wireText)
+          .contains(
+              String.join(
+                  "\r\n",
+                  "Content-Disposition: form-data; name=\"file\"; filename=\"file\"",
+                  "Content-Type: application/octet-stream",
+                  "",
+                  "abc",
+                  ""));
+    } finally {
+      server.stop(0);
+    }
   }
 
   @Test

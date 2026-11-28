@@ -250,7 +250,7 @@ final class SharedRuntimeContainer {
             for (String command : setupCommands) {
               logger.info("Running setup command for {}: {}", name, command);
               org.testcontainers.containers.Container.ExecResult result =
-                  container.execInContainer("sh", "-c", "cd /work && " + command);
+                  container.execInContainer("sh", "-c", bounded(command));
 
               if (!result.getStdout().isEmpty()) {
                 logger.info("Setup output:\n{}", result.getStdout());
@@ -282,6 +282,27 @@ final class SharedRuntimeContainer {
         });
   }
 
+  /* Every command a spec runs in a runtime container is bounded, so a stalled tool (an elixirc
+   * that deadlocked for over an hour) fails its test with a clear message instead of hanging the
+   * whole run. Generous on purpose: the slowest real command (a cold gradle or cargo build) stays
+   * well under it. */
+  static final int COMMAND_TIMEOUT_SECONDS = 1200;
+
+  /* The exit code coreutils and busybox timeout return when the limit is hit. */
+  static final int TIMED_OUT = 124;
+
+  /** Wraps a command so it runs from /work and is killed after {@link #COMMAND_TIMEOUT_SECONDS}. */
+  static String bounded(String command) {
+    String quoted = "'" + command.replace("'", "'\\''") + "'";
+    return "cd /work && if command -v timeout >/dev/null 2>&1; then timeout "
+        + COMMAND_TIMEOUT_SECONDS
+        + " sh -c "
+        + quoted
+        + "; else sh -c "
+        + quoted
+        + "; fi";
+  }
+
   static AbstractIntegrationSpec.ExecResult execInContainer(
       GenericContainer<?> container, Path outputDir, String[] commands) {
     try {
@@ -295,7 +316,7 @@ final class SharedRuntimeContainer {
         String shown = command.length() > 240 ? command.substring(0, 240) + " ..." : command;
 
         org.testcontainers.containers.Container.ExecResult result =
-            container.execInContainer("sh", "-c", "cd /work && " + command);
+            container.execInContainer("sh", "-c", bounded(command));
 
         output.append("=== ").append(shown).append(" ===\n");
         output.append(result.getStdout());
@@ -304,6 +325,9 @@ final class SharedRuntimeContainer {
         }
         output.append("\n");
 
+        if (result.getExitCode() == TIMED_OUT) {
+          output.append("TIMED OUT after ").append(COMMAND_TIMEOUT_SECONDS).append(" seconds\n");
+        }
         logger.info("Exit code: {}", result.getExitCode());
         if (!result.getStdout().isEmpty()) {
           logger.info("Output:\n{}", result.getStdout());

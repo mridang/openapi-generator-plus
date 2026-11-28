@@ -931,4 +931,27 @@ defmodule PetstoreClient.Api.StoreApiTest do
     notices = PetstoreClient.Api.StoreApi.watch_notices_stream!(api, nil, max_reconnects: 0)
     assert [%PetstoreClient.ServerSentEvent{data: "plain", raw: "plain"}] = Enum.to_list(notices)
   end
+
+  test "bhv headers 501 a response headers struct reads each declared header in its declared type, in any letter case" do
+    headers =
+      PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders.from_headers(%{
+        "x-revision" => "7",
+        "X-LABELS" => "a, b"
+      })
+
+    assert headers.x_revision == 7
+    assert headers.x_labels == ["a", "b"]
+    assert headers.x_archived == nil
+  end
+
+  test "bhv headers 502 a response header that does not parse as its declared type raises SerializationError" do
+    error =
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders.from_headers(%{
+          "x-revision" => "seven"
+        })
+      end
+
+    assert error.message == "Response header 'X-Revision' is not a valid integer: 'seven'"
+  end
 end

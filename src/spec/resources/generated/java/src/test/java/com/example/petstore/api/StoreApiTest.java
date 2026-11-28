@@ -19,6 +19,7 @@ import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.api.options.GetBySwatchOptions;
+import com.example.petstore.api.options.GetMemoResponseHeaders;
 import com.example.petstore.models.Availability;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
@@ -801,5 +802,22 @@ class StoreApiTest {
     mockedApi.traceMemo("m1");
 
     assertThat(methods).containsExactly("PATCH", "HEAD", "OPTIONS", "TRACE");
+  }
+
+  @Test
+  void bhvHeaders501TheTypedResponseHeadersReadEachDeclaredHeaderInItsTypeWhateverTheCase() {
+    GetMemoResponseHeaders headers =
+        GetMemoResponseHeaders.from(Map.of("x-revision", "7", "X-LABELS", "a, b"));
+
+    assertThat(headers.xRevision()).isEqualTo(7);
+    assertThat(headers.xLabels()).containsExactly("a", "b");
+    assertThat(headers.xArchived()).isNull();
+  }
+
+  @Test
+  void bhvHeaders502AResponseHeaderThatDoesNotParseAsItsTypeRaisesASerializationError() {
+    assertThatThrownBy(() -> GetMemoResponseHeaders.from(Map.of("x-revision", "seven")))
+        .isExactlyInstanceOf(com.example.petstore.errors.SerializationException.class)
+        .hasMessage("Response header 'X-Revision' is not a valid integer: 'seven'");
   }
 }

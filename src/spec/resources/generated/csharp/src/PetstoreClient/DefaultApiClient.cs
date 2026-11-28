@@ -960,6 +960,19 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 request.Content.Headers.ContentType =
                     System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
             }
+            else if (
+                contentType != null
+                && body is Dictionary<string, object>
+                && request.Content.Headers.ContentType != null
+                && contentType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase)
+                && System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType).MediaType
+                    is string multipartType
+            )
+            {
+                /* A multipart body declared under another subtype (multipart/mixed)
+                 * keeps the boundary the transport chose and names that subtype. */
+                request.Content.Headers.ContentType.MediaType = multipartType;
+            }
         }
         else if (
             string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)
@@ -1850,25 +1863,33 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     )
     {
         MultipartFormDataContent multipart = new();
-        foreach (KeyValuePair<string, object> part in formParts)
+        foreach (KeyValuePair<string, object> wrappedPart in formParts)
         {
-            if (part.Value is byte[] || part.Value is string || part.Value is Stream)
+            /* A part whose Encoding Object declares a Content-Type or headers
+               is wrapped in EncodedPart; allowReserved has no effect on a
+               multipart body, so that wrapper is dropped and the value sent
+               unchanged. */
+            ValueSerializer.EncodedPart? encoding =
+                wrappedPart.Value as ValueSerializer.EncodedPart;
+            object partValue =
+                ValueSerializer.UnwrapFormValue(wrappedPart.Value) ?? wrappedPart.Value;
+            if (partValue is byte[] || partValue is string || partValue is Stream)
             {
-                AddMultipartField(multipart, part.Key, part.Value, serializer);
+                AddMultipartField(multipart, wrappedPart.Key, partValue, serializer, encoding);
             }
-            else if (part.Value is System.Collections.IList list)
+            else if (partValue is System.Collections.IList list)
             {
                 foreach (object? item in list)
                 {
                     if (item != null)
                     {
-                        AddMultipartField(multipart, part.Key, item, serializer);
+                        AddMultipartField(multipart, wrappedPart.Key, item, serializer, encoding);
                     }
                 }
             }
             else
             {
-                AddMultipartField(multipart, part.Key, part.Value, serializer);
+                AddMultipartField(multipart, wrappedPart.Key, partValue, serializer, encoding);
             }
         }
         return multipart;
@@ -1878,7 +1899,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         MultipartFormDataContent multipart,
         string name,
         object value,
-        ObjectSerializer serializer
+        ObjectSerializer serializer,
+        ValueSerializer.EncodedPart? encoding
     )
     {
         switch (value)
@@ -1896,7 +1918,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         + "\"; "
                         + BuildFilenameDirective(name)
                 );
-                multipart.Add(bytesContent);
+                multipart.Add(ApplyPartEncoding(bytesContent, encoding));
                 break;
             case Stream stream:
                 ValidateMultipartFilename(name);
@@ -1910,7 +1932,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         + "\"; "
                         + BuildFilenameDirective(name)
                 );
-                multipart.Add(streamContent);
+                multipart.Add(ApplyPartEncoding(streamContent, encoding));
                 break;
             case string s:
                 ValidateMultipartFilename(name);
@@ -1920,7 +1942,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     "Content-Disposition",
                     EncodeHeaderValueUtf8("form-data; name=\"" + EscapeQuotedString(name) + "\"")
                 );
-                multipart.Add(stringContent);
+                multipart.Add(ApplyPartEncoding(stringContent, encoding));
                 break;
             default:
                 if (ObjectSerializer.IsScalar(value))
@@ -1939,7 +1961,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                             "form-data; name=\"" + EscapeQuotedString(name) + "\""
                         )
                     );
-                    multipart.Add(scalarContent);
+                    multipart.Add(ApplyPartEncoding(scalarContent, encoding));
                 }
                 else
                 {
@@ -1962,10 +1984,41 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         jsonContent,
                         "form-data; name=\"" + EscapeQuotedString(name) + "\""
                     );
-                    multipart.Add(jsonContent);
+                    multipart.Add(ApplyPartEncoding(jsonContent, encoding));
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Applies a part's Encoding Object: the declared Content-Type replaces the
+    /// one the SDK chose (a text part without one gets it), then each declared
+    /// header is written after it, in declaration order.
+    /// </summary>
+    private static HttpContent ApplyPartEncoding(
+        HttpContent part,
+        ValueSerializer.EncodedPart? encoding
+    )
+    {
+        if (encoding is null)
+        {
+            return part;
+        }
+        if (encoding.ContentType is not null)
+        {
+            part.Headers.ContentType = null;
+            _ = part.Headers.Remove("Content-Type");
+            _ = part.Headers.TryAddWithoutValidation("Content-Type", encoding.ContentType);
+        }
+        foreach (KeyValuePair<string, string> header in encoding.Headers)
+        {
+            _ = part.Headers.Remove(header.Key);
+            _ = part.Headers.TryAddWithoutValidation(
+                header.Key,
+                EncodeHeaderValueUtf8(header.Value)
+            );
+        }
+        return part;
     }
 
     /// <summary>

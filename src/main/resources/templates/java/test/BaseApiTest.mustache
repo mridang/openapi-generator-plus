@@ -1235,6 +1235,29 @@ public class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvOperations501 a per-call Accept header picks one declared response media type")
+        void bhvOperations501APerCallAcceptHeaderPicksOneDeclaredResponseMediaType() {
+            var client = new CapturingApiClient();
+            try (var photo =
+                    apiOver(client)
+                            .getPetPhoto(
+                                    1L,
+                                    1L,
+                                    new {{apiPackage}}.options.GetPetPhotoOptions()
+                                            .headers(Map.of("accept", "image/png")))) {
+                assertNotNull(photo);
+            } catch (Exception ignored) {
+                // The empty stream may fail to close; we only care about the captured headers
+            }
+            assertEquals(
+                    List.of("image/png"),
+                    client.capturedHeaders.entrySet().stream()
+                            .filter(header -> header.getKey().equalsIgnoreCase("Accept"))
+                            .map(Map.Entry::getValue)
+                            .toList());
+        }
+
+        @Test
         @DisplayName("bhvOperations096 an operation with no parameters and no security takes the per-call settings")
         void bhvOperations096AnOperationWithNothingElseTakesThePerCallSettings() {
             var client = new OverrideCapturingClient();

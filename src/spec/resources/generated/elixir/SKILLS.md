@@ -42,7 +42,7 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```elixir file
-defmodule Authentication do
+defmodule BearerAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
 
@@ -54,7 +54,7 @@ end
 ### Basic Auth
 
 ```elixir file
-defmodule Authentication do
+defmodule BasicAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
 
@@ -66,7 +66,7 @@ end
 ### API Key
 
 ```elixir file
-defmodule Authentication do
+defmodule ApiKeyAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.ApiKeyAuthenticator.new(
       "https://api.example.com", "key-name", "key-value", :header)
@@ -79,7 +79,7 @@ end
 ### OAuth2 Client Credentials
 
 ```elixir file
-defmodule Authentication do
+defmodule ClientCredentialsAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
       "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
@@ -92,7 +92,7 @@ end
 ### OAuth2 Authorization Code
 
 ```elixir file
-defmodule Authentication do
+defmodule AuthorizationCodeAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
       "https://api.example.com", "client-id", "client-secret",
@@ -107,7 +107,7 @@ end
 ### OAuth2 Password
 
 ```elixir file
-defmodule Authentication do
+defmodule PasswordAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
       "https://api.example.com", "client-id", "client-secret",
@@ -123,7 +123,7 @@ end
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```elixir file
-defmodule Authentication do
+defmodule ImplicitAuthentication do
   def client do
     authenticator =
       PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
@@ -138,7 +138,7 @@ end
 ### OpenID Connect
 
 ```elixir file
-defmodule Authentication do
+defmodule OpenIdConnectAuthentication do
   def client do
     authenticator = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(
       "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
@@ -192,7 +192,7 @@ end
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list. A server the spec gives a name is also found by that name with `Servers.by_name("name")`, which fails with `ArgumentError` when no server has the name. Pass the desired server's URL to the client:
 
 ```elixir file
 defmodule ServerClient do

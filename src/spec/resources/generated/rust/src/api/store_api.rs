@@ -1025,6 +1025,18 @@ impl StoreApi {
     /// Reads a memo from the server its path declares
     /// * `memo_id`: The memo to address
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// ### `memo_id` — Example
+    ///
+    /// ```json
+    /// m1
+    /// ```
+    ///
+    /// Response 200 example: A short memo
+    /// ```json
+    /// {"memoId":"m1","text":"Restock on Friday"}
+    /// ```
+    ///
+    /// Extension x-audience: internal-tools
     pub async fn get_memo(
         &self,
         memo_id: String,
@@ -2034,8 +2046,14 @@ impl StoreApi {
     }
 
     /// Checks that a memo exists with a HEAD request
-    /// * `memo_id`: The memo to address
+    /// Revisions of one memo, read and changed with the less common HTTP methods.
+    /// * `memo_id`: The memo whose revisions are read or changed
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// ### `memo_id` — Example
+    ///
+    /// ```json
+    /// m1
+    /// ```
     pub async fn head_memo(
         &self,
         memo_id: String,
@@ -2146,8 +2164,14 @@ impl StoreApi {
     }
 
     /// Lists the methods a memo accepts with an OPTIONS request
-    /// * `memo_id`: The memo to address
+    /// Revisions of one memo, read and changed with the less common HTTP methods.
+    /// * `memo_id`: The memo whose revisions are read or changed
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// ### `memo_id` — Example
+    ///
+    /// ```json
+    /// m1
+    /// ```
     pub async fn options_memo(
         &self,
         memo_id: String,
@@ -2258,9 +2282,28 @@ impl StoreApi {
     }
 
     /// Changes a memo with a PATCH request
-    /// * `memo_id`: The memo to address
+    /// Revisions of one memo, read and changed with the less common HTTP methods.
+    /// * `memo_id`: The memo whose revisions are read or changed
     /// * `memo`: The fields of the memo to change
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// ### `memo_id` — Example
+    ///
+    /// ```json
+    /// m1
+    /// ```
+    ///
+    /// Request body example: A short memo
+    /// ```json
+    /// {"memoId":"m1","text":"Restock on Friday"}
+    /// ```
+    /// Request body example: A memo kept as a file
+    /// ```json
+    /// https://example.com/memos/m1.json
+    /// ```
+    /// Response 200 example: A short memo
+    /// ```json
+    /// {"memoId":"m1","text":"Restock on Friday"}
+    /// ```
     pub async fn patch_memo(
         &self,
         memo_id: String,
@@ -2747,8 +2790,14 @@ impl StoreApi {
     }
 
     /// Echoes a memo request with a TRACE request
-    /// * `memo_id`: The memo to address
+    /// Revisions of one memo, read and changed with the less common HTTP methods.
+    /// * `memo_id`: The memo whose revisions are read or changed
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// ### `memo_id` — Example
+    ///
+    /// ```json
+    /// m1
+    /// ```
     pub async fn trace_memo(
         &self,
         memo_id: String,

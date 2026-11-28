@@ -12,8 +12,10 @@ package com.example.petstore.api
 import com.example.petstore.*
 import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetInventoryOptions
+import com.example.petstore.api.options.GetMemoResponseHeaders
 import com.example.petstore.api.options.SearchStoreOptions
 import com.example.petstore.errors.ApiException
+import com.example.petstore.errors.SerializationException
 import com.example.petstore.models.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -869,6 +871,27 @@ class StoreApiTest {
             }
 
             assertEquals(listOf("PATCH", "HEAD", "OPTIONS", "TRACE"), methods)
+        }
+
+        @Test
+        @DisplayName("bhvHeaders501 the response headers type reads each declared header in its type, in any letter case")
+        fun bhvHeaders501ResponseHeadersAreReadInTheirDeclaredTypes() {
+            val headers = GetMemoResponseHeaders.from(mapOf("x-revision" to "7", "X-LABELS" to "a, b"))
+
+            assertEquals(7, headers.xRevision)
+            assertEquals(listOf("a", "b"), headers.xLabels)
+            assertNull(headers.xArchived)
+        }
+
+        @Test
+        @DisplayName("bhvHeaders502 a declared response header that does not parse raises a serialization error")
+        fun bhvHeaders502UnparseableResponseHeaderRaisesASerializationError() {
+            val error =
+                assertThrows(SerializationException::class.java) {
+                    GetMemoResponseHeaders.from(mapOf("x-revision" to "seven"))
+                }
+
+            assertEquals("Response header 'X-Revision' is not a valid integer: 'seven'", error.message)
         }
     }
 }

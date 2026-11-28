@@ -871,6 +871,18 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   /// Reads a memo from the server its path declares
   /// `memoId` The memo to address
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
+  ///
+  /// Response 200 example: A short memo
+  /// ```json
+  /// {"memoId":"m1","text":"Restock on Friday"}
+  /// ```
+  ///
+  /// Extension x-audience: internal-tools
   @override
   Future<Memo> getMemo(
     String memoId,
@@ -1545,8 +1557,14 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /// Checks that a memo exists with a HEAD request
-  /// `memoId` The memo to address
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
+  /// `memoId` The memo whose revisions are read or changed
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
   @override
   Future<void> headMemo(String memoId, HeadMemoOptions? options) async {
     await headMemoWithHttpInfo(memoId, options);
@@ -1613,8 +1631,14 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /// Lists the methods a memo accepts with an OPTIONS request
-  /// `memoId` The memo to address
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
+  /// `memoId` The memo whose revisions are read or changed
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
   @override
   Future<void> optionsMemo(String memoId, OptionsMemoOptions? options) async {
     await optionsMemoWithHttpInfo(memoId, options);
@@ -1681,9 +1705,28 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /// Changes a memo with a PATCH request
-  /// `memoId` The memo to address
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
+  /// `memoId` The memo whose revisions are read or changed
   /// `memo` The fields of the memo to change
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
+  ///
+  /// Request body example: A short memo
+  /// ```json
+  /// {"memoId":"m1","text":"Restock on Friday"}
+  /// ```
+  /// Request body example: A memo kept as a file
+  /// ```json
+  /// https://example.com/memos/m1.json
+  /// ```
+  /// Response 200 example: A short memo
+  /// ```json
+  /// {"memoId":"m1","text":"Restock on Friday"}
+  /// ```
   @override
   Future<Memo> patchMemo(
     String memoId,
@@ -2004,8 +2047,14 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /// Echoes a memo request with a TRACE request
-  /// `memoId` The memo to address
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
+  /// `memoId` The memo whose revisions are read or changed
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
   @override
   Future<void> traceMemo(String memoId, TraceMemoOptions? options) async {
     await traceMemoWithHttpInfo(memoId, options);

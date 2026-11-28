@@ -185,7 +185,7 @@ $authenticator = new OAuth2ClientCredentialsAuthenticator(
 {{#hasServers}}
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `{{invokerPackage}}\Servers` class exposes each as a `ServerConfiguration` static method (e.g., `Servers::server0()`, `Servers::server1()`, ...) plus a `Servers::all()` array. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `{{invokerPackage}}\Servers` class exposes each as a `ServerConfiguration` static method (e.g., `Servers::server0()`, `Servers::server1()`, ...) plus a `Servers::all()` array. A server the spec gives a name is also found by that name with `Servers::byName('name')`, which fails with `\InvalidArgumentException` when no server has the name. Pass the desired server's URL to the client:
 
 ```php statements
 use {{invokerPackage}}\{{clientClassName}};

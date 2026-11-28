@@ -31,6 +31,7 @@ from petstore_client.api.options.find_pets_by_status_options import (
 from petstore_client.api.options.get_pet_by_id_options import GetPetByIdOptions
 from petstore_client.api.options.get_pet_by_name_options import GetPetByNameOptions
 from petstore_client.api.options.get_pet_by_note_options import GetPetByNoteOptions
+from petstore_client.api.options.get_pet_photo_options import GetPetPhotoOptions
 from petstore_client.api.options.get_pet_summary_options import GetPetSummaryOptions
 from petstore_client.api.options.get_pet_tag_options import GetPetTagOptions
 from petstore_client.api.options.set_pet_preferences_options import (
@@ -114,6 +115,7 @@ async def _capture_get(
         def do_GET(self) -> None:
             captured["path"] = self.path
             captured["headers"] = dict(self.headers.items())
+            captured["header_lines"] = list(self.headers.items())
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.end_headers()
@@ -677,6 +679,23 @@ class TestPetApi:
 
         assert result is not None
         result.close()
+
+    async def test_bhv_operations_501_the_per_call_accept_header_replaces_the_declared_media_types(
+        self,
+    ) -> None:
+        async def call(api: PetApi) -> None:
+            stream = await api.get_pet_photo(
+                1, 1, GetPetPhotoOptions(headers={"Accept": "image/png"})
+            )
+            stream.close()
+
+        captured = await _capture_get(call, content_type="image/png", reply=b"png")
+
+        assert [
+            value
+            for name, value in captured["header_lines"]
+            if name.lower() == "accept"
+        ] == ["image/png"]
 
     async def test_bhv_operations_053_get_pet_passport(self) -> None:
         result = await self.api.get_pet_passport(1)

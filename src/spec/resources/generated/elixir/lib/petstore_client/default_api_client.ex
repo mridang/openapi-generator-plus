@@ -1694,89 +1694,132 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   defp prepare_body(body, headers) when is_map(body) and not is_struct(body) do
-    boundary = generate_uuid()
-    content_type = "multipart/form-data; boundary=#{boundary}"
-    headers = Map.put(headers, "Content-Type", content_type)
-    serialized = build_multipart_body(body, boundary)
-    {serialized, headers}
+    multipart_body(body, headers)
   end
 
   # An ordered list of `{name, value}` parts (the order the spec declares the
   # form fields in) is a multipart body too.
-  defp prepare_body(body, headers) when is_list(body) do
-    boundary = generate_uuid()
-    content_type = "multipart/form-data; boundary=#{boundary}"
-    headers = Map.put(headers, "Content-Type", content_type)
-    serialized = build_multipart_body(body, boundary)
-    {serialized, headers}
-  end
+  defp prepare_body(body, headers) when is_list(body), do: multipart_body(body, headers)
 
   defp prepare_body(body, headers), do: {body, headers}
 
+  # A declared multipart subtype (`multipart/mixed`, `multipart/related`) is
+  # kept and gains the boundary; anything else is sent as multipart/form-data.
+  defp multipart_body(body, headers) do
+    boundary = generate_uuid()
+
+    {declared, headers} =
+      Enum.reduce(headers, {nil, %{}}, fn {k, v}, {found, acc} ->
+        if String.downcase(to_string(k)) == "content-type",
+          do: {v, acc},
+          else: {found, Map.put(acc, k, v)}
+      end)
+
+    subtype =
+      if is_binary(declared) and declared =~ ~r/\Amultipart\/[A-Za-z0-9!#$&^_.+-]+\z/i,
+        do: String.downcase(declared),
+        else: "multipart/form-data"
+
+    {build_multipart_body(body, boundary),
+     Map.put(headers, "Content-Type", "#{subtype}; boundary=#{boundary}")}
+  end
+
   @doc false
   # Public for testability: this is the exact serializer `prepare_body/2`
-  # uses for multipart/form-data request bodies. Exposed so the generated
-  # test suite can assert on per-part Content-Type derivation and field
-  # name preservation without reaching through the transport layer.
+  # uses for multipart request bodies. Exposed so the generated test suite
+  # can assert on per-part Content-Type derivation and field name
+  # preservation without reaching through the transport layer.
   def build_multipart_body(form_parts, boundary) do
     parts =
       Enum.flat_map(form_parts, fn {name, value} ->
-        case value do
-          values when is_list(values) ->
-            Enum.map(values, fn item -> multipart_part(name, item, boundary) end)
+        {value, encoding} = part_encoding(value)
+        items = if is_list(value), do: value, else: [value]
 
-          _ ->
-            [multipart_part(name, value, boundary)]
-        end
+        Enum.map(items, fn item ->
+          name |> multipart_part(item) |> apply_part_encoding(encoding) |> render_part(boundary)
+        end)
       end)
 
     Enum.join(parts) <> "--#{boundary}--\r\n"
   end
 
-  defp multipart_part(name, {:file, filename, content}, boundary) do
-    multipart_file_part(name, filename, content, nil, boundary)
+  # A value wrapped by ValueSerializer.encoded_part/3 carries the part
+  # Content-Type and part headers its Encoding Object declares.
+  defp part_encoding({:encoded_part, value, content_type, headers}),
+    do: {value, {content_type, headers}}
+
+  defp part_encoding(value), do: {value, {nil, []}}
+
+  # The declared Content-Type replaces the one the part would get (a text part
+  # that had none gains it); the declared headers follow it in order.
+  defp apply_part_encoding({disposition, content_type, content}, {declared, headers}) do
+    {disposition, declared || content_type, headers, content}
   end
 
-  defp multipart_part(name, {:file, filename, content, content_type}, boundary) do
-    multipart_file_part(name, filename, content, content_type, boundary)
+  defp render_part({disposition, content_type, headers, content}, boundary) do
+    type_line =
+      if content_type, do: "Content-Type: #{part_header_text(content_type)}\r\n", else: ""
+
+    header_lines =
+      Enum.map_join(headers, fn {name, value} ->
+        "#{part_header_text(name)}: #{part_header_text(value)}\r\n"
+      end)
+
+    "--#{boundary}\r\n#{disposition}\r\n#{type_line}#{header_lines}\r\n#{content}\r\n"
+  end
+
+  defp part_header_text(text) do
+    text = to_string(text)
+
+    if String.contains?(text, ["\r", "\n", <<0>>]) do
+      raise ArgumentError,
+            "multipart part header must not contain CR, LF or NUL characters (got: #{inspect(text)})"
+    end
+
+    text
+  end
+
+  # Each part is `{content_disposition, content_type_or_nil, content}`.
+  defp multipart_part(name, {:file, filename, content}) do
+    multipart_file_part(name, filename, content, nil)
+  end
+
+  defp multipart_part(name, {:file, filename, content, content_type}) do
+    multipart_file_part(name, filename, content, content_type)
   end
 
   # A raw-bytes part carries binary content with no explicit filename. The
   # cross-language contract (go/node/java) reuses the field name as the
   # filename and derives the Content-Type from that name's extension,
   # falling back to application/octet-stream when there is none.
-  defp multipart_part(name, {:raw, content}, boundary) do
-    multipart_file_part(name, to_string(name), content, nil, boundary)
+  defp multipart_part(name, {:raw, content}) do
+    multipart_file_part(name, to_string(name), content, nil)
   end
 
-  defp multipart_part(name, value, boundary) when is_binary(value) do
-    safe = sanitize_multipart_field_name(name)
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{value}\r\n"
+  defp multipart_part(name, value) when is_binary(value) do
+    {text_disposition(name), nil, value}
   end
 
   # A date, date-time, time or duration is a primitive: a plain text part in
   # the canonical stringify form, like a boolean, number or enum, with no part
   # Content-Type. Only an object/model/map is an application/json part.
-  defp multipart_part(name, %struct{} = value, boundary)
+  defp multipart_part(name, %struct{} = value)
        when struct in [DateTime, NaiveDateTime, Date, Time, Duration] do
-    multipart_text_part(name, value, boundary)
+    multipart_text_part(name, value)
   end
 
-  defp multipart_part(name, value, boundary) when is_map(value) do
-    safe = sanitize_multipart_field_name(name)
-    json_str = PetstoreClient.ObjectSerializer.serialize(value)
-
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n" <>
-      "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
+  defp multipart_part(name, value) when is_map(value) do
+    {text_disposition(name), "application/json", PetstoreClient.ObjectSerializer.serialize(value)}
   end
 
-  defp multipart_part(name, value, boundary), do: multipart_text_part(name, value, boundary)
+  defp multipart_part(name, value), do: multipart_text_part(name, value)
 
-  defp multipart_text_part(name, value, boundary) do
-    safe = sanitize_multipart_field_name(name)
-    text = PetstoreClient.ObjectSerializer.stringify(value)
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{text}\r\n"
+  defp multipart_text_part(name, value) do
+    {text_disposition(name), nil, PetstoreClient.ObjectSerializer.stringify(value)}
   end
+
+  defp text_disposition(name),
+    do: "Content-Disposition: form-data; name=\"#{sanitize_multipart_field_name(name)}\""
 
   # Validate/escape a multipart form field name before
   # interpolating it into a Content-Disposition header. Rejects
@@ -1793,12 +1836,9 @@ defmodule PetstoreClient.DefaultApiClient do
     escape_quoted(str)
   end
 
-  defp multipart_file_part(name, filename, content, content_type, boundary) do
-    disposition = build_content_disposition(name, filename)
-    ct = content_type || guess_mime_type(filename)
-
-    "--#{boundary}\r\n#{disposition}\r\n" <>
-      "Content-Type: #{ct}\r\n\r\n#{content}\r\n"
+  defp multipart_file_part(name, filename, content, content_type) do
+    {build_content_disposition(name, filename), content_type || guess_mime_type(filename),
+     content}
   end
 
   @doc """

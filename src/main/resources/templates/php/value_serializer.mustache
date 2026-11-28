@@ -117,6 +117,31 @@ final class ValueSerializer
     }
 
     /**
+     * Wraps a multipart field value in the Content-Type and part headers its
+     * OAS Encoding Object declares. A list is wrapped item by item, so every
+     * part of a repeated field carries the encoding; null stays null.
+     *
+     * @param mixed                 $value       the field value
+     * @param string|null           $contentType the declared part Content-Type, or null
+     * @param array<string, string> $headers     the declared part headers, in declaration order
+     * @return mixed the wrapped value, a list of wrapped items, or null
+     */
+    public static function encodedPart(mixed $value, ?string $contentType, array $headers): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (is_array($value)) {
+            return array_map(
+                static fn (mixed $item): EncodedPart => new EncodedPart($item, $contentType, $headers),
+                $value
+            );
+        }
+
+        return new EncodedPart($value, $contentType, $headers);
+    }
+
+    /**
      * Percent-encodes the JSON text of a `content:` cookie parameter. Only
      * A-Za-z0-9 - _ ~ stay literal: rawurlencode keeps the dot, so it is encoded too.
      */
@@ -180,6 +205,112 @@ final class ValueSerializer
             '%29' => ')', '%2A' => '*', '%2B' => '+', '%2C' => ',',
             '%3B' => ';', '%3D' => '=',
         ]);
+    }
+
+    /**
+     * Builds the Cookie header fragment for one OpenAPI 3.2 `style: cookie`
+     * parameter.
+     *
+     * A scalar is `name=value`; an array is `name=a,b` (explode false) or
+     * `name=a; name=b` (explode true); an object (a model, a \Ds\Map or an
+     * associative array, by wire name in declaration order, nulls left out)
+     * is `name=k1,v1,k2,v2` (explode false) or `k1=v1; k2=v2` (explode true).
+     * Values are never percent-encoded. A null value, an empty array and an
+     * empty object give the empty string, so nothing is sent.
+     *
+     * @param string $name    the parameter name
+     * @param mixed  $value   the parameter value
+     * @param bool   $explode whether the value explodes into one pair per item
+     *
+     * @return string the cookie pairs, or the empty string when there is nothing to send
+     *
+     * @throws \InvalidArgumentException when an item, key or value holds a character outside the RFC 6265 cookie-octets
+     * @throws SerializationException when an item or entry is a nested object, map or list
+     */
+    public static function cookiePairs(string $name, mixed $value, bool $explode): string
+    {
+        $value = self::expandCollection($value);
+        if ($value === null) {
+            return '';
+        }
+
+        $isMap = $value instanceof \Ds\Map || (is_array($value) && $value !== [] && !array_is_list($value));
+        if ((is_array($value) || is_object($value)) && ($isMap || (is_object($value) && self::isObjectValue($value)))) {
+            $pairs = [];
+            $flat = [];
+            foreach (self::wireEntries($name, $value) as $key => $item) {
+                $key = self::assertCookieOctets($name, $key);
+                $item = self::assertCookieOctets($name, $item);
+                $pairs[] = $key . '=' . $item;
+                $flat[] = $key;
+                $flat[] = $item;
+            }
+            if ($pairs === []) {
+                return '';
+            }
+
+            return $explode ? implode('; ', $pairs) : $name . '=' . implode(',', $flat);
+        }
+
+        if (is_array($value)) {
+            $items = [];
+            foreach ($value as $key => $item) {
+                self::assertScalarLeaf($name, $item, (string) $key, false);
+                $items[] = self::assertCookieOctets($name, ObjectSerializer::stringify($item));
+            }
+            if ($items === []) {
+                return '';
+            }
+            if ($explode) {
+                return implode('; ', array_map(static fn (string $item): string => $name . '=' . $item, $items));
+            }
+
+            return $name . '=' . implode(',', $items);
+        }
+
+        return $name . '=' . self::assertCookieOctets($name, ObjectSerializer::stringify($value));
+    }
+
+    /**
+     * Restores the reserved characters of an OAS `allowReserved: true` path
+     * parameter after it was percent-encoded as a path segment.
+     *
+     * Only `%2F %3A %40 %21 %24 %26 %27 %28 %29 %2A %2B %2C %3B %3D` (in
+     * either hex case) are turned back into their literal character. `?`,
+     * `#`, `[`, `]`, spaces and `%` (as `%25`) stay encoded, so a value the
+     * caller had already percent-encoded is never decoded.
+     *
+     * @param string $encoded the value after path-segment encoding
+     * @return string the encoded value with the reserved characters literal
+     */
+    public static function allowReservedInPath(string $encoded): string
+    {
+        return strtr($encoded, [
+            '%2F' => '/', '%2f' => '/', '%3A' => ':', '%3a' => ':', '%40' => '@',
+            '%21' => '!', '%24' => '$', '%26' => '&', '%27' => "'", '%28' => '(',
+            '%29' => ')', '%2A' => '*', '%2a' => '*', '%2B' => '+', '%2b' => '+',
+            '%2C' => ',', '%2c' => ',', '%3B' => ';', '%3b' => ';', '%3D' => '=',
+            '%3d' => '=',
+        ]);
+    }
+
+    /**
+     * Refuses a cookie value outside the RFC 6265 cookie-octets, the same
+     * check the operation applies to every other cookie parameter.
+     *
+     * @return string the value, unchanged
+     *
+     * @throws \InvalidArgumentException when the value holds a forbidden character
+     */
+    private static function assertCookieOctets(string $name, string $value): string
+    {
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $value) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for '$name' contains characters forbidden by RFC 6265"
+            );
+        }
+
+        return $value;
     }
 
     /**
@@ -381,24 +512,7 @@ final class ValueSerializer
         string $style,
         bool $explode
     ): string|array|null {
-        if (is_array($model)) {
-            $entries = $model;
-        } elseif ($model instanceof \Ds\Map) {
-            $entries = $model->toArray();
-        } else {
-            /* A model is flattened through the object serializer, so its keys are the wire names. */
-            $decoded = json_decode(ObjectSerializer::serialize($model), true);
-            $entries = is_array($decoded) ? $decoded : [];
-        }
-        $map = [];
-        foreach ($entries as $key => $item) {
-            /* A null entry is an unset value and is left out. */
-            if ($item === null) {
-                continue;
-            }
-            self::assertScalarLeaf($paramName, $item, (string) $key, true);
-            $map[(string) $key] = ObjectSerializer::stringify($item);
-        }
+        $map = self::wireEntries($paramName, $model);
         $encode = $location === 'path'
             ? self::encodePathSegment(...)
             : static fn (string $text): string => $text;
@@ -421,6 +535,41 @@ final class ValueSerializer
             'pipeDelimited' => $explode ? $map : implode('|', $flat),
             default => null,
         };
+    }
+
+    /**
+     * Flattens a model, a \Ds\Map or an associative array into its wire
+     * entries: wire names in declaration order mapped to their stringified
+     * values, with null entries (unset values) left out.
+     *
+     * @param object|array<array-key, mixed> $model a model, a \Ds\Map or an associative array
+     *
+     * @return array<string, string> the wire name of each set entry mapped to its text
+     *
+     * @throws SerializationException when an entry is a nested object, map or list
+     */
+    private static function wireEntries(string $paramName, object|array $model): array
+    {
+        if (is_array($model)) {
+            $entries = $model;
+        } elseif ($model instanceof \Ds\Map) {
+            $entries = $model->toArray();
+        } else {
+            /* A model is flattened through the object serializer, so its keys are the wire names. */
+            $decoded = json_decode(ObjectSerializer::serialize($model), true);
+            $entries = is_array($decoded) ? $decoded : [];
+        }
+        $map = [];
+        foreach ($entries as $key => $item) {
+            /* A null entry is an unset value and is left out. */
+            if ($item === null) {
+                continue;
+            }
+            self::assertScalarLeaf($paramName, $item, (string) $key, true);
+            $map[(string) $key] = ObjectSerializer::stringify($item);
+        }
+
+        return $map;
     }
 
     /**

@@ -35,6 +35,7 @@ object Servers {
             "/api/v3",
             "Relative URL (no variables)",
             emptyMap(),
+            null,
         )
 
     /**
@@ -60,6 +61,7 @@ object Servers {
                         listOf("v2", "v3"),
                     ),
             ),
+            null,
         )
 
     /**
@@ -79,6 +81,7 @@ object Servers {
                         listOf("o'neil", "a&b"),
                     ),
             ),
+            null,
         )
 
     /** All server configurations in declaration order. */
@@ -88,4 +91,17 @@ object Servers {
             SERVER_1,
             SERVER_2,
         )
+
+    /**
+     * The server the specification gives the name [name] (OpenAPI 3.2 `name`).
+     *
+     * @param name the server name
+     * @return the server with that name
+     * @throws IllegalArgumentException if no server has that name; the message lists the known names
+     */
+    fun byName(name: String): ServerConfiguration {
+        val known = ALL.mapNotNull { it.name }
+        return ALL.firstOrNull { it.name == name }
+            ?: throw IllegalArgumentException("Unknown server name '$name'. Known names: $known")
+    }
 }

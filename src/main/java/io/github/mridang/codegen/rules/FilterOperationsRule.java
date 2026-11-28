@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.rules;
 
+import io.github.mridang.codegen.OpenApi32ParserExtension;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -89,7 +90,10 @@ public class FilterOperationsRule implements CustomNormalizationRule {
 
     private boolean matches(PathItem.HttpMethod method, Operation operation, Set<String> wanted) {
         if (target == Target.METHODS) {
-            return wanted.contains(method.name().toLowerCase(Locale.ROOT));
+            /* A QUERY operation or one of additionalOperations is held in a post field (D159). */
+            String declared = OpenApi32ParserExtension.declaredMethod(operation);
+            String name = declared != null ? declared : method.name();
+            return wanted.contains(name.toLowerCase(Locale.ROOT));
         }
         if (operation.getTags() == null) {
             return false;

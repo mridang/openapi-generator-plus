@@ -532,7 +532,11 @@ public class PetApi : BaseApi, IPetApi
         Dictionary<string, string> headerParams = [];
         Dictionary<string, object> formBody = [];
         formBody["files"] = options.Files;
-        formBody["metadata"] = options.Metadata;
+        formBody["metadata"] = new ValueSerializer.EncodedPart(
+            options.Metadata,
+            "application/json",
+            []
+        );
 
         return await InvokeApiForResultAsync<List<Photo>>(
                 "POST",
@@ -758,7 +762,11 @@ public class PetApi : BaseApi, IPetApi
         formBody["file"] = options.File;
         if (options != null && options.Caption != null)
         {
-            formBody["caption"] = options.Caption;
+            formBody["caption"] = new ValueSerializer.EncodedPart(
+                options.Caption,
+                "text/markdown",
+                [new("X-Caption-Format", "commonmark")]
+            );
         }
 
         return await InvokeApiForResultAsync<ApiResponse>(
@@ -2347,6 +2355,11 @@ public class PetApi : BaseApi, IPetApi
     /// <param name="asOf">Summary date, sent as a matrix-style path segment</param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    ///
+    /// <example>
+    /// <para>Response 200 example: Example</para>
+    /// <para>hello</para>
+    /// </example>
     /// <returns><![CDATA[string]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
@@ -2396,6 +2409,11 @@ public class PetApi : BaseApi, IPetApi
     /// <param name="asOf">Summary date, sent as a matrix-style path segment</param>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    ///
+    /// <example>
+    /// <para>Response 200 example: Example</para>
+    /// <para>hello</para>
+    /// </example>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
@@ -4531,6 +4549,25 @@ public class PetApi : BaseApi, IPetApi
         if (options != null && options.Snooze != null)
         {
             formBody["snooze"] = options.Snooze;
+        }
+        if (options != null && options.Route != null)
+        {
+            formBody["route"] = new ValueSerializer.AllowReservedValue(options.Route);
+        }
+        if (options != null && options.Aliases != null)
+        {
+            formBody["aliases"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "aliases",
+                    options.Aliases,
+                    "query",
+                    "List<string>",
+                    null,
+                    "pipeDelimited",
+                    false
+                ),
+                false
+            )!;
         }
 
         return await InvokeApiForResultAsync<ApiResponse>(

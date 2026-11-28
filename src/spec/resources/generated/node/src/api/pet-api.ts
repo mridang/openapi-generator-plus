@@ -778,7 +778,11 @@ export class PetApi extends BaseApi implements PetApiInterface {
       formBody["files"] = options.files;
     }
     if (options?.metadata != null) {
-      formBody["metadata"] = options.metadata;
+      formBody["metadata"] = ValueSerializer.encodedPart(
+        options.metadata,
+        "application/json",
+        [],
+      );
     }
 
     return await this.invokeApiForResult(
@@ -967,7 +971,11 @@ export class PetApi extends BaseApi implements PetApiInterface {
       formBody["file"] = options.file;
     }
     if (options?.caption != null) {
-      formBody["caption"] = options.caption;
+      formBody["caption"] = ValueSerializer.encodedPart(
+        options.caption,
+        "text/markdown",
+        [["X-Caption-Format", "commonmark"]],
+      );
     }
 
     return await this.invokeApiForResult(
@@ -2242,6 +2250,9 @@ export class PetApi extends BaseApi implements PetApiInterface {
   /**
    * Get a <plain> \"text\" summary & it's short
    * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+   *
+   * Response 200 example: Example
+   * hello
    * @param petId  (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
    * @param options options for query, header, form, and cookie parameters
@@ -4010,6 +4021,8 @@ export class PetApi extends BaseApi implements PetApiInterface {
    * @param options.ratio  (optional)
    * @param options.urgent  (optional)
    * @param options.snooze  (optional)
+   * @param options.route  (optional)
+   * @param options.aliases  (optional)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
@@ -4106,6 +4119,34 @@ export class PetApi extends BaseApi implements PetApiInterface {
     }
     if (options?.snooze != null) {
       formBody["snooze"] = options.snooze;
+    }
+    if (options?.route != null) {
+      formBody["route"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "route",
+          options.route,
+          "form",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        true,
+      );
+    }
+    if (options?.aliases != null) {
+      formBody["aliases"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "aliases",
+          options.aliases,
+          "query",
+          "Array<string>",
+          null,
+          "pipeDelimited",
+          false,
+        ),
+        false,
+      );
     }
 
     return await this.invokeApiForResult(

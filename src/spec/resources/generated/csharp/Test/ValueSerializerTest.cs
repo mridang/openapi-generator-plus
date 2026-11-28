@@ -17,6 +17,12 @@ namespace Test;
 
 public class ValueSerializerTest
 {
+    private static readonly List<string> CookieItems = ["a", "b"];
+
+    private static readonly List<string> CookieItemWithSpace = ["a b"];
+
+    private static readonly List<string> CookieItemWithComma = ["a,b"];
+
     // -- enum parameters: must serialize the OpenAPI wire value, not the C#
     //    member name (TestHue.Red -> "red", not "Red") --
 
@@ -1422,57 +1428,6 @@ public class ValueSerializerTest
         Assert.Equal("v1/beta", wrapped.Value);
         Assert.Null(ValueSerializer.MaybeAllowReserved(null, true));
     }
-}
-
-/// <summary>
-/// A stand-in enum for the wire-value tests above. It is declared here rather
-/// than taken from the generated models so the test holds for EVERY spec this
-/// SDK is generated from — no spec is guaranteed to contain a string enum. It
-/// mirrors how the generator emits enums: a [JsonConverter] maps each member to
-/// its OpenAPI wire string, which is what ObjectSerializer.Stringify round-trips
-/// through.
-/// </summary>
-[System.Text.Json.Serialization.JsonConverter(typeof(TestHueConverter))]
-public enum TestHue
-{
-    Red,
-    Blue,
-    Green,
-}
-
-public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
-{
-    public override TestHue Read(
-        ref System.Text.Json.Utf8JsonReader reader,
-        Type typeToConvert,
-        System.Text.Json.JsonSerializerOptions options
-    )
-    {
-        return reader.GetString() switch
-        {
-            "red" => TestHue.Red,
-            "blue" => TestHue.Blue,
-            "green" => TestHue.Green,
-            _ => throw new System.Text.Json.JsonException(),
-        };
-    }
-
-    public override void Write(
-        System.Text.Json.Utf8JsonWriter writer,
-        TestHue value,
-        System.Text.Json.JsonSerializerOptions options
-    )
-    {
-        writer.WriteStringValue(
-            value switch
-            {
-                TestHue.Red => "red",
-                TestHue.Blue => "blue",
-                TestHue.Green => "green",
-                _ => throw new System.Text.Json.JsonException(),
-            }
-        );
-    }
 
     [Fact]
     public void BhvMisc083ARawQueryKeepsItsRepeatedKeysValuesAndEscapesAsWritten()
@@ -1637,6 +1592,106 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
             rendered.EndsWith("+00:00", StringComparison.Ordinal)
                 || rendered.EndsWith('Z')
                 || rendered.EndsWith("%2B00:00", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void BhvSerializationparam501CookiePairsWritesEachStyleCookieShape()
+    {
+        var fields = new Dictionary<string, object?> { ["k1"] = "v1", ["k2"] = "v2" };
+        Assert.Equal("region=eu", ValueSerializer.CookiePairs("region", "eu", true));
+        Assert.Equal("region=a,b", ValueSerializer.CookiePairs("region", CookieItems, false));
+        Assert.Equal(
+            "region=a; region=b",
+            ValueSerializer.CookiePairs("region", CookieItems, true)
+        );
+        Assert.Equal("region=k1,v1,k2,v2", ValueSerializer.CookiePairs("region", fields, false));
+        Assert.Equal("k1=v1; k2=v2", ValueSerializer.CookiePairs("region", fields, true));
+        Assert.Equal("region=a%2Cb", ValueSerializer.CookiePairs("region", "a%2Cb", true));
+        Assert.Equal("", ValueSerializer.CookiePairs("region", null, true));
+    }
+
+    [Fact]
+    public void BhvSerializationparam502CookiePairsRefusesValuesOutsideTheCookieOctetSet()
+    {
+        var space = Assert.Throws<ArgumentException>(() =>
+            ValueSerializer.CookiePairs("region", CookieItemWithSpace, false)
+        );
+        Assert.Contains("'region'", space.Message, StringComparison.Ordinal);
+        var semicolon = Assert.Throws<ArgumentException>(() =>
+            ValueSerializer.CookiePairs("region", "a;b", true)
+        );
+        Assert.Contains("'region'", semicolon.Message, StringComparison.Ordinal);
+        var comma = Assert.Throws<ArgumentException>(() =>
+            ValueSerializer.CookiePairs("region", CookieItemWithComma, true)
+        );
+        Assert.Contains("'region'", comma.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSerializationparam503AllowReservedInPathRestoresOnlyTheReservedCharacters()
+    {
+        Assert.Equal(
+            "v1.0/beta:rc1@x",
+            ValueSerializer.AllowReservedInPath(
+                ValueSerializer.EncodePathSegment("v1.0/beta:rc1@x")
+            )
+        );
+        Assert.Equal(
+            "a%3Fb%23c%5Bd%5De%25f%20g",
+            ValueSerializer.AllowReservedInPath(ValueSerializer.EncodePathSegment("a?b#c[d]e%f g"))
+        );
+        Assert.Equal("/", ValueSerializer.AllowReservedInPath("%2f"));
+    }
+}
+
+/// <summary>
+/// A stand-in enum for the wire-value tests above. It is declared here rather
+/// than taken from the generated models so the test holds for EVERY spec this
+/// SDK is generated from — no spec is guaranteed to contain a string enum. It
+/// mirrors how the generator emits enums: a [JsonConverter] maps each member to
+/// its OpenAPI wire string, which is what ObjectSerializer.Stringify round-trips
+/// through.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(TestHueConverter))]
+public enum TestHue
+{
+    Red,
+    Blue,
+    Green,
+}
+
+public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
+{
+    public override TestHue Read(
+        ref System.Text.Json.Utf8JsonReader reader,
+        Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options
+    )
+    {
+        return reader.GetString() switch
+        {
+            "red" => TestHue.Red,
+            "blue" => TestHue.Blue,
+            "green" => TestHue.Green,
+            _ => throw new System.Text.Json.JsonException(),
+        };
+    }
+
+    public override void Write(
+        System.Text.Json.Utf8JsonWriter writer,
+        TestHue value,
+        System.Text.Json.JsonSerializerOptions options
+    )
+    {
+        writer.WriteStringValue(
+            value switch
+            {
+                TestHue.Red => "red",
+                TestHue.Blue => "blue",
+                TestHue.Green => "green",
+                _ => throw new System.Text.Json.JsonException(),
+            }
         );
     }
 }

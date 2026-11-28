@@ -181,6 +181,31 @@ func TestBhvServers004_ServerConfiguration_URLRejectsADefaultOutsideTheEnum(t *t
 }
 
 // The rejection names the offending value, the variable and every allowed value.
+func TestBhvServers501_ServerConfiguration_KeepsItsNameAndAServerWithoutOneHasNone(t *testing.T) {
+	t.Parallel()
+	named := petstore.NewNamedServerConfiguration("primary", "https://api.example.com", "", nil)
+	unnamed := petstore.NewServerConfiguration("https://api.example.com", "", nil)
+
+	if named.Name() != "primary" {
+		t.Errorf("expected name %q, got %q", "primary", named.Name())
+	}
+	if unnamed.Name() != "" {
+		t.Errorf("expected no name, got %q", unnamed.Name())
+	}
+}
+
+func TestBhvServers502_ServerConfiguration_UnknownServerNameIsRejectedWithTheKnownNames(t *testing.T) {
+	t.Parallel()
+	server, err := petstore.ServerByName("missing")
+	want := "unknown server: unknown server name 'missing'. Known names: []"
+	if server != nil || err == nil || err.Error() != want {
+		t.Errorf("expected message %q, got %v", want, err)
+	}
+	if !errors.Is(err, petstore.ErrUnknownServer) {
+		t.Errorf("expected ErrUnknownServer, got %v", err)
+	}
+}
+
 func TestBhvServers012_ServerConfiguration_RejectionMessageNamesValueVariableAndAllowedValues(t *testing.T) {
 	t.Parallel()
 	server := petstore.NewServerConfiguration(

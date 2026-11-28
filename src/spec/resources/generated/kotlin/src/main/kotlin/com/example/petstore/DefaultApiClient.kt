@@ -774,13 +774,16 @@ class DefaultApiClient internal constructor(
             body is Map<*, *> -> {
                 val formFields = body as Map<String, Any?>
                 val parts = MultipartWriter()
-                for ((fieldName, value) in formFields) {
+                for ((fieldName, wrapped) in formFields) {
+                    // A field whose Encoding Object declares the part's Content-Type or headers arrives wrapped.
+                    val encoding = wrapped as? ValueSerializer.EncodedPart
+                    val value = ValueSerializer.unwrapFormValue(wrapped)
                     when (value) {
                         is List<*> ->
                             value.forEach { item ->
-                                appendFormField(parts, fieldName, item)
+                                appendFormField(parts, fieldName, item, encoding)
                             }
-                        else -> appendFormField(parts, fieldName, value)
+                        else -> appendFormField(parts, fieldName, value, encoding)
                     }
                 }
                 builder.setBody(parts.build(declaredMultipartType(mergedHeaders["Content-Type"])))
@@ -822,7 +825,12 @@ class DefaultApiClient internal constructor(
         parts: MultipartWriter,
         fieldName: String,
         value: Any?,
+        encoding: ValueSerializer.EncodedPart? = null,
     ) {
+        /* The declared part Content-Type replaces the one chosen below (a text part that had
+         * none gets it); the declared part headers follow it in declaration order. */
+        val declaredType = encoding?.contentType
+        val partHeaders = encoding?.headers.orEmpty()
         // Validate the field name on every branch (string, number,
         // boolean, JSON, binary) before it lands in Content-Disposition, so
         // CR/LF/NUL are rejected even when the value is not a ByteArray.
@@ -836,8 +844,9 @@ class DefaultApiClient internal constructor(
                 parts.part(
                     fieldName,
                     buildFilenameDirective(fieldName),
-                    contentTypeForFilename(fieldName).toString(),
+                    declaredType ?: contentTypeForFilename(fieldName).toString(),
                     value,
+                    partHeaders,
                 )
             }
             null -> {}
@@ -846,10 +855,10 @@ class DefaultApiClient internal constructor(
             // stringify form; only an object or model becomes a JSON part.
             is String, is Number, is Boolean, is Enum<*>, is java.time.temporal.TemporalAccessor,
             is java.time.Duration, is java.net.URI,
-            -> parts.part(fieldName, null, null, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8))
+            -> parts.part(fieldName, null, declaredType, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8), partHeaders)
             else ->
                 if (value::class.qualifiedName == "kotlin.uuid.Uuid") {
-                    parts.part(fieldName, null, null, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8))
+                    parts.part(fieldName, null, declaredType, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8), partHeaders)
                 } else {
                     // Serialize the object part through the SDK's configured
                     // ObjectSerializer, NOT a bare Json instance: the configured
@@ -865,8 +874,9 @@ class DefaultApiClient internal constructor(
                     parts.part(
                         fieldName,
                         null,
-                        ContentType.Application.Json.toString(),
+                        declaredType ?: ContentType.Application.Json.toString(),
                         json.toByteArray(Charsets.UTF_8),
+                        partHeaders,
                     )
                 }
         }
@@ -1495,12 +1505,16 @@ internal class MultipartWriter {
     private val boundary = "----" + generateRequestId().replace("-", "")
     private val out = java.io.ByteArrayOutputStream()
 
-    /** Appends one part; [filenameDirective] and [contentType] are omitted when null. */
+    /**
+     * Appends one part; [filenameDirective] and [contentType] are omitted when null, and each of
+     * [headers] (a part header the operation's Encoding Object declares) follows the Content-Type.
+     */
     fun part(
         name: String,
         filenameDirective: String?,
         contentType: String?,
         content: ByteArray,
+        headers: Map<String, String> = emptyMap(),
     ) {
         val escapedName = name.replace("\\", "\\\\").replace("\"", "\\\"")
         val head = StringBuilder()
@@ -1509,6 +1523,16 @@ internal class MultipartWriter {
         if (filenameDirective != null) head.append("; ").append(filenameDirective)
         head.append("\r\n")
         if (contentType != null) head.append("Content-Type: ").append(contentType).append("\r\n")
+        for ((headerName, headerValue) in headers) {
+            require(headerValue.none { it == '\r' || it == '\n' || it == '\u0000' }) {
+                "multipart part header $headerName must not contain CR, LF, or NUL characters"
+            }
+            head
+                .append(headerName)
+                .append(": ")
+                .append(headerValue)
+                .append("\r\n")
+        }
         head.append("\r\n")
         out.write(head.toString().toByteArray(Charsets.UTF_8))
         out.write(content)

@@ -32,6 +32,7 @@ import { HeaderSelector } from "../header-selector.js";
 import { ObjectSerializer, isTemporalValue } from "../object-serializer.js";
 import {
   AllowReservedValue,
+  EncodedPart,
   ExplodedObject,
   ValueSerializer,
 } from "../value-serializer.js";
@@ -1357,7 +1358,9 @@ export abstract class BaseApi {
         !(body instanceof Blob) &&
         !(body instanceof Uint8Array)
       ) {
-        for (const value of Object.values(body as Record<string, unknown>)) {
+        for (const field of Object.values(body as Record<string, unknown>)) {
+          /* A part with a declared encoding is wrapped; its bytes are the value. */
+          const value = EncodedPart.unwrap(field);
           if (
             Buffer.isBuffer(value) ||
             value instanceof Blob ||
@@ -1411,27 +1414,59 @@ export abstract class BaseApi {
         }
         return wellFormed(ObjectSerializer.stringify(value));
       };
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(
+      /* The serialized text only contains a percent sign as an escape, so
+       * %7E is always an encoded tilde and a bare asterisk is always literal. */
+      const encodeComponent = (text: string): string =>
+        new URLSearchParams([["", text]])
+          .toString()
+          .slice(1)
+          .replace(/\*/g, "%2A")
+          .replace(/%7E/g, "~");
+      const pairs: string[] = [];
+      for (const [key, rawValue] of Object.entries(
         body as Record<string, unknown>,
       )) {
+        /* A field whose Encoding Object sets allowReserved: true arrives
+         * wrapped; its values keep the RFC 3986 reserved characters literal
+         * (the query allow-reserved encoder, a space as %20), and its key is
+         * encoded like any other. A part encoding (D166) only shapes a
+         * multipart body, so it is unwrapped and ignored here. */
+        let value: unknown = EncodedPart.unwrap(rawValue);
+        let allowReserved = false;
+        if (value instanceof AllowReservedValue) {
+          value = value.value;
+          allowReserved = true;
+        }
         if (value == null) {
           continue;
         }
-        if (Array.isArray(value)) {
+        const encodedKey = encodeComponent(wellFormed(key));
+        const encodeValue = (item: unknown): string => {
+          const text = scalar(key, item);
+          return allowReserved
+            ? ValueSerializer.encodeQueryAllowingReserved(text)
+            : encodeComponent(text);
+        };
+        if (value instanceof ExplodedObject) {
+          /* A styled (D165) object field exploded into one pair per property,
+           * under the property's own name. */
+          for (const [name, entry] of value.entries) {
+            pairs.push(
+              `${encodeComponent(wellFormed(name))}=${encodeValue(entry)}`,
+            );
+          }
+        } else if (Array.isArray(value)) {
           for (const item of value) {
             if (item == null) {
               continue;
             }
-            params.append(wellFormed(key), scalar(key, item));
+            pairs.push(`${encodedKey}=${encodeValue(item)}`);
           }
         } else {
-          params.append(wellFormed(key), scalar(key, value));
+          pairs.push(`${encodedKey}=${encodeValue(value)}`);
         }
       }
-      /* The serialized text only contains a percent sign as an escape, so
-       * %7E is always an encoded tilde and a bare asterisk is always literal. */
-      return params.toString().replace(/\*/g, "%2A").replace(/%7E/g, "~");
+      return pairs.join("&");
     }
     return ObjectSerializer.serialize(body);
   }

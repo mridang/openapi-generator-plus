@@ -79,6 +79,10 @@ public final class DefaultApiClient implements ApiClient {
 
   private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();
 
+  /** A plain {@code multipart/<subtype>} media type, without parameters. */
+  private static final Pattern MULTIPART_MEDIA_TYPE =
+      Pattern.compile("multipart/([!#$%&'*+.^_`|~0-9A-Za-z-]+)", Pattern.CASE_INSENSITIVE);
+
   /*
    * Shared empty-body publisher. HttpRequest.BodyPublishers.noBody() returns a
    * fresh instance on every call, so the redirect logic must compare against
@@ -1334,7 +1338,9 @@ public final class DefaultApiClient implements ApiClient {
       bodyPublisher = NO_BODY;
     } else if (body instanceof Map<?, ?> formMap) {
       String boundary = UUID.randomUUID().toString();
-      mergedHeaders.put("Content-Type", "multipart/form-data; boundary=" + boundary);
+      String subtype = multipartSubtype(mergedHeaders);
+      mergedHeaders.keySet().removeIf(name -> name.equalsIgnoreCase("Content-Type"));
+      mergedHeaders.put("Content-Type", "multipart/" + subtype + "; boundary=" + boundary);
       bodyPublisher = buildMultipartBody(formMap, boundary);
     } else if (body instanceof byte[] bytes) {
       bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(bytes);
@@ -1834,7 +1840,8 @@ public final class DefaultApiClient implements ApiClient {
       return false;
     }
     if (body instanceof Map<?, ?> parts) {
-      for (Object part : parts.values()) {
+      for (Object field : parts.values()) {
+        Object part = ObjectSerializer.withoutPartEncoding(field);
         if (part instanceof InputStream) {
           return false;
         }
@@ -1923,6 +1930,22 @@ public final class DefaultApiClient implements ApiClient {
     } catch (IllegalArgumentException unusableLocation) {
       return false;
     }
+  }
+
+  /**
+   * The multipart subtype a form body is sent as: the one the request's Content-Type declares when
+   * it is a plain {@code multipart/<subtype>} (such as {@code mixed}), otherwise {@code form-data}.
+   */
+  static String multipartSubtype(Map<String, String> headers) {
+    for (Map.Entry<String, String> header : headers.entrySet()) {
+      if (header.getKey().equalsIgnoreCase("Content-Type") && header.getValue() != null) {
+        Matcher matcher = MULTIPART_MEDIA_TYPE.matcher(header.getValue().trim());
+        if (matcher.matches()) {
+          return matcher.group(1).toLowerCase(Locale.ROOT);
+        }
+      }
+    }
+    return "form-data";
   }
 
   private static boolean hasHeader(Map<String, String> headers, String name) {
@@ -2292,6 +2315,17 @@ public final class DefaultApiClient implements ApiClient {
         for (Object item : list) {
           addMultipartField(byteArrays, boundary, fieldName, item);
         }
+      } else if (value instanceof ObjectSerializer.EncodedPart encoded
+          && encoded.value() instanceof java.util.List<?> list) {
+        /* A list part whose Encoding Object declares a Content-Type or part
+         * headers carries them on every part it is sent as. */
+        for (Object item : list) {
+          addMultipartField(
+              byteArrays,
+              boundary,
+              fieldName,
+              new ObjectSerializer.EncodedPart(item, encoded.contentType(), encoded.headers()));
+        }
       } else {
         addMultipartField(byteArrays, boundary, fieldName, value);
       }
@@ -2311,8 +2345,21 @@ public final class DefaultApiClient implements ApiClient {
     return HttpRequest.BodyPublishers.ofByteArray(result);
   }
 
+  /**
+   * Append one part: its Content-Disposition, its Content-Type (the one an {@link
+   * ObjectSerializer.EncodedPart} declares, otherwise the type the SDK chooses; a text part has
+   * none by default), each declared part header in order, then the content.
+   */
   private void addMultipartField(
-      List<byte[]> byteArrays, String boundary, String fieldName, Object value) {
+      List<byte[]> byteArrays, String boundary, String fieldName, Object part) {
+    Object value = part;
+    String partContentType = null;
+    Map<String, String> partHeaders = Map.of();
+    if (part instanceof ObjectSerializer.EncodedPart encoded) {
+      value = encoded.value();
+      partContentType = encoded.contentType();
+      partHeaders = encoded.headers();
+    }
     validateMultipartFieldName(fieldName);
     String safeName = escapeMultipartFieldName(fieldName);
     byte[] separator =
@@ -2320,6 +2367,9 @@ public final class DefaultApiClient implements ApiClient {
             .getBytes(StandardCharsets.UTF_8);
     byteArrays.add(separator);
 
+    String disposition;
+    @Nullable String contentType;
+    byte[] content;
     if (value instanceof File file) {
       String fileName = file.getName();
       validateMultipartFilename(fileName);
@@ -2332,49 +2382,25 @@ public final class DefaultApiClient implements ApiClient {
       if (mimeType == null) {
         mimeType = guessMimeTypeFromName(fileName);
       }
-      byteArrays.add(
-          ("\""
-                  + safeName
-                  + "\"; "
-                  + buildFilenameDirective(fileName)
-                  + "\r\n"
-                  + "Content-Type: "
-                  + mimeType
-                  + "\r\n\r\n")
-              .getBytes(StandardCharsets.UTF_8));
+      disposition = "\"" + safeName + "\"; " + buildFilenameDirective(fileName);
+      contentType = mimeType;
       try {
-        byteArrays.add(Files.readAllBytes(file.toPath()));
+        content = Files.readAllBytes(file.toPath());
       } catch (IOException e) {
         throw new IllegalArgumentException("Failed to read file: " + file, e);
       }
     } else if (value instanceof byte[] bytes) {
       validateMultipartFilename(fieldName);
-      byteArrays.add(
-          ("\""
-                  + safeName
-                  + "\"; "
-                  + buildFilenameDirective(fieldName)
-                  + "\r\n"
-                  + "Content-Type: "
-                  + guessMimeTypeFromName(fieldName)
-                  + "\r\n\r\n")
-              .getBytes(StandardCharsets.UTF_8));
-      byteArrays.add(bytes);
+      disposition = "\"" + safeName + "\"; " + buildFilenameDirective(fieldName);
+      contentType = guessMimeTypeFromName(fieldName);
+      content = bytes;
     } else if (value instanceof InputStream stream) {
       validateMultipartFilename(fieldName);
+      disposition = "\"" + safeName + "\"; " + buildFilenameDirective(fieldName);
+      contentType = guessMimeTypeFromName(fieldName);
       /* The caller owns the stream: it is read but never closed here. */
       try {
-        byteArrays.add(
-            ("\""
-                    + safeName
-                    + "\"; "
-                    + buildFilenameDirective(fieldName)
-                    + "\r\n"
-                    + "Content-Type: "
-                    + guessMimeTypeFromName(fieldName)
-                    + "\r\n\r\n")
-                .getBytes(StandardCharsets.UTF_8));
-        byteArrays.add(stream.readAllBytes());
+        content = stream.readAllBytes();
       } catch (IOException e) {
         throw new IllegalArgumentException("Failed to read stream: " + fieldName, e);
       }
@@ -2391,20 +2417,34 @@ public final class DefaultApiClient implements ApiClient {
       /* OAS Encoding Object: a primitive part is text/plain, so it is a
        * plain text part (no part Content-Type) carrying the canonical
        * stringify form; only objects and models are JSON parts. */
-      byteArrays.add(
-          ("\"" + safeName + "\"\r\n\r\n" + ObjectSerializer.toFormValue(value))
-              .getBytes(StandardCharsets.UTF_8));
+      disposition = "\"" + safeName + "\"";
+      contentType = null;
+      content = ObjectSerializer.toFormValue(value).getBytes(StandardCharsets.UTF_8);
     } else {
       try {
-        String json = MULTIPART_MAPPER.writeValueAsString(value);
-        byteArrays.add(
-            ("\"" + safeName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
-                .getBytes(StandardCharsets.UTF_8));
+        disposition = "\"" + safeName + "\"";
+        contentType = "application/json";
+        content = MULTIPART_MAPPER.writeValueAsString(value).getBytes(StandardCharsets.UTF_8);
       } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
         throw new SerializationException(
             "Failed to serialize multipart field '" + fieldName + "' as JSON", e);
       }
     }
+    /* OAS Encoding Object: a declared contentType replaces the chosen one,
+     * and each declared part header follows it in declaration order. */
+    if (partContentType != null) {
+      contentType = partContentType;
+    }
+    StringBuilder head = new StringBuilder(disposition).append("\r\n");
+    if (contentType != null) {
+      head.append("Content-Type: ").append(contentType).append("\r\n");
+    }
+    for (Map.Entry<String, String> header : partHeaders.entrySet()) {
+      head.append(header.getKey()).append(": ").append(header.getValue()).append("\r\n");
+    }
+    head.append("\r\n");
+    byteArrays.add(head.toString().getBytes(StandardCharsets.UTF_8));
+    byteArrays.add(content);
     byteArrays.add("\r\n".getBytes(StandardCharsets.UTF_8));
   }
 

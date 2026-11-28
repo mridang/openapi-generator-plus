@@ -74,9 +74,15 @@ module {{moduleName}}
 {{/serverTypeDefs}}
 
     # {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+    # {{#lambda.rubyComment}}{{{tagSummary}}}{{/lambda.rubyComment}}
+{{/tagSummary}}
 {{#tagDescription}}
     # {{#lambda.rubyComment}}{{{tagDescription}}}{{/lambda.rubyComment}}
 {{/tagDescription}}
+{{#tagParent}}
+    # {{#lambda.rubyComment}}It belongs to the {{{tagParent}}} API group.{{/lambda.rubyComment}}
+{{/tagParent}}
 {{#tagExternalDocs}}
     # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/tagExternalDocs}}
@@ -96,6 +102,7 @@ module {{moduleName}}
       # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
 {{/vendorExtensions.op.responseSummaries}}
 {{>api/operation_doc_args}}
+{{>api/operation_doc_examples}}
       # @param stream_options [StreamOptions, nil] the stream settings (idle timeout, reconnects, event size), or nil for the defaults
       # @return [{{{returnType}}}] the open stream; close it when you stop early
       # @raise [ApiError] if fails to make API call
@@ -126,6 +133,7 @@ module {{moduleName}}
       # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
 {{/vendorExtensions.op.responseSummaries}}
 {{>api/operation_doc_args}}
+{{>api/operation_doc_examples}}
       # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call
 {{>api/operation_doc_throws}}

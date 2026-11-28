@@ -3343,3 +3343,14 @@ pagination032 | An operation that is streamed is never also given a paged method
 enums013 | A referenced enum property whose enum component declares a default starts at that member when it is absent
 servers031 | An operation under a path item that declares its own servers is sent to the server chosen from them
 operations166 | A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method
+servers501 | A server keeps the name it was built with, and a server built without a name has none
+servers502 | Looking up a server by a name no server has fails with the argument error that lists the known names
+serializationparam501 | A style: cookie value is written as RFC 6265 pairs and never percent-encoded: a scalar as name=value, an array as name=a,b or, exploded, name=a; name=b, and an object as name=k1,v1,k2,v2 or, exploded, k1=v1; k2=v2
+serializationparam502 | A style: cookie value holding a character outside the RFC 6265 cookie-octet set, such as a space, a semicolon or a comma inside an item, is refused with the error that names the parameter
+serializationparam503 | A path value with allowReserved keeps '/' and the other path-legal reserved characters literal, and still percent-encodes '?', '#', '[', ']', '%' and a space
+serializationwire501 | A form-urlencoded field whose Encoding Object sets allowReserved keeps the query-legal reserved characters literal, while the other fields of the form are encoded as before
+serializationwire502 | A form-urlencoded field whose Encoding Object declares a style, such as pipeDelimited, is written with that style's separator and the form rules, while the other fields of the form are encoded as before
+serializationwire503 | A multipart part whose Encoding Object declares a Content-Type and a part header with a fixed value is sent with that Content-Type and that header after its Content-Disposition
+operations501 | An operation that declares several response media types is answered in the one the caller names in the per-call Accept header, which replaces the declared list on the wire
+headers501 | The typed response headers of an operation read each declared header from the raw response headers in its declared type, whatever the case of the header name, and leave an absent header empty
+headers502 | A declared response header whose value does not parse as its declared type, such as a non-numeric integer, raises the serialization error naming the header

@@ -107,9 +107,15 @@ impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
 {{/serverTypeDefs}}
 
 /// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
+{{/tagSummary}}
 {{#tagDescription}}
 /// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 /// See <{{url}}> {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/tagExternalDocs}}
@@ -186,6 +192,24 @@ impl {{classname}} {
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
     /// * `stream_options`: the stream settings, or `None` for the defaults.
+{{#vendorExtensions.op.hasOperationExamples}}
+    ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+    /// {{heading}} example: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{#hasDescription}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/hasDescription}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+    ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+    /// Extension {{{name}}}: {{{value}}}
+{{/vendorExtensions.op.exposedExtensions}}
     pub async fn {{vendorExtensions.op.streamMethodName}}(
         &self,
 {{#vendorExtensions.op.signatureArgs}}
@@ -262,7 +286,27 @@ impl {{classname}} {
     /// ```json
     /// {{{value}}}
     /// ```
-{{/vendorExtensions.pluralExamples}}{{/allParams}}    pub async fn {{operationId}}(
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#vendorExtensions.op.hasOperationExamples}}
+    ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+    /// {{heading}} example: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{#hasDescription}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/hasDescription}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+    ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+    /// Extension {{{name}}}: {{{value}}}
+{{/vendorExtensions.op.exposedExtensions}}
+    pub async fn {{operationId}}(
         &self,
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}        {{paramName}}: {{{dataType}}},
@@ -457,7 +501,13 @@ impl {{classname}} {
              * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
              * serializer output directly — re-encoding here would double-encode
              * (a space would become %2520, a slash %252F). */
+<%#vendorExtensions.param.pathAllowReserved%>
+            /* allowReserved: the reserved characters go into the path literally. */
+            path = path.replace("{<%baseName%>}", &value_serializer::allow_reserved_in_path(&v));
+<%/vendorExtensions.param.pathAllowReserved%>
+<%^vendorExtensions.param.pathAllowReserved%>
             path = path.replace("{<%baseName%>}", &v);
+<%/vendorExtensions.param.pathAllowReserved%>
         }
 <%/vendorExtensions.param.queryContent%>
 <%={{ }}=%>
@@ -797,6 +847,15 @@ impl {{classname}} {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
         }
 {{/isString}}
+{{#vendorExtensions.param.cookieStyle}}
+        /* OpenAPI 3.2 `style: cookie`: cookie_pairs writes the whole fragment
+         * and rejects anything outside the RFC 6265 cookie-octet set. */
+        let v = value_serializer::cookie_pairs("{{baseName}}", Some(&opts.{{paramName}}), {{isExplode}})?;
+        if !v.is_empty() {
+            cookie_parts.push(v);
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
             {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(&opts.{{paramName}})?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/vendorExtensions.param.queryContent}},
@@ -831,10 +890,19 @@ impl {{classname}} {
             }
             cookie_parts.push(format!("{{baseName}}={}", v));
         }
+{{/vendorExtensions.param.cookieStyle}}
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
+{{#vendorExtensions.param.cookieStyle}}
+                /* OpenAPI 3.2 `style: cookie`: see the required branch. */
+                let v = value_serializer::cookie_pairs("{{baseName}}", Some(val), {{isExplode}})?;
+                if !v.is_empty() {
+                    cookie_parts.push(v);
+                }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
                     {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(val)?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(val)){{/vendorExtensions.param.queryContent}},
@@ -868,6 +936,7 @@ impl {{classname}} {
                     }
                     cookie_parts.push(format!("{{baseName}}={}", v));
                 }
+{{/vendorExtensions.param.cookieStyle}}
             }
         }
 {{/required}}
@@ -888,6 +957,9 @@ impl {{classname}} {
          *   - text arrays               -> List(Text ...) (repeated parts);
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
+         * A field whose Encoding Object declares a part Content-Type or part
+         * headers is wrapped in MultipartValue::Encoded, which the client writes
+         * in place of the Content-Type it would choose (D166).
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
 {{#vendorExtensions.op.requiredMultipartBody}}
@@ -906,26 +978,26 @@ impl {{classname}} {
 {{#required}}
 {{#isArray}}
 {{#items.isFile}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|b| MultipartValue::Bytes(b.clone())).collect())));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(opts.{{paramName}}.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{^items.isFile}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect())));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(opts.{{paramName}}.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{/isArray}}
 {{^isArray}}
 {{#isFile}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Bytes(opts.{{paramName}}.clone())));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Bytes(opts.{{paramName}}.clone()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isFile}}
 {{^isFile}}
 {{#isPrimitiveType}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}}))));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}}))));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{^isEnumRef}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?)));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isFile}}
@@ -935,26 +1007,26 @@ impl {{classname}} {
             if let Some(ref val) = opts.{{paramName}} {
 {{#isArray}}
 {{#items.isFile}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|b| MultipartValue::Bytes(b.clone())).collect())));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(val.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{^items.isFile}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect())));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(val.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{/isArray}}
 {{^isArray}}
 {{#isFile}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Bytes(val.clone())));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Bytes(val.clone()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isFile}}
 {{^isFile}}
 {{#isPrimitiveType}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val))));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(val)){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val))));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(val)){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{^isEnumRef}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(val)?)));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Json(object_serializer::serialize(val)?){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isFile}}
@@ -1002,8 +1074,10 @@ impl {{classname}} {
         /* application/x-www-form-urlencoded. The body is an ordered list of
          * [key, value] pairs (spec-declaration order). Array values are emitted
          * as repeated keys by serialize_body; null/absent optional fields are
-         * omitted entirely; spaces are encoded as `+`. */
-        let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
+         * omitted entirely; spaces are encoded as `+`. The third element marks
+         * a field whose Encoding Object sets allowReserved: its value keeps the
+         * reserved characters literal. */
+        let mut form_pairs: Vec<(String, serde_json::Value, bool)> = Vec::new();
         if let Some(opts) = options {
 {{#formParams}}
 {{#required}}
@@ -1012,11 +1086,34 @@ impl {{classname}} {
                 return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
             }
 {{/isString}}
-            form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?));
+{{#vendorExtensions.param.formStyled}}
+            /* D165: the Encoding Object declares style/explode, so the field is
+             * styled like a query parameter and the result goes in as text. */
+{{#isArray}}
+            let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+            for (k, v) in value_serializer::styled_form_pairs("{{baseName}}", &opts.{{paramName}}, {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}}, "{{style}}", {{isExplode}})? {
+                form_pairs.push((k, serde_json::Value::String(v), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+            }
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+            form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
             if let Some(ref val) = opts.{{paramName}} {
-                form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?));
+{{#vendorExtensions.param.formStyled}}
+                /* D165: styled like a query parameter, see the required branch. */
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+                for (k, v) in value_serializer::styled_form_pairs("{{baseName}}", val, {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}}, "{{style}}", {{isExplode}})? {
+                    form_pairs.push((k, serde_json::Value::String(v), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+                }
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+                form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+{{/vendorExtensions.param.formStyled}}
             }
 {{/required}}
 {{/formParams}}

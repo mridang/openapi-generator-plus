@@ -811,8 +811,13 @@ public abstract class BaseApi {
       headers.keySet().removeIf(name -> name.equalsIgnoreCase(defaultHeader.getKey()));
       headers.put(defaultHeader.getKey(), defaultHeader.getValue());
     }
+    /* A per-call header replaces the SDK's own one of the same name in any case, so a caller's
+     * Accept picks one of the declared response media types instead of joining the list. */
     if (headerParams != null) {
-      headers.putAll(headerParams);
+      for (Map.Entry<String, String> callHeader : headerParams.entrySet()) {
+        headers.keySet().removeIf(name -> name.equalsIgnoreCase(callHeader.getKey()));
+        headers.put(callHeader.getKey(), callHeader.getValue());
+      }
     }
     Map<String, String> sentAuthHeaders = Map.of();
     if (effectiveAuth != null) {
@@ -1023,8 +1028,12 @@ public abstract class BaseApi {
           || contentType.startsWith("image/")
           || "application/octet-stream".equals(contentType)) {
         requestBody = body;
-      } else if ("multipart/form-data".equals(contentType) && body instanceof Map) {
-        requestBody = body;
+      } else if (contentType.toLowerCase(java.util.Locale.ROOT).startsWith("multipart/")
+          && body instanceof Map<?, ?> multipartFields) {
+        /* Every multipart subtype is built by the transport from the form fields.
+         * allowReserved has no effect on a multipart part: send the value unchanged.
+         * A declared part encoding (ObjectSerializer.EncodedPart) stays for the transport. */
+        requestBody = withoutAllowReserved(multipartFields);
       } else if ("text/plain".equals(contentType)) {
         requestBody = body.toString();
       } else if ("application/x-www-form-urlencoded".equals(contentType)
@@ -1039,9 +1048,17 @@ public abstract class BaseApi {
          *     %2A and '~' is '~' (see formEncode). */
         StringJoiner joiner = new StringJoiner("&");
         for (Map.Entry<?, ?> entry : formParams.entrySet()) {
-          Object value = entry.getValue();
+          /* A multipart part encoding has no effect on a form-urlencoded field. */
+          Object value = ObjectSerializer.withoutPartEncoding(entry.getValue());
           if (value == null) {
             continue;
+          }
+          /* An Encoding Object with allowReserved: true keeps the RFC 3986
+           * reserved characters of the value literal, like a query value. */
+          boolean allowReserved = false;
+          if (value instanceof ValueSerializer.AllowReservedValue reserved) {
+            value = reserved.value();
+            allowReserved = true;
           }
           String name = String.valueOf(entry.getKey());
           String key = formEncode(name);
@@ -1051,11 +1068,15 @@ public abstract class BaseApi {
                 continue;
               }
               requireFormScalar(name, element);
-              joiner.add(key + "=" + formEncode(ObjectSerializer.toFormValue(element)));
+              joiner.add(
+                  key
+                      + "="
+                      + formEncodeValue(ObjectSerializer.toFormValue(element), allowReserved));
             }
           } else {
             requireFormScalar(name, value);
-            joiner.add(key + "=" + formEncode(ObjectSerializer.toFormValue(value)));
+            joiner.add(
+                key + "=" + formEncodeValue(ObjectSerializer.toFormValue(value), allowReserved));
           }
         }
         requestBody = joiner.toString();
@@ -1324,7 +1345,8 @@ public abstract class BaseApi {
    * @throws IllegalArgumentException if no binary part is present
    */
   private static Object extractBinaryPart(Map<?, ?> formBody) {
-    for (Object value : formBody.values()) {
+    for (Object field : formBody.values()) {
+      Object value = ObjectSerializer.withoutPartEncoding(field);
       if (value instanceof InputStream
           || value instanceof BodySource
           || value instanceof byte[]
@@ -1648,6 +1670,36 @@ public abstract class BaseApi {
    */
   static String formEncode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("*", "%2A").replace("%7E", "~");
+  }
+
+  /**
+   * Percent-encode a form-urlencoded value, keeping the RFC 3986 reserved characters literal (and a
+   * space as %20) when its Encoding Object declares {@code allowReserved: true}.
+   *
+   * @param value the string to encode
+   * @param allowReserved whether reserved characters are left literal
+   * @return the encoded value
+   */
+  static String formEncodeValue(String value, boolean allowReserved) {
+    return allowReserved ? ValueSerializer.encodeQueryAllowingReserved(value) : formEncode(value);
+  }
+
+  /**
+   * Copy of a form field map with every allowReserved wrapper removed, for a body that is not
+   * form-urlencoded (allowReserved has no effect there).
+   *
+   * @param fields the form fields
+   * @return the fields with their plain values, in the same order
+   */
+  static Map<Object, Object> withoutAllowReserved(Map<?, ?> fields) {
+    Map<Object, Object> plain = new java.util.LinkedHashMap<>();
+    for (Map.Entry<?, ?> entry : fields.entrySet()) {
+      Object value = entry.getValue();
+      plain.put(
+          entry.getKey(),
+          value instanceof ValueSerializer.AllowReservedValue reserved ? reserved.value() : value);
+    }
+    return plain;
   }
 
   /**
