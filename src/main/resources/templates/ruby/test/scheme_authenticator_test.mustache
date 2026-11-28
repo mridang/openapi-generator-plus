@@ -1,0 +1,457 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'base64'
+require 'minitest/autorun'
+require '{{gemName}}'
+
+# The entry point does not require the per-scheme wrappers: an autoloader maps
+# each file to its constant. Load them here, or the checks below would
+# enumerate only the generic authenticators and never see a wrapper.
+Dir[File.expand_path('../lib/{{modulePath}}/auth/**/*_authenticator.rb', File.dirname(__FILE__))].each { |file| require file }
+
+# The per-scheme authenticators subclass the generic ones, whose constructors
+# take positional arguments. A wrapper that took keywords instead would reject
+# the very call its base accepts, so no authenticator may require a keyword.
+# Answers every request with a token and a discovery document, and records the
+# URL and form body of the last request, for the generated scheme wrappers.
+class SchemeRecordingClient
+  attr_reader :url, :body
+
+  def send_request(_method, url, _headers, body, **_kwargs)
+    @url = url
+    @body = body
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: 200,
+      body: {
+        'access_token' => 'scheme_tok', 'expires_in' => 3600,
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token'
+      }.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+# Answers each token request with a refresh token that expires at once, so
+# the second call of a wrapper goes down the refresh grant, and records the URL
+# of every request in order.
+class SchemeRefreshingClient
+  attr_reader :urls
+
+  def initialize
+    @urls = []
+  end
+
+  def send_request(_method, url, _headers, _body, **_kwargs)
+    @urls << url
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: 200,
+      body: { 'access_token' => "tok_#{@urls.length}", 'refresh_token' => 'ref_tok', 'expires_in' => -1 }.to_json,
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
+describe 'scheme authenticators' do
+  parallelize_me!
+
+  def authenticator_classes
+    modules = [{{moduleName}}::Auth, {{moduleName}}::Auth::OAuth]
+    modules.flat_map { |mod| mod.constants.map { |name| mod.const_get(name) } }
+           .select { |const| const.is_a?(Class) && const < {{moduleName}}::Auth::Authenticator }
+  end
+
+  it 'bhv_langruby_075 finds the generated authenticators' do
+    _(authenticator_classes).wont_be_empty
+  end
+
+  it 'bhv_langruby_076 take positional arguments like their base authenticators' do
+    offenders = authenticator_classes.select do |klass|
+      klass.instance_method(:initialize).parameters.any? { |kind, _name| kind == :keyreq }
+    end
+    _(offenders.map(&:name)).must_equal([])
+  end
+
+  def wrappers_of(base)
+    authenticator_classes.select { |klass| klass < base }
+  end
+
+  it 'bhv_authapikey_007 every API-key wrapper emits its key at exactly one location' do
+    wrappers_of({{moduleName}}::Auth::ApiKeyAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper-key')
+      emitted = [auth.auth_headers, auth.query_params, auth.cookie_params].reject(&:empty?)
+      _(emitted.length).must_equal 1, klass.name
+      _(emitted.first.values).must_equal ['wrapper-key'], klass.name
+      _(emitted.first.keys.first).wont_be_empty
+    end
+  end
+
+  it 'bhv_authapikey_020 every API-key wrapper validates eagerly and redacts the key' do
+    wrappers_of({{moduleName}}::Auth::ApiKeyAuthenticator).each do |klass|
+      _(-> { klass.new('https://api.example.com', '') }).must_raise ArgumentError
+      _(klass.new('https://api.example.com', 'wrapper-key').inspect).wont_include 'wrapper-key'
+    end
+  end
+
+  it 'bhv_authapikey_019 every API-key wrapper rejects an empty key at construction' do
+    wrappers_of({{moduleName}}::Auth::ApiKeyAuthenticator).each do |klass|
+      _(-> { klass.new('https://api.example.com', '') }).must_raise(ArgumentError, klass.name)
+    end
+  end
+
+  it 'bhv_authapikey_025 every API-key wrapper masks the key in its debug output' do
+    wrappers_of({{moduleName}}::Auth::ApiKeyAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper-key')
+      _(auth.inspect).wont_include 'wrapper-key', klass.name
+      _(auth.to_s).wont_include 'wrapper-key', klass.name
+      _(auth.inspect).must_include '***', klass.name
+    end
+  end
+{{#hasApiKeyHeaderNames}}
+
+  it 'bhv_auth_006 the API-key wrappers emit every header name the spec declares' do
+    emitted = wrappers_of({{moduleName}}::Auth::ApiKeyAuthenticator).flat_map do |klass|
+      klass.new('https://api.example.com', 'wrapper-key').auth_headers.keys
+    end
+{{#apiKeyHeaderNames}}
+    _(emitted).must_include '{{name}}'
+{{/apiKeyHeaderNames}}
+  end
+{{/hasApiKeyHeaderNames}}
+
+  it 'bhv_authbearer_006 every Bearer wrapper sends the token as a Bearer credential and masks it' do
+    wrappers_of({{moduleName}}::Auth::BearerAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper-token')
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer wrapper-token' }, klass.name)
+      _(auth.inspect).wont_include 'wrapper-token'
+    end
+  end
+
+  it 'bhv_authbasic_002 every Basic wrapper sends the credentials as a Basic credential and masks the password' do
+    wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'alice', 's3cret')
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Basic YWxpY2U6czNjcmV0' }, klass.name)
+      _(auth.inspect).wont_include 's3cret'
+    end
+  end
+
+  it 'bhv_authbearer_023 every Bearer wrapper emits a Bearer header and is its own class' do
+    wrappers_of({{moduleName}}::Auth::BearerAuthenticator).each do |klass|
+      _(klass).wont_equal {{moduleName}}::Auth::BearerAuthenticator
+      _(klass.new('https://api.example.com', 'wrapper-token').auth_headers).must_equal({ 'Authorization' => 'Bearer wrapper-token' }, klass.name)
+    end
+  end
+
+  it 'bhv_misc_193 every Basic and Bearer wrapper sends the same header as its base and refuses a colon in the username' do
+    expected = {{moduleName}}::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
+    wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'alice', 's3cret').auth_headers).must_equal(expected, klass.name)
+      _(-> { klass.new('https://api.example.com', 'ali:ce', 's3cret') }).must_raise ArgumentError
+    end
+
+    expected = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'tok', env: {}).auth_headers
+    wrappers_of({{moduleName}}::Auth::BearerAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'tok', env: {}).auth_headers).must_equal(expected, klass.name)
+    end
+  end
+
+  it 'bhv_authbasic_019 every Basic wrapper emits the same Basic header as the base authenticator' do
+    expected = {{moduleName}}::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
+    wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'alice', 's3cret').auth_headers).must_equal(expected, klass.name)
+    end
+  end
+
+  it 'bhv_authbasic_020 every Basic wrapper prints its own name with the password masked' do
+    wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
+      inspected = klass.new('https://api.example.com', 'alice', 's3cret').inspect
+      _(inspected).must_include klass.name
+      _(inspected).must_include 'password="***"'
+      _(inspected).wont_include 's3cret'
+    end
+  end
+
+  # One row per scheme: the wrapper, its generic base and the environment
+  # variable of each credential, as the generator named them.
+  def environment_schemes
+    [
+{{#schemeEnvironmentEntries}}
+      ['{{className}}', '{{baseClass}}', { {{#credentials}}'{{name}}' => '{{envName}}'{{^-last}}, {{/-last}}{{/credentials}} }]{{^-last}},{{/-last}}
+{{/schemeEnvironmentEntries}}
+    ]
+  end
+
+  def scheme_class(name)
+    authenticator_classes.find { |klass| klass.name.to_s.end_with?("::#{name}") }
+  end
+
+  def every_variable
+    environment_schemes.flat_map { |_name, _base, credentials| credentials.values }
+  end
+
+  it 'bhv_misc_073 finds a wrapper for every scheme the spec declares' do
+    environment_schemes.each { |name, _base, _credentials| _(scheme_class(name)).wont_be_nil }
+  end
+
+  it 'bhv_authscheme_001 gives every credential of every scheme a variable of its own' do
+    _(every_variable.uniq).must_equal every_variable
+  end
+
+  it 'bhv_langruby_077 builds each wrapper from its own variables alone' do
+    environment_schemes.each do |name, _base, credentials|
+      env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
+      _(scheme_class(name).new('https://api.example.com', env: env)).wont_be_nil
+    end
+  end
+
+  it 'bhv_auth_004 fails when a credential is missing, whatever the other schemes have set' do
+    environment_schemes.each do |name, _base, credentials|
+      credentials.each_value do |missing|
+        env = every_variable.reject { |variable| variable == missing }.to_h { |variable| [variable, "value-#{variable}"] }
+        _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError, "#{name} #{missing}"
+      end
+    end
+  end
+
+  # An empty variable is unset: the wrapper refuses to build and the error
+  # names the variable it was missing.
+  def assert_empty_variable_fails_naming_it(name)
+    credentials = environment_schemes.find { |scheme, _base, _credentials| scheme == name }.last
+    credentials.each_value do |empty|
+      env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+      error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError
+      _(error.message).must_include empty
+    end
+  end
+
+  it 'bhv_authscheme_011 an empty service token variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('ServiceTokenAuthenticator')
+  end
+
+  it 'bhv_authscheme_012 an empty api key variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('InternalApiKeyAuthenticator')
+  end
+
+  it 'bhv_authscheme_013 an empty client credentials variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('MachineAuthClientCredentialsAuthenticator')
+  end
+
+  it 'bhv_authscheme_014 an empty password variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('LegacyAuthPasswordAuthenticator')
+  end
+
+  it 'bhv_authscheme_015 an empty authorization code variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('UserAuthAuthorizationCodeAuthenticator')
+  end
+
+  it 'bhv_authscheme_016 an empty implicit variable is treated as unset and fails naming it' do
+    assert_empty_variable_fails_naming_it('BrowserAuthImplicitAuthenticator')
+  end
+
+  it 'bhv_auth_003 counts an empty variable as unset' do
+    environment_schemes.each do |name, _base, credentials|
+      credentials.each_value do |empty|
+        env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+        _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError, "#{name} #{empty}"
+      end
+    end
+  end
+
+  def assert_empty_variable_is_unset_and_named
+    environment_schemes.each do |name, _base, credentials|
+      credentials.each_value do |empty|
+        env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+        error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise ArgumentError, "#{name} #{empty}"
+        _(error.message).must_include empty, name
+      end
+    end
+  end
+
+  it 'bhv_authscheme_004 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_005 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_006 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_007 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_008 treats an empty environment variable as unset and names it' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_misc_208 an empty environment variable for an implicit credential fails as if it were unset' do
+    assert_empty_variable_is_unset_and_named
+  end
+
+  it 'bhv_authscheme_010 an empty bearer variable is treated as unset and fails naming it' do
+    environment_schemes.each do |name, base, credentials|
+      next unless base == 'BearerAuthenticator'
+
+      credentials.each_value do |empty|
+        env = every_variable.to_h { |variable| [variable, variable == empty ? '' : "value-#{variable}"] }
+        error = _(-> { scheme_class(name).new('https://api.example.com', env: env) }).must_raise(ArgumentError, name)
+        _(error.message).must_include empty, name
+      end
+    end
+  end
+
+  it 'bhv_auth_041 a value passed to the constructor takes precedence over the same variable' do
+    environment_schemes.each do |name, base, credentials|
+      env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
+      next unless base == 'BearerAuthenticator'
+      _(scheme_class(name).new('https://api.example.com', 'given', env: env).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
+    end
+  end
+
+  it 'bhv_authscheme_009 prefers the value given to the constructor to the variable' do
+    environment_schemes.each do |name, base, credentials|
+      env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
+      klass = scheme_class(name)
+      case base
+      when 'BearerAuthenticator'
+        _(klass.new('https://api.example.com', 'given', env: env).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
+      when 'ApiKeyAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', env: env)
+        _([auth.auth_headers, auth.query_params, auth.cookie_params].flat_map(&:values)).must_equal ['given'], name
+      when 'BasicAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', 'pw', env: env)
+        _(auth.auth_headers['Authorization']).must_equal "Basic #{Base64.strict_encode64('given:pw')}", name
+      end
+    end
+  end
+
+  it 'bhv_lifecycle_025 reads the environment once, when the wrapper is built' do
+    environment_schemes.each do |name, base, credentials|
+      next unless base == 'BearerAuthenticator'
+
+      variable = credentials.values.first
+      env = { variable => 'first' }
+      auth = scheme_class(name).new('https://api.example.com', env: env)
+      env[variable] = 'second'
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer first' }, name)
+    end
+
+    basic_env = { 'ACCOUNT_USER' => 'carol', 'ACCOUNT_PASS' => 'first' }
+    basic = {{moduleName}}::Auth::BasicAuthenticator.new(
+      'https://api.example.com', env: basic_env, username_env: 'ACCOUNT_USER', password_env: 'ACCOUNT_PASS'
+    )
+    basic_env['ACCOUNT_PASS'] = 'second'
+    _(basic.auth_headers['Authorization']).must_equal 'Basic Y2Fyb2w6Zmlyc3Q='
+
+    api_key_env = { 'OTHER_KEY' => 'first' }
+    api_key = {{moduleName}}::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', nil, {{moduleName}}::Auth::ApiKeyLocation::HEADER,
+      env: api_key_env, api_key_env: 'OTHER_KEY'
+    )
+    api_key_env['OTHER_KEY'] = 'second'
+    _(api_key.auth_headers).must_equal('X-Api-Key' => 'first')
+  end
+
+  it 'bhv_langruby_078 takes the token provider of a Bearer wrapper before the variable' do
+    environment_schemes.each do |name, base, credentials|
+      next unless base == 'BearerAuthenticator'
+
+      variable = credentials.values.first
+      auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: {})
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-provider' }, name)
+      auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: { variable => 'from-env' })
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-provider' }, name)
+    end
+  end
+
+  it 'bhv_authoauthtwoclientcred_009 a client credentials wrapper sends its spec scopes to its spec token url' do
+    wrappers_of({{moduleName}}::Auth::OAuth::OAuth2ClientCredentialsAuthenticator).each do |klass|
+      client = SchemeRecordingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret')
+      auth.api_client = client
+      auth.auth_headers
+      _(client.url).must_match(%r{\Ahttps://}, klass.name)
+      _(client.body).must_match(/scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoauthtwoauthcode_020 an authorization code wrapper sends its spec scopes and urls' do
+    wrappers_of({{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'https://app.example.com/callback')
+      url = auth.build_authorization_url
+      _(url).must_match(%r{\Ahttps://}, klass.name)
+      _(url).must_match(/[?&]scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authscheme_002 explicit arguments need no environment' do
+    environment_schemes.each do |name, base, _credentials|
+      klass = scheme_class(name)
+      case base
+      when 'BearerAuthenticator'
+        _(klass.new('https://api.example.com', 'given', env: {}).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
+      when 'ApiKeyAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', env: {})
+        _([auth.auth_headers, auth.query_params, auth.cookie_params].flat_map(&:values)).must_equal ['given'], name
+      when 'BasicAuthenticator'
+        auth = klass.new('https://api.example.com', 'given', 'pw', env: {})
+        _(auth.auth_headers['Authorization']).must_equal "Basic #{Base64.strict_encode64('given:pw')}", name
+      end
+    end
+  end
+
+{{#schemeEnvironmentEntries}}
+{{#metadataUrlTest}}
+  it 'bhv_authscheme_700 exposes the metadata url the scheme declares as a constant' do
+    _(scheme_class('{{className}}')::METADATA_URL).must_equal {{{metadataUrlLiteral}}}
+  end
+
+{{/metadataUrlTest}}
+{{/schemeEnvironmentEntries}}
+  it 'bhv_authoauthtwoimplicit_006 an implicit wrapper builds its authorization url with its spec scopes' do
+    wrappers_of({{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator).each do |klass|
+      url = klass.new('https://api.example.com', 'wrapper_id').build_authorization_url
+      _(url).must_match(%r{\Ahttps://}, klass.name)
+      _(url).must_match(/[?&]scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoauthtwopassword_012 a password wrapper sends its spec scopes and urls' do
+    wrappers_of({{moduleName}}::Auth::OAuth::OAuth2PasswordAuthenticator).each do |klass|
+      client = SchemeRecordingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'wrapper_user', 'wrapper_pass')
+      auth.api_client = client
+      auth.auth_headers
+      _(client.url).must_match(%r{\Ahttps://}, klass.name)
+      _(client.body).must_match(/scope=\S+/, klass.name)
+    end
+  end
+
+  it 'bhv_authoauthtwopassword_022 a password wrapper sends the first grant to its token URL and the refresh grant to its refresh URL' do
+    wrappers_of({{moduleName}}::Auth::OAuth::OAuth2PasswordAuthenticator).each do |klass|
+      client = SchemeRefreshingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'wrapper_user', 'wrapper_pass')
+      auth.api_client = client
+      auth.auth_headers
+      auth.auth_headers
+      expected = [auth.instance_variable_get(:@token_url), auth.instance_variable_get(:@refresh_url)]
+      _(client.urls).must_equal(expected, klass.name)
+    end
+  end
+
+  it 'bhv_authoidc_012 an openid connect wrapper discovers from its spec url and sends the openid scope' do
+    wrappers_of({{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator).each do |klass|
+      client = SchemeRecordingClient.new
+      auth = klass.new('https://api.example.com', 'wrapper_id', 'wrapper_secret', 'https://app.example.com/callback')
+      auth.api_client = client
+      url = auth.build_authorization_url
+      _(client.url).must_match(%r{/\.well-known/openid-configuration\z}, klass.name)
+      _(url).must_match(/scope=[^&]*openid/, klass.name)
+    end
+  end
+end

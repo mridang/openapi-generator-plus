@@ -1,0 +1,1131 @@
+{{>api_info}}
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\Errors\SerializationException;
+use {{invokerPackage}}\ApiHttpResponse;
+use {{invokerPackage}}\Auth\OAuth\OpenIdConnectAuthenticator;
+use {{invokerPackage}}\Auth\OAuth\SsoAuthAuthenticator;
+
+function makeOpenIdConnectMockClientWithDiscovery(): MockTokenApiClient
+{
+    $client = new MockTokenApiClient();
+    // Discovery document response
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    return $client;
+}
+
+test('bhv authoidc 002 builds authorization url from discovery', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('state-123');
+
+    // Verify discovery was fetched
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['method'])->toBe('GET');
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+    /* The API's default headers (an Authorization or API key) must not reach the identity provider. */
+    expect($client->capturedRequests[0]['noDefaultHeaders'])->toBeTrue();
+
+    // Verify authorization URL uses discovered endpoint
+    expect($url)->toContain('https://auth.example.com/authorize?');
+    expect($url)->toContain('response_type=code');
+    expect($url)->toContain('client_id=my-client-id');
+    expect($url)->toContain('state=state-123');
+    expect($url)->toContain('scope=openid%20profile');
+});
+
+test('bhv authoidc 022 the authorization url always requests the openid scope once', function (array $scopes, string $expected): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        $scopes
+    );
+    $authenticator->setApiClient($client);
+
+    $query = parse_url($authenticator->buildAuthorizationUrl(), PHP_URL_QUERY);
+    expect($query)->toBeString();
+    parse_str((string) $query, $params);
+
+    expect($params['scope'])->toBe($expected);
+})->with([
+    'no caller scopes' => [[], 'openid'],
+    'caller scope without openid' => [['profile'], 'openid profile'],
+    'openid only' => [['openid'], 'openid'],
+    'openid given twice' => [['openid', 'openid'], 'openid'],
+    'de-duplication is case sensitive' => [['OpenID'], 'openid OpenID'],
+]);
+
+test('bhv authoidc 024 discovery rejects a document whose issuer differs from the discovery url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'issuer' => 'https://evil.example.com',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(SerializationException::class, "issuer 'https://evil.example.com' does not match 'https://auth.example.com'");
+});
+
+test('bhv authoidc 004 discovery accepts an issuer that matches up to a trailing slash', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'issuer' => 'https://auth.example.com/',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect($authenticator->buildAuthorizationUrl())->toContain('https://auth.example.com/authorize?');
+});
+
+test('bhv authoidc 005 discovery rejects a clear text endpoint unless it is loopback', function (string $endpoint, bool $accepted): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => $endpoint,
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    if ($accepted) {
+        expect($authenticator->buildAuthorizationUrl())->toContain('https://auth.example.com/authorize?');
+    } else {
+        expect(fn () => $authenticator->buildAuthorizationUrl())
+            ->toThrow(SerializationException::class, "'token_endpoint' must be an https URL");
+    }
+})->with([
+    'https' => ['https://auth.example.com/token', true],
+    'clear text host' => ['http://auth.example.com/token', false],
+    'loopback name' => ['http://localhost:8080/token', true],
+    'loopback address' => ['http://127.0.0.1:8080/token', true],
+    'ftp scheme' => ['ftp://auth.example.com/token', false],
+]);
+
+test('bhv authoidc 018 empty state is omitted', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('');
+
+    expect($url)->not->toContain('state');
+    // Each URL carries its own PKCE challenge, so everything else must match.
+    $withoutChallenge = static fn (string $u): string => (string) preg_replace('/(code_challenge|nonce)=[^&]*/', '', $u);
+    expect($withoutChallenge($url))->toBe($withoutChallenge($authenticator->buildAuthorizationUrl()));
+});
+
+test('bhv authoidc 017 obtains token after code exchange', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    // Token exchange response
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'oidc-token',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('oidc-code-123');
+
+    // Discovery request + token request
+    expect($client->capturedRequests)->toHaveCount(2);
+    $tokenRequest = $client->capturedRequests[1];
+    expect($tokenRequest['method'])->toBe('POST');
+    expect($tokenRequest['url'])->toBe('https://auth.example.com/token');
+    expect($tokenRequest['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($tokenRequest['body'] ?? '')->toContain('code=oidc-code-123');
+});
+
+test('bhv authoidc 013 get auth headers returns bearer after exchange', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    // Token exchange response
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'oidc-tok',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('oidc-code');
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer oidc-tok');
+});
+
+test('bhv authoidc 011 fetches discovery document only once', function (): void {
+    $client = new MockTokenApiClient();
+    // Only one discovery response needed
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    // Discovery should only be fetched once
+    $discoveryRequests = array_filter($client->capturedRequests, fn(array $r): bool => $r['method'] === 'GET');
+    expect($discoveryRequests)->toHaveCount(1);
+});
+
+test('bhv authoidc 010 the discovery document is fetched from the issuer', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests[0]['method'])->toBe('GET');
+    expect($client->capturedRequests[0]['url'])
+        ->toBe('https://auth.example.com/.well-known/openid-configuration');
+});
+
+test('bhv authoidc 031 oidc refetches discovery once its Cache-Control max-age has elapsed', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=60']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=60']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+    expect($client->capturedRequests)->toHaveCount(1);
+
+    /* The cache holds the document until its expiry; move the expiry into the past. */
+    $expiry = new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry');
+    $expiry->setValue($authenticator, time() - 1);
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv authoidc 032 a discovered authorization endpoint that is not https is rejected', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'http://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(SerializationException::class, "'authorization_endpoint' must be an https URL");
+});
+
+test('bhv authoidc 033 a failed discovery request reports its method and path in the error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(500, 'oops', ['Content-Type' => 'text/plain']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())->toThrow(function (\Exception $e): void {
+        expect($e)->toBeInstanceOf(ApiException::class);
+        /** @var ApiException $e */
+        expect($e->getRequestMethod())->toBe('GET');
+        expect($e->getRequestPath())->toBe('/.well-known/openid-configuration');
+    });
+});
+
+test('bhv authoidc 027 oidc throws when discovery returns non-2xx status', function (): void {
+    $client = new MockTokenApiClient();
+    // A non-2xx discovery response (e.g. a 500 HTML error page) must surface
+    // as a clear error, not as an "invalid JSON" parse failure of the body.
+    $client->enqueueResponse(new ApiHttpResponse(
+        500,
+        '<html>internal server error</html>',
+        ['Content-Type' => 'text/html']
+    ));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    // The status maps to its ApiException subclass exactly as an API
+    // operation's would.
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\InternalServerErrorException::class);
+            expect($e->getCode())->toBe(500);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+        });
+});
+
+function makeOpenIdConnectAuthenticatorForErrors(MockTokenApiClient $client): OpenIdConnectAuthenticator
+{
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    return $authenticator;
+}
+
+test('bhv authoidc 007 oidc discovery 404 raises NotFoundException', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(404, 'not found', []));
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\NotFoundException::class);
+            expect($e->getCode())->toBe(404);
+        });
+});
+
+test('bhv authoidc 006 oidc discovery transport failure propagates NetworkException', function (): void {
+    /* Discovery is an HTTP call like any other: a transport failure from
+     * the ApiClient must reach the caller unchanged, not rewrapped. */
+    $failure = new \{{invokerPackage}}\Errors\NetworkException('connection refused', new \RuntimeException('refused'));
+    $client = new MockTokenApiClient();
+    $client->enqueueFailure($failure);
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e) use ($failure): void {
+            expect($e)->toBe($failure);
+        });
+});
+
+test('bhv authoidc 016 oidc malformed discovery document raises SerializationException', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, '{not json', []));
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+        });
+});
+
+test('bhv authoidc 028 throws when no api client injected', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\LogicException::class);
+        });
+});
+
+test('bhv authoidc 014 get host returns configured host', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    expect($authenticator->getHost())->toBe('https://api.example.com');
+});
+
+test('bhv authoidc 008 does not send the transport default headers to the discovery endpoint', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl('state-123');
+
+    expect($client->capturedRequests)->toHaveCount(1);
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+    /* The API's default headers (an Authorization or API key) must not reach the identity provider. */
+    expect($client->capturedRequests[0]['noDefaultHeaders'])->toBeTrue();
+});
+
+test('bhv authoidc 025 oidc throws when discovery omits authorization_endpoint', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document missing authorization_endpoint must fail loudly.
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, "OIDC discovery document is missing 'authorization_endpoint'");
+});
+
+test('bhv authoidc 026 oidc throws when discovery omits token_endpoint', function (): void {
+    $client = new MockTokenApiClient();
+    // Discovery document missing token_endpoint must fail loudly.
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, "OIDC discovery document is missing 'token_endpoint'");
+});
+
+/**
+ * Asserts that the client secret never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+test('bhv authoidc 019 redacts secret', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->not->toContain('my-client-secret');
+    expect($printR)->toContain('***');
+});
+
+test('bhv authoidc 030 a discovery document served with max-age=0 is fetched again on every use', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'public, max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'public, max-age=0']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv authoidc 020 oidc rediscovery after expiry keeps the exchanged session', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $expired = ['Cache-Control' => 'max-age=0'];
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $expired));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'at-1',
+        'token_type' => 'Bearer',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $expired));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('the-code');
+
+    // The cached document has expired, so this call rediscovers; the exchange made
+    // before it must still count.
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at-1']);
+});
+
+/** Endpoints of a discovery document whose host is the given label. */
+function oidcDiscoveryFor(string $host): string
+{
+    return (string) json_encode([
+        'authorization_endpoint' => "https://$host.example.com/authorize",
+        'token_endpoint' => "https://$host.example.com/token",
+    ]);
+}
+
+test('bhv authoidc 009 failed rediscovery keeps the old delegate', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"oidc-tok","expires_in":3600}', []));
+    $client->enqueueResponse(new ApiHttpResponse(500, '{}', []));
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), []));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('oidc-code');
+
+    try {
+        $authenticator->getAuthHeaders();
+        test()->fail('Expected the failed rediscovery to throw');
+    } catch (ApiException $e) {
+        expect($e->getCode())->toBe(500);
+    }
+
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer oidc-tok']);
+    expect($client->capturedRequests)->toHaveCount(4);
+});
+
+test('bhv authoidc 015 invalidating the token keeps the session and the refresh token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), []));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"at1","refresh_token":"rt","expires_in":3600}', []));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"at2","refresh_token":"rt","expires_in":3600}', []));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->invalidateAccessToken();
+    expect($client->capturedRequests)->toHaveCount(0);
+
+    $authenticator->exchangeCode('oidc-code');
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at1']);
+
+    $authenticator->invalidateAccessToken();
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer at2']);
+    expect((string) $client->capturedRequests[2]['body'])->toContain('grant_type=refresh_token');
+    expect((string) $client->capturedRequests[2]['body'])->toContain('refresh_token=rt');
+});
+
+test('bhv authoidc 021 rediscovery keeps the pkce verifier of the authorization url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('login'), ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, '{"access_token":"oidc-tok","expires_in":3600}', []));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('s');
+    $authenticator->exchangeCode('oidc-code');
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+    parse_str((string) $client->capturedRequests[2]['body'], $form);
+    $verifier = is_string($form['code_verifier'] ?? null) ? $form['code_verifier'] : '';
+    expect($verifier)->not->toBe('');
+    expect(rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='))
+        ->toBe($query['code_challenge']);
+});
+
+test('bhv authoidc 012 scheme wrapper discovers from its spec url and sends the openid scope', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, oidcDiscoveryFor('auth'), []));
+
+    $authenticator = new SsoAuthAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback'
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/.well-known/openid-configuration');
+    expect($url)->toContain('scope=openid');
+});
+
+test('bhv authoidc 003 oidc keeps discovery cached while its Cache-Control max-age holds', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'public, max-age=3600']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('bhv authoidc 001 oidc clamps a max-age beyond one year to one year', function (string $maxAge): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'public, max-age=' . $maxAge]));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->buildAuthorizationUrl();
+
+    $expiry = (new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry'))
+        ->getValue($authenticator);
+    expect($expiry)->toBeInt();
+    expect($expiry)->toBeLessThanOrEqual(time() + 31536000);
+    expect($expiry)->toBeGreaterThan(time() + 31536000 - 120);
+})->with(['9999999999', '99999999999999999999999999', '31536001']);
+
+test('bhv authoidc 023 oidc debug output keeps the non secret fields and masks the secret', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[openIdConnectUrl] => https://auth.example.com/.well-known/openid-configuration');
+    expect($printR)->toContain('[clientId] => my-client-id');
+    expect($printR)->toContain('[clientSecret] => ***');
+    expect($printR)->toContain('[redirectUri] => https://app.example.com/callback');
+});
+
+test('bhv auth 011 a discovery response without a usable max-age is cached for the default lifetime', function (array $headers): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $headers));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, $headers));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(1);
+})->with([
+    'no cache header' => [[]],
+    'a cache header without max-age' => [['Cache-Control' => 'no-cache']],
+    'an unparseable max-age' => [['Cache-Control' => 'max-age=soon']],
+]);
+
+test('bhv auth 029 after the cached discovery document expires, later calls use the endpoints of the fresh one', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'max-age=60']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth2.example.com/authorize',
+        'token_endpoint' => 'https://auth2.example.com/token',
+    ]), ['Cache-Control' => 'max-age=60']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect($authenticator->buildAuthorizationUrl())->toStartWith('https://auth.example.com/authorize?');
+
+    $expiry = new \ReflectionProperty(OpenIdConnectAuthenticator::class, 'discoveryExpiry');
+    $expiry->setValue($authenticator, time() - 1);
+
+    expect($authenticator->buildAuthorizationUrl())->toStartWith('https://auth2.example.com/authorize?');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv misc 070 a discovery document that is not a json object keeps no cause and hides its body', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, '"leaked-body"', ['Content-Type' => 'application/json']));
+    $authenticator = makeOpenIdConnectAuthenticatorForErrors($client);
+
+    $caught = null;
+    try {
+        $authenticator->buildAuthorizationUrl();
+    } catch (SerializationException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->not->toBeNull();
+    assert($caught instanceof SerializationException);
+    expect($caught->getMessage())->toBe('OIDC discovery document is not a JSON object');
+    expect($caught->getPrevious())->toBeNull();
+    expect($caught->getMessage())->not->toContain('leaked-body');
+});
+
+test('bhv misc 078 the authorization url carries an s256 challenge and a nonce', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl(), PHP_URL_QUERY), $params);
+
+    expect($params['code_challenge_method'] ?? null)->toBe('S256');
+    $challenge = $params['code_challenge'] ?? '';
+    assert(is_string($challenge));
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $challenge))->toBe(1);
+    $nonce = $params['nonce'] ?? '';
+    assert(is_string($nonce));
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $nonce))->toBe(1);
+});
+
+test('bhv misc 199 discovery runs again when the cached document has a zero max age', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'max-age=0']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('bhv misc 200 a discovery document whose issuer names another server is rejected', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'issuer' => 'https://evil.example.com',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Content-Type' => 'application/json']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->buildAuthorizationUrl())
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, 'does not match');
+});
+
+test('bhv misc 201 a failed discovery request reports its path without the query string', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(503, 'down', ['Content-Type' => 'text/plain']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration?tenant=a',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    try {
+        $authenticator->buildAuthorizationUrl();
+        test()->fail('Expected exception not thrown');
+    } catch (\{{invokerPackage}}\Errors\ApiException $e) {
+        expect($e->getRequestPath())->toBe('/.well-known/openid-configuration');
+    }
+});
+test('bhv misc 076 a call after a dropped code exchange reuses the discovered configuration', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $client->enqueueFailure(new \{{invokerPackage}}\Errors\NetworkException('connection dropped', new \RuntimeException('dropped')));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 'tok', 'expires_in' => 3600]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->exchangeCode('the-code'))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+    $authenticator->exchangeCode('the-code');
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[2]['url'])->toBe('https://auth.example.com/token');
+    expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer tok');
+});
+
+/**
+ * An unsigned compact JWT whose payload is the given claims.
+ *
+ * @param array<string, mixed> $claims
+ */
+function oidcIdToken(array $claims): string
+{
+    $encode = static fn (string $text): string => rtrim(strtr(base64_encode($text), '+/', '-_'), '=');
+
+    return $encode('{"alg":"none"}') . '.' . $encode((string) json_encode($claims)) . '.sig';
+}
+
+/**
+ * Claims that pass every check for the given nonce, with the given claims replaced.
+ *
+ * @param array<string, mixed> $overrides
+ * @return array<string, mixed>
+ */
+function oidcClaims(string $nonce, array $overrides = []): array
+{
+    return array_merge([
+        'iss' => 'https://auth.example.com',
+        'aud' => 'my-client-id',
+        'exp' => time() + 3600,
+        'nonce' => $nonce,
+    ], $overrides);
+}
+
+/**
+ * An authenticator that has built an authorization URL and whose token endpoint
+ * answers with the id_token that the function builds from the URL's nonce.
+ *
+ * @param \Closure(string): string $idTokenForNonce
+ */
+function oidcAuthenticatorReturning(\Closure $idTokenForNonce): OpenIdConnectAuthenticator
+{
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'issuer' => 'https://auth.example.com',
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $params);
+    $nonce = $params['nonce'] ?? '';
+    assert(is_string($nonce));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'oidc-tok',
+        'expires_in' => 3600,
+        'id_token' => $idTokenForNonce($nonce),
+    ]), ['Content-Type' => 'application/json']));
+
+    return $authenticator;
+}
+
+test('bhv authoidc 034 each authorization url carries a fresh nonce', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $first);
+    parse_str((string) parse_url($authenticator->buildAuthorizationUrl('s'), PHP_URL_QUERY), $second);
+
+    $nonce = $first['nonce'] ?? '';
+    assert(is_string($nonce));
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $nonce))->toBe(1);
+    expect($second['nonce'] ?? null)->not->toBe($nonce);
+});
+
+test('bhv authoidc 035 an id_token with valid claims is accepted', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['aud' => ['other', 'my-client-id']]))
+    );
+
+    $authenticator->exchangeCode('oidc-code');
+
+    expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer oidc-tok');
+});
+
+test('bhv authoidc 036 an id_token with another nonce is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['nonce' => 'replayed']))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \{{invokerPackage}}\Errors\OAuth2TokenException::class,
+        'The id_token nonce does not match the authorization request'
+    );
+});
+
+test('bhv authoidc 037 an id_token from another issuer is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['iss' => 'https://evil.example.com']))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \{{invokerPackage}}\Errors\OAuth2TokenException::class,
+        'The id_token issuer does not match the discovered issuer'
+    );
+});
+
+test('bhv authoidc 038 an id_token for another audience is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['aud' => 'other-client']))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \{{invokerPackage}}\Errors\OAuth2TokenException::class,
+        'The id_token audience does not contain the client id'
+    );
+});
+
+test('bhv authoidc 039 an expired id_token is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['exp' => time() - 120]))
+    );
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \{{invokerPackage}}\Errors\OAuth2TokenException::class,
+        'The id_token has expired'
+    );
+});
+
+test('bhv authoidc 040 a malformed id_token is rejected', function (): void {
+    $authenticator = oidcAuthenticatorReturning(fn (string $nonce): string => 'not-a-jwt');
+
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))->toThrow(
+        \{{invokerPackage}}\Errors\OAuth2TokenException::class,
+        'The id_token is malformed'
+    );
+});
+
+test('bhv authoidc 041 a rejected id_token leaves no session', function (): void {
+    $authenticator = oidcAuthenticatorReturning(
+        fn (string $nonce): string => oidcIdToken(oidcClaims($nonce, ['nonce' => 'replayed']))
+    );
+    expect(fn () => $authenticator->exchangeCode('oidc-code'))
+        ->toThrow(\{{invokerPackage}}\Errors\OAuth2TokenException::class);
+
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\LogicException::class);
+});

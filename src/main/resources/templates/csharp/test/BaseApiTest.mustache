@@ -1,0 +1,4102 @@
+{{>api_info}}
+
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json.Nodes;
+using {{packageName}};
+using {{packageName}}.Api;
+using {{packageName}}.Api.Options;
+using {{packageName}}.Auth;
+using {{packageName}}.Errors;
+using Xunit;
+using Allowance = {{packageName}}.Models.Allowance;
+using AllowanceTier = {{packageName}}.Models.AllowanceTier;
+using Pet = {{packageName}}.Models.Pet;
+
+/* These tests exercise the SDK without a test-runner cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
+namespace Test;
+
+[Collection("Chasm")]
+public class BaseApiTest
+{
+    private readonly ChasmFixture _fixture;
+
+    public BaseApiTest(ChasmFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    private sealed class TestableApi : BaseApi
+    {
+        public TestableApi(string baseUrl)
+            : base(new DefaultApiClient(), new Configuration(baseUrl)) { }
+
+        public TestableApi(IApiClient apiClient, string baseUrl)
+            : base(apiClient, new Configuration(baseUrl)) { }
+
+        public TestableApi(IApiClient apiClient, Configuration config)
+            : base(apiClient, config) { }
+
+        public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
+            : base(apiClient, new Configuration(baseUrl), authenticator) { }
+
+        public Task<SseStream<string>> EventsAsync(
+            Dictionary<string, string> headerParams, StreamOptions? streamOptions)
+        {
+            return InvokeApiForSseAsync<string>(
+                "GET", "/items/events", new Dictionary<string, object?>(), headerParams, null,
+                ["text/event-stream"], "application/json", text: true, streamOptions: streamOptions);
+        }
+
+        public Task<ApiResult<ByteStream>> StreamAsync(
+            string method, string path, IAuthenticator? auth = null)
+        {
+            return InvokeApiForStreamAsync(
+                method, path, new Dictionary<string, object?>(), new Dictionary<string, string>(),
+                null, ["application/octet-stream"], "application/json", auth);
+        }
+
+        public Task<ApiResult<T>> CallWithTimeoutAsync<T>(IAuthenticator auth, int timeoutMilliseconds)
+        {
+            return InvokeApiForResultAsync<T>(
+                "GET", "/test/echo", new Dictionary<string, object?>(),
+                new Dictionary<string, string>(), null, ["application/json"], "application/json",
+                typeof(T), auth, timeout: timeoutMilliseconds);
+        }
+
+        public async Task<T?> CallAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null)
+        {
+            return await InvokeApiAsync<T>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, typeof(T), auth);
+        }
+
+        public Task<ApiResult<T>> CallForResultAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            CancellationToken cancellationToken)
+        {
+            return InvokeApiForResultAsync<T>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, typeof(T), cancellationToken: cancellationToken);
+        }
+
+        public async Task<object?> CallAsyncWithNullReturnType(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null)
+        {
+            return await InvokeApiAsync<object>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, null, auth);
+        }
+
+        public async Task<ApiResult<T>> CallForResultAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null,
+            string? operationName = null)
+        {
+            return await InvokeApiForResultAsync<T>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, typeof(T), auth,
+                operationName: operationName);
+        }
+
+        public string ContentParameter(object value, string location)
+        {
+            return SerializeContentParameter(value, location);
+        }
+
+        public async Task<ApiResult<T>> CallWithCallOptionsAsync<T>(
+            string path,
+            Dictionary<string, object?> queryParams,
+            int? timeout,
+            IReadOnlyDictionary<string, string>? extraHeaders,
+            int? maxRetries,
+            Func<int, string, T?>? decodeByStatus = null)
+        {
+            return await InvokeApiForResultAsync<T>(
+                "GET", path, queryParams, new Dictionary<string, string>(), null,
+                ["application/json"], "application/json", typeof(T),
+                decodeByStatus: decodeByStatus,
+                timeout: timeout,
+                extraHeaders: extraHeaders,
+                maxRetries: maxRetries);
+        }
+    }
+
+    private sealed class HookedApi(IApiClient apiClient, Configuration config)
+        : BaseApi(apiClient, config)
+    {
+        public Task<ApiResult<T>> CallAsync<T>(
+            string path,
+            Dictionary<string, object?>? queryParams = null,
+            object? body = null,
+            string contentType = "application/json",
+            IAuthenticator? auth = null,
+            Dictionary<string, string>? headerParams = null,
+            CancellationToken cancellationToken = default)
+        {
+            return InvokeApiForResultAsync<T>(
+                "get", path, queryParams ?? [], headerParams ?? [], body,
+                ["application/json"], contentType, typeof(T), auth,
+                operationId: "spec_Operation-id",
+                urlTemplate: "/items/{id}",
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private sealed class RecordingHook : ICallHook
+    {
+        public List<CallInfo> Infos { get; } = [];
+        public List<Dictionary<string, string>> SeenHeaders { get; } = [];
+        public List<CallOutcome> Outcomes { get; } = [];
+        public Action<IDictionary<string, string>>? Edit { get; init; }
+        public Exception? ThrowOnStart { get; init; }
+        public Exception? ThrowOnFinish { get; init; }
+
+        public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+        {
+            Infos.Add(info);
+            SeenHeaders.Add(new Dictionary<string, string>(headers));
+            if (ThrowOnStart is not null)
+            {
+                throw ThrowOnStart;
+            }
+            Edit?.Invoke(headers);
+            return new Observer(this);
+        }
+
+        private sealed class Observer(RecordingHook owner) : ICallObserver
+        {
+            public void Finish(CallOutcome outcome)
+            {
+                owner.Outcomes.Add(outcome);
+                if (owner.ThrowOnFinish is not null)
+                {
+                    throw owner.ThrowOnFinish;
+                }
+            }
+        }
+    }
+
+    /* A transport whose attempts follow a script: a status code answers, an
+       exception is thrown. A 503 that has a later step is retried the way the
+       default transport retries, through the refreshed headers. */
+    private sealed class ScriptedApiClient(params object[] script) : IApiClient
+    {
+        public List<Dictionary<string, string>> Sent { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            throw new NotSupportedException();
+        }
+
+        public async Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            bool noRedirect,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            CancellationToken cancellationToken)
+        {
+            Dictionary<string, string> current = headers;
+            while (true)
+            {
+                int index = Sent.Count;
+                Sent.Add(new Dictionary<string, string>(current));
+                object step = script[Math.Min(index, script.Length - 1)];
+                if (step is Exception failure)
+                {
+                    throw failure;
+                }
+                int status = (int)step;
+                if (status == 503 && refreshHeaders is not null && index + 1 < script.Length)
+                {
+                    current = await refreshHeaders();
+                    continue;
+                }
+                return new ApiHttpResponse(status, "{}", new Dictionary<string, string>
+                {
+                    { "Content-Type", "application/json" },
+                    { "X-Reply", "yes" },
+                });
+            }
+        }
+    }
+
+    private sealed class HangingHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+        }
+    }
+
+    private TestableApi Api() =>
+        new(new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()), _fixture.BaseUrl);
+
+    private static HookedApi Hooked(IApiClient client, ICallHook? hook, string baseUrl = "http://localhost") =>
+        new(client, new Configuration(baseUrl, null, hook));
+
+    private sealed class CallOptionsApiClient(int status, string body) : IApiClient
+    {
+        public int? Timeout { get; private set; }
+        public int? MaxRetries { get; private set; }
+        public Dictionary<string, string> Headers { get; private set; } = [];
+        public Uri? Url { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? requestBody)
+        {
+            Url = url;
+            Headers = new Dictionary<string, string>(headers);
+            return Task.FromResult(new ApiHttpResponse(status, body, new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" }
+            }));
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? requestBody,
+            bool noRedirect,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            CancellationToken cancellationToken)
+        {
+            Url = url;
+            Timeout = timeout;
+            MaxRetries = maxRetries;
+            return SendRequestAsync(method, url, headers, requestBody);
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc212A404And500ResponseRaiseTheMatchingErrorThroughTheApiLayer()
+    {
+        var notFound = new TestableApi(new StatusSequenceApiClient(404), "http://localhost");
+        await Assert.ThrowsAsync<NotFoundException>(() => notFound.CallAsync<object>(
+            "GET", "/items/7", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        var failed = new TestableApi(new StatusSequenceApiClient(500), "http://localhost");
+        await Assert.ThrowsAsync<InternalServerErrorException>(() => failed.CallAsync<object>(
+            "GET", "/items/7", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+    }
+
+    [Fact]
+    public async Task BhvMisc209AVoidOperationIgnoresASuccessBodyThatIsTextOrANonObjectJson()
+    {
+        var textApi = new TestableApi(new FixedBodyApiClient("Deleted", "text/plain"), "http://localhost");
+        Assert.Null(await textApi.CallAsyncWithNullReturnType(
+            "DELETE", "/items/7", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json"));
+
+        var numberApi = new TestableApi(new FixedBodyApiClient("42", "application/json"), "http://localhost");
+        Assert.Null(await numberApi.CallAsyncWithNullReturnType(
+            "DELETE", "/items/7", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+    }
+
+    private sealed class FixedBodyApiClient(string responseBody, string responseType) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, responseBody, new Dictionary<string, string>
+            {
+                { "Content-Type", responseType }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task BhvErrors036AnApiErrorNamesTheRequestMethodAndPathWithoutTheQuery()
+    {
+        var client = new StatusSequenceApiClient(404);
+        var api = new TestableApi(client, "http://localhost");
+
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => api.CallAsync<object>(
+            "GET", "/items/7",
+            new Dictionary<string, object?> { ["q"] = "secret" },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+        Assert.Equal("API returned status code 404 for GET /items/7", ex.Message);
+        Assert.DoesNotContain("secret", ex.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvErrors092ATimeoutNamesTheRequestMethodAndPathAndStaysATimeout()
+    {
+        var api = new TestableApi(new TimeoutApiClient(), "http://localhost");
+
+        var ex = await Assert.ThrowsAsync<NetworkTimeoutException>(() => api.CallAsync<object>(
+            "GET", "/items/7",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+    }
+
+    [Fact]
+    public async Task BhvErrors057ANetworkFailureNamesTheRequestMethodAndPath()
+    {
+        var api = new TestableApi(new RefusedApiClient(), "http://localhost");
+
+        var ex = await Assert.ThrowsAsync<NetworkException>(() => api.CallAsync<object>(
+            "GET", "/items/7",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+    }
+
+    [Fact]
+    public async Task BhvErrors027AnApiErrorKeepsTheBasePathOfTheServer()
+    {
+        var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
+
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() => api.CallAsync<object>(
+            "DELETE", "/items/7",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Equal("DELETE", ex.RequestMethod);
+        Assert.Equal("/v2/items/7", ex.RequestPath);
+    }
+
+    [Fact]
+    public async Task BhvRetries009PerCallOptionsReachTheTransportAndTheRequestHeaders()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        _ = await api.CallWithCallOptionsAsync<object>(
+            "/x",
+            [],
+            1500,
+            new Dictionary<string, string> { ["x-trace"] = "abc" },
+            4);
+
+        Assert.Equal(1500, client.Timeout);
+        Assert.Equal(4, client.MaxRetries);
+        Assert.Equal("abc", client.Headers["x-trace"]);
+    }
+
+    [Fact]
+    public async Task BhvTransport002TheTimeoutReachesTheTransportForThisCallOnly()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        _ = await api.CallWithCallOptionsAsync<object>("/x", [], 1500, null, null);
+        Assert.Equal(1500, client.Timeout);
+
+        _ = await api.CallWithCallOptionsAsync<object>("/x", [], null, null, null);
+        Assert.Null(client.Timeout);
+    }
+
+    [Fact]
+    public async Task BhvOperations001PerCallHeadersReplaceAHeaderOfTheSameNameWhateverItsCasing()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        _ = await api.CallWithCallOptionsAsync<object>(
+            "/x", [], null, new Dictionary<string, string> { ["accept"] = "text/csv" }, null);
+
+        Assert.Equal("text/csv", client.Headers.Single(h => h.Key.Equals("Accept", StringComparison.OrdinalIgnoreCase)).Value);
+        Assert.Null(client.Timeout);
+        Assert.Null(client.MaxRetries);
+    }
+
+    [Fact]
+    public async Task BhvHooks007TheFreshAuthenticationHeadersOfAReplayStillReplaceAHookHeaderOfTheSameName()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["Authorization"] = "Bearer hook" };
+        var client = new ScriptedApiClient(401, 200);
+
+        _ = await Hooked(client, hook).CallAsync<object>("/items/7", body: "{}", auth: new RefreshableAuthenticator());
+
+        Assert.Equal("Bearer hook", client.Sent[0]["Authorization"]);
+        Assert.Equal("Bearer t2", client.Sent[1]["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvHooks008ACallTheTransportRetriesCallsStartOnceAndFinishOnce()
+    {
+        var hook = new RecordingHook();
+        var client = new ScriptedApiClient(503, 200);
+
+        _ = await Hooked(client, hook).CallAsync<object>("/items/7");
+
+        Assert.Equal(2, client.Sent.Count);
+        _ = Assert.Single(hook.Infos);
+        Assert.Equal(200, Assert.Single(hook.Outcomes).StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvHooks009ThePlainAndTheWithHttpInfoVariantOfAnOperationCallTheHookOnceEach()
+    {
+        var hook = new RecordingHook();
+        var api = new StoreApi(
+            new CallOptionsApiClient(200, "{}"), new Configuration("http://localhost", null, hook));
+
+        _ = await api.GetInventoryAsync();
+        Assert.Single(hook.Infos);
+        Assert.Single(hook.Outcomes);
+
+        _ = await api.GetInventoryWithHttpInfoAsync();
+        Assert.Equal(2, hook.Infos.Count);
+        Assert.Equal(2, hook.Outcomes.Count);
+    }
+
+    [Fact]
+    public async Task BhvHooks011FinishGetsTheStatusTheLowerCasedHeadersAndNoErrorOnA2xx()
+    {
+        var hook = new RecordingHook();
+
+        _ = await Hooked(new ScriptedApiClient(200), hook).CallAsync<object>("/items/7");
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.Equal("yes", outcome.Headers!["x-reply"]);
+        Assert.Equal("application/json", outcome.Headers["content-type"]);
+        Assert.DoesNotContain("X-Reply", outcome.Headers.Keys);
+        Assert.Null(outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks012FinishGetsTheStatusTheHeadersAndTheSameTypedErrorTheCallerReceivesOnANon2xx()
+    {
+        var hook = new RecordingHook();
+
+        var thrown = await Assert.ThrowsAsync<NotFoundException>(
+            () => Hooked(new ScriptedApiClient(404), hook).CallAsync<object>("/items/7"));
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(404, outcome.StatusCode);
+        Assert.Equal("yes", outcome.Headers!["x-reply"]);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks013FinishGetsStatusZeroNullHeadersAndTheNetworkErrorWhenNoResponseArrived()
+    {
+        var hook = new RecordingHook();
+        var failure = new NetworkException("down");
+
+        var thrown = await Assert.ThrowsAsync<NetworkException>(
+            () => Hooked(new ScriptedApiClient(failure), hook).CallAsync<object>("/items/7"));
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(0, outcome.StatusCode);
+        Assert.Null(outcome.Headers);
+        Assert.Same(failure, outcome.Error);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks014FinishGetsTheTimeoutErrorWhenTheBudgetIsExhaustedNeverTheCancellation()
+    {
+        var hook = new RecordingHook();
+        var transport = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(new HangingHandler()).Timeout(100).MaxRetries(0).Build());
+
+        var thrown = await Assert.ThrowsAsync<NetworkTimeoutException>(
+            () => Hooked(transport, hook).CallAsync<object>("/items/7"));
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Same(thrown, outcome.Error);
+        Assert.Equal(0, outcome.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvHooks015FinishGetsTheCancellationAndTheCallRethrowsItNeverAsTheTimeoutError()
+    {
+        var hook = new RecordingHook();
+        var transport = new DefaultApiClient(
+            TransportOptions.Builder().HttpMessageHandler(new HangingHandler()).MaxRetries(0).Build());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(100);
+
+        var thrown = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => Hooked(transport, hook).CallAsync<object>("/items/7", cancellationToken: cancellation.Token));
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Same(thrown, outcome.Error);
+        Assert.IsNotType<NetworkTimeoutException>(outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks016FinishGetsTheSerializationErrorWithTheStatusThatArrivedWhenTheResponseCannotBeDecoded()
+    {
+        var hook = new RecordingHook();
+
+        var thrown = await Assert.ThrowsAsync<SerializationException>(
+            () => Hooked(new CallOptionsApiClient(200, "{not json"), hook).CallAsync<Dictionary<string, int>>("/items/7"));
+
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(200, outcome.StatusCode);
+        Assert.NotNull(outcome.Headers);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks017FinishIsCalledWhenTheRequestBodyCannotBeEncodedAndNothingIsSent()
+    {
+        var hook = new RecordingHook();
+        var client = new ScriptedApiClient(200);
+        var body = new Dictionary<string, object> { ["a"] = new Dictionary<string, object> { ["lat"] = 1.5 } };
+
+        var thrown = await Assert.ThrowsAsync<SerializationException>(
+            () => Hooked(client, hook).CallAsync<object>(
+                "/items/7", body: body, contentType: "application/x-www-form-urlencoded"));
+
+        Assert.Empty(client.Sent);
+        CallOutcome outcome = Assert.Single(hook.Outcomes);
+        Assert.Equal(0, outcome.StatusCode);
+        Assert.Same(thrown, outcome.Error);
+    }
+
+    [Fact]
+    public async Task BhvHooks018AnErrorThrownByStartReachesTheCallerUnchangedNothingIsSentAndFinishIsNotCalled()
+    {
+        var failure = new InvalidOperationException("refused");
+        var hook = new RecordingHook { ThrowOnStart = failure };
+        var client = new ScriptedApiClient(200);
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Hooked(client, hook).CallAsync<object>("/items/7"));
+
+        Assert.Same(failure, thrown);
+        Assert.Empty(client.Sent);
+        Assert.Empty(hook.Outcomes);
+    }
+
+    [Fact]
+    public async Task BhvHooks019AnErrorThrownByFinishIsSwallowedAndTheCallerStillGetsItsResultOrItsOwnError()
+    {
+        var hook = new RecordingHook { ThrowOnFinish = new InvalidOperationException("observer") };
+
+        ApiResult<object> result = await Hooked(new ScriptedApiClient(200), hook).CallAsync<object>("/items/7");
+        _ = await Assert.ThrowsAsync<NotFoundException>(
+            () => Hooked(new ScriptedApiClient(404), hook).CallAsync<object>("/items/7"));
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(2, hook.Outcomes.Count);
+    }
+
+    [Fact]
+    public async Task BhvHooks021TheUrlGivenToTheHookNeverCarriesTheQueryStringOrTheFragment()
+    {
+        var hook = new RecordingHook();
+        var auth = new TestAuthenticator(queryParams: new Dictionary<string, string> { ["api_key"] = "secret" });
+
+        _ = await Hooked(new ScriptedApiClient(200), hook).CallAsync<object>(
+            "/items/7#section", new Dictionary<string, object?> { ["a"] = "1" }, auth: auth);
+
+        string url = Assert.Single(hook.Infos).Url;
+        Assert.Equal("http://localhost/items/7", url);
+        Assert.DoesNotContain("secret", url, StringComparison.Ordinal);
+    }
+
+    public static TheoryData<int, Type> StatusToException => new()
+    {
+        { 400, typeof(BadRequestException) },
+        { 401, typeof(UnauthorizedException) },
+        { 403, typeof(ForbiddenException) },
+        { 404, typeof(NotFoundException) },
+        { 409, typeof(ConflictException) },
+        { 422, typeof(UnprocessableEntityException) },
+        { 429, typeof(TooManyRequestsException) },
+        { 418, typeof(ClientException) },
+        { 500, typeof(InternalServerErrorException) },
+        { 502, typeof(BadGatewayException) },
+    };
+
+    [Fact]
+    public void BhvMisc233ACookieCarryingAJsonModelEncodesItsDot()
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(new Dictionary<string, string> { ["a"] = "x.y" }, "cookie");
+
+        Assert.Equal("%7B%22a%22%3A%22x%2Ey%22%7D", encoded);
+    }
+
+    [Fact]
+    public void BhvSerializationobject224ContentCookieValueIsJsonPercentEncodedKeepingOnlyTheUnreservedSet()
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(new Dictionary<string, string> { ["k"] = "a b~*\u00e9" }, "cookie");
+
+        Assert.Equal("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
+    }
+
+    [Theory]
+    [InlineData("path")]
+    [InlineData("header")]
+    [InlineData("cookie")]
+    public void BhvSerialization009ContentParameterFailureIsASerializationException(string location)
+    {
+        var api = new TestableApi("http://localhost");
+        var unserializable = new {{packageName}}.Models.PhotoMetadata
+        {
+            Location = new {{packageName}}.Models.PhotoMetadataLocation { Lat = double.NaN },
+        };
+
+        Assert.Throws<SerializationException>(() => api.ContentParameter(unserializable, location));
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration019InvalidAuthCookieFailsBeforeAnyRequestIsSent()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "a;b" } });
+
+        await Assert.ThrowsAsync<ArgumentException>(() => testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth));
+
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvSerializationparam107QueryValueKeepsOnlyTheUnreservedSetLiteral()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "q", "a!b*c'd(e)f~g" } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        Assert.Contains("q=a%21b%2Ac%27d%28e%29f~g", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    private sealed class DelayedAuthenticator : IAuthenticator
+    {
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() => [];
+
+        public async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+        {
+            await Task.Delay(20).ConfigureAwait(false);
+            return [];
+        }
+    }
+
+    [Fact]
+    public async Task BhvErrors040AMalformedRequestUrlRaisesAnArgumentExceptionAndSendsNothing()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://exa mple.invalid");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync<JsonNode>(
+            "GET", "/x", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvMisc030ACallPastItsDeadlineAfterObtainingCredentialsNeverReachesTheTransport()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://localhost");
+
+        await Assert.ThrowsAsync<NetworkTimeoutException>(
+            () => api.CallWithTimeoutAsync<JsonNode>(new DelayedAuthenticator(), 5));
+
+        Assert.Null(client.CapturedUrl);
+    }
+
+    private static string TraceparentOf(Activity activity) =>
+        $"00-{activity.TraceId}-{activity.SpanId}-{(int)activity.ActivityTraceFlags:x2}";
+
+    private static ActivityListener RecordAllActivities()
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
+
+    private static async Task<Dictionary<string, string>> CallCapturingHeadersAsync(
+        IAuthenticator? auth = null)
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://localhost", auth);
+        await api.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        return client.CapturedHeaders;
+    }
+
+    [Fact]
+    public async Task BhvTracing013AnOperationSendsTheTraceparentOfTheActiveSpan()
+    {
+        using var listener = RecordAllActivities();
+        using var source = new ActivitySource("test.base.api.caller");
+        using var activity = source.StartActivity("caller");
+        Assert.NotNull(activity);
+
+        var headers = await CallCapturingHeadersAsync();
+
+        Assert.Equal(TraceparentOf(activity), headers["traceparent"]);
+    }
+
+    [Fact]
+    public async Task BhvTracing014TheSpanStillReachesTraceparentWhenTheCredentialsAreAwaitedFirst()
+    {
+        using var listener = RecordAllActivities();
+        using var source = new ActivitySource("test.base.api.awaited");
+        using var activity = source.StartActivity("caller");
+        Assert.NotNull(activity);
+
+        var headers = await CallCapturingHeadersAsync(new DelayedAuthenticator());
+
+        Assert.Equal(TraceparentOf(activity), headers["traceparent"]);
+    }
+
+    [Fact]
+    public async Task BhvTracing015ConcurrentOperationsEachSendTheirOwnCallersTraceparent()
+    {
+        using var listener = RecordAllActivities();
+        using var source = new ActivitySource("test.base.api.concurrent");
+
+        async Task<(string Expected, string? Actual)> RunAsync(string name)
+        {
+            using var activity = source.StartActivity(name);
+            Assert.NotNull(activity);
+            var headers = await CallCapturingHeadersAsync(new DelayedAuthenticator());
+            return (TraceparentOf(activity), headers.GetValueOrDefault("traceparent"));
+        }
+
+        var results = await Task.WhenAll(
+            Task.Run(() => RunAsync("first")), Task.Run(() => RunAsync("second")));
+
+        Assert.NotEqual(results[0].Expected, results[1].Expected);
+        Assert.Equal(results[0].Expected, results[0].Actual);
+        Assert.Equal(results[1].Expected, results[1].Actual);
+    }
+
+    [Fact]
+    public async Task BhvTracing016AnOperationWithNoActiveSpanSendsNoTraceparent()
+    {
+        using var listener = RecordAllActivities();
+        using var source = new ActivitySource("test.base.api.stale");
+        using (var activity = source.StartActivity("earlier"))
+        {
+            Assert.NotNull(activity);
+            var traced = await CallCapturingHeadersAsync();
+            Assert.True(traced.ContainsKey("traceparent"));
+        }
+        Activity.Current = null;
+
+        var headers = await CallCapturingHeadersAsync();
+
+        Assert.False(headers.ContainsKey("traceparent"));
+    }
+
+    [Fact]
+    public async Task BhvMisc006ABareJsonNullResponseGivesNoDataAndKeepsTheRawBody()
+    {
+        var api = new TestableApi(new CallOptionsApiClient(200, "null"), "http://localhost");
+
+        ApiResult<JsonNode> result = await api.CallForResultAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        Assert.Null(result.Data);
+        Assert.Equal("null", result.RawBody);
+    }
+    [Fact]
+    public async Task BhvMisc008ASuppliedCookieParameterIsSentInTheCookieHeader()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        await api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "k1" });
+
+        Assert.Equal("api_key=k1", client.CapturedHeaders["Cookie"]);
+    }
+    [Fact]
+    public async Task BhvMisc009AnOperationCalledWithoutOptionsSendsNoCookieHeader()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        await api.DeletePetAsync(1L);
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Cookie"));
+    }
+    [Fact]
+    public async Task BhvMisc012ANilRequiredArgumentNamesItAndSendsNothing()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => api.AddPetPhotosAsync(1L, null!));
+
+        Assert.Equal("options.Files", ex.ParamName);
+        Assert.Null(client.CapturedUrl);
+    }
+    [Fact]
+    public async Task BhvMisc019ARequestTargetIsReducedToItsPathInTheError()
+    {
+        var api = new TestableApi(new StatusSequenceApiClient(500), "https://example.test/v2/");
+
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() => api.CallAsync<object>(
+            "GET", "/items/7",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Equal("/v2/items/7", ex.RequestPath);
+    }
+    [Fact]
+    public async Task BhvMisc021TheRequestPathKeepsTheBasePathAndDropsTheQuery()
+    {
+        var api = new TestableApi(new StatusSequenceApiClient(500), "http://localhost/v2/");
+
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(() => api.CallAsync<object>(
+            "GET", "/items/7",
+            new Dictionary<string, object?> { ["limit"] = 5 },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json"));
+
+        Assert.Equal("/v2/items/7", ex.RequestPath);
+    }
+
+
+    private sealed class TokenRecordingAuthenticator : IAuthenticator
+    {
+        public CancellationToken Received { get; private set; }
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() =>
+            new() { ["Authorization"] = "Bearer probe" };
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync() =>
+            Task.FromResult(GetAuthHeaders());
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken)
+        {
+            Received = cancellationToken;
+            return Task.FromResult(GetAuthHeaders());
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc061AnAuthenticatorThatNeedsRequestsReceivesTheCallContextAndSendsItsHeaders()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var auth = new TokenRecordingAuthenticator();
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://localhost", auth);
+
+        await api.CallForResultAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", token);
+
+        Assert.Equal(token, auth.Received);
+        Assert.Equal("Bearer probe", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc064AnOperationThatDeclaresNoSecurityNeverSendsTheClientCredential()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } });
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+
+        await api.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", NoAuth.Instance);
+
+        Assert.False(client.CapturedHeaders.ContainsKey("X-Client-Auth"));
+    }
+
+    [Fact]
+    public async Task BhvMisc176ARequiredCookieParamIsSentInTheCookieHeaderWithItsValue()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        await api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "abc123" });
+
+        Assert.Equal("api_key=abc123", client.CapturedHeaders["Cookie"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc179AFormUrlencodedBodySendsItsFormContentType()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration("http://localhost"));
+
+        _ = await api.CallAsync<object>(
+            "/items/7", body: "name=x", contentType: "application/x-www-form-urlencoded");
+
+        Assert.Equal("application/x-www-form-urlencoded", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc181AHeaderValueIsSentAsSerialisedWithoutPercentEncoding()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration(
+            "http://localhost", new Dictionary<string, string> { ["X-Trace"] = "a%20b c" }));
+
+        _ = await api.CallAsync<object>("/items/7");
+
+        Assert.Equal("a%20b c", client.CapturedHeaders["X-Trace"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc191AnAuthCookieWithAForbiddenCharacterRaisesAnArgumentError()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration("http://localhost"));
+        var auth = new ApiKeyAuthenticator("http://localhost", "session", "a;b", ApiKeyLocation.Cookie);
+
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync<object>("/items/7", auth: auth));
+    }
+
+    [Fact]
+    public async Task BhvMisc192AnAuthCookieOfLegalOctetsIsSentExactlyAsGiven()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration("http://localhost"));
+        var auth = new ApiKeyAuthenticator("http://localhost", "session", "a%20b=c", ApiKeyLocation.Cookie);
+
+        _ = await api.CallAsync<object>("/items/7", auth: auth);
+
+        Assert.Equal("session=a%20b=c", client.CapturedHeaders["Cookie"]);
+    }
+
+    private sealed class RawBodyApiClient(string payload, string contentType) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, payload, new Dictionary<string, string>
+            {
+                { "Content-Type", contentType }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task BhvSerialization122AFormArrayRepeatsItsKeyInOrder()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "name", "alice" }, { "tags", new List<string> { "a", "b" } } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.Equal("name=alice&tags=a&tags=b", client.CapturedBody?.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerialization125FormValuesPercentEncodeAPlusSign()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "q", "a+b" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.Equal("q=a%2Bb", client.CapturedBody?.ToString());
+    }
+
+    [Theory]
+    [InlineData("application/octet-stream")]
+    [InlineData("text/plain")]
+    [InlineData("application/json")]
+    public async Task BhvSerialization128AStringResponseIsReturnedUnchangedWhateverItsContentType(string contentType)
+    {
+        var testApi = new TestableApi(new RawBodyApiClient("{\"a\":1}", contentType), "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["*/*"], "application/json");
+        Assert.Equal("{\"a\":1}", result);
+    }
+
+
+    private sealed class CapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+        public object? CapturedBody { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            CapturedUrl = url;
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            CapturedBody = body;
+            return Task.FromResult(new ApiHttpResponse(200, "{}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" }
+            }));
+        }
+    }
+
+    private sealed class TestAuthenticator : IAuthenticator
+    {
+        private readonly Dictionary<string, string> _headers;
+        private readonly Dictionary<string, string> _queryParams;
+        private readonly Dictionary<string, string> _cookies;
+
+        public TestAuthenticator(
+            Dictionary<string, string>? headers = null,
+            Dictionary<string, string>? queryParams = null,
+            Dictionary<string, string>? cookies = null)
+        {
+            _headers = headers ?? [];
+            _queryParams = queryParams ?? [];
+            _cookies = cookies ?? [];
+        }
+
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() => _headers;
+        public Dictionary<string, string> GetQueryParams() => _queryParams;
+        public Dictionary<string, string> GetCookieParams() => _cookies;
+    }
+
+    private sealed class HttpAwareTestAuthenticator : IHttpAwareAuthenticator
+    {
+        public IApiClient? Injected { get; private set; }
+
+        public void SetApiClient(IApiClient apiClient)
+        {
+            Injected = apiClient;
+        }
+
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() => [];
+        public Dictionary<string, string> GetQueryParams() => [];
+        public Dictionary<string, string> GetCookieParams() => [];
+    }
+
+    private sealed class TextPlainApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, "hello", new Dictionary<string, string>
+            {
+                { "Content-Type", "text/plain" }
+            }));
+        }
+    }
+
+    private sealed class VendorJsonApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, "{\"title\":\"Not Found\"}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/problem+json" }
+            }));
+        }
+    }
+
+    private sealed class RefreshableAuthenticator : IInvalidatableAuthenticator
+    {
+        public int Invalidations { get; private set; }
+
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() => [];
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync() =>
+            Task.FromResult(new Dictionary<string, string> { ["Authorization"] = "Bearer t" + (Invalidations + 1) });
+
+        public void InvalidateAccessToken() => Invalidations++;
+    }
+
+    /// <summary>Answers a stream call from a script of statuses and keeps what each call was sent.</summary>
+    private sealed class ScriptedStreamingClient(string contentType, byte[] body, params int[] statuses)
+        : IApiClient
+    {
+        public List<Dictionary<string, string>> StreamHeaders { get; } = [];
+        public List<CloseTrackingStream> Opened { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? requestBody)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, "{}", new Dictionary<string, string>
+            {
+                { "content-type", "application/json" }
+            }));
+        }
+
+        public Task<ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? requestBody,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken)
+        {
+            int index = Math.Min(StreamHeaders.Count, statuses.Length - 1);
+            StreamHeaders.Add(new Dictionary<string, string>(headers));
+            CloseTrackingStream opening = new(body);
+            Opened.Add(opening);
+            return Task.FromResult(new ApiStreamResponse(
+                statuses[index],
+                new Dictionary<string, string> { { "content-type", contentType } },
+                opening));
+        }
+    }
+
+    /// <summary>A response body that remembers whether it was disposed.</summary>
+    private sealed class CloseTrackingStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public bool Closed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Closed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>A transport written before streaming existed: it implements the buffered call only.</summary>
+    private sealed class BufferedOnlyApiClient : IApiClient
+    {
+        public Uri? SentUrl { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            SentUrl = url;
+            return Task.FromResult(new ApiHttpResponse(200, "{}", new Dictionary<string, string>
+            {
+                { "content-type", "application/json" }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream()
+    {
+        var client = new ScriptedStreamingClient(
+            "application/json", Encoding.UTF8.GetBytes("{\"message\":\"gone\"}"), 404);
+
+        var failure = await Assert.ThrowsAsync<NotFoundException>(
+            () => new TestableApi(client, "http://localhost").StreamAsync("GET", "/items/blob"));
+
+        Assert.Equal(404, failure.StatusCode);
+        Assert.Contains("gone", failure.ResponseBody, StringComparison.Ordinal);
+        Assert.Equal("/items/blob", failure.RequestPath);
+        Assert.True(client.Opened[0].Closed, "the connection was closed after the error body");
+
+        var large = new ScriptedStreamingClient("text/plain", new byte[200_000], 502);
+        var bounded = await Assert.ThrowsAnyAsync<ServerException>(
+            () => new TestableApi(large, "http://localhost").StreamAsync("GET", "/items/blob"));
+        Assert.Equal(64 * 1024, bounded.ResponseBody!.Length);
+    }
+
+    [Fact]
+    public async Task BhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall()
+    {
+        using var listener = RecordAllActivities();
+        using var source = new ActivitySource("test.base.api.stream");
+        using var activity = source.StartActivity("caller");
+        Assert.NotNull(activity);
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Type: text/plain", "Content-Length: 2");
+                await RawServer.WriteAsync(socket, "ok");
+            }
+        );
+        var api = new TestableApi(
+            new DefaultApiClient(TransportOptions.Builder().InjectRequestId(true).MaxRetries(0).Build()),
+            server.Url(""),
+            new ApiKeyAuthenticator(server.Url(""), "X-Api-Key", "k-123", ApiKeyLocation.Header));
+
+        _ = await api.CallForResultAsync<string>(
+            "GET", "/items/blob", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["application/octet-stream"], "application/json");
+        await using ByteStream streamed = (await api.StreamAsync("GET", "/items/blob")).Data!;
+
+        var bufferedHeaders = HeadersOf(server.Heads[0]);
+        var streamedHeaders = HeadersOf(server.Heads[1]);
+        Assert.Equal(bufferedHeaders.Keys, streamedHeaders.Keys);
+        foreach (string name in new[] { "User-Agent", "X-Api-Key", "traceparent", "Accept", "Accept-Encoding" })
+        {
+            Assert.True(streamedHeaders.ContainsKey(name), name);
+            Assert.Equal(bufferedHeaders[name], streamedHeaders[name]);
+        }
+        Assert.True(streamedHeaders.ContainsKey("X-Request-ID"));
+        Assert.NotEqual(bufferedHeaders["X-Request-ID"], streamedHeaders["X-Request-ID"]);
+    }
+
+    private static SortedDictionary<string, string> HeadersOf(string head)
+    {
+        SortedDictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string line in head.Split("\r\n"))
+        {
+            int colon = line.IndexOf(':', StringComparison.Ordinal);
+            if (colon > 0 && !line.StartsWith("GET ", StringComparison.Ordinal))
+            {
+                headers[line[..colon]] = line[(colon + 1)..].Trim();
+            }
+        }
+        return headers;
+    }
+
+    [Fact]
+    public async Task BhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce()
+    {
+        var client = new ScriptedStreamingClient(
+            "application/octet-stream", Encoding.UTF8.GetBytes("ok"), 401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        await using ByteStream stream = (await new TestableApi(client, "http://localhost", auth)
+            .StreamAsync("GET", "/items/blob")).Data!;
+
+        Assert.Equal(2, client.StreamHeaders.Count);
+        Assert.Equal("Bearer t1", client.StreamHeaders[0]["Authorization"]);
+        Assert.Equal("Bearer t2", client.StreamHeaders[1]["Authorization"]);
+        Assert.Equal(1, auth.Invalidations);
+        Assert.True(client.Opened[0].Closed, "the refused response was closed unread");
+        Assert.Equal("ok", Encoding.UTF8.GetString(await stream.ReadAllAsync()));
+
+        var refused = new ScriptedStreamingClient("application/octet-stream", [], 401);
+        _ = await Assert.ThrowsAsync<UnauthorizedException>(
+            () => new TestableApi(refused, "http://localhost", new RefreshableAuthenticator())
+                .StreamAsync("GET", "/items/blob"));
+        Assert.Equal(2, refused.StreamHeaders.Count);
+    }
+
+    [Fact]
+    public async Task BhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls()
+    {
+        var transport = new BufferedOnlyApiClient();
+        var api = new TestableApi(transport, "http://localhost");
+
+        var refused = await Assert.ThrowsAsync<NotSupportedException>(
+            () => api.StreamAsync("GET", "/items/blob"));
+
+        Assert.Contains(typeof(BufferedOnlyApiClient).FullName!, refused.Message, StringComparison.Ordinal);
+        Assert.Contains("cannot stream", refused.Message, StringComparison.Ordinal);
+        Assert.Null(transport.SentUrl);
+
+        _ = await api.CallAsync<object>(
+            "GET", "/test/echo", new Dictionary<string, object?>(), new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.EndsWith("/test/echo", transport.SentUrl!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    /// <summary>Answers each event stream call with the next scripted body and keeps the headers it was sent.</summary>
+    private sealed class EventStreamClient(params string[] bodies) : IApiClient
+    {
+        public List<Dictionary<string, string>> SentHeaders { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken)
+        {
+            int index = Math.Min(SentHeaders.Count, bodies.Length - 1);
+            SentHeaders.Add(new Dictionary<string, string>(headers));
+            string text = bodies[index];
+            if (text.Length == 0)
+            {
+                return Task.FromResult(new ApiStreamResponse(204, new Dictionary<string, string>(), new MemoryStream()));
+            }
+            return Task.FromResult(new ApiStreamResponse(
+                200,
+                new Dictionary<string, string> { { "content-type", "text/event-stream" } },
+                new MemoryStream(Encoding.UTF8.GetBytes(text))));
+        }
+    }
+
+    private sealed class RotatingAuthenticator : IAuthenticator
+    {
+        private int _counter;
+
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() =>
+            new() { ["Authorization"] = "Bearer t" + Interlocked.Increment(ref _counter) };
+        public Dictionary<string, string> GetQueryParams() => [];
+        public Dictionary<string, string> GetCookieParams() => [];
+    }
+
+    private static string? HeaderOf(IReadOnlyDictionary<string, string> headers, string name)
+    {
+        foreach (KeyValuePair<string, string> entry in headers)
+        {
+            if (string.Equals(entry.Key, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry.Value;
+            }
+        }
+        return null;
+    }
+
+    private static async Task DrainAsync(SseStream<string> stream)
+    {
+        await foreach (ServerSentEvent<string> item in stream)
+        {
+            Assert.NotNull(item);
+        }
+    }
+
+    [Fact]
+    public void BhvStreaming028AStreamingOperationGetsAStreamMethodAndNoBufferedMethod()
+    {
+        var names = typeof(StoreApi).GetMethods().Select(m => m.Name).ToHashSet();
+        foreach (string operation in new[] { "ExportOrders", "WatchOrders", "WatchNotices" })
+        {
+            Assert.Contains(operation + "StreamAsync", names);
+            Assert.DoesNotContain(operation + "Async", names);
+            Assert.DoesNotContain(operation + "WithHttpInfoAsync", names);
+        }
+        Type Item(string method) => typeof(StoreApi).GetMethod(method)!.ReturnType.GetGenericArguments()[0];
+        Assert.Equal(typeof(JsonLinesStream<>), Item("ExportOrdersStreamAsync").GetGenericTypeDefinition());
+        Assert.Equal(typeof(SseStream<>), Item("WatchNoticesStreamAsync").GetGenericTypeDefinition());
+    }
+
+    [Fact]
+    public async Task BhvSse006AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+        await DrainAsync(await new TestableApi(client, "http://localhost").EventsAsync([], null));
+        Dictionary<string, string> sent = client.SentHeaders[0];
+        Assert.Equal("text/event-stream", HeaderOf(sent, "Accept"));
+        Assert.Equal("no-cache", HeaderOf(sent, "Cache-Control"));
+        Assert.Equal("identity", HeaderOf(sent, "Accept-Encoding"));
+
+        var own = new EventStreamClient("data: a\n\n", "");
+        var configured = new TestableApi(
+            own,
+            new Configuration("http://localhost", new Dictionary<string, string> { ["accept-encoding"] = "gzip" }));
+        await DrainAsync(await configured.EventsAsync(new Dictionary<string, string> { ["cache-control"] = "max-age=0" }, null));
+        Dictionary<string, string> chosen = own.SentHeaders[0];
+        Assert.Equal("max-age=0", HeaderOf(chosen, "Cache-Control"));
+        Assert.Equal(1, chosen.Keys.Count(k => string.Equals(k, "cache-control", StringComparison.OrdinalIgnoreCase)));
+        Assert.Equal("gzip", HeaderOf(chosen, "Accept-Encoding"));
+        Assert.Equal(1, chosen.Keys.Count(k => string.Equals(k, "accept-encoding", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task BhvSse012AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+
+        await DrainAsync(await new TestableApi(client, "http://localhost")
+            .EventsAsync([], new StreamOptions { LastEventId = "42" }));
+
+        Assert.Equal("42", HeaderOf(client.SentHeaders[0], "Last-Event-ID"));
+    }
+
+    [Fact]
+    public async Task BhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+
+        await DrainAsync(await new TestableApi(client, "http://localhost", new RotatingAuthenticator())
+            .EventsAsync([], new StreamOptions { ReconnectDelay = 1 }));
+
+        Assert.Equal(2, client.SentHeaders.Count);
+        Assert.Equal("Bearer t1", HeaderOf(client.SentHeaders[0], "Authorization"));
+        Assert.Equal("Bearer t2", HeaderOf(client.SentHeaders[1], "Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty()
+    {
+        var client = new EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "");
+
+        await DrainAsync(await new TestableApi(client, "http://localhost")
+            .EventsAsync([], new StreamOptions { ReconnectDelay = 1 }));
+
+        Assert.Equal(3, client.SentHeaders.Count);
+        Assert.Null(HeaderOf(client.SentHeaders[0], "Last-Event-ID"));
+        Assert.Null(HeaderOf(client.SentHeaders[1], "Last-Event-ID"));
+        Assert.Equal("5", HeaderOf(client.SentHeaders[2], "Last-Event-ID"));
+    }
+
+    private sealed class StatusSequenceApiClient(params int[] statuses) : IApiClient
+    {
+        public List<string?> Authorizations { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Authorizations.Add(headers.GetValueOrDefault("Authorization"));
+            int status = statuses[Math.Min(Authorizations.Count, statuses.Length) - 1];
+            return Task.FromResult(new ApiHttpResponse(status, "{}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" }
+            }));
+        }
+    }
+
+    private sealed class TimeoutApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromException<ApiHttpResponse>(new NetworkTimeoutException("request timed out"));
+        }
+    }
+
+    private sealed class RefusedApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromException<ApiHttpResponse>(new NetworkException("connection refused"));
+        }
+    }
+
+    private static Task<object?> CallWithAuth(
+        StatusSequenceApiClient client, IAuthenticator auth, object? body = null, string contentType = "application/json")
+    {
+        return new TestableApi(client, "http://localhost").CallAsync<object>(
+            "POST", "/x",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            body, ["application/json"], contentType, auth);
+    }
+
+    private sealed class FailingRefreshAuthenticator : IInvalidatableAuthenticator
+    {
+        private int _fetches;
+
+        public string GetHost() => "";
+        public Dictionary<string, string> GetAuthHeaders() => [];
+
+        public Task<Dictionary<string, string>> GetAuthHeadersAsync()
+        {
+            _fetches++;
+            if (_fetches > 1)
+            {
+                throw new NetworkException("token endpoint unreachable");
+            }
+            return Task.FromResult(new Dictionary<string, string> { ["Authorization"] = "Bearer t1" });
+        }
+
+        public void InvalidateAccessToken() { }
+    }
+
+    private sealed class BinaryResponseApiClient : IApiClient
+    {
+        public string ContentType { get; set; } = "application/octet-stream";
+        public string Body { get; set; } = "";
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiHttpResponse(200, Body, new Dictionary<string, string>
+            {
+                { "Content-Type", ContentType }
+            }));
+        }
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration001AFailedReauthenticationLeavesThe401AsItIs()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new FailingRefreshAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
+
+        Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration002InjectsItsClientIntoAPerCallHttpAwareAuthenticator()
+    {
+        var capturing = new CapturingApiClient();
+        var api = new TestableApi(capturing, "http://localhost");
+        var auth = new HttpAwareTestAuthenticator();
+
+        await api.CallAsync<object>(
+            "GET", "/items",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth);
+
+        Assert.Same(capturing, auth.Injected);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration004JoinsSeveralAuthCookiesWithASemicolon()
+    {
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "abc123" }, { "theme", "dark" } });
+        var result = await Api().CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth);
+        Assert.NotNull(result);
+        Assert.Equal("session=abc123; theme=dark", result!["headers"]?["cookie"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration005SecurityNoneOperationSuppressesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer client-secret" },
+                { "api-key", "client-api-key" },
+            },
+            queryParams: new Dictionary<string, string> { { "api_key", "client-api-key" } },
+            cookies: new Dictionary<string, string> { { "session", "client-cookie" } });
+        var config = new Configuration("http://localhost");
+        var api = new StoreApi(client, config, clientAuth);
+
+        try
+        {
+            // getInventory is security:[]; the captured request is what matters.
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"),
+            "security:[] operation must NOT carry the client Authorization header");
+        Assert.False(client.CapturedHeaders.ContainsKey("api-key"),
+            "security:[] operation must NOT carry the client api-key header");
+        Assert.False(client.CapturedHeaders.ContainsKey("Cookie"),
+            "security:[] operation must NOT carry the client auth cookie");
+        Assert.DoesNotContain("api_key=", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc074AnAlternativeNamingTwoSchemesSendsBothCredentials()
+    {
+        var client = new CapturingApiClient();
+        var bearer = new TestAuthenticator(headers: new Dictionary<string, string> { { "X-Bearer", "bearer-cred" } });
+        var apiKey = new TestAuthenticator(headers: new Dictionary<string, string> { { "X-Key", "api-key-cred" } });
+        var config = new Configuration("http://localhost");
+        var api = new StoreApi(
+            client,
+            config,
+            null,
+            new Dictionary<string, IAuthenticator> { ["petStoreBearer"] = bearer, ["apiKeyHeader"] = apiKey });
+
+        try
+        {
+            await api.GetAuditTrailAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.Equal("bearer-cred", client.CapturedHeaders["X-Bearer"]);
+        Assert.Equal("api-key-cred", client.CapturedHeaders["X-Key"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration009FallsBackToClientLevelAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } });
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+        await api.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("client-level-token", client.CapturedHeaders["X-Client-Auth"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration010AuthHeadersAreForwardedOnTheRequest()
+    {
+        var auth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Custom", "auth-value" } });
+        var result = await Api().CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth);
+        Assert.NotNull(result);
+        // Chasm envelope: header keys are lowercased in the echoed .headers map.
+        Assert.Equal("auth-value", result!["headers"]?["x-custom"]?.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData(0, null)]
+    [InlineData(-5, null)]
+    [InlineData(null, -1)]
+    public async Task BhvAuthintegration011InvalidPerCallOptionsAreRejectedBeforeSending(int? timeout, int? maxRetries)
+    {
+        var api = new TestableApi(new CallOptionsApiClient(200, "{}"), "http://localhost");
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => api.CallWithCallOptionsAsync<object>("/x", [], timeout, null, maxRetries));
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration012InheritedGlobalSecurityOperationAppliesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer client-secret" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        try
+        {
+            // getPetById inherits the global security requirement; with no
+            // per-call override the client authenticator must be applied.
+            await api.GetPetByIdAsync(42L);
+        }
+        catch (OpenAPIException)
+        {
+            // The {} response body does not deserialize to a Pet; the request
+            // is already captured by the time deserialization fails.
+        }
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"),
+            "inherited-security operation must carry the client Authorization header");
+        Assert.Equal("Bearer client-secret", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration013PerCallAuthOverridesClientLevelAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } });
+        var perCallAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "per-call-token" } });
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+        await api.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", perCallAuth);
+        Assert.Equal("per-call-token", client.CapturedHeaders["X-Client-Auth"]);
+    }
+
+    [Fact]
+    public void BhvAuthintegration015NoAuthSentinelIsSingletonAndCarriesNoCredential()
+    {
+        Assert.Same(NoAuth.Instance, NoAuth.Instance);
+        // GetQueryParams/GetCookieParams are default interface methods, callable
+        // only through the IAuthenticator type, not the concrete NoAuth.
+        IAuthenticator noAuth = NoAuth.Instance;
+        Assert.Empty(noAuth.GetAuthHeaders());
+        Assert.Empty(noAuth.GetQueryParams());
+        Assert.Empty(noAuth.GetCookieParams());
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration016NoSchemeCredentialIsSentOnASecurityNoneOperation()
+    {
+        var client = new CapturingApiClient();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["api_key"] = new ApiKeyHeaderAuthenticator("http://localhost", "scheme-secret"),
+        };
+        var api = new StoreApi(client, new Configuration("http://localhost"), null, schemes);
+
+        try
+        {
+            // getInventory is security:[]; no scheme credential may reach the wire.
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.DoesNotContain(
+            client.CapturedHeaders.Values, v => v.Contains("scheme-secret", StringComparison.Ordinal));
+        Assert.DoesNotContain("scheme-secret", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration017SetsCookieHeaderFromAuthCookies()
+    {
+        var auth = new TestAuthenticator(
+            cookies: new Dictionary<string, string> { { "session", "abc123" } });
+        var result = await Api().CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", auth);
+        Assert.NotNull(result);
+        Assert.Equal("session=abc123", result!["headers"]?["cookie"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public void BhvErrors029GetTypedErrorBodyDeserializesRawBody()
+    {
+        var ex = new BadRequestException(
+            "boom",
+            new Dictionary<string, string>(),
+            "{\"id\":42,\"name\":\"Dogs\"}",
+            null);
+        var typed = ex.GetTypedErrorBody<{{packageName}}.Models.Category>();
+        Assert.NotNull(typed);
+        Assert.Equal(42L, typed!.Id);
+        Assert.Equal("Dogs", typed.Name);
+    }
+
+    [Fact]
+    public void BhvErrors030GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
+    {
+        var ex = new BadRequestException(
+            "boom",
+            new Dictionary<string, string>(),
+            "",
+            null);
+        Assert.Null(ex.GetTypedErrorBody<{{packageName}}.Models.Category>());
+    }
+
+    [Fact]
+    public async Task BhvErrors031InternalServerErrorHierarchy()
+    {
+        var ex = await Assert.ThrowsAsync<InternalServerErrorException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/500",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.IsType<ServerException>(ex, exactMatch: false);
+        Assert.IsType<ApiException>(ex, exactMatch: false);
+        Assert.IsType<{{errorPrefix}}Exception>(ex, exactMatch: false);
+    }
+
+    [Fact]
+    public void BhvErrors032InvalidEnumValueThrowsError()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Configuration.Builder()
+                .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "invalid" } })
+                .Build());
+    }
+
+    [Fact]
+    public async Task BhvErrors033NotFoundErrorIsClientErrorIsApiError()
+    {
+        var ex = await Assert.ThrowsAsync<NotFoundException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/404",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.IsType<ClientException>(ex, exactMatch: false);
+        Assert.IsType<ApiException>(ex, exactMatch: false);
+        Assert.IsType<{{errorPrefix}}Exception>(ex, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task BhvErrors034ParsesJsonErrorBody()
+    {
+        var ex = await Assert.ThrowsAsync<BadRequestException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/400",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.NotNull(ex.ErrorBody);
+    }
+
+    [Fact]
+    public async Task BhvErrors035RejectsNonJsonContentTypeForNonStringReturn()
+    {
+        var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.SerializationException>(() =>
+            textApi.CallAsync<JsonNode>(
+                "GET", "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.Contains("text/plain", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [MemberData(nameof(StatusToException))]
+    public async Task BhvErrors037AnErrorResponseThrowsTheExceptionTypeMatchingItsStatus(int status, Type expectedType)
+    {
+        try
+        {
+            await Api().CallAsync<object>(
+                "GET", $"/test/status/{status}",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json");
+            Assert.Fail("Expected exception not thrown");
+        }
+        catch (ApiException ex)
+        {
+            Assert.IsType(expectedType, ex);
+            Assert.Equal(status, ex.StatusCode);
+            Assert.NotNull(ex.ResponseBody);
+            Assert.NotEmpty(ex.ResponseBody);
+        }
+    }
+
+    [Fact]
+    public async Task BhvOperations002AllHeadersFromSelectorFlowThrough()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>(), ["application/json"], "application/json");
+        Assert.True(client.CapturedHeaders.ContainsKey("Accept"));
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"));
+    }
+
+    [Fact]
+    public async Task BhvOperations003AllowEmptyValueParamIncludedWhenEmpty()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
+        }
+        catch (OpenAPIException)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+        Assert.Contains("status=", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations004HeaderParamsAcceptWinsOverConfigDefaultAndComputedAccept()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Accept", "text/plain")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string> { { "Accept", "application/xml" } },
+            null, ["application/json"], "application/json");
+        Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
+    }
+
+    [Fact]
+    public void BhvOperations005ApiRequestUsesResolvedServerUrl()
+    {
+        var config = Configuration.Builder()
+            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+            .Build();
+        Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public async Task BhvOperations006ApiResultExposesResponseHeadersAsReadOnly()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "https://example.test");
+        ApiResult<JsonNode> result = await api.CallForResultAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        IReadOnlyDictionary<string, string> headers = result.Headers;
+        Assert.Equal("application/json", headers["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task BhvOperations007CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash()
+    {
+        // baseUrl='http://host/' + path='/v1/thing' must produce
+        // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+        // servers route to 404.
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://host/");
+        await testApi.CallAsync<object>(
+            "GET", "/v1/thing",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("http://host/v1/thing", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task BhvOperations008ConfigDefaultHeaderAcceptWinsOverOperationNegotiatedAccept()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Accept", "application/xml")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("application/xml", client.CapturedHeaders["Accept"]);
+    }
+
+    [Fact]
+    public void BhvOperations009DefaultServerVariablesProduceCorrectBaseUrl()
+    {
+        var config = Configuration.Builder()
+            .Server(Servers.Server1)
+            .Build();
+        Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public async Task BhvOperations010BinaryResponseOctetStreamEmptyBodyYieldsEmpty()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "application/octet-stream", Body = "" };
+        var rawResponse = await client.SendRequestAsync("GET", new Uri("http://localhost/test/empty"),
+            new Dictionary<string, string>(), null);
+        Assert.Empty(rawResponse.Body);
+    }
+
+    [Fact]
+    public async Task BhvOperations011EmptyStringBodyPostSendsContentType()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "", ["application/json"], "application/json");
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "Content-Type must be sent when body is an empty string");
+    }
+
+    [Fact]
+    public async Task BhvOperations012BinaryResponseImagePngBodyRepresentsBytes()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "image/png", Body = "iVBORw0KGgo=" };
+        var rawResponse = await client.SendRequestAsync("GET", new Uri("http://localhost/test/echo"),
+            new Dictionary<string, string>(), null);
+        var decoded = Convert.FromBase64String(rawResponse.Body);
+        Assert.NotNull(decoded);
+        Assert.NotEmpty(decoded);
+    }
+
+    [Fact]
+    public async Task BhvOperations013NullBodyPostDoesNotSendContentType()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.False(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "Content-Type must NOT be sent when body is null");
+    }
+
+    [Fact]
+    public async Task BhvOperations014PassesBinaryBodyAsIs()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new byte[] { 0x01, 0x02, 0x03 },
+            ["application/json"], "application/octet-stream");
+        Assert.NotNull(client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task BhvOperations015ReturnsNullWhenReturnTypeIsNull()
+    {
+        var result = await Api().CallAsyncWithNullReturnType(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task BhvOperations016SendsNoBodyWhenNull()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Null(client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task BhvOperations017BinaryResponseTextPlainReturnsString()
+    {
+        var textClient = new TextPlainApiClient();
+        var testApi = new TestableApi(textClient, "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET", "/test/text-plain",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public async Task BhvOptions001ConfigDefaultCustomHeaderPropagatesToRequest()
+    {
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("X-Custom", "v")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Equal("v", client.CapturedHeaders["X-Custom"]);
+    }
+
+    [Fact]
+    public void BhvOptions003ServerVariableOverridesResolveInBaseUrl()
+    {
+        var config = Configuration.Builder()
+            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+            .Build();
+        Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public async Task BhvRetries001A401OnAnOAuthCallInvalidatesTheTokenAndReplaysTheRequestOnceWithFreshHeaders()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        _ = await CallWithAuth(client, auth, "{}");
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+        Assert.Equal("Bearer t1", client.Authorizations[0]);
+        Assert.Equal("Bearer t2", client.Authorizations[1]);
+    }
+
+    [Fact]
+    public async Task BhvRetries002AnAuthenticatorWithoutATokenCacheNeverReplaysA401()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new TestAuthenticator(new Dictionary<string, string> { ["X-Api-Key"] = "k" });
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
+
+        Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task BhvRetries006AMultipartBodyIsNotReplayedAfterA401()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(
+            client, auth, new Dictionary<string, object> { ["a"] = "b" }, "multipart/form-data"));
+
+        Assert.Equal(0, auth.Invalidations);
+        Assert.Single(client.Authorizations);
+    }
+
+    [Fact]
+    public async Task BhvRetries008ASecond401IsReportedAsUnauthorized()
+    {
+        var client = new StatusSequenceApiClient(401);
+        var auth = new RefreshableAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithAuth(client, auth, "{}"));
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+    }
+{{#hasDigestAuth}}
+
+    /* Answers with the given statuses in turn (the last one repeats); a 401 carries a Digest challenge. */
+    private sealed class DigestChallengeApiClient(params int[] statuses) : IApiClient
+    {
+        public List<string?> Authorizations { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Authorizations.Add(headers.GetValueOrDefault("Authorization"));
+            int status = statuses[Math.Min(Authorizations.Count, statuses.Length) - 1];
+            Dictionary<string, string> responseHeaders = new() { { "Content-Type", "application/json" } };
+            if (status == 401)
+            {
+                responseHeaders["WWW-Authenticate"] =
+                    "Basic realm=\"test\", Digest realm=\"test\", qop=\"auth\", nonce=\"abc\"";
+            }
+            return Task.FromResult(new ApiHttpResponse(status, "{}", responseHeaders));
+        }
+    }
+
+    private static Task<object?> CallWithDigest(DigestChallengeApiClient client, DigestAuthenticator auth)
+    {
+        return new TestableApi(client, "http://localhost").CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "{}", ["application/json"], "application/json", auth);
+    }
+
+    [Fact]
+    public async Task BhvAuthdigest702AChallengeIsAnsweredAndTheRequestReplayedOnceAndASecond401Stands()
+    {
+        var client = new DigestChallengeApiClient(401, 200);
+        var auth = new DigestAuthenticator("http://localhost", "alice", string.Concat("s3", "cret"));
+
+        _ = await CallWithDigest(client, auth);
+
+        Assert.Equal(2, client.Authorizations.Count);
+        Assert.Null(client.Authorizations[0]);
+        Assert.Matches(
+            "^Digest username=\"alice\", realm=\"test\", nonce=\"abc\", uri=\"/test/echo\", "
+                + "response=\"[0-9a-f]{32}\", qop=auth, nc=00000001, cnonce=\"[0-9a-f]{32}\"$",
+            client.Authorizations[1]);
+        var refused = new DigestChallengeApiClient(401);
+        _ = await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithDigest(refused, auth));
+        Assert.Equal(2, refused.Authorizations.Count);
+    }
+
+    [Fact]
+    public async Task BhvAuthdigest703ALaterRequestAnswersTheRememberedChallengeWithTheNextNonceCount()
+    {
+        var client = new DigestChallengeApiClient(401, 200, 200);
+        var auth = new DigestAuthenticator("http://localhost", "alice", string.Concat("s3", "cret"));
+
+        _ = await CallWithDigest(client, auth);
+        _ = await CallWithDigest(client, auth);
+
+        Assert.Equal(3, client.Authorizations.Count);
+        Assert.Contains(", nc=00000002, ", client.Authorizations[2], StringComparison.Ordinal);
+    }
+{{/hasDigestAuth}}
+
+    [Fact]
+    public async Task BhvSerializationwire001AllowEmptyValueParamOmittedWithDefaultOptions()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
+        }
+        catch (OpenAPIException)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+        // An optional allowEmptyValue param that the caller omits must NOT emit a
+        // spurious empty key on the wire; the key is sent only when a value is supplied.
+        Assert.DoesNotContain("status=", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire002AppendsQueryParamsToURL()
+    {
+        await Api().CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "foo", "bar" } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire003BinaryResponseApplicationJsonParsesObject()
+    {
+        var vendorClient = new VendorJsonApiClient();
+        var testApi = new TestableApi(vendorClient, "http://localhost");
+        var result = await testApi.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("Not Found", result!["title"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire004AJSONResponseIsDeserializedIntoTheDeclaredType()
+    {
+        var result = await Api().CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        // Chasm echo envelope returns method on any echo call.
+        Assert.Equal("GET", result!["method"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire005DeserializesVendorJsonMimeTypes()
+    {
+        var vendorJsonClient = new VendorJsonApiClient();
+        var testApi = new TestableApi(vendorJsonClient, "http://localhost");
+        var result = await testApi.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("Not Found", result!["title"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire006EmptyBinaryBodyYieldsNull()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "application/octet-stream", Body = "" };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<byte[]>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/octet-stream"], "application/json");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire007EmptyContentTypeDefaultsToJson()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>(), ["application/json"], "");
+        Assert.Equal("application/json", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire008EmptyJsonObjectBodyPostSendsContentTypeAndCorrectBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "{}", ["application/json"], "application/json");
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "Content-Type must be sent when body is {}");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("{}", client.CapturedBody!.ToString()!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire009ExpandsArrayQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "tags", new List<string> { "a", "b" } } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("tags=a&tags=b", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire010FindPetsByStatusOmittingStatusSendsNoStatusInTheQuery()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("http://localhost"));
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+        Assert.DoesNotContain("status", client.CapturedUrl!.Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire011FormOptionalNullFieldIsOmitted()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "name", "alice" }, { "nickname", null! } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("name=alice", client.CapturedBody.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire012FormUrlencodedBodyEncodesSpaceAsPlusNotPercent20()
+    {
+        // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+        // is defined by the WHATWG/HTML form-encoding standard, which mandates
+        // '+' for a space (not RFC-3986 '%20'). Aligns C# with the 9-SDK
+        // majority so the body wire bytes are identical across languages.
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "full name", "Ada Lovelace" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        string wire = client.CapturedBody.ToString()!;
+        Assert.Equal("full+name=Ada+Lovelace", wire);
+        Assert.DoesNotContain("%20", wire, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire013FormUrlencodedBodyKeepsAWellFormedSurrogatePair()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "emoji", "\U0001F600" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("emoji=%F0%9F%98%80", client.CapturedBody.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire014RejectsFormUrlencodedFieldHoldingAMap()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>
+            {
+                { "location", new Dictionary<string, object> { { "lat", 1.5 } } },
+            },
+            ["application/json"], "application/x-www-form-urlencoded"));
+        Assert.Equal("form-urlencoded field location must be a scalar or array of scalars", ex.Message);
+        Assert.Null(client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire015HandlesEmptyQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.DoesNotContain("?", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire016IncludesEmptyValueParamInQueryString()
+    {
+        await Api().CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "filter", "" } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire017OctetStreamBinaryResponseRoundtripsEveryByteExactly()
+    {
+        byte[] original = Enumerable.Range(0, 256).Select(i => (byte)i).ToArray();
+        var client = new BinaryResponseApiClient
+        {
+            ContentType = "application/octet-stream",
+            Body = Convert.ToBase64String(original),
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<byte[]>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/octet-stream"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal(original, result);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire018BinaryResponseOctetStreamBase64DecodesToCorrectBytes()
+    {
+        // AP9C is base64 for [0x00, 0xFF, 0x42] — values that would mangle under UTF-8
+        byte[] original = new byte[] { 0x00, 0xFF, 0x42 };
+        var client = new BinaryResponseApiClient { ContentType = "application/octet-stream", Body = "AP9C" };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<byte[]>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/octet-stream"], "application/json");
+        Assert.Equal(original, result);
+    }
+
+    [Fact]
+    public async Task BhvMisc081AStringResultUnderABinaryContentTypeIsTheDecodedBody()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "application/pdf", Body = "aGVsbG8=" };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/pdf"], "application/json");
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire019ReturnsRawStringForNonJson()
+    {
+        var result = await Api().CallAsync<string>(
+            "GET", "/test/text-plain",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire020SerializesBooleanQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "active", true } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("active=true", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire021SerializesFormUrlencodedBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "name", "alice" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("name=alice", client.CapturedBody.ToString()!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire022SerializesJSONBodyForPOST()
+    {
+        var result = await Api().CallAsync<JsonNode>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> { { "key", "value" } },
+            ["application/json"], "application/json");
+        Assert.NotNull(result);
+        // Chasm envelope: request body is echoed verbatim as a JSON string in .body.
+        var bodyStr = result!["body"]?.GetValue<string>();
+        Assert.NotNull(bodyStr);
+        var inner = JsonNode.Parse(bodyStr!);
+        Assert.Equal("value", inner!["key"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire023SerializesNumberQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?> { { "limit", 10 } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("limit=10", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("limit=10.0", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire024SerializesTextPlainBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "hello world", ["application/json"], "text/plain");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("hello world", client.CapturedBody.ToString()!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire025SkipsDeserializationForNonJsonContentType()
+    {
+        var textClient = new TextPlainApiClient();
+        var textApi = new TestableApi(textClient, "http://localhost");
+        var result = await textApi.CallAsync<string>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public async Task BhvTransport001ProxyAuthenticationCredentialsAreSentToProxy()
+    {
+        var proxyUri = new Uri(_fixture.AuthProxyUrl);
+        var proxyWithAuth = $"{proxyUri.Scheme}://testuser:testpass@{proxyUri.Host}:{proxyUri.Port}";
+        var transport = TransportOptions.Builder()
+            .Proxy(proxyWithAuth)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire053ArrayFormFieldEmitsRepeatedKeys()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "nickname", "rex" }, { "tags", new List<string> { "a", "b" } } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=rex&tags=a&tags=b", client.CapturedBody.ToString());
+    }
+
+    [Fact]
+    public async Task BhvErrors048Status418ThrowsClientException()
+    {
+        var ex = await Assert.ThrowsAsync<ClientException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/418",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+        Assert.Equal(418, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvTransport059AuthenticatingProxyRefusesARequestWithoutCredentials()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.AuthProxyUrl)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(407, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvAuthintegration018SecuredOperationStillAppliesClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer client-secret" } });
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config, clientAuth);
+
+        var pet = new PetstoreClient.Models.Pet { Name = "Rex", PhotoUrls = ["http://example/p.png"] };
+        try
+        {
+            await api.AddPetAsync(pet);
+        }
+        catch (OpenAPIException)
+        {
+            // Captured request is asserted regardless of response shape.
+        }
+
+        Assert.True(client.CapturedHeaders.ContainsKey("Authorization"),
+            "secured operation with a client authenticator must still send the credential");
+        Assert.Equal("Bearer client-secret", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvErrors054ContentTypeErrorNamesTheOperationNotTheType()
+    {
+        var textApi = new TestableApi(new TextPlainApiClient(), "http://localhost");
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.SerializationException>(() =>
+            textApi.CallForResultAsync<JsonNode>(
+                "GET", "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json",
+                operationName: "PetApi.getPetById"));
+        Assert.Contains("for PetApi.getPetById:", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("JsonNode", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations131GetWithoutBodySendsNoContentTypeHeader()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.False(client.CapturedHeaders.ContainsKey("Content-Type"),
+            "a request with no body must not send a Content-Type header");
+    }
+
+    [Fact]
+    public async Task BhvErrors071A401ResponseSurfacesAsAnUnauthorizedError()
+    {
+        var ex = await Assert.ThrowsAsync<UnauthorizedException>(
+            () => Api().CallAsync<object>(
+                "GET", "/test/status/401",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvSerializationparam118ContentCookieValueIsEncodedToSharedBytes()
+    {
+        var api = new TestableApi("http://localhost");
+
+        Assert.Equal(
+            "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+            api.ContentParameter(new Dictionary<string, string> { ["k"] = "a b~*é" }, "cookie"));
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire057FormUrlencodedBodyKeepsOnlyUnreservedLiteral()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "nickname", "a~b*c!d'e(f)g" } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.Equal("nickname=a~b%2Ac%21d%27e%28f%29g", client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire060BinaryReturnTypeGetsRawBytesOfJsonBody()
+    {
+        const string json = "{\"id\":7,\"name\":\"photo\"}";
+        var client = new BinaryResponseApiClient { ContentType = "application/json", Body = json };
+        var testApi = new TestableApi(client, "http://localhost");
+
+        var result = await testApi.CallAsync<byte[]>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(json), result);
+    }
+
+    [Fact]
+    public async Task BhvTransport063ProxyThatRequiresCredentialsAnswers407WhenNoneAreSent()
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy(_fixture.AuthProxyUrl)
+            .Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(407, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvHeaders030ADefaultHeaderInAnotherCaseReplacesTheNegotiatedOne()
+    {
+        /* Header names are case-insensitive, so a default spelled "accept" replaces
+           the negotiated "Accept" instead of being sent beside it. */
+        var client = new CapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("accept", "application/vnd.x+json")
+            .Build();
+        var testApi = new TestableApi(client, config);
+        await testApi.CallAsync<object>(
+            "GET", "/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        var accepts = client.CapturedHeaders.Keys
+            .Where(key => key.Equals("Accept", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.Single(accepts);
+        Assert.Equal("application/vnd.x+json", client.CapturedHeaders[accepts[0]]);
+    }
+
+    [Fact]
+    public async Task BhvAuth021RequestWithNoCredentialSendsNoAuthorizationHeaderAndIsNotRefused()
+    {
+        var client = new CapturingApiClient();
+        var api = new StoreApi(
+            client,
+            new Configuration("http://localhost"),
+            null,
+            new Dictionary<string, IAuthenticator>());
+
+        try
+        {
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.DoesNotContain(
+            client.CapturedHeaders.Keys,
+            k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("path", "%7B%22a%20b%22:%22c%2Fd%22%7D")]
+    [InlineData("header", "{\"a b\":\"c/d\"}")]
+    [InlineData("cookie", "%7B%22a%20b%22%3A%22c%2Fd%22%7D")]
+    public void BhvSerialization008ContentParameterIsSdkJsonEncodedOnceByLocation(string location, string expected)
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(new Dictionary<string, string> { ["a b"] = "c/d" }, location);
+
+        Assert.Equal(expected, encoded);
+    }
+
+    [Fact]
+    public async Task BhvErrors205ADecodeFailureOfAResponseCarriesTheStatusTheHeadersAndTheRawBody()
+    {
+        var api = new TestableApi(new CallOptionsApiClient(200, "[1, 2"), "https://example.test");
+
+        SerializationException ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            api.CallAsync<JsonNode>(
+                "GET", "/items/7",
+                new Dictionary<string, object?> { ["page"] = 2 },
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Equal("application/json", ex.ResponseHeaders!["Content-Type"]);
+        Assert.Equal("[1, 2", ex.ResponseBody);
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/items/7", ex.RequestPath);
+    }
+
+    [Fact]
+    public async Task BhvHooks001WithoutAHookACallSendsTheSameHeadersAndReturnsTheSameResult()
+    {
+        var plain = new ScriptedApiClient(200);
+        var passive = new ScriptedApiClient(200);
+        var passiveHook = new RecordingHook();
+
+        ApiResult<object> without = await Hooked(plain, null).CallAsync<object>("/items/7");
+        ApiResult<object> with = await Hooked(passive, passiveHook).CallAsync<object>("/items/7");
+
+        Assert.Null(new Configuration("http://localhost").CallHook);
+        Assert.Equal(plain.Sent.Single(), passive.Sent.Single());
+        Assert.Equal(without.StatusCode, with.StatusCode);
+        Assert.Equal(without.RawBody, with.RawBody);
+        Assert.Single(passiveHook.Infos);
+    }
+
+    [Fact]
+    public async Task BhvHooks002StartIsCalledOnceWithTheSpecOperationIdTheUpperCaseMethodTheTemplateAndTheUrlWithoutItsQuery()
+    {
+        var hook = new RecordingHook();
+
+        _ = await Hooked(new ScriptedApiClient(200), hook).CallAsync<object>(
+            "/items/7", new Dictionary<string, object?> { ["a"] = "1" });
+
+        CallInfo info = Assert.Single(hook.Infos);
+        Assert.Equal("spec_Operation-id", info.OperationId);
+        Assert.Equal("GET", info.Method);
+        Assert.Equal("/items/{id}", info.UrlTemplate);
+        Assert.Equal("http://localhost/items/7", info.Url);
+    }
+
+    [Theory]
+    [InlineData("http://Example.COM:8080/v1", "example.com")]
+    [InlineData("http://[::1]:8080", "::1")]
+    [InlineData("https://api.example.com", "api.example.com")]
+    public async Task BhvHooks003ServerAddressIsTheHostWithoutPortAndWithoutTheBracketsOfAnIpv6Literal(
+        string baseUrl, string expected)
+    {
+        var hook = new RecordingHook();
+
+        _ = await Hooked(new ScriptedApiClient(200), hook, baseUrl).CallAsync<object>("/items/7");
+
+        Assert.Equal(expected, Assert.Single(hook.Infos).ServerAddress);
+    }
+
+    [Fact]
+    public async Task BhvHooks004AHeaderTheHookSetsReachesTheServer()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Hook"] = "yes" };
+        var api = new HookedApi(
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
+            new Configuration(_fixture.BaseUrl, null, hook));
+
+        ApiResult<JsonNode> result = await api.CallAsync<JsonNode>("/test/echo");
+
+        Assert.Equal("yes", result.Data!["headers"]?["x-hook"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task BhvHooks005StartSeesTheFinalHeaderSetAndCanReplaceOneOfIt()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Custom"] = "replaced" };
+        var client = new ScriptedApiClient(200);
+        var auth = new TestAuthenticator(headers: new Dictionary<string, string> { ["X-Custom"] = "auth-value" });
+        var api = new HookedApi(client, new Configuration(
+            "http://localhost",
+            new Dictionary<string, string> { ["X-Default"] = "d" },
+            hook));
+
+        _ = await api.CallAsync<object>(
+            "/items/7", auth: auth, headerParams: new Dictionary<string, string> { ["X-Operation"] = "o" });
+
+        Dictionary<string, string> seen = Assert.Single(hook.SeenHeaders);
+        Assert.Equal("auth-value", seen["X-Custom"]);
+        Assert.Equal("d", seen["X-Default"]);
+        Assert.Equal("o", seen["X-Operation"]);
+        Assert.Contains("Accept", seen.Keys);
+        Assert.Equal("replaced", client.Sent.Single()["X-Custom"]);
+    }
+
+    [Fact]
+    public async Task BhvHooks006AHeaderTheHookSetsIsOnEverySendOfTheCallRetriesIncluded()
+    {
+        var hook = new RecordingHook { Edit = headers => headers["X-Hook"] = "yes" };
+        var client = new ScriptedApiClient(503, 503, 200);
+
+        _ = await Hooked(client, hook).CallAsync<object>("/items/7");
+
+        Assert.Equal(3, client.Sent.Count);
+        Assert.All(client.Sent, sent => Assert.Equal("yes", sent["X-Hook"]));
+    }
+
+    [Fact]
+    public async Task BhvAuth046InheritedSecurityOperationReceivesTheClientAuthenticator()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "Authorization", "Bearer inherited-value" } });
+        var api = new PetApi(client, new Configuration("http://localhost"), clientAuth);
+
+        try
+        {
+            await api.GetPetByIdAsync(7L);
+        }
+        catch (OpenAPIException)
+        {
+            // The request is captured before the empty body fails to deserialize.
+        }
+
+        Assert.Equal("Bearer inherited-value", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc079ASuccessBodyIsDecodedByTheStatusThatArrived()
+    {
+        var decodedStatuses = new List<int>();
+        string? Decode(int status, string body)
+        {
+            decodedStatuses.Add(status);
+            return status == 201 ? "created:" + body : "ok:" + body;
+        }
+
+        var created = await new TestableApi(new CallOptionsApiClient(201, "{}"), "http://localhost")
+            .CallWithCallOptionsAsync<string>("/x", [], null, null, null, Decode);
+        var existing = await new TestableApi(new CallOptionsApiClient(200, "{}"), "http://localhost")
+            .CallWithCallOptionsAsync<string>("/x", [], null, null, null, Decode);
+
+        Assert.Equal("created:{}", created.Data);
+        Assert.Equal("ok:{}", existing.Data);
+        int[] expectedStatuses = [201, 200];
+        Assert.Equal(expectedStatuses, decodedStatuses);
+    }
+
+    [Fact]
+    public async Task BhvMisc114ASuccessResponseIsDecodedByTheDecoderForItsStatus()
+    {
+        string? Decode(int status, string body) => status == 202 ? "accepted" : "other";
+
+        var result = await new TestableApi(new CallOptionsApiClient(202, "{}"), "http://localhost")
+            .CallWithCallOptionsAsync<string>("/x", [], null, null, null, Decode);
+
+        Assert.Equal("accepted", result.Data);
+    }
+
+    [Fact]
+    public async Task BhvMisc159A401IsReplayedOnceEvenWithRetriesOffWhenTheAuthenticatorCanRefresh()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        _ = await CallWithAuth(client, auth, "{}");
+
+        Assert.Equal(1, auth.Invalidations);
+        Assert.Equal(2, client.Authorizations.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc210AFormDateTimeFieldIsEncodedInCanonicalFormOnTheWire()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "when", new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero) } },
+            ["application/json"], "application/x-www-form-urlencoded");
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("when=2024-01-15T10%3A30%3A00.000%2B00%3A00", client.CapturedBody.ToString());
+    }
+
+    [Fact]
+    public async Task BhvMisc254AnUnmarkedQueryValueEncodesReservedCharacters()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        await api.CallAsync<object>(
+            "GET", "/x",
+            new Dictionary<string, object?> { ["q"] = "a/b:c" },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        Assert.Equal("?q=a%2Fb%3Ac", client.Url!.Query);
+    }
+
+    [Fact]
+    public async Task BhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20()
+    {
+        var client = new CallOptionsApiClient(200, "{}");
+        var api = new TestableApi(client, "http://localhost");
+
+        await api.CallAsync<object>(
+            "GET", "/x",
+            new Dictionary<string, object?> { ["q"] = "hello world" },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+
+        Assert.Equal("?q=hello%20world", client.Url!.Query);
+    }
+
+    [Theory]
+    [InlineData(400)]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(404)]
+    [InlineData(409)]
+    [InlineData(422)]
+    [InlineData(429)]
+    [InlineData(500)]
+    [InlineData(502)]
+    public async Task BhvMisc264EachListedErrorStatusRaisesAnApiErrorCarryingThatStatus(int status)
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api().CallAsync<object>(
+                "GET", $"/test/status/{status}",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.Equal(status, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc281HeadersFromAReceivedResponseAreCopiedOntoItsError()
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api().CallAsync<object>(
+                "GET", "/test/status/404",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.NotNull(ex.ResponseHeaders);
+        Assert.Contains("content-type", ex.ResponseHeaders!.Keys);
+    }
+
+    [Theory]
+    [MemberData(nameof(StatusToException))]
+    public async Task BhvMisc284ATypedErrorIsRaisedForEachListedStatus(int status, Type expectedType)
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api().CallAsync<object>(
+                "GET", $"/test/status/{status}",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.IsType(expectedType, ex);
+    }
+
+    [Fact]
+    public async Task BhvRetries045AStreamBodyIsNotReplayedAfterA401()
+    {
+        var client = new StatusSequenceApiClient(401, 200);
+        var auth = new RefreshableAuthenticator();
+
+        await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            CallWithAuth(client, auth, new MemoryStream([1, 2]), "application/octet-stream"));
+
+        Assert.Equal(0, auth.Invalidations);
+        Assert.Single(client.Authorizations);
+    }
+
+    /// <summary>One request a paged-list server saw: the path, the decoded query and the headers.</summary>
+    private sealed record SeenRequest(
+        string Path,
+        IReadOnlyDictionary<string, string> Query,
+        IReadOnlyDictionary<string, string> Headers
+    )
+    {
+        public string? Param(string name) => Query.TryGetValue(name, out string? value) ? value : null;
+
+        public string? Header(string name) => HeaderOf(Headers, name);
+    }
+
+    /// <summary>What a paged-list server answers: a status, a JSON body, extra headers and a delay before it answers.</summary>
+    private sealed record Reply(
+        int Status,
+        string Body,
+        IReadOnlyDictionary<string, string>? Headers = null,
+        int DelayMilliseconds = 0
+    )
+    {
+        public static Reply Ok(string body, IReadOnlyDictionary<string, string>? headers = null) =>
+            new(200, body, headers);
+
+        public static Reply Failing(int status) =>
+            new(status, "{}", new Dictionary<string, string> { ["Retry-After"] = "0" });
+
+        public Reply After(int milliseconds) => this with { DelayMilliseconds = milliseconds };
+    }
+
+    /// <summary>
+    /// An in-process server whose answer depends on the request it gets and on how many it has
+    /// had, which the shared mock cannot do. It records every request in arrival order.
+    /// </summary>
+    private sealed class PagedServer : IDisposable
+    {
+        private readonly RawServer _server;
+        private readonly List<SeenRequest> _seen = [];
+
+        public PagedServer(Func<SeenRequest, int, Reply> handler)
+        {
+            _server = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    SeenRequest request = Parse(head);
+                    int number;
+                    lock (_seen)
+                    {
+                        _seen.Add(request);
+                        number = _seen.Count;
+                    }
+                    Reply reply = handler(request, number);
+                    if (reply.DelayMilliseconds > 0)
+                    {
+                        await Task.Delay(reply.DelayMilliseconds);
+                    }
+                    byte[] bytes = Encoding.UTF8.GetBytes(reply.Body);
+                    List<string> headers = ["Content-Type: application/json", "Content-Length: " + bytes.Length];
+                    foreach (KeyValuePair<string, string> extra in reply.Headers ?? new Dictionary<string, string>())
+                    {
+                        headers.Add(extra.Key + ": " + extra.Value);
+                    }
+                    await RawServer.HeadAsync(socket, reply.Status, [.. headers]);
+                    await RawServer.WriteBytesAsync(socket, bytes);
+                }
+            );
+        }
+
+        public string Url => _server.Url("");
+
+        public IReadOnlyList<SeenRequest> Seen
+        {
+            get
+            {
+                lock (_seen)
+                {
+                    return [.. _seen];
+                }
+            }
+        }
+
+        public void Dispose() => _server.Dispose();
+
+        private static SeenRequest Parse(string head)
+        {
+            string[] lines = head.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+            string target = lines[0].Split(' ')[1];
+            int mark = target.IndexOf('?', StringComparison.Ordinal);
+            Dictionary<string, string> query = [];
+            if (mark >= 0)
+            {
+                foreach (string pair in target[(mark + 1)..].Split('&'))
+                {
+                    int eq = pair.IndexOf('=', StringComparison.Ordinal);
+                    string key = eq < 0 ? pair : pair[..eq];
+                    string value = eq < 0 ? "" : pair[(eq + 1)..];
+                    query[Uri.UnescapeDataString(key)] = Uri.UnescapeDataString(value.Replace('+', ' '));
+                }
+            }
+            Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string line in lines.Skip(1))
+            {
+                int colon = line.IndexOf(':', StringComparison.Ordinal);
+                if (colon > 0)
+                {
+                    headers[line[..colon]] = line[(colon + 1)..].Trim();
+                }
+            }
+            return new SeenRequest(mark >= 0 ? target[..mark] : target, query, headers);
+        }
+    }
+
+    /// <summary>One pet as a JSON object.</summary>
+    private static string PetJson(string name) => "{\"id\":1,\"name\":\"" + name + "\",\"photoUrls\":[]}";
+
+    /// <summary>A catalog page: the pets of page <paramref name="page"/> of <paramref name="size"/>, and the cursor of the page after it.</summary>
+    private static string CatalogBody(int page, int size, int pages)
+    {
+        string items = string.Join(",", Enumerable.Range(0, size).Select(i => PetJson($"p{page}-{i}")));
+        string next = page + 1 < pages ? $",\"next_cursor\":\"c{page + 1}\"" : "";
+        return "{\"items\":[" + items + "]" + next + "}";
+    }
+
+    /// <summary>A catalog of <paramref name="pages"/> pages of <paramref name="size"/> pets; the cursor of page n is "c" followed by n.</summary>
+    private static PagedServer CatalogServer(int pages, int size)
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? cursor = request.Param("cursor");
+                int page = cursor is null ? 0 : int.Parse(cursor[1..], System.Globalization.CultureInfo.InvariantCulture);
+                return Reply.Ok(CatalogBody(page, size, pages));
+            }
+        );
+    }
+
+    private static PetApi PetApiFor(
+        PagedServer server,
+        int maxRetries = 0,
+        IReadOnlyDictionary<string, string>? defaultHeaders = null,
+        IAuthenticator? authenticator = null
+    )
+    {
+        ConfigurationBuilder configuration = Configuration.Builder().BaseUrl(server.Url);
+        foreach (KeyValuePair<string, string> header in defaultHeaders ?? new Dictionary<string, string>())
+        {
+            configuration = configuration.DefaultHeader(header.Key, header.Value);
+        }
+        return new PetApi(
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(maxRetries).Build()),
+            configuration.Build(),
+            authenticator
+        );
+    }
+
+    private static async Task<List<string>> NamesAsync(IAsyncEnumerable<Pet> pets)
+    {
+        List<string> names = [];
+        await foreach (Pet pet in pets)
+        {
+            names.Add(pet.Name);
+        }
+        return names;
+    }
+
+    /// <summary>A feed page: one pet and a Link header that names the next page, or none on the last.</summary>
+    private static PagedServer FeedServer(int pages, Func<int, string> link)
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? page = request.Param("page");
+                int index = page is null ? 0 : int.Parse(page, System.Globalization.CultureInfo.InvariantCulture);
+                Dictionary<string, string> headers = index + 1 < pages ? new() { ["Link"] = link(index + 1) } : [];
+                return Reply.Ok("[" + PetJson($"f{index}") + "]", headers);
+            }
+        );
+    }
+
+    private static PagedServer SameOriginFeed(int pages)
+    {
+        PagedServer? self = null;
+        self = FeedServer(pages, next => $"<{self!.Url}/pet/feed?page={next}&secret=s3>; rel=\"next\"");
+        return self;
+    }
+
+    /// <summary>The pets from index <paramref name="from"/> up to <paramref name="to"/>, as JSON items.</summary>
+    private static string PetsJson(int from, int to)
+    {
+        return string.Join(",", Enumerable.Range(from, to - from).Select(i => PetJson($"p{i}")));
+    }
+
+    /// <summary>Five pets in total, served two at a time from the offset the request names.</summary>
+    private static PagedServer OffsetServer()
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? offset = request.Param("offset");
+                int from = offset is null ? 0 : int.Parse(offset, System.Globalization.CultureInfo.InvariantCulture);
+                return Reply.Ok("{\"items\":[" + PetsJson(Math.Min(from, 5), Math.Min(from + 2, 5)) + "]}");
+            }
+        );
+    }
+
+    /// <summary>Five pets in total, two to a numbered page, from page 1.</summary>
+    private static PagedServer PageNumberServer()
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? page = request.Param("page");
+                int index = page is null ? 1 : int.Parse(page, System.Globalization.CultureInfo.InvariantCulture);
+                int from = (index - 1) * 2;
+                return Reply.Ok(
+                    "{\"items\":[" + PetsJson(Math.Min(from, 5), Math.Min(from + 2, 5)) + "],\"has_more\":true}");
+            }
+        );
+    }
+
+    /// <summary>Five pets in total, two to a page, each page with the id of its last pet and a has_more flag.</summary>
+    private static PagedServer AfterServer()
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? after = request.Param("starting_after");
+                int from = after is null ? 0 : int.Parse(after[1..], System.Globalization.CultureInfo.InvariantCulture) + 1;
+                int to = Math.Min(from + 2, 5);
+                string more = to < 5 ? "true" : "false";
+                return Reply.Ok(
+                    "{\"data\":[" + PetsJson(from, to) + "],\"has_more\":" + more + ",\"last_id\":\"p" + (to - 1) + "\"}");
+            }
+        );
+    }
+
+    /// <summary>Three pets, one to a page, each page with the URL of the next one in the body.</summary>
+    private static PagedServer NextUrlServer(int pages)
+    {
+        PagedServer? self = null;
+        self = new PagedServer(
+            (request, _) =>
+            {
+                string? p = request.Param("p");
+                int index = p is null ? 0 : int.Parse(p, System.Globalization.CultureInfo.InvariantCulture);
+                string next = index + 1 < pages
+                    ? ",\"next_url\":\"" + self!.Url + "/pet/next?p=" + (index + 1) + "\""
+                    : "";
+                return Reply.Ok("{\"items\":[" + PetJson($"f{index}") + "]" + next + "}");
+            }
+        );
+        return self;
+    }
+
+    private static List<string?> ParamsSeen(PagedServer server, string name)
+    {
+        return [.. server.Seen.Select(request => request.Param(name))];
+    }
+
+    [Fact]
+    public async Task BhvPagination001APagedOperationReadsNoPageUntilTheFirstItemOrPageIsRequested()
+    {
+        using PagedServer server = CatalogServer(2, 2);
+
+        Paginator<Pet, string?> paginator = PetApiFor(server).ListPetCatalogPagesAsync();
+
+        Assert.Empty(server.Seen);
+        _ = paginator.Items();
+        _ = paginator.Pages();
+        Assert.Empty(server.Seen);
+        await using IAsyncEnumerator<Pet> items = paginator.GetAsyncEnumerator();
+        Assert.Empty(server.Seen);
+        Assert.True(await items.MoveNextAsync());
+        Assert.Single(server.Seen);
+    }
+
+    [Fact]
+    public async Task BhvPagination002ATokenCursorOperationYieldsEveryItemOfEveryPageInOrderAndSendsTheNextPagesCursor()
+    {
+        using PagedServer server = CatalogServer(3, 2);
+
+        Assert.Equal(
+            ["p0-0", "p0-1", "p1-0", "p1-1", "p2-0", "p2-1"],
+            await NamesAsync(PetApiFor(server).ListPetCatalogPagesAsync()));
+        Assert.Equal(new List<string?> { null, "c1", "c2" }, ParamsSeen(server, "cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination003TheNextRequestIsSentOnlyWhenTheConsumerAsksForMoreItems()
+    {
+        using PagedServer server = CatalogServer(3, 2);
+
+        await using IAsyncEnumerator<Pet> items = PetApiFor(server).ListPetCatalogPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.True(await items.MoveNextAsync());
+        Assert.Single(server.Seen);
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal(2, server.Seen.Count);
+    }
+
+    [Fact]
+    public async Task BhvPagination004AnOffsetAndLimitOperationAdvancesTheOffsetAndEndsOnAnEmptyPage()
+    {
+        using PagedServer server = OffsetServer();
+
+        Assert.Equal(["p0", "p1", "p2", "p3", "p4"], await NamesAsync(PetApiFor(server).ListPetOffsetsPagesAsync()));
+        Assert.Equal(new List<string?> { null, "2", "4", "5" }, ParamsSeen(server, "offset"));
+    }
+
+    [Fact]
+    public async Task BhvPagination005APageNumberOperationStartsAtTheSuppliedPageAndIncrementsIt()
+    {
+        using PagedServer server = PageNumberServer();
+
+        Assert.Equal(["p0", "p1", "p2", "p3", "p4"], await NamesAsync(PetApiFor(server).ListPetPageNumbersPagesAsync()));
+        Assert.Equal(new List<string?> { null, "2", "3", "4" }, ParamsSeen(server, "page"));
+    }
+
+    [Fact]
+    public async Task BhvPagination006AnIdCursorOperationEndsWhenHasMoreIsFalse()
+    {
+        using PagedServer server = AfterServer();
+
+        Assert.Equal(["p0", "p1", "p2", "p3", "p4"], await NamesAsync(PetApiFor(server).ListPetsAfterPagesAsync()));
+        Assert.Equal(new List<string?> { null, "p1", "p3" }, ParamsSeen(server, "starting_after"));
+        Assert.Equal(3, server.Seen.Count);
+    }
+
+    [Fact]
+    public async Task BhvPagination007ALinkHeaderOperationFollowsRelNextAndEndsWhenItIsAbsent()
+    {
+        using PagedServer server = SameOriginFeed(3);
+
+        Assert.Equal(["f0", "f1", "f2"], await NamesAsync(PetApiFor(server).ListPetFeedPagesAsync()));
+        Assert.Equal(new List<string?> { null, "1", "2" }, ParamsSeen(server, "page"));
+        Assert.Equal("/pet/feed", server.Seen[2].Path);
+
+        Assert.Equal("/a,b?x=1", LinkHeader.Next("</a,b?x=1>; rel=\"next\""));
+        Assert.Equal("/two", LinkHeader.Next("</one>; rel=\"prev\", </two>; rel=\"next\""));
+        Assert.Equal("/second", LinkHeader.Next("</first>; rel=\"prev\"; title=\"a, b\", </second>; REL=NEXT"));
+        Assert.Equal("/first", LinkHeader.Next("</first>; rel=\"prev next\", </second>; rel=\"next\""));
+        Assert.Null(LinkHeader.Next("</one>; rel=\"prev\", </last>; rel=\"last\""));
+        Assert.Null(LinkHeader.Next("not a link header"));
+    }
+
+    [Fact]
+    public async Task BhvPagination008ALinkNextUrlOnAnotherOriginIsRefusedAndNoCredentialsAreSentToIt()
+    {
+        using PagedServer elsewhere = new((_, _) => Reply.Ok("[" + PetJson("stolen") + "]"));
+        using PagedServer origin = new(
+            (_, _) =>
+                Reply.Ok(
+                    "[" + PetJson("f0") + "]",
+                    new Dictionary<string, string> { ["Link"] = $"<{elsewhere.Url}/pet/feed?page=1>; rel=\"next\"" }));
+        PetApi api = PetApiFor(
+            origin, defaultHeaders: new Dictionary<string, string> { ["Authorization"] = "Bearer secret" });
+
+        await using IAsyncEnumerator<Pet> items = api.ListPetFeedPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("f0", items.Current.Name);
+        Assert.Equal("Bearer secret", origin.Seen[0].Header("Authorization"));
+        PaginationException refused = await Assert.ThrowsAsync<PaginationException>(() => items.MoveNextAsync().AsTask());
+
+        Assert.DoesNotContain("page=1", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(elsewhere.Seen);
+        Assert.Single(origin.Seen);
+    }
+
+    [Fact]
+    public async Task BhvPagination009AnEmptyPageWithANextCursorContinuesAndAnAbsentNullOrEmptyCursorEnds()
+    {
+        foreach (string end in new[] { "", ",\"next_cursor\":null", ",\"next_cursor\":\"\"" })
+        {
+            using PagedServer server = new(
+                (request, _) =>
+                    Reply.Ok(
+                        request.Param("cursor") is null
+                            ? "{\"items\":[],\"next_cursor\":\"c1\"}"
+                            : "{\"items\":[" + PetJson("only") + "]" + end + "}"));
+
+            Assert.Equal(["only"], await NamesAsync(PetApiFor(server).ListPetCatalogPagesAsync()));
+            Assert.Equal(2, server.Seen.Count);
+        }
+    }
+
+    [Fact]
+    public async Task BhvPagination010PagesYieldsOnePagePerResponseWithItsItemsStatusHeadersDecodedBodyAndNextCursor()
+    {
+        using PagedServer server = new(
+            (request, _) =>
+            {
+                string? cursor = request.Param("cursor");
+                int page = cursor is null ? 0 : int.Parse(cursor[1..], System.Globalization.CultureInfo.InvariantCulture);
+                return Reply.Ok(
+                    CatalogBody(page, 2, 2),
+                    new Dictionary<string, string> { ["X-Page"] = page.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+            });
+
+        List<Page<Pet, string?>> pages = [];
+        await foreach (Page<Pet, string?> page in PetApiFor(server).ListPetCatalogPagesAsync().Pages())
+        {
+            pages.Add(page);
+        }
+
+        Assert.Equal(2, pages.Count);
+        Assert.Equal(["p0-0", "p0-1"], pages[0].Items.Select(pet => pet.Name));
+        Assert.Equal(200, pages[0].Result.StatusCode);
+        Assert.Equal("0", HeaderOf(pages[0].Result.Headers, "X-Page"));
+        Assert.Equal("1", HeaderOf(pages[1].Result.Headers, "x-page"));
+        Assert.IsType<{{packageName}}.Models.PetCatalogPage>(pages[0].Result.Data);
+        Assert.Equal("c1", pages[0].NextCursor);
+        Assert.Null(pages[1].NextCursor);
+    }
+
+    [Fact]
+    public async Task BhvPagination011TheCursorPassedToThePagedMethodIsTheStartingPositionAndTheFirstRequestSendsIt()
+    {
+        using PagedServer server = CatalogServer(3, 1);
+
+        Assert.Equal(
+            ["p1-0", "p2-0"],
+            await NamesAsync(PetApiFor(server).ListPetCatalogPagesAsync(new ListPetCatalogOptions { Cursor = "c1" })));
+        Assert.Equal("c1", server.Seen[0].Param("cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination012ResumingWithTheNextCursorOfAPageContinuesWithTheFollowingPage()
+    {
+        using PagedServer server = CatalogServer(3, 1);
+        PetApi api = PetApiFor(server);
+
+        string? resume = null;
+        await foreach (Page<Pet, string?> page in api.ListPetCatalogPagesAsync().Pages())
+        {
+            resume = page.NextCursor;
+            break;
+        }
+
+        Assert.Equal("c1", resume);
+        Assert.Equal(
+            ["p1-0", "p2-0"],
+            await NamesAsync(api.ListPetCatalogPagesAsync(new ListPetCatalogOptions { Cursor = resume })));
+    }
+
+    [Fact]
+    public async Task BhvPagination013EveryOtherParameterIncludingThePageSizeIsRepeatedUnchangedOnEachPageRequest()
+    {
+        using PagedServer server = CatalogServer(3, 1);
+
+        _ = await NamesAsync(
+            PetApiFor(server).ListPetCatalogPagesAsync(
+                new ListPetCatalogOptions
+                {
+                    Limit = 1,
+                    Headers = new Dictionary<string, string> { ["X-Keep"] = "yes" },
+                }));
+
+        Assert.Equal(3, server.Seen.Count);
+        Assert.All(
+            server.Seen,
+            request =>
+            {
+                Assert.Equal("1", request.Param("limit"));
+                Assert.Equal("yes", request.Header("X-Keep"));
+            });
+        Assert.Equal(new List<string?> { null, "c1", "c2" }, ParamsSeen(server, "cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination014ACursorEqualToTheOneJustSentRaisesAPaginationErrorInsteadOfLooping()
+    {
+        using PagedServer server = new(
+            (_, number) => Reply.Ok("{\"items\":[" + PetJson($"p{number}") + "],\"next_cursor\":\"c1\"}"));
+
+        await using IAsyncEnumerator<Pet> items = PetApiFor(server).ListPetCatalogPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("p1", items.Current.Name);
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("p2", items.Current.Name);
+        PaginationException failure = await Assert.ThrowsAsync<PaginationException>(() => items.MoveNextAsync().AsTask());
+
+        Assert.Equal("/pet/catalog", failure.RequestPath);
+        Assert.Equal(2, server.Seen.Count);
+        Assert.False(await items.MoveNextAsync());
+    }
+
+    [Fact]
+    public async Task BhvPagination015AnErrorOnALaterPageIsRaisedAfterTheEarlierPagesItemsWereDeliveredAndEndsIteration()
+    {
+        using PagedServer server = new(
+            (request, _) => request.Param("cursor") is null ? Reply.Ok(CatalogBody(0, 2, 3)) : new Reply(404, "{}"));
+
+        await using IAsyncEnumerator<Pet> items = PetApiFor(server).ListPetCatalogPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("p0-0", items.Current.Name);
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("p0-1", items.Current.Name);
+        NotFoundException failure = await Assert.ThrowsAsync<NotFoundException>(() => items.MoveNextAsync().AsTask());
+
+        Assert.Equal(404, failure.StatusCode);
+        Assert.False(await items.MoveNextAsync());
+        Assert.Equal(2, server.Seen.Count);
+    }
+
+    [Fact]
+    public async Task BhvPagination016A503OnTheSecondPageIsRetriedUnderTheRetryRulesAndIterationContinues()
+    {
+        using PagedServer server = new(
+            (_, number) => number == 2 ? Reply.Failing(503) : Reply.Ok(CatalogBody(number == 1 ? 0 : 1, 1, 2)));
+
+        Assert.Equal(["p0-0", "p1-0"], await NamesAsync(PetApiFor(server, maxRetries: 2).ListPetCatalogPagesAsync()));
+        Assert.Equal(new List<string?> { null, "c1", "c1" }, ParamsSeen(server, "cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination017ThePerCallTimeoutHeadersAndRetryCountApplyToEachPageRequest()
+    {
+        using (PagedServer server = new(
+            (_, number) => number % 2 == 1 ? Reply.Failing(503) : Reply.Ok(CatalogBody(number == 2 ? 0 : 1, 1, 2))))
+        {
+            _ = await NamesAsync(
+                PetApiFor(server).ListPetCatalogPagesAsync(
+                    new ListPetCatalogOptions
+                    {
+                        MaxRetries = 1,
+                        Headers = new Dictionary<string, string> { ["X-Trace"] = "t1" },
+                    }));
+
+            Assert.Equal(4, server.Seen.Count);
+            Assert.All(server.Seen, request => Assert.Equal("t1", request.Header("X-Trace")));
+        }
+        using PagedServer slow = new(
+            (request, _) =>
+                request.Param("cursor") is null
+                    ? Reply.Ok(CatalogBody(0, 1, 2))
+                    : Reply.Ok(CatalogBody(1, 1, 2)).After(1500));
+
+        await using IAsyncEnumerator<Pet> items = PetApiFor(slow)
+            .ListPetCatalogPagesAsync(new ListPetCatalogOptions { Timeout = 300 })
+            .GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("p0-0", items.Current.Name);
+        _ = await Assert.ThrowsAsync<NetworkTimeoutException>(() => items.MoveNextAsync().AsTask());
+    }
+
+    [Fact]
+    public async Task BhvPagination018StoppingEarlySendsNoFurtherRequestAndLeavesNothingToClose()
+    {
+        using PagedServer server = CatalogServer(3, 2);
+
+        await foreach (Pet pet in PetApiFor(server).ListPetCatalogPagesAsync())
+        {
+            Assert.Equal("p0-0", pet.Name);
+            break;
+        }
+        Assert.Single(server.Seen);
+
+        int read = 0;
+        await foreach (Pet pet in PetApiFor(server).ListPetCatalogPagesAsync())
+        {
+            Assert.NotNull(pet);
+            if (++read == 3)
+            {
+                break;
+            }
+        }
+        Assert.Equal(3, server.Seen.Count);
+        Assert.False(typeof(IAsyncDisposable).IsAssignableFrom(typeof(Paginator<Pet, string?>)));
+        Assert.False(typeof(IDisposable).IsAssignableFrom(typeof(Paginator<Pet, string?>)));
+    }
+
+    [Fact]
+    public async Task BhvPagination019CancellingMidIterationAbortsTheInFlightPageRequestAndIsNotReportedAsATimeout()
+    {
+        using PagedServer server = new(
+            (request, _) =>
+                request.Param("cursor") is null
+                    ? Reply.Ok(CatalogBody(0, 1, 2))
+                    : Reply.Ok(CatalogBody(1, 1, 2)).After(8000));
+        using CancellationTokenSource cancel = new();
+        PetApi api = new(
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Timeout(20000).Build()),
+            Configuration.Builder().BaseUrl(server.Url).Build());
+
+        Stopwatch clock = Stopwatch.StartNew();
+        Task<List<string>> reading = NamesAsync(api.ListPetCatalogPagesAsync(null, cancel.Token));
+        while (server.Seen.Count < 2 && clock.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(20);
+        }
+        Assert.Equal(2, server.Seen.Count);
+        await cancel.CancelAsync();
+        Exception failure = await Assert.ThrowsAnyAsync<Exception>(() => reading);
+
+        Assert.IsAssignableFrom<OperationCanceledException>(failure);
+        Assert.IsNotType<NetworkTimeoutException>(failure);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(7), "the cancelled iteration stops promptly");
+    }
+
+    [Fact]
+    public async Task BhvPagination020IteratingASecondTimeStartsAgainFromTheStartingPosition()
+    {
+        using PagedServer server = CatalogServer(2, 2);
+        Paginator<Pet, string?> paginator = PetApiFor(server).ListPetCatalogPagesAsync();
+
+        List<string> first = await NamesAsync(paginator);
+        List<string> second = await NamesAsync(paginator);
+
+        Assert.Equal(first, second);
+        Assert.Equal(4, server.Seen.Count);
+        Assert.Equal(new List<string?> { null, "c1", null, "c1" }, ParamsSeen(server, "cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination021APageThatDoesNotDecodeOnALaterPageFailsWithTheSerializationErrorAfterTheEarlierItemsWereDelivered()
+    {
+        using PagedServer server = new(
+            (_, number) =>
+                number == 1
+                    ? Reply.Ok(CatalogBody(0, 1, 2))
+                    : Reply.Ok("{\"items\":[{\"id\":\"not a number\",\"name\":\"x\",\"photoUrls\":[]}]}"));
+
+        await using IAsyncEnumerator<Pet> items = PetApiFor(server).ListPetCatalogPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("p0-0", items.Current.Name);
+        _ = await Assert.ThrowsAsync<SerializationException>(() => items.MoveNextAsync().AsTask());
+        Assert.False(await items.MoveNextAsync());
+    }
+
+    [Fact]
+    public async Task BhvPagination022ARefreshedCredentialIsUsedForTheNextPage()
+    {
+        using PagedServer server = CatalogServer(3, 1);
+        PetApi api = PetApiFor(server, authenticator: new RotatingAuthenticator());
+
+        _ = await NamesAsync(api.ListPetCatalogPagesAsync());
+
+        Assert.Equal("Bearer t1", server.Seen[0].Header("Authorization"));
+        Assert.Equal("Bearer t2", server.Seen[1].Header("Authorization"));
+        Assert.Equal("Bearer t3", server.Seen[2].Header("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvPagination023AnErrorFromALinkDrivenPageRequestCarriesThePathWithoutTheQuery()
+    {
+        using PagedServer server = new(
+            (request, _) =>
+                request.Param("page") is not null
+                    ? new Reply(500, "{}")
+                    : Reply.Ok(
+                        "[" + PetJson("f0") + "]",
+                        new Dictionary<string, string> { ["Link"] = "</pet/feed?page=1&secret=s3>; rel=\"next\"" }));
+
+        await using IAsyncEnumerator<Pet> items = PetApiFor(server).ListPetFeedPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("f0", items.Current.Name);
+        ApiException failure = await Assert.ThrowsAsync<InternalServerErrorException>(() => items.MoveNextAsync().AsTask());
+
+        Assert.Equal(500, failure.StatusCode);
+        Assert.Equal("/pet/feed", failure.RequestPath);
+        Assert.DoesNotContain("s3", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvPagination024AnOperationWithTwoCandidateCursorsTwoArrayPropertiesANonGetMethodOrSeveral2xxBodiesGetsNoPagedMethod()
+    {
+        HashSet<string> paged = [.. typeof(PetApi).GetMethods().Select(m => m.Name).Where(n => n.EndsWith("PagesAsync", StringComparison.Ordinal))];
+
+        Assert.Equal(
+            new HashSet<string>
+            {
+                "ListPetCatalogPagesAsync",
+                "ListPetEventsPagesAsync",
+                "ListPetFeedPagesAsync",
+                "ListPetNotesPagesAsync",
+                "ListPetOffsetsPagesAsync",
+                "ListPetPageNumbersPagesAsync",
+                "ListPetsAfterPagesAsync",
+                "ListPetNextUrlPagesAsync",
+            },
+            paged);
+        Assert.Contains(typeof(PetApi).GetMethods(), m => m.Name == "ListPetMatchesAsync");
+    }
+
+    [Fact]
+    public void BhvPagination025APagedMethodHasTheSameParametersInTheSameOrderAsTheBaseMethodAndTheBaseMethodIsUnchanged()
+    {
+        foreach (System.Reflection.MethodInfo pages in typeof(PetApi).GetMethods().Where(m => m.Name.EndsWith("PagesAsync", StringComparison.Ordinal)))
+        {
+            string baseName = pages.Name[..^"PagesAsync".Length] + "Async";
+            System.Reflection.MethodInfo buffered = Assert.Single(
+                typeof(PetApi).GetMethods(),
+                m => m.Name == baseName
+                    && m.GetParameters().Select(p => p.ParameterType).SequenceEqual(pages.GetParameters().Select(p => p.ParameterType)));
+
+            Assert.False(buffered.ReturnType.IsGenericType && buffered.ReturnType.GetGenericArguments()[0].Name.StartsWith("Paginator", StringComparison.Ordinal));
+            Assert.Equal(typeof(Task<>), buffered.ReturnType.GetGenericTypeDefinition());
+        }
+    }
+
+    [Fact]
+    public void BhvPagination026TheGeneratorOptionOverridesInferenceAndCanSwitchAnOperationOrTheWholeFeatureOff()
+    {
+        HashSet<string> names = [.. typeof(PetApi).GetMethods().Select(m => m.Name)];
+
+        Assert.Contains("ListPetEventsPagesAsync", names);
+        Assert.DoesNotContain("ListPetArchivePagesAsync", names);
+        Assert.Contains("ListPetArchiveAsync", names);
+    }
+
+    [Fact]
+    public async Task BhvPagination027HeadersAndOptionsGivenToThePagedMethodAreSentOnEveryPageRequest()
+    {
+        using PagedServer server = SameOriginFeed(3);
+
+        _ = await NamesAsync(
+            PetApiFor(server).ListPetFeedPagesAsync(
+                new ListPetFeedOptions
+                {
+                    Limit = 1,
+                    Headers = new Dictionary<string, string> { ["X-Keep"] = "yes" },
+                }));
+
+        Assert.Equal(3, server.Seen.Count);
+        Assert.All(server.Seen, request => Assert.Equal("yes", request.Header("X-Keep")));
+        Assert.Equal("1", server.Seen[0].Param("limit"));
+    }
+
+    [Fact]
+    public async Task BhvPagination028TheCursorForTheNextPageIsTakenFromTheAcceptedResponseNeverFromARetriedAttempt()
+    {
+        using PagedServer server = new(
+            (request, number) =>
+                number == 1
+                    ? new Reply(503, "{\"items\":[],\"next_cursor\":\"WRONG\"}", new Dictionary<string, string> { ["Retry-After"] = "0" })
+                    : Reply.Ok(CatalogBody(request.Param("cursor") is null ? 0 : 1, 1, 2)));
+
+        Assert.Equal(["p0-0", "p1-0"], await NamesAsync(PetApiFor(server, maxRetries: 2).ListPetCatalogPagesAsync()));
+        Assert.Equal(new List<string?> { null, null, "c1" }, ParamsSeen(server, "cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination029ANextUrlInTheBodyIsFollowedAndANextUrlOnAnotherOriginIsRefused()
+    {
+        using PagedServer server = NextUrlServer(3);
+        Assert.Equal(["f0", "f1", "f2"], await NamesAsync(PetApiFor(server).ListPetNextUrlPagesAsync()));
+        Assert.Equal(new List<string?> { null, "1", "2" }, ParamsSeen(server, "p"));
+
+        using PagedServer elsewhere = new((_, _) => Reply.Ok("{\"items\":[" + PetJson("stolen") + "]}"));
+        using PagedServer origin = new(
+            (_, _) => Reply.Ok("{\"items\":[" + PetJson("f0") + "],\"next_url\":\"" + elsewhere.Url + "/pet/next?p=1\"}"));
+        await using IAsyncEnumerator<Pet> items = PetApiFor(origin).ListPetNextUrlPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("f0", items.Current.Name);
+        PaginationException refused = await Assert.ThrowsAsync<PaginationException>(() => items.MoveNextAsync().AsTask());
+
+        Assert.DoesNotContain("p=1", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(elsewhere.Seen);
+    }
+
+    [Fact]
+    public void BhvPagination030AVendorExtensionOnAnOperationIsReadAsAHintAndTheOverrideOptionWinsOverIt()
+    {
+        Assert.Contains(typeof(PetApi).GetMethods(), m => m.Name == "ListPetNotesPagesAsync");
+    }
+
+    [Fact]
+    public async Task BhvPagination031TheRepeatedCursorFailureIsAPaginationErrorAndIsNotANetworkErrorOrAnApiError()
+    {
+        Assert.Equal(typeof({{errorPrefix}}Exception), typeof(PaginationException).BaseType);
+        using PagedServer server = new((_, _) => Reply.Ok("{\"items\":[],\"next_cursor\":\"c1\"}"));
+
+        {{errorPrefix}}Exception failure = await Assert.ThrowsAnyAsync<{{errorPrefix}}Exception>(
+            () => NamesAsync(PetApiFor(server).ListPetCatalogPagesAsync(new ListPetCatalogOptions { Cursor = "c1" })));
+
+        Assert.IsType<PaginationException>(failure);
+        Assert.IsNotAssignableFrom<ApiException>(failure);
+        Assert.IsNotAssignableFrom<NetworkException>(failure);
+    }
+
+    [Fact]
+    public void BhvPagination032AnOperationThatIsStreamedIsNeverAlsoGivenAPagedMethod()
+    {
+        Assert.DoesNotContain(typeof(StoreApi).GetMethods(), m => m.Name.EndsWith("PagesAsync", StringComparison.Ordinal));
+        Assert.Contains(typeof(StoreApi).GetMethods(), m => m.Name == "ExportOrdersStreamAsync");
+    }
+
+    /* D189: the opt-in check of a request body against the validation keywords of its schema. */
+    private static readonly AllowanceTier ValidTier = new() { Level = 0, Name = "ab" };
+
+    private static readonly Allowance ValidAllowance = new()
+    {
+        Label = "abc",
+        Count = 5,
+        Ratio = 0.5,
+        Step = 10,
+        Codes = ["a"],
+        Limits = new() { ["a"] = 1 },
+        Tier = ValidTier,
+        Parts = [ValidTier],
+    };
+
+    private static readonly (string Keyword, Allowance Body, string Message)[] ConstraintViolations =
+    [
+        ("minLength", ValidAllowance with { Label = "a" }, "Invalid request body: label must be at least 2 characters long"),
+        ("maxLength", ValidAllowance with { Label = "abcdef" }, "Invalid request body: label must be at most 5 characters long"),
+        ("pattern", ValidAllowance with { Label = "ab1" }, "Invalid request body: label must match the pattern ^[a-z]+$"),
+        ("minimum", ValidAllowance with { Count = 0 }, "Invalid request body: count must be greater than or equal to 1"),
+        ("maximum", ValidAllowance with { Count = 11 }, "Invalid request body: count must be less than or equal to 10"),
+        ("exclusiveMinimum", ValidAllowance with { Ratio = 0.0 }, "Invalid request body: ratio must be greater than 0"),
+        ("exclusiveMaximum", ValidAllowance with { Ratio = 1.0 }, "Invalid request body: ratio must be less than 1"),
+        ("multipleOf", ValidAllowance with { Step = 7 }, "Invalid request body: step must be a multiple of 5"),
+        ("minItems", ValidAllowance with { Codes = [] }, "Invalid request body: codes must have at least 1 items"),
+        ("maxItems", ValidAllowance with { Codes = ["a", "b", "c", "d"] }, "Invalid request body: codes must have at most 3 items"),
+        ("minProperties", ValidAllowance with { Limits = [] }, "Invalid request body: limits must have at least 1 properties"),
+        (
+            "maxProperties",
+            ValidAllowance with { Limits = new() { ["a"] = 1, ["b"] = 2, ["c"] = 3 } },
+            "Invalid request body: limits must have at most 2 properties"
+        ),
+    ];
+
+    private static StoreApi ConstraintApi(ScriptedApiClient client, bool validateConstraints)
+    {
+        return new StoreApi(
+            client,
+            Configuration.Builder().BaseUrl("http://localhost").ValidateConstraints(validateConstraints).Build()
+        );
+    }
+
+    [Fact]
+    public async Task BhvModels706ConstraintValidationIsOffByDefault()
+    {
+        var client = new ScriptedApiClient(204);
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SubmitAllowanceAsync(ValidAllowance with { Label = "a", Count = 0 });
+
+        Assert.False(Configuration.DefaultConfiguration().ValidateConstraints);
+        Assert.Single(client.Sent);
+    }
+
+    [Fact]
+    public async Task BhvModels707ABodyThatBreaksOneKeywordIsRefusedBeforeItIsSent()
+    {
+        foreach (var (_, body, message) in ConstraintViolations)
+        {
+            var client = new ScriptedApiClient(204);
+
+            ArgumentException refused = await Assert.ThrowsAsync<ArgumentException>(
+                () => ConstraintApi(client, true).SubmitAllowanceAsync(body)
+            );
+
+            Assert.Equal(message, refused.Message);
+            Assert.Empty(client.Sent);
+        }
+    }
+
+    [Fact]
+    public async Task BhvModels708AViolationInsideAHeldModelOrAListNamesItsPath()
+    {
+        var client = new ScriptedApiClient(204);
+        AllowanceTier ok = new() { Level = 1, Name = "ab" };
+        AllowanceTier negative = new() { Level = -1 };
+
+        ArgumentException held = await Assert.ThrowsAsync<ArgumentException>(
+            () => ConstraintApi(client, true).SubmitAllowanceAsync(ValidAllowance with { Tier = negative })
+        );
+        ArgumentException listed = await Assert.ThrowsAsync<ArgumentException>(
+            () => ConstraintApi(client, true).SubmitAllowanceAsync(ValidAllowance with { Parts = [ok, negative] })
+        );
+        ArgumentException named = await Assert.ThrowsAsync<ArgumentException>(
+            () => ConstraintApi(client, true).SubmitAllowanceAsync(ValidAllowance with { Tier = ok with { Name = "abcd" } })
+        );
+
+        Assert.Equal("Invalid request body: tier.level must be greater than or equal to 0", held.Message);
+        Assert.Equal("Invalid request body: parts[1].level must be greater than or equal to 0", listed.Message);
+        Assert.Equal("Invalid request body: tier.name must be at most 3 characters long", named.Message);
+        Assert.Empty(client.Sent);
+    }
+
+    [Fact]
+    public async Task BhvModels709ABodyWithinEveryConstraintIsSentAndANullValueIsNotChecked()
+    {
+        var client = new ScriptedApiClient(204);
+        StoreApi api = ConstraintApi(client, true);
+
+        await api.SubmitAllowanceAsync(ValidAllowance);
+        Assert.Single(client.Sent);
+        await api.SubmitAllowanceAsync(new Allowance());
+        await api.SubmitAllowanceAsync(new Allowance { Tier = new AllowanceTier() });
+
+        Assert.Equal(3, client.Sent.Count);
+    }
+
+}

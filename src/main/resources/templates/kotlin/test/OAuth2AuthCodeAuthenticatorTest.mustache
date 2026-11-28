@@ -1,0 +1,653 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ApiHttpResponse
+import {{invokerPackage}}.auth.CredentialEnvironment
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import java.util.LinkedList
+
+class OAuth2AuthorizationCodeAuthenticatorTest {
+
+    private class FakeApiClient : ApiClient {
+        private val responses = LinkedList<ApiHttpResponse>()
+        var lastBody: String? = null
+            private set
+        var lastUrl: String? = null
+            private set
+        var requestCount: Int = 0
+            private set
+
+        fun enqueue(body: String, statusCode: Int = 200) {
+            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
+        }
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean
+        ): ApiHttpResponse {
+            lastUrl = url
+            lastBody = body?.toString()
+            requestCount++
+            return responses.poll() ?: throw IllegalStateException("No responses queued")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call")
+    fun bhvMisc077GeneratedPkceVerifierIs43UnreservedCharactersAndDiffersPerCall() {
+        val first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier()
+        val second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier()
+
+        assertTrue(Regex("[A-Za-z0-9_-]{43}").matches(first))
+        assertNotEquals(first, second)
+    }
+
+    private fun createAuthenticator(): OAuth2AuthorizationCodeAuthenticator {
+        return OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://auth.example.com/authorize",
+            tokenUrl = "https://auth.example.com/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read", "write")
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode006BuildsAuthorizationUrlWithRequiredParams() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("response_type=code"))
+        assertTrue(url.contains("client_id=my-client-id"))
+        assertTrue(url.contains("redirect_uri="))
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("scope=read+write"), url)
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"))
+    }
+
+    private fun challengeOf(url: String): String =
+        Regex("code_challenge=([^&]+)").find(url)!!.groupValues[1]
+
+    private fun verifierSentIn(body: String?): String? =
+        Regex("code_verifier=([^&]+)").find(body.orEmpty())?.groupValues?.get(1)
+
+    @Test
+    fun bhvAuth008PkceChallengeIsTheS256OfTheVerifier() {
+        // RFC 7636 appendix B test vector.
+        assertEquals(
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            OAuth2AuthorizationCodeAuthenticator.pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode023AuthorizationUrlCarriesAPkceS256ChallengeAndNoNonce() {
+        val url = createAuthenticator().buildAuthorizationUrl("st")
+
+        assertTrue(url.contains("&code_challenge_method=S256"), url)
+        assertTrue(Regex("&code_challenge=[A-Za-z0-9_-]{43}(&|$)").containsMatchIn(url), url)
+        assertFalse(url.contains("nonce"), url)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode008ExchangeSendsTheVerifierOfTheAuthorizationUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        val verifier = verifierSentIn(client.lastBody)
+        assertNotNull(verifier, client.lastBody)
+        assertTrue(Regex("[A-Za-z0-9_-]{43}").matches(verifier!!), verifier)
+        assertEquals(challengeOf(url), OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifier))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode009EveryAuthorizationUrlGetsANewVerifierAndTheLastOneIsExchanged() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val first = auth.buildAuthorizationUrl()
+        val second = auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        assertNotEquals(challengeOf(first), challengeOf(second))
+        assertEquals(
+            challengeOf(second),
+            OAuth2AuthorizationCodeAuthenticator.pkceChallenge(verifierSentIn(client.lastBody)!!),
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode001ExchangeWithoutAnAuthorizationUrlSendsNoVerifierAndAUsedVerifierIsNotSentAgain() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+
+        auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("second-code") }
+        assertNotNull(verifierSentIn(client.lastBody), client.lastBody)
+        runBlocking { auth.exchangeCode("third-code") }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode016InvalidateAccessTokenKeepsTheRefreshTokenForTheNextCall() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        auth.invalidateAccessToken()
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"), client.lastBody)
+        assertEquals("Bearer tok2", headers["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode007BuildsAuthorizationUrlWithState() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("csrf-state-123")
+
+        assertTrue(url.contains("state=csrf-state-123"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode018EmptyStateIsOmittedFromTheAuthorizationUrl() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("")
+
+        assertFalse(url.contains("state"), url)
+        // Each URL carries its own random PKCE challenge, so compare without it.
+        val withoutPkce = { u: String -> u.substringBefore("&code_challenge=") }
+        assertEquals(withoutPkce(auth.buildAuthorizationUrl(null)), withoutPkce(url))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode012ExchangesCodeWithCorrectGrantType() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        assertNotNull(client.lastBody)
+        assertTrue(client.lastBody!!.contains("grant_type=authorization_code"))
+        assertTrue(client.lastBody!!.contains("code=auth-code-xyz"))
+        assertTrue(client.lastBody!!.contains("client_id=my-client-id"))
+        assertTrue(client.lastBody!!.contains("client_secret=my-client-secret"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode010ExchangeCodeRejectsEmptyCode() {
+        // oauth-exchangecode-no-empty-code-guard: an empty code must be rejected
+        // before the token POST, with no request sent.
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val empty = assertThrowsExactly(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("") }
+        }
+        assertEquals("Authorization code must not be empty", empty.message)
+        // No token request should have been dispatched.
+        assertNull(client.lastBody, "no token request should be sent for an empty code")
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode011ExchangeCodeRejectsWhitespaceOnlyCode() {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // the token POST (isNotBlank guard), with no request sent.
+        val client = FakeApiClient()
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        assertThrowsExactly(IllegalArgumentException::class.java) {
+            runBlocking { auth.exchangeCode("   ") }
+        }
+        // No token request should have been dispatched.
+        assertNull(client.lastBody, "no token request should be sent for a whitespace-only code")
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode021SecondExchangeCodeSendsTheNewCode() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","refresh_token":"ref2","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        runBlocking { auth.exchangeCode("second-code") }
+
+        assertTrue(client.lastBody!!.contains("grant_type=authorization_code"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("code=second-code"), client.lastBody)
+        assertEquals("Bearer tok2", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        runBlocking { auth.exchangeCode("second-code") }
+        runBlocking { auth.getAuthHeaders() }
+
+        assertFalse(client.lastBody!!.contains("ref1"), client.lastBody)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode013FailedExchangeKeepsThePreviousSession() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        assertThrowsExactly({{invokerPackage}}.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.exchangeCode("bad-code") }
+        }
+
+        assertEquals("Bearer tok1", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode026RefreshCarriesClientCredentials() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertEquals("Bearer tok2", runBlocking { auth.getAuthHeaders() }["Authorization"])
+
+        assertEquals(2, client.requestCount)
+        assertEquals(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret",
+            client.lastBody,
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode002RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        client.enqueue("""{"access_token":"unexpected","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertThrowsExactly({{invokerPackage}}.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+
+        assertEquals(2, client.requestCount)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode015IncludesRefreshTokenOnRefresh() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"))
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"))
+        assertEquals("Bearer tok2", headers["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode027ThrowsBeforeExchangeCodeCalled() {
+        val auth = createAuthenticator()
+
+        assertThrowsExactly(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode014GetHostReturnsConfiguredHost() {
+        val auth = createAuthenticator()
+
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError() {
+        val auth = createAuthenticator()
+
+        // Calling getAuthHeaders before exchangeCode is a precondition
+        // violation. It must surface as a catchable exception so callers
+        // can recover -- not as a process crash.
+        var caught: Throwable? = null
+        try {
+            runBlocking { auth.getAuthHeaders() }
+        } catch (t: Throwable) {
+            caught = t
+        }
+        assertNotNull(caught, "expected getAuthHeaders to throw before exchangeCode")
+        assertTrue(
+            caught is IllegalStateException,
+            "expected IllegalStateException, got " + caught!!::class.java.name
+        )
+
+        // Caller continues normally after catching -- no process crash.
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode005AuthorizeUrlWithExistingQueryStringUsesAmpSeparator() {
+        // RFC 6749 §3.1: the authorization endpoint URI MAY already include
+        // a query component (e.g. tenant-scoped Auth0 URLs). The builder
+        // must preserve existing query items alongside the OAuth2 ones
+        // using '&' as the separator, not '?'.
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://x.auth0.com/authorize?audience=api",
+            tokenUrl = "https://x.auth0.com/oauth/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read")
+        )
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("audience=api"), "existing query param must be preserved: $url")
+        assertTrue(url.contains("response_type=code"), "response_type must be appended: $url")
+        assertEquals(1, url.count { it == '?' }, "result must contain exactly one '?': $url")
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode019RedactsSecret() {
+        val auth = createAuthenticator()
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("my-client-secret"))
+        assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode025RedactedReprShowsExactlyTheNonSecretFields() {
+        assertEquals(
+            "OAuth2AuthorizationCodeAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "clientSecret=***, authorizationUrl=https://auth.example.com/authorize, " +
+                "tokenUrl=https://auth.example.com/token, refreshUrl=https://auth.example.com/token, " +
+                "redirectUri=https://app.example.com/callback, scopes=[read, write])",
+            createAuthenticator().toString(),
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode017 keeps ~ literal and percent-encodes * ! ' ( ) in the code exchange body")
+    fun bhvAuthoauthtwoauthcode017ExchangeBodyKeepsTildeAndEncodesSubDelimiters() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "id-._~*!'()",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://auth.example.com/authorize",
+            tokenUrl = "https://auth.example.com/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read")
+        )
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("c~*!'()") }
+
+        assertTrue(client.lastBody!!.contains("code=c~%2A%21%27%28%29"), client.lastBody)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode004AuthorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "id-._~*!'()",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://auth.example.com/authorize",
+            tokenUrl = "https://auth.example.com/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read")
+        )
+
+        val url = auth.buildAuthorizationUrl("st~*!'() x")
+
+        assertTrue(url.contains("client_id=id-._~%2A%21%27%28%29&"), url)
+        assertTrue(url.contains("state=st~%2A%21%27%28%29%20x"), url)
+        assertTrue(url.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&"), url)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode024RoutesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = OAuth2AuthorizationCodeAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            authorizationUrl = "https://auth.example.com/authorize",
+            tokenUrl = "https://auth.example.com/token",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("read"),
+            refreshUrl = "https://auth.example.com/refresh"
+        )
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertEquals("https://auth.example.com/token", client.lastUrl)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/refresh", client.lastUrl)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoauthcode020GeneratedSchemeWrapperUsesItsSpecUrlsAndScopes() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/callback")
+        auth.setApiClient(client)
+
+        val url = auth.buildAuthorizationUrl()
+        assertTrue(url.startsWith("https://auth.example.com/authorize?response_type=code"), url)
+        assertTrue(url.contains("scope=pets%3Aread%20pets%3Awrite"), url)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable")
+    fun bhvAuthscheme015EmptyAuthorizationCodeSchemeVariableIsUnsetAndNamed() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            when (name) {
+                "{{envVarPrefix}}_USER_AUTH_CLIENT_ID" -> ""
+                "{{envVarPrefix}}_USER_AUTH_CLIENT_SECRET" -> "secret"
+                "{{envVarPrefix}}_USER_AUTH_REDIRECT_URI" -> "https://app.example.com/callback"
+                else -> null
+            }
+        }
+        try {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                UserAuthAuthorizationCodeAuthenticator("https://api.example.com")
+            }
+            assertTrue(ex.message!!.contains("{{envVarPrefix}}_USER_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth048 the authorization-code flow routes the code exchange and refresh to the declared token and refresh URLs")
+    fun bhvAuth048RoutesTheExchangeAndRefreshToTheDeclaredUrls() =
+        bhvAuthoauthtwoauthcode024RoutesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl()
+
+    @Test
+    @DisplayName("bhvAuth052 an OAuth authenticator holding no token refuses to produce auth headers, synchronously and asynchronously")
+    fun bhvAuth052NoTokenRefusesAuthHeaders() =
+        bhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError()
+
+    @Test
+    @DisplayName("bhvAuth053 exchanging a code discards any refresh token previously held")
+    fun bhvAuth053ExchangeDiscardsThePreviousRefreshToken() =
+        bhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
+
+    @Test
+    @DisplayName("bhvAuth014 the authorization URL encodes the spaces between scopes as percent 20, never as a plus sign")
+    fun bhvAuth014ScopeSpacesAreEncodedAsPercent20() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("+"), url)
+    }
+
+    @Test
+    @DisplayName("bhvMisc058 the authorization endpoint and redirect URI reach the authorization URL exactly as configured")
+    fun bhvMisc058AuthorizationEndpointAndRedirectReachTheUrlAsConfigured() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"), url)
+        assertTrue(url.contains("response_type=code"), url)
+        assertTrue(url.contains("client_id=my-client-id"), url)
+        assertTrue(url.contains("redirect_uri=") && url.contains("app.example.com"), url)
+    }
+
+    @Test
+    @DisplayName("bhvMisc062 the authorization URL carries the scopes the security scheme declares")
+    fun bhvMisc062AuthorizationUrlCarriesTheDeclaredScopes() {
+        val url = createAuthenticator().buildAuthorizationUrl()
+        assertTrue(url.contains("scope=read%20write"), url)
+    }
+
+    @Test
+    @DisplayName("bhvAuth020 the PKCE verifier is sent with the first code exchange and never with a refresh")
+    fun bhvAuth020TheVerifierIsNeverSentWithARefresh() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        auth.buildAuthorizationUrl()
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertNotNull(verifierSentIn(client.lastBody), client.lastBody)
+        runBlocking { auth.getAuthHeaders() }
+        assertNull(verifierSentIn(client.lastBody), client.lastBody)
+    }
+
+    @Test
+    @DisplayName("bhvAuth028 a failed first code exchange records no session and the client still reports it unexchanged")
+    fun bhvAuth028AFailedFirstExchangeRecordsNoSession() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        assertThrows({{invokerPackage}}.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.exchangeCode("bad-code") }
+        }
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Must call exchangeCode() before making API requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode030 auth headers before the code exchange fail naming the exchange call to make first")
+    fun authHeadersBeforeTheExchangeNameTheExchangeCall() {
+        val auth = createAuthenticator()
+        auth.setApiClient(FakeApiClient())
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Must call exchangeCode() before making API requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoauthcode032 the authorization code exchange body uses a fixed parameter order")
+    fun codeExchangeBodyUsesAFixedParameterOrder() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        runBlocking { auth.exchangeCode("C") }
+        assertEquals(
+            "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret" +
+                "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+            client.lastBody,
+        )
+    }
+
+    @Test
+    @DisplayName("bhvMisc028 a transport failure during the code exchange reaches the caller unchanged")
+    fun bhvMisc028TransportFailureDuringTheCodeExchangeIsRethrownUnchanged() {
+        val cause = java.io.IOException("connection reset")
+        val auth = createAuthenticator()
+        auth.setApiClient(
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse {
+                    throw cause
+                }
+            }
+        )
+        val thrown = assertThrowsExactly(java.io.IOException::class.java) {
+            runBlocking { auth.exchangeCode("auth-code-xyz") }
+        }
+        assertSame(cause, thrown)
+    }
+}

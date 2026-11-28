@@ -1,0 +1,112 @@
+defmodule TelemetryCallHook do
+  @moduledoc """
+  A call hook that records one span, one request count and one duration per
+  call. It needs `opentelemetry_api` and `opentelemetry_api_experimental` in
+  your own `mix.exs`, and records nothing until an OpenTelemetry SDK runs.
+
+  Pass it as `{TelemetryCallHook, tracer: tracer, meter: meter}` to use a
+  tracer and a meter other than the global ones.
+  """
+
+  @behaviour {{moduleName}}.CallHook
+
+  @scope_name :{{packageName}}
+  @scope_version "{{packageVersion}}"
+
+  @impl true
+  def start(info, headers), do: start(info, headers, [])
+
+  @impl true
+  def start(info, headers, opts) do
+    tracer =
+      Keyword.get_lazy(opts, :tracer, fn ->
+        :opentelemetry.get_tracer(@scope_name, @scope_version, :undefined)
+      end)
+
+    meter =
+      Keyword.get_lazy(opts, :meter, fn ->
+        :opentelemetry_experimental.get_meter(
+          :opentelemetry.instrumentation_scope(@scope_name, @scope_version, :undefined)
+        )
+      end)
+
+    attributes = %{
+      "http.request.method" => info.method,
+      "url.template" => info.url_template,
+      "server.address" => info.server_address
+    }
+
+    span =
+      :otel_tracer.start_span(tracer, info.operation_id, %{
+        kind: :client,
+        attributes: attributes
+      })
+
+    # The hook writes the traceparent itself, so the request names the client span.
+    headers =
+      :otel_propagator_text_map.inject_from(
+        :otel_tracer.set_current_span(:otel_ctx.get_current(), span),
+        :opentelemetry.get_text_map_injector(),
+        headers,
+        fn key, value, carrier -> Map.put(carrier, key, value) end
+      )
+
+    {headers,
+     %{span: span, meter: meter, attributes: attributes, started: System.monotonic_time()}}
+  end
+
+  @impl true
+  def finish(state, outcome) do
+    failure = error_type(outcome)
+
+    attributes =
+      state.attributes
+      |> then(fn attributes ->
+        if outcome.status_code > 0,
+          do: Map.put(attributes, "http.response.status_code", outcome.status_code),
+          else: attributes
+      end)
+      |> then(fn attributes ->
+        if failure, do: Map.put(attributes, "error.type", failure), else: attributes
+      end)
+
+    :otel_span.set_attributes(
+      state.span,
+      Map.take(attributes, ["http.response.status_code", "error.type"])
+    )
+
+    if failure, do: :otel_span.set_status(state.span, :opentelemetry.status(:error, failure))
+    :otel_span.end_span(state.span)
+
+    seconds =
+      System.convert_time_unit(System.monotonic_time() - state.started, :native, :nanosecond) /
+        1_000_000_000
+
+    context = :otel_ctx.get_current()
+    :otel_counter.create(state.meter, :"http.client.request.count", %{unit: :"{request}"})
+    :otel_counter.add(context, state.meter, :"http.client.request.count", 1, attributes)
+    :otel_histogram.create(state.meter, :"http.client.request.duration", %{unit: :s})
+
+    :otel_histogram.record(
+      context,
+      state.meter,
+      :"http.client.request.duration",
+      seconds,
+      attributes
+    )
+
+    :ok
+  end
+
+  defp error_type(%{status_code: status}) when status >= 400, do: Integer.to_string(status)
+  defp error_type(%{error: nil}), do: nil
+  defp error_type(%{error: %{{moduleName}}.Errors.NetworkTimeoutError{}}), do: "timeout"
+  defp error_type(%{error: %{{moduleName}}.Errors.NetworkError{}}), do: "network_error"
+  defp error_type(%{error: %{{moduleName}}.Errors.StreamError{}}), do: "network_error"
+
+  defp error_type(%{error: %{{moduleName}}.Errors.SerializationError{}}),
+    do: "serialization_error"
+
+  defp error_type(%{error: {:exit, _reason}}), do: "cancelled"
+  defp error_type(_outcome), do: "_OTHER"
+end

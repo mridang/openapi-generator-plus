@@ -13,18 +13,25 @@ defaults:
   run:
     working-directory: ./
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish-package:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Runner Common Setup
+        uses: mridang/action-runner-common@v1
+
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'corretto'
           cache: maven
 

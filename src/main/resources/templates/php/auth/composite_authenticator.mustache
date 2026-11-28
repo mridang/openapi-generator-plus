@@ -1,0 +1,63 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Auth;
+
+/**
+ * Applies several authenticators to one request: a security requirement that needs more than
+ * one scheme together (an API key plus a bearer token, for example). The headers, query
+ * parameters and cookies of every authenticator are merged; the host is the first one's.
+ */
+final class CompositeAuthenticator implements Authenticator
+{
+    /** @var list<Authenticator> */
+    private readonly array $authenticators;
+
+    /**
+     * @param list<Authenticator> $authenticators at least one authenticator
+     * @throws \InvalidArgumentException when the list is empty
+     */
+    public function __construct(array $authenticators)
+    {
+        if ($authenticators === []) {
+            throw new \InvalidArgumentException('A composite authenticator needs at least one authenticator');
+        }
+        $this->authenticators = $authenticators;
+    }
+
+    public function getHost(): string
+    {
+        return $this->authenticators[0]->getHost();
+    }
+
+    /** @return array<string, string> */
+    public function getAuthHeaders(): array
+    {
+        $headers = [];
+        foreach ($this->authenticators as $authenticator) {
+            $headers = array_merge($headers, $authenticator->getAuthHeaders());
+        }
+
+        return $headers;
+    }
+
+    /** @return array<string, string> */
+    public function getQueryParams(): array
+    {
+        $params = [];
+        foreach ($this->authenticators as $authenticator) {
+            $params = array_merge($params, $authenticator->getQueryParams());
+        }
+
+        return $params;
+    }
+
+    /** @return array<string, string> */
+    public function getCookieParams(): array
+    {
+        $cookies = [];
+        foreach ($this->authenticators as $authenticator) {
+            $cookies = array_merge($cookies, $authenticator->getCookieParams());
+        }
+
+        return $cookies;
+    }
+}

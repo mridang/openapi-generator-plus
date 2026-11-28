@@ -1,0 +1,2286 @@
+package io.github.mridang.codegen.generators.dart;
+
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.github.mridang.codegen.generators.BarrelFileEmitter;
+import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Generates a Dart API client that uses the http package for
+ * transport and dart:convert for JSON serialization. All type
+ * names use PascalCase, variable and method names use camelCase
+ * per Dart convention. Filenames use snake_case. The formatter
+ * pass invokes dart format inside Docker to enforce canonical
+ * Dart formatting.
+ */
+@SuppressWarnings("unused")
+public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterDartCodegen.class);
+
+    /** D168: the ResponseHeaders classes written so far, exported from the package barrel. */
+    private final List<String> responseHeadersClasses = new ArrayList<>();
+
+    protected String packageName = "openapi_client";
+    protected String packageVersion = "1.0.0";
+
+    /**
+     * Initializes type mappings, template paths, and reserved
+     * words for the Dart language. Type mappings convert OpenAPI
+     * types to their Dart equivalents (e.g. integer to int,
+     * DateTime to DateTime). Reserved words are loaded from a
+     * bundled word-list.
+     */
+    public BetterDartCodegen() {
+        outputFolder = Path.of("generated-code", "dart").toString();
+        embeddedTemplateDir = templateDir = "templates/dart";
+
+        modelTemplateFiles.put("models/model.mustache", ".dart");
+        apiTemplateFiles.put("api/api.mustache", ".dart");
+
+        modelPackage = "models";
+        apiPackage = "api";
+
+        typeMapping.put("string", "String");
+        typeMapping.put("boolean", "bool");
+        typeMapping.put("int", "int");
+        typeMapping.put("integer", "int");
+        typeMapping.put("long", "int");
+        typeMapping.put("short", "int");
+        typeMapping.put("float", "double");
+        typeMapping.put("double", "double");
+        typeMapping.put("number", "double");
+        // format: decimal is the exact Decimal of package:decimal (#157). The
+        // number-shaped form is picked up in getSchemaType, because the base
+        // class types a number by its `number` type key and not its format.
+        typeMapping.put("decimal", "Decimal");
+        typeMapping.put("Decimal", "Decimal");
+        // format:date → DateTime (date-only). Dart has only DateTime (no
+        // civil-date type), so a `format: date` value is carried as a DateTime
+        // and serialized date-only via ValueSerializer.stringifyDate, matching
+        // the typed-date SDKs (and node, which does the same with JS Date).
+        // The time component is never sent for a date param/field.
+        typeMapping.put("date", "DateTime");
+        typeMapping.put("DateTime", "DateTime");
+        // 4.8: format:time → RFC 3339 partial-time (e.g. "14:30:00").
+        // Dart has no civil-time type outside Flutter (TimeOfDay), and
+        // pulling in Flutter for a single struct would explode the
+        // dependency surface for any non-UI consumer. Keep `time` as
+        // `String`; the generated object_serializer.dart ships a
+        // regex-validated guard (HH:MM:SS(.fff)?) callers may use.
+        // 4.8: format:duration → google.protobuf.Duration protobuf-JSON
+        // ("<seconds>s", e.g. "3600s", "1.5s"). Dart's stdlib `Duration`
+        // does NOT round-trip through that form (its toString() prints
+        // "HH:MM:SS.mmmmmm"), so the generated iso8601_duration.dart helper
+        // provides parseProtobufDuration / formatProtobufDuration to bridge
+        // the wire format and `Duration`. No 3rd-party dep required.
+        typeMapping.put("time", "String");
+        typeMapping.put("duration", "Duration");
+        typeMapping.put("array", "List");
+        typeMapping.put("List", "List");
+        typeMapping.put("set", "Set");
+        typeMapping.put("map", "Map");
+        typeMapping.put("object", "Object");
+        typeMapping.put("AnyType", "Object");
+        typeMapping.put("file", "Uint8List");
+        typeMapping.put("binary", "Uint8List");
+        typeMapping.put("ByteArray", "Uint8List");
+        typeMapping.put("byte", "Uint8List");
+        // UUID values are exposed as `UuidValue` from `package:uuid`. The wrapper
+        // gives a typed public API (instead of a stringly-typed `String`) and
+        // validates on construction (`UuidValue.fromString` throws on malformed
+        // input). Serialization round-trips via `toString()` / `fromString()`.
+        typeMapping.put("UUID", "UuidValue");
+        typeMapping.put("URI", "String");
+
+        // Binary surface (byte/binary/file/ByteArray) maps to `Uint8List` from
+        // `dart:typed_data`. `Uint8List` IS-A `List<int>` so existing consumer
+        // code that expects `List<int>` continues to compile, but generated
+        // method signatures expose the tighter type. The import must be wired
+        // here so the `api.mustache` `{{#imports}}` loop emits the SDK import.
+        importMapping.put("Uint8List", "dart:typed_data");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "String",
+                                "bool",
+                                "int",
+                                "double",
+                                "num",
+                                "dynamic",
+                                "Object",
+                                "void",
+                                "Null",
+                                "DateTime",
+                                "Duration",
+                                "List<int>",
+                                "Uint8List",
+                                "UuidValue",
+                                "Decimal"));
+
+        reservedWords = loadReservedWords("/reserved-words/dart.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated Dart package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString("repositoryUrl",
+                "Source repository URL, written to the pubspec repository field and the README."));
+        cliOptions.add(CliOption.newString("homepageUrl",
+                "Project homepage URL, written to the pubspec homepage field and the README."));
+        cliOptions.add(CliOption.newString("documentationUrl",
+                "Documentation URL, written to the pubspec documentation field and the README."));
+        cliOptions.add(CliOption.newString("issueTrackerUrl",
+                "Issue tracker URL, written to the pubspec issue_tracker field and the README."));
+        cliOptions.add(CliOption.newString("authors",
+                "Authors, written to the README (a pubspec has no authors field)."));
+    }
+
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
+    @Override
+    public String getName() {
+        return "dart-plus";
+    }
+
+    /**
+     * Core types the generated sources use unqualified. A schema named like one would shadow it
+     * in every file that imports the models (D45, F173). {@code Decimal} is the one from
+     * {@code package:decimal} that the models use for {@code format: decimal}.
+     */
+    private static final Set<String> CORE_TYPE_CLASHES =
+            Set.of(
+                    "String", "int", "double", "num", "bool", "List", "Map", "Set", "Object",
+                    "Null", "Future", "Stream", "Type", "Function", "Duration", "DateTime", "Uri",
+                    "Error", "Exception", "Iterable", "Decimal");
+
+    /**
+     * Prefixes a schema named like a {@code dart:core} type with {@code Model} (D45, F173), so
+     * {@code Error} becomes {@code ModelError} instead of shadowing {@code Error}.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return CORE_TYPE_CLASHES.contains(modelName) ? "Model" + modelName : modelName;
+    }
+
+    /**
+     * Applies {@link #toModelName} to a reference to such a schema. The base class returns the raw
+     * schema name for a {@code $ref}, so without this a property typed {@code Error} would name
+     * {@code dart:core}'s {@code Error} while the model file declares {@code ModelError}.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        /* A number written as a decimal is the exact Decimal, the same as the string form. */
+        if (("double".equals(type) || "number".equals(type))
+                && schema.get$ref() == null
+                && "decimal".equals(schema.getFormat())) {
+            return "Decimal";
+        }
+        if (schema.get$ref() != null && CORE_TYPE_CLASHES.contains(type)) {
+            return "Model" + type;
+        }
+        return type;
+    }
+
+    /**
+     * Names of the arguments the generated operations add to their own signature or body. A path
+     * or body parameter named like one would be declared twice, so the shared {@code toParamName}
+     * suffixes it with {@code Param} (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options", "server", "requestContentType", "path", "auth", "serverUrl", "timeout",
+                "headers", "maxRetries",
+                "queryParams", "headerParams", "cookieParts", "operationCookieValueRe", "formBody",
+                "requestBody", "declaredConsumes");
+    }
+
+    /**
+     * Escapes a reserved word by appending an underscore suffix
+     * instead of prepending one. In Dart, names starting with
+     * underscore are library-private, so we avoid the prefix.
+     */
+    @Override
+    public String escapeReservedWord(String name) {
+        return name + "_";
+    }
+
+    /**
+     * Keeps {@code type} and {@code function} as plain variable names. The
+     * reserved-word list is matched case-insensitively and carries {@code type}
+     * and {@code Function}, but neither is a Dart reserved word for a variable:
+     * {@code type} is a contextual word only after {@code extension}, and
+     * {@code Function} is case-sensitive, so a property named {@code type}
+     * stays {@code type} instead of becoming {@code type_}.
+     */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return !"type".equals(name)
+                && !"function".equals(name)
+                && super.shouldEscapeReservedVarName(name);
+    }
+
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Dart client with http and dart:convert.";
+    }
+
+    /**
+     * Declares Dart as the target language so that the framework
+     * can apply language-specific post-processing steps.
+     */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.DART;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSpecDir() {
+        return "test/spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /**
+     * Names the members of a numeric enum in lowerCamelCase, the casing
+     * Dart gives every other enum member. The shared NUMBER_1 spelling
+     * fails the analyzer's constant_identifier_names.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (isNumericEnumDatatype(datatype) && name.startsWith("NUMBER_")) {
+            return "number" + name.substring("NUMBER_".length()).toLowerCase(Locale.ROOT);
+        }
+        return name;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getFilenameCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "dart:stable@sha256:6440c7d5fd8713b0706d0b6190eb2be7ad896101e225fc9d7657034b23ab0592";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        // No generated file carries an '// ignore_for_file:' directive, so the
+        // findings a fixed template block inevitably produces are fixed here
+        // rather than silenced. A Mustache template cannot know which imports a
+        // given schema or operation ends up using, so the import block is
+        // emitted wide and 'unused_import' deletes exactly the ones nothing in
+        // the rendered file references; the other five codes are shapes the
+        // templates emit uniformly (an explicit super call, a '+'-joined
+        // literal) that the analyzer wants written another way.
+        //
+        // The code list is an allowlist on purpose. An unrestricted 'dart fix
+        // --apply' runs every fix producer in the SDK and several of them
+        // cascade — 'prefer_final_locals' rewrites 'var x' to an illegal 'final
+        // var x', 'unnecessary_null_checks' drops a needed '!' — so only
+        // producers verified to leave the tree clean are named.
+        return new String[] {
+            "dart pub get",
+            "dart fix --apply"
+                    + " --code=unused_import"
+                    + " --code=prefer_adjacent_string_concatenation"
+                    + " --code=use_super_parameters"
+                    + " --code=unnecessary_nullable_for_final_variable_declarations"
+                    + " --code=no_leading_underscores_for_local_identifiers",
+            "dart format ."
+        };
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("int", "double", "num");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected char getQuoteChar() {
+        return '\'';
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeQuotationMark() {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "Set<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "List<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "Map<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "lib";
+    }
+
+    /**
+     * Returns {@code String} as the map key type because Dart
+     * maps use String keys for JSON-derived schemas.
+     */
+    @Override
+    protected String getMapKeyType() {
+        return "String";
+    }
+
+    /**
+     * Returns {@code Object} as the default map value type
+     * for Dart's universal base type.
+     */
+    @Override
+    protected String getMapDefaultValueType() {
+        return "Object";
+    }
+
+    /**
+     * Resolves user-supplied options and registers all supporting
+     * files for the Dart package structure. Sets up the source
+     * layout with models, api, errors, auth, and supporting
+     * infrastructure in the lib/src/ directory.
+     */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String srcDir = Path.of("lib", "src").toString();
+        final String errorsDir = Path.of(srcDir, "errors").toString();
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("configuration.mustache", srcDir, "configuration.dart"),
+            new SupportingFileSpec("transport_options.mustache", srcDir, "transport_options.dart"),
+            new SupportingFileSpec("server_configuration.mustache", srcDir, "server_configuration.dart"),
+            new SupportingFileSpec("servers.mustache", srcDir, "servers.dart"),
+            new SupportingFileSpec("errors/root_exception.mustache", errorsDir, errorPrefixSnake() + "_exception.dart"),
+            new SupportingFileSpec("errors/api_exception.mustache", errorsDir, "api_exception.dart"),
+            new SupportingFileSpec("errors/client_exception.mustache", errorsDir, "client_exception.dart"),
+            new SupportingFileSpec("errors/server_exception.mustache", errorsDir, "server_exception.dart"),
+            new SupportingFileSpec("errors/bad_request_exception.mustache", errorsDir, "bad_request_exception.dart"),
+            new SupportingFileSpec("errors/unauthorized_exception.mustache", errorsDir, "unauthorized_exception.dart"),
+            new SupportingFileSpec("errors/forbidden_exception.mustache", errorsDir, "forbidden_exception.dart"),
+            new SupportingFileSpec("errors/not_found_exception.mustache", errorsDir, "not_found_exception.dart"),
+            new SupportingFileSpec("errors/conflict_exception.mustache", errorsDir, "conflict_exception.dart"),
+            new SupportingFileSpec("errors/payment_required_exception.mustache", errorsDir, "payment_required_exception.dart"),
+            new SupportingFileSpec("errors/method_not_allowed_exception.mustache", errorsDir, "method_not_allowed_exception.dart"),
+            new SupportingFileSpec("errors/request_timeout_exception.mustache", errorsDir, "request_timeout_exception.dart"),
+            new SupportingFileSpec("errors/gone_exception.mustache", errorsDir, "gone_exception.dart"),
+            new SupportingFileSpec("errors/payload_too_large_exception.mustache", errorsDir, "payload_too_large_exception.dart"),
+            new SupportingFileSpec("errors/unsupported_media_type_exception.mustache", errorsDir, "unsupported_media_type_exception.dart"),
+            new SupportingFileSpec("errors/locked_exception.mustache", errorsDir, "locked_exception.dart"),
+            new SupportingFileSpec("errors/not_implemented_exception.mustache", errorsDir, "not_implemented_exception.dart"),
+            new SupportingFileSpec("errors/bad_gateway_exception.mustache", errorsDir, "bad_gateway_exception.dart"),
+            new SupportingFileSpec("errors/service_unavailable_exception.mustache", errorsDir, "service_unavailable_exception.dart"),
+            new SupportingFileSpec("errors/gateway_timeout_exception.mustache", errorsDir, "gateway_timeout_exception.dart"),
+            new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsDir, "unprocessable_entity_exception.dart"),
+            new SupportingFileSpec("errors/too_many_requests_exception.mustache", errorsDir, "too_many_requests_exception.dart"),
+            new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsDir, "internal_server_error_exception.dart"),
+            new SupportingFileSpec("errors/network_exception.mustache", errorsDir, "network_exception.dart"),
+            new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsDir, "network_timeout_exception.dart"),
+            new SupportingFileSpec("errors/stream_exception.mustache", errorsDir, "stream_exception.dart"),
+            new SupportingFileSpec("errors/response_too_large_exception.mustache", errorsDir, "response_too_large_exception.dart"),
+            new SupportingFileSpec("errors/serialization_exception.mustache", errorsDir, "serialization_exception.dart"),
+            new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsDir, "oauth2_server_exception.dart"),
+            new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsDir, "oauth2_token_exception.dart"),
+            new SupportingFileSpec("header_selector.mustache", srcDir, "header_selector.dart"),
+            new SupportingFileSpec("object_serializer.mustache", srcDir, "object_serializer.dart"),
+            new SupportingFileSpec("iso8601_duration.mustache", srcDir, "iso8601_duration.dart"),
+            new SupportingFileSpec("value_serializer.mustache", srcDir, "value_serializer.dart"),
+            new SupportingFileSpec("constraint_validator.mustache", srcDir, "constraint_validator.dart"),
+            new SupportingFileSpec("trace_context_util.mustache", srcDir, "trace_context_util.dart"),
+            new SupportingFileSpec("call_hook.mustache", srcDir, "call_hook.dart"),
+            new SupportingFileSpec("call_info.mustache", srcDir, "call_info.dart"),
+            new SupportingFileSpec("call_outcome.mustache", srcDir, "call_outcome.dart"),
+            new SupportingFileSpec("api_response.mustache", srcDir, "api_http_response.dart"),
+            new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
+            new SupportingFileSpec("api_stream_response.mustache", srcDir, "api_stream_response.dart"),
+            new SupportingFileSpec("body_source.mustache", srcDir, "body_source.dart"),
+            new SupportingFileSpec("body_source_files_io.mustache", srcDir, "body_source_files_io.dart"),
+            new SupportingFileSpec("body_source_files_web.mustache", srcDir, "body_source_files_web.dart"),
+            new SupportingFileSpec("byte_stream.mustache", srcDir, "byte_stream.dart"),
+            new SupportingFileSpec("paginator.mustache", srcDir, "paginator.dart"),
+            new SupportingFileSpec("page.mustache", srcDir, "page.dart"),
+            new SupportingFileSpec("link_header.mustache", srcDir, "link_header.dart"),
+            new SupportingFileSpec("errors/pagination_exception.mustache", errorsDir, "pagination_exception.dart"),
+            new SupportingFileSpec("event_stream.mustache", srcDir, "event_stream.dart"),
+            new SupportingFileSpec("server_sent_event.mustache", srcDir, "server_sent_event.dart"),
+            new SupportingFileSpec("stream_options.mustache", srcDir, "stream_options.dart"),
+            new SupportingFileSpec("json_lines_stream.mustache", srcDir, "json_lines_stream.dart"),
+            new SupportingFileSpec("sse_stream.mustache", srcDir, "sse_stream.dart"),
+            new SupportingFileSpec("retry_after.mustache", srcDir, "retry_after.dart"),
+            new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
+            new SupportingFileSpec("abstract_api_client.mustache", srcDir, "abstract_api_client.dart"),
+            new SupportingFileSpec("default_api_client.mustache", srcDir, "default_api_client.dart"),
+            new SupportingFileSpec("default_api_client_io.mustache", srcDir, "default_api_client_io.dart"),
+            new SupportingFileSpec("default_api_client_web.mustache", srcDir, "default_api_client_web.dart"),
+            new SupportingFileSpec("environment.mustache", srcDir, "environment.dart"),
+            new SupportingFileSpec("environment_io.mustache", srcDir, "environment_io.dart"),
+            new SupportingFileSpec("environment_web.mustache", srcDir, "environment_web.dart"),
+            new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "api").toString(), "base_api.dart"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(srcDir, "auth").toString(), "authenticator.dart"),
+            new SupportingFileSpec("barrel.mustache", "lib", pkg + ".dart"),
+            new SupportingFileSpec("pubspec.mustache", "", "pubspec.yaml"),
+            new SupportingFileSpec("analysis_options.mustache", "", "analysis_options.yaml"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        ));
+        if (generateExamples) {
+            /* Outside lib/, so it never ships as package API; it imports the package by
+             * its own name, and dart analyze covers the directory with the package rules. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.dart"));
+        }
+        return specs;
+    }
+
+    @Override
+    public void processOpts() {
+        super.processOpts();
+
+        packageName = getPropertyOrDefault("packageName", packageName);
+        packageVersion = getPropertyOrDefault("packageVersion", packageVersion);
+        additionalProperties.put("packageName", packageName);
+        additionalProperties.put(
+                "userAgentDefault", packageName + "/" + packageVersion + " (dart)");
+
+        final String srcDir = Path.of("lib", "src").toString();
+
+        final String clientClassName =
+                Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", srcDir, clientClassFile + ".dart"));
+
+        if (emitUnitTests()) {
+            // The dev-dependency manifest: one line per dependency an emitted test
+            // imports. Every client keep-lists its own package manifest, so this
+            // generator-owned file is the only thing keeping the two in step.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "dev_dependencies.mustache",
+                            ".openapi-generator",
+                            "DEV-DEPENDENCIES"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "test",
+                            "default_api_client_unit_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "test",
+                            "header_selector_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "test",
+                            "value_serializer_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_test.mustache",
+                            "test",
+                            "trace_context_util_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_test.mustache", "test", "call_hook_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/call_hook_recipe_test.mustache",
+                            "test",
+                            "call_hook_recipe_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.dart"));
+        }
+        if (generateTests) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/testcontainers_helper.mustache",
+                            "test",
+                            "testcontainers_helper.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/pet_api_test.mustache", "test", "pet_api_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store_api_test.mustache",
+                            "test",
+                            "store_api_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_test.mustache",
+                            "test",
+                            "default_api_client_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object_serializer_test.mustache",
+                            "test",
+                            "object_serializer_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base_api_test.mustache", "test", "base_api_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/readme_test.mustache",
+                            "test",
+                            "readme_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_error_test.mustache",
+                            "test",
+                            "api_error_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata_test.mustache", "test", "metadata_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed_schema_test.mustache",
+                            "test",
+                            "composed_schema_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "test",
+                            "server_configuration_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "test",
+                            "server_variable_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "test",
+                            "api_result_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/event_stream_test.mustache",
+                            "test",
+                            "event_stream_test.dart"));
+        }
+    }
+
+    /**
+     * Registers the authenticator tests, each only when the spec's security
+     * schemes produce the authenticator it exercises. Registered here, not in
+     * processOpts: the scheme flags are only set once the spec is parsed.
+     */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        if (!generateTests) {
+            return;
+        }
+        addTestIf(hasBasicAuth, "basic_authenticator_test");
+        addTestIf(hasBearerAuth, "bearer_authenticator_test");
+        addTestIf(hasApiKeyAuth, "api_key_authenticator_test");
+        addTestIf(hasAnyOAuth2 || hasOpenIdConnect, "oauth2_token_manager_test");
+        addTestIf(
+                hasOAuth2AuthorizationCode,
+                "oauth2_auth_code_authenticator_test",
+                "oauth2_authorization_code_authenticator_test");
+        addTestIf(hasOAuth2Implicit, "oauth2_implicit_authenticator_test");
+        addTestIf(hasOAuth2ClientCredentials, "oauth2_client_credentials_authenticator_test");
+        addTestIf(hasOAuth2Password, "oauth2_password_authenticator_test");
+        addTestIf(hasOpenIdConnect, "openid_connect_authenticator_test");
+    }
+
+    private void addTestIf(boolean condition, String template) {
+        addTestIf(condition, template, template);
+    }
+
+    private void addTestIf(boolean condition, String template, String file) {
+        if (condition) {
+            supportingFiles.add(
+                    new SupportingFile("test/" + template + ".mustache", "test", file + ".dart"));
+        }
+    }
+
+    /**
+     * Returns the output directory for model source files.
+     * Dart models go in lib/src/models/.
+     */
+    @Override
+    public String modelFileFolder() {
+        return Path.of(outputFolder, "lib", "src", "models").toString();
+    }
+
+    /**
+     * Returns the output directory for API source files.
+     * Dart APIs go in lib/src/api/.
+     */
+    @Override
+    public String apiFileFolder() {
+        return Path.of(outputFolder, "lib", "src", "api").toString();
+    }
+
+    /**
+     * Returns the Dart default value literal for the given schema.
+     * Numeric and boolean defaults use their string representation;
+     * string defaults are wrapped in single quotes.
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if ("decimal".equals(resolved.getFormat())) {
+            /* A Decimal has no const constructor, so it cannot be a default of the const model. */
+            return null;
+        }
+        if (ModelUtils.isIntegerSchema(resolved)
+                || ModelUtils.isNumberSchema(resolved)
+                || ModelUtils.isBooleanSchema(resolved)) {
+            if (resolved.getDefault() != null) {
+                return resolved.getDefault().toString();
+            }
+        } else if (ModelUtils.isStringSchema(resolved)) {
+            if (resolved.getDefault() != null) {
+                return "'" + escapeDartString(String.valueOf(resolved.getDefault())) + "'";
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Surfaces {@code format: duration} to the Dart model template under a
+     * plain vendor-extension flag. OpenAPI Generator 7.12 has no
+     * {@code isDuration} field on {@code CodegenProperty}, so the model
+     * template's existing duration branch — which routes the property
+     * through {@code parseProtobufDuration} / {@code formatProtobufDuration}
+     * to bridge the protobuf-JSON {@code "<seconds>s"} wire form and Dart's
+     * stdlib {@code Duration} — keys off {@code vendorExtensions.isDuration}.
+     * Mirrors {@code BetterKotlinCodegen}.
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        tagDuration(property);
+        tagDecimal(property);
+        propagateEnumRefBackingType(property);
+        tagRequiredNullable(property);
+    }
+
+    /**
+     * Marks each property the constraint validator checks (D189) with {@code dartNonNull} when its
+     * field is typed non-nullable (required and not nullable, the model template's
+     * {@code strictRequired}), so the validator reads it without a null check the analyzer would
+     * flag as unnecessary, and reports which helper kinds the checks use (pattern, multipleOf, a
+     * minimum length or size, a maximum one), so the validator emits each private helper only
+     * when it is called (the analyzer rejects an unused private function).
+     *
+     * @param constraintModels the {@code constraintModels} additional property, a list of models
+     * @return whether a pattern, a multipleOf, a minLength/minItems/minProperties and a
+     *     maxLength/maxItems/maxProperties check exists, in that order
+     */
+    @SuppressWarnings("unchecked")
+    static boolean[] tagConstraintNullability(@Nullable final Object constraintModels) {
+        final boolean[] kinds = new boolean[4];
+        if (!(constraintModels instanceof List)) {
+            return kinds;
+        }
+        for (final Object item : (List<Object>) constraintModels) {
+            final Object props = ((CodegenModel) item).vendorExtensions.get("constraintProps");
+            if (!(props instanceof List)) {
+                continue;
+            }
+            for (final Object entry : (List<Object>) props) {
+                final Map<String, Object> view = (Map<String, Object>) entry;
+                final Object prop = view.get("prop");
+                view.put("dartNonNull", prop instanceof CodegenProperty
+                        && ((CodegenProperty) prop).required && !((CodegenProperty) prop).isNullable);
+                final Object checks = view.get("checks");
+                if (!(checks instanceof List)) {
+                    continue;
+                }
+                for (final Object check : (List<Object>) checks) {
+                    final Map<String, Object> c = (Map<String, Object>) check;
+                    kinds[0] |= Boolean.TRUE.equals(c.get("isPattern"));
+                    kinds[1] |= Boolean.TRUE.equals(c.get("isMultipleOf"));
+                    kinds[2] |= Boolean.TRUE.equals(c.get("isMinLength"))
+                            || Boolean.TRUE.equals(c.get("isMinItems"))
+                            || Boolean.TRUE.equals(c.get("isMinProperties"));
+                    kinds[3] |= Boolean.TRUE.equals(c.get("isMaxLength"))
+                            || Boolean.TRUE.equals(c.get("isMaxItems"))
+                            || Boolean.TRUE.equals(c.get("isMaxProperties"));
+                }
+            }
+        }
+        return kinds;
+    }
+
+    /**
+     * Splits the {@code required} flag for the model template: a property that is both required
+     * and nullable keeps its key mandatory on the wire but accepts and writes an explicit null,
+     * so it is typed {@code T?}, decoded through the nullable branch, and always written. Every
+     * other required property stays strict.
+     *
+     * @param property the model property to tag
+     */
+    static void tagRequiredNullable(final CodegenProperty property) {
+        final boolean requiredNullable = property.required && property.isNullable;
+        property.vendorExtensions.put("requiredNullable", requiredNullable);
+        property.vendorExtensions.put("strictRequired", property.required && !requiredNullable);
+    }
+
+    /**
+     * Sets the {@code isDuration} vendor-extension flag on the property and on
+     * every nested container leaf ({@code items}). The model template's
+     * scalar duration branch keys off {@code vendorExtensions.isDuration}, and
+     * the array/map {@code toJson} and {@code deserialize_arg} leaf branches
+     * read the same flag off {@code items}; OpenAPI Generator only carries
+     * {@code dataFormat} on the leaf node, so the flag must be lifted onto the
+     * whole items chain for a {@code List<Duration>} / {@code Map<String,
+     * Duration>} (or nested) field to serialise via {@code
+     * formatProtobufDuration} rather than dumping a raw {@code Duration}.
+     */
+    private void tagDuration(CodegenProperty property) {
+        if (property == null) {
+            return;
+        }
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        tagDuration(property.items);
+    }
+
+    /**
+     * Sets the {@code isDecimal}, {@code isDecimalNumber} and {@code isDecimalString} flags on
+     * the property and on every nested container leaf ({@code items}). A {@code Decimal} is read
+     * and written through its own helpers: the number-shaped form from the source text of the
+     * JSON number and back as a bare number, the string-shaped form from and to a JSON string.
+     *
+     * @param property the property to tag
+     */
+    static void tagDecimal(@Nullable final CodegenProperty property) {
+        if (property == null) {
+            return;
+        }
+        final boolean decimal = "Decimal".equals(property.dataType);
+        final boolean string = decimal && "string".equals(property.openApiType);
+        property.vendorExtensions.put("isDecimal", decimal);
+        property.vendorExtensions.put("isDecimalNumber", decimal && !string);
+        property.vendorExtensions.put("isDecimalString", string);
+        tagDecimal(property.items);
+    }
+
+    /**
+     * A property that is a {@code $ref} to a top-level enum ({@code isEnumRef})
+     * does not inherit the referenced enum's backing primitive, so its own
+     * {@code isInteger}/{@code isLong} flags are false even when the enum is
+     * integer-backed. Dart deserializes such fields with an explicit cast
+     * ({@code Enum.fromJson(json['x'] as int)}), so the template needs the
+     * backing type at the property. Resolve the referenced enum schema and lift
+     * its integer-ness onto the property; string-backed enums are unaffected.
+     */
+    @SuppressWarnings("rawtypes")
+    private void propagateEnumRefBackingType(CodegenProperty property) {
+        if (!property.isEnumRef || this.openAPI == null) {
+            return;
+        }
+        final String enumName = property.complexType != null ? property.complexType : property.dataType;
+        if (enumName == null || openAPI.getComponents() == null) {
+            return;
+        }
+        final Map<String, Schema> schemas = openAPI.getComponents().getSchemas();
+        if (schemas == null) {
+            return;
+        }
+        final Schema referenced = schemas.get(enumName);
+        if (referenced != null && ModelUtils.isIntegerSchema(referenced)) {
+            property.isInteger = true;
+            property.isLong = ModelUtils.isLongSchema(referenced);
+        }
+    }
+
+    /**
+     * Resolves the declared default enum variant identifier after the base
+     * pass has normalized enum default values and computed each enumVar's
+     * {@code nameLowercase}. Runs in {@code postProcessModels} (not
+     * {@code postProcessModelProperty}) because both inputs — the quoted-wire
+     * {@code defaultValue} (set by {@code fixEnumDefaultValue}) and the
+     * {@code nameLowercase} enumVar key (set by the ghost-enum strip) — are
+     * only present here.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null) {
+                continue;
+            }
+            for (final CodegenProperty prop : model.vars) {
+                setDefaultEnumVarName(prop);
+                applySiblingEnumDefault(prop);
+                resolveEnumRefDefault(prop);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Realises a classic allOf base and its children (S4) for the Dart template. The shared pass
+     * marks them with {@code x-} keys; this pass copies what the template reads under names
+     * without the prefix, lists the subtypes a base decodes to (only children that compose it, so
+     * a mapping to an unrelated schema never becomes a return of the wrong type), adds the imports
+     * each side needs, and records the class that declares each property's enum, so an inherited
+     * enum keeps the base's type.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(final Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        final Map<String, CodegenModel> byName = new HashMap<>();
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                byName.put(modelMap.getModel().classname, modelMap.getModel());
+            }
+        }
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                final boolean isBase = Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"));
+                final boolean isChild = Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-child"));
+                final String parent = isChild
+                        ? String.valueOf(model.vendorExtensions.get("x-allof-base-name"))
+                        : model.classname;
+                model.vendorExtensions.put("dartAllOfBase", isBase);
+                model.vendorExtensions.put("dartAllOfChild", isChild);
+                if (isChild) {
+                    model.vendorExtensions.put("dartAllOfParent", parent);
+                    model.imports.add(parent);
+                }
+                for (final CodegenProperty prop : model.vars) {
+                    final boolean inherited = isChild
+                            && Boolean.TRUE.equals(prop.vendorExtensions.get("x-inherited"));
+                    prop.vendorExtensions.put("dartInherited", inherited);
+                    prop.vendorExtensions.put("dartOwner", inherited ? parent : model.classname);
+                }
+                if (isBase && model.discriminator != null) {
+                    final List<Map<String, String>> subtypes = new ArrayList<>();
+                    for (final CodegenDiscriminator.MappedModel mapped
+                            : model.discriminator.getMappedModels()) {
+                        final CodegenModel child = byName.get(mapped.getModelName());
+                        if (child == null
+                                || !Boolean.TRUE.equals(child.vendorExtensions.get("x-allof-child"))
+                                || !model.classname.equals(
+                                        String.valueOf(child.vendorExtensions.get("x-allof-base-name")))) {
+                            continue;
+                        }
+                        final Map<String, String> entry = new HashMap<>();
+                        entry.put("mappingName", mapped.getMappingName());
+                        entry.put("modelName", child.classname);
+                        subtypes.add(entry);
+                        model.imports.add(child.classname);
+                    }
+                    model.vendorExtensions.put("dartSubtypes", subtypes);
+                }
+                if (isBase || isChild) {
+                    refreshDartImports(modelMap, model);
+                }
+            }
+        }
+        final boolean[] constraintKinds = tagConstraintNullability(additionalProperties.get("constraintModels"));
+        additionalProperties.put("dartConstraintHasPattern", constraintKinds[0]);
+        additionalProperties.put("dartConstraintHasMultipleOf", constraintKinds[1]);
+        additionalProperties.put("dartConstraintHasMinSize", constraintKinds[2]);
+        additionalProperties.put("dartConstraintHasMaxSize", constraintKinds[3]);
+        return result;
+    }
+
+    /** Rebuilds the {@code dartImports} context of a model after its imports changed. */
+    private void refreshDartImports(final ModelMap modelMap, final CodegenModel model) {
+        final List<Map<String, String>> importList = new ArrayList<>();
+        for (final String importName : model.imports) {
+            if (!languageSpecificPrimitives.contains(importName)
+                    && !typeMapping.containsValue(importName)) {
+                final Map<String, String> entry = new HashMap<>();
+                entry.put("classname", importName);
+                entry.put("filename", toModelFilename(importName));
+                importList.add(entry);
+            }
+        }
+        modelMap.put("dartImports", importList);
+        modelMap.put("hasDartImports", !importList.isEmpty());
+    }
+
+    /**
+     * Gives a property whose {@code $ref} to an enum carries a sibling {@code default} (an OAS
+     * 3.1 keyword next to the reference, F866) the same default a component default gets: the
+     * shared generator records it as {@code siblingDefault}, and the property has no default of
+     * its own because the base class resolves the reference first. It is handed to
+     * {@link #resolveEnumRefDefault} as the quoted wire value, which turns it into the typed
+     * member, so the constructor, the decode of an absent key and the encode all see it. A
+     * component default already on the property wins.
+     */
+    static void applySiblingEnumDefault(final CodegenProperty property) {
+        if (!property.isEnumRef
+                || property.defaultValue != null
+                || !Boolean.TRUE.equals(property.vendorExtensions.get("siblingDefaultIsEnum"))) {
+            return;
+        }
+        final Object wire = property.vendorExtensions.get("siblingDefault");
+        if (wire != null) {
+            property.defaultValue = "'" + wire + "'";
+        }
+    }
+
+    /**
+     * A property that is a {@code $ref} to a top-level enum carries the
+     * referenced schema's {@code default} as a bare wire literal ({@code
+     * 'green'}), which is not assignable to the typed enum field and is not a
+     * constant the {@code const} constructor can use. Rewrite it to the
+     * declared enum member ({@code Swatch.green}), named exactly as the
+     * enum's own declaration names it. A default that matches none of the
+     * enum's values is dropped, since no member could represent it.
+     */
+    @SuppressWarnings("rawtypes")
+    private void resolveEnumRefDefault(CodegenProperty property) {
+        if (!property.isEnumRef || property.defaultValue == null || this.openAPI == null) {
+            return;
+        }
+        final String enumName =
+                property.complexType != null ? property.complexType : property.dataType;
+        final Map<String, Schema> schemas =
+                openAPI.getComponents() == null ? null : openAPI.getComponents().getSchemas();
+        final Schema referenced = schemas == null ? null : schemas.get(enumName);
+        final String wanted = unquote(property.defaultValue);
+        if (referenced != null && referenced.getEnum() != null) {
+            for (final Object value : referenced.getEnum()) {
+                if (value != null && String.valueOf(value).equals(wanted)) {
+                    final String datatype = property.isInteger || property.isLong ? "int" : "String";
+                    property.defaultValue =
+                            property.dataType
+                                    + "."
+                                    + enumMemberName(referenced, String.valueOf(value), datatype);
+                    return;
+                }
+            }
+        }
+        property.defaultValue = null;
+    }
+
+    /**
+     * For an enum property carrying a schema {@code default}, resolves the
+     * declared variant identifier (the {@code nameLowercase} the model
+     * template uses when it emits the enum's variants) for the variant whose
+     * wire value equals the default, and exposes it as the
+     * {@code defaultEnumVarName} vendor extension.
+     *
+     * <p>The template previously rendered the default as
+     * {@code {{#lambda.camelcase}}{{{defaultValue}}}{{/lambda.camelcase}}} —
+     * a re-camelcased copy of the wire literal. That coincides with the
+     * declared variant only for single lowercase words; a wire value such as
+     * {@code not-available} or {@code IN_STOCK} would reference a
+     * non-existent constant (variants are declared with {@code nameLowercase},
+     * not a re-camelcased copy). Matching against the actual enumVars keeps
+     * the default pointing at the same identifier the declaration uses.
+     */
+    @SuppressWarnings("unchecked")
+    private static void setDefaultEnumVarName(CodegenProperty property) {
+        if (!property.isEnum
+                || property.defaultValue == null
+                || property.allowableValues == null) {
+            return;
+        }
+        final Object enumVars = property.allowableValues.get("enumVars");
+        if (!(enumVars instanceof List)) {
+            return;
+        }
+        final String wanted = unquote(property.defaultValue);
+        for (final Map<String, Object> ev : (List<Map<String, Object>>) enumVars) {
+            final Object value = ev.get("value");
+            final Object nameLowercase = ev.get("nameLowercase");
+            if (value != null
+                    && nameLowercase != null
+                    && unquote(String.valueOf(value)).equals(wanted)) {
+                property.vendorExtensions.put(
+                        "defaultEnumVarName", String.valueOf(nameLowercase));
+                return;
+            }
+        }
+    }
+
+    /** Strips a single layer of surrounding single or double quotes. */
+    private static String unquote(String literal) {
+        if (literal.length() >= 2
+                && ((literal.charAt(0) == '\''
+                                && literal.charAt(literal.length() - 1) == '\'')
+                        || (literal.charAt(0) == '"'
+                                && literal.charAt(literal.length() - 1) == '"'))) {
+            return literal.substring(1, literal.length() - 1);
+        }
+        return literal;
+    }
+
+    /**
+     * Keep {@code isEnum} on string-typed properties so the Dart
+     * model template can emit typed enums (idiomatic Dart) instead
+     * of erasing them to {@code String}. The template uses
+     * {@code {{dataType}}.fromJson} for inline enums which expects
+     * the typed enum class to exist; we generate it at the
+     * top-of-file as a normal enum.
+     */
+    @Override
+    protected boolean clearsEnumOnPrimitives() {
+        return false;
+    }
+
+    /**
+     * Enables Gap K (auto-inject discriminator on serialise) for
+     * Dart. The Dart constructor template branches on
+     * {@code defaultValue} per field, so subtype classes gain
+     * {@code DryFood({this.foodType = 'dry', required this.weightKg})}.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /** Dart string literals use single quotes by convention. */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean filtersOneOfAnyOfPrimitives() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getModelImportContextKey() {
+        return "dartImports";
+    }
+
+    /**
+     * Returns the operation signature arguments with the per-operation server placed before the
+     * optional-parameters object: required parameters, then server, then options. Adding security
+     * to an operation adds the options argument, and it must never move an existing server
+     * argument.
+     *
+     * @param args the shared signature arguments (path, body, options, server)
+     * @return a new list with the server entry directly before the options entry
+     */
+    static List<Map<String, Object>> serverBeforeOptions(final List<Map<String, Object>> args) {
+        final List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Object> options = null;
+        for (final Map<String, Object> arg : args) {
+            if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                options = arg;
+            } else if (Boolean.TRUE.equals(arg.get("isServer"))) {
+                result.add(arg);
+                if (options != null) {
+                    result.add(options);
+                    options = null;
+                }
+            } else {
+                result.add(arg);
+            }
+        }
+        if (options != null) {
+            result.add(options);
+        }
+        return result;
+    }
+
+    /** Reports whether {@code name} is the generated class name of a component schema. */
+    private boolean isComponentModelName(final String name) {
+        if (openAPI == null
+                || openAPI.getComponents() == null
+                || openAPI.getComponents().getSchemas() == null) {
+            return false;
+        }
+        for (final String key : openAPI.getComponents().getSchemas().keySet()) {
+            if (name.equals(toModelName(key))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Publishes {@code credentialEnvVars}, the environment variables the generated
+     * authenticators really read (F862), for the README and SKILLS templates. The shared
+     * {@code securitySchemeEnvVars} also names variables for the OAuth schemes, which read none,
+     * so documenting that list would promise variables that do nothing.
+     */
+    @Override
+    public void processOpenAPI(final OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        final List<Map<String, Object>> read = new ArrayList<>();
+        final Object shared = additionalProperties.get("securitySchemeEnvVars");
+        if (shared instanceof List && openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            for (final Object item : (List<?>) shared) {
+                @SuppressWarnings("unchecked")
+                final Map<String, Object> entry = (Map<String, Object>) item;
+                final SecurityScheme scheme =
+                        openAPI.getComponents().getSecuritySchemes().get(entry.get("schemeId"));
+                if (scheme != null && readsEnvironment(scheme, String.valueOf(entry.get("field")))) {
+                    final SchemeAuthSpec spec =
+                            buildSchemeAuthSpec(String.valueOf(entry.get("schemeId")), scheme);
+                    if (spec != null) {
+                        final Map<String, Object> mapped = new HashMap<>(entry);
+                        mapped.put("baseClass", spec.baseClass());
+                        read.add(mapped);
+                    }
+                }
+            }
+        }
+        additionalProperties.put("credentialEnvVars", read);
+        additionalProperties.put("hasCredentialEnvVars", !read.isEmpty());
+        additionalProperties.put("credentialSchemes", credentialSchemes(read));
+        additionalProperties.put("clientSchemes", clientSchemes(openAPI));
+        additionalProperties.put("metadataUrlSchemes", metadataUrlSchemes);
+        additionalProperties.put("deviceSchemes", deviceSchemes);
+    }
+
+    /** The first per-scheme device authorization authenticator, for authoauthtwodevice706 (D191). */
+    private final List<Map<String, Object>> deviceSchemes = new ArrayList<>();
+
+    /** The first per-scheme authenticator that declares an oauth2MetadataUrl, for authscheme700. */
+    private final List<Map<String, Object>> metadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Lists the credentials the client accepts (F857): one per distinct security scheme, named
+     * after the scheme, as {@code schemeName} (the key in the spec) and {@code paramName} (the
+     * Dart argument).
+     *
+     * @param openAPI the parsed document
+     * @return the schemes the generator builds an authenticator for, in declaration order
+     */
+    static List<Map<String, Object>> clientSchemes(final OpenAPI openAPI) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return out;
+        }
+        for (final String name : openAPI.getComponents().getSecuritySchemes().keySet()) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("schemeName", name);
+            entry.put("paramName", NamingConvention.CAMEL_CASE.apply(name));
+            out.add(entry);
+        }
+        return out;
+    }
+
+    /**
+     * Groups the variables the authenticators read by security scheme, for the generated test
+     * of the per-scheme authenticators: the class name, a Dart map literal that sets every
+     * variable of the scheme, and the first variable name.
+     *
+     * @param read the entries of {@code credentialEnvVars}, in scheme order
+     * @return one entry per scheme with {@code className}, {@code environment} and
+     *     {@code firstVariable}
+     */
+    static List<Map<String, Object>> credentialSchemes(final List<Map<String, Object>> read) {
+        final Map<String, List<Map<String, Object>>> bySchemeId = new LinkedHashMap<>();
+        for (final Map<String, Object> entry : read) {
+            bySchemeId
+                    .computeIfAbsent(String.valueOf(entry.get("schemeId")), k -> new ArrayList<>())
+                    .add(entry);
+        }
+        final List<Map<String, Object>> out = new ArrayList<>();
+        for (final Map.Entry<String, List<Map<String, Object>>> scheme : bySchemeId.entrySet()) {
+            final String className = wrapperClassName(scheme.getKey(),
+                    String.valueOf(scheme.getValue().get(0).get("baseClass")));
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("className", className);
+            entry.put("environment", environmentLiteral(scheme.getValue(), null));
+            entry.put("firstVariable", String.valueOf(scheme.getValue().get(0).get("envName")));
+            final Map<String, Object> catalogue = authSchemeTest(className, scheme.getValue());
+            entry.put("hasAuthSchemeTest", catalogue != null);
+            if (catalogue != null) {
+                entry.putAll(catalogue);
+            }
+            out.add(entry);
+        }
+        return out;
+    }
+
+    /**
+     * The name of the generated authenticator class of a scheme. An OAuth2 scheme's wrapper names
+     * its flow after the scheme (MachineAuthClientCredentialsAuthenticator); the others take the
+     * plain scheme name.
+     */
+    static String wrapperClassName(final String schemeId, final String baseClass) {
+        final String flow;
+        switch (baseClass) {
+            case "OAuth2ClientCredentialsAuthenticator":
+                flow = "ClientCredentials";
+                break;
+            case "OAuth2PasswordAuthenticator":
+                flow = "Password";
+                break;
+            case "OAuth2AuthorizationCodeAuthenticator":
+                flow = "AuthorizationCode";
+                break;
+            case "OAuth2ImplicitAuthenticator":
+                flow = "Implicit";
+                break;
+            case "OAuth2DeviceAuthorizationAuthenticator":
+                flow = "DeviceAuthorization";
+                break;
+            default:
+                flow = "";
+        }
+        return NamingConvention.PASCAL_CASE.apply(schemeId) + flow + "Authenticator";
+    }
+
+    /** A Dart map literal that sets each variable of a scheme; {@code emptyName} is set to ''. */
+    private static String environmentLiteral(
+            final List<Map<String, Object>> fields, @Nullable final String emptyName) {
+        final StringBuilder literal = new StringBuilder("{");
+        for (final Map<String, Object> field : fields) {
+            final String name = String.valueOf(field.get("envName"));
+            literal.append(literal.length() > 1 ? ", " : "")
+                    .append('\'').append(name).append("': '")
+                    .append(name.equals(emptyName) ? "" : "value").append('\'');
+        }
+        return literal.append('}').toString();
+    }
+
+    /**
+     * The catalogue case an OAuth or OpenID Connect scheme carries (authscheme 008, 013 to 016):
+     * the test name, the variable that is set to an empty value, and the map literal that sets
+     * the other variables. A scheme of another kind carries none.
+     *
+     * @return the three entries to merge into the scheme, or {@code null} when it has no case
+     */
+    @Nullable
+    static Map<String, Object> authSchemeTest(
+            final String className, final List<Map<String, Object>> fields) {
+        final String baseClass = String.valueOf(fields.get(0).get("baseClass"));
+        final String id;
+        final String emptyField;
+        final String description;
+        switch (baseClass) {
+            case "OpenIdConnectAuthenticator":
+                id = "008";
+                emptyField = "clientId";
+                description = "the " + className
+                        + " treats an empty environment variable as unset and names it";
+                break;
+            case "OAuth2ClientCredentialsAuthenticator":
+                id = "013";
+                emptyField = "clientSecret";
+                description = "an empty environment variable for the client credentials scheme"
+                        + " credential is treated as unset and fails naming the variable";
+                break;
+            case "OAuth2PasswordAuthenticator":
+                id = "014";
+                emptyField = "username";
+                description = "an empty environment variable for the password scheme credential"
+                        + " is treated as unset and fails naming the variable";
+                break;
+            case "OAuth2AuthorizationCodeAuthenticator":
+                id = "015";
+                emptyField = "clientId";
+                description = "an empty environment variable for the authorization code scheme"
+                        + " credential is treated as unset and fails naming the variable";
+                break;
+            case "OAuth2ImplicitAuthenticator":
+                id = "016";
+                emptyField = "clientId";
+                description = "an empty environment variable for the implicit scheme credential"
+                        + " is treated as unset and fails naming the variable";
+                break;
+            default:
+                return null;
+        }
+        String emptyName = null;
+        for (final Map<String, Object> field : fields) {
+            if (emptyField.equals(field.get("field"))) {
+                emptyName = String.valueOf(field.get("envName"));
+            }
+        }
+        if (emptyName == null) {
+            return null;
+        }
+        final Map<String, Object> out = new HashMap<>();
+        out.put("authSchemeTestName", "bhv authscheme " + id + " " + description);
+        out.put("emptyVariable", emptyName);
+        out.put("emptyEnvironment", environmentLiteral(fields, emptyName));
+        return out;
+    }
+
+    /** Reports whether the authenticator of {@code scheme} reads {@code field} from the environment. */
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only HTTP scheme constants (basic/bearer)")
+    private static boolean readsEnvironment(final SecurityScheme scheme, final String field) {
+        if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            return "apiKey".equals(field);
+        }
+        if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            return "clientId".equals(field) || "clientSecret".equals(field)
+                    || "username".equals(field) || "password".equals(field)
+                    || "redirectUri".equals(field);
+        }
+        if (scheme.getType() != SecurityScheme.Type.HTTP || scheme.getScheme() == null) {
+            return false;
+        }
+        final String kind = scheme.getScheme().toLowerCase(Locale.ROOT);
+        return ("basic".equals(kind) && ("username".equals(field) || "password".equals(field)))
+                || ("bearer".equals(kind) && "token".equals(field));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean filtersOperationImports() {
+        return true;
+    }
+
+    /**
+     * Every operation takes an Options object (F827), so the per-call timeout, headers and
+     * retry budget have a slot on an operation that has no parameters of its own, and adding a
+     * parameter later never changes the signature.
+     */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> uploads = (Map<String, Object>) objs.get("operations");
+        if (uploads != null && uploads.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) uploads.get("operation")) {
+                markBinaryUpload(op);
+                /* A List<Decimal> or Map<String, Decimal> response decodes through the same
+                 * container leaf as a model field, so its items carry the same flags. */
+                tagDecimal(op.returnProperty);
+            }
+        }
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+
+        // Optional request-content-type selector (decision H3). An operation
+        // that declares MORE THAN ONE request Content-Type (e.g. setPetAvatar:
+        // image/jpeg, image/png, application/json) otherwise collapses to the
+        // first declared type (`effectiveConsumes`), leaving the others
+        // unreachable. We surface a Dart-scoped `hasMultipleConsumes` flag on
+        // the existing `op` decorator map so the api template can emit an
+        // OPTIONAL trailing `requestContentType` parameter for exactly those
+        // operations. When the caller leaves it null the call defaults to the
+        // first declared type (`effectiveConsumes`), so existing call sites
+        // keep compiling and sending the first type unchanged. This is a
+        // language-scoped, non-x-* decorator flag (it lives in the same `op`
+        // namespace as `effectiveConsumes`) and touches no shared codegen.
+        final Map<String, Object> operations =
+                (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                final Map<String, Map<String, String>> errorImports = new java.util.LinkedHashMap<>();
+                for (final CodegenOperation op : ops) {
+                    if (op.vendorExtensions == null) {
+                        op.vendorExtensions = new HashMap<>();
+                    }
+                    // The `op` decorator map (populated by the shared
+                    // populateOperationDecorators) already holds
+                    // effectiveConsumes; extend it in place so the api template
+                    // can read both keys from the same namespace.
+                    final Object existing = op.vendorExtensions.get("op");
+                    final Map<String, Object> opDeco =
+                            existing instanceof Map
+                                    ? (Map<String, Object>) existing
+                                    : new HashMap<>();
+                    final boolean hasMultipleConsumes =
+                            op.consumes != null && op.consumes.size() > 1;
+                    opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryStream(op, opDeco);
+                    markPaginator(opDeco);
+                    writeResponseHeadersFile(op, opDeco);
+                    final Object sigArgs = opDeco.get("signatureArgs");
+                    if (sigArgs instanceof List) {
+                        opDeco.put(
+                                "signatureArgs",
+                                serverBeforeOptions((List<Map<String, Object>>) sigArgs));
+                    }
+                    op.vendorExtensions.put("op", opDeco);
+                    final Object declared = opDeco.get("errorSchemaResponses");
+                    if (declared instanceof List) {
+                        for (final Object row : (List<Object>) declared) {
+                            final String className = (String) ((Map<String, Object>) row).get("schemaClassName");
+                            errorImports.computeIfAbsent(className, name -> {
+                                final Map<String, String> entry = new HashMap<>();
+                                entry.put("className", name);
+                                entry.put("classFilename", NamingConvention.SNAKE_CASE.apply(name));
+                                return entry;
+                            });
+                        }
+                    }
+                }
+                objs.put("errorImports", new ArrayList<>(errorImports.values()));
+            }
+        }
+
+        final List<Map<String, String>> imports =
+                (List<Map<String, String>>) objs.get("imports");
+        if (imports != null) {
+            // Drop synthetic SDK imports (e.g. `dart:typed_data` for `Uint8List`) — the
+            // template emits these statically at the top of the file, not via `{{#imports}}`.
+            imports.removeIf(
+                    imp -> {
+                        final String value = imp.get("import");
+                        return value != null && value.startsWith("dart:");
+                    });
+            for (final Map<String, String> imp : imports) {
+                if (!imp.containsKey("className") && imp.containsKey("import")) {
+                    String className = imp.get("import");
+                    if (className.contains(".")) {
+                        className = className.substring(className.lastIndexOf('.') + 1);
+                    }
+                    imp.put("className", className);
+                    imp.put("filename", toModelFilename(className));
+                }
+            }
+            if (operations != null) {
+                addSuccessVariantImports(imports, operations);
+            }
+        }
+        return objs;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code Uint8List}. It runs before the shared pass, which copies the
+     * body type into the signature arguments. Multipart and every other body kind keep the type
+     * the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+    }
+
+    /**
+     * Gives a paged operation the Dart type of its paginator, {@code dartPaginatorType}: the item
+     * type and the type of the cursor parameter, or {@code void} for a list that is followed by its
+     * {@code Link} header.
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaginator(final Map<String, Object> decorators) {
+        final Object pagination = decorators.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "dartPaginatorType",
+                "Paginator<" + p.get("itemType") + ", "
+                        + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "void" : p.get("cursorType")) + ">");
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the API template to call {@code invokeApiForStream}.
+     */
+    static void markBinaryStream(final CodegenOperation op, final Map<String, Object> decorators) {
+        final Object kind = decorators.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        decorators.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        final boolean streamOnly = Boolean.TRUE.equals(decorators.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        decorators.put("streamsSse", sse);
+        decorators.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(decorators.get("streamEventIsText"));
+            final Object declared = decorators.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            decorators.put("streamTyped", !"String".equals(item));
+            decorators.put("streamItemDart", item);
+            decorators.put("streamItemIsModel", item.matches("[A-Z][A-Za-z0-9_]*")
+                    && !Set.of("String", "Object", "DateTime", "Duration", "Uint8List", "UuidValue").contains(item));
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. The first paged operation is handed over the same way, as
+     * {@code pagedOperation}. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * Adds an import for every schema of an operation with several 2xx responses: the API
+     * class decodes each body as the schema of its status code, so it names the variant
+     * models itself and not only their union. A model that is already imported is skipped.
+     */
+    @SuppressWarnings("unchecked")
+    private void addSuccessVariantImports(
+            final List<Map<String, String>> imports, final Map<String, Object> operations) {
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        final Set<String> known = new HashSet<>();
+        for (final Map<String, String> imp : imports) {
+            known.add(imp.get("filename"));
+        }
+        for (final CodegenOperation op : ops) {
+            final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(deco instanceof Map)) {
+                continue;
+            }
+            final Object pagination = ((Map<String, Object>) deco).get("pagination");
+            if (pagination instanceof Map) {
+                final Object model = ((Map<String, Object>) pagination).get("itemModel");
+                if (model != null) {
+                    final String className = model.toString();
+                    final String filename = toModelFilename(className);
+                    if (known.add(filename)) {
+                        final Map<String, String> imp = new HashMap<>();
+                        imp.put("import", className);
+                        imp.put("className", className);
+                        imp.put("filename", filename);
+                        imports.add(imp);
+                    }
+                }
+            }
+            final Object variants = ((Map<String, Object>) deco).get("successVariants");
+            if (!(variants instanceof List)) {
+                continue;
+            }
+            for (final Object variant : (List<Object>) variants) {
+                final Object type = ((Map<String, Object>) variant).get("returnType");
+                if (type == null) {
+                    continue;
+                }
+                final String className = type.toString();
+                final String filename = toModelFilename(className);
+                if (known.add(filename)) {
+                    final Map<String, String> imp = new HashMap<>();
+                    imp.put("import", className);
+                    imp.put("className", className);
+                    imp.put("filename", filename);
+                    imports.add(imp);
+                }
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return Path.of("lib", "src", "auth").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".dart";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only scheme values")
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final String scopes = formatDartScopes(spec.scopes());
+        final List<String> imports;
+        final String constructorSig;
+        final String superCall;
+
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("basic_authenticator.dart");
+            constructorSig =
+                    "required String host, String? username, String? password, "
+                            + "(String username, String password) Function()? credentialsProvider, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, username: username, password: password, "
+                            + "credentialsProvider: credentialsProvider, environment: environment";
+        } else if ("DigestAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("digest_authenticator.dart");
+            constructorSig =
+                    "required String host, String? username, String? password, "
+                            + "Map<String, String>? environment";
+            superCall = "host: host, username: username, password: password, environment: environment";
+        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("dart:async", "bearer_authenticator.dart");
+            constructorSig =
+                    "required String host, String? token, "
+                            + "FutureOr<String> Function()? tokenProvider, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, token: token, tokenProvider: tokenProvider, "
+                            + "environment: environment";
+        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            final String loc = NamingConvention.CAMEL_CASE.apply(
+                    spec.keyIn() != null
+                            ? spec.keyIn().toLowerCase(Locale.ROOT)
+                            : "header");
+            imports = List.of("api_key_authenticator.dart", "api_key_location.dart");
+            constructorSig =
+                    "required String host, String? apiKey, String Function()? apiKeyProvider, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, keyParamName: '"
+                            + escapeDartString(java.util.Objects.toString(spec.keyParamName(), ""))
+                            + "', apiKey: apiKey, apiKeyProvider: apiKeyProvider, location: ApiKeyLocation."
+                            + loc
+                            + ", environment: environment";
+        } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("oauth2_client_credentials_authenticator.dart");
+            constructorSig =
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', scopes: "
+                            + scopes
+                            + ", environment: environment";
+        } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_password_authenticator.dart");
+            constructorSig =
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "String? username, String? password, "
+                            + "Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', refreshUrl: "
+                            + refreshArg
+                            + ", username: username, password: password, scopes: "
+                            + scopes
+                            + ", environment: environment";
+        } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_authorization_code_authenticator.dart");
+            constructorSig =
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "String? redirectUri, Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, clientSecret: clientSecret, "
+                            + "authorizationUrl: '"
+                            + spec.authorizationUrl()
+                            + "', tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', redirectUri: redirectUri, scopes: "
+                            + scopes
+                            + ", refreshUrl: "
+                            + refreshArg
+                            + ", environment: environment";
+        } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("oauth2_implicit_authenticator.dart");
+            constructorSig = "required String host, String? clientId, "
+                    + "Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, authorizationUrl: '"
+                            + spec.authorizationUrl()
+                            + "', scopes: "
+                            + scopes
+                            + ", environment: environment";
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_device_authorization_authenticator.dart");
+            constructorSig = "required String host, String? clientId, "
+                    + "Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, deviceAuthorizationUrl: '"
+                            + spec.authorizationUrl()
+                            + "', tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', scopes: "
+                            + scopes
+                            + ", refreshUrl: "
+                            + refreshArg
+                            + ", environment: environment";
+            /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+            if (deviceSchemes.isEmpty()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("className", baseSchemeContext(spec).get("className"));
+                entry.put("deviceAuthorizationUrlLiteral", "'" + escapeDartString(java.util.Objects.toString(spec.authorizationUrl(), "")) + "'");
+                entry.put("tokenUrlLiteral", "'" + escapeDartString(java.util.Objects.toString(spec.tokenUrl(), "")) + "'");
+                entry.put("scopesLiteral", scopes);
+                deviceSchemes.add(entry);
+            }
+        } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("openid_connect_authenticator.dart");
+            constructorSig =
+                    "required String host, String? clientId, String? clientSecret, "
+                            + "String? redirectUri, Map<String, String>? environment";
+            superCall =
+                    "host: host, openIdConnectUrl: '"
+                            + spec.openIdConnectUrl()
+                            + "', clientId: clientId, clientSecret: clientSecret, "
+                            + "redirectUri: redirectUri, scopes: [], environment: environment";
+        } else {
+            LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());
+            return "";
+        }
+
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            final String literal = "'" + escapeDartString(String.valueOf(metadataUrl)) + "'";
+            ctx.put("metadataUrlLiteral", literal);
+            /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+            if (metadataUrlSchemes.isEmpty()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("className", ctx.get("className"));
+                entry.put("metadataUrlLiteral", literal);
+                metadataUrlSchemes.add(entry);
+            }
+        }
+        ctx.put("envVars", environmentArguments(spec.baseClass(), ctx.get("envVars")));
+        ctx.put("imports", imports);
+        ctx.put("constructorSignature", constructorSig);
+        ctx.put("superCall", superCall);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Names, for each environment variable a scheme's credential field reads (F862), the
+     * constructor argument of the base authenticator that takes the variable name, so the
+     * per-scheme template can pass {@code usernameVariable: 'NAME'}. The basic, bearer and API
+     * key authenticators and the OAuth2 and OpenID Connect ones (#119) read the environment.
+     *
+     * @param baseClass the base authenticator class of the scheme
+     * @param shared the scheme's entries from the shared generator ({@code field}, {@code envName})
+     * @return one {@code argName} and {@code envName} entry per variable the scheme reads
+     */
+    @SuppressWarnings("unchecked")
+    static List<Map<String, Object>> environmentArguments(
+            final String baseClass, @Nullable final Object shared) {
+        final List<Map<String, Object>> out = new ArrayList<>();
+        if (!(shared instanceof List)) {
+            return out;
+        }
+        for (final Object item : (List<Object>) shared) {
+            final Map<String, Object> entry = (Map<String, Object>) item;
+            final String field = String.valueOf(entry.get("field"));
+            final String arg;
+            final boolean credentialPair =
+                    "BasicAuthenticator".equals(baseClass) || "DigestAuthenticator".equals(baseClass);
+            if (credentialPair && "username".equals(field)) {
+                arg = "usernameVariable";
+            } else if (credentialPair && "password".equals(field)) {
+                arg = "passwordVariable";
+            } else if (("BearerAuthenticator".equals(baseClass) && "token".equals(field))
+                    || ("ApiKeyAuthenticator".equals(baseClass) && "apiKey".equals(field))) {
+                arg = "environmentVariable";
+            } else if (isOAuthBase(baseClass) && oauthVariableArgument(field) != null) {
+                arg = oauthVariableArgument(field);
+            } else {
+                continue;
+            }
+            final Map<String, Object> mapped = new HashMap<>(entry);
+            mapped.put("argName", arg);
+            out.add(mapped);
+        }
+        return out;
+    }
+
+    /** Reports whether {@code baseClass} is an OAuth2 or OpenID Connect authenticator. */
+    private static boolean isOAuthBase(final String baseClass) {
+        return baseClass.startsWith("OAuth2") || "OpenIdConnectAuthenticator".equals(baseClass);
+    }
+
+    /** The base authenticator argument that names the variable of an OAuth credential field. */
+    @Nullable
+    private static String oauthVariableArgument(final String field) {
+        switch (field) {
+            case "clientId":
+                return "clientIdVariable";
+            case "clientSecret":
+                return "clientSecretVariable";
+            case "username":
+                return "usernameVariable";
+            case "password":
+                return "passwordVariable";
+            case "redirectUri":
+                return "redirectUriVariable";
+            default:
+                return null;
+        }
+    }
+
+    private static String formatDartScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "['" + String.join("', '", scopes.keySet()) + "']";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("name", p.paramName);
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            // D169: the parameter's examples, documented on the Options field.
+            Object pluralExamples = p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (pluralExamples == null && p.examples != null && !p.examples.isEmpty()) {
+                pluralExamples = buildPluralExamplesList(p.examples);
+            }
+            param.put("pluralExamples", pluralExamples);
+            param.put("hasPluralExamples", pluralExamples instanceof List && !((List<?>) pluralExamples).isEmpty());
+            param.put("requiredNullable", isRequiredNullableQuery(p));
+            // Thread the native CodegenParameter.deprecated flag so the
+            // options template can emit @Deprecated on the field, mirroring
+            // how operations and model properties already render it.
+            param.put("deprecated", p.isDeprecated);
+            if (p.description != null && !p.description.isEmpty()) {
+                param.put("description", p.description);
+            }
+            params.add(param);
+        }
+
+        final List<Map<String, String>> optionsImports = new ArrayList<>();
+        // Dedupe by type name so two params of the same type (e.g. two Swatch
+        // enum params) import the model file once, not twice (Dart treats a
+        // duplicate import as an analyzer warning/error).
+        final Set<String> importedTypes = new HashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && !typeMapping.containsValue(p.baseType)
+                    && importedTypes.add(p.baseType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.baseType);
+                imp.put("filename", toModelFilename(p.baseType));
+                optionsImports.add(imp);
+            }
+            // A $ref to a top-level enum carries its enum type name in dataType
+            // (baseType is null); the generated enum lives under models/ and
+            // must be imported.
+            if (p.isEnumRef
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)
+                    && importedTypes.add(p.dataType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.dataType);
+                imp.put("filename", toModelFilename(p.dataType));
+                optionsImports.add(imp);
+            }
+            // An object-typed parameter ($ref to a model under a style, or a
+            // `content` parameter) also carries the model name only in dataType.
+            if (p.dataType != null
+                    && isComponentModelName(p.dataType)
+                    && importedTypes.add(p.dataType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.dataType);
+                imp.put("filename", toModelFilename(p.dataType));
+                optionsImports.add(imp);
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("packageName", packageName);
+        context.put("operationId", op.operationId);
+        // A paged operation that follows a token cursor can copy its Options with the next cursor,
+        // so every page is sent with its own cursor and everything else unchanged.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        final boolean cursorCopy =
+                pagination instanceof Map
+                        && (Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))
+                        || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isId"))
+                        || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isOffset"))
+                        || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isPage")));
+        context.put("hasCursorCopy", cursorCopy);
+        if (cursorCopy && pagination instanceof Map) {
+            final Map<?, ?> plan = (Map<?, ?>) pagination;
+            final Object cursorName = plan.get("requestParamName");
+            context.put("cursorType", plan.get("cursorType"));
+            for (final Map<String, Object> param : params) {
+                param.put("isCursor", Objects.equals(param.get("name"), cursorName));
+            }
+        }
+        context.put("params", params);
+        context.put("dartImports", optionsImports);
+        context.put("hasDartImports", !optionsImports.isEmpty());
+        injectAuthFieldContext(op, context);
+        /* F857: an operation uses the credential of the scheme its spec names, set on the
+         * client; there is no per-call authenticator. */
+        context.put("hasAuthField", false);
+        // Relative import from lib/src/api/options/ up to the generic
+        // Authenticator at lib/src/auth/authenticator.dart, mirroring how
+        // model imports are formed (../../models/<file>.dart).
+        context.put(
+                "authImport",
+                "../../auth/"
+                        + NamingConvention.SNAKE_CASE.apply(getAuthenticatorTypeName())
+                        + ".dart");
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_exception.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "lib", "src", "errors", NamingConvention.SNAKE_CASE.apply(className) + ".dart")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        return Path.of(
+                        getOutputDir(), "lib", "src", "api", "options", fileName + ".dart")
+                .toString();
+    }
+
+    /**
+     * D168: writes the {@code <OperationId>ResponseHeaders} class of an operation whose success
+     * response declares headers, next to its Options class under {@code lib/src/api/options/},
+     * and records it for the package barrel. A field is typed by the header's value kind
+     * (String, int, double, bool, or a List of one), the type its parser returns.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(CodegenOperation op, Map<String, Object> opDeco) {
+        if (!Boolean.TRUE.equals(opDeco.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = Objects.requireNonNull((String) opDeco.get("responseHeadersClassName"));
+        final List<Map<String, Object>> declared =
+                Objects.requireNonNull((List<Map<String, Object>>) opDeco.get("responseHeaders"));
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        boolean usesSplit = false;
+        boolean usesInteger = false;
+        boolean usesNumber = false;
+        boolean usesBoolean = false;
+        for (final Map<String, Object> source : declared) {
+            final Map<String, Object> row = new HashMap<>(source);
+            final String kind = Objects.requireNonNull((String) row.get("kind"));
+            final String itemType;
+            final String parser;
+            switch (kind) {
+                case "integer":
+                case "long":
+                    itemType = "int";
+                    parser = "_integer";
+                    usesInteger = true;
+                    break;
+                case "number":
+                    itemType = "double";
+                    parser = "_number";
+                    usesNumber = true;
+                    break;
+                case "boolean":
+                    itemType = "bool";
+                    parser = "_boolean";
+                    usesBoolean = true;
+                    break;
+                default:
+                    itemType = "String";
+                    parser = "";
+                    break;
+            }
+            final boolean isArray = Boolean.TRUE.equals(row.get("isArray"));
+            usesSplit |= isArray;
+            row.put("parser", parser);
+            row.put("hasParser", !parser.isEmpty());
+            row.put("dartType", isArray ? "List<" + itemType + ">" : itemType);
+            rows.add(row);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("rows", rows);
+        context.put("usesSplit", usesSplit);
+        context.put("usesInteger", usesInteger);
+        context.put("usesNumber", usesNumber);
+        context.put("usesBoolean", usesBoolean);
+        final String filePath = getOptionsFilePath(op.operationId, className);
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
+        responseHeadersClasses.add(className);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
+        if (optionsFiles.isEmpty()) {
+            return;
+        }
+        final List<Map<String, String>> exports = new ArrayList<>();
+        for (final Map<String, String> meta : optionsFiles) {
+            final String className = Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> e = new HashMap<>();
+            e.put("fileName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(e);
+        }
+        for (final String className : responseHeadersClasses) {
+            final Map<String, String> e = new HashMap<>();
+            e.put("fileName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(e);
+        }
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_barrel.mustache", ctx);
+        final Path barrelPath = Path.of(getOutputDir(), "lib", packageName + ".dart");
+        try {
+            Files.writeString(
+                    barrelPath,
+                    Files.readString(barrelPath, StandardCharsets.UTF_8) + content,
+                    StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            LOGGER.warn("Failed to append options exports to barrel: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * Registers the {@code dartString} Mustache lambda, which escapes raw spec
+     * text for the inside of a single-quoted Dart string literal: a backslash,
+     * a single quote and the {@code $} interpolation sigil are backslash
+     * escaped and line breaks become escape sequences, so a description such as
+     * {@code Bob's $5} cannot terminate the literal or start an interpolation.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "dartString",
+                        (fragment, writer) -> writer.write(escapeDartString(fragment.execute())))
+                .put(
+                        "dartDocLines",
+                        (fragment, writer) -> writer.write(toDartDocLines(fragment.execute())));
+    }
+
+    /**
+     * Continues a multi-line description inside a {@code ///} doc comment: every
+     * line break is followed by the {@code ///} prefix, so the second line of a
+     * block-scalar description cannot fall out of the comment into code.
+     */
+    static String toDartDocLines(final String text) {
+        return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\n/// ");
+    }
+
+    /**
+     * Escapes the {@code $} interpolation sigil of a single-quoted Dart
+     * literal. (The backslash is doubled by the shared escape and the quote
+     * character itself is handled by {@code quoteEnumValue}.)
+     */
+    @Override
+    protected List<String[]> getEnumStringEscapes() {
+        return List.<String[]>of(new String[] {"\\$", "\\\\\\$"});
+    }
+
+    /** Escapes text for the inside of a single-quoted Dart string literal. */
+    static String escapeDartString(final String text) {
+        final StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\'') {
+                sb.append("\\'");
+            } else if (c == '$') {
+                sb.append("\\$");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getReservedEnumMemberNames() {
+        return Set.of("value");
+    }
+}

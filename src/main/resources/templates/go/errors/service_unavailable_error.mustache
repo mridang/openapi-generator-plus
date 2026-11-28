@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// ServiceUnavailableError is the error for HTTP 503 Service Unavailable.
+type ServiceUnavailableError struct {
+	ServerError
+}

@@ -1,0 +1,1670 @@
+{{>api_info}}
+{{#models}}
+{{#model}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:collection/collection.dart';
+
+import '../object_serializer.dart';
+
+{{#hasDartImports}}
+{{#dartImports}}
+import '{{filename}}.dart';
+{{/dartImports}}
+
+{{/hasDartImports}}
+{{#isEnum}}
+{{#isInteger}}
+{{#description}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is an enumeration of allowed integer values.
+{{/description}}
+enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+  /// Represents the value {{{value}}}.
+{{/enumDescription}}
+  {{name}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
+  ;
+
+  final int value;
+  const {{classname}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}} fromJson(int value) {
+    return {{classname}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => {{classname}}.unknownDefaultOpenApi,
+    );
+  }
+
+  int toJson() {
+    if (this == {{classname}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{classname}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
+
+  @override
+  String toString() => value.toString();
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+{{#description}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is an enumeration of allowed integer values.
+{{/description}}
+enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+  /// Represents the value {{{value}}}.
+{{/enumDescription}}
+  {{name}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
+  ;
+
+  final int value;
+  const {{classname}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}} fromJson(int value) {
+    return {{classname}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => {{classname}}.unknownDefaultOpenApi,
+    );
+  }
+
+  int toJson() {
+    if (this == {{classname}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{classname}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
+
+  @override
+  String toString() => value.toString();
+}
+{{/isLong}}
+{{^isLong}}
+{{#description}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is an enumeration of allowed values.
+{{/description}}
+enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+  /// Represents the value {{{value}}}.
+{{/enumDescription}}
+  {{name}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__'),
+  ;
+
+  final String value;
+  const {{classname}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}} fromJson(String value) {
+    return {{classname}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => {{classname}}.unknownDefaultOpenApi,
+    );
+  }
+
+  String toJson() {
+    if (this == {{classname}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{classname}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
+
+  @override
+  String toString() => value;
+}
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{^isPrimitiveOneOf}}
+{{^isPrimitiveAnyOf}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#externalDocumentation}}
+/// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/externalDocumentation}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+{{#vars}}
+{{^vendorExtensions.dartInherited}}
+{{#isEnum}}
+{{#isInteger}}
+/// Typed integer enum for {{classname}}.{{name}}.
+enum {{vendorExtensions.dartOwner}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+  /// Represents the value {{{value}}}.
+{{/enumDescription}}
+  {{nameLowercase}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
+  ;
+
+  final int value;
+  const {{vendorExtensions.dartOwner}}{{enumName}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(int value) {
+    return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi,
+    );
+  }
+
+  int toJson() {
+    if (this == {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
+
+  @override
+  String toString() => value.toString();
+}
+
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+/// Typed integer enum for {{classname}}.{{name}}.
+enum {{vendorExtensions.dartOwner}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+  /// Represents the value {{{value}}}.
+{{/enumDescription}}
+  {{nameLowercase}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
+  ;
+
+  final int value;
+  const {{vendorExtensions.dartOwner}}{{enumName}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(int value) {
+    return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi,
+    );
+  }
+
+  int toJson() {
+    if (this == {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
+
+  @override
+  String toString() => value.toString();
+}
+
+{{/isLong}}
+{{^isLong}}
+/// Typed enum for {{classname}}.{{name}}.
+enum {{vendorExtensions.dartOwner}}{{enumName}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+  /// Represents the value {{{value}}}.
+{{/enumDescription}}
+  {{nameLowercase}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__'),
+  ;
+
+  final String value;
+  const {{vendorExtensions.dartOwner}}{{enumName}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(String value) {
+    return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi,
+    );
+  }
+
+  String toJson() {
+    if (this == {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
+
+  @override
+  String toString() => value;
+}
+
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{/vendorExtensions.dartInherited}}
+{{/vars}}
+{{#vendorExtensions.dartAllOfBase}}abstract {{/vendorExtensions.dartAllOfBase}}class {{classname}}{{#vendorExtensions.dartAllOfChild}} extends {{vendorExtensions.dartAllOfParent}}{{/vendorExtensions.dartAllOfChild}} {
+{{#vars}}
+{{^vendorExtensions.dartInherited}}
+{{#description}}
+  /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{#example}}
+  /// Example: `{{{.}}}`
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+  /// ## {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+  ///
+  /// This property is read-only; it is still sent and received like any
+  /// other property.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+  ///
+  /// This property is write-only; it is still sent and received like any
+  /// other property.
+{{/isWriteOnly}}
+{{#deprecated}}
+  @Deprecated('This property is deprecated.')
+{{/deprecated}}
+{{#vendorExtensions.strictRequired}}
+  final {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+  final {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}};
+{{/vendorExtensions.strictRequired}}
+
+{{/vendorExtensions.dartInherited}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> get additionalProperties => Map.of(_additionalProperties);
+
+  final Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> _additionalProperties;
+
+{{/isAdditionalPropertiesTrue}}
+{{#hasVars}}
+  const {{classname}}({
+{{#vars}}
+{{#required}}
+{{#isEnum}}
+    required {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
+{{/isEnum}}
+{{^isEnum}}
+{{#defaultValue}}
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}} = {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+    required {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
+{{/defaultValue}}
+{{/isEnum}}
+{{/required}}
+{{^required}}
+{{#isEnum}}
+{{#defaultValue}}
+    /* Cross-cutting `optional-enum-default-omitted`: an OPTIONAL enum field
+     * with a schema `default` is initialised to that default variant so a
+     * default-constructed model serialises the default on the wire (parity
+     * with the SDKs that emit `"status":"placed"`). `defaultEnumVarName` is
+     * the `nameLowercase` of the variant whose wire value equals the schema
+     * default — i.e. the exact identifier the typed enum declares above — so
+     * a non-lowercase wire value (e.g. `IN_STOCK`) still references a real
+     * variant rather than a re-camelcased copy of the literal. */
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}} = {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+{{/defaultValue}}
+{{^defaultValue}}
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
+{{/defaultValue}}
+{{/isEnum}}
+{{^isEnum}}
+{{#defaultValue}}
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}} = {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+    {{#vendorExtensions.dartInherited}}super{{/vendorExtensions.dartInherited}}{{^vendorExtensions.dartInherited}}this{{/vendorExtensions.dartInherited}}.{{name}},
+{{/defaultValue}}
+{{/isEnum}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> additionalProperties = const {},
+{{/isAdditionalPropertiesTrue}}
+  }){{#isAdditionalPropertiesTrue}} : _additionalProperties = additionalProperties{{/isAdditionalPropertiesTrue}};
+{{/hasVars}}
+{{^hasVars}}
+{{#isAdditionalPropertiesTrue}}
+  const {{classname}}({
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
+{{/isAdditionalPropertiesTrue}}
+{{^isAdditionalPropertiesTrue}}
+  const {{classname}}();
+{{/isAdditionalPropertiesTrue}}
+{{/hasVars}}
+
+  {{#vendorExtensions.dartAllOfBase}}
+  /// Decodes the subtype that the discriminator value names. A payload without the
+  /// discriminator, or with a value no mapping lists, is a [SerializationException].
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+    final disc = json['{{discriminator.propertyBaseName}}'];
+{{^vendorExtensions.discriminatorDefault}}
+    if (disc == null) {
+      throw SerializationException(
+          "Missing discriminator property '{{discriminator.propertyBaseName}}' in payload for {{classname}}");
+    }
+{{/vendorExtensions.discriminatorDefault}}
+    switch (disc) {
+{{#vendorExtensions.dartSubtypes}}
+      case '{{{mappingName}}}':
+        return {{{modelName}}}.fromJson(json);
+{{/vendorExtensions.dartSubtypes}}
+      default:
+{{#vendorExtensions.discriminatorDefault}}
+        /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+        return {{vendorExtensions.discriminatorDefault}}.fromJson(json);
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
+        throw SerializationException(
+            "Discriminator value '$disc' on '{{discriminator.propertyBaseName}}' is not listed in the schema mapping for {{classname}}");
+{{/vendorExtensions.discriminatorDefault}}
+    }
+  }
+  {{/vendorExtensions.dartAllOfBase}}
+  {{^vendorExtensions.dartAllOfBase}}
+  /// Creates a [{{classname}}] from a JSON map.
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+{{#isAdditionalPropertiesTrue}}
+    final knownKeys = <String>{
+{{#vars}}
+      '{{baseName}}',
+{{/vars}}
+    };
+    final additionalPropertyEntries = <String, dynamic>{};
+    for (final entry in json.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        additionalPropertyEntries[entry.key] = entry.value;
+      }
+    }
+{{#vendorExtensions.additionalPropertiesValue}}
+    /* A typed extra is decoded like an element of a map of the same type, so a
+     * wrong JSON type fails with a SerializationException and a null is
+     * rejected unless the value schema is nullable. */
+    final additionalProperties = deserializeMap(additionalPropertyEntries, {{#isNullable}}(Object? e) => deserializeNullable(e, {{>deserialize_arg}}){{/isNullable}}{{^isNullable}}{{>deserialize_arg}}{{/isNullable}});
+{{/vendorExtensions.additionalPropertiesValue}}
+{{^vendorExtensions.additionalPropertiesValue}}
+    final additionalProperties = additionalPropertyEntries;
+{{/vendorExtensions.additionalPropertiesValue}}
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+       Reject any JSON key not declared above. */
+    const _declaredKeys = <String>{
+{{#vars}}
+      '{{baseName}}',
+{{/vars}}
+    };
+    for (final key in json.keys) {
+      if (!_declaredKeys.contains(key)) {
+        throw ArgumentError(
+            "Unknown property '$key' on {{classname}} (unevaluatedProperties:false)");
+      }
+    }
+{{/isUnevaluatedPropertiesFalse}}
+{{#vars}}
+{{#required}}
+{{^isEnum}}
+{{#defaultValue}}
+{{#isPrimitiveType}}
+{{^isDateTime}}
+{{^isDate}}
+{{^isUuid}}
+{{^isUri}}
+{{^isByteArray}}
+{{^vendorExtensions.isDuration}}
+{{^isArray}}
+{{^isMap}}
+    /* A required property that carries a default (the synthetic oneOf
+       discriminator value, or a schema default) is filled with that default
+       when its key is ABSENT; an explicit null is left in place and is still
+       rejected by the required guard below. */
+    if (!json.containsKey('{{baseName}}')) {
+      json = {...json, '{{baseName}}': {{{defaultValue}}}};
+    }
+{{/isMap}}
+{{/isArray}}
+{{/vendorExtensions.isDuration}}
+{{/isByteArray}}
+{{/isUri}}
+{{/isUuid}}
+{{/isDate}}
+{{/isDateTime}}
+{{/isPrimitiveType}}
+{{/defaultValue}}
+{{/isEnum}}
+{{/required}}
+{{/vars}}
+{{#vars}}
+{{#required}}
+{{#vendorExtensions.requiredNullable}}
+    /* A REQUIRED, nullable field must have its key present on the wire; an
+       explicit null is a legal value and is kept. */
+    if (!json.containsKey('{{baseName}}')) {
+      throw SerializationException(
+          "Missing required field '{{baseName}}' for {{classname}}");
+    }
+{{/vendorExtensions.requiredNullable}}
+{{^vendorExtensions.requiredNullable}}
+    /* DIVERGENCE #10 — a REQUIRED, non-nullable field must be present and
+       non-null on the wire. An absent key reads as null in Dart, so this
+       single guard covers both the missing and explicitly-null cases. We
+       raise the SDK's own SerializationException (not an incidental cast/TypeError)
+       so callers see a uniform, catchable wire-shape failure. */
+    if (json['{{baseName}}'] == null) {
+      throw SerializationException(
+          "Missing required field '{{baseName}}' for {{classname}}");
+    }
+{{/vendorExtensions.requiredNullable}}
+{{/required}}
+{{/vars}}
+    try {
+    return {{classname}}(
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+{{#isEnum}}
+{{#isInteger}}
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isLong}}
+{{^isLong}}
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+      {{! recursive-container-deserialize: route each element through the }}
+      {{! deserialize_arg partial so a nested container (List<Map<..>>, }}
+      {{! List<List<..>>) or an enum/date/byte leaf is decoded at the correct }}
+      {{! depth instead of one level deep. A primitive `Map<String, X>` value }}
+      {{! that is itself primitive still casts; deserializeArray returns a }}
+      {{! List which `.toSet()` narrows for uniqueItems. }}
+      {{name}}: deserializeArray(json['{{baseName}}'] as List, {{#vendorExtensions.isIpv4Items}}(e) => parseIpv4Address(e as String){{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}(e) => parseIpv6Address(e as String){{/vendorExtensions.isIpv6Items}}{{^vendorExtensions.isIpv4Items}}{{^vendorExtensions.isIpv6Items}}{{#items}}{{>deserialize_arg}}{{/items}}{{/vendorExtensions.isIpv6Items}}{{/vendorExtensions.isIpv4Items}}){{#uniqueItems}}.toSet(){{/uniqueItems}},
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+{{! See the nullable branch below: name/baseName must stay outside items. }}
+{{#items.isByteArray}}
+      {{! A map whose VALUES are `format:byte` holds base64 STRINGS on the wire;
+          decode each one to native bytes, mirroring the array-of-byte branch. A
+          plain `.cast<String, Uint8List>()` would leave them as undecoded
+          strings. }}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map((k, v) => MapEntry(k, decodeBase64(v as String))),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+{{#items.vendorExtensions.isDecimal}}
+      {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}),
+{{/items.vendorExtensions.isDecimal}}
+{{^items.vendorExtensions.isDecimal}}
+{{#items.isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
+{{/items.isPrimitiveType}}
+{{^items.isPrimitiveType}}
+      {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}),
+{{/items.isPrimitiveType}}
+{{/items.vendorExtensions.isDecimal}}
+{{/items.isByteArray}}
+{{/isMap}}
+{{^isMap}}
+{{#isByteArray}}
+      {{name}}: decodeBase64(json['{{baseName}}'] as String),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+      {{name}}: parseDateTime(json['{{baseName}}'] as String),
+{{/isDateTime}}
+{{#isDate}}
+      {{name}}: DateTime.parse(json['{{baseName}}'] as String),
+{{/isDate}}
+{{#isUuid}}
+      {{name}}: UuidValue.fromString(json['{{baseName}}'] as String),
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+      {{name}}: parseProtobufDuration(json['{{baseName}}'] as String),
+{{/vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalNumber}}
+      {{name}}: readDecimal(json, '{{baseName}}'),
+{{/vendorExtensions.isDecimalNumber}}
+{{#vendorExtensions.isDecimalString}}
+      {{name}}: parseDecimalString(json['{{baseName}}']),
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimal}}
+{{! A `double`-typed field (type:number, or format:float / format:double) must
+    accept an integral JSON value (e.g. 5 vs 5.0): `as double` throws on an int,
+    so coerce via num.toDouble(). `number`, `float` and `double` all map to the
+    Dart `double` type but surface as distinct codegen flags, so each must be
+    handled; only a genuinely non-numeric primitive falls through to a plain
+    cast. }}
+{{#isNumber}}
+      {{name}}: readDouble(json['{{baseName}}']),
+{{/isNumber}}
+{{^isNumber}}
+{{#isFloat}}
+      {{name}}: readDouble(json['{{baseName}}']),
+{{/isFloat}}
+{{^isFloat}}
+{{#isDouble}}
+      {{name}}: readDouble(json['{{baseName}}']),
+{{/isDouble}}
+{{^isDouble}}
+{{#isUri}}
+      {{name}}: parseUri(json['{{baseName}}'] as String),
+{{/isUri}}
+{{^isUri}}
+{{#isInteger}}
+      {{name}}: readInt32(json['{{baseName}}']),
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: readInt64(json['{{baseName}}']),
+{{/isLong}}
+{{^isLong}}
+      {{name}}: {{#vendorExtensions.isIpv4}}parseIpv4Address({{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}parseIpv6Address({{/vendorExtensions.isIpv6}}json['{{baseName}}'] as {{{dataType}}}{{#vendorExtensions.isIpv4}}){{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}){{/vendorExtensions.isIpv6}},
+{{/isLong}}
+{{/isInteger}}
+{{/isUri}}
+{{/isDouble}}
+{{/isFloat}}
+{{/isNumber}}
+{{/vendorExtensions.isDecimal}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{#isEnumRef}}
+      {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}),
+{{/isEnumRef}}
+{{^isEnumRef}}
+      {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}']{{^vendorExtensions.prop.complexTypeIsUnion}} as Map<String, dynamic>{{/vendorExtensions.prop.complexTypeIsUnion}}),
+{{/isEnumRef}}
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/isMap}}
+{{/isArray}}
+{{/isEnum}}
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+{{#isEnum}}
+{{#isInteger}}
+{{#defaultValue}}
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+{{/defaultValue}}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+{{#defaultValue}}
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null) : {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as int) : null,
+{{/defaultValue}}
+{{/isLong}}
+{{^isLong}}
+{{#defaultValue}}
+      /* Cross-cutting `default-applies-only-when-absent`: apply the enum
+         default solely when the key is OMITTED; an explicit `null` is
+         preserved as null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null) : {{vendorExtensions.dartOwner}}{{enumName}}.{{vendorExtensions.defaultEnumVarName}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{vendorExtensions.dartOwner}}{{enumName}}.fromJson(json['{{baseName}}'] as String) : null,
+{{/defaultValue}}
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+      {{! recursive-container-deserialize (optional): same recursive descent as }}
+      {{! the required branch, guarded for an absent/null key. }}
+      {{name}}: json['{{baseName}}'] != null ? deserializeArray(json['{{baseName}}'] as List, {{#vendorExtensions.isIpv4Items}}(e) => parseIpv4Address(e as String){{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}(e) => parseIpv6Address(e as String){{/vendorExtensions.isIpv6Items}}{{^vendorExtensions.isIpv4Items}}{{^vendorExtensions.isIpv6Items}}{{#items}}{{>deserialize_arg}}{{/items}}{{/vendorExtensions.isIpv6Items}}{{/vendorExtensions.isIpv4Items}}){{#uniqueItems}}.toSet(){{/uniqueItems}} : null,
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+{{! name/baseName belong to the PROPERTY and must be read outside the items }}
+{{! section: entering it shadows them with the inner schema's own name, which }}
+{{! openapi-generator calls "inner", producing a constructor argument that does }}
+{{! not exist. Only dip into items for the value type, as isArray does above. }}
+{{#items.isByteArray}}
+      {{! Optional map-of-byte: each value is a base64 STRING on the wire, decoded
+          to native bytes, mirroring the array-of-byte branch above. }}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, decodeBase64(v as String))),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+{{#items.vendorExtensions.isDecimal}}
+      {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}) : null,
+{{/items.vendorExtensions.isDecimal}}
+{{^items.vendorExtensions.isDecimal}}
+{{#items.isPrimitiveType}}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
+{{/items.isPrimitiveType}}
+{{^items.isPrimitiveType}}
+      {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}) : null,
+{{/items.isPrimitiveType}}
+{{/items.vendorExtensions.isDecimal}}
+{{/items.isByteArray}}
+{{/isMap}}
+{{^isMap}}
+{{#isByteArray}}
+      {{name}}: json['{{baseName}}'] != null ? decodeBase64(json['{{baseName}}'] as String) : null,
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+      {{name}}: json['{{baseName}}'] != null ? parseDateTime(json['{{baseName}}'] as String) : null,
+{{/isDateTime}}
+{{#isDate}}
+      {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
+{{/isDate}}
+{{#isUuid}}
+      {{name}}: json['{{baseName}}'] != null ? UuidValue.fromString(json['{{baseName}}'] as String) : null,
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+      {{name}}: json['{{baseName}}'] != null ? parseProtobufDuration(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalNumber}}
+      {{name}}: readDecimalOrNull(json, '{{baseName}}'),
+{{/vendorExtensions.isDecimalNumber}}
+{{#vendorExtensions.isDecimalString}}
+      {{name}}: parseDecimalStringOrNull(json['{{baseName}}']),
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimal}}
+{{#defaultValue}}
+      /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
+         fills in only when the key is OMITTED from the payload. An explicit
+         JSON `null` is a provided value and is preserved as null (not replaced
+         by the default), matching the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? {{#isNumber}}readDoubleOrNull(json['{{baseName}}']){{/isNumber}}{{^isNumber}}{{#isFloat}}readDoubleOrNull(json['{{baseName}}']){{/isFloat}}{{^isFloat}}{{#isDouble}}readDoubleOrNull(json['{{baseName}}']){{/isDouble}}{{^isDouble}}{{#isInteger}}readInt32OrNull(json['{{baseName}}']){{/isInteger}}{{^isInteger}}{{#isLong}}readInt64OrNull(json['{{baseName}}']){{/isLong}}{{^isLong}}json['{{baseName}}'] as {{{dataType}}}?{{/isLong}}{{/isInteger}}{{/isDouble}}{{/isFloat}}{{/isNumber}} : {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+{{! A `double`-typed field (type:number, or format:float / format:double) must
+    accept an integral JSON value: coerce via num. The three flags are distinct
+    but all map to the Dart `double` type, so each routes through toDouble();
+    only a non-numeric primitive falls through to a plain nullable cast. }}
+{{#isNumber}}
+      {{name}}: readDoubleOrNull(json['{{baseName}}']),
+{{/isNumber}}
+{{^isNumber}}
+{{#isFloat}}
+      {{name}}: readDoubleOrNull(json['{{baseName}}']),
+{{/isFloat}}
+{{^isFloat}}
+{{#isDouble}}
+      {{name}}: readDoubleOrNull(json['{{baseName}}']),
+{{/isDouble}}
+{{^isDouble}}
+{{#isUri}}
+      {{name}}: json['{{baseName}}'] != null ? parseUri(json['{{baseName}}'] as String) : null,
+{{/isUri}}
+{{^isUri}}
+{{#isInteger}}
+      {{name}}: readInt32OrNull(json['{{baseName}}']),
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+      {{name}}: readInt64OrNull(json['{{baseName}}']),
+{{/isLong}}
+{{^isLong}}
+{{#vendorExtensions.isIpv4}}
+      {{name}}: json['{{baseName}}'] != null ? parseIpv4Address(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+      {{name}}: json['{{baseName}}'] != null ? parseIpv6Address(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isIpv6}}
+{{^vendorExtensions.isIpv4}}
+{{^vendorExtensions.isIpv6}}
+      {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/vendorExtensions.isIpv6}}
+{{/vendorExtensions.isIpv4}}
+{{/isLong}}
+{{/isInteger}}
+{{/isUri}}
+{{/isDouble}}
+{{/isFloat}}
+{{/isNumber}}
+{{/defaultValue}}
+{{/vendorExtensions.isDecimal}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{#isEnumRef}}
+{{#defaultValue}}
+      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+         solely when the key is OMITTED; an explicit `null` is preserved as
+         null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : null) : {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}) : null,
+{{/defaultValue}}
+{{/isEnumRef}}
+{{^isEnumRef}}
+{{#defaultValue}}
+      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+         solely when the key is OMITTED; an explicit `null` is preserved as
+         null per the JSON-Schema contract. */
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}']{{^vendorExtensions.prop.complexTypeIsUnion}} as Map<String, dynamic>{{/vendorExtensions.prop.complexTypeIsUnion}}) : null) : {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}']{{^vendorExtensions.prop.complexTypeIsUnion}} as Map<String, dynamic>{{/vendorExtensions.prop.complexTypeIsUnion}}) : null,
+{{/defaultValue}}
+{{/isEnumRef}}
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/isMap}}
+{{/isArray}}
+{{/isEnum}}
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+      additionalProperties: additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+    );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for {{classname}}: $e', e);
+    }
+  }
+
+  {{/vendorExtensions.dartAllOfBase}}
+  /// Converts this [{{classname}}] to a JSON map.
+{{#vendorExtensions.dartAllOfChild}}  @override
+{{/vendorExtensions.dartAllOfChild}}  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{};
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+{{#isEnum}}
+    json['{{baseName}}'] = {{name}}.toJson();
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+    json['{{baseName}}'] = {{name}}.map((e) => base64Encode(e)).toList();
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{! A container of temporal/uuid/duration leaves holds Dart objects
+    (DateTime/UuidValue/Duration) that jsonEncode cannot serialise, so each
+    leaf must be projected to its wire form here — mirroring the scalar path
+    above and the deserialize_arg leaf branches — instead of dumping the raw
+    list. A `date` (format:date) leaf is already a String so it passes through
+    via the plain toList(). }}
+{{#isDateTime}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => formatDateTimeOffset(e)));
+{{/isDateTime}}
+{{#isUuid}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => e.toString()));
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => formatProtobufDuration(e)));
+{{/vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => decimalText(e)));
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}});
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => e.toJson()));
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isByteArray}}
+    json['{{baseName}}'] = base64Encode({{name}});
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isMap}}
+{{! A map whose VALUES are temporal/uuid/duration/byte leaves holds Dart objects
+    that jsonEncode cannot serialise, so each value is projected to its wire
+    form here — mirroring the scalar/array paths and the deserialize_arg leaf
+    branches. A `date` (format:date) value is already a String, and any other
+    leaf passes through, via the plain assignment. }}
+{{#items.isByteArray}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, base64Encode(v)));
+{{/items.isByteArray}}
+{{#items.isDateTime}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
+{{/items.isDateTime}}
+{{#items.isUuid}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, v.toString()));
+{{/items.isUuid}}
+{{#items.vendorExtensions.isDuration}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
+{{/items.vendorExtensions.isDuration}}
+{{#items.vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, decimalText(v)));
+{{/items.vendorExtensions.isDecimalString}}
+{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}{{^items.vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = {{name}};
+{{/items.vendorExtensions.isDecimalString}}{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
+{{/isMap}}
+{{^isMap}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+    json['{{baseName}}'] = formatDateTimeOffset({{name}});
+{{/isDateTime}}
+{{#isDate}}
+    json['{{baseName}}'] = stringifyDate({{name}});
+{{/isDate}}
+{{#isUuid}}
+    json['{{baseName}}'] = {{name}}.toString();
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+    json['{{baseName}}'] = formatProtobufDuration({{name}});
+{{/vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = decimalText({{name}});
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
+    json['{{baseName}}'] = {{name}};
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+    json['{{baseName}}'] = {{name}}.toJson();
+{{/isPrimitiveType}}
+{{/isMap}}
+{{/isByteArray}}
+{{/isArray}}
+{{/isEnum}}
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+{{#vendorExtensions.requiredNullable}}
+    if ({{name}} == null) {
+      json['{{baseName}}'] = null;
+    }
+{{/vendorExtensions.requiredNullable}}
+    if ({{name}} != null) {
+{{#isEnum}}
+      json['{{baseName}}'] = {{name}}?.toJson();
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+      json['{{baseName}}'] = {{name}}?.map((e) => base64Encode(e)).toList();
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{! Optional counterpart of the required array branch: a container of
+    temporal/uuid/duration leaves holds Dart objects jsonEncode cannot encode,
+    so each leaf is projected to its wire form. A `date` leaf is already a
+    String and passes through the plain toList(). }}
+{{#isDateTime}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => formatDateTimeOffset(e)));
+{{/isDateTime}}
+{{#isUuid}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => e.toString()));
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => formatProtobufDuration(e)));
+{{/vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => decimalText(e)));
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}});
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => e.toJson()));
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isByteArray}}
+      json['{{baseName}}'] = base64Encode({{name}}!);
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isMap}}
+{{! Optional counterpart of the required map branch: a map whose VALUES are
+    temporal/uuid/duration/byte leaves holds Dart objects jsonEncode cannot
+    encode, so each value is projected to its wire form. A `date` value is
+    already a String, and any other leaf passes through, via the plain
+    assignment. }}
+{{#items.isByteArray}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, base64Encode(v)));
+{{/items.isByteArray}}
+{{#items.isDateTime}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
+{{/items.isDateTime}}
+{{#items.isUuid}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, v.toString()));
+{{/items.isUuid}}
+{{#items.vendorExtensions.isDuration}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
+{{/items.vendorExtensions.isDuration}}
+{{#items.vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, decimalText(v)));
+{{/items.vendorExtensions.isDecimalString}}
+{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}{{^items.vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = {{name}};
+{{/items.vendorExtensions.isDecimalString}}{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
+{{/isMap}}
+{{^isMap}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+      json['{{baseName}}'] = formatDateTimeOffset({{name}}!);
+{{/isDateTime}}
+{{#isDate}}
+      json['{{baseName}}'] = {{name}};
+{{/isDate}}
+{{#isUuid}}
+      json['{{baseName}}'] = {{name}}?.toString();
+{{/isUuid}}
+{{#vendorExtensions.isDuration}}
+      json['{{baseName}}'] = formatProtobufDuration({{name}}!);
+{{/vendorExtensions.isDuration}}
+{{#vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = {{name}} == null ? null : decimalText({{name}}!);
+{{/vendorExtensions.isDecimalString}}
+{{^isDateTime}}{{^isDate}}{{^isUuid}}{{^vendorExtensions.isDuration}}{{^vendorExtensions.isDecimalString}}
+      json['{{baseName}}'] = {{name}};
+{{/vendorExtensions.isDecimalString}}{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+      json['{{baseName}}'] = {{name}}?.toJson();
+{{/isPrimitiveType}}
+{{/isMap}}
+{{/isByteArray}}
+{{/isArray}}
+{{/isEnum}}
+    }
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    /* A declared property is authoritative: an additionalProperties entry
+     * whose key equals a declared wire name is dropped, so no key is written
+     * twice and the typed value wins. */
+    for (final entry in additionalProperties.entries) {
+      json.putIfAbsent(entry.key, () => {{#vendorExtensions.additionalPropertiesValue}}{{#isByteArray}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}base64Encode(entry.value{{#isNullable}}!{{/isNullable}}){{/isByteArray}}{{#isDateTime}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}formatDateTimeOffset(entry.value{{#isNullable}}!{{/isNullable}}){{/isDateTime}}{{#isUuid}}{{#isNullable}}entry.value == null ? null : {{/isNullable}}entry.value{{#isNullable}}!{{/isNullable}}.toString(){{/isUuid}}{{^isByteArray}}{{^isDateTime}}{{^isUuid}}entry.value{{/isUuid}}{{/isDateTime}}{{/isByteArray}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}entry.value{{/vendorExtensions.additionalPropertiesValue}});
+    }
+{{/isAdditionalPropertiesTrue}}
+    return json;
+  }
+
+{{^vendorExtensions.dartAllOfBase}}
+{{#hasVars}}
+  /// Returns a copy of this [{{classname}}] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  {{classname}} copyWith({
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+    {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+    Object? {{name}} = copyUnset,
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}>? additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+  }) {
+    return {{classname}}(
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+      {{name}}: {{name}} ?? this.{{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+      {{name}}: copyField<{{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+      additionalProperties: additionalProperties ?? this.additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+    );
+  }
+
+{{/hasVars}}
+{{^hasVars}}
+{{#isAdditionalPropertiesTrue}}
+  /// Returns a copy of this [{{classname}}] with the given fields replaced.
+  ///
+  /// The model is immutable: a field that is left out keeps its current value
+  /// and this instance never changes. A nullable field is set to `null` by
+  /// passing `null` explicitly.
+  {{classname}} copyWith({
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+    {{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? {{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+    Object? {{name}} = copyUnset,
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}>? additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+  }) {
+    return {{classname}}(
+{{#vars}}
+{{#vendorExtensions.strictRequired}}
+      {{name}}: {{name}} ?? this.{{name}},
+{{/vendorExtensions.strictRequired}}
+{{^vendorExtensions.strictRequired}}
+      {{name}}: copyField<{{#isEnum}}{{vendorExtensions.dartOwner}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>({{name}}, this.{{name}}),
+{{/vendorExtensions.strictRequired}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+      additionalProperties: additionalProperties ?? this.additionalProperties,
+{{/isAdditionalPropertiesTrue}}
+    );
+  }
+
+{{/isAdditionalPropertiesTrue}}
+{{/hasVars}}
+{{/vendorExtensions.dartAllOfBase}}
+  /// Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including the
+  /// additionalProperties map){{/isAdditionalPropertiesTrue}}. List, Map and Uint8List
+  /// fields are compared element-wise via `DeepCollectionEquality` (Dart's
+  /// built-in `==` on those is identity), so two instances decoded from
+  /// identical JSON are equal and usable as Set/Map keys.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}}{{#vars}} &&
+        {{#isArray}}const DeepCollectionEquality().equals({{name}}, other.{{name}}){{/isArray}}{{^isArray}}{{#isMap}}const DeepCollectionEquality().equals({{name}}, other.{{name}}){{/isMap}}{{^isMap}}{{#isByteArray}}const DeepCollectionEquality().equals({{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}{{name}} == other.{{name}}{{/isByteArray}}{{/isMap}}{{/isArray}}{{/vars}}{{#isAdditionalPropertiesTrue}} &&
+        const DeepCollectionEquality().equals(additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
+  }
+
+  /// hashCode emits Object.hashAll which accepts an arbitrary-length
+  /// Iterable (Object.hash requires 2+ positional args, so it can't
+  /// represent the 0-var or 1-var cases without special-casing). Collection
+  /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
+  /// so equal instances hash equally.
+  @override
+  int get hashCode => Object.hashAll([{{#vars}}{{#isArray}}const DeepCollectionEquality().hash({{name}}){{/isArray}}{{^isArray}}{{#isMap}}const DeepCollectionEquality().hash({{name}}){{/isMap}}{{^isMap}}{{#isByteArray}}const DeepCollectionEquality().hash({{name}}){{/isByteArray}}{{^isByteArray}}{{name}}{{/isByteArray}}{{/isMap}}{{/isArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}const DeepCollectionEquality().hash(additionalProperties){{/isAdditionalPropertiesTrue}}]);
+
+  /// Dumps every field{{#isAdditionalPropertiesTrue}} and the additionalProperties map{{/isAdditionalPropertiesTrue}}; lists, maps
+  /// and byte data render element-wise through Dart's own container output.
+  /// A `format: password` property prints as `***`; the value on the wire is
+  /// unchanged.
+  @override
+  String toString() => '{{classname}}({{#vars}}{{name}}: {{#isPassword}}***{{/isPassword}}{{^isPassword}}${{{name}}}{{/isPassword}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: $additionalProperties{{/isAdditionalPropertiesTrue}})';
+}
+{{/isPrimitiveAnyOf}}
+{{/isPrimitiveOneOf}}
+{{#isPrimitiveOneOf}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf) of primitive/array variants.
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  /// The decoded payload. For a `string`/`byte` variant this is a
+  /// [Uint8List]; for an array variant a [List]; for an object variant the
+  /// generated model instance. Never null once constructed from the wire.
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Wraps an already-decoded value. The value must match one of the
+  /// declared oneOf variants; it is re-encoded verbatim by [toJson].
+  const {{classname}}(Object? actualInstance) : _value = actualInstance;
+
+  /// Returns the resolved variant of the union.
+  Object? get actualInstance => _value;
+
+{{#composedSchemas}}
+{{#oneOf}}
+{{>union_variant}}
+{{/oneOf}}
+{{/composedSchemas}}
+
+  /// Converts this union type back to its JSON wire value.
+  Object? toJson() => _encodeValue(_value);
+
+  /// Creates a [{{classname}}] from a decoded JSON value.
+  ///
+  /// Accepts a base64 [String] for a `byte` variant, a [List] for an array
+  /// variant, or a `Map<String, dynamic>` for an object variant.
+  factory {{classname}}.fromJson(Object? json) {
+{{#composedSchemas}}
+{{#oneOf}}
+    try {
+      return {{classname}}._(
+{{#isByteArray}}
+        decodeBase64(json as String),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+        (json as List).map((e) => decodeBase64(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+        (json as List).map((e) => e as {{{dataType}}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as List).map((e) => {{{dataType}}}.fromJson(e as Map<String, dynamic>)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+{{#items}}
+{{#isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, v as {{{dataType}}})),
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, {{{dataType}}}.fromJson(v as Map<String, dynamic>))),
+{{/isPrimitiveType}}
+{{/items}}
+{{/isMap}}
+{{^isMap}}
+{{#isPrimitiveType}}
+        json as {{{dataType}}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        {{{dataType}}}.fromJson(json as Map<String, dynamic>),
+{{/isPrimitiveType}}
+{{/isMap}}
+{{/isArray}}
+{{/isByteArray}}
+      );
+    } catch (_) {}
+{{/oneOf}}
+{{/composedSchemas}}
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape. Throw a SerializationException rather than
+       returning a silently-empty union that drops the payload. */
+    throw SerializationException('Data does not match any oneOf schemas for {{classname}}');
+  }
+
+  /// Re-encodes a decoded value to its JSON wire form. Byte values are
+  /// base64-encoded; generated models delegate to their own toJson; plain
+  /// JSON primitives/maps pass through unchanged.
+  static Object? _encodeValue(Object? v) {
+    if (v == null) return null;
+    if (v is Uint8List) return base64Encode(v);
+    if (v is List) return v.map(_encodeValue).toList();
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  /// Value-equality on the decoded payload. The wrapped value may be a
+  /// [Uint8List] (byte variant) or a [List] (array variant), whose built-in
+  /// `==` is identity — so two unions decoded from identical wire bytes would
+  /// otherwise compare unequal. `DeepCollectionEquality` compares those
+  /// element-wise (and falls back to `==` for scalar/object variants), so
+  /// equal payloads compare equal and hash equally.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} &&
+        const DeepCollectionEquality().equals(_value, other._value);
+  }
+
+  @override
+  int get hashCode => const DeepCollectionEquality().hash(_value);
+
+  @override
+  String toString() => '{{classname}}($_value)';
+}
+{{/isPrimitiveOneOf}}
+{{#isPrimitiveAnyOf}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf) of primitive/array variants.
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  /// The decoded payload. For a `string`/`byte` variant this is a
+  /// [Uint8List]; for an array variant a [List]; for an object variant the
+  /// generated model instance. Never null once constructed from the wire.
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Wraps an already-decoded value. The value must match one of the
+  /// declared anyOf variants; it is re-encoded verbatim by [toJson].
+  const {{classname}}(Object? actualInstance) : _value = actualInstance;
+
+  /// Returns the resolved variant of the union.
+  Object? get actualInstance => _value;
+
+{{#composedSchemas}}
+{{#anyOf}}
+{{>union_variant}}
+{{/anyOf}}
+{{/composedSchemas}}
+
+  /// Converts this union type back to its JSON wire value.
+  Object? toJson() => _encodeValue(_value);
+
+  /// Creates a [{{classname}}] from a decoded JSON value.
+  ///
+  /// Accepts a base64 [String] for a `byte` variant, a [List] for an array
+  /// variant, or a `Map<String, dynamic>` for an object variant.
+  factory {{classname}}.fromJson(Object? json) {
+{{#composedSchemas}}
+{{#anyOf}}
+    try {
+      return {{classname}}._(
+{{#isByteArray}}
+        decodeBase64(json as String),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+        (json as List).map((e) => decodeBase64(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+        (json as List).map((e) => e as {{{dataType}}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as List).map((e) => {{{dataType}}}.fromJson(e as Map<String, dynamic>)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+{{#items}}
+{{#isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, v as {{{dataType}}})),
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, {{{dataType}}}.fromJson(v as Map<String, dynamic>))),
+{{/isPrimitiveType}}
+{{/items}}
+{{/isMap}}
+{{^isMap}}
+{{#isPrimitiveType}}
+        json as {{{dataType}}},
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        {{{dataType}}}.fromJson(json as Map<String, dynamic>),
+{{/isPrimitiveType}}
+{{/isMap}}
+{{/isArray}}
+{{/isByteArray}}
+      );
+    } catch (_) {}
+{{/anyOf}}
+{{/composedSchemas}}
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape — surface a SerializationException rather than
+       a silently-empty union that drops the payload. */
+    throw SerializationException('Data does not match any anyOf schemas for {{classname}}');
+  }
+
+  /// Re-encodes a decoded value to its JSON wire form. Byte values are
+  /// base64-encoded; generated models delegate to their own toJson; plain
+  /// JSON primitives/maps pass through unchanged.
+  static Object? _encodeValue(Object? v) {
+    if (v == null) return null;
+    if (v is Uint8List) return base64Encode(v);
+    if (v is List) return v.map(_encodeValue).toList();
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  /// Value-equality on the decoded payload. The wrapped value may be a
+  /// [Uint8List] (byte variant) or a [List] (array variant), whose built-in
+  /// `==` is identity — so two unions decoded from identical wire bytes would
+  /// otherwise compare unequal. `DeepCollectionEquality` compares those
+  /// element-wise (and falls back to `==` for scalar/object variants), so
+  /// equal payloads compare equal and hash equally.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} &&
+        const DeepCollectionEquality().equals(_value, other._value);
+  }
+
+  @override
+  int get hashCode => const DeepCollectionEquality().hash(_value);
+
+  @override
+  String toString() => '{{classname}}($_value)';
+}
+{{/isPrimitiveAnyOf}}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Wraps a variant value, so a oneOf body can be built in code and not
+  /// only decoded from JSON.
+  const {{classname}}(Object? actualInstance) : _value = actualInstance;
+
+  /// Returns the resolved variant of the union.
+  Object? get actualInstance => _value;
+
+{{#composedSchemas}}
+{{#oneOf}}
+{{>union_variant}}
+{{/oneOf}}
+{{/composedSchemas}}
+
+  /// Converts this union type to a JSON value. A held value that is not one
+  /// of the variants fails with a [SerializationException] naming the union.
+  Object? toJson() {
+    final v = _value;
+    if (v == null) return null;
+    if (v is Map) return v;
+    if (!({{#composedSchemas}}{{#oneOf}}v is {{{dataType}}} || {{/oneOf}}{{/composedSchemas}}false)) {
+      throw SerializationException(
+        'Cannot serialize {{classname}}: ${v.runtimeType} is not a variant of {{classname}}',
+      );
+    }
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  /// Creates a [{{classname}}] from a JSON value.
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+{{#discriminator}}
+    final disc = json['{{propertyBaseName}}'];
+{{^vendorExtensions.discriminatorDefault}}
+    if (disc == null) {
+      throw SerializationException(
+          "Missing discriminator property '{{propertyBaseName}}' in payload for {{classname}}");
+    }
+{{/vendorExtensions.discriminatorDefault}}
+    switch (disc) {
+{{#mappedModels}}
+      case '{{{mappingName}}}':
+        return {{classname}}._({{{modelName}}}.fromJson(json));
+{{/mappedModels}}
+{{#vendorExtensions.discriminatorDefault}}
+      default:
+        /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+        return {{classname}}._({{vendorExtensions.discriminatorDefault}}.fromJson(json));
+    }
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
+      default:
+        /* 4.7 — discriminator value not in the listed mappings.
+           Throw a SerializationException instead of falling through, so
+           callers can distinguish wire-shape failures from generic
+           argument errors. */
+        throw SerializationException(
+            'Unknown discriminator value for {{classname}}: $disc');
+    }
+{{/vendorExtensions.discriminatorDefault}}
+{{/discriminator}}
+{{^discriminator}}
+{{#composedSchemas}}
+{{#oneOf}}
+    try {
+      return {{classname}}._({{{dataType}}}.fromJson(json));
+    } catch (_) {}
+{{/oneOf}}
+{{/composedSchemas}}
+    /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+       matched the wire shape. Throw a SerializationException (the same family
+       as the discriminator no-match above) so the caller sees a wire-shape
+       failure instead of a silently-empty union. */
+    throw SerializationException('Data does not match any oneOf schemas for {{classname}}');
+{{/discriminator}}
+  }
+
+  /// Value equality on the held variant, element-wise for lists and bytes, so
+  /// two unions decoded from identical JSON are equal and hash equally.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} &&
+        const DeepCollectionEquality().equals(_value, other._value);
+  }
+
+  @override
+  int get hashCode => const DeepCollectionEquality().hash(_value);
+
+  @override
+  String toString() => '{{classname}}($_value)';
+}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  /* anyOf is NOT exclusive: a wire payload may satisfy several variants at
+     once (e.g. a body carrying both Medication and Surgery fields). Retaining
+     only the first match would silently drop the co-satisfied variants' data
+     and lose it on re-encode. We therefore keep EVERY variant that decodes
+     successfully and merge their field-sets on toJson, so the round-trip is
+     lossless. */
+  final List<Object?> _values;
+
+  const {{classname}}._(this._values);
+
+  /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
+  /// the multi-instance constructors the other SDKs expose (e.g. Java's
+  /// `List<Object>` form) so a co-satisfying value can be built in code, not
+  /// only decoded.
+  factory {{classname}}.ofValues(List<Object?> values) = {{classname}}._;
+
+  /// Returns the first decoded variant, for single-variant callers. Use
+  /// [matchedInstances] or [valueOf] to reach every retained variant.
+  Object? get actualInstance => _values.isEmpty ? null : _values.first;
+
+{{#composedSchemas}}
+{{#anyOf}}
+{{>union_variant_values}}
+{{/anyOf}}
+{{/composedSchemas}}
+
+  /// Returns every variant that successfully decoded from the wire payload.
+  /// For a co-satisfied anyOf this holds more than one element.
+  List<Object?> get matchedInstances => List.unmodifiable(_values);
+
+  /// Returns the retained variant of type [T], or null if no decoded variant
+  /// is a [T]. Lets callers reach a specific variant in a multi-match union.
+  T? valueOf<T>() {
+    for (final v in _values) {
+      if (v is T) return v;
+    }
+    return null;
+  }
+
+  /// Converts this union type to a JSON value, merging the field-sets of all
+  /// retained variants so co-satisfied data round-trips without loss. A lone
+  /// non-map variant is emitted verbatim.
+  Object? toJson() {
+    if (_values.isEmpty) return null;
+    if (_values.length == 1) {
+      final v = _values.first;
+      if (v == null) return null;
+      if (v is Map) return v;
+      try {
+        return (v as dynamic).toJson();
+      } catch (_) {
+        return v;
+      }
+    }
+    final merged = <String, dynamic>{};
+    for (final v in _values) {
+      if (v == null) continue;
+      Object? encoded;
+      if (v is Map) {
+        encoded = v;
+      } else {
+        try {
+          encoded = (v as dynamic).toJson();
+        } catch (_) {
+          encoded = v;
+        }
+      }
+      if (encoded is Map) {
+        encoded.forEach((key, dynamic val) => merged[key as String] = val);
+      }
+    }
+    return merged;
+  }
+
+  /// Creates a [{{classname}}] from a JSON value, retaining every variant
+  /// that decodes so a payload satisfying several variants keeps all data.
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+    final decoded = <Object?>[];
+{{#composedSchemas}}
+{{#anyOf}}
+    try {
+      decoded.add({{{dataType}}}.fromJson(json));
+    } catch (_) {}
+{{/anyOf}}
+{{/composedSchemas}}
+    if (decoded.isEmpty) {
+      /* Cross-cutting `oneof-nondiscriminator-no-match-silent`: no variant
+         matched the wire shape — surface a SerializationException rather than
+         a silently-empty union. */
+      throw SerializationException('Data does not match any anyOf schemas for {{classname}}');
+    }
+    return {{classname}}._(decoded);
+  }
+
+  /// Value equality on the retained variants, compared in order, so two unions
+  /// decoded from identical JSON are equal and hash equally.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}} &&
+        const DeepCollectionEquality().equals(_values, other._values);
+  }
+
+  @override
+  int get hashCode => const DeepCollectionEquality().hash(_values);
+
+  @override
+  String toString() => '{{classname}}($_values)';
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

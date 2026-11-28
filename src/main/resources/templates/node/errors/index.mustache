@@ -1,0 +1,38 @@
+{{>api_info}}
+
+export { {{errorPrefix}}Error } from './{{errorPrefixKebab}}-error{{importFileExtension}}';
+export { ApiError } from './api-error{{importFileExtension}}';
+export type { ApiErrorOptions, ErrorSchemaFactory, ErrorSchemas, StatusErrorFactory } from './api-error{{importFileExtension}}';
+export { ClientError } from './client-error{{importFileExtension}}';
+export { ServerError } from './server-error{{importFileExtension}}';
+export { BadRequestError } from './bad-request-error{{importFileExtension}}';
+export { UnauthorizedError } from './unauthorized-error{{importFileExtension}}';
+export { ForbiddenError } from './forbidden-error{{importFileExtension}}';
+export { NotFoundError } from './not-found-error{{importFileExtension}}';
+export { ConflictError } from './conflict-error{{importFileExtension}}';
+export { PaymentRequiredError } from './payment-required-error{{importFileExtension}}';
+export { MethodNotAllowedError } from './method-not-allowed-error{{importFileExtension}}';
+export { RequestTimeoutError } from './request-timeout-error{{importFileExtension}}';
+export { GoneError } from './gone-error{{importFileExtension}}';
+export { PayloadTooLargeError } from './payload-too-large-error{{importFileExtension}}';
+export { UnsupportedMediaTypeError } from './unsupported-media-type-error{{importFileExtension}}';
+export { LockedError } from './locked-error{{importFileExtension}}';
+export { NotImplementedError } from './not-implemented-error{{importFileExtension}}';
+export { BadGatewayError } from './bad-gateway-error{{importFileExtension}}';
+export { ServiceUnavailableError } from './service-unavailable-error{{importFileExtension}}';
+export { GatewayTimeoutError } from './gateway-timeout-error{{importFileExtension}}';
+export { UnprocessableEntityError } from './unprocessable-entity-error{{importFileExtension}}';
+export { TooManyRequestsError } from './too-many-requests-error{{importFileExtension}}';
+export { InternalServerError } from './internal-server-error{{importFileExtension}}';
+export { NetworkError } from './network-error{{importFileExtension}}';
+export { NetworkTimeoutError } from './network-timeout-error{{importFileExtension}}';
+export { StreamError } from './stream-error{{importFileExtension}}';
+export { ResponseTooLargeError } from './response-too-large-error{{importFileExtension}}';
+export { PaginationError } from './pagination-error{{importFileExtension}}';
+export { SerializationError } from './serialization-error{{importFileExtension}}';
+export type { SerializationErrorResponse } from './serialization-error{{importFileExtension}}';
+export { OAuth2ServerError } from './oauth2-server-error{{importFileExtension}}';
+export { OAuth2TokenError } from './oauth2-token-error{{importFileExtension}}';
+{{#errorSchemas}}
+export { {{className}} } from './{{classFileName}}{{importFileExtension}}';
+{{/errorSchemas}}

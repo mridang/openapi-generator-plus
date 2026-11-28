@@ -1,0 +1,13 @@
+{{>api_info}}
+
+from dataclasses import dataclass
+from typing import Dict
+
+
+@dataclass(frozen=True)
+class ApiHttpResponse:
+    """Represents an HTTP API response."""
+
+    status_code: int
+    body: str
+    headers: Dict[str, str]

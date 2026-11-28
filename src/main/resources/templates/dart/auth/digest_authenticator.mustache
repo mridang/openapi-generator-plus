@@ -1,0 +1,454 @@
+{{>api_info}}
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import '../environment.dart';
+import 'base_authenticator.dart';
+
+/// DigestAuthenticator provides HTTP Digest authentication (RFC 7616).
+///
+/// Nothing is sent until the server answers 401 with a
+/// `WWW-Authenticate: Digest` challenge; the SDK then hands the challenge to
+/// [acceptChallenge] and replays the request once with the answer. Later
+/// requests answer the remembered challenge up front, with the nonce count
+/// incremented. MD5, MD5-sess, SHA-256 and SHA-256-sess are answered, with
+/// `qop=auth` or without qop; a challenge that offers only `auth-int` or names
+/// another algorithm is not.
+///
+/// The credentials come from the explicit [username] and [password] arguments,
+/// then the environment variables named by [usernameVariable] and
+/// [passwordVariable]. Credentials that are found nowhere fail the
+/// constructor, so a client is never built without them.
+class DigestAuthenticator extends BaseAuthenticator {
+  /// The environment variable read for the user name when no credential is
+  /// given and no [usernameVariable] names another one.
+  static const String defaultUsernameVariable = '{{envVarPrefix}}_USERNAME';
+
+  /// The environment variable read for the password when no credential is
+  /// given and no [passwordVariable] names another one.
+  static const String defaultPasswordVariable = '{{envVarPrefix}}_PASSWORD';
+
+  static const Set<String> _algorithms = {
+    'MD5',
+    'MD5-SESS',
+    'SHA-256',
+    'SHA-256-SESS',
+  };
+
+  final String _host;
+  final String _username;
+  final String _password;
+  _Challenge? _challenge;
+  int _nonceCount = 0;
+
+  /// Draws the client nonce of each answer: 16 random bytes as 32 lower-case
+  /// hex digits. Internal: a test replaces it to fix the nonce.
+  String Function() cnonceSource = _randomCnonce;
+
+  /// Creates a new Digest authenticator.
+  ///
+  /// The credentials are validated here: an empty username, a line break or
+  /// NUL in either credential, or a double quote in the username throws an
+  /// [ArgumentError]. The variables are read once, here, and an empty value
+  /// counts as unset. [environment] replaces the process environment, for the
+  /// browser or for tests.
+  DigestAuthenticator({
+    required String host,
+    String? username,
+    String? password,
+    String? usernameVariable,
+    String? passwordVariable,
+    Map<String, String>? environment,
+  }) : this._(
+          host,
+          _resolve(
+            username,
+            password,
+            usernameVariable ?? defaultUsernameVariable,
+            passwordVariable ?? defaultPasswordVariable,
+            environment,
+          ),
+        );
+
+  DigestAuthenticator._(this._host, (String, String) credentials)
+      : _username = credentials.$1,
+        _password = credentials.$2 {
+    /* The errors carry a message only, never the credential. */
+    if (_username.isEmpty) {
+      throw ArgumentError('Digest username must not be empty');
+    }
+    bool breaks(String value) =>
+        value.codeUnits.any((c) => c == 0x0D || c == 0x0A || c == 0x00);
+    if (breaks(_username) || breaks(_password)) {
+      throw ArgumentError(
+          'Digest credentials must not contain a line break or NUL');
+    }
+    if (_username.contains('"')) {
+      throw ArgumentError('Digest username must not contain a double quote');
+    }
+  }
+
+  static (String, String) _resolve(
+    String? username,
+    String? password,
+    String usernameVariable,
+    String passwordVariable,
+    Map<String, String>? environment,
+  ) {
+    final user =
+        username ?? readEnvironmentVariable(usernameVariable, environment);
+    final pass =
+        password ?? readEnvironmentVariable(passwordVariable, environment);
+    if (user == null || pass == null) {
+      throw ArgumentError(
+        'Digest auth credentials are required: pass username and password, '
+        'or set the $usernameVariable and $passwordVariable environment '
+        'variables',
+      );
+    }
+    return (user, pass);
+  }
+
+  @override
+  String host() => _host;
+
+  /// A digest credential is never sent as a plain header: the SDK asks
+  /// [authorization] for each request instead.
+  @override
+  Map<String, String> authHeaders() => const {};
+
+  /// The `Authorization` value answering the remembered challenge for one
+  /// request, or null before any challenge was accepted. Each answer counts
+  /// the nonce up by one and draws a fresh client nonce.
+  String? authorization(String method, String requestTarget) {
+    final challenge = _challenge;
+    if (challenge == null) {
+      return null;
+    }
+    _nonceCount++;
+    final nc = _nonceCount.toRadixString(16).padLeft(8, '0');
+    final name = (challenge.algorithm ?? 'MD5').toUpperCase();
+    final hash = name.startsWith('SHA-256') ? _sha256Hex : _md5Hex;
+    final cnonce = cnonceSource();
+    var first = hash('$_username:${challenge.realm}:$_password');
+    if (name.endsWith('-SESS')) {
+      first = hash('$first:${challenge.nonce}:$cnonce');
+    }
+    final second = hash('${method.toUpperCase()}:$requestTarget');
+    final response = challenge.qop
+        ? hash('$first:${challenge.nonce}:$nc:$cnonce:auth:$second')
+        : hash('$first:${challenge.nonce}:$second');
+    final algorithm = challenge.algorithm;
+    final opaque = challenge.opaque;
+    final fields = [
+      'username=${_quoted(_username)}',
+      'realm=${_quoted(challenge.realm)}',
+      'nonce=${_quoted(challenge.nonce)}',
+      'uri=${_quoted(requestTarget)}',
+      if (algorithm != null) 'algorithm=$algorithm',
+      'response=${_quoted(response)}',
+      if (challenge.qop) ...['qop=auth', 'nc=$nc', 'cnonce=${_quoted(cnonce)}'],
+      if (opaque != null) 'opaque=${_quoted(opaque)}',
+    ];
+    return 'Digest ${fields.join(', ')}';
+  }
+
+  /// Reads every Digest challenge of a `WWW-Authenticate` value (several
+  /// header lines joined with a comma) and remembers the first one this
+  /// authenticator can answer, resetting the nonce count. Returns whether a
+  /// challenge was accepted.
+  bool acceptChallenge(String wwwAuthenticate) {
+    for (final (scheme, params) in _parseChallenges(wwwAuthenticate)) {
+      if (scheme.toLowerCase() != 'digest' || !_acceptable(params)) {
+        continue;
+      }
+      _challenge = _Challenge(
+        realm: params['realm'] ?? '',
+        nonce: params['nonce'] ?? '',
+        opaque: params['opaque'],
+        algorithm: params['algorithm'],
+        qop: params.containsKey('qop'),
+      );
+      _nonceCount = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /// Redacts the password so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, username: $_username, password: ***)';
+
+  static bool _acceptable(Map<String, String> params) {
+    final algorithm = params['algorithm'];
+    if (algorithm != null && !_algorithms.contains(algorithm.toUpperCase())) {
+      return false;
+    }
+    final qop = params['qop'];
+    return qop == null ||
+        qop.split(',').any((option) => option.trim().toLowerCase() == 'auth');
+  }
+
+  static String _quoted(String value) =>
+      '"${value.replaceAllMapped(RegExp(r'[\\"]'), (m) => '\\${m[0]}')}"';
+
+  static final RegExp _token = RegExp(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+");
+
+  /* The challenges of a header value as (scheme, params) pairs, in order;
+   * parameter names are lower-cased and quoted values unescaped. */
+  static List<(String, Map<String, String>)> _parseChallenges(String text) {
+    final challenges = <(String, Map<String, String>)>[];
+    var i = 0;
+    while (i < text.length) {
+      final char = text[i];
+      if (char == ' ' || char == '\t' || char == ',') {
+        i++;
+        continue;
+      }
+      final token = _token.matchAsPrefix(text, i);
+      if (token == null) {
+        i++;
+        continue;
+      }
+      i = token.end;
+      var j = i;
+      while (j < text.length && (text[j] == ' ' || text[j] == '\t')) {
+        j++;
+      }
+      if (j >= text.length || text[j] != '=') {
+        challenges.add((token[0]!, <String, String>{}));
+        continue;
+      }
+      j++;
+      while (j < text.length && (text[j] == ' ' || text[j] == '\t')) {
+        j++;
+      }
+      final value = StringBuffer();
+      if (j < text.length && text[j] == '"') {
+        j++;
+        while (j < text.length && text[j] != '"') {
+          if (text[j] == r'\' && j + 1 < text.length) {
+            j++;
+          }
+          value.write(text[j]);
+          j++;
+        }
+        j++;
+      } else {
+        final bare = _token.matchAsPrefix(text, j);
+        if (bare != null) {
+          value.write(bare[0]);
+          j = bare.end;
+        }
+      }
+      if (challenges.isNotEmpty) {
+        challenges.last.$2[token[0]!.toLowerCase()] = value.toString();
+      }
+      i = j;
+    }
+    return challenges;
+  }
+
+  static String _randomCnonce() {
+    final random = Random.secure();
+    return _hex(List<int>.generate(16, (_) => random.nextInt(256)));
+  }
+
+  static String _hex(List<int> bytes) =>
+      bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+  /* MD5 (RFC 1321) and SHA-256 (FIPS 180-4) in plain Dart, so the SDK needs
+   * no native binary and no extra package. Every addition is masked back to
+   * 32 bits, which keeps them correct on the web where an int is a double. */
+  static const int _mask = 0xFFFFFFFF;
+
+  static const List<int> _md5Shifts = <int>[
+    7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+    5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+    4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+    6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
+  ];
+
+  static final List<int> _md5Constants = List<int>.generate(
+      64, (i) => (sin(i + 1).abs() * 4294967296).floor() & _mask);
+
+  static String _md5Hex(String text) {
+    final message = utf8.encode(text);
+    final data = _padded(message, bigEndian: false);
+    var a0 = 0x67452301;
+    var b0 = 0xefcdab89;
+    var c0 = 0x98badcfe;
+    var d0 = 0x10325476;
+    final m = List<int>.filled(16, 0);
+    for (var offset = 0; offset < data.length; offset += 64) {
+      for (var i = 0; i < 16; i++) {
+        final j = offset + i * 4;
+        m[i] = (data[j] |
+                (data[j + 1] << 8) |
+                (data[j + 2] << 16) |
+                (data[j + 3] << 24)) &
+            _mask;
+      }
+      var a = a0;
+      var b = b0;
+      var c = c0;
+      var d = d0;
+      for (var i = 0; i < 64; i++) {
+        int f;
+        int g;
+        if (i < 16) {
+          f = (b & c) | ((~b & _mask) & d);
+          g = i;
+        } else if (i < 32) {
+          f = (d & b) | ((~d & _mask) & c);
+          g = (5 * i + 1) % 16;
+        } else if (i < 48) {
+          f = b ^ c ^ d;
+          g = (3 * i + 5) % 16;
+        } else {
+          f = c ^ (b | (~d & _mask));
+          g = (7 * i) % 16;
+        }
+        f = (f + a + _md5Constants[i] + m[g]) & _mask;
+        a = d;
+        d = c;
+        c = b;
+        b = (b + _rotl(f, _md5Shifts[i])) & _mask;
+      }
+      a0 = (a0 + a) & _mask;
+      b0 = (b0 + b) & _mask;
+      c0 = (c0 + c) & _mask;
+      d0 = (d0 + d) & _mask;
+    }
+    final out = <int>[];
+    for (final word in [a0, b0, c0, d0]) {
+      for (var shift = 0; shift < 32; shift += 8) {
+        out.add((word >> shift) & 0xFF);
+      }
+    }
+    return _hex(out);
+  }
+
+  static const List<int> _sha256Constants = <int>[
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+    0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+    0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+    0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+    0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+    0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ];
+
+  static String _sha256Hex(String text) {
+    final data = _padded(utf8.encode(text), bigEndian: true);
+    final h = <int>[
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+    ];
+    final w = List<int>.filled(64, 0);
+    for (var offset = 0; offset < data.length; offset += 64) {
+      for (var i = 0; i < 16; i++) {
+        final j = offset + i * 4;
+        w[i] = ((data[j] << 24) |
+                (data[j + 1] << 16) |
+                (data[j + 2] << 8) |
+                data[j + 3]) &
+            _mask;
+      }
+      for (var i = 16; i < 64; i++) {
+        final s0 = _rotr(w[i - 15], 7) ^ _rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
+        final s1 = _rotr(w[i - 2], 17) ^ _rotr(w[i - 2], 19) ^ (w[i - 2] >> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) & _mask;
+      }
+      var a = h[0];
+      var b = h[1];
+      var c = h[2];
+      var d = h[3];
+      var e = h[4];
+      var f = h[5];
+      var g = h[6];
+      var hh = h[7];
+      for (var i = 0; i < 64; i++) {
+        final s1 = _rotr(e, 6) ^ _rotr(e, 11) ^ _rotr(e, 25);
+        final ch = (e & f) ^ ((~e & _mask) & g);
+        final t1 = (hh + s1 + ch + _sha256Constants[i] + w[i]) & _mask;
+        final s0 = _rotr(a, 2) ^ _rotr(a, 13) ^ _rotr(a, 22);
+        final maj = (a & b) ^ (a & c) ^ (b & c);
+        final t2 = (s0 + maj) & _mask;
+        hh = g;
+        g = f;
+        f = e;
+        e = (d + t1) & _mask;
+        d = c;
+        c = b;
+        b = a;
+        a = (t1 + t2) & _mask;
+      }
+      h[0] = (h[0] + a) & _mask;
+      h[1] = (h[1] + b) & _mask;
+      h[2] = (h[2] + c) & _mask;
+      h[3] = (h[3] + d) & _mask;
+      h[4] = (h[4] + e) & _mask;
+      h[5] = (h[5] + f) & _mask;
+      h[6] = (h[6] + g) & _mask;
+      h[7] = (h[7] + hh) & _mask;
+    }
+    final out = <int>[];
+    for (final word in h) {
+      for (var shift = 24; shift >= 0; shift -= 8) {
+        out.add((word >> shift) & 0xFF);
+      }
+    }
+    return _hex(out);
+  }
+
+  /* The message, a 0x80 byte, zeros up to 56 bytes into the last block, then
+   * the bit length in 64 bits: little-endian for MD5, big-endian for SHA-256. */
+  static Uint8List _padded(List<int> message, {required bool bigEndian}) {
+    final padded = BytesBuilder()
+      ..add(message)
+      ..addByte(0x80);
+    while (padded.length % 64 != 56) {
+      padded.addByte(0);
+    }
+    final bitLength = message.length * 8;
+    final high = bitLength ~/ 0x100000000;
+    final low = bitLength % 0x100000000;
+    final length = <int>[];
+    for (final word in [high, low]) {
+      for (var shift = 24; shift >= 0; shift -= 8) {
+        length.add((word >> shift) & 0xFF);
+      }
+    }
+    padded.add(bigEndian ? length : length.reversed.toList());
+    return padded.toBytes();
+  }
+
+  static int _rotr(int x, int n) => ((x >> n) | (x << (32 - n))) & _mask;
+
+  static int _rotl(int x, int n) => ((x << n) | (x >> (32 - n))) & _mask;
+}
+
+/* The challenge an authenticator remembers. */
+class _Challenge {
+  final String realm;
+  final String nonce;
+  final String? opaque;
+  final String? algorithm;
+  final bool qop;
+
+  _Challenge({
+    required this.realm,
+    required this.nonce,
+    required this.opaque,
+    required this.algorithm,
+    required this.qop,
+  });
+}

@@ -1,0 +1,455 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\TransportOptions;
+
+test('bhv options 060 the static builder entry point carries the values set on it and the same defaults as a direct build', function (): void {
+    $built = TransportOptions::builder()->timeout(2500)->build();
+
+    expect($built->timeout)->toBe(2500);
+    expect(TransportOptions::builder()->build())->toEqual(new TransportOptions());
+});
+
+test('bhv options 062 an options object reports the values it was built with and unset fields read back as absent', function (): void {
+    $options = TransportOptions::builder()->timeout(2500)->maxRetries(4)->build();
+
+    expect($options->timeout)->toBe(2500);
+    expect($options->maxRetries)->toBe(4);
+    expect($options->proxy)->toBeNull();
+    expect($options->caCertPath)->toBeNull();
+    expect($options->maxRedirects)->toBeNull();
+    expect($options->defaultHeaders)->toBe([]);
+});
+
+test('bhv options 065 the printable form of transport options never shows a proxy password or a secret header', function (): void {
+    $options = TransportOptions::builder()
+        ->proxy('http://user:hunter2@proxy.example.com:8080')
+        ->defaultHeader('Authorization', 'Bearer s3cret-token')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->not->toContain('hunter2');
+    expect($printed)->not->toContain('s3cret-token');
+});
+
+test('bhv options 066 the printable form of transport options shows a proxy url without credentials exactly as configured', function (): void {
+    $options = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->build();
+
+    expect(print_r($options, true))->toContain('http://proxy.example.com:8080');
+});
+
+test('bhv options 043 verify ssl defaults to true', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->verifySsl)->toBeTrue();
+});
+
+test('bhv options 018 ca cert path defaults to null', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->caCertPath)->toBeNull();
+});
+
+test('bhv options 032 proxy defaults to null', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->proxy)->toBeNull();
+});
+
+test('bhv options 038 timeout defaults to ten seconds', function (): void {
+    // Per fix #27: default request timeout is 60000ms (60 seconds).
+    $opts = TransportOptions::builder()->build();
+    expect($opts->timeout)->toBe(60000);
+});
+
+test('bhv options 037 timeout can be set to null for no timeout', function (): void {
+    $opts = TransportOptions::builder()->timeout(null)->build();
+    expect($opts->timeout)->toBeNull();
+});
+
+test('bhv options 020 follow redirects defaults to true', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->followRedirects)->toBeTrue();
+});
+
+test('bhv options 025 max redirects defaults to null', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->maxRedirects)->toBeNull();
+});
+
+test('bhv options 041 user agent defaults to non empty string', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->userAgent)->not->toBeNull();
+    expect($opts->userAgent)->not->toBeEmpty();
+});
+
+test('bhv options 042 user agent defaults to the composer package name', function (): void {
+    $raw = file_get_contents(__DIR__ . '/../composer.json');
+    /** @var array{name: string, version: string} $composer */
+    $composer = json_decode((string) $raw, true);
+    $package = substr($composer['name'], (int) strpos($composer['name'], '/') + 1);
+    $opts = TransportOptions::builder()->build();
+    expect($opts->userAgent)->toBe($package . '/' . $composer['version'] . ' (php)');
+});
+
+test('bhv options 019 default headers defaults to empty', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->defaultHeaders)->toBe([]);
+});
+
+test('bhv options 022 inject request id defaults to false', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->injectRequestId)->toBeFalse();
+});
+
+test('bhv options 017 builder sets all fields', function (): void {
+    $opts = TransportOptions::builder()
+        ->verifySsl(false)
+        ->caCertPath('/path/to/ca.pem')
+        ->proxy('http://proxy:8080')
+        ->timeout(5000)
+        ->followRedirects(false)
+        ->maxRedirects(3)
+        ->userAgent('TestAgent/1.0')
+        ->defaultHeader('X-Custom', 'value')
+        ->injectRequestId(true)
+        ->build();
+
+    expect($opts->verifySsl)->toBeFalse();
+    expect($opts->caCertPath)->toBe('/path/to/ca.pem');
+    expect($opts->proxy)->toBe('http://proxy:8080');
+    expect($opts->timeout)->toBe(5000);
+    expect($opts->followRedirects)->toBeFalse();
+    expect($opts->maxRedirects)->toBe(3);
+    expect($opts->userAgent)->toBe('TestAgent/1.0');
+    expect($opts->defaultHeaders)->toBe(['X-Custom' => 'value']);
+    expect($opts->injectRequestId)->toBeTrue();
+});
+
+test('bhv options 021 follow redirects defaults to true with null max redirects', function (): void {
+    $opts = TransportOptions::builder()
+        ->followRedirects(true)
+        ->build();
+
+    expect($opts->followRedirects)->toBeTrue();
+    expect($opts->maxRedirects)->toBeNull();
+});
+
+test('bhv options 033 rejects a negative timeout with the canonical message', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got -1)');
+});
+
+test('bhv options 031 rejects a zero timeout with the canonical message', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+});
+
+test('bhv options 045 rejects a negative maxRedirects', function (): void {
+    expect(fn () => TransportOptions::builder()->maxRedirects(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRedirects: must not be negative (got -1)');
+});
+
+test('bhv options 047 constructor rejects a negative timeout at configuration', function (): void {
+    expect(fn () => new TransportOptions(timeout: -5))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got -5)');
+});
+
+test('bhv options 024 invalid proxy url throws exception', function (): void {
+    // A bad proxy URL is a configuration mistake, not an SDK error.
+    $caught = null;
+    try {
+        TransportOptions::builder()->proxy('not-a-url')->build();
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+    expect($caught)->not->toBeNull();
+    assert($caught instanceof \Throwable);
+    expect($caught::class)->toBe(\InvalidArgumentException::class);
+    expect($caught)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+});
+
+test('bhv options 030 null proxy url is accepted', function (): void {
+    $opts = TransportOptions::builder()->proxy(null)->build();
+    expect($opts->proxy)->toBeNull();
+});
+
+test('bhv options 015 builder methods return same instance', function (): void {
+    $builder = TransportOptions::builder();
+
+    expect($builder->verifySsl(true))->toBe($builder);
+    expect($builder->caCertPath(null))->toBe($builder);
+    expect($builder->proxy(null))->toBe($builder);
+    expect($builder->timeout(null))->toBe($builder);
+    expect($builder->followRedirects(true))->toBe($builder);
+    expect($builder->maxRedirects(null))->toBe($builder);
+    expect($builder->userAgent(null))->toBe($builder);
+    expect($builder->defaultHeader('X-Key', 'val'))->toBe($builder);
+    expect($builder->defaultHeaders([]))->toBe($builder);
+    expect($builder->injectRequestId(false))->toBe($builder);
+});
+
+test('bhv options 012 accumulates headers from default header calls', function (): void {
+    $opts = TransportOptions::builder()
+        ->defaultHeader('X-First', 'one')
+        ->defaultHeader('X-Second', 'two')
+        ->build();
+
+    expect($opts->defaultHeaders)->toHaveCount(2);
+    expect($opts->defaultHeaders['X-First'])->toBe('one');
+    expect($opts->defaultHeaders['X-Second'])->toBe('two');
+});
+
+test('bhv options 028 merges headers from default headers call', function (): void {
+    $opts = TransportOptions::builder()
+        ->defaultHeader('X-First', 'one')
+        ->defaultHeaders(['X-Second' => 'two', 'X-Third' => 'three'])
+        ->build();
+
+    expect($opts->defaultHeaders)->toHaveCount(3);
+    expect($opts->defaultHeaders['X-First'])->toBe('one');
+    expect($opts->defaultHeaders['X-Second'])->toBe('two');
+    expect($opts->defaultHeaders['X-Third'])->toBe('three');
+});
+
+test('bhv options 029 modifying source map does not affect built options', function (): void {
+    $headers = ['X-Original' => 'original'];
+
+    $opts = TransportOptions::builder()
+        ->defaultHeaders($headers)
+        ->build();
+
+    // PHP arrays are value types, so modifying $headers after build
+    // cannot affect the built object. Verify the object has the original value.
+    $headers['X-Added'] = 'added';
+
+    expect($opts->defaultHeaders)->toHaveCount(1);
+    expect($opts->defaultHeaders['X-Original'])->toBe('original');
+    expect($opts->defaultHeaders)->not->toHaveKey('X-Added');
+});
+
+test('bhv options 016 builder produces independent instances', function (): void {
+    $builder = TransportOptions::builder()->verifySsl(false);
+    $first = $builder->build();
+    $second = $builder->build();
+
+    expect($second->verifySsl)->toBe($first->verifySsl);
+    expect($second)->not->toBe($first);
+});
+
+// TimeoutConfigTests
+
+test('bhv options 036 setting timeout is accessible', function (): void {
+    $opts = TransportOptions::builder()->timeout(5000)->build();
+    expect($opts->timeout)->toBe(5000);
+});
+
+test('bhv options 040 timeout field is named timeout', function (): void {
+    // Verify via the property that the field is named 'timeout' (not e.g. 'connectionTimeout').
+    $opts = TransportOptions::builder()->timeout(1000)->build();
+    expect($opts->timeout)->not->toBeNull();
+    expect($opts->timeout)->toBe(1000);
+});
+
+// ProxyConfigTests
+
+test('bhv options 035 proxy url is preserved on read back', function (): void {
+    $opts = TransportOptions::builder()
+        ->proxy('http://proxy.example.com:8080')
+        ->build();
+    expect($opts->proxy)->toBe('http://proxy.example.com:8080');
+});
+
+test('bhv options 034 setting proxy is supported on all platforms', function (): void {
+    // Proxy configuration must not throw on any platform.
+    $opts = TransportOptions::builder()
+        ->proxy('http://proxy.example.com:8080')
+        ->build();
+    expect($opts->proxy)->toBe('http://proxy.example.com:8080');
+});
+
+test('bhv options 052 a proxy url carrying credentials is accepted', function (): void {
+    $proxy = 'http://' . implode(':', ['svc', 'opaque']) . '@proxy.example.com:8080';
+    $opts = TransportOptions::builder()->proxy($proxy)->build();
+
+    expect($opts->proxy)->toBe($proxy);
+});
+
+test('bhv options 014 an upper-case proxy scheme is accepted', function (): void {
+    $opts = TransportOptions::builder()->proxy('HTTP://proxy:3128')->build();
+    expect($opts->proxy)->toBe('HTTP://proxy:3128');
+});
+
+test('bhv options 051 builder rejects a proxy with a non http scheme at build', function (): void {
+    expect(fn () => TransportOptions::builder()->proxy('ftp://proxy:21')->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): ftp://proxy:21');
+});
+
+test('bhv options 046 constructing directly with a non http proxy scheme is rejected', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
+});
+
+test('bhv misc 298 constructor rejects a malformed proxy url', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'not-a-url'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL: not-a-url');
+});
+
+test('bhv options 008 a rejected proxy url never carries its userinfo into the message', function (string $proxy, string $expected): void {
+    expect(fn () => new TransportOptions(proxy: $proxy))
+        ->toThrow(function (\Exception $e) use ($expected): void {
+            expect($e->getMessage())->toBe($expected);
+            expect($e->getMessage())->not->toContain('s3cret');
+        });
+})->with([
+    'unsupported scheme' => [
+        'socks5://svc:s3cret@proxy:1080',
+        'Invalid proxy URL (must use http or https scheme): socks5://***@proxy:1080',
+    ],
+    'ftp scheme' => [
+        'ftp://svc:s3cret@proxy:21',
+        'Invalid proxy URL (must use http or https scheme): ftp://***@proxy:21',
+    ],
+]);
+
+test('bhv options 067 constructor accepts a valid proxy and none', function (): void {
+    expect((new TransportOptions(proxy: 'https://proxy:3128'))->proxy)->toBe('https://proxy:3128');
+    expect((new TransportOptions())->proxy)->toBeNull();
+});
+
+test('bhv options 011 constructor rejects a proxy that has no usable scheme or host', function (string $proxy): void {
+    expect(fn () => new TransportOptions(proxy: $proxy))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL');
+})->with([
+    'scheme only' => ['http://'],
+    'empty string' => [''],
+    'host and port without a scheme' => ['proxy.example.com:3128'],
+]);
+
+test('bhv options 009 constructor accepts a proxy url with an ipv6 literal host', function (string $proxy): void {
+    expect((new TransportOptions(proxy: $proxy))->proxy)->toBe($proxy);
+})->with([
+    'loopback' => ['http://[::1]:3128'],
+    'without a port' => ['https://[2001:db8::1]'],
+    'with userinfo' => ['http://user:pw@[::1]:3128'],
+]);
+
+test('bhv options 010 constructor rejects a proxy url with an unterminated ipv6 literal host', function (string $proxy): void {
+    expect(fn () => new TransportOptions(proxy: $proxy))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL');
+})->with([
+    'no closing bracket' => ['http://[::1:3128'],
+    'bracket only' => ['http://['],
+]);
+
+test('bhv options 023 debug output masks the proxy password and credential default headers', function (): void {
+    $opts = TransportOptions::builder()
+        ->proxy('http://user:s3cr3t@proxy.example.com:8080')
+        ->defaultHeader('Authorization', 'Bearer s3cr3t')
+        ->defaultHeader('Proxy-Authorization', 'Basic s3cr3t')
+        ->defaultHeader('Cookie', 'session=s3cr3t')
+        ->defaultHeader('X-Api-Key', 's3cr3t')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($opts, true);
+
+    expect($dump)->not->toContain('s3cr3t');
+    expect($dump)->toContain('http://user:***@proxy.example.com:8080');
+    expect($dump)->toContain('visible');
+    expect($opts->proxy)->toBe('http://user:s3cr3t@proxy.example.com:8080');
+});
+
+test('bhv options 026 max retries defaults to 2', function (): void {
+    expect(TransportOptions::builder()->build()->maxRetries)->toBe(2);
+    expect((new TransportOptions())->maxRetries)->toBe(2);
+});
+
+test('bhv options 027 max retries can be set, including to 0 to disable retrying', function (int $retries): void {
+    expect(TransportOptions::builder()->maxRetries($retries)->build()->maxRetries)->toBe($retries);
+})->with([0, 1, 5]);
+
+test('bhv options 007 a negative max retries is rejected by the constructor and by the builder', function (): void {
+    expect(fn () => new TransportOptions(maxRetries: -1))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
+    expect(fn () => TransportOptions::builder()->maxRetries(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
+});
+
+test('bhv options 064 debug output shows the max retries', function (): void {
+    expect(print_r(TransportOptions::builder()->maxRetries(4)->build(), true))->toContain('[maxRetries] => 4');
+});
+
+test('bhv options 013 an invalid proxy url is rejected at build, not in the setter', function (): void {
+    $builder = TransportOptions::builder()->proxy('not-a-url');
+    expect(fn () => $builder->build())->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv options 039 timeout defaults to 60000 milliseconds', function (): void {
+    $opts = TransportOptions::builder()->build();
+    expect($opts->timeout)->toBe(60000);
+});
+
+test('bhv misc 026 a configuration mistake raises an error that is not an api error', function (): void {
+    try {
+        TransportOptions::builder()->proxy('http://[::1')->build();
+        test()->fail('Expected InvalidArgumentException');
+    } catch (\Throwable $e) {
+        expect($e)->toBeInstanceOf(\InvalidArgumentException::class);
+        expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\ApiException::class);
+    }
+});
+
+test('bhv misc 051 an unknown option is refused by the builder rather than ignored', function (): void {
+    expect(fn () => callWithArray(TransportOptions::builder(), 'noSuchOption', [1]))->toThrow(\Error::class);
+});
+
+test('bhv misc 056 setting the proxy to null removes a proxy set earlier', function (): void {
+    $opts = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->proxy(null)->build();
+    expect($opts->proxy)->toBeNull();
+});
+
+test('bhv options 068 a SOCKS proxy is refused at construction with the documented message', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
+});
+
+test('bhv misc 175 credential header names are redacted regardless of letter case', function (): void {
+    $options = TransportOptions::builder()
+        ->defaultHeader('AUTHORIZATION', 'Bearer hidden-one')
+        ->defaultHeader('X-Api-Key', 'hidden-two')
+        ->defaultHeader('Content-Type', 'text/plain')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->not->toContain('hidden-one');
+    expect($printed)->not->toContain('hidden-two');
+    expect($printed)->toContain('text/plain');
+});
+
+test('bhv misc 180 the printable form shows non sensitive default header values and hides sensitive ones', function (): void {
+    $options = TransportOptions::builder()
+        ->defaultHeader('X-Visible', 'shown-value')
+        ->defaultHeader('Authorization', 'Bearer hidden-secret')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->toContain('shown-value');
+    expect($printed)->not->toContain('hidden-secret');
+});
+
+test('bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+});
+
+test('bhv options 069 maxResponseBytes defaults to no limit, round trips through the builder and refuses zero and a negative value', function (): void {
+    expect(TransportOptions::builder()->build()->maxResponseBytes)->toBeNull();
+    expect(TransportOptions::builder()->maxResponseBytes(1024)->build()->maxResponseBytes)->toBe(1024);
+    expect(print_r(TransportOptions::builder()->maxResponseBytes(2048)->build(), true))->toContain('[maxResponseBytes] => 2048');
+    expect(fn () => TransportOptions::builder()->maxResponseBytes(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)');
+    expect(fn () => TransportOptions::builder()->maxResponseBytes(-5)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxResponseBytes: must be a positive number of bytes (got -5)');
+});

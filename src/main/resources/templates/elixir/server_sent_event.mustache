@@ -1,0 +1,24 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ServerSentEvent do
+  @moduledoc """
+  One event of a server-sent events stream.
+
+    * `id` - The last event id (`nil` until the server sent one).
+    * `event` - The event name (`"message"` when the server named none).
+    * `data` - The `data` field: the decoded payload when the operation declares a
+      schema for it, else the text.
+    * `retry` - The reconnection time in milliseconds the server asked for, or `nil`.
+    * `raw` - The `data` field as text, before any decoding.
+  """
+
+  @type t :: %__MODULE__{
+          id: String.t() | nil,
+          event: String.t(),
+          data: term(),
+          retry: non_neg_integer() | nil,
+          raw: String.t()
+        }
+
+  defstruct id: nil, event: "message", data: nil, retry: nil, raw: ""
+end

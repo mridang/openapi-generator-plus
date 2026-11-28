@@ -1,0 +1,515 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg/models"
+)
+
+func TestBhvModels008_Metadata_SerializeDeserialize(t *testing.T) {
+	t.Parallel()
+	original := models.NewMetadata()
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("failed to serialize Metadata: %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("expected non-empty serialized data")
+	}
+
+	var restored models.Metadata
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+}
+
+func TestBhvModels010_Metadata_DeclaredPropertyWinsOverCollidingExtra(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	metadata.AdditionalProperties = map[string]string{"createdAt": "x", "other": "y"}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatalf("failed to serialize Metadata: %v", err)
+	}
+	if got := strings.Count(string(data), `"createdAt"`); got != 1 {
+		t.Errorf("expected exactly one createdAt key, got %d in %s", got, data)
+	}
+	if strings.Contains(string(data), `"createdAt":"x"`) || !strings.Contains(string(data), `"createdAt":"2024-01-15T10:30:00`) {
+		t.Errorf("expected the declared createdAt value, got %s", data)
+	}
+	if !strings.Contains(string(data), `"other":"y"`) {
+		t.Errorf("expected the non-colliding extra, got %s", data)
+	}
+	if metadata.AdditionalProperties["createdAt"] != "x" {
+		t.Error("the caller's AdditionalProperties map must not be modified")
+	}
+}
+
+func TestBhvLanggo052_Metadata_DeserializeFromJSON(t *testing.T) {
+	t.Parallel()
+	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
+
+	var metadata models.Metadata
+	err := json.Unmarshal(jsonData, &metadata)
+	if err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+}
+
+// A model without a password field has no String method, so its JSON form is
+// what carries the additional properties.
+func TestBhvModels012_Metadata_JsonFormDumpsTheAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	metadata := models.Metadata{AdditionalProperties: map[string]string{"extraKey": "extraValue"}}
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatalf("failed to serialize Metadata: %v", err)
+	}
+	if got := string(raw); !strings.Contains(got, `"extraKey":"extraValue"`) {
+		t.Errorf("expected the additional property in the JSON form, got %s", got)
+	}
+}
+
+// Keys the schema does not declare are captured into AdditionalProperties.
+func TestBhvMisc288_Metadata_TopLevelSnakeCaseKeyIsCapturedAsAnExtra(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"region_code":"emea"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if got := metadata.AdditionalProperties["region_code"]; got != "emea" {
+		t.Errorf("expected region_code in AdditionalProperties, got %v", got)
+	}
+}
+
+func TestBhvMisc289_Metadata_SnakeCaseKeyInsideAListElementIsCapturedAsAnExtra(t *testing.T) {
+	t.Parallel()
+	var items []models.Metadata
+	if err := json.Unmarshal([]byte(`[{"region_code":"emea"}]`), &items); err != nil {
+		t.Fatalf("failed to deserialize []Metadata: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one element, got %d", len(items))
+	}
+	if got := items[0].AdditionalProperties["region_code"]; got != "emea" {
+		t.Errorf("expected region_code in AdditionalProperties, got %v", got)
+	}
+}
+
+func TestBhvMisc290_Freeform_DictionaryValuedExtraSurvivesARoundTrip(t *testing.T) {
+	t.Parallel()
+	var first models.Freeform
+	if err := json.Unmarshal([]byte(`{"labels":{"a":"b"}}`), &first); err != nil {
+		t.Fatalf("failed to deserialize Freeform: %v", err)
+	}
+	data, err := json.Marshal(first)
+	if err != nil {
+		t.Fatalf("failed to serialize Freeform: %v", err)
+	}
+	var second models.Freeform
+	if err := json.Unmarshal(data, &second); err != nil {
+		t.Fatalf("failed to deserialize round-tripped Freeform: %v", err)
+	}
+	labels, ok := second.AdditionalProperties["labels"].(map[string]any)
+	if !ok || labels["a"] != "b" {
+		t.Errorf("expected labels {a: b} to survive the round trip, got %v", second.AdditionalProperties["labels"])
+	}
+}
+
+func TestBhvModels001_Metadata_CapturesUndeclaredKeysIntoAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00","customField":"customValue"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if got := metadata.AdditionalProperties["customField"]; got != "customValue" {
+		t.Errorf("expected customField in AdditionalProperties, got %v", got)
+	}
+	if _, ok := metadata.AdditionalProperties["createdAt"]; ok {
+		t.Error("expected the declared createdAt not to be captured as an extra")
+	}
+}
+
+// Two models that differ only in AdditionalProperties are not equal.
+func TestBhvModels005_Metadata_EqualIncludesAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var a models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00"}`), &a); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	b := a
+	if !a.Equal(&b) {
+		t.Fatal("expected a model to equal its copy")
+	}
+	b.AdditionalProperties = map[string]string{"other": "y"}
+	if a.Equal(&b) {
+		t.Error("expected models with different AdditionalProperties to be unequal")
+	}
+}
+
+func TestBhvModels003_Metadata_DeserializeEmptyObject(t *testing.T) {
+	t.Parallel()
+	jsonData := []byte(`{}`)
+
+	var metadata models.Metadata
+	err := json.Unmarshal(jsonData, &metadata)
+	if err != nil {
+		t.Fatalf("failed to deserialize empty Metadata: %v", err)
+	}
+}
+
+func TestBhvModels004_Metadata_DeserializeWithAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	// Metadata may contain additional properties beyond the defined schema fields.
+	// This test verifies that unknown fields are handled gracefully during
+	// deserialization (either ignored or captured depending on schema config).
+	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00","customField":"customValue","count":"42"}`)
+
+	var metadata models.Metadata
+	err := json.Unmarshal(jsonData, &metadata)
+	if err != nil {
+		t.Fatalf("failed to deserialize Metadata with additional properties: %v", err)
+	}
+}
+
+// The additional properties are a string-keyed map of the value type; the compiler checks the annotation.
+func TestBhvModels009_Metadata_AdditionalPropertiesAreAMapOfTheValueType(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"customField":"hello"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	var extras map[string]string = metadata.AdditionalProperties
+	if extras["customField"] != "hello" {
+		t.Errorf("expected hello, got %q", extras["customField"])
+	}
+}
+
+func TestBhvModels704_Sensors_PatternPropertiesTypeTheExtraProperties(t *testing.T) {
+	t.Parallel()
+	var sensors models.Sensors
+	if err := json.Unmarshal([]byte(`{"site":"north","s1":3,"s2":4}`), &sensors); err != nil {
+		t.Fatalf("failed to deserialize Sensors: %v", err)
+	}
+	var extras map[string]int32 = sensors.AdditionalProperties
+	if extras["s1"] != 3 || extras["s2"] != 4 {
+		t.Errorf("expected s1=3 and s2=4, got %v", extras)
+	}
+	var wrong models.Sensors
+	if err := json.Unmarshal([]byte(`{"s1":"three"}`), &wrong); err == nil {
+		t.Error("expected a string extra to fail the decode")
+	}
+}
+
+func TestBhvModels025_AdditionalPropertiesFailTheWrongTypeAndTakePartInEquality(t *testing.T) {
+	t.Parallel()
+	t.Run("wrongJsonTypeFailsTheDecode", func(t *testing.T) {
+		for _, body := range []string{`{"a":2.5}`, `{"a":"2"}`, `{"a":3000000000}`} {
+			var counters models.Counters
+			if err := json.Unmarshal([]byte(body), &counters); err == nil {
+				t.Errorf("expected %s to fail the decode", body)
+			}
+		}
+		var metadata models.Metadata
+		if err := json.Unmarshal([]byte(`{"a":3}`), &metadata); err == nil {
+			t.Error("expected a number for a string-valued extra to fail the decode")
+		}
+	})
+	t.Run("extraPropertiesTakePartInEquality", func(t *testing.T) {
+		a := models.Metadata{AdditionalProperties: map[string]string{"a": "1"}}
+		b := models.Metadata{AdditionalProperties: map[string]string{"a": "2"}}
+		if a.Equal(&b) {
+			t.Error("expected instances differing only in extra properties to be unequal")
+		}
+	})
+}
+
+func TestBhvModels026_AdditionalPropertiesDecodeToTheirModelAndRoundTrip(t *testing.T) {
+	t.Parallel()
+	t.Run("modelValuedAdditionalPropertyDecodesToTheModel", func(t *testing.T) {
+		var roster models.Roster
+		if err := json.Unmarshal([]byte(`{"label":"l","a":{"id":1,"name":"x"}}`), &roster); err != nil {
+			t.Fatalf("failed to deserialize Roster: %v", err)
+		}
+		var category models.Category = roster.AdditionalProperties["a"]
+		if category.Id == nil || *category.Id != 1 || category.Name == nil || *category.Name != "x" {
+			t.Errorf("unexpected category %+v", category)
+		}
+		if err := json.Unmarshal([]byte(`{"a":{"id":"x"}}`), &roster); err == nil {
+			t.Error("expected a wrong inner type to fail the decode")
+		}
+	})
+	t.Run("undeclaredKeysRoundTripAtTheTopLevel", func(t *testing.T) {
+		var meta models.Metadata
+		if err := json.Unmarshal([]byte(`{"owner":"team-a"}`), &meta); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if meta.AdditionalProperties["owner"] != "team-a" {
+			t.Fatalf("expected the undeclared key kept, got %v", meta.AdditionalProperties)
+		}
+		data, err := json.Marshal(meta)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(string(data), `"owner":"team-a"`) {
+			t.Errorf("expected the key written back at the top level, got %s", data)
+		}
+	})
+}
+
+// A null extra is rejected unless the value schema is nullable.
+func TestBhvModels027_Counters_NullAdditionalPropertyIsRejectedUnlessNullable(t *testing.T) {
+	t.Parallel()
+	var counters models.Counters
+	if err := json.Unmarshal([]byte(`{"a":null}`), &counters); err == nil {
+		t.Error("expected a null extra of a non-nullable value schema to fail the decode")
+	}
+	var sparse models.Sparse
+	if err := json.Unmarshal([]byte(`{"a":null}`), &sparse); err != nil {
+		t.Fatalf("failed to deserialize Sparse: %v", err)
+	}
+	if value, ok := sparse.AdditionalProperties["a"]; !ok || value != nil {
+		t.Errorf("expected the null to be kept, got %v (present %v)", value, ok)
+	}
+}
+
+// A typed extra is written flat in its wire form, after the declared properties.
+func TestBhvModels028_Moments_TypedAdditionalPropertyIsWrittenFlatInWireForm(t *testing.T) {
+	t.Parallel()
+	var moments models.Moments
+	if err := json.Unmarshal([]byte(`{"label":"l","at":"2024-01-01T00:00:00Z"}`), &moments); err != nil {
+		t.Fatalf("failed to deserialize Moments: %v", err)
+	}
+	data, err := json.Marshal(moments)
+	if err != nil {
+		t.Fatalf("failed to serialize Moments: %v", err)
+	}
+	if !strings.HasPrefix(string(data), `{"label":"l","at":"2024-01-01T00:00:00`) {
+		t.Errorf("unexpected wire form %s", data)
+	}
+	var blobs models.Blobs
+	if err := json.Unmarshal([]byte(`{"b":"aGk="}`), &blobs); err != nil {
+		t.Fatalf("failed to deserialize Blobs: %v", err)
+	}
+	if string(blobs.AdditionalProperties["b"]) != "hi" {
+		t.Errorf("expected the decoded bytes, got %q", blobs.AdditionalProperties["b"])
+	}
+	out, err := json.Marshal(blobs)
+	if err != nil || string(out) != `{"b":"aGk="}` {
+		t.Errorf("unexpected wire form %s (%v)", out, err)
+	}
+}
+
+// A free-form additionalProperties keeps every JSON value as it arrives.
+func TestBhvModels029_Freeform_FreeFormAdditionalPropertiesKeepAnyValue(t *testing.T) {
+	t.Parallel()
+	var freeform models.Freeform
+	if err := json.Unmarshal([]byte(`{"a":1,"b":"x","c":[true],"d":null}`), &freeform); err != nil {
+		t.Fatalf("failed to deserialize Freeform: %v", err)
+	}
+	if freeform.AdditionalProperties["a"] != float64(1) || freeform.AdditionalProperties["b"] != "x" {
+		t.Errorf("unexpected values %v", freeform.AdditionalProperties)
+	}
+	if _, ok := freeform.AdditionalProperties["d"]; !ok {
+		t.Error("expected the null value to be kept")
+	}
+}
+
+func TestBhvLanggo053_Metadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if metadata.CreatedAt != nil {
+		t.Errorf("a mis-cased key must not populate createdAt, got %v", metadata.CreatedAt)
+	}
+	if metadata.AdditionalProperties["CreatedAt"] != "2024-01-01T00:00:00.000+00:00" {
+		t.Errorf("expected the mis-cased key as an additional property, got %v", metadata.AdditionalProperties)
+	}
+	out, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatalf("failed to serialize Metadata: %v", err)
+	}
+	if string(out) != `{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}` {
+		t.Errorf("unexpected wire form %s", string(out))
+	}
+}
+
+func TestBhvLanggo054_Metadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-01T00:00:00.000+00:00","CREATEDAT":"2030-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if metadata.CreatedAt == nil || metadata.CreatedAt.String() != "2024-01-01T00:00:00.000+00:00" {
+		t.Errorf("expected the exact key to win, got %v", metadata.CreatedAt)
+	}
+}
+
+// TestMetadata_NoExampleNullDocLine guards against a known cross-SDK defect
+// where a property whose example is the JSON literal `null` leaked into the
+// generated source as a placeholder doc line such as `Example: null` or
+// `@example null`. Such a line carries no information and pollutes the model.
+// The Go model template never emits example doc lines in that form, so this is
+// a parity assertion that should already pass and stay passing.
+func TestBhvModels007_Metadata_NoExampleNullDocLine(t *testing.T) {
+	t.Parallel()
+	modelPath := filepath.Join("..", "pkg", "models", "metadata.go")
+	source, err := os.ReadFile(modelPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", modelPath, err)
+	}
+	content := string(source)
+	for _, forbidden := range []string{"Example: null", "@example null"} {
+		if strings.Contains(content, forbidden) {
+			t.Errorf("generated model %s must not contain the doc line %q", modelPath, forbidden)
+		}
+	}
+}
+
+// F1156: the file header prints the info description as prose, so the
+// backslash-escaped quotes of the string-literal form must not reach it.
+func TestBhvModels006_Metadata_FileHeaderCarriesNoBackslashEscapedQuotes(t *testing.T) {
+	t.Parallel()
+	modelPath := filepath.Join("..", "pkg", "models", "metadata.go")
+	source, err := os.ReadFile(modelPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", modelPath, err)
+	}
+	header, _, _ := strings.Cut(string(source), "\npackage ")
+	if strings.Contains(header, `\"`) {
+		t.Errorf("the file header of %s must not contain a backslash-escaped quote:\n%s", modelPath, header)
+	}
+}
+
+func TestBhvModels011_Metadata_RoundTrip(t *testing.T) {
+	t.Parallel()
+	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
+
+	var metadata models.Metadata
+	if err := json.Unmarshal(jsonData, &metadata); err != nil {
+		t.Fatalf("failed to deserialize: %v", err)
+	}
+
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatalf("failed to serialize: %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("expected non-empty serialized data after round-trip")
+	}
+}
+
+func TestBhvModels013_Metadata_NewModelHasEmptyAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	metadata := models.NewMetadata()
+	if metadata.AdditionalProperties == nil || len(metadata.AdditionalProperties) != 0 {
+		t.Errorf("expected an empty additional properties collection, got %v", metadata.AdditionalProperties)
+	}
+}
+
+func TestBhvModels024_Metadata_NewModelLeavesOptionalPropertiesUnset(t *testing.T) {
+	t.Parallel()
+	metadata := models.NewMetadata()
+	if metadata.CreatedAt != nil {
+		t.Errorf("expected the optional createdAt unset, got %v", metadata.CreatedAt)
+	}
+}
+
+func TestBhvModels015_Metadata_ChangedCopyKeepsAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var created models.DateTime
+	if err := json.Unmarshal([]byte(`"2024-01-15T10:30:00.000+00:00"`), &created); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	original := models.Metadata{AdditionalProperties: map[string]string{"extraKey": "extraValue"}}
+	copied := original.WithCreatedAt(created)
+	if copied.AdditionalProperties["extraKey"] != "extraValue" {
+		t.Errorf("expected the copy to keep the additional property, got %v", copied.AdditionalProperties)
+	}
+}
+
+func TestBhvModels016_Metadata_CopyLeavesAnOmittedFieldAlone(t *testing.T) {
+	t.Parallel()
+	var created models.DateTime
+	if err := json.Unmarshal([]byte(`"2024-01-15T10:30:00.000+00:00"`), &created); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	original := models.Metadata{CreatedAt: &created}
+	copied := original.WithAdditionalProperties(map[string]string{"k": "v"})
+	if copied.CreatedAt == nil || copied.CreatedAt.String() != original.CreatedAt.String() {
+		t.Errorf("expected the omitted createdAt kept, got %v", copied.CreatedAt)
+	}
+	if cleared := original.WithoutCreatedAt(); cleared.CreatedAt != nil {
+		t.Errorf("expected WithoutCreatedAt to clear only the copy, got %v", cleared.CreatedAt)
+	}
+	if original.CreatedAt == nil {
+		t.Error("expected the original to keep its value")
+	}
+}
+
+func TestBhvModels019_Metadata_DifferentFieldValuesCompareUnequal(t *testing.T) {
+	t.Parallel()
+	first := models.Metadata{AdditionalProperties: map[string]string{"k": "1"}}
+	second := models.Metadata{AdditionalProperties: map[string]string{"k": "2"}}
+	if first.Equal(&second) {
+		t.Error("expected models with different values to compare unequal")
+	}
+}
+
+func TestBhvModels023_Metadata_UndeclaredKeysNamedLikeMethodsStayAdditionalProperties(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"String":"x","Equal":"y","MarshalJSON":"z"}`), &metadata); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for key, want := range map[string]string{"String": "x", "Equal": "y", "MarshalJSON": "z"} {
+		if metadata.AdditionalProperties[key] != want {
+			t.Errorf("expected %q kept as an additional property, got %v", key, metadata.AdditionalProperties[key])
+		}
+	}
+}
+
+// Declares a non-empty description: Go has no manifest field for it, so the package comment of the module's root package carries it.
+func TestBhvModels002_Metadata_PackageCommentDeclaresANonEmptyDescription(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(filepath.Join("..", "pkg", "doc.go"))
+	if err != nil {
+		t.Fatalf("expected a package comment file: %v", err)
+	}
+	var comment []string
+	seenPackage := false
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "// Package ") {
+			seenPackage = true
+		}
+		if seenPackage && strings.HasPrefix(line, "//") {
+			comment = append(comment, strings.TrimSpace(strings.TrimPrefix(line, "//")))
+		}
+		if strings.HasPrefix(line, "package ") {
+			break
+		}
+	}
+	if !seenPackage {
+		t.Fatal("expected the package comment to start with // Package")
+	}
+	described := false
+	for _, line := range comment[1:] {
+		if line != "" {
+			described = true
+		}
+	}
+	if !described {
+		t.Errorf("expected a description under the package line, got %q", comment)
+	}
+}

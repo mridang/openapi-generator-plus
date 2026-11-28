@@ -1,0 +1,515 @@
+{{>api_info}}
+
+package {{package}};
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.BodySource;
+import {{invokerPackage}}.ByteStream;
+import {{invokerPackage}}.JsonLinesStream;
+import {{invokerPackage}}.Paginator;
+import {{invokerPackage}}.SseStream;
+import {{invokerPackage}}.StreamOptions;
+import {{invokerPackage}}.Configuration;
+import {{invokerPackage}}.auth.Authenticator;
+{{#imports}}import {{import}};
+{{/imports}}
+{{#optionsImports}}
+import {{package}}.options.{{optionsClassName}};
+{{/optionsImports}}
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+{{#operations}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/tagSummary}}
+{{#tagDescription}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/tagDescription}}
+{{#tagParent}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/tagParent}}
+{{#tagExternalDocs}}
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+{{/tagExternalDocs}}
+ */
+public class {{classname}} extends BaseApi implements {{classname}}Interface {
+{{#operation}}
+{{#vendorExtensions.op.streamTyped}}
+
+    private static final java.lang.reflect.Type {{operationId}}ItemType =
+            new TypeReference<{{{vendorExtensions.op.streamItemJava}}}>() {}.getType();
+{{/vendorExtensions.op.streamTyped}}
+{{#returnType}}
+{{^vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamOnly}}
+
+    private static final java.lang.reflect.Type {{operationId}}TypeRef =
+            new TypeReference<{{{returnType}}}>() {}.getType();
+{{/vendorExtensions.op.streamOnly}}
+{{/vendorExtensions.op.streamsBinary}}
+{{/returnType}}
+{{/operation}}
+
+{{#serverTypeDefs}}
+
+    /**
+     * Server type for the {{operationId}} operation.
+     */
+    public sealed interface {{serverTypeName}} {
+        /**
+         * Returns the resolved base URL for this server.
+         *
+         * @return the resolved base URL
+         */
+        String getUrl();
+{{#variants}}
+{{#serverVariables}}
+{{#hasEnumValues}}
+
+        /** Allowed values for the {@code {{name}}} server variable. */
+        enum {{enumTypeName}} {
+{{#enumValues}}
+            /** The <code>{{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}</code> value. */
+            {{name}}("{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+{{/enumValues}}
+
+            private final String value;
+
+            {{enumTypeName}}(String value) {
+                this.value = value;
+            }
+
+            /**
+             * Returns the wire value of this enum constant.
+             *
+             * @return the wire value
+             */
+            public String getValue() {
+                return value;
+            }
+        }
+{{/hasEnumValues}}
+{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+        /**
+         * {{#hasDescription}}{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
+{{#serverVariables}}
+         *
+         * @param {{camelName}} the {@code {{name}}} server variable
+{{/serverVariables}}
+         */
+        record {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) implements {{serverTypeName}} {
+
+            @Override
+            public String getUrl() {
+                String url = "{{url}}";
+{{#serverVariables}}
+                url = url.replace("{" + "{{name}}" + "}", {{#hasEnumValues}}{{camelName}}.getValue(){{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}});
+{{/serverVariables}}
+                return url;
+            }
+        }
+{{/variants}}
+    }
+{{/serverTypeDefs}}
+
+    /** Creates an instance with the default client and configuration. */
+    public {{classname}}() {
+        super();
+    }
+
+    /**
+     * Creates an instance with the given client and configuration.
+     *
+     * @param apiClient the API client used to execute requests
+     * @param config the client configuration
+     */
+    public {{classname}}(ApiClient apiClient, Configuration config) {
+        super(apiClient, config);
+    }
+
+    /**
+     * Creates an instance with the given client, configuration, and authenticator.
+     *
+     * @param apiClient the API client used to execute requests
+     * @param config the client configuration
+     * @param authenticator the default authenticator, or {@code null} for none
+     */
+    public {{classname}}(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+        super(apiClient, config, authenticator);
+    }
+
+    /**
+     * Creates an instance with the given client, configuration, default authenticator and one
+     * credential per security scheme. Each operation uses the credential of the first scheme its
+     * spec lists that is held here, and falls back to {@code authenticator} when it holds none.
+     *
+     * @param apiClient the API client used to execute requests
+     * @param config the client configuration
+     * @param authenticator the default authenticator, or {@code null} for none
+     * @param schemeAuthenticators the credential for each security scheme, keyed by scheme name
+     */
+    public {{classname}}(
+            ApiClient apiClient,
+            Configuration config,
+            @Nullable Authenticator authenticator,
+            Map<String, Authenticator> schemeAuthenticators) {
+        super(apiClient, config, authenticator, schemeAuthenticators);
+    }
+    {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{#notes}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param streamOptions the stream settings, or {@code null} for the defaults
+     * @return the open stream; close it when you stop early
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{{returnType}}} {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable StreamOptions streamOptions) {
+{{>api/operation_prelude}}
+        return {{#vendorExtensions.op.streamsSse}}invokeApiForSse{{/vendorExtensions.op.streamsSse}}{{^vendorExtensions.op.streamsSse}}invokeApiForJsonLines{{/vendorExtensions.op.streamsSse}}(
+                "{{operationId}}",
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+                new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
+                {{#vendorExtensions.hasMultipleConsumes}}effectiveRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+                {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}resolveRequirementAuth({{#vendorExtensions.op.securityAlternatives}}new String[] { {{#schemeIds}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/schemeIds}} }{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}resolveSchemeAuth({{#vendorExtensions.op.securitySchemeOrder}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}null{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
+                {{#vendorExtensions.op.optionsArgOptional}}callTimeout,
+                callMaxRetries,{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}callTimeout,
+                callMaxRetries,{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}null,
+                null,{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+                java.util.Map.ofEntries(
+{{#vendorExtensions.op.errorSchemaResponses}}
+                        java.util.Map.entry("{{{status}}}", ({{{invokerPackage}}}.errors.ErrorFactory) {{{invokerPackage}}}.errors.{{{schemaClassName}}}::fromErrorResponse){{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+                ),
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+                null,
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+                "{{#lambda.javaString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.javaString}}",
+                "{{#lambda.javaString}}{{{path}}}{{/lambda.javaString}}",
+                {{#vendorExtensions.op.streamTyped}}{{operationId}}ItemType{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}null{{/vendorExtensions.op.streamTyped}},
+{{#vendorExtensions.op.streamsSse}}
+                {{#hasSseTerminator}}"{{{sseTerminator}}}"{{/hasSseTerminator}}{{^hasSseTerminator}}null{{/hasSseTerminator}},
+{{/vendorExtensions.op.streamsSse}}
+                streamOptions);
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+
+{{#servers}}{{#-first}}
+{{>api/operation_doc_noserver}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});{{/returnType}}
+    }
+
+{{>api/operation_doc_result_noserver}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.callArgsNullServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.callArgsNullServer}});
+    }
+{{/-first}}{{/servers}}
+{{#vendorExtensions.op.optionsArgOptional}}
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any optional parameters and the per-call timeout, retry count and headers stay unset, so
+     * the client's configured settings apply.
+     *
+{{>api/operation_doc_args}}
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});{{/returnType}}
+    }
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument;
+     * any optional parameters and the per-call timeout, retry count and headers stay unset, so
+     * the client's configured settings apply.
+     *
+{{>api/operation_doc_args}}
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});
+    }
+{{/vendorExtensions.op.optionsArgOptional}}
+{{#vendorExtensions.hasOptionalBodyOnly}}
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional request body.
+     *
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}() {
+        {{#returnType}}return {{operationId}}(null);{{/returnType}}{{^returnType}}{{operationId}}(null);{{/returnType}}
+    }
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional request body.
+     *
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo() {
+        return {{operationId}}WithHttpInfo(null);
+    }
+
+{{/vendorExtensions.hasOptionalBodyOnly}}
+{{>api/operation_doc}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        {{#returnType}}return requireBody({{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}});{{/returnType}}
+    }
+{{#vendorExtensions.hasMultipleConsumes}}
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Overload that selects the request content-type among the types this
+     * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
+     * The selected value is sent as the {@code Content-Type} request header.
+     * Passing {@code null} defaults to the first declared type, matching the
+     * overload without a selector.
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param requestContentType the request content-type to send, or {@code null} for the default
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
+        {{#returnType}}return requireBody({{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType), "{{operationId}}");{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType);{{/returnType}}
+    }
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Overload that selects the request content-type among the types this
+     * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
+     * The selected value is sent as the {@code Content-Type} request header.
+     * Passing {@code null} defaults to the first declared type.
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param requestContentType the request content-type to send, or {@code null} for the default
+     * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
+        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, requestContentType);
+    }
+{{/vendorExtensions.hasMultipleConsumes}}
+
+{{>api/operation_doc_result}}
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+{{#vendorExtensions.hasMultipleConsumes}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        return {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, null);
+    }
+
+    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
+{{/vendorExtensions.hasMultipleConsumes}}
+{{^vendorExtensions.hasMultipleConsumes}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        return {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
+    }
+
+    /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
+    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}@Nullable String pageUrl) {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
+    @Override
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{/vendorExtensions.hasMultipleConsumes}}
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        if (pageUrl != null) {
+            path = pageUrl;
+            queryParams.clear();
+        }
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+        /* More than one 2xx response is declared with its own schema, so the body is
+         * decoded as the schema of the status that arrived and wrapped in the union. */
+        java.util.function.BiFunction<Integer, String, {{{returnType}}}> successDecoder =
+                (successStatus, successBody) -> {
+{{#vendorExtensions.op.successResponses}}
+{{^isLast}}
+                    if ({{#isRange}}successStatus >= 200 && successStatus < 300{{/isRange}}{{^isRange}}successStatus == {{statusCode}}{{/isRange}}) {
+                        return decodeVariant(
+                                successBody,
+                                new TypeReference<{{{modelPackage}}}.{{{returnType}}}>() {}.getType(),
+                                {{{vendorExtensions.op.successUnionType}}}::new);
+                    }
+{{/isLast}}
+{{#isLast}}
+                    return decodeVariant(
+                            successBody,
+                            new TypeReference<{{{modelPackage}}}.{{{returnType}}}>() {}.getType(),
+                            {{{vendorExtensions.op.successUnionType}}}::new);
+{{/isLast}}
+{{/vendorExtensions.op.successResponses}}
+                };
+{{/vendorExtensions.op.hasMultiple2xx}}
+        return {{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
+                "{{operationId}}",
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+                new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
+                {{#vendorExtensions.hasMultipleConsumes}}effectiveRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+{{^vendorExtensions.op.streamsBinary}}
+                {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}},
+{{/vendorExtensions.op.streamsBinary}}
+                {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}resolveRequirementAuth({{#vendorExtensions.op.securityAlternatives}}new String[] { {{#schemeIds}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/schemeIds}} }{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}resolveSchemeAuth({{#vendorExtensions.op.securitySchemeOrder}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}null{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
+                {{#vendorExtensions.op.optionsArgOptional}}callTimeout,
+                callMaxRetries,{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}callTimeout,
+                callMaxRetries,{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}null,
+                null,{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}
+{{^vendorExtensions.op.streamsBinary}}
+                {{#vendorExtensions.op.hasMultiple2xx}}successDecoder{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}null{{/vendorExtensions.op.hasMultiple2xx}},
+{{/vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+                java.util.Map.ofEntries(
+{{#vendorExtensions.op.errorSchemaResponses}}
+                        java.util.Map.entry("{{{status}}}", ({{{invokerPackage}}}.errors.ErrorFactory) {{{invokerPackage}}}.errors.{{{schemaClassName}}}::fromErrorResponse){{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+                ),
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+                null,
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+                "{{#lambda.javaString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.javaString}}",
+                "{{#lambda.javaString}}{{{path}}}{{/lambda.javaString}}");
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+    {{/operation}}
+
+    /**
+     * Unwrap the body of a body-returning operation, throwing a typed
+     * {@link ApiException} when the server returned no decodable body
+     * (for example an empty or 204 response). The plain convenience
+     * accessor must never hand back a silent {@code null} for a declared
+     * non-void return type — callers get a catchable, typed error instead.
+     *
+     * @param result    the API result whose data should be present
+     * @param operation the operation id, for the error message
+     * @param <T>       the response body type
+     * @return the non-null response body
+     * @throws ApiException if the result carries no body
+     */
+    private static <T> T requireBody(ApiResult<T> result, String operation) {
+        T data = result.data();
+        if (data == null) {
+            throw new ApiException(
+                    result.statusCode(),
+                    "Expected a response body for " + operation + " but received none",
+                    result.headers(),
+                    result.rawBody());
+        }
+        return data;
+    }
+}
+{{/operations}}

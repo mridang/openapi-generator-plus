@@ -1,0 +1,37 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}}Interface;
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+/**
+ * {{clientClassName}}Interface is the contract of {@link {{clientClassName}}}: every API group
+ * typed as its group interface, plus {@link #close()}. Depend on it instead of the class to
+ * substitute a hand-written fake client in your own tests; a fake client built from fake groups
+ * opens no connection, and closing it does nothing.
+ */
+public interface {{clientClassName}}Interface extends AutoCloseable {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    /**
+     * Returns the API operations of the {{classname}} group.
+     *
+     * @return the group
+     */
+    {{classname}}Interface get{{clientAccessorSuffix}}();
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /** Closes the client; a fake client has nothing to release. */
+    @Override
+    void close();
+}

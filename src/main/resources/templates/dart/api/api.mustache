@@ -1,0 +1,474 @@
+{{>api_info}}
+import 'dart:typed_data';
+
+import '../api_client.dart';
+import '../api_result.dart';
+import '../auth/authenticator.dart';
+import '../body_source.dart';
+import '../byte_stream.dart';
+import '../json_lines_stream.dart';
+import '../paginator.dart';
+import '../sse_stream.dart';
+import '../stream_options.dart';
+import 'base_api.dart';
+import '../configuration.dart';
+import '../object_serializer.dart';
+import '../value_serializer.dart';
+import '../errors/api_exception.dart';
+{{#errorImports}}
+import '../errors/{{classFilename}}.dart';
+{{/errorImports}}
+{{#imports}}
+import '../models/{{filename}}.dart';
+{{/imports}}
+{{#optionsImports}}
+import 'options/{{optionsFileName}}.dart';
+{{/optionsImports}}
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+/// Abstract base class for per-operation server URLs for {{operationId}}.
+abstract class {{serverTypeName}} {
+  /// Returns the server URL.
+  String getUrl();
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+enum {{serverTypeName}}{{enumTypeName}} {
+{{#enumValues}}
+  {{{name}}}({{{literal}}}),
+{{/enumValues}}
+  ;
+
+  final String value;
+  const {{serverTypeName}}{{enumTypeName}}(this.value);
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{#lambda.dartDocLines}}{{{description}}}{{/lambda.dartDocLines}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
+{{#serverVariables}}
+  final {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}};
+{{/serverVariables}}
+
+  {{serverTypeName}}{{variantName}}({{#serverVariables}}this.{{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}});
+
+  @override
+  String getUrl() {
+    var url = '{{#lambda.dartString}}{{{url}}}{{/lambda.dartString}}';
+{{#serverVariables}}
+    url = url.replaceAll('{' + '{{{name}}}' + '}', {{#hasEnumValues}}{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}});
+{{/serverVariables}}
+    return url;
+  }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagSummary}}
+{{#tagDescription}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagParent}}
+{{#tagExternalDocs}}
+/// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagExternalDocs}}
+/// The contract of [{{classname}}]: every operation of the {{baseName}} API group and its
+/// `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests.
+abstract interface class {{classname}}Interface {
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<{{{returnType}}}> {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}, [{{#vendorExtensions.op.hasMultipleConsumes}}String? requestContentType, {{/vendorExtensions.op.hasMultipleConsumes}}StreamOptions? streamOptions]);
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+}
+
+class {{classname}} extends BaseApi implements {{classname}}Interface {
+  {{classname}}({
+    ApiClient? apiClient,
+    Configuration? config,
+    Authenticator? authenticator,
+    Map<String, Authenticator>? schemeAuthenticators,
+  }) : super(
+         apiClient: apiClient,
+         config: config,
+         authenticator: authenticator,
+         schemeAuthenticators: schemeAuthenticators,
+       );
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+{{#summary}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/summary}}
+{{#notes}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#allParams}}
+{{#description}}
+  /// `{{paramName}}` {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/description}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+  /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}options carrying the per-call timeout, headers and retry budget{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+  /// `streamOptions` the stream settings, or null for the defaults
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+  /// ### `{{paramName}}` — {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{>api/operation_doc_examples}}
+{{#externalDocs}}
+  /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/externalDocs}}
+  /// Returns the open stream once the response headers arrive; close it when you stop early.
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  @override
+  Future<{{{returnType}}}> {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}, [{{#vendorExtensions.op.hasMultipleConsumes}}String? requestContentType, {{/vendorExtensions.op.hasMultipleConsumes}}StreamOptions? streamOptions]) async {
+{{>api/operation_prelude}}
+    return {{#vendorExtensions.op.streamsSse}}invokeApiForSse{{/vendorExtensions.op.streamsSse}}{{^vendorExtensions.op.streamsSse}}invokeApiForJsonLines{{/vendorExtensions.op.streamsSse}}<{{{vendorExtensions.op.streamItemDart}}}>(
+      method: '{{httpMethod}}',
+      operation: '{{classname}}.{{operationId}}',
+      operationId: '{{#lambda.dartString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.dartString}}',
+      urlTemplate: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+{{#vendorExtensions.op.hasMultipleConsumes}}
+      contentType: requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+      contentType: '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{#bodyParam}}
+{{#isBinary}}
+      rawBody: true,
+{{/isBinary}}
+{{/bodyParam}}
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      timeout: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout,
+      callHeaders: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers,
+      maxRetries: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+      errorSchemas: const {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': {{{schemaClassName}}}.fromErrorResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{#vendorExtensions.op.streamTyped}}
+{{#vendorExtensions.op.streamItemIsModel}}
+      decoder: (data) => deserialize(data, {{{vendorExtensions.op.streamItemDart}}}.fromJson) as {{{vendorExtensions.op.streamItemDart}}},
+{{/vendorExtensions.op.streamItemIsModel}}
+{{^vendorExtensions.op.streamItemIsModel}}
+      decoder: (data) => deserializeRaw(data) as {{{vendorExtensions.op.streamItemDart}}},
+{{/vendorExtensions.op.streamItemIsModel}}
+{{/vendorExtensions.op.streamTyped}}
+{{#vendorExtensions.op.streamsSse}}
+{{#hasSseTerminator}}
+      terminator: '{{{sseTerminator}}}',
+{{/hasSseTerminator}}
+{{/vendorExtensions.op.streamsSse}}
+      streamOptions: streamOptions,
+    );
+  }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+
+{{#summary}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/summary}}
+{{#notes}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#allParams}}
+{{#description}}
+  /// `{{paramName}}` {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/description}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+  /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}options carrying the per-call timeout, headers and retry budget{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+  /// ### `{{paramName}}` — {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{>api/operation_doc_examples}}
+{{#externalDocs}}
+  /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/externalDocs}}
+{{#vendorExtensions.op.streamsBinary}}
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
+{{/vendorExtensions.op.streamsBinary}}
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  @override
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
+{{#returnType}}
+    final result = await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as {{{returnType}}}` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for {{operationId}} but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+{{/returnType}}
+{{^returnType}}
+    await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+{{/returnType}}
+  }
+
+  /// Performs the {{operationId}} operation and returns the full API result.
+{{#vendorExtensions.op.streamsBinary}}
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
+{{/vendorExtensions.op.streamsBinary}}
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  @override
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+    return _{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
+  }
+
+  /* One page of the list: the first when pageUrl is null, else the URL the Link header or the body named. */
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> _{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}String? pageUrl) async {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+    if (pageUrl != null) {
+      path = pageUrl;
+      queryParams.clear();
+    }
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+
+    return {{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}{{/vendorExtensions.op.streamsBinary}}(
+      method: '{{httpMethod}}',
+      operation: '{{classname}}.{{operationId}}',
+      operationId: '{{#lambda.dartString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.dartString}}',
+      urlTemplate: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+{{! Optional request-content-type selector (decision H3). For an operation }}
+{{! that declares more than one request Content-Type, the caller may pass an }}
+{{! optional `requestContentType` to choose among the DECLARED types; when }}
+{{! null it defaults to the first declared type (effectiveConsumes), so }}
+{{! existing call sites keep sending the first type unchanged. Single-consume }}
+{{! operations keep the plain literal. }}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+      contentType: requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+      contentType: '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.streamsBinary}}
+      returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
+{{/vendorExtensions.op.streamsBinary}}
+{{#bodyParam}}
+{{#isBinary}}
+      rawBody: true,
+{{/isBinary}}
+{{/bodyParam}}
+      {{! security-none suppression: an operation without auth methods is }}
+      {{! declared `security: []` and must NOT inherit the client-level }}
+      {{! authenticator. Pass the `noAuth` sentinel (not `null`, which means }}
+      {{! "fall back to the client authenticator") so base_api suppresses auth }}
+      {{! entirely. A secured op passes its per-call override (`auth`, possibly }}
+      {{! null for "use the client credential") unchanged. }}
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      timeout: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout,
+      callHeaders: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers,
+      maxRetries: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+      errorSchemas: const {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': {{{schemaClassName}}}.fromErrorResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+{{! Several distinct 2xx schemas: a status a row declares is decoded by that row. }}
+{{! A success status no row names decodes as the first declared success type the }}
+{{! body fits, in declaration order; when none fits the last refusal is raised. }}
+      deserializeByStatus: (body, statusCode) {
+{{#vendorExtensions.op.successResponses}}
+        if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode == {{statusCode}}{{/isRange}}) {
+          return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+        }
+{{/vendorExtensions.op.successResponses}}
+        final failures = <SerializationException>[];
+{{#vendorExtensions.op.successResponses}}
+        try {
+          return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+        } on SerializationException catch (e) {
+          failures.add(e);
+        }
+{{/vendorExtensions.op.successResponses}}
+        throw failures.last;
+      },
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
+{{#returnType}}
+{{#returnTypeIsPrimitive}}
+{{#isMap}}
+{{! Strict container of primitives: every value is checked eagerly (a quoted }}
+{{! number, a fractional for an integer or a null raises the SDK }}
+{{! SerializationException), exactly like a single primitive. }}
+{{#returnProperty}}{{#items}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/items}}{{/returnProperty}}
+{{/isMap}}
+{{#isArray}}
+{{! A container of primitives is read element by element through the same }}
+{{! per-element deserializer a nested container uses, so a decimal element is }}
+{{! read from its recorded source text and a wrong-typed element is refused. }}
+{{#returnProperty}}{{#items}}
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/items}}{{/returnProperty}}
+{{/isArray}}
+{{^isMap}}
+{{^isArray}}
+{{#returnProperty}}
+{{#vendorExtensions.isDecimalNumber}}
+      deserialize: (body) => readDecimalBody(body),
+{{/vendorExtensions.isDecimalNumber}}
+{{#vendorExtensions.isDecimalString}}
+      deserialize: (body) => parseDecimalString(deserializeRaw(body)),
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimal}}
+      deserialize: (body) => deserializeRaw(body) as {{{returnType}}},
+{{/vendorExtensions.isDecimal}}
+{{/returnProperty}}
+{{/isArray}}
+{{/isMap}}
+{{/returnTypeIsPrimitive}}
+{{^returnTypeIsPrimitive}}
+{{#isArray}}
+{{! Recursive container descent (recursive-container-deserialize): when the }}
+{{! array element is ITSELF a container (e.g. List<Map<String, Category>>), }}
+{{! the leaf model factory must be applied at the innermost level, not to the }}
+{{! outer element. The deserialize_arg partial walks returnProperty.items and }}
+{{! emits a per-element deserializer that re-enters deserializeMap/ }}
+{{! deserializeArray for each further level, so the leaves become typed model }}
+{{! instances instead of raw maps. The simple List<Model> case (items is a }}
+{{! leaf model) stays byte-identical via the deserializeList(body, X.fromJson) }}
+{{! form below. }}
+{{#returnProperty}}{{#items}}{{#isArray}}
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isArray}}{{#isMap}}
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isMap}}{{^isArray}}{{^isMap}}
+      deserialize: (body) => deserializeList(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+{{#returnProperty}}{{#items}}{{#isArray}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isArray}}{{#isMap}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isMap}}{{^isArray}}{{^isMap}}
+      deserialize: (body) => (deserializeRaw(body) as Map).cast<String, {{{returnBaseType}}}>(),
+{{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
+{{/isMap}}
+{{^isMap}}
+{{#returnProperty}}{{#isEnumRef}}
+      deserialize: (body) => {{{returnBaseType}}}.fromJson(deserializeRaw(body) as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}),
+{{/isEnumRef}}{{^isEnumRef}}
+      deserialize: (body) => deserialize(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isEnumRef}}{{/returnProperty}}
+{{/isMap}}
+{{/isArray}}
+{{/returnTypeIsPrimitive}}
+{{/returnType}}
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
+    );
+  }
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+}
+
+{{/operations}}

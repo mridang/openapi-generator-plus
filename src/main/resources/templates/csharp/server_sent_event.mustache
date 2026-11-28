@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// One event of an event stream: the <paramref name="Id"/> that is current for it
+/// (null when none was sent), its <paramref name="Event"/> name (<c>message</c> when
+/// the server sent none), the decoded <paramref name="Data"/>, the last
+/// <paramref name="Retry"/> delay in milliseconds the server sent (null when none) and
+/// the <paramref name="Raw"/> text of the data lines joined by a newline.
+/// </summary>
+/// <typeparam name="T">The type the data is decoded into, or a string.</typeparam>
+/// <param name="Id">The id of the event, or null.</param>
+/// <param name="Event">The event name.</param>
+/// <param name="Data">The decoded data.</param>
+/// <param name="Retry">The reconnect delay the server asked for, in milliseconds, or null.</param>
+/// <param name="Raw">The data text as the server sent it.</param>
+public sealed record ServerSentEvent<T>(string? Id, string Event, T? Data, long? Retry, string Raw)
+{
+    /// <summary>Describes the event by its name and id; the data is never shown.</summary>
+    /// <returns>The redacted description.</returns>
+    public override string ToString()
+    {
+        return $"ServerSentEvent(Event={Event}, Id={Id})";
+    }
+}

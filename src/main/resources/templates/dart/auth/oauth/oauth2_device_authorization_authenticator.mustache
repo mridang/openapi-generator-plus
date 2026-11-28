@@ -1,0 +1,278 @@
+{{>api_info}}
+import 'dart:convert';
+
+import '../../api_client.dart';
+import '../../environment.dart';
+import '../../errors/oauth2_server_exception.dart';
+import '../../errors/oauth2_token_exception.dart';
+import '../base_authenticator.dart';
+import '../http_aware_authenticator.dart';
+import 'oauth2_token_manager.dart';
+
+/// What the device authorization endpoint (RFC 8628 section 3.2) answered.
+///
+/// Show [userCode] and [verificationUri] (or [verificationUriComplete] when
+/// the server sent one) to the user, then pass the value to
+/// [OAuth2DeviceAuthorizationAuthenticator.pollForToken].
+class DeviceAuthorization {
+  /// The code the client polls with.
+  final String deviceCode;
+
+  /// The code the user enters.
+  final String userCode;
+
+  /// Where the user enters the code.
+  final String verificationUri;
+
+  /// A URI that already carries the code, when the server sent one.
+  final String? verificationUriComplete;
+
+  /// Seconds until the device code expires.
+  final int expiresIn;
+
+  /// Seconds to wait between two polls (5 when the server sent none).
+  final int interval;
+
+  /// Creates a device authorization value.
+  const DeviceAuthorization({
+    required this.deviceCode,
+    required this.userCode,
+    required this.verificationUri,
+    this.verificationUriComplete,
+    required this.expiresIn,
+    required this.interval,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is DeviceAuthorization &&
+      other.deviceCode == deviceCode &&
+      other.userCode == userCode &&
+      other.verificationUri == verificationUri &&
+      other.verificationUriComplete == verificationUriComplete &&
+      other.expiresIn == expiresIn &&
+      other.interval == interval;
+
+  @override
+  int get hashCode => Object.hash(deviceCode, userCode, verificationUri,
+      verificationUriComplete, expiresIn, interval);
+
+  @override
+  String toString() =>
+      'DeviceAuthorization(userCode: $userCode, verificationUri: $verificationUri, '
+      'verificationUriComplete: $verificationUriComplete, expiresIn: $expiresIn, '
+      'interval: $interval)';
+}
+
+/// OAuth2DeviceAuthorizationAuthenticator provides the OAuth2 device
+/// authorization flow (RFC 8628), for a client that cannot open a browser
+/// itself. The client is public: no client secret is sent.
+///
+/// Implements [HttpAwareAuthenticator] so that the device authorization and
+/// token requests use the shared [ApiClient] with the same transport
+/// configuration (proxy, TLS, timeouts) as regular API calls.
+///
+/// Usage:
+///  1. Call [requestDeviceAuthorization] to get a [DeviceAuthorization]
+///  2. Show its user code and verification URI to the user
+///  3. Call [pollForToken] with it; it completes once the user approved
+///  4. Use the authenticator normally -- tokens are managed automatically
+///
+/// The authenticator never prints anything or opens a browser: showing the
+/// code is the caller's job.
+class OAuth2DeviceAuthorizationAuthenticator extends BaseAuthenticator
+    implements HttpAwareAuthenticator, AccessTokenInvalidating {
+  static const String _deviceCodeGrantType =
+      'urn:ietf:params:oauth:grant-type:device_code';
+  static const int _defaultIntervalSeconds = 5;
+  static const int _slowDownSeconds = 5;
+
+  final String _host;
+  final String _clientId;
+  final String _deviceAuthorizationUrl;
+  final String _tokenUrl;
+  final String _refreshUrl;
+  final List<String> _scopes;
+  final OAuth2TokenManager _tokenManager;
+  final Stopwatch _clock = Stopwatch()..start();
+  bool _tokenObtained = false;
+
+  /// Creates a new device authorization authenticator.
+  ///
+  /// If [refreshUrl] is empty, the [tokenUrl] is used for refresh requests.
+  ///
+  /// A client id not passed is read from its environment variable (default
+  /// `{{envVarPrefix}}_CLIENT_ID`, or the name given). An empty variable
+  /// counts as unset.
+  OAuth2DeviceAuthorizationAuthenticator({
+    required String host,
+    String? clientId,
+    String? clientIdVariable,
+    required String deviceAuthorizationUrl,
+    required String tokenUrl,
+    List<String> scopes = const [],
+    String? refreshUrl,
+    Map<String, String>? environment,
+  })  : _host = host,
+        _clientId = requireCredential(clientId,
+            clientIdVariable ?? '{{envVarPrefix}}_CLIENT_ID', 'clientId', environment),
+        _deviceAuthorizationUrl = deviceAuthorizationUrl,
+        _tokenUrl = tokenUrl,
+        _refreshUrl =
+            refreshUrl == null || refreshUrl.isEmpty ? tokenUrl : refreshUrl,
+        _scopes = scopes,
+        _tokenManager = OAuth2TokenManager();
+
+  @override
+  String host() => _host;
+
+  @override
+  void setApiClient(ApiClient client) {
+    _tokenManager.setApiClient(client);
+  }
+
+  /// Asks the device authorization endpoint for a device code and a user
+  /// code (RFC 8628 section 3.1).
+  ///
+  /// Throws [OAuth2ServerException] when the endpoint answers with a non-2xx
+  /// status and [OAuth2TokenException] when it answers 2xx with an unusable
+  /// body.
+  Future<DeviceAuthorization> requestDeviceAuthorization() async {
+    final params = <String, String>{'client_id': _clientId};
+    if (_scopes.isNotEmpty) {
+      params['scope'] = _scopes.join(' ');
+    }
+    final body = await _tokenManager.postForm(_deviceAuthorizationUrl, params);
+    return _parseDeviceAuthorization(body);
+  }
+
+  /// Polls the token endpoint until the user approves the device
+  /// authorization (RFC 8628 section 3.4), then replaces the session with the
+  /// token it issued.
+  ///
+  /// `authorization_pending` keeps polling and `slow_down` adds five seconds
+  /// to the interval. Any other error is thrown as [OAuth2ServerException],
+  /// and a device code that expires first throws [OAuth2TokenException].
+  Future<void> pollForToken(DeviceAuthorization authorization) async {
+    var interval = authorization.interval;
+    final started = monotonicMilliseconds();
+    final params = <String, String>{
+      'grant_type': _deviceCodeGrantType,
+      'client_id': _clientId,
+      'device_code': authorization.deviceCode,
+    };
+    while (true) {
+      if (monotonicMilliseconds() - started + interval * 1000 >
+          authorization.expiresIn * 1000) {
+        throw OAuth2TokenException(
+            'Device authorization expired before the user approved it');
+      }
+      await sleepBeforePoll(Duration(seconds: interval));
+      try {
+        await _tokenManager.exchange(_tokenUrl, params);
+        _tokenObtained = true;
+        return;
+      } on OAuth2ServerException catch (e) {
+        if (e.code == 'authorization_pending') {
+          continue;
+        }
+        if (e.code == 'slow_down') {
+          interval += _slowDownSeconds;
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  /// Waits for [delay] before a poll. Overridable so a test does not have to
+  /// wait for real time.
+  Future<void> sleepBeforePoll(Duration delay) => Future<void>.delayed(delay);
+
+  /// A monotonic clock reading in milliseconds. Overridable so a test can
+  /// move time on.
+  int monotonicMilliseconds() => _clock.elapsedMilliseconds;
+
+  /* A device authorization response that is not a JSON object, or lacks a
+   * code or the verification URI, cannot be shown to the user. */
+  DeviceAuthorization _parseDeviceAuthorization(String body) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      throw OAuth2TokenException(
+          'Device authorization response is not valid JSON');
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw OAuth2TokenException(
+          'Device authorization response is not a JSON object');
+    }
+    final parsed = decoded;
+    String requireField(String field) {
+      final value = parsed[field];
+      if (value is! String || value.isEmpty) {
+        throw OAuth2TokenException(
+            'Device authorization response missing or empty $field field');
+      }
+      return value;
+    }
+
+    final deviceCode = requireField('device_code');
+    final userCode = requireField('user_code');
+    final verificationUri = requireField('verification_uri');
+    final complete = parsed['verification_uri_complete'];
+    final interval = parsed['interval'];
+    return DeviceAuthorization(
+      deviceCode: deviceCode,
+      userCode: userCode,
+      verificationUri: verificationUri,
+      verificationUriComplete:
+          complete is String && complete.isNotEmpty ? complete : null,
+      expiresIn: OAuth2TokenManager.lifetimeSeconds(parsed['expires_in']),
+      interval: interval == null
+          ? _defaultIntervalSeconds
+          : OAuth2TokenManager.lifetimeSeconds(interval),
+    );
+  }
+
+  @override
+  Map<String, String> authHeaders() {
+    if (!_tokenObtained) {
+      throw StateError('Must call pollForToken() before making API requests');
+    }
+    /* A valid token may need an async refresh; an empty map would send the
+     * request unauthenticated without any error. */
+    throw StateError(
+        'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.');
+  }
+
+  /// Asynchronously retrieves auth headers with a valid access token.
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    if (!_tokenObtained) {
+      throw StateError('Must call pollForToken() before making API requests');
+    }
+    final params = <String, String>{
+      'grant_type': 'refresh_token',
+      'refresh_token': _tokenManager.refreshToken,
+      'client_id': _clientId,
+    };
+    final token = await _tokenManager.getAccessToken(_refreshUrl, params);
+    return {'Authorization': 'Bearer $token'};
+  }
+
+  /// Shows the client id and the endpoints; the flow holds no secret.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, clientId: $_clientId, '
+      'deviceAuthorizationUrl: $_deviceAuthorizationUrl, tokenUrl: $_tokenUrl, '
+      'refreshUrl: $_refreshUrl, scopes: $_scopes, tokenObtained: $_tokenObtained)';
+
+  /// Drops the cached access token so the next request obtains a new one (a
+  /// refresh grant first, as the refresh token is kept). Called by the SDK
+  /// when the API answers 401; callers may use it to force a refresh.
+  @override
+  void invalidateAccessToken() {
+    _tokenManager.invalidateAccessToken();
+  }
+}

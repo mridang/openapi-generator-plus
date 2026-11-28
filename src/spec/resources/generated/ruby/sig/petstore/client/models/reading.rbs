@@ -1,0 +1,17 @@
+module Petstore::Client::Models
+  class Reading < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> Reading
+    attr_reader level: ReadingLevel
+    attr_reader shape: ReadingShape?
+    attr_reader inline_level: ReadingInlineLevel?
+    attr_reader nothing: untyped?
+  end
+end

@@ -1,0 +1,12 @@
+{{#pathParams}}
+     * @param {{paramName}} {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+     *     Example — {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}: {@code {{{value}}}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+     * @param {{paramName}} {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+     *     Example — {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}: {@code {{{value}}}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}

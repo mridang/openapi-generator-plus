@@ -1,0 +1,162 @@
+{{>api_info}}
+
+import { Decimal } from 'decimal.js';
+
+/**
+ * Branded string type for OpenAPI `format: uuid` values.
+ *
+ * 2.2 — Option A. A nominal alias for `string` so callers cannot accidentally
+ * pass a free-form string where a UUID is expected. The brand exists only at
+ * the type level; at runtime the value is still a plain string, so there is
+ * no boxing cost or interop tax.
+ *
+ * Construct one via {@link uuid}, which validates the canonical RFC 4122
+ * 8-4-4-4-12 hex form. Use {@link isUuid} as a type guard when narrowing.
+ */
+export type UUID = string & { readonly __brand: 'UUID' };
+
+/**
+ * Canonical OpenAPI/RFC 4122 UUID shape. Case-insensitive; matches all
+ * versions (1-5). Does not enforce the version/variant nibbles — the spec
+ * `format: uuid` is intentionally permissive about which variant is on the
+ * wire, so we only insist on the structural shape.
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Type guard for {@link UUID}. Use to narrow an arbitrary string before
+ * passing it to APIs expecting a UUID-shaped value.
+ */
+export function isUuid(value: unknown): value is UUID {
+  return typeof value === 'string' && UUID_PATTERN.test(value);
+}
+
+/**
+ * Brand a raw string as a {@link UUID} after validating its shape. Throws
+ * if the input is not a canonical 8-4-4-4-12 hex UUID.
+ */
+export function uuid(value: string): UUID {
+  if (!UUID_PATTERN.test(value)) {
+    throw new TypeError(`Invalid UUID: ${JSON.stringify(value)}`);
+  }
+  return value as UUID;
+}
+
+/**
+ * Branded string type for OpenAPI `format: uri` values (RFC 3986 absolute
+ * URI). Like {@link UUID}, the brand exists only at the type level — no
+ * runtime boxing, no interop tax. `uri-reference` and `uri-template` stay
+ * plain strings because neither is guaranteed absolute.
+ */
+export type URI = string & { readonly __brand: 'URI' };
+
+/**
+ * Brand a raw string as a {@link URI}. Zero-cost cast; callers asserting
+ * the input is a valid absolute URI.
+ *
+ * Declared under a distinct local name and re-exported as `URI` so the value
+ * and the `URI` type share a public name (TypeScript merges them) without
+ * tripping eslint's `no-redeclare`, which — unlike the type-aware rule — does
+ * not understand declaration merging.
+ */
+const makeUri = (s: string): URI => s as URI;
+export { makeUri as URI };
+
+/**
+ * Branded string type for OpenAPI `format: email` values. The brand exists
+ * only at the type level; runtime is still a plain string.
+ */
+export type Email = string & { readonly __brand: 'Email' };
+
+/**
+ * Brand a raw string as an {@link Email}. Zero-cost cast; callers asserting
+ * the input is a valid email address. Re-exported under the `Email` name (see
+ * {@link URI}) to merge value and type without tripping `no-redeclare`.
+ */
+const makeEmail = (s: string): Email => s as Email;
+export { makeEmail as Email };
+
+/**
+ * The exact decimal type for OpenAPI `type: number` (no format) and
+ * `format: decimal` values, number- or string-shaped: the `Decimal` class of
+ * decimal.js. It holds every digit the server sent (a value is never decoded
+ * through a binary double) and offers exact arithmetic (`plus`, `times`,
+ * `eq`, ...). Build one with `new Decimal('12.50')`.
+ */
+export { Decimal };
+
+/**
+ * Text of a JSON number: optional minus, integer part, optional fraction and
+ * optional exponent.
+ */
+const NUMBER_TEXT = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+
+/**
+ * Text of a decimal carried in a JSON string: optional minus, digits and an
+ * optional fraction, with no exponent, no sign prefix `+` and no whitespace.
+ */
+const DECIMAL_STRING_TEXT = /^-?\d+(?:\.\d+)?$/;
+
+/**
+ * The number of decimal places each decoded value was written with, so
+ * `12.50` is written back as `12.50`. A decimal.js value drops trailing zeros
+ * and is immutable, so the scale of a decoded instance never goes stale; a
+ * value built by the caller or by arithmetic has no entry and is written with
+ * the places it needs.
+ */
+const writtenScale = new WeakMap<Decimal, number>();
+
+/**
+ * Decimal places of a number's text in plain notation: the fraction digits
+ * less the exponent, never below zero (`1.50` is 2, `1.5e-3` is 4, `1e2` is 0).
+ */
+function scaleOf(text: string): number {
+  const match = /^-?\d+(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(text);
+  if (match === null) {
+    return 0;
+  }
+  return Math.max(0, (match[1]?.length ?? 0) - Number(match[2] ?? '0'));
+}
+
+/**
+ * Build a {@link Decimal} from the exact text of a number, keeping its scale.
+ *
+ * @param text the number's text: JSON number grammar, or with `stringShaped`
+ *   the plain form a decimal string allows (no exponent)
+ * @param stringShaped whether the text came from a JSON string
+ * @returns the decimal, or undefined when the text is not a number
+ * @internal
+ */
+export function decimalFromText(text: string, stringShaped = false): Decimal | undefined {
+  if (!(stringShaped ? DECIMAL_STRING_TEXT : NUMBER_TEXT).test(text)) {
+    return undefined;
+  }
+  const value = new Decimal(text);
+  writtenScale.set(value, scaleOf(text));
+  return value;
+}
+
+/**
+ * The wire text of a {@link Decimal}: plain notation (never an exponent),
+ * every digit, and the decimal places it was decoded with.
+ *
+ * @param value the decimal
+ * @returns its plain-notation text
+ * @internal
+ */
+export function decimalText(value: Decimal): string {
+  const scale = writtenScale.get(value);
+  return scale === undefined ? value.toFixed() : value.toFixed(Math.max(scale, value.decimalPlaces()));
+}
+
+/**
+ * Whether a value is a decimal.js {@link Decimal}, from this copy of the
+ * library or another one.
+ *
+ * @param value the value to test
+ * @returns true for a Decimal
+ * @internal
+ */
+export function isDecimal(value: unknown): value is Decimal {
+  return Decimal.isDecimal(value);
+}

@@ -1,0 +1,1777 @@
+{{>api_info}}
+
+using {{packageName}}.Errors;
+using {{packageName}}.Auth;
+
+namespace {{packageName}}.{{apiPackage}};
+
+/// <summary>
+/// Base class for all API classes. Provides the <c>InvokeApiAsync</c> method that
+/// handles URL construction, header selection, body serialization, request
+/// dispatch, and response deserialization.
+/// </summary>
+public abstract class BaseApi
+{
+    /// <summary>The HTTP transport client used for sending requests.</summary>
+    protected IApiClient ApiClient { get; }
+
+    /// <summary>API-level configuration (base URL and default headers).</summary>
+    protected Configuration Config { get; }
+
+    /// <summary>Serializer for request/response body conversion.</summary>
+    private protected ObjectSerializer Serializer { get; }
+
+    /// <summary>Optional authenticator used as fallback when the client holds no credential for an operation's scheme.</summary>
+    protected IAuthenticator? Authenticator { get; }
+
+    /// <summary>The credential the client holds for each security scheme, keyed by the scheme name.</summary>
+    private readonly IReadOnlyDictionary<string, IAuthenticator> _schemeAuthenticators;
+
+    /// <summary>
+    /// Create an API instance with the default configuration and default transport.
+    /// </summary>
+    protected BaseApi()
+        : this(Configuration.DefaultConfiguration()) { }
+
+    /// <summary>
+    /// Create an API instance with the given configuration and default transport.
+    /// </summary>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
+    protected BaseApi(Configuration config)
+        : this(new DefaultApiClient(), config) { }
+
+    /// <summary>
+    /// Create an API instance with a custom API client and configuration.
+    /// </summary>
+    /// <param name="apiClient">The HTTP transport client.</param>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
+    protected BaseApi(IApiClient apiClient, Configuration config)
+        : this(apiClient, config, null) { }
+
+    /// <summary>
+    /// Create an API instance with a custom API client, configuration, and authenticator.
+    /// </summary>
+    /// <param name="apiClient">The HTTP transport client.</param>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
+    /// <param name="authenticator">Default authenticator for operations without explicit auth.</param>
+    protected BaseApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
+        : this(apiClient, config, authenticator, null) { }
+
+    /// <summary>
+    /// Create an API instance with a custom API client, configuration, default authenticator and
+    /// one credential per security scheme.
+    /// </summary>
+    /// <param name="apiClient">The HTTP transport client.</param>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
+    /// <param name="authenticator">Default authenticator for operations whose scheme has no credential.</param>
+    /// <param name="schemeAuthenticators">The credential for each security scheme, keyed by the scheme name.</param>
+    protected BaseApi(
+        IApiClient apiClient,
+        Configuration config,
+        IAuthenticator? authenticator,
+        IReadOnlyDictionary<string, IAuthenticator>? schemeAuthenticators
+    )
+    {
+        ArgumentNullException.ThrowIfNull(apiClient);
+        ArgumentNullException.ThrowIfNull(config);
+        ApiClient = apiClient;
+        Config = config;
+        Serializer = new ObjectSerializer();
+        Authenticator = authenticator;
+        _schemeAuthenticators = schemeAuthenticators ?? new Dictionary<string, IAuthenticator>();
+    }
+
+    /// <summary>
+    /// Returns the credential the client holds for the first of the given scheme names that has
+    /// one, or null when it holds none. An operation passes the schemes its spec requires, so it
+    /// always uses the scheme the spec names and a caller cannot pick another per call.
+    /// </summary>
+    /// <param name="schemes">The names of the security schemes the operation accepts.</param>
+    /// <returns>The authenticator for the first scheme the client holds a credential for, or null.</returns>
+    protected IAuthenticator? ResolveSchemeAuth(params string[] schemes)
+    {
+        foreach (string scheme in schemes)
+        {
+            if (_schemeAuthenticators.TryGetValue(scheme, out IAuthenticator? found))
+            {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Returns the credential for an operation whose security block lists alternative requirements.
+    /// Each group is one requirement: a group that names several schemes needs the credentials of
+    /// all of them and a request carries every one. The first group the client holds every
+    /// credential of wins, else the first group it holds at least one credential of; null when it
+    /// holds none, which leaves the call to the client-level authenticator.
+    /// </summary>
+    /// <param name="groups">The requirements in the spec's order, each the scheme names it needs together.</param>
+    /// <returns>The authenticator to send, or null.</returns>
+    protected IAuthenticator? ResolveRequirementAuth(params IReadOnlyList<string>[] groups)
+    {
+        List<IAuthenticator>? partial = null;
+        foreach (IReadOnlyList<string> group in groups)
+        {
+            var held = new List<IAuthenticator>();
+            foreach (string scheme in group)
+            {
+                if (_schemeAuthenticators.TryGetValue(scheme, out IAuthenticator? found))
+                {
+                    held.Add(found);
+                }
+            }
+            if (held.Count == 0)
+            {
+                continue;
+            }
+            if (held.Count == group.Count)
+            {
+                return held.Count == 1 ? held[0] : AllOfAuthenticator.Of(held);
+            }
+            partial ??= held;
+        }
+        if (partial is null)
+        {
+            return null;
+        }
+        return partial.Count == 1 ? partial[0] : AllOfAuthenticator.Of(partial);
+    }
+
+    /// <summary>
+    /// Invoke an API operation and return the full result including status code,
+    /// headers, and raw body alongside the deserialized data.
+    /// </summary>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or a full URL for a per-operation server.</param>
+    /// <param name="queryParams">The query parameters; authentication parameters are added to it.</param>
+    /// <param name="headerParams">The operation's header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="returnType">The type the success body is decoded into, or null for none.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="operationName">
+    /// The calling operation as <c>Class.operationId</c>, named in a
+    /// Content-Type serialization error; null falls back to a generic label.
+    /// </param>
+    /// <param name="rawBody">
+    /// True when the operation's request body is <c>format: binary</c>: the
+    /// caller's bytes are sent unchanged under whichever declared
+    /// Content-Type was selected (application/json included) and never go
+    /// through the JSON serializer.
+    /// </param>
+    /// <param name="decodeByStatus">
+    /// Decodes a success body from its status code and raw text. Set only for
+    /// an operation that declares several 2xx responses with different
+    /// schemas, so the body is read as the schema of the status that arrived.
+    /// </param>
+    /// <param name="timeout">Per-call end-to-end timeout in milliseconds, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">
+    /// The operation's error factories by declared status (<c>404</c>, <c>4XX</c>,
+    /// <c>default</c>), or null when it declares none.
+    /// </param>
+    /// <param name="operationId">
+    /// The operation id exactly as the spec writes it, handed to the call hook; null
+    /// falls back to <paramref name="operationName"/>.
+    /// </param>
+    /// <param name="urlTemplate">
+    /// The spec path template of the operation, handed to the call hook; null falls
+    /// back to <paramref name="path"/>.
+    /// </param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    protected Task<ApiResult<T>> InvokeApiForResultAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        Type? returnType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        Func<int, string, T?>? decodeByStatus = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return InvokeCallAsync(
+            false, method, path, queryParams, headerParams, body, accepts, contentType,
+            returnType, auth, rawBody, operationName, decodeByStatus, timeout, extraHeaders,
+            maxRetries, errorSchemas, operationId, urlTemplate, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Invoke an operation whose success response is binary and return its body as a
+    /// stream, unread. Everything up to the response headers is the buffered call
+    /// (the same retries, redirects, authentication, 401 replay, headers and call
+    /// hook); a non-2xx status raises the same typed error as a buffered call, its
+    /// body read up to 64 KiB, and no stream is returned.
+    /// </summary>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or an absolute URL.</param>
+    /// <param name="queryParams">The query parameters.</param>
+    /// <param name="headerParams">The header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="rawBody">True when the request body is <c>format: binary</c>.</param>
+    /// <param name="operationName">The calling operation as <c>Class.operationId</c>.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <param name="operationId">The operation id exactly as the spec writes it, handed to the call hook.</param>
+    /// <param name="urlTemplate">The spec path template of the operation, handed to the call hook.</param>
+    /// <param name="cancellationToken">Token that cancels the request and, later, the open stream.</param>
+    /// <returns>The result whose data is the open <see cref="ByteStream"/>; its raw body is empty.</returns>
+    protected Task<ApiResult<ByteStream>> InvokeApiForStreamAsync(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return InvokeCallAsync<ByteStream>(
+            true, method, path, queryParams, headerParams, body, accepts, contentType,
+            null, auth, rawBody, operationName, null, timeout, extraHeaders,
+            maxRetries, errorSchemas, operationId, urlTemplate, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Invoke an operation whose success response is JSON Lines and return its items as a
+    /// stream, decoded as they arrive. Everything up to the response headers is the buffered
+    /// call, as for <see cref="InvokeApiForStreamAsync"/>.
+    /// </summary>
+    /// <typeparam name="T">The type each line is decoded into, or a string.</typeparam>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or an absolute URL.</param>
+    /// <param name="queryParams">The query parameters.</param>
+    /// <param name="headerParams">The header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="rawBody">True when the request body is <c>format: binary</c>.</param>
+    /// <param name="operationName">The calling operation as <c>Class.operationId</c>.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <param name="operationId">The operation id exactly as the spec writes it, handed to the call hook.</param>
+    /// <param name="urlTemplate">The spec path template of the operation, handed to the call hook.</param>
+    /// <param name="text">True when each line is delivered as text and not decoded.</param>
+    /// <param name="streamOptions">The stream settings, or null for the defaults.</param>
+    /// <param name="cancellationToken">Token that cancels the request and, later, the open stream.</param>
+    /// <returns>The open stream of items.</returns>
+    protected async Task<JsonLinesStream<T>> InvokeApiForJsonLinesAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        bool text = false,
+        StreamOptions? streamOptions = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        StreamOptions options = streamOptions ?? new StreamOptions();
+        ApiResult<ByteStream> opened = await InvokeCallAsync<ByteStream>(
+                true, method, path, queryParams, headerParams, body, accepts, contentType,
+                null, auth, rawBody, operationName, null, timeout, extraHeaders,
+                maxRetries, errorSchemas, operationId, urlTemplate, options.IdleTimeout, cancellationToken)
+            .ConfigureAwait(false);
+        Func<string, T?> decoder = text
+            ? line => (T)(object)line
+            : line => Serializer.Deserialize<T>(line);
+        return new JsonLinesStream<T>(
+            opened.Data!, decoder, options.MaxEventBytes ?? 1024 * 1024, method, RequestPathOf(path));
+    }
+
+    /// <summary>
+    /// Invoke an operation whose success response is server-sent events and return its events
+    /// as a stream, decoded as they arrive. The first request is opened by this call; the
+    /// stream asks again through the same pipeline (call hook, headers, authentication) when
+    /// the connection ends, fails or stays silent.
+    /// </summary>
+    /// <typeparam name="T">The type the data of each event is decoded into, or a string.</typeparam>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or an absolute URL.</param>
+    /// <param name="queryParams">The query parameters.</param>
+    /// <param name="headerParams">The header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="rawBody">True when the request body is <c>format: binary</c>.</param>
+    /// <param name="operationName">The calling operation as <c>Class.operationId</c>.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <param name="operationId">The operation id exactly as the spec writes it, handed to the call hook.</param>
+    /// <param name="urlTemplate">The spec path template of the operation, handed to the call hook.</param>
+    /// <param name="terminator">A data value that ends the stream and is not delivered, or null.</param>
+    /// <param name="text">True when the data is delivered as text and not decoded.</param>
+    /// <param name="streamOptions">The stream settings, or null for the defaults.</param>
+    /// <param name="cancellationToken">Token that cancels the first request and, later, the open stream.</param>
+    /// <returns>The open stream of events.</returns>
+    protected Task<SseStream<T>> InvokeApiForSseAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        string? terminator = null,
+        bool text = false,
+        StreamOptions? streamOptions = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        StreamOptions options = streamOptions ?? new StreamOptions();
+        Dictionary<string, string> sseHeaders = new(headerParams, StringComparer.OrdinalIgnoreCase);
+        foreach (string name in new[] { "Cache-Control", "Accept-Encoding" })
+        {
+            bool set =
+                sseHeaders.ContainsKey(name)
+                || Config.DefaultHeaders.Keys.Any(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
+            if (!set)
+            {
+                sseHeaders[name] = name == "Cache-Control" ? "no-cache" : "identity";
+            }
+        }
+        async Task<ByteStream> OpenAsync(string lastEventId, CancellationToken token)
+        {
+            Dictionary<string, string> headers = new(sseHeaders, StringComparer.OrdinalIgnoreCase);
+            if (lastEventId.Length > 0)
+            {
+                headers["Last-Event-ID"] = lastEventId;
+            }
+            ApiResult<ByteStream> result = await InvokeCallAsync<ByteStream>(
+                    true, method, path, new Dictionary<string, object?>(queryParams), headers, body,
+                    accepts, contentType, null, auth, rawBody, operationName, null, timeout,
+                    extraHeaders, maxRetries, errorSchemas, operationId, urlTemplate,
+                    options.IdleTimeout, token)
+                .ConfigureAwait(false);
+            return result.Data!;
+        }
+        Func<string, T?>? decoder = text ? null : data => Serializer.Deserialize<T>(data);
+        return SseStream<T>.OpenAsync(
+            OpenAsync, decoder, terminator, options, body is not null,
+            body is BodySource { IsReplayable: false }, method, RequestPathOf(path),
+            cancellationToken);
+    }
+
+    /// <summary>The path of a request URL without its query, named in stream errors.</summary>
+    private static string RequestPathOf(string path)
+    {
+        int cut = path.IndexOfAny(['?', '#']);
+        return cut >= 0 ? path[..cut] : path;
+    }
+
+{{#hasDigestAuth}}
+    /// <summary>The request target of a URL for a Digest answer: its path and query.</summary>
+    private static string RequestTargetOf(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ? parsed.PathAndQuery : url;
+    }
+
+    /// <summary>
+    /// Whether the authenticator answers Digest challenges and accepts the one the
+    /// <c>WWW-Authenticate</c> header of a 401 carries (D192).
+    /// </summary>
+    private static bool AcceptsChallenge(IAuthenticator? auth, IReadOnlyDictionary<string, string> headers)
+    {
+        if (auth is not IChallengeAuthenticator challenged)
+        {
+            return false;
+        }
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            if (string.Equals(header.Key, "WWW-Authenticate", StringComparison.OrdinalIgnoreCase))
+            {
+                return challenged.AcceptChallenge(header.Value);
+            }
+        }
+        return false;
+    }
+
+{{/hasDigestAuth}}
+    /// <summary>The most of an error body a stream call reads before it raises the error.</summary>
+    private const int StreamErrorBodyLimit = 64 * 1024;
+
+    private async Task<ApiResult<T>> InvokeCallAsync<T>(
+        bool stream,
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        Type? returnType,
+        IAuthenticator? auth,
+        bool rawBody,
+        string? operationName,
+        Func<int, string, T?>? decodeByStatus,
+        int? timeout,
+        IReadOnlyDictionary<string, string>? extraHeaders,
+        int? maxRetries,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas,
+        string? operationId,
+        string? urlTemplate,
+        int? idleTimeout,
+        CancellationToken cancellationToken
+    )
+    {
+        ArgumentNullException.ThrowIfNull(queryParams);
+        ArgumentNullException.ThrowIfNull(headerParams);
+        if (timeout is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout must be greater than zero");
+        }
+        if (maxRetries is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxRetries), "MaxRetries must not be negative");
+        }
+        /* D189: with constraint validation on, a body that breaks a keyword of its schema is
+           refused here, before anything is encoded, the hook starts or a request is sent. */
+        if (body is not null && Config.ValidateConstraints)
+        {
+            ConstraintValidator.Validate(body);
+        }
+        /* Three-state auth resolution (the no-auth sentinel disambiguates the
+           two meanings null used to carry):
+             - auth is the NoAuth sentinel  -> the operation is explicitly
+               unauthenticated (security: []); apply NO credential and do NOT
+               fall back to the client authenticator;
+             - auth is null                 -> no per-call override on a secured
+               operation; fall back to the client-level authenticator;
+             - auth is any real authenticator -> per-call override; use it.
+           Identity (reference) comparison against NoAuth.Instance is what
+           distinguishes the sentinel from a real authenticator. */
+        IAuthenticator? effectiveAuth =
+            ReferenceEquals(auth, NoAuth.Instance) ? null : (auth ?? Authenticator);
+        /* Only the client-level authenticator is handed the transport when the
+           facade is built. A per-call OAuth2 or OIDC authenticator would
+           otherwise fail with "ApiClient has not been injected", so it is given
+           this API's client; the call is idempotent (F856). */
+        if (
+            effectiveAuth is IHttpAwareAuthenticator httpAware
+            && !ReferenceEquals(effectiveAuth, Authenticator)
+        )
+        {
+            httpAware.SetApiClient(ApiClient);
+        }
+        string url;
+        if (path.StartsWith("http://", StringComparison.Ordinal) || path.StartsWith("https://", StringComparison.Ordinal))
+        {
+            url = path;
+        }
+        else
+        {
+            {{! Strip trailing slash from baseUrl when the path starts with a
+                slash so baseUrl='https://x/' + path='/y' yields 'https://x/y'
+                rather than 'https://x//y', which most servers route to 404. }}
+            string baseUrl = path.StartsWith('/') ? Config.BaseUrl.TrimEnd('/') : Config.BaseUrl;
+            url = baseUrl + path;
+        }
+
+        if (effectiveAuth is not null)
+        {
+            foreach (KeyValuePair<string, string> param in effectiveAuth.GetQueryParams())
+            {
+                queryParams[param.Key] = param.Value;
+            }
+        }
+
+        string query = BuildQueryString(queryParams);
+        if (!string.IsNullOrEmpty(query))
+        {
+            url += (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + query;
+        }
+
+        /* Every multipart/* body (form-data, mixed, ...) is a form-style
+           Dictionary sent as parts. Only multipart/form-data leaves the
+           Content-Type to the transport; another subtype is passed on so the
+           transport can name it beside the boundary. */
+        bool isMultipart = contentType.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase);
+        bool isFormData = string.Equals(contentType, "multipart/form-data", StringComparison.OrdinalIgnoreCase);
+        /* The request headers, rebuilt from scratch on every call so a retry
+           or a replay after a 401 carries current authentication headers. */
+        /* The edits the call hook made to the headers, kept as a delta and
+           reapplied on every rebuild so a header it set is on every send of the
+           call. A null value is a header it removed. */
+        Dictionary<string, string?>? hookDelta = null;
+        async Task<Dictionary<string, string>> BuildHeadersAsync(bool freshAuthWins)
+        {
+            HashSet<string> authKeys = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> built = HeaderSelector.SelectHeaders(
+                accepts,
+                contentType,
+                isFormData
+            );
+
+            foreach (KeyValuePair<string, string> header in Config.DefaultHeaders)
+            {
+                SetHeaderIgnoringCase(built, header.Key, header.Value);
+            }
+
+            foreach (KeyValuePair<string, string> header in headerParams)
+            {
+                SetHeaderIgnoringCase(built, header.Key, header.Value);
+            }
+
+            if (effectiveAuth is not null)
+            {
+                Dictionary<string, string> authHeaders = await effectiveAuth
+                    .GetAuthHeadersAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (KeyValuePair<string, string> header in authHeaders)
+                {
+                    SetHeaderIgnoringCase(built, header.Key, header.Value);
+                    _ = authKeys.Add(header.Key);
+                }
+{{#hasDigestAuth}}
+
+                /* A Digest authenticator answers the challenge it remembers up front (D192). */
+                if (effectiveAuth is IChallengeAuthenticator challenged
+                    && challenged.Authorization(method.ToUpperInvariant(), RequestTargetOf(url)) is string answer)
+                {
+                    SetHeaderIgnoringCase(built, "Authorization", answer);
+                    _ = authKeys.Add("Authorization");
+                }
+{{/hasDigestAuth}}
+
+                Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
+                if (cookies.Count > 0)
+                {
+                    /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+                       parsers don't URL-decode, so `=` (base64 padding) would
+                       arrive as literal `%3D` and break JWT/session cookies.
+                       Validate and pass through raw instead. */
+                    string cookieStr = string.Join("; ", cookies.Select(c =>
+                    {
+                        if (!IsValidCookieName(c.Key))
+                        {
+                            throw new ArgumentException(
+                                $"Cookie name '{c.Key}' contains characters forbidden by RFC 6265");
+                        }
+                        if (!IsValidCookieValue(c.Value))
+                        {
+                            throw new ArgumentException(
+                                $"Cookie value for '{c.Key}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it");
+                        }
+                        return c.Key + "=" + c.Value;
+                    }));
+                    _ = authKeys.Add("Cookie");
+                    built["Cookie"] =
+                        built.TryGetValue("Cookie", out string? existing)
+                        && !string.IsNullOrEmpty(existing)
+                            ? existing + "; " + cookieStr
+                            : cookieStr;
+                }
+            }
+
+            TraceContextUtil.InjectTraceContext(built);
+
+            /* Per-call headers are the caller's explicit choice for this one
+               request, so they replace any header of the same name. */
+            if (extraHeaders is not null)
+            {
+                foreach (KeyValuePair<string, string> header in extraHeaders)
+                {
+                    foreach (string existing in built.Keys.ToList())
+                    {
+                        if (string.Equals(existing, header.Key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _ = built.Remove(existing);
+                        }
+                    }
+                    built[header.Key] = header.Value;
+                }
+            }
+
+            if (body == null)
+            {
+                _ = built.Remove("Content-Type");
+            }
+
+            if (hookDelta is not null)
+            {
+                ApplyHookDelta(built, hookDelta, freshAuthWins ? authKeys : null);
+            }
+
+            return built;
+        }
+
+        System.Diagnostics.Stopwatch callClock = System.Diagnostics.Stopwatch.StartNew();
+        Dictionary<string, string> headers = await BuildHeadersAsync(false).ConfigureAwait(false);
+
+        /* The call hook starts once per call, on the final header set and before
+           anything is encoded or sent. An error it throws propagates unchanged and
+           nothing is sent; the observer it returns is finished exactly once below. */
+        ICallObserver? observer = null;
+        ICallHook? callHook = Config.CallHook;
+        if (callHook is not null)
+        {
+            string callUrl = url;
+            int cut = callUrl.IndexOfAny(['?', '#']);
+            if (cut >= 0)
+            {
+                callUrl = callUrl[..cut];
+            }
+            Dictionary<string, string> before = new(headers, headers.Comparer);
+            observer = callHook.Start(
+                new CallInfo(
+                    operationId ?? operationName ?? string.Empty,
+                    method.ToUpperInvariant(),
+                    urlTemplate ?? path,
+                    callUrl,
+                    ServerAddressOf(callUrl)
+                ),
+                headers
+            );
+            hookDelta = DiffHeaders(before, headers);
+        }
+        int callStatus = 0;
+        IReadOnlyDictionary<string, string>? callHeaders = null;
+        Exception? callError = null;
+        ApiStreamResponse? openStream = null;
+        try
+        {
+        object? requestBody = null;
+        if (body != null)
+        {
+            bool isBinary =
+                contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    contentType,
+                    "application/octet-stream",
+                    StringComparison.OrdinalIgnoreCase
+                );
+
+            if (isBinary && body is Dictionary<string, object> binaryForm)
+            {
+                /* The operation declares a binary content-type
+                 * (application/octet-stream or image/*) alongside
+                 * multipart/form-data, and the API layer always hands us a
+                 * form-style Dictionary keyed by the declared parts. When the
+                 * caller selects the raw-binary content-type we must NOT wrap
+                 * the payload in a multipart envelope: extract the single
+                 * binary part (Stream / byte[]) and send its raw bytes so the
+                 * wire Content-Type stays the selected binary type. Falling
+                 * through to the plain pass-through below would hand a
+                 * Dictionary to DefaultApiClient, which emits multipart/form-data
+                 * instead. Mirrors the single-binary-body path (an operation
+                 * whose body is a bare type:string format:binary schema) that
+                 * already streams raw bytes. */
+                requestBody = ExtractBinaryPart(binaryForm);
+            }
+            else if (rawBody || isBinary || isMultipart)
+            {
+                /* A format:binary body (rawBody) is the caller's bytes: the
+                 * selected Content-Type only changes the header, so even an
+                 * application/json selection sends them verbatim rather than
+                 * reflecting the Stream through the JSON serializer. */
+                requestBody = body;
+            }
+            else if (string.Equals(contentType, "text/plain", StringComparison.OrdinalIgnoreCase))
+            {
+                requestBody = body.ToString();
+            }
+            else if (
+                string.Equals(
+                    contentType,
+                    "application/x-www-form-urlencoded",
+                    StringComparison.OrdinalIgnoreCase
+                ) && body is Dictionary<string, object> formParams
+            )
+            {
+                /* Canonical form serialization (identical across every SDK):
+                 *   - array fields emit one repeated key per element
+                 *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
+                 *     tags[]=);
+                 *   - null/absent fields are omitted entirely;
+                 *   - scalars go through ObjectSerializer.Stringify so a
+                 *     format:date value (DateOnly) is YYYY-MM-DD — never a
+                 *     culture-dependent ToString() or a date-time;
+                 *   - FormUrlEncode uses application/x-www-form-urlencoded
+                 *     rules, so a space becomes '+';
+                 *   - a field wrapped in AllowReservedValue (its Encoding
+                 *     Object sets allowReserved: true) keeps RFC 3986 reserved
+                 *     characters literal, like an allowReserved query value;
+                 *   - a field whose Encoding Object sets style or explode
+                 *     arrives already styled (a joined string, a list of
+                 *     items or ExplodedFields) and is form-encoded as is. */
+                List<string> parts = [];
+                foreach (KeyValuePair<string, object> kv in formParams)
+                {
+                    if (kv.Value == null)
+                    {
+                        continue;
+                    }
+                    object fieldValue = kv.Value is ValueSerializer.EncodedPart encodedField
+                        ? encodedField.Value
+                        : kv.Value;
+                    bool allowReserved = false;
+                    if (fieldValue is ValueSerializer.AllowReservedValue reservedField)
+                    {
+                        fieldValue = reservedField.Value;
+                        allowReserved = true;
+                    }
+                    string key = FormUrlEncode(kv.Key);
+                    if (fieldValue is ValueSerializer.ExplodedFields explodedField)
+                    {
+                        /* An exploded object field styled by its Encoding
+                         * Object: each property is its own form field. */
+                        foreach (KeyValuePair<string, string> field in explodedField.Fields)
+                        {
+                            parts.Add(
+                                FormUrlEncode(field.Key) + "=" + FormValueEncode(field.Value, allowReserved)
+                            );
+                        }
+                    }
+                    else if (
+                        fieldValue is System.Collections.IEnumerable enumerable
+                        && !ObjectSerializer.IsScalar(fieldValue)
+                    )
+                    {
+                        foreach (object? element in enumerable)
+                        {
+                            if (element == null)
+                            {
+                                continue;
+                            }
+                            if (!ObjectSerializer.IsScalar(element))
+                            {
+                                throw NonScalarFormField(kv.Key);
+                            }
+                            parts.Add(
+                                key + "=" + FormValueEncode(ObjectSerializer.Stringify(element), allowReserved)
+                            );
+                        }
+                    }
+                    else if (!ObjectSerializer.IsScalar(fieldValue))
+                    {
+                        throw NonScalarFormField(kv.Key);
+                    }
+                    else
+                    {
+                        parts.Add(
+                            key + "=" + FormValueEncode(ObjectSerializer.Stringify(fieldValue), allowReserved)
+                        );
+                    }
+                }
+
+                requestBody = string.Join("&", parts);
+            }
+            else
+            {
+                requestBody = Serializer.Serialize(body);
+            }
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? requestUri))
+        {
+            /* A malformed base URL or path is a caller mistake: the built-in argument error,
+               never the native UriFormatException. */
+            throw new ArgumentException("The request URL is not a valid absolute URL", nameof(path));
+        }
+        if (timeout.HasValue)
+        {
+            /* One end-to-end budget: time spent obtaining credentials counts against it, and a
+               call that is already past its deadline never reaches the transport. */
+            long remaining = timeout.Value - callClock.ElapsedMilliseconds;
+            if (remaining <= 0)
+            {
+                throw new NetworkTimeoutException("Request timed out");
+            }
+            timeout = (int)remaining;
+        }
+        ApiHttpResponse response;
+        if (stream)
+        {
+            openStream = await SendRecordingStreamAsync(
+                    ApiClient,
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    () => BuildHeadersAsync(false),
+                    timeout,
+                    maxRetries,
+                    idleTimeout,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            response = new ApiHttpResponse(openStream.StatusCode, string.Empty, openStream.Headers);
+        }
+        else
+        {
+            response = await SendRecordingRequestAsync(
+                    ApiClient,
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    () => BuildHeadersAsync(false),
+                    timeout,
+                    maxRetries,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        if (observer is not null)
+        {
+            callStatus = response.StatusCode;
+            callHeaders = LowerCaseHeaders(response.Headers);
+        }
+
+        /* A 401 on an OAuth2 or OpenID Connect call means the cached access
+           token is no longer accepted: drop it (the refresh token is kept),
+           rebuild the headers and replay the request once. A second 401 is
+           reported below as the usual error. A stream or multipart body was
+           consumed by the first send and is never replayed, and the API key,
+           basic and bearer authenticators never replay.{{#hasDigestAuth}} A Digest
+           authenticator that accepts the response's challenge answers it in the
+           rebuilt headers and is replayed under the same rules (D192).{{/hasDigestAuth}} */
+        if (
+            response.StatusCode == 401
+            && (effectiveAuth is IInvalidatableAuthenticator{{#hasDigestAuth}} || AcceptsChallenge(effectiveAuth, response.Headers){{/hasDigestAuth}})
+            && requestBody is null or string or byte[] or BodySource { IsReplayable: true }
+        )
+        {
+            if (effectiveAuth is IInvalidatableAuthenticator invalidatable)
+            {
+                invalidatable.InvalidateAccessToken();
+            }
+            Dictionary<string, string>? replayHeaders = null;
+            try
+            {
+                replayHeaders = await BuildHeadersAsync(true).ConfigureAwait(false);
+            }
+            catch ({{errorPrefix}}Exception)
+            {
+                /* A failed re-authentication leaves the 401 as it is: the
+                   replay is not sent and the first response is reported below. */
+            }
+            if (replayHeaders is not null)
+            {
+                headers = replayHeaders;
+                if (openStream is not null)
+                {
+                    /* The refused response is closed unread before the replay. */
+                    await openStream.DisposeAsync().ConfigureAwait(false);
+                    openStream = await SendRecordingStreamAsync(
+                            ApiClient,
+                            method,
+                            requestUri,
+                            headers,
+                            requestBody,
+                            () => BuildHeadersAsync(false),
+                            timeout,
+                            maxRetries,
+                            idleTimeout,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    response = new ApiHttpResponse(openStream.StatusCode, string.Empty, openStream.Headers);
+                }
+                else
+                {
+                    response = await SendRecordingRequestAsync(
+                            ApiClient,
+                            method,
+                            requestUri,
+                            headers,
+                            requestBody,
+                            () => BuildHeadersAsync(false),
+                            timeout,
+                            maxRetries,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (observer is not null)
+                {
+                    callStatus = response.StatusCode;
+                    callHeaders = LowerCaseHeaders(response.Headers);
+                }
+            }
+        }
+
+        if (response.StatusCode is < 200 or >= 300)
+        {
+            if (openStream is not null)
+            {
+                /* A failed stream call never returns a stream: a bounded part of the
+                   error body is read, the connection is closed, and the typed error
+                   is the one a buffered call raises. */
+                ApiStreamResponse failed = openStream;
+                openStream = null;
+                response = await failed
+                    .ReadBoundedAsync(StreamErrorBodyLimit, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            throw ApiException.FromResponse(
+                response.StatusCode,
+                response.Headers,
+                response.Body,
+                method,
+                requestUri.AbsolutePath,
+                errorSchemas
+            );
+        }
+
+        if (openStream is not null)
+        {
+            ByteStream bytes = new(openStream.StatusCode, openStream.Headers, openStream.Body);
+            openStream = null;
+            return new ApiResult<T>(response.StatusCode, (T)(object)bytes, string.Empty, response.Headers);
+        }
+
+        T? data = default;
+        if (returnType != null && !string.IsNullOrEmpty(response.Body))
+        {
+            try
+            {
+            string? responseContentType = response
+                .Headers.Where(h =>
+                    string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+                )
+                .Select(h => h.Value)
+                .FirstOrDefault();
+
+            bool binaryTarget =
+                typeof(T) == typeof(System.IO.Stream) || typeof(T) == typeof(byte[]);
+
+            if (typeof(T) == typeof(byte[])
+                && responseContentType != null
+                && HeaderSelector.IsJsonMime(responseContentType)
+                && response.Body.TrimStart().StartsWith('"'))
+            {
+                /* A top-level `format: byte` response carried as application/json
+                   arrives as a JSON string literal (e.g. "dGVzdC1pbWFnZQ==").
+                   JSON-parse it to the inner string, then base64-decode to the
+                   raw bytes — never the UTF-8 bytes of the quoted literal, and
+                   never the un-decoded base64 string. Matches python/go/java/rust. */
+                data = (T)(object)(Serializer.Deserialize<byte[]>(response.Body) ?? []);
+            }
+            else if (binaryTarget)
+            {
+                /* The caller expects raw bytes (Stream/byte[]). DefaultApiClient
+                   base64-encodes the body for non-text content types and leaves
+                   text bodies decoded, so recover the original bytes instead of
+                   JSON-deserializing. A non-text content type signals a base64
+                   payload; fall back to the literal UTF-8 bytes when the body is
+                   not valid base64 (e.g. a custom IApiClient that returns raw
+                   text). */
+                byte[] bytes = DecodeBinaryBody(
+                    response.Body,
+                    !IsTextResponseContentType(responseContentType)
+                );
+                data =
+                    typeof(T) == typeof(System.IO.Stream)
+                        ? (T)(object)new System.IO.MemoryStream(bytes)
+                        : (T)(object)bytes;
+            }
+            else if (decodeByStatus is null && typeof(T) == typeof(string))
+            {
+                /* A string return is the body text itself: it is never JSON-parsed, so a body
+                   that is not valid JSON comes back unchanged. Under a binary content type the
+                   transport carries the bytes as base64, which never reaches the caller (D107). */
+                data = (T)(object)(
+                    IsTextResponseContentType(responseContentType)
+                        ? response.Body
+                        : DecodeBinaryText(response.Body)
+                );
+            }
+            else if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
+            {
+                /* A non-JSON success body is only usable as text for a string
+                   return; any other return type is a serialization error that
+                   names the Content-Type, never a cast failure. */
+                if (typeof(T) == typeof(string))
+                {
+                    data = (T)(object)response.Body;
+                }
+                else
+                {
+                    throw new SerializationException(
+                        $"Unexpected response Content-Type '{responseContentType.Split(';')[0].Trim()}' for {operationName ?? "the request"}: expected a JSON body"
+                    );
+                }
+            }
+            else if (decodeByStatus is not null)
+            {
+                data = decodeByStatus(response.StatusCode, response.Body);
+            }
+            else
+            {
+                data = Serializer.Deserialize<T>(response.Body);
+            }
+            }
+            catch (SerializationException e)
+            {
+                /* A body that cannot be decoded still says which response it was. */
+                e.AttachResponse(
+                    response.StatusCode,
+                    response.Headers,
+                    response.Body,
+                    method,
+                    requestUri.AbsolutePath
+                );
+                throw;
+            }
+        }
+
+        return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+        }
+        catch (Exception e)
+        {
+            callError = e;
+            if (openStream is not null)
+            {
+                await openStream.DisposeAsync().ConfigureAwait(false);
+            }
+            throw;
+        }
+        finally
+        {
+            FinishCall(observer, callStatus, callHeaders, callError);
+        }
+    }
+
+    /// <summary>
+    /// Finishes a call observer exactly once. An error the observer throws is
+    /// swallowed, so the call still returns its own result or its own error.
+    /// </summary>
+    private static void FinishCall(
+        ICallObserver? observer,
+        int status,
+        IReadOnlyDictionary<string, string>? headers,
+        Exception? error
+    )
+    {
+        if (observer is null)
+        {
+            return;
+        }
+        try
+        {
+            observer.Finish(new CallOutcome(status, headers, error));
+        }
+        catch (Exception ex)
+            when (ex is not OutOfMemoryException and not StackOverflowException)
+        {
+            /* An observer must never replace the outcome of the call. */
+        }
+    }
+
+    /// <summary>
+    /// The host of a request URL: lower-case, without port and without the
+    /// brackets of an IPv6 literal.
+    /// </summary>
+    private static string ServerAddressOf(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed))
+        {
+            return string.Empty;
+        }
+        return AsciiLower(parsed.DnsSafeHost);
+    }
+
+    /// <summary>Lowercases the ASCII letters of a header name or host.</summary>
+    private static string AsciiLower(string value)
+    {
+        char[] chars = value.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] is >= 'A' and <= 'Z')
+            {
+                chars[i] = (char)(chars[i] + 32);
+            }
+        }
+        return new string(chars);
+    }
+
+    /// <summary>A read-only copy of the response headers with lower-cased names.</summary>
+    private static System.Collections.ObjectModel.ReadOnlyDictionary<string, string> LowerCaseHeaders(
+        IReadOnlyDictionary<string, string> headers
+    )
+    {
+        Dictionary<string, string> lowered = new(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            lowered[AsciiLower(header.Key)] = header.Value;
+        }
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(lowered);
+    }
+
+    /// <summary>
+    /// What a call hook changed in the headers: the headers it added or changed,
+    /// and, as a null value, the ones it removed.
+    /// </summary>
+    private static Dictionary<string, string?> DiffHeaders(
+        Dictionary<string, string> before,
+        Dictionary<string, string> after
+    )
+    {
+        Dictionary<string, string?> delta = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string name in before.Keys)
+        {
+            if (!after.ContainsKey(name))
+            {
+                delta[name] = null;
+            }
+        }
+        foreach (KeyValuePair<string, string> header in after)
+        {
+            if (!before.TryGetValue(header.Key, out string? old) || old != header.Value)
+            {
+                delta[header.Key] = header.Value;
+            }
+        }
+        return delta;
+    }
+
+    /// <summary>
+    /// Reapplies the edits a call hook made. A header named in
+    /// <paramref name="skip"/> was just set again by authentication, and that
+    /// fresh value wins.
+    /// </summary>
+    private static void ApplyHookDelta(
+        Dictionary<string, string> built,
+        Dictionary<string, string?> delta,
+        HashSet<string>? skip
+    )
+    {
+        foreach (KeyValuePair<string, string?> edit in delta)
+        {
+            if (skip is not null && skip.Contains(edit.Key))
+            {
+                continue;
+            }
+            foreach (string existing in built.Keys.ToList())
+            {
+                if (string.Equals(existing, edit.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = built.Remove(existing);
+                }
+            }
+            if (edit.Value is not null)
+            {
+                built[edit.Key] = edit.Value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sends one request through the transport. A transport failure is raised without the
+    /// request it came from, so the method and path that failed are recorded on it here.
+    /// </summary>
+    private static async Task<ApiHttpResponse> SendRecordingRequestAsync(
+        IApiClient apiClient,
+        string method,
+        Uri requestUri,
+        Dictionary<string, string> headers,
+        object? requestBody,
+        Func<Task<Dictionary<string, string>>> refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await apiClient
+                .SendRequestAsync(
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    false,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (NetworkException ex)
+        {
+            ex.RecordRequest(method, requestUri.AbsolutePath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Opens one streaming request through the transport. A transport failure is
+    /// raised without the request it came from, so the method and path that failed
+    /// are recorded on it here.
+    /// </summary>
+    private static async Task<ApiStreamResponse> SendRecordingStreamAsync(
+        IApiClient apiClient,
+        string method,
+        Uri requestUri,
+        Dictionary<string, string> headers,
+        object? requestBody,
+        Func<Task<Dictionary<string, string>>> refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        int? idleTimeout,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await apiClient
+                .SendStreamingAsync(
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    idleTimeout,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (NetworkException ex)
+        {
+            ex.RecordRequest(method, requestUri.AbsolutePath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Rejects a missing required option with the canonical message. A helper
+    /// rather than an inline null test, so a null Options object is reported
+    /// through its first required field instead of as a bare null argument.
+    /// </summary>
+    /// <param name="value">The option value, null when it or its Options object is missing.</param>
+    /// <param name="paramName">The dotted option path reported as the argument name.</param>
+    /// <param name="message">The canonical missing-parameter message.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+    protected static void RequireOption([System.Diagnostics.CodeAnalysis.NotNull] object? value, string paramName, string message)
+    {
+        if (value is null)
+        {
+            throw new ArgumentNullException(paramName, message);
+        }
+    }
+
+    /// <summary>
+    /// Serializes a parameter declared with <c>content: application/json</c>
+    /// through the SDK's own object serializer, then encodes the resulting JSON
+    /// text once by the parameter's location: a path segment is
+    /// percent-encoded, a header is sent verbatim after a CR/LF check, and a
+    /// cookie value is percent-encoded. A serialization failure is a
+    /// <see cref="SerializationException"/>, never a dropped or empty value.
+    /// </summary>
+    /// <param name="value">The parameter value.</param>
+    /// <param name="location">One of <c>path</c>, <c>header</c> or <c>cookie</c>.</param>
+    /// <returns>The encoded parameter text.</returns>
+    protected string SerializeContentParameter(object value, string location)
+    {
+        string json = Serializer.Serialize(value);
+        switch (location)
+        {
+            case "path":
+                return ValueSerializer.EncodePathSegment(json);
+            case "cookie":
+                return Uri.EscapeDataString(json).Replace(".", "%2E", StringComparison.Ordinal);
+            default:
+                if (json.Contains('\r', StringComparison.Ordinal) || json.Contains('\n', StringComparison.Ordinal))
+                {
+                    throw new ArgumentException("Header value contains a CR or LF character");
+                }
+                return json;
+        }
+    }
+
+    /// <summary>
+    /// Invoke an API operation.
+    /// </summary>
+    protected async Task<T?> InvokeApiAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        Type? returnType,
+        IAuthenticator? auth = null
+    )
+    {
+        ApiResult<T> result = await InvokeApiForResultAsync<T>(
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                returnType,
+                auth
+            )
+            .ConfigureAwait(false);
+        return result.Data;
+    }
+
+    /// <summary>
+    /// Mirrors <see cref="DefaultApiClient"/>'s text/binary classification so the
+    /// response body can be decoded the same way it was encoded: text-like content
+    /// types are stored as a decoded string, everything else as base64. The full
+    /// Content-Type header (including any charset/parameters) is tolerated by
+    /// matching on the leading media type.
+    /// </summary>
+    private static bool IsTextResponseContentType(string? contentType)
+    {
+        if (string.IsNullOrEmpty(contentType))
+        {
+            return true;
+        }
+        string mediaType = contentType.Split(';')[0].Trim();
+        return mediaType.Length == 0
+            || mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Flattens a model into its top-level wire fields for a deepObject query
+    /// parameter: the model is serialized with the SDK serializer and each
+    /// JSON property becomes one entry (strings unquoted, other values as their
+    /// JSON text). Null properties are omitted by the serializer.
+    /// </summary>
+    /// <param name="value">The model to flatten.</param>
+    /// <returns>The wire field names mapped to their values.</returns>
+    protected IDictionary<string, object?> ToDeepObjectFields(object value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        Dictionary<string, object?> fields = [];
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(
+            Serializer.Serialize(value)
+        );
+        if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return fields;
+        }
+        foreach (System.Text.Json.JsonProperty property in document.RootElement.EnumerateObject())
+        {
+            fields[property.Name] =
+                property.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? property.Value.GetString()
+                    : property.Value.GetRawText();
+        }
+        return fields;
+    }
+
+    /// <summary>
+    /// Builds the error raised when an <c>application/x-www-form-urlencoded</c>
+    /// field holds a model, map or array of objects: the generator emits no
+    /// OAS encoding style for such values, so no wire form is defined and the
+    /// SDK refuses rather than sending the value's ToString().
+    /// </summary>
+    private static SerializationException NonScalarFormField(string name)
+    {
+        return new SerializationException(
+            "form-urlencoded field " + name + " must be a scalar or array of scalars"
+        );
+    }
+
+    /// <summary>
+    /// Decodes the transport's base64 carrier of a binary body to text; a body that is not
+    /// valid base64 (a custom client that returns the text itself) comes back unchanged.
+    /// </summary>
+    private static string DecodeBinaryText(string body)
+    {
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(body));
+        }
+        catch (FormatException)
+        {
+            return body;
+        }
+    }
+
+    /// <summary>
+    /// Recovers the raw bytes of a binary response body. When <paramref name="base64Expected"/>
+    /// is true the body is decoded from base64 (how <see cref="DefaultApiClient"/> encodes
+    /// non-text payloads); if that fails, or when base64 is not expected, the literal
+    /// UTF-8 bytes of the body are returned so that custom transports returning raw text
+    /// still produce a usable stream.
+    /// </summary>
+    private static byte[] DecodeBinaryBody(string body, bool base64Expected)
+    {
+        if (base64Expected)
+        {
+            try
+            {
+                return Convert.FromBase64String(body);
+            }
+            catch (FormatException)
+            {
+                /* not base64 — fall through to literal UTF-8 bytes */
+            }
+        }
+        return System.Text.Encoding.UTF8.GetBytes(body);
+    }
+
+    /// <summary>
+    /// Encodes a value for an <c>application/x-www-form-urlencoded</c> request
+    /// body. Per the WHATWG URL / HTML form-encoding standard (which defines
+    /// the media type) a space is encoded as <c>+</c>, not <c>%20</c>. Every
+    /// other reserved character is percent-encoded. This matches the 9-SDK
+    /// majority (Java/Go/Python/Ruby/Kotlin/Dart/Elixir/Node/Rust) so the wire
+    /// bytes of a form body are identical across languages.
+    /// </summary>
+    private static string FormUrlEncode(string value)
+    {
+        return Uri.EscapeDataString(value).Replace("%20", "+", StringComparison.Ordinal);
+    }
+
+    /* Encodes a form field value: the allowReserved query encoder when the
+     * field's Encoding Object sets allowReserved, form encoding otherwise. */
+    private static string FormValueEncode(string value, bool allowReserved)
+    {
+        return allowReserved
+            ? ValueSerializer.EncodeQueryAllowingReserved(value)
+            : FormUrlEncode(value);
+    }
+
+    /// <summary>
+    /// Extract the single binary payload from a form-style body Dictionary when
+    /// a raw-binary content-type (application/octet-stream or image/*) was
+    /// selected for an operation that also declares multipart/form-data.
+    /// </summary>
+    /// <remarks>
+    /// The API layer always builds a form Dictionary keyed by the operation's
+    /// declared parts. For a raw-binary upload only the binary part travels on
+    /// the wire — the auxiliary string parts (classification, notes, ...) belong
+    /// to the multipart variant and are dropped. This returns the first
+    /// binary-typed value (<see cref="System.IO.Stream"/> or <c>byte[]</c>) so
+    /// the transport sends its raw bytes under the selected Content-Type rather
+    /// than a multipart envelope.
+    /// </remarks>
+    /// <param name="formBody">The form-style body Dictionary.</param>
+    /// <returns>The binary part suitable for raw transmission.</returns>
+    /// <exception cref="ApiException">Thrown when no binary part is present.</exception>
+    private static object ExtractBinaryPart(Dictionary<string, object> formBody)
+    {
+        foreach (object wrapped in formBody.Values)
+        {
+            if (ValueSerializer.UnwrapFormValue(wrapped) is { } value
+                && (value is System.IO.Stream || value is byte[] || value is BodySource))
+            {
+                return value;
+            }
+        }
+        throw new ArgumentException(
+            "No binary payload found in request body for raw octet-stream upload",
+            nameof(formBody));
+    }
+
+    private static string BuildQueryString(Dictionary<string, object?> queryParams)
+    {
+        List<string> parts = [];
+        foreach (KeyValuePair<string, object?> entry in queryParams)
+        {
+            object? value = entry.Value;
+            /* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+             * characters literal instead of percent-encoding them. */
+            bool allowReserved = false;
+            if (value is ValueSerializer.AllowReservedValue reserved)
+            {
+                value = reserved.Value;
+                allowReserved = true;
+            }
+            if (value is ValueSerializer.ExplodedFields exploded)
+            {
+                foreach (KeyValuePair<string, string> field in exploded.Fields)
+                {
+                    parts.Add(
+                        Uri.EscapeDataString(field.Key)
+                            + "="
+                            + EncodeQueryValue(field.Value, allowReserved)
+                    );
+                }
+            }
+            else if (value != null)
+            {
+                if (value is System.Collections.IEnumerable enumerable and not string)
+                {
+                    foreach (object? item in enumerable)
+                    {
+                        parts.Add(
+                            Uri.EscapeDataString(entry.Key)
+                                + "="
+                                + EncodeQueryValue(item?.ToString() ?? "", allowReserved)
+                        );
+                    }
+                }
+                else
+                {
+                    string str = value is bool b
+                        ? (b ? "true" : "false")
+                        : value.ToString()!;
+                    parts.Add(
+                        Uri.EscapeDataString(entry.Key)
+                            + "="
+                            + EncodeQueryValue(str, allowReserved)
+                    );
+                }
+            }
+        }
+        return string.Join("&", parts);
+    }
+
+    /// <summary>
+    /// Encodes a query-parameter value, preserving RFC 3986 reserved characters
+    /// when the parameter declared <c>allowReserved: true</c>.
+    /// </summary>
+    private static string EncodeQueryValue(string value, bool allowReserved)
+    {
+        return allowReserved
+            ? ValueSerializer.EncodeQueryAllowingReserved(value)
+            : Uri.EscapeDataString(value);
+    }
+
+    /// <summary>
+    /// Sets a request header. Header names are case-insensitive (RFC 9110
+    /// section 5.1), so any existing header of the same name in another case is
+    /// replaced rather than sent beside the new one.
+    /// </summary>
+    private static void SetHeaderIgnoringCase(
+        Dictionary<string, string> headers,
+        string name,
+        string value)
+    {
+        foreach (string existing in headers.Keys.ToList())
+        {
+            if (string.Equals(existing, name, StringComparison.OrdinalIgnoreCase))
+            {
+                _ = headers.Remove(existing);
+            }
+        }
+        headers[name] = value;
+    }
+
+    /// <summary>RFC 6265 cookie-name validation (RFC 7230 token).</summary>
+    /// <remarks>
+    /// Exposed to derived API classes so operation-level cookie parameters
+    /// (in: cookie) are validated with the identical rules as auth-provided
+    /// cookies, keeping the Cookie header free of header-injection vectors.
+    /// </remarks>
+    protected static bool IsValidCookieName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+        foreach (char c in name)
+        {
+            bool ok = c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9'
+                || "!#$%&'*+-.^_`|~".Contains(c, StringComparison.Ordinal);
+            if (!ok)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>RFC 6265 cookie-value validation (cookie-octet*).</summary>
+    /// <remarks>
+    /// Exposed to derived API classes so operation-level cookie parameters
+    /// (in: cookie) are validated with the identical rules as auth-provided
+    /// cookies, rejecting CR/LF and control characters that would otherwise
+    /// allow header injection into the Cookie request header.
+    /// </remarks>
+    protected static bool IsValidCookieValue(string value)
+    {
+        if (value == null)
+        {
+            return false;
+        }
+        foreach (char c in value)
+        {
+            bool ok = c is (char)0x21
+                or >= (char)0x23 and <= (char)0x2B
+                or >= (char)0x2D and <= (char)0x3A
+                or >= (char)0x3C and <= (char)0x5B
+                or >= (char)0x5D and <= (char)0x7E;
+            if (!ok)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+/// <summary>The credentials of every scheme one security requirement names together: all of them are sent.</summary>
+internal class AllOfAuthenticator : IAuthenticator
+{
+    /// <summary>The credentials, in the order the requirement names their schemes.</summary>
+    protected IReadOnlyList<IAuthenticator> Parts { get; }
+
+    protected AllOfAuthenticator(IReadOnlyList<IAuthenticator> parts)
+    {
+        Parts = parts;
+    }
+
+    /// <summary>The composite of <paramref name="parts"/>; one holding a token authenticator can drop a cached token on a 401.</summary>
+    public static IAuthenticator Of(IReadOnlyList<IAuthenticator> parts)
+    {
+        if (parts.Any(part => part is IInvalidatableAuthenticator))
+        {
+            return new AllOfInvalidatingAuthenticator(parts);
+        }
+        return parts.Any(part => part is IHttpAwareAuthenticator)
+            ? new AllOfHttpAwareAuthenticator(parts)
+            : new AllOfAuthenticator(parts);
+    }
+
+    public string GetHost() => Parts[0].GetHost();
+
+    public Dictionary<string, string> GetAuthHeaders()
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            foreach (KeyValuePair<string, string> entry in part.GetAuthHeaders())
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+
+    public async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        return await GetAuthHeadersAsync(CancellationToken.None).ConfigureAwait(false);
+    }
+
+    public async Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken)
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            Dictionary<string, string> headers = await part.GetAuthHeadersAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (KeyValuePair<string, string> entry in headers)
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+
+    public Dictionary<string, string> GetQueryParams()
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            foreach (KeyValuePair<string, string> entry in part.GetQueryParams())
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+
+    public Dictionary<string, string> GetCookieParams()
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            foreach (KeyValuePair<string, string> entry in part.GetCookieParams())
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+}
+
+internal class AllOfHttpAwareAuthenticator : AllOfAuthenticator, IHttpAwareAuthenticator
+{
+    public AllOfHttpAwareAuthenticator(IReadOnlyList<IAuthenticator> parts)
+        : base(parts) { }
+
+    public void SetApiClient(IApiClient apiClient)
+    {
+        foreach (IAuthenticator part in Parts)
+        {
+            if (part is IHttpAwareAuthenticator httpAware)
+            {
+                httpAware.SetApiClient(apiClient);
+            }
+        }
+    }
+}
+
+internal sealed class AllOfInvalidatingAuthenticator : AllOfHttpAwareAuthenticator, IInvalidatableAuthenticator
+{
+    public AllOfInvalidatingAuthenticator(IReadOnlyList<IAuthenticator> parts)
+        : base(parts) { }
+
+    public void InvalidateAccessToken()
+    {
+        foreach (IAuthenticator part in Parts)
+        {
+            if (part is IInvalidatableAuthenticator invalidatable)
+            {
+                invalidatable.InvalidateAccessToken();
+            }
+        }
+    }
+}

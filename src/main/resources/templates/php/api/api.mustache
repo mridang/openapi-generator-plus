@@ -1,0 +1,739 @@
+{{>api_info}}
+{{! The server-variant classes are rendered one class per file (PSR-4)
+    by BetterPHPCodegen. }}
+namespace {{apiPackage}};
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\ApiResult;
+{{#hasBinaryStream}}
+use {{invokerPackage}}\ByteStream;
+{{/hasBinaryStream}}
+{{#hasPagedOperation}}
+use {{invokerPackage}}\Paginator;
+{{/hasPagedOperation}}
+{{#hasSseStream}}
+use {{invokerPackage}}\SseStream;
+{{/hasSseStream}}
+{{#hasStreamMethod}}
+use {{invokerPackage}}\StreamOptions;
+{{/hasStreamMethod}}
+use {{invokerPackage}}\Configuration;
+use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\ValueSerializer;
+{{#hasAnySecurityNoneOp}}
+use {{invokerPackage}}\Auth\NoAuth;
+{{/hasAnySecurityNoneOp}}
+{{#optionsImports}}
+use {{invokerPackage}}\Api\Options\{{optionsClassName}};
+{{/optionsImports}}
+{{#enumParamImports}}
+use {{invokerPackage}}\Models\{{.}};
+{{/enumParamImports}}
+
+{{#operations}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+{{/tagSummary}}
+{{#tagDescription}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+{{/tagDescription}}
+{{#tagParent}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+{{/tagParent}}
+{{#tagExternalDocs}}
+ * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+{{/tagExternalDocs}}
+ */
+class {{classname}} extends BaseApi implements {{classname}}Interface
+{
+{{#operation}}
+    /**
+     * {{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}
+{{#notes}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{#vendorExtensions.op.streamOnly}}
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+{{/vendorExtensions.op.streamOnly}}
+{{#returnType}}
+     * @return {{{vendorExtensions.phpDocReturnType}}}
+{{/returnType}}
+     * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when the request or response body cannot be encoded or decoded
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+     * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}
+{{/externalDocs}}
+     */
+{{#returnType}}
+{{#vendorExtensions.op.streamOnly}}
+    public function {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}, ?StreamOptions $streamOptions = null): {{{vendorExtensions.phpNativeReturnType}}}
+    {
+{{>api/operation_prelude}}        /** @var {{{vendorExtensions.phpDocReturnType}}} $stream */
+        $stream = $this->{{#vendorExtensions.op.streamsSse}}invokeApiForSse{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}invokeApiForJsonLines{{/vendorExtensions.op.streamsJsonLines}}(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.op.hasMultipleConsumes}}$requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
+{{#vendorExtensions.op.securityNone}}
+            NoAuth::instance(),
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+            null,
+{{/vendorExtensions.op.securityNone}}
+            $allowReservedKeys{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}},
+{{>per_call_arguments}}
+            itemType: {{#vendorExtensions.op.streamTyped}}'{{{vendorExtensions.op.streamItemPhp}}}'{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}null{{/vendorExtensions.op.streamTyped}},
+{{#vendorExtensions.op.streamsSse}}
+            terminator: {{#hasSseTerminator}}'{{{sseTerminator}}}'{{/hasSseTerminator}}{{^hasSseTerminator}}null{{/hasSseTerminator}},
+{{/vendorExtensions.op.streamsSse}}
+            streamOptions: $streamOptions,
+        );
+
+        return $stream;
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}){{#vendorExtensions.phpNativeReturnType}}: {{{vendorExtensions.phpNativeReturnType}}}{{/vendorExtensions.phpNativeReturnType}}
+    {
+        $apiResult = $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, $requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \{{invokerPackage}}\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for {{operationId}} but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var {{{vendorExtensions.phpDocReturnType}}} $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
+     * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when the request or response body cannot be encoded or decoded
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
+    {
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        return $this->{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}${{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
+    }
+
+    /**
+     * One page of the list: the first when $pageUrl is null, else the URL the Link header named.
+     *
+{{#pathParams}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/pathParams}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options
+     * @param string|null $pageUrl
+     * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
+     */
+    private function {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isOptions}}?{{{dataType}}} $options{{/isOptions}}, {{/vendorExtensions.op.signatureArgs}}?string $pageUrl): ApiResult
+    {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{>api/operation_prelude}}{{#vendorExtensions.op.pagination.isUrlPaged}}        if ($pageUrl !== null) {
+            $path = $pageUrl;
+            $queryParams = [];
+        }
+{{/vendorExtensions.op.pagination.isUrlPaged}}        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
+        $result = $this->{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.op.hasMultipleConsumes}}$requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
+{{^vendorExtensions.op.streamsBinary}}
+            '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}',
+{{/vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.securityNone}}
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+{{/vendorExtensions.op.securityNone}}
+            $allowReservedKeys{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}},
+{{>per_call_arguments}}
+{{^vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+            successTypes: [
+{{#vendorExtensions.op.successResponses}}
+                '{{statusCode}}' => '{{{returnType}}}',
+{{/vendorExtensions.op.successResponses}}
+            ],
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
+        );
+        return $result;
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/returnType}}
+{{^returnType}}
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): void
+    {
+        $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, $requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+    }
+
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<null>
+     * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when the request or response body cannot be encoded or decoded
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
+    {
+{{! required-param-validation: a required string param must not be empty. A path
+    param interpolated into the URL would otherwise collapse the segment (e.g.
+    /pets//orders); a required query, header, form or cookie string is rejected for the
+    same reason the other SDKs reject it — an empty string is not a present value
+    for a required parameter. Non-string required params rely on the PHP type for
+    presence. The harmonised message matches the cross-SDK canonical. }}
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+{{^isUuid}}
+        if (${{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isUuid}}
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
+        $path = '{{{path}}}';
+{{#pathParams}}
+        /** @var string $pathValue */
+{{#vendorExtensions.param.queryContent}}
+        $pathValue = \{{invokerPackage}}\ObjectSerializer::serialize(${{paramName}});
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+        $pathValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}${{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
+            'path',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.pathAllowReserved}}
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+{{/vendorExtensions.param.pathAllowReserved}}
+{{#vendorExtensions.param.pathAllowReserved}}
+{{#vendorExtensions.param.queryContent}}
+        $pathValue = ValueSerializer::encodePathSegment($pathValue);
+{{/vendorExtensions.param.queryContent}}
+        /* OAS allowReserved: the value is path-encoded once, then its
+         * reserved characters are turned back into their literal form. */
+        $pathValue = ValueSerializer::allowReservedInPath($pathValue);
+{{/vendorExtensions.param.pathAllowReserved}}
+        $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if ($server instanceof \{{invokerPackage}}\Api\{{vendorExtensions.op.serverClassName}}) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
+        }
+{{/-first}}
+{{/servers}}
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+{{#queryParams}}
+{{#vendorExtensions.param.allowReserved}}
+        $allowReservedKeys['{{baseName}}'] = true;
+{{/vendorExtensions.param.allowReserved}}
+{{/queryParams}}
+{{#queryParams}}
+{{#vendorExtensions.param.queryContent}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
+        }
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryDeepObject}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
+        }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        /* Required nullable query param: a null value is sent as the key with an
+         * empty value, so the required key is always on the wire. */
+        if ($options->{{paramName}} === null) {
+            $queryParams['{{baseName}}'] = '';
+        } else {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}}));
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options->{{paramName}} !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}}));
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        /* Optional allowEmptyValue query param: allowEmptyValue means the server
+         * tolerates an empty value IF the key is sent, not that the key must
+         * always be sent. When the caller omits it (null), omit the key entirely
+         * so no spurious '{{baseName}}=' appears on the wire. */
+        if ($options !== null && $options->{{paramName}} !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}}));
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+{{#required}}
+        /* Required query param: always present (non-nullable on the Options
+         * object), so it is emitted unconditionally. An empty string is a
+         * legitimate value and is sent as-is. */
+        $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}}));
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
+                'query',
+                '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+                {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            ));
+        }
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        $headerParams = [];
+{{#headerParams}}
+{{#required}}
+        /** @var string $headerValue */
+{{#vendorExtensions.param.queryContent}}
+        $headerValue = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+        $headerValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
+            'header',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+{{/vendorExtensions.param.queryContent}}
+        $headerParams['{{baseName}}'] = $headerValue;
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+            /** @var string $headerValue */
+{{#vendorExtensions.param.queryContent}}
+            $headerValue = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+            $headerValue = ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
+                'header',
+                '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+                null,
+                '{{style}}',
+                {{vendorExtensions.isExplodeStr}},
+            );
+{{/vendorExtensions.param.queryContent}}
+            $headerParams['{{baseName}}'] = $headerValue;
+        }
+{{/required}}
+{{/headerParams}}
+{{#hasCookieParams}}
+        $cookieParts = [];
+{{#cookieParams}}
+{{#required}}
+{{#vendorExtensions.param.cookieStyle}}
+        $cookiePair = ValueSerializer::cookiePairs('{{baseName}}', $options->{{paramName}}, {{vendorExtensions.isExplodeStr}});
+        if ($cookiePair !== '') {
+            $cookieParts[] = $cookiePair;
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+        /** @var string $cookieValue */
+{{#vendorExtensions.param.queryContent}}
+        $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+        $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+{{/vendorExtensions.param.queryContent}}
+        /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+         * forbidden octets before this value is folded into the Cookie
+         * request header. Mirrors the auth-cookie path in BaseApi so an
+         * operation cookie param fails closed with the same
+         * InvalidArgumentException instead of enabling header injection. */
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            );
+        }
+        $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/vendorExtensions.param.cookieStyle}}
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+{{#vendorExtensions.param.cookieStyle}}
+            $cookiePair = ValueSerializer::cookiePairs('{{baseName}}', $options->{{paramName}}, {{vendorExtensions.isExplodeStr}});
+            if ($cookiePair !== '') {
+                $cookieParts[] = $cookiePair;
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+            /** @var string $cookieValue */
+{{#vendorExtensions.param.queryContent}}
+            $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+{{/vendorExtensions.param.queryContent}}
+            /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+             * forbidden octets before this value is folded into the Cookie
+             * request header. Mirrors the auth-cookie path in BaseApi so an
+             * operation cookie param fails closed with the same
+             * InvalidArgumentException instead of enabling header injection. */
+            if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+                throw new \InvalidArgumentException(
+                    "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+                );
+            }
+            $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/vendorExtensions.param.cookieStyle}}
+        }
+{{/required}}
+{{/cookieParams}}
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        $requestBody = [];
+{{! OAS allowReserved on a form-urlencoded field (its Encoding Object): the field is
+    recorded under a form: prefix in the same set, so the form encoder keeps its reserved
+    characters literal while a query parameter of the same name is unaffected. A multipart
+    body ignores the set. }}
+{{#formParams}}
+{{#vendorExtensions.param.formAllowReserved}}
+        $allowReservedKeys['form:{{baseName}}'] = true;
+{{/vendorExtensions.param.formAllowReserved}}
+{{/formParams}}
+{{#formParams}}
+{{#required}}
+{{#vendorExtensions.param.formStyled}}
+        $requestBody = ValueSerializer::putQueryParam($requestBody, '{{baseName}}', ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}},
+            'query',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}},
+        ));
+{{/vendorExtensions.param.formStyled}}
+{{#vendorExtensions.param.partEncoded}}
+        $requestBody['{{baseName}}'] = ValueSerializer::encodedPart(
+            {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}},
+            {{#vendorExtensions.param.partContentType}}'{{#lambda.phpSingleQuoted}}{{{vendorExtensions.param.partContentType}}}{{/lambda.phpSingleQuoted}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}},
+            [{{#vendorExtensions.param.partHeaders}}'{{#lambda.phpSingleQuoted}}{{{name}}}{{/lambda.phpSingleQuoted}}' => '{{#lambda.phpSingleQuoted}}{{{value}}}{{/lambda.phpSingleQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}],
+        );
+{{/vendorExtensions.param.partEncoded}}
+{{^vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.partEncoded}}
+        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};
+{{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
+{{/required}}
+{{^required}}
+        if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
+{{#vendorExtensions.param.formStyled}}
+            $requestBody = ValueSerializer::putQueryParam($requestBody, '{{baseName}}', ValueSerializer::serializeStyled(
+                '{{baseName}}',
+                {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}},
+                'query',
+                '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+                null,
+                '{{style}}',
+                {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}},
+            ));
+{{/vendorExtensions.param.formStyled}}
+{{#vendorExtensions.param.partEncoded}}
+            $requestBody['{{baseName}}'] = ValueSerializer::encodedPart(
+                {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}},
+                {{#vendorExtensions.param.partContentType}}'{{#lambda.phpSingleQuoted}}{{{vendorExtensions.param.partContentType}}}{{/lambda.phpSingleQuoted}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}},
+                [{{#vendorExtensions.param.partHeaders}}'{{#lambda.phpSingleQuoted}}{{{name}}}{{/lambda.phpSingleQuoted}}' => '{{#lambda.phpSingleQuoted}}{{{value}}}{{/lambda.phpSingleQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}],
+            );
+{{/vendorExtensions.param.partEncoded}}
+{{^vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.partEncoded}}
+            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};
+{{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
+        }
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        $requestBody = ${{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+        $requestBody = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+{{#vendorExtensions.op.hasMultipleConsumes}}
+        /* Reject an unrecognised $requestContentType client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs); null defaults to the first declared type below. */
+        $declaredConsumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}];
+        if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
+            throw new \InvalidArgumentException(
+                "Unsupported request content-type '" . $requestContentType
+                    . "' for {{operationId}}; declared types are [" . implode(', ', $declaredConsumes) . ']'
+            );
+        }
+{{/vendorExtensions.op.hasMultipleConsumes}}
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.op.hasMultipleConsumes}}$requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
+            null,
+{{#vendorExtensions.op.securityNone}}
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+{{/vendorExtensions.op.securityNone}}
+            $allowReservedKeys{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}},
+{{>per_call_arguments}}
+        );
+        return $result;
+    }
+{{/returnType}}
+{{^-last}}
+
+{{/-last}}
+{{/operation}}
+}
+{{/operations}}

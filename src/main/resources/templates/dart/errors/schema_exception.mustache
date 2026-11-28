@@ -1,0 +1,83 @@
+{{>api_info}}
+import '../models/{{schemaFilename}}.dart';
+import '../object_serializer.dart';
+import 'api_exception.dart';
+{{^parentIsApi}}
+import '{{parentFilename}}.dart';
+{{/parentIsApi}}
+
+/// Exception for a response whose body is a [{{schemaName}}], declared under HTTP
+/// {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}.
+class {{className}} extends {{parentClassName}} {
+  const {{className}}({
+{{#parentIsFamily}}
+    required super.statusCode,
+    required super.message,
+{{/parentIsFamily}}
+{{^parentIsFamily}}
+    super.message = '',
+{{/parentIsFamily}}
+    super.responseBody,
+    super.responseHeaders,
+    {{schemaName}}? errorBody,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(errorBody: errorBody);
+
+  /// The response body decoded as [{{schemaName}}], or null when it is not
+  /// available.
+  @override
+  {{schemaName}}? get errorBody => super.errorBody as {{schemaName}}?;
+
+  /// Builds the exception for a response, decoding the body as
+  /// [{{schemaName}}]. A body that does not match the schema yields the status
+  /// exception with the raw body and the decoding failure as its cause.
+  static ApiException fromErrorResponse({
+    required int statusCode,
+    Map<String, String>? responseHeaders,
+    String? responseBody,
+    String? requestMethod,
+    String? requestPath,
+  }) {
+    final status = ApiException.fromResponse(
+      statusCode,
+      responseHeaders,
+      responseBody,
+      requestMethod: requestMethod,
+      requestPath: requestPath,
+    );
+    if (responseBody == null || responseBody.isEmpty) {
+      return status;
+    }
+    try {
+      final decoded = deserialize(responseBody, {{schemaName}}.fromJson);
+      if (decoded == null) {
+        throw const SerializationException('Error body is empty');
+      }
+      return {{className}}(
+{{#parentIsFamily}}
+        statusCode: statusCode,
+        message: status.message,
+{{/parentIsFamily}}
+{{^parentIsFamily}}
+        message: status.message,
+{{/parentIsFamily}}
+        responseBody: responseBody,
+        responseHeaders: responseHeaders,
+        errorBody: decoded,
+        requestMethod: status.requestMethod,
+        requestPath: status.requestPath,
+      );
+    } on SerializationException catch (e) {
+      return ApiException.fromResponse(
+        statusCode,
+        responseHeaders,
+        responseBody,
+        requestMethod: requestMethod,
+        requestPath: requestPath,
+        cause: e,
+      );
+    }
+  }
+}

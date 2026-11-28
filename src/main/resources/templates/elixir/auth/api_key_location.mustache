@@ -1,0 +1,16 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.ApiKeyLocation do
+  @moduledoc """
+  Location where an API key credential is sent on a request.
+  """
+
+  @doc "The API key is sent as an HTTP request header."
+  def header, do: :header
+
+  @doc "The API key is sent as a query parameter."
+  def query, do: :query
+
+  @doc "The API key is sent as a cookie."
+  def cookie, do: :cookie
+end

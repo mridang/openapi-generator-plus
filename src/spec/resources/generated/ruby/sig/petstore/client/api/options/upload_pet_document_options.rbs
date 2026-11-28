@@ -1,0 +1,20 @@
+module Petstore::Client
+  module Api
+    module Options
+      # Required parameters have non-optional keyword arguments;
+      # optional parameters default to nil.  The attr_reader types
+      # are nullable only for optional parameters.  Instances are
+      # frozen after construction, so only readers are exposed.
+      class UploadPetDocumentOptions
+        attr_reader file: (::IO | ::StringIO)
+        attr_reader document_type: String?
+        attr_reader notes: String?
+        attr_reader is_primary: bool?
+        attr_reader page_count: Integer?
+        attr_reader taken_at: Time?
+        attr_reader swatch: Models::Swatch?
+        def initialize: (file: (::IO | ::StringIO), ?document_type: String?, ?notes: String?, ?is_primary: bool?, ?page_count: Integer?, ?taken_at: Time?, ?swatch: Models::Swatch?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
+      end
+    end
+  end
+end

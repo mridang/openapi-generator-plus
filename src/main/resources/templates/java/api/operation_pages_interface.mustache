@@ -1,0 +1,40 @@
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+     * item or a page, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of {@link #{{operationId}}WithHttpInfo}, with the same options on each page.
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+     * @return the paginator over the items
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    {{{vendorExtensions.op.pagination.javaPaginatorType}}} {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}});
+{{#vendorExtensions.op.optionsArgOptional}}
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+     * its beginning and the client's configured settings apply.
+     *
+{{>api/operation_doc_args}}
+     * @return the paginator over the items
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default {{{vendorExtensions.op.pagination.javaPaginatorType}}} {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgsNoServerNoOptions}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServerNoOptions}}) {
+        return {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}null{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}});
+    }
+{{/vendorExtensions.op.optionsArgOptional}}

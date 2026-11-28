@@ -1,0 +1,394 @@
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, style: "{{style}}", operation: "{{classname}}.{{operationId}}")
+{{/isString}}
+{{#isDate}}
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
+{{/isDate}}
+{{/required}}
+{{/pathParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+        guard {{^vendorExtensions.param.queryRequiredNullable}}!options.{{paramName}}.isEmpty{{/vendorExtensions.param.queryRequiredNullable}}{{#vendorExtensions.param.queryRequiredNullable}}options.{{paramName}}?.isEmpty != true{{/vendorExtensions.param.queryRequiredNullable}} else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard {{^vendorExtensions.param.queryRequiredNullable}}!options.{{paramName}}.isEmpty{{/vendorExtensions.param.queryRequiredNullable}}{{#vendorExtensions.param.queryRequiredNullable}}options.{{paramName}}?.isEmpty != true{{/vendorExtensions.param.queryRequiredNullable}} else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/cookieParams}}
+{{/vendorExtensions.op.optionsParamRequired}}
+
+{{#pathParams.0}}
+        var path = "{{{path}}}"
+{{#pathParams}}
+        path = path.replacingOccurrences(
+            of: "{" + "{{baseName}}" + "}",
+            with: {{#vendorExtensions.param.pathAllowReserved}}ValueSerializer.allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}{{#vendorExtensions.swiftContent}}ValueSerializer.encodeStyledPathValue(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}{{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}})
+{{/pathParams}}
+{{#servers.0}}
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
+{{/servers.0}}
+{{/pathParams.0}}
+{{^pathParams.0}}
+{{#servers.0}}
+        var path = "{{{path}}}"
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
+{{/servers.0}}
+{{^servers.0}}
+        let path = "{{{path}}}"
+{{/servers.0}}
+{{/pathParams.0}}
+
+        {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: OrderedParams<Any?> = [:]
+{{#queryParams}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+        } else {
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery("")
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
+{{#isAllowEmptyValue}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        do {
+            let val = options.{{paramName}}
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+        }
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        do {
+            let val = options.{{paramName}}
+{{#vendorExtensions.param.queryDeepObject}}
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
+            }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
+        }
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+{{#vendorExtensions.param.queryDeepObject}}
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
+            }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+{{#vendorExtensions.param.queryDeepObject}}
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
+            }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{/queryParams}}
+
+        {{#headerParams.0}}var{{/headerParams.0}}{{^headerParams.0}}{{#hasCookieParams}}var{{/hasCookieParams}}{{^hasCookieParams}}let{{/hasCookieParams}}{{/headerParams.0}} headerParams: [String: String] = [:]
+{{#headerParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/headerParams}}
+{{#hasCookieParams}}
+        var cookieParts: [String] = []
+        /* Operation-level cookie params are interpolated straight into the
+         * Cookie request header. A value made only of RFC 6265 cookie-octets
+         * goes out as it is, never encoded by the SDK; any other value fails
+         * with ConfigurationError.invalidArgument before a request is sent, and
+         * the caller pre-encodes it. This also stops a value holding CR, LF or
+         * another control character from smuggling extra header lines into the
+         * request (header injection). A `content:` cookie is a typed value the
+         * caller cannot pre-encode, so its JSON text is percent-encoded here. */
+{{#cookieParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+{{#vendorExtensions.param.cookieStyle}}
+        let {{paramName}}CookiePairs = try ValueSerializer.cookiePairs("{{baseName}}", value: options.{{paramName}}, explode: {{isExplode}})
+        if !{{paramName}}CookiePairs.isEmpty {
+            cookieParts.append({{paramName}}CookiePairs)
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+        let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+        if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+            throw ConfigurationError.invalidArgument(
+                "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+            )
+        }
+        cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/vendorExtensions.param.cookieStyle}}
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+{{#vendorExtensions.param.cookieStyle}}
+            let {{paramName}}CookiePairs = try ValueSerializer.cookiePairs("{{baseName}}", value: val, explode: {{isExplode}})
+            if !{{paramName}}CookiePairs.isEmpty {
+                cookieParts.append({{paramName}}CookiePairs)
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                )
+            }
+            cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/vendorExtensions.param.cookieStyle}}
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+{{#vendorExtensions.param.cookieStyle}}
+            let {{paramName}}CookiePairs = try ValueSerializer.cookiePairs("{{baseName}}", value: val, explode: {{isExplode}})
+            if !{{paramName}}CookiePairs.isEmpty {
+                cookieParts.append({{paramName}}CookiePairs)
+            }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                )
+            }
+            cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/vendorExtensions.param.cookieStyle}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/cookieParams}}
+        if !cookieParts.isEmpty {
+            headerParams["Cookie"] = cookieParts.joined(separator: "; ")
+        }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: OrderedParams<Any> = [:]
+{{#formParams}}
+{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options {
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}
+{{^required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        if let val = options.{{paramName}} {
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, allowReserved: true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, contentType: {{#vendorExtensions.param.partContentType}}"{{{vendorExtensions.param.partContentType}}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, headers: [{{#vendorExtensions.param.partHeaders}}(name: "{{{name}}}", value: "{{{value}}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+
+{{#consumes}}{{#-last}}{{^-first}}
+        /* This operation declares more than one request content-type. The
+         * optional `requestContentType` selector lets the caller pick one of
+         * the declared types; a nil value defaults to the first declared type.
+         * An unrecognized value is rejected client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs), rather than being silently dropped. */
+        let declaredRequestContentTypes = [{{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}}]
+        let effectiveRequestContentType: String
+        if let requestContentType {
+            guard declaredRequestContentTypes.contains(requestContentType) else {
+                throw ConfigurationError.invalidArgument(
+                    "Unsupported request content-type '\(requestContentType)' for {{operationId}}; declared types are [\(declaredRequestContentTypes.joined(separator: ", "))]")
+            }
+            effectiveRequestContentType = requestContentType
+        } else {
+            effectiveRequestContentType = "{{vendorExtensions.op.effectiveConsumes}}"
+        }
+{{/-first}}{{/-last}}{{/consumes}}
+{{#hasFormParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+        /* This operation accepts multipart/form-data alongside a raw binary
+         * content-type (e.g. application/octet-stream). When the caller
+         * selects multipart, send the assembled form fields as a multipart
+         * envelope; otherwise the selected content-type carries the single
+         * binary part's bytes directly, with no multipart framing. */
+        let requestBody: Any?
+        if effectiveRequestContentType == "multipart/form-data" {
+            requestBody = formBody
+        } else {
+            requestBody = {{#formParams}}{{#isBinary}}{{#vendorExtensions.op.optionsParamRequired}}options.{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{/isBinary}}{{/formParams}}
+        }
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+        let requestBody: Any? = formBody
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        let requestBody: Any? = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+        let requestBody: Any? = nil
+{{/bodyParam}}
+{{/hasFormParams}}
+        let params = InvokeAPIParams(
+            method: "{{httpMethod}}",
+            path: {{#vendorExtensions.op.pagination.isUrlPaged}}pageURL ?? {{/vendorExtensions.op.pagination.isUrlPaged}}path,
+            queryParams: {{#vendorExtensions.op.pagination.isUrlPaged}}pageURL == nil ? queryParams : [:]{{/vendorExtensions.op.pagination.isUrlPaged}}{{^vendorExtensions.op.pagination.isUrlPaged}}queryParams{{/vendorExtensions.op.pagination.isUrlPaged}},
+            headerParams: headerParams,
+            body: requestBody,
+            accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
+            contentType: {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
+            returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
+            auth: {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}requirementAuthenticator([{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}]){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}schemeAuthenticator([{{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
+            operation: "{{classname}}.{{operationId}}",
+            operationId: "{{#lambda.swiftString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.swiftString}}",
+            urlTemplate: "{{#lambda.swiftString}}{{{path}}}{{/lambda.swiftString}}"{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}}{{#vendorExtensions.op.hasOptionsObject}},
+            timeout: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}timeout,
+            requestHeaders: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}headers,
+            maxRetries: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}maxRetries{{/vendorExtensions.op.hasOptionsObject}}{{#vendorExtensions.op.hasErrorSchemaResponses}},
+            errorSchemas: [
+{{#vendorExtensions.op.errorSchemaResponses}}
+                "{{status}}": {{{schemaClassName}}}.fromErrorResponse{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+            ]{{/vendorExtensions.op.hasErrorSchemaResponses}}
+        )

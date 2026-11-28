@@ -1,0 +1,231 @@
+{{>api_info}}
+
+import { ServerConfiguration } from './server-configuration{{importFileExtension}}';
+import type { CallHook } from './call-hook{{importFileExtension}}';
+import { redactHeaders } from './transport-options{{importFileExtension}}';
+
+/**
+ * API-level configuration for generated client classes.
+ *
+ * Holds the base URL and default headers that are applied to every API
+ * request. Transport-level settings (TLS, proxy, timeouts) belong in
+ * `TransportOptions` and are configured on the `DefaultApiClient`.
+ *
+ * This class is immutable and thread-safe. Use {@link Configuration.builder} to create instances:
+ *
+ * ```typescript
+ * const config = Configuration.builder()
+ *   .baseUrl('https://api.example.com')
+ *   .defaultHeader('Authorization', 'Bearer token')
+ *   .build();
+ * ```
+ */
+export class Configuration {
+  /**
+   * Base URL for all API requests.
+   *
+   * Defaults to the first server URL from the OpenAPI specification.
+   */
+  public readonly baseUrl: string;
+
+  /**
+   * Default headers included in every API request.
+   *
+   * These headers are merged after transport-level headers from
+   * `TransportOptions` but before operation-specific headers and
+   * authentication headers.
+   */
+  public readonly defaultHeaders: Readonly<Record<string, string>>;
+
+  /**
+   * Client-level cancellation signal. When it fires every in-flight and every
+   * later call made through this configuration is aborted; it is merged with
+   * the per-call `signal` of each operation (either one cancels the call).
+   */
+  public readonly signal: AbortSignal | undefined;
+
+  /**
+   * The call hook that runs around every operation call, or `undefined` when
+   * none is set. It runs above the transport, so it also fires when the caller
+   * supplied the transport. It is not part of the string form.
+   */
+  public readonly callHook: CallHook | undefined;
+
+  /**
+   * Whether every request body is checked against the validation keywords of
+   * its schema (`minLength`, `pattern`, `minimum`, `maxItems`, ...) before it
+   * is sent. Off by default; a body that breaks one is refused with a
+   * `TypeError` and nothing is sent.
+   */
+  public readonly validateConstraints: boolean;
+
+  constructor(
+    options?: Partial<{
+      baseUrl: string;
+      defaultHeaders: Record<string, string>;
+      signal: AbortSignal;
+      callHook: CallHook;
+      validateConstraints: boolean;
+    }>
+  ) {
+    this.baseUrl = options?.baseUrl ?? '{{{basePath}}}';
+    this.defaultHeaders = Object.freeze({ ...(options?.defaultHeaders ?? {}) });
+    this.signal = options?.signal;
+    this.callHook = options?.callHook;
+    this.validateConstraints = options?.validateConstraints ?? false;
+  }
+
+  /**
+   * Create a new builder for constructing Configuration instances.
+   *
+   * @returns a new builder
+   */
+  public static builder(): ConfigurationBuilder {
+    return new ConfigurationBuilder();
+  }
+
+  /**
+   * Return a Configuration with default values.
+   *
+   * A fresh instance every call: the SDK keeps no process-wide default a
+   * caller could swap out from under another caller.
+   *
+   * @returns a new configuration with the spec-defined base URL and no
+   *   default headers
+   */
+  public static defaultConfiguration(): Configuration {
+    return new ConfigurationBuilder().build();
+  }
+
+  toJSON(): Record<string, unknown> {
+    return { baseUrl: this.baseUrl, defaultHeaders: redactHeaders(this.defaultHeaders) };
+  }
+
+  /**
+   * String form with the value of every secret default header (Authorization,
+   * Proxy-Authorization, Cookie, or a name containing key, token or secret)
+   * replaced by `***`.
+   */
+  toString(): string {
+    return `Configuration(${JSON.stringify(this.toJSON())})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
+}
+
+/**
+ * Builder for creating immutable {@link Configuration} instances.
+ */
+export class ConfigurationBuilder {
+  private _baseUrl: string = '{{{basePath}}}';
+  private _defaultHeaders: Record<string, string> = {};
+  private _signal: AbortSignal | undefined;
+  private _callHook: CallHook | undefined;
+  private _validateConstraints = false;
+
+  /**
+   * Set the client-level cancellation signal. Aborting it cancels every call
+   * made through the built configuration; it is merged with each call's own
+   * `signal` (either one cancels the call).
+   *
+   * @param signal the client-level abort signal
+   * @returns this builder
+   */
+  signal(signal: AbortSignal | undefined): this {
+    this._signal = signal;
+    return this;
+  }
+
+  /**
+   * Set the call hook that runs around every operation call: it can edit the
+   * request headers before the send and observe the status or the error
+   * afterwards. Use `chain` to combine several hooks.
+   *
+   * @param hook the call hook, or `undefined` for none
+   * @returns this builder
+   */
+  callHook(hook: CallHook | undefined): this {
+    this._callHook = hook;
+    return this;
+  }
+
+  /**
+   * Turn the check of every request body against the validation keywords of
+   * its schema on or off. Off by default; when on, a body that breaks one is
+   * refused with a `TypeError` before anything is sent.
+   *
+   * @param validate whether request bodies are checked
+   * @returns this builder
+   */
+  validateConstraints(validate: boolean): this {
+    this._validateConstraints = validate;
+    return this;
+  }
+
+  /**
+   * Set the base URL for all API requests.
+   *
+   * @param baseUrl the base URL
+   * @returns this builder
+   */
+  baseUrl(baseUrl: string): this {
+    this._baseUrl = baseUrl;
+    return this;
+  }
+
+  /**
+   * Add a single default header to include in every API request.
+   *
+   * @param name header name
+   * @param value header value
+   * @returns this builder
+   */
+  defaultHeader(name: string, value: string): this {
+    this._defaultHeaders[name] = value;
+    return this;
+  }
+
+  /**
+   * Add multiple default headers to include in every API request.
+   *
+   * @param headers map of header names to values
+   * @returns this builder
+   */
+  defaultHeaders(headers: Record<string, string>): this {
+    Object.assign(this._defaultHeaders, headers);
+    return this;
+  }
+
+  /**
+   * Set the base URL by resolving a server configuration with optional variable overrides.
+   *
+   * This is a convenience method that calls {@link ServerConfiguration.getUrl}
+   * with the given overrides and stores the result as the base URL. If the user
+   * also calls {@link baseUrl} after this method, the explicit base URL wins.
+   *
+   * @param serverConfig the server configuration to resolve
+   * @param variables optional variable overrides (defaults are used for omitted variables)
+   * @returns this builder
+   */
+  server(serverConfig: ServerConfiguration, variables?: Record<string, string>): this {
+    this._baseUrl = serverConfig.getUrl(variables ?? {});
+    return this;
+  }
+
+  /**
+   * Build and return an immutable Configuration instance.
+   *
+   * @returns the configured instance
+   */
+  build(): Configuration {
+    return new Configuration({
+      baseUrl: this._baseUrl,
+      defaultHeaders: this._defaultHeaders,
+      signal: this._signal,
+      callHook: this._callHook,
+      validateConstraints: this._validateConstraints
+    });
+  }
+}

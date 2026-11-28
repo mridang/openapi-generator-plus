@@ -1,0 +1,198 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * The opt-in check of a request body against the validation keywords of its
+ * schema, run when {@see Configuration::$validateConstraints} is on.
+ *
+ * @internal This class is part of the SDK's internal request plumbing and is
+ *           not part of the public API. It may change or be removed in any
+ *           release without notice.
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final class ConstraintValidator
+{
+    /**
+     * Check a request body before it is serialized. A body that is not one of
+     * the models with a check, or a list of them, passes unchecked.
+     *
+     * @param mixed $body the request body as the operation was given it
+     * @throws \InvalidArgumentException naming the path and the rule of the first violation
+     */
+    public static function validate(mixed $body): void
+    {
+        if ($body instanceof \Ds\Vector || $body instanceof \Ds\Set || (is_array($body) && array_is_list($body))) {
+            $index = 0;
+            foreach ($body as $item) {
+                self::checkModel($item, '[' . $index . ']');
+                ++$index;
+            }
+            return;
+        }
+        self::checkModel($body, '');
+    }
+
+    /**
+     * Check a value that may be one of the models with a check.
+     *
+     * @param mixed  $value  the value
+     * @param string $prefix the path of the value in the body, empty at the root
+     * @throws \InvalidArgumentException naming the path and the rule of the first violation
+     */
+    public static function checkModel(mixed $value, string $prefix): void
+    {
+{{#phpConstraintModels}}
+        if ($value instanceof \{{modelPackage}}\{{{classname}}}) {
+            self::check{{{classname}}}($value, $prefix);
+            return;
+        }
+{{/phpConstraintModels}}
+    }
+
+    /**
+     * Raise the argument error for a violation.
+     *
+     * @param string $path the path of the value in the body
+     * @param string $rule the rule the value breaks
+     * @throws \InvalidArgumentException always
+     */
+    public static function refuse(string $path, string $rule): never
+    {
+        throw new \InvalidArgumentException('Invalid request body: ' . $path . ' ' . $rule);
+    }
+
+    /**
+     * The path of a property below a prefix.
+     *
+     * @param string $prefix the path of the model holding the property, empty at the root
+     * @param string $name   the wire name of the property
+     * @return string the joined path
+     */
+    public static function join(string $prefix, string $name): string
+    {
+        return $prefix === '' ? $name : $prefix . '.' . $name;
+    }
+
+    /**
+     * Whether a number is a multiple of a limit, within 1e-9 of a whole quotient.
+     *
+     * @param int|float $value the number
+     * @param int|float $limit the positive divisor
+     * @return bool whether the quotient is whole
+     */
+    public static function isMultipleOf(int|float $value, int|float $limit): bool
+    {
+        $quotient = $value / $limit;
+        return abs($quotient - round($quotient)) < 1e-9;
+    }
+
+    /**
+     * Whether a string contains a match of a pattern. A pattern PCRE cannot
+     * compile is not enforced, so it always matches.
+     *
+     * @param string $value the string
+     * @param string $regex the delimited pattern
+     * @return bool whether the value matches or the pattern is not enforced
+     */
+    public static function matches(string $value, string $regex): bool
+    {
+        return @preg_match($regex, $value) !== 0;
+    }
+{{#constraintModels}}
+
+    /**
+     * Check a value of the {{{classname}}} model.
+     *
+     * @param \{{modelPackage}}\{{{classname}}} $value  the value
+     * @param string $prefix the path of the value in the body, empty at the root
+     * @throws \InvalidArgumentException naming the path and the rule of the first violation
+     */
+    private static function check{{{classname}}}(\{{modelPackage}}\{{{classname}}} $value, string $prefix): void
+    {
+{{#vendorExtensions.constraintProps}}
+        $property = $value->{{{name}}};
+{{#phpNullable}}
+        if ($property !== null) {
+{{/phpNullable}}
+            $path = self::join($prefix, '{{#lambda.phpSingleQuoted}}{{{baseName}}}{{/lambda.phpSingleQuoted}}');
+{{#checks}}
+{{#isMinLength}}
+            if (mb_strlen($property, 'UTF-8') < {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMinLength}}
+{{#isMaxLength}}
+            if (mb_strlen($property, 'UTF-8') > {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMaxLength}}
+{{#isPattern}}
+            if (!self::matches($property, '{{#lambda.phpSingleQuoted}}{{{phpPattern}}}{{/lambda.phpSingleQuoted}}')) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isPattern}}
+{{#isMinimum}}
+            if ($property < {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMinimum}}
+{{#isMaximum}}
+            if ($property > {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+            if ($property <= {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+            if ($property >= {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+            if (!self::isMultipleOf($property, {{{limit}}})) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMultipleOf}}
+{{#isMinItems}}
+            if (count($property) < {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMinItems}}
+{{#isMaxItems}}
+            if (count($property) > {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMaxItems}}
+{{#isMinProperties}}
+            if (count($property) < {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMinProperties}}
+{{#isMaxProperties}}
+            if (count($property) > {{{limit}}}) {
+                self::refuse($path, '{{#lambda.phpSingleQuoted}}{{{message}}}{{/lambda.phpSingleQuoted}}');
+            }
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+            self::check{{{nestedModel}}}($property, $path);
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+            $index = 0;
+            foreach ($property as $item) {
+                self::checkModel($item, $path . '[' . $index . ']');
+                ++$index;
+            }
+{{/hasNestedItemsModel}}
+{{#phpNullable}}
+        }
+{{/phpNullable}}
+{{/vendorExtensions.constraintProps}}
+    }
+{{/constraintModels}}
+}

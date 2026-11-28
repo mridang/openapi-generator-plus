@@ -1,0 +1,52 @@
+.PHONY: all build test lint format format-check fmt gofumpt vet staticcheck audit docs examples examples-run clean
+
+all: build
+
+build:
+	go build ./...
+
+test:
+	mkdir -p .out/reports
+	go run gotest.tools/gotestsum --junitfile .out/reports/junit.xml -- -v -race -coverprofile=.out/coverage.out ./...
+	go run github.com/boumenot/gocover-cobertura < .out/coverage.out > .out/coverage.xml
+
+lint: format-check vet staticcheck
+	golangci-lint run ./...
+
+format-check:
+	@test -z "$$(gofmt -s -l .)" || { echo "gofmt -s: these files need formatting:"; gofmt -s -l .; exit 1; }
+	@test -z "$$(go tool gofumpt -l .)" || { echo "gofumpt: these files need formatting:"; go tool gofumpt -l .; exit 1; }
+
+format: fmt gofumpt
+
+fmt:
+	gofmt -s -w .
+
+gofumpt:
+	go tool gofumpt -w .
+
+vet:
+	go vet ./...
+
+staticcheck:
+	go tool staticcheck ./...
+
+# Fails when code the module calls has a known vulnerability.
+audit:
+	go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+
+docs:
+	go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
+	mkdir -p .out/docs
+	gomarkdoc --exclude-dirs ./test/...,./examples/... --output '.out/docs/{{=<% %>=}}{{.Dir}}<%={{ }}=%>.md' ./...
+
+examples:
+	go vet ./examples/...
+	mkdir -p .out/examples
+	go build -o .out/examples/ ./examples/...
+
+examples-run: examples
+	{{envVarPrefix}}_BASE_URL="$(API_BASE_URL)" {{envVarPrefix}}_TOKEN=placeholder .out/examples/quickstart
+
+clean:
+	go clean ./...

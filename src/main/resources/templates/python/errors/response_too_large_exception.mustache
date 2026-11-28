@@ -1,0 +1,47 @@
+{{>api_info}}
+
+from typing import Any, Optional
+
+from {{packageName}}.errors import ApiException
+
+
+class ResponseTooLargeException(ApiException):
+    """Exception for a buffered response body that passed
+    :attr:`TransportOptions.max_response_bytes`.
+
+    A response came back, so it carries the real status code and the
+    lower-cased response headers; the body is empty because the client stopped
+    reading as soon as the limit was passed, counting both the bytes on the wire
+    and the decompressed bytes. Only the default client raises it, and it is
+    never retried: the same request returns the same body.
+    """
+
+    def __init__(
+        self,
+        limit: int,
+        status_code: int = 0,
+        response_headers: Optional[Any] = None,
+        cause: Optional[BaseException] = None,
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            status_code=status_code,
+            message=f'Response body exceeds the limit of {limit} bytes',
+            response_headers=response_headers,
+            response_body='',
+            cause=cause,
+            request_method=request_method,
+            request_path=request_path,
+        )
+        self._limit = limit
+
+    @property
+    def limit(self) -> int:
+        """The ``max_response_bytes`` limit the body passed."""
+        return self._limit
+
+    @property
+    def is_retryable(self) -> bool:
+        """Always ``False``: sending the request again returns the same body."""
+        return False

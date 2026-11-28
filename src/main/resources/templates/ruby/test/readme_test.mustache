@@ -1,0 +1,168 @@
+# frozen_string_literal: true
+
+require 'test_helper'
+
+# Guards the claims the README makes about the SDK's own API.
+describe 'README' do
+  parallelize_me!
+
+  def readme
+    File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'README.md'))
+  end
+
+  it 'bhv_options_044 names the builder setter that rejects a SOCKS proxy' do
+    _(readme).must_include '`TransportOptions.builder.proxy(url)` accepts only `http://` and `https://` URLs.'
+    _(readme).wont_include 'TransportOptions.proxy()'
+  end
+
+  it 'bhv_metadata_001 has an API information section for the spec metadata' do
+    _(readme).must_include "\n## API information\n"
+  end
+
+  it 'bhv_langruby_068 documents the schema constraints and uniqueItems ordering' do
+    _(readme).must_include '### Schema constraints'
+    _(readme).must_include '`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,'
+    _(readme).must_include '`uniqueItems` arrays'
+  end
+
+  it 'bhv_langruby_069 makes no claim about how the other SDKs treat a discriminator no-match' do
+    _(readme).must_include 'raises'
+    _(readme).wont_include 'This matches Python'
+  end
+
+  it 'bhv_langruby_070 lists the unsupported features and says uniqueItems order is unspecified' do
+    ['### XML bodies and `nodeType`', '### Link Objects', '### Mutual TLS security schemes'].each do |heading|
+      _(readme).must_include heading
+    end
+    _(readme).wont_include 'ascending natural order'
+    _(readme).must_include '## Development'
+  end
+
+  it 'bhv_langruby_071 documents the retry option and no longer says requests are never retried' do
+    _(readme).must_include '### Automatic retries'
+    _(readme).must_include 'max_retries(n)'
+    _(readme).wont_include 'never retries'
+  end
+
+  it 'bhv_langruby_072 documents the per-call options, the error request context and the design notes' do
+    ['### Per-call options', '### Errors', '`request_path`', '### Response compression', '### Logging',
+     '### Streaming', '### Versioning', '### Credentials', '### Optional and nullable are not told apart',
+     '### Unknown enum values and discriminators', '### Repeated response headers are joined',
+     '### `Configuration` and `TransportOptions`'].each do |text|
+      _(readme).must_include text
+    end
+  end
+
+  it 'bhv_langruby_073 names the environment variable of every credential and says every operation has Options' do
+{{#securitySchemeEnvVars}}
+    _(readme).must_include '| `{{schemeId}}` | `{{fieldSnake}}` | `{{envName}}` |'
+{{/securitySchemeEnvVars}}
+    _(readme).must_include 'an empty variable counts as unset'
+    _(readme).must_include 'Every operation takes an optional Options object'
+  end
+
+  it 'bhv_langruby_074 documents the credential per security scheme, closing the client and cookie parameters' do
+{{#hasClientSchemes}}
+    _(readme).must_include '### Credentials per security scheme'
+{{#clientSchemes}}
+    _(readme).must_include '`{{argName}}:`'
+{{/clientSchemes}}
+    _(readme).must_include 'there is no per-call override'
+{{/hasClientSchemes}}
+    _(readme).must_include '### Closing the client'
+    _(readme).must_include 'a request already in flight finishes'
+    _(readme).must_include '### Cookie parameters'
+    _(readme).must_include 'RFC 6265 cookie-octet'
+  end
+
+  it 'bhv_mocking_009 testing your code names the group interface and the client interface' do
+    start = readme.index("\n### Testing your code\n")
+    _(start).wont_be_nil
+    finish = readme.index("\n### ", start.to_i + 4)
+    section = readme[start.to_i...(finish || readme.length)].to_s
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+    _(section).must_include '_{{classname}}Interface'
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+    _(section).must_include '_{{clientClassName}}Interface'
+  end
+{{#generateExamples}}
+
+  def root_file(name)
+    File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), name))
+  end
+
+  def ruby_fences(text)
+    text.scan(/^```(ruby[^\n]*)\n(.*?)^```/m)
+  end
+
+  def quickstart
+    root_file('examples/quickstart.rb')
+  end
+
+  it 'bhv_langruby_091 ships a quickstart that builds a client, calls an operation and closes it' do
+    _(quickstart).must_include "require '{{gemName}}'"
+    _(quickstart).must_include '{{moduleName}}::{{clientClassName}}.with_token(host, token)'
+{{#hasExampleOperation}}
+    _(quickstart).must_include 'client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}{{/exampleOperation}}'
+{{/hasExampleOperation}}
+    _(quickstart).must_include 'client.close'
+  end
+
+  it 'bhv_langruby_092 reads the host and the token from the variables the README names' do
+    %w[{{envVarPrefix}}_BASE_URL {{envVarPrefix}}_TOKEN].each do |name|
+      _(quickstart).must_include "ENV.fetch('#{name}')"
+      _(readme).must_include name
+    end
+    _(quickstart).wont_include 'your-token'
+  end
+
+  it 'bhv_langruby_093 holds the statements of the README Usage fence in the quickstart, in order' do
+    usage = readme.split("\n## Usage\n", 2).last.to_s.split("\n## ", 2).first.to_s
+    fence = ruby_fences(usage).first
+    _(fence).wont_be_nil
+    position = 0
+    fence.last.each_line do |line|
+      stripped = line.strip
+      next if stripped.empty? || stripped.start_with?('require ')
+
+      found = quickstart.index(stripped, position)
+      _(found).wont_be_nil stripped
+      position = found + stripped.length
+    end
+  end
+
+  it 'bhv_langruby_094 declares the kind of every ruby fence of README.md and SKILLS.md' do
+    %w[README.md SKILLS.md].each do |name|
+      ruby_fences(root_file(name)).map(&:first).each do |info|
+        _(['ruby file', 'ruby statements']).must_include info, name
+      end
+    end
+  end
+
+  it 'bhv_langruby_095 leaves no placeholder line in a ruby fence of README.md and SKILLS.md' do
+    %w[README.md SKILLS.md].each do |name|
+      ruby_fences(root_file(name)).map(&:last).each do |body|
+        body.each_line do |line|
+          stripped = line.strip
+          _(['...', '# ...']).wont_include stripped, name
+          _(stripped).wont_match(/\A<\w+>\z/, name)
+          _(stripped).wont_match(/<[A-Z]\w*>/, name)
+        end
+      end
+    end
+  end
+
+  it 'bhv_langruby_096 has Makefile targets that check and run the examples directory' do
+    makefile = root_file('Makefile')
+    _(makefile).must_include "\nexamples: install\n"
+    _(makefile).must_include "\nexamples-run: examples\n"
+    _(makefile).must_include "find examples -name '*.rb'"
+  end
+{{/generateExamples}}
+end

@@ -1,0 +1,330 @@
+{{>api_info}}
+
+import * as util from 'node:util';
+import { Configuration, ConfigurationBuilder } from '../src/configuration{{importFileExtension}}';
+import { ServerConfiguration, ServerVariable } from '../src/server-configuration{{importFileExtension}}';
+
+describe('Configuration', () => {
+  test('bhv config 005 the builder produces the default values when nothing is set', () => {
+    const config = Configuration.builder().build();
+
+    expect(config.baseUrl).toBe('{{{basePath}}}');
+    expect(config.defaultHeaders).toEqual({});
+  });
+
+  test('bhv config 007 builder returns ConfigurationBuilder instance', () => {
+    const builder = Configuration.builder();
+
+    expect(builder).toBeInstanceOf(ConfigurationBuilder);
+  });
+
+  test('bhv config 011 the builder sets the base URL', () => {
+    const config = Configuration.builder()
+      .baseUrl('https://custom.example.com')
+      .build();
+
+    expect(config.baseUrl).toBe('https://custom.example.com');
+  });
+
+  test('bhv config 026 a configuration built through the builder returns the base URL set on it', () => {
+    const config = Configuration.builder().baseUrl('https://builder.example.com').build();
+
+    expect(config.baseUrl).toBe('https://builder.example.com');
+  });
+
+  test('bhv config 013 builder sets single default header', () => {
+    const config = Configuration.builder()
+      .defaultHeader('Authorization', 'Bearer token123')
+      .build();
+
+    expect(config.defaultHeaders).toEqual({ 'Authorization': 'Bearer token123' });
+  });
+
+  test('bhv config 012 builder sets multiple default headers', () => {
+    const config = Configuration.builder()
+      .defaultHeaders({
+        'Authorization': 'Bearer token123',
+        'X-Custom': 'value',
+      })
+      .build();
+
+    expect(config.defaultHeaders).toEqual({
+      'Authorization': 'Bearer token123',
+      'X-Custom': 'value',
+    });
+  });
+
+  test('bhv config 004 builder merges single and bulk headers', () => {
+    const config = Configuration.builder()
+      .defaultHeader('X-Single', 'one')
+      .defaultHeaders({ 'X-Bulk': 'two' })
+      .build();
+
+    expect(config.defaultHeaders).toEqual({ 'X-Single': 'one', 'X-Bulk': 'two' });
+  });
+
+  test('bhv config 002 the builder accumulates headers across calls', () => {
+    const config = Configuration.builder()
+      .defaultHeader('X-First', 'one')
+      .defaultHeader('X-Second', 'two')
+      .defaultHeaders({ 'X-Third': 'three' })
+      .build();
+
+    expect(Object.keys(config.defaultHeaders)).toHaveLength(3);
+    expect(config.defaultHeaders['X-First']).toBe('one');
+    expect(config.defaultHeaders['X-Second']).toBe('two');
+    expect(config.defaultHeaders['X-Third']).toBe('three');
+  });
+
+  test('bhv config 010 builder sets all fields', () => {
+    const config = Configuration.builder()
+      .baseUrl('https://api.example.com')
+      .defaultHeader('Authorization', 'Bearer token')
+      .defaultHeaders({ 'X-Custom': 'value' })
+      .build();
+
+    expect(config.baseUrl).toBe('https://api.example.com');
+    expect(Object.keys(config.defaultHeaders)).toHaveLength(2);
+    expect(config.defaultHeaders['Authorization']).toBe('Bearer token');
+    expect(config.defaultHeaders['X-Custom']).toBe('value');
+  });
+
+  test('bhv config 008 server resolves URL with default variables', () => {
+    const server = new ServerConfiguration(
+      'https://{env}.example.com/api/{version}',
+      'Test server',
+      {
+        env: new ServerVariable('api', null, ['api', 'staging']),
+        version: new ServerVariable('v3', null, ['v2', 'v3']),
+      },
+    );
+
+    const config = Configuration.builder().server(server).build();
+
+    expect(config.baseUrl).toBe('https://api.example.com/api/v3');
+  });
+
+  test('bhv config 009 server resolves URL with variable overrides', () => {
+    const server = new ServerConfiguration(
+      'https://{env}.example.com/api/{version}',
+      null,
+      {
+        env: new ServerVariable('api', null, ['api', 'staging']),
+        version: new ServerVariable('v3', null, ['v2', 'v3']),
+      },
+    );
+
+    const config = Configuration.builder()
+      .server(server, { env: 'staging', version: 'v2' })
+      .build();
+
+    expect(config.baseUrl).toBe('https://staging.example.com/api/v2');
+  });
+
+  test('bhv config 016 invalid enum value throws', () => {
+    const server = new ServerConfiguration(
+      'https://{env}.example.com',
+      null,
+      { env: new ServerVariable('api', null, ['api', 'staging']) },
+    );
+
+    expect(() =>
+      Configuration.builder().server(server, { env: 'invalid' }).build(),
+    ).toThrow(TypeError);
+  });
+
+  test('bhv config 001 a base URL overrides the server', () => {
+    const server = new ServerConfiguration('https://api.example.com', null, {});
+
+    const config = Configuration.builder()
+      .server(server)
+      .baseUrl('https://override.example.com')
+      .build();
+
+    expect(config.baseUrl).toBe('https://override.example.com');
+  });
+
+  test('bhv config 018 a default constructed or built configuration uses the base URL from the spec', () => {
+    expect(new Configuration().baseUrl).toBe('{{{basePath}}}');
+    expect(Configuration.builder().build().baseUrl).toBe('{{{basePath}}}');
+  });
+
+  test('bhv config 019 default configuration returns the spec base URL and no headers', () => {
+    const config = Configuration.defaultConfiguration();
+
+    expect(config.baseUrl).toBe('{{{basePath}}}');
+    expect(config.defaultHeaders).toEqual({});
+  });
+
+  test('bhv config 020 builder chain sets base URL and default headers in one configuration', () => {
+    const config = Configuration.builder()
+      .baseUrl('https://custom.example.com')
+      .defaultHeader('X-Team', 'platform')
+      .build();
+
+    expect(config.baseUrl).toBe('https://custom.example.com');
+    expect(config.defaultHeaders).toEqual({ 'X-Team': 'platform' });
+  });
+
+  test('bhv config 021 server URL template resolves its variables to their defaults', () => {
+    const server = new ServerConfiguration(
+      'https://{region}.example.org/{version}',
+      'Regional server',
+      {
+        region: new ServerVariable('eu', null, ['eu', 'us']),
+        version: new ServerVariable('v1', null, ['v1', 'v2']),
+      },
+    );
+
+    const config = Configuration.builder().server(server).build();
+
+    expect(config.baseUrl).toBe('https://eu.example.org/v1');
+  });
+
+  test('bhv config 022 mutating default headers does not change the configuration', () => {
+    const config = Configuration.builder().defaultHeader('X-Team', 'platform').build();
+    const headers = config.defaultHeaders as Record<string, string>;
+
+    expect(Reflect.set(headers, 'X-Team', 'attacker')).toBe(false);
+    expect(config.defaultHeaders).toEqual({ 'X-Team': 'platform' });
+  });
+
+  test('bhv config 014 defaultConfiguration returns an instance', () => {
+    const config = Configuration.defaultConfiguration();
+
+    expect(config).toBeInstanceOf(Configuration);
+    expect(config.baseUrl).toBe('{{{basePath}}}');
+  });
+
+  test('bhv config 023 defaultConfiguration returns a fresh instance with the same base URL', () => {
+    /* There is no settable process-wide default: every call builds a new
+     * Configuration, so nothing one caller does can change what another
+     * gets. */
+    const first = Configuration.defaultConfiguration();
+    const second = Configuration.defaultConfiguration();
+
+    expect(first).not.toBe(second);
+    expect(first.baseUrl).toBe(second.baseUrl);
+  });
+
+  test('bhv config 024 configuration has no settable process-wide default', () => {
+    expect((Configuration as unknown as Record<string, unknown>).setDefault).toBeUndefined();
+    expect((Configuration as unknown as Record<string, unknown>).getDefault).toBeUndefined();
+  });
+
+  test('bhv config 006 builder produces independent instances', () => {
+    const builder = Configuration.builder().baseUrl('https://example.com');
+    const first = builder.build();
+    const second = builder.build();
+
+    expect(first).not.toBe(second);
+    expect(first.baseUrl).toBe(second.baseUrl);
+  });
+
+  test('bhv config 017 a built configuration cannot be changed', () => {
+    const config = Configuration.builder()
+      .defaultHeader('X-Key', 'value')
+      .build();
+
+    expect(Object.isFrozen(config.defaultHeaders)).toBe(true);
+  });
+
+  test('bhv config 003 every builder setter returns the same builder', () => {
+    const builder = Configuration.builder();
+
+    expect(builder.baseUrl('https://example.com')).toBe(builder);
+    expect(builder.defaultHeader('X-Key', 'value')).toBe(builder);
+    expect(builder.defaultHeaders({ 'X-Other': 'val' })).toBe(builder);
+
+    const server = new ServerConfiguration('https://example.com', null, {});
+    expect(builder.server(server)).toBe(builder);
+  });
+
+  test('bhv config 015 toString, JSON and inspect hide secret default header values', () => {
+    const config = Configuration.builder()
+      .baseUrl('https://example.com')
+      .defaultHeaders({
+        Authorization: 'Bearer top-secret',
+        'Proxy-Authorization': 'Basic abc',
+        Cookie: 'sid=top-secret',
+        'X-Api-Key': 'top-secret',
+        'X-Auth-Token': 'top-secret',
+        'X-Client-Secret': 'top-secret',
+        'X-Trace': 'visible',
+      })
+      .build();
+    const renderers: Array<(c: Configuration) => string> = [
+      (c) => c.toString(),
+      (c) => JSON.stringify(c),
+      (c) => util.inspect(c),
+    ];
+    for (const render of renderers) {
+      const text = render(config);
+      expect(text).not.toContain('top-secret');
+      expect(text).not.toContain('Basic abc');
+      expect(text).toContain('https://example.com');
+      expect(text).toContain('visible');
+      expect(text).toContain('***');
+    }
+  });
+
+  test('bhv langnode 053 signal is undefined by default', () => {
+    expect(Configuration.builder().build().signal).toBeUndefined();
+  });
+
+  test('bhv misc 135 the builder stores the client-level signal', () => {
+    const controller = new AbortController();
+    const config = Configuration.builder().signal(controller.signal).build();
+    expect(config.signal).toBe(controller.signal);
+  });
+
+  test('bhv langnode 054 the signal is not part of the printable form', () => {
+    const config = Configuration.builder().signal(new AbortController().signal).build();
+    expect(Object.keys(config.toJSON())).toEqual(['baseUrl', 'defaultHeaders']);
+  });
+
+  test('bhv langnode 055 the call hook is undefined by default', () => {
+    expect(Configuration.builder().build().callHook).toBeUndefined();
+  });
+
+  test('bhv langnode 056 the builder stores the call hook', () => {
+    const hook = { start: () => undefined };
+    expect(Configuration.builder().callHook(hook).build().callHook).toBe(hook);
+  });
+
+  test('bhv langnode 057 the call hook is not part of the printable form', () => {
+    const config = Configuration.builder().callHook({ start: () => undefined }).build();
+    expect(Object.keys(config.toJSON())).toEqual(['baseUrl', 'defaultHeaders']);
+    expect(config.toString()).not.toContain('start');
+  });
+});
+
+describe('Configuration debug text misc behaviours', () => {
+  test('bhv misc 136 the debug text shows the base URL and the non-sensitive default headers', () => {
+    const config = Configuration.builder()
+      .baseUrl('https://api.example.com')
+      .defaultHeader('Accept', 'text/plain')
+      .build();
+    const text = config.toString();
+    expect(text).toContain('https://api.example.com');
+    expect(text).toContain('text/plain');
+  });
+});
+
+describe('Configuration misc default behaviours', () => {
+  test('bhv misc 276 the default configuration and the default builder both use the base URL declared in the spec', () => {
+    expect(Configuration.defaultConfiguration().baseUrl).toBe('{{{basePath}}}');
+    expect(new ConfigurationBuilder().build().baseUrl).toBe('{{{basePath}}}');
+  });
+
+  test('bhv misc 277 each call to the default configuration returns a distinct configuration object', () => {
+    expect(Configuration.defaultConfiguration()).not.toBe(Configuration.defaultConfiguration());
+  });
+
+  test('bhv misc 279 changing a copy of the headers returned from a configuration does not change the headers it holds', () => {
+    const config = new Configuration({ baseUrl: 'http://localhost', defaultHeaders: { 'X-One': '1' } });
+    const copy = { ...config.defaultHeaders, 'X-Two': '2' };
+    expect(copy).toEqual({ 'X-One': '1', 'X-Two': '2' });
+    expect(config.defaultHeaders).toEqual({ 'X-One': '1' });
+  });
+});

@@ -1,0 +1,280 @@
+{{>api_info}}
+package oauth
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"log"
+	"net/url"
+	"strings"
+	"sync"
+	"sync/atomic"
+
+	"{{packageName}}/pkg/auth"
+)
+
+// ErrAuthCodeNotExchanged is returned by AuthHeadersOrError when the caller
+// invokes it before ExchangeCode. Callers can compare with errors.Is so they
+// can distinguish a usage error from a network/token-endpoint failure and
+// recover instead of being terminated by a panic.
+var ErrAuthCodeNotExchanged = errors.New("oauth2 authorization code: must call ExchangeCode before requesting auth headers")
+
+// OAuth2AuthorizationCodeAuthenticator is the authenticator for the OAuth2 Authorization Code flow.
+//
+// Implements HttpAwareAuthenticator so that token exchange requests use the
+// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
+// as regular API calls.
+//
+// Usage:
+//  1. Call BuildAuthorizationURL to get the authorization URL
+//  2. Redirect the user to that URL
+//  3. After the callback, call ExchangeCode with the auth code
+//  4. Use the authenticator normally -- tokens are managed automatically
+type OAuth2AuthorizationCodeAuthenticator struct {
+	auth.BaseAuthenticator
+	host             string
+	clientID         string
+	clientSecret     string
+	authorizationURL string
+	tokenURL         string
+	refreshURL       string
+	redirectURI      string
+	scopes           []string
+	tokenManager     *OAuth2TokenManager
+	// tokenExchanged is set by ExchangeCode (typically on a callback goroutine)
+	// and read by requests on others, so it is atomic.
+	tokenExchanged atomic.Bool
+	// pkceMu guards pkceVerifier, the PKCE code verifier (RFC 7636) of the last
+	// authorization URL built, kept until its code is exchanged.
+	pkceMu       sync.Mutex
+	pkceVerifier string
+}
+
+// newPKCEVerifier returns a fresh PKCE code verifier: 32 random bytes as 43
+// URL-safe base64 characters (RFC 7636 section 4.1).
+func newPKCEVerifier() string {
+	random := make([]byte, 32)
+	// crypto/rand.Read never returns an error and always fills the slice.
+	_, _ = rand.Read(random)
+	return base64.RawURLEncoding.EncodeToString(random)
+}
+
+// pkceChallenge is the S256 code challenge of a verifier: the unpadded
+// URL-safe base64 of its SHA-256 digest (RFC 7636 section 4.2).
+func pkceChallenge(verifier string) string {
+	digest := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(digest[:])
+}
+
+// currentPKCEVerifier returns the verifier waiting for a code exchange, or an
+// empty string when no authorization URL has been built.
+func (a *OAuth2AuthorizationCodeAuthenticator) currentPKCEVerifier() string {
+	a.pkceMu.Lock()
+	defer a.pkceMu.Unlock()
+	return a.pkceVerifier
+}
+
+// takePKCEVerifier returns the stored verifier and forgets it.
+func (a *OAuth2AuthorizationCodeAuthenticator) takePKCEVerifier() string {
+	a.pkceMu.Lock()
+	defer a.pkceMu.Unlock()
+	verifier := a.pkceVerifier
+	a.pkceVerifier = ""
+	return verifier
+}
+
+// setPKCEVerifier replaces the stored verifier. OpenID Connect rediscovery uses
+// it so the authenticator it rebuilds keeps the verifier of the pending login.
+func (a *OAuth2AuthorizationCodeAuthenticator) setPKCEVerifier(verifier string) {
+	a.pkceMu.Lock()
+	defer a.pkceMu.Unlock()
+	a.pkceVerifier = verifier
+}
+
+// NewOAuth2AuthorizationCodeAuthenticator creates a new authorization code authenticator.
+//
+// If refreshURL is empty, the tokenURL is used for refresh requests.
+func NewOAuth2AuthorizationCodeAuthenticator(host, clientID, clientSecret, authorizationURL, tokenURL, redirectURI string, scopes []string, refreshURL string) *OAuth2AuthorizationCodeAuthenticator {
+	if refreshURL == "" {
+		refreshURL = tokenURL
+	}
+	return &OAuth2AuthorizationCodeAuthenticator{
+		host:             host,
+		clientID:         clientID,
+		clientSecret:     clientSecret,
+		authorizationURL: authorizationURL,
+		tokenURL:         tokenURL,
+		refreshURL:       refreshURL,
+		redirectURI:      redirectURI,
+		scopes:           scopes,
+		tokenManager:     NewOAuth2TokenManager(),
+	}
+}
+
+// Host returns the API base URL.
+func (a *OAuth2AuthorizationCodeAuthenticator) Host() string {
+	return a.host
+}
+
+// String returns a string representation that redacts the client secret so
+// credentials never leak into logs or stack traces (matching the other SDKs).
+func (a *OAuth2AuthorizationCodeAuthenticator) String() string {
+	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q, scopes: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI, a.scopes)
+}
+
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *OAuth2AuthorizationCodeAuthenticator) GoString() string {
+	return a.String()
+}
+
+// SetApiClient injects the shared API client for making token requests.
+func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClient) {
+	a.tokenManager.SetApiClient(client)
+}
+
+// InvalidateAccessToken drops the cached access token and keeps the refresh
+// token, so the next request fetches a new token. The client calls it when an
+// API call is answered with 401, then replays the request once.
+func (a *OAuth2AuthorizationCodeAuthenticator) InvalidateAccessToken() {
+	a.tokenManager.InvalidateAccessToken()
+}
+
+// BuildAuthorizationURL builds the authorization URL to redirect the user to.
+//
+// The state parameter is optional and used for CSRF protection. The URL carries
+// a PKCE S256 code_challenge (RFC 7636); the matching verifier is kept in the
+// authenticator and sent as code_verifier by the next ExchangeCode. Each call
+// starts a new challenge, so the last URL built is the one that can be
+// exchanged.
+func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state string) string {
+	/* One fixed parameter order shared by every SDK: response_type,
+	 * client_id, redirect_uri, scope, state. */
+	params := [][2]string{
+		{"response_type", "code"},
+		{"client_id", a.clientID},
+		{"redirect_uri", a.redirectURI},
+	}
+	if len(a.scopes) > 0 {
+		params = append(params, [2]string{"scope", strings.Join(a.scopes, " ")})
+	}
+	if state != "" {
+		params = append(params, [2]string{"state", state})
+	}
+	verifier := newPKCEVerifier()
+	a.setPKCEVerifier(verifier)
+	params = append(params,
+		[2]string{"code_challenge", pkceChallenge(verifier)},
+		[2]string{"code_challenge_method", "S256"},
+	)
+	// RFC 6749 §3.1: the authorization endpoint URI MAY already include
+	// a query component. Use '&' as the separator when one is already
+	// present so existing params are preserved, '?' otherwise.
+	separator := "?"
+	if strings.Contains(a.authorizationURL, "?") {
+		separator = "&"
+	}
+	// url.QueryEscape emits '+' for a space; RFC 3986 requires %20 in a query
+	// component (a strict server reads '+' as a literal plus), matching the other SDKs.
+	return a.authorizationURL + separator + strings.ReplaceAll(encodeOrderedQuery(params), "+", "%20")
+}
+
+// ErrAuthCodeEmpty is returned by ExchangeCode when the supplied authorization
+// code is empty or whitespace-only. Callers can compare with errors.Is.
+var ErrAuthCodeEmpty = errors.New("authorization code must not be empty")
+
+// ExchangeCode exchanges an authorization code for an access token.
+func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
+	return a.exchangeCode(code, nil)
+}
+
+// exchangeCode is ExchangeCode with a check of the response's id_token, run
+// before the session is replaced. OpenID Connect uses it.
+func (a *OAuth2AuthorizationCodeAuthenticator) exchangeCode(code string, idTokenCheck func(idToken *string) error) error {
+	// Reject an empty/whitespace code before the token POST so the caller sees
+	// the precondition failure directly instead of a confusing token-endpoint
+	// error.
+	if strings.TrimSpace(code) == "" {
+		return ErrAuthCodeEmpty
+	}
+	params := map[string]string{
+		"grant_type":    "authorization_code",
+		"code":          code,
+		"client_id":     a.clientID,
+		"client_secret": a.clientSecret,
+		"redirect_uri":  a.redirectURI,
+	}
+	/* A verifier exists only after BuildAuthorizationURL; it is single-use, so
+	 * it is dropped whether or not the exchange succeeds. */
+	if verifier := a.takePKCEVerifier(); verifier != "" {
+		params["code_verifier"] = verifier
+	}
+	/* Exchange always POSTs this code and replaces the session; the caching
+	 * GetAccessToken would return the previous token or refresh it instead. */
+	if err := a.tokenManager.exchange(a.tokenURL, params, idTokenCheck); err != nil {
+		return err
+	}
+	a.tokenExchanged.Store(true)
+	return nil
+}
+
+// AuthHeadersOrError returns the Bearer authentication header with a valid
+// access token, or a non-nil error if the caller violated the usage contract
+// (ExchangeCode was never called) or if token refresh failed.
+//
+// Use this method when you need to distinguish "no auth available because
+// the caller forgot to exchange the code" from "no auth available because
+// the token endpoint is unreachable". The Authenticator interface method
+// AuthHeaders collapses both cases to an empty map so that interface
+// conformance can stay non-error-returning.
+func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeadersOrError() (map[string]string, error) {
+	return a.AuthHeadersOrErrorContext(context.Background())
+}
+
+// AuthHeadersOrErrorContext is AuthHeadersOrError for a request that belongs to
+// an API call: cancelling ctx aborts the token request made for it.
+func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
+	if !a.tokenExchanged.Load() {
+		return nil, ErrAuthCodeNotExchanged
+	}
+
+	params := map[string]string{
+		"grant_type":    "refresh_token",
+		"refresh_token": a.tokenManager.RefreshToken(),
+		"client_id":     a.clientID,
+		"client_secret": a.clientSecret,
+	}
+
+	/* RFC 6749 §6: the refresh authenticates the client the way the code
+	 * exchange did. The params are already a refresh_token grant, so the
+	 * manager sends exactly one POST to refreshURL. */
+	token, err := a.tokenManager.GetAccessTokenWithRefreshContext(ctx, a.tokenURL, a.refreshURL, params, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		"Authorization": "Bearer " + token,
+	}, nil
+}
+
+// AuthHeaders returns the Bearer authentication header with a valid access token.
+//
+// Returns an empty map if ExchangeCode has not been called yet or if token
+// refresh fails -- the resulting unauthenticated request will then surface
+// as a 401 from the server, which callers already handle. Use
+// AuthHeadersOrError instead when you need to recover from the precondition
+// failure programmatically.
+func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeaders() map[string]string {
+	headers, err := a.AuthHeadersOrError()
+	if err != nil {
+		log.Printf("oauth2 authorization code token error: %v", err)
+		return map[string]string{}
+	}
+	return headers
+}

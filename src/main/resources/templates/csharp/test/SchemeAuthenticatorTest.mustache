@@ -1,0 +1,699 @@
+{{>api_info}}
+
+using Xunit;
+
+/* These tests exercise the SDK without a test-runner cancellation token on purpose. */
+#pragma warning disable xUnit1051
+
+namespace Test;
+
+/* The environment is process-wide, so every test that sets a variable shares one
+ * collection and the runner never executes two of them at the same time. */
+[Collection("Environment")]
+public sealed class SchemeAuthenticatorTest
+{
+    private const string Host = "https://api.example.com";
+
+    private static readonly Uri ExplicitUri = new("https://explicit.example.com/callback");
+
+    private static string EnvValue(string field)
+    {
+        return field == "redirectUri" ? "https://env.example.com/callback" : "env-" + field;
+    }
+
+    private static string ExplicitValue(string field)
+    {
+        return "explicit-" + field;
+    }
+
+    private static string BasicHeader(string username, string password)
+    {
+        return "Basic "
+            + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(username + ":" + password));
+    }
+
+    private static List<string> Carried({{packageName}}.Auth.IAuthenticator auth)
+    {
+        return [.. auth.GetAuthHeaders().Values, .. auth.GetQueryParams().Values, .. auth.GetCookieParams().Values];
+    }
+
+    /* Every variable of the scheme set to its sample value, except one that is replaced
+     * (an empty string) or left unset (null). */
+    private static Dictionary<string, string?> Complete(
+        string[] variables,
+        string[] fields,
+        string? replaced = null,
+        string? replacement = null)
+    {
+        Dictionary<string, string?> values = [];
+        for (int i = 0; i < variables.Length; i++)
+        {
+            values[variables[i]] = variables[i] == replaced ? replacement : EnvValue(fields[i]);
+        }
+        return values;
+    }
+
+    private static void WithEnvironment(Dictionary<string, string?> values, Action body)
+    {
+        Dictionary<string, string?> saved = [];
+        foreach (string name in values.Keys)
+        {
+            saved[name] = Environment.GetEnvironmentVariable(name);
+        }
+        try
+        {
+            foreach (KeyValuePair<string, string?> pair in values)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+            body();
+        }
+        finally
+        {
+            foreach (KeyValuePair<string, string?> pair in saved)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+        }
+    }
+
+    private sealed class CapturingTokenClient : {{packageName}}.IApiClient
+    {
+        public Uri? LastUrl { get; private set; }
+
+        public string? LastBody { get; private set; }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(
+                200,
+                "{\"access_token\":\"tok1\",\"expires_in\":3600}",
+                new Dictionary<string, string>()));
+        }
+    }
+    [Fact]
+    public void BhvAuthbasic012AnEmptyVariableCountsAsUnset()
+    {
+{{#schemeAuthTests}}
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthapikey021ApiKeyIsReadFromTheEnvironmentUnlessPassed()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var fromEnvironment = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+            Assert.Contains(EnvValue("apiKey"), Carried(fromEnvironment));
+
+            var passed = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, ExplicitValue("apiKey"));
+            Assert.Contains(ExplicitValue("apiKey"), Carried(passed));
+        });
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthapikey025SchemeWrappersValidateEagerlyAndMaskTheKey()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        {
+            Assert.Throws<ArgumentException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, "tok\r\nInjected: yes"));
+            var masked = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host, ExplicitValue("apiKey"));
+            Assert.DoesNotContain(ExplicitValue("apiKey"), masked.ToString(), StringComparison.Ordinal);
+        }
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer019EmptyEnvironmentValueCountsAsUnsetAndFailsNamingTheVariable()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer025EnvironmentVariableIsReadOnceAtConstruction()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+            foreach (string variable in {{className}}Variables)
+            {
+                Environment.SetEnvironmentVariable(variable, "changed");
+            }
+            Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+        });
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsVariable()
+    {
+{{#schemeAuthTests}}
+        WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+{{#isBasic}}
+            Assert.Equal(BasicHeader(ExplicitValue("username"), ExplicitValue("password")), auth.GetAuthHeaders()["Authorization"]);
+{{/isBasic}}
+{{#isBearer}}
+            Assert.Equal("Bearer " + ExplicitValue("token"), auth.GetAuthHeaders()["Authorization"]);
+{{/isBearer}}
+{{#isApiKey}}
+            Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+{{/isApiKey}}
+{{#isOAuth}}
+            Assert.Contains("ClientId=" + ExplicitValue("clientId"), auth.ToString(), StringComparison.Ordinal);
+{{/isOAuth}}
+{{#isDigest}}
+            Assert.Contains("Username=" + ExplicitValue("username"), auth.ToString(), StringComparison.Ordinal);
+{{/isDigest}}
+        });
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme700ASchemeExposesItsDeclaredMetadataUrlAsAConstant()
+    {
+{{#schemeAuthTests}}
+{{#hasOAuth2MetadataUrl}}
+        Assert.Equal("{{{oauth2MetadataUrlLiteral}}}", {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}.MetadataUrl);
+{{/hasOAuth2MetadataUrl}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme010AnEmptyBearerVariableIsUnsetAndIsNamed()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+{{#schemeAuthTests}}
+
+    private static readonly string[] {{className}}Variables = [{{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}}];
+
+    private static readonly string[] {{className}}Fields = [{{#envVars}}"{{field}}"{{^-last}}, {{/-last}}{{/envVars}}];
+{{/schemeAuthTests}}
+
+    [Fact]
+    public void BhvAuthbasic001BasicAuthenticatorsReadEveryCredentialFromTheirVariables()
+    {
+{{#schemeAuthTests}}
+{{#isBasic}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+                Assert.Equal(BasicHeader(EnvValue("username"), EnvValue("password")), auth.GetAuthHeaders()["Authorization"]);
+            });
+        }
+{{/isBasic}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme001NonBasicAuthenticatorsReadEveryCredentialFromTheirVariables()
+    {
+{{#schemeAuthTests}}
+{{^isBasic}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+{{#isBearer}}
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+{{/isBearer}}
+{{#isApiKey}}
+                Assert.Contains(EnvValue("apiKey"), Carried(auth));
+{{/isApiKey}}
+{{#isOAuth}}
+                Assert.Contains("ClientId=" + EnvValue("clientId"), auth.ToString(), StringComparison.Ordinal);
+{{/isOAuth}}
+{{#isDigest}}
+                Assert.Contains("Username=" + EnvValue("username"), auth.ToString(), StringComparison.Ordinal);
+{{/isDigest}}
+            });
+        }
+{{/isBasic}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbasic013BasicAuthenticatorsPreferTheArgumentsOverTheEnvironment()
+    {
+{{#schemeAuthTests}}
+{{#isBasic}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+                Assert.Equal(BasicHeader(ExplicitValue("username"), ExplicitValue("password")), auth.GetAuthHeaders()["Authorization"]);
+            });
+        }
+{{/isBasic}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer018BearerAuthenticatorsPreferTheArgumentsOverTheEnvironment()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+                Assert.Equal("Bearer " + ExplicitValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            });
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvSerializationobject187ApiKeyAuthenticatorsPreferTheArgumentsOverTheEnvironment()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+                Assert.Contains(ExplicitValue("apiKey"), Carried(auth));
+            });
+        }
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme002ExplicitArgumentsNeedNoEnvironment()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, {{className}}Variables[0], null), () =>
+            {
+                var auth = new {{packageName}}.Auth.{{className}}(Host, _ => Task.FromResult("provided-token"));
+                Assert.NotNull(auth);
+            });
+        }
+{{/isBearer}}
+{{#isOAuth}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+                Assert.Contains("ClientId=" + ExplicitValue("clientId"), auth.ToString(), StringComparison.Ordinal);
+            });
+        }
+{{/isOAuth}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme011BearerAuthenticatorsTreatAnEmptyVariableAsUnset()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme012ApiKeyAuthenticatorsTreatAnEmptyVariableAsUnset()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+
+{{#schemeAuthTests}}
+{{#hasEmptyVariableBhv}}
+    [Fact]
+    public void {{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset()
+    {
+        foreach (string variable in {{className}}Variables)
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+            });
+        }
+    }
+
+{{/hasEmptyVariableBhv}}
+{{/schemeAuthTests}}
+    [Fact]
+    public void BhvAuthscheme013ClientCredentialsAuthenticatorsTreatAnEmptyVariableAsUnset()
+    {
+{{#schemeAuthTests}}
+{{#isClientCredentialsFlow}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/isClientCredentialsFlow}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme014PasswordAuthenticatorsTreatAnEmptyVariableAsUnset()
+    {
+{{#schemeAuthTests}}
+{{#isPasswordFlow}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/isPasswordFlow}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme015AuthorizationCodeAuthenticatorsTreatAnEmptyVariableAsUnset()
+    {
+{{#schemeAuthTests}}
+{{#isAuthorizationCodeFlow}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/isAuthorizationCodeFlow}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme016ImplicitAuthenticatorsTreatAnEmptyVariableAsUnset()
+    {
+{{#schemeAuthTests}}
+{{#isImplicitFlow}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, ""), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/isImplicitFlow}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvMisc196SchemeWrappersWithNoTokenFromArgumentOrEnvironmentFail()
+    {
+{{#schemeAuthTests}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, null), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvLangcsharp063SchemeAuthenticatorsFailWhenACredentialIsMissing()
+    {
+{{#schemeAuthTests}}
+        {
+            foreach (string variable in {{className}}Variables)
+            {
+                WithEnvironment(Complete({{className}}Variables, {{className}}Fields, variable, null), () =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host));
+                    Assert.Contains(variable, ex.Message, StringComparison.Ordinal);
+                });
+            }
+        }
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public async Task BhvLangcsharp064BearerAuthenticatorsTokenProviderWinsOverTheEnvironment()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            {{packageName}}.Auth.IAuthenticator? auth = null;
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+                auth = new {{packageName}}.Auth.{{className}}(Host, _ => Task.FromResult("provided-token")));
+
+            Dictionary<string, string> headers = await auth!.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal("Bearer provided-token", headers["Authorization"]);
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer001BearerAuthenticatorsPrintTheirOwnNameWithTheTokenMasked()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            string token = "tok-" + "marker";
+            var auth = new {{packageName}}.Auth.{{className}}(Host, token: token);
+
+            Assert.StartsWith("{{className}}(", auth.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbearer006BearerAuthenticatorsEmitABearerHeaderAndMaskTheToken()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            string token = "tok-" + "marker";
+            var auth = new {{packageName}}.Auth.{{className}}(Host, token: token);
+
+            Assert.Equal("Bearer " + token, auth.GetAuthHeaders()["Authorization"]);
+            Assert.DoesNotContain(token, auth.ToString(), StringComparison.Ordinal);
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvLifecycle025BearerAuthenticatorsReadTheirVariableOnceWhenBuilt()
+    {
+{{#schemeAuthTests}}
+{{#isBearer}}
+        {
+            WithEnvironment(Complete({{className}}Variables, {{className}}Fields), () =>
+            {
+                var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host);
+                Environment.SetEnvironmentVariable({{className}}Variables[0], "changed-later");
+
+                Assert.Equal("Bearer " + EnvValue("token"), auth.GetAuthHeaders()["Authorization"]);
+            });
+        }
+{{/isBearer}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthbasic002BasicAuthenticatorsEmitABasicHeaderAndMaskThePassword()
+    {
+{{#schemeAuthTests}}
+{{#isBasic}}
+        {
+            string password = "pw-" + "marker";
+            var auth = new {{packageName}}.Auth.{{className}}(Host, username: ExplicitValue("username"), password: password);
+
+            Assert.Equal(BasicHeader(ExplicitValue("username"), password), auth.GetAuthHeaders()["Authorization"]);
+            Assert.DoesNotContain(password, auth.ToString(), StringComparison.Ordinal);
+        }
+{{/isBasic}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthapikey007ApiKeyAuthenticatorsEmitTheirKeyAtTheirSpecLocation()
+    {
+{{#schemeAuthTests}}
+{{#isApiKey}}
+        {
+            var auth = new {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}(Host{{#envVars}}, {{field}}: ExplicitValue("{{field}}"){{/envVars}});
+
+            Assert.Single(Carried(auth));
+{{#isHeaderKey}}
+            Assert.Equal(ExplicitValue("apiKey"), auth.GetAuthHeaders()["{{apiKeyName}}"]);
+{{/isHeaderKey}}
+{{#isQueryKey}}
+            Assert.Equal(ExplicitValue("apiKey"), auth.GetQueryParams()["{{apiKeyName}}"]);
+{{/isQueryKey}}
+{{#isCookieKey}}
+            Assert.Equal(ExplicitValue("apiKey"), auth.GetCookieParams()["{{apiKeyName}}"]);
+{{/isCookieKey}}
+        }
+{{/isApiKey}}
+{{/schemeAuthTests}}
+    }
+{{#schemeAuthTests}}
+{{#isPasswordFlow}}
+
+    [Fact]
+    public async Task BhvAuthoauthtwopassword012{{className}}SendsItsSpecScopesAndUrls()
+    {
+        var client = new CapturingTokenClient();
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.Equal(new Uri("{{{tokenUrl}}}"), client.LastUrl);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), client.LastBody!, StringComparison.Ordinal);
+        }
+    }
+{{/isPasswordFlow}}
+{{#isClientCredentialsFlow}}
+
+    [Fact]
+    public async Task BhvAuthoauthtwoclientcred009{{className}}SendsItsSpecScopesToItsTokenUrl()
+    {
+        var client = new CapturingTokenClient();
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.Equal(new Uri("{{{tokenUrl}}}"), client.LastUrl);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), client.LastBody!, StringComparison.Ordinal);
+        }
+    }
+{{/isClientCredentialsFlow}}
+{{#isAuthorizationCodeFlow}}
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode020{{className}}SendsItsSpecScopesAndUrls()
+    {
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.StartsWith("{{{authorizationUrl}}}", url, StringComparison.Ordinal);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), url, StringComparison.Ordinal);
+        }
+    }
+{{/isAuthorizationCodeFlow}}
+{{#isImplicitFlow}}
+
+    [Fact]
+    public void BhvAuthoauthtwoimplicit006{{className}}UsesItsSpecUrlAndScopes()
+    {
+        var auth = new {{packageName}}.Auth.OAuth.{{className}}(Host{{#envVars}}, {{field}}: {{#isUri}}ExplicitUri{{/isUri}}{{^isUri}}ExplicitValue("{{field}}"){{/isUri}}{{/envVars}});
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        string[] scopes = {{{scopesLiteral}}};
+        Assert.StartsWith("{{{authorizationUrl}}}", url, StringComparison.Ordinal);
+        foreach (string scope in scopes)
+        {
+            Assert.Contains(Uri.EscapeDataString(scope), url, StringComparison.Ordinal);
+        }
+    }
+{{/isImplicitFlow}}
+{{/schemeAuthTests}}
+}

@@ -1,0 +1,18 @@
+var host =
+    Environment.GetEnvironmentVariable("{{envVarPrefix}}_HOST")
+    ?? throw new InvalidOperationException("{{envVarPrefix}}_HOST is not set");
+var token =
+    Environment.GetEnvironmentVariable("{{envVarPrefix}}_TOKEN")
+    ?? throw new InvalidOperationException("{{envVarPrefix}}_TOKEN is not set");
+using var client = {{clientClassName}}.WithToken(host, token);
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+{{#returnType}}
+var result = await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}Async();
+Console.WriteLine(result);
+{{/returnType}}
+{{^returnType}}
+await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}Async();
+{{/returnType}}
+{{/exampleOperation}}
+{{/hasExampleOperation}}

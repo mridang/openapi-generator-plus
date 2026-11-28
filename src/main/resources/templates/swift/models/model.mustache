@@ -1,0 +1,985 @@
+{{>api_info}}
+import Foundation
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+{{#description}}
+/// {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is an enumeration of allowed values.
+{{/description}}
+public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable, CustomStringConvertible {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+    case {{name}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+    /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+    case unknownDefaultOpenApi = {{#isInteger}}-9223372036854775808{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
+
+    /// The declared cases; the catch-all case is not one of them.
+    public static var allCases: [{{classname}}] {
+        return [
+{{#allowableValues}}{{#enumVars}}            .{{name}},
+{{/enumVars}}{{/allowableValues}}        ]
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(RawValue.self)
+        self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        if self == .unknownDefaultOpenApi {
+            throw EncodingError.invalidValue(
+                self,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written"))
+        }
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    /// The wire value (`"active"`, `2`), not the case name, so interpolating
+    /// the enum prints what the server sees.
+    public var description: String {
+        return "\(rawValue)"
+    }
+}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#isDeprecated}}
+@available(*, deprecated, message: "This schema is deprecated.")
+{{/isDeprecated}}
+{{#externalDocumentation}}
+/// See {{{url}}} {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/externalDocumentation}}
+{{#vars}}
+{{#isEnum}}
+/// Typed enum for {{classname}}.{{name}}.
+public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}, Codable, Sendable, CaseIterable, CustomStringConvertible {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+    case {{name}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+    /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+    case unknownDefaultOpenApi = {{#isInteger}}-9223372036854775808{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
+
+    /// The declared cases; the catch-all case is not one of them.
+    public static var allCases: [{{classname}}{{enumName}}] {
+        return [
+{{#allowableValues}}{{#enumVars}}            .{{name}},
+{{/enumVars}}{{/allowableValues}}        ]
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(RawValue.self)
+        self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        if self == .unknownDefaultOpenApi {
+            throw EncodingError.invalidValue(
+                self,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written"))
+        }
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    /// The wire value (`"active"`, `2`), not the case name, so interpolating
+    /// the enum prints what the server sees.
+    public var description: String {
+        return "\(rawValue)"
+    }
+}
+
+{{/isEnum}}
+{{/vars}}
+public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
+{{#vars}}
+{{#description}}
+    /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{! The "null" example placeholder the generator synthesises when a schema
+    declares no example is nulled by AbstractBetterCodegen.sanitizeByteArrayExample
+    (universally, for all 12 generators), so the example section below falls
+    through cleanly for exampleless properties and only real scalar examples
+    are rendered. }}
+{{#example}}
+    /// Example: {{{.}}}
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+    /// ## {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+    /// - Note: This property is read-only; it is still sent and received.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /// - Note: This property is write-only; it is still sent and received.
+{{/isWriteOnly}}
+{{#deprecated}}
+    @available(*, deprecated, message: "This property is deprecated.")
+{{/deprecated}}
+{{#required}}
+    {{#vendorExtensions.isSelfRecursive}}@Indirect public private(set) var{{/vendorExtensions.isSelfRecursive}}{{^vendorExtensions.isSelfRecursive}}public let{{/vendorExtensions.isSelfRecursive}} {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}
+{{/required}}
+{{^required}}
+    {{#vendorExtensions.isSelfRecursive}}@Indirect public private(set) var{{/vendorExtensions.isSelfRecursive}}{{^vendorExtensions.isSelfRecursive}}public let{{/vendorExtensions.isSelfRecursive}} {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /// Additional properties not defined in the schema.
+    public let additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]
+{{/isAdditionalPropertiesTrue}}
+
+{{^isAdditionalPropertiesTrue}}
+    enum CodingKeys: String, CodingKey, CaseIterable {
+{{#vars}}
+        case {{name}} = "{{baseName}}"
+{{/vars}}
+    }
+
+{{#hasVars}}
+    /// Creates a new {{classname}} instance.
+    public init({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#isEnum}}{{#defaultValue}} = {{classname}}{{enumName}}(rawValue: {{{.}}}){{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{/isEnum}}{{^isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{^vendorExtensions.siblingDefaultIsEnum}} = nil{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/isEnum}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
+{{#requiredVars}}
+        self.{{name}} = {{name}}
+{{/requiredVars}}
+{{#optionalVars}}
+        self.{{name}} = {{name}}
+{{/optionalVars}}
+    }
+
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
+        return {{classname}}({{#requiredVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: additionalProperties ?? self.additionalProperties{{/isAdditionalPropertiesTrue}})
+    }
+
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+{{#isUnevaluatedPropertiesFalse}}
+    /// Unknown JSON keys are REJECTED — the schema declares
+    /// `unevaluatedProperties: false`, so any property not in `CodingKeys`
+    /// fails decoding loudly, matching the other SDKs' strict behavior.
+{{/isUnevaluatedPropertiesFalse}}
+{{^isUnevaluatedPropertiesFalse}}
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+{{/isUnevaluatedPropertiesFalse}}
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+{{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/isNullable}}
+{{^isNullable}}
+        self.{{name}} = try ObjectSerializer.decodeDecimalString(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isNarrowInt}}
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            : {{{.}}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+{{/defaultValue}}
+{{/vendorExtensions.isNarrowInt}}
+{{^vendorExtensions.isNarrowInt}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/isNullable}}
+{{^isNullable}}
+        self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
+{{/required}}
+{{^required}}
+{{#defaultValue}}
+        // When the key is absent, apply the schema default. The default literal
+        // is the wire-format String (e.g. "3600s"), so decode it through
+        // decodeDuration to convert it to the Swift Duration type, matching
+        // the present-key path and the non-duration default branch below.
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+            : try ObjectSerializer.decodeDuration({{{.}}})
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/defaultValue}}
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
+{{#required}}
+{{#defaultValue}}
+{{^isEnum}}
+        /* A required property that carries a default (a discriminator value, for
+           one) is filled with that default when the key is absent. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode({{{dataType}}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
+            : {{{.}}}
+{{/isEnum}}
+{{#isEnum}}
+        self.{{name}} = try container.decode({{classname}}{{enumName}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
+{{/isEnum}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
+{{/defaultValue}}
+{{/required}}
+{{^required}}
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+            : {{#isEnum}}{{classname}}{{enumName}}(rawValue: {{{.}}}){{/isEnum}}{{^isEnum}}{{{.}}}{{/isEnum}}
+{{/defaultValue}}
+{{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+        /* A default written next to the $ref of an enum applies when the key is
+           absent; an explicit null stays nil. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+            : {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{^vendorExtensions.siblingDefaultIsEnum}}
+        self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{/defaultValue}}
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isNarrowInt}}
+{{/vendorExtensions.isDecimalString}}
+{{/vars}}
+{{#vars}}
+{{#isUri}}
+        try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
+{{/isUri}}
+{{#vendorExtensions.isIpAddress}}
+        try ObjectSerializer.requireIpAddress(self.{{name}}, format: "{{vendorExtensions.ipFormat}}", property: "{{baseName}}")
+{{/vendorExtensions.isIpAddress}}
+{{/vars}}
+{{#isUnevaluatedPropertiesFalse}}
+        /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+           Re-open the payload with a dynamic-keyed container so we can detect
+           any JSON key not present in CodingKeys and fail loudly. */
+        struct AnyKey: CodingKey {
+            var stringValue: String
+            init?(stringValue: String) { self.stringValue = stringValue }
+            var intValue: Int? { return nil }
+            init?(intValue: Int) { return nil }
+        }
+        let allowed: Set<String> = [{{#vars}}"{{baseName}}"{{^-last}}, {{/-last}}{{/vars}}]
+        let extras = try decoder.container(keyedBy: AnyKey.self)
+        for key in extras.allKeys where !allowed.contains(key.stringValue) {
+            /* Throw a CATCHABLE DecodingError rather than crashing the process
+               with preconditionFailure/fatalError. Untrusted server data must
+               never be able to abort the host application, and a thrown error
+               also lets oneOf/anyOf `try?` fallthrough work correctly. */
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: extras.codingPath + [key],
+                    debugDescription:
+                        "Unknown property '\(key.stringValue)' on {{classname}} (unevaluatedProperties:false)"))
+        }
+{{/isUnevaluatedPropertiesFalse}}
+    }
+
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+{{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { $0.description }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode({{name}}.description, forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { $0.description }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+{{#isNullable}}
+        try container.encode(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode(try ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
+{{#isUuid}}
+{{#required}}
+        try container.encode({{name}}{{#isNullable}}?{{/isNullable}}.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}?.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{/isUuid}}
+{{^isUuid}}
+{{#vendorExtensions.isUuidCollection}}
+{{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode(ObjectSerializer.lowercaseUuids({{name}}), forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isUuidCollection}}
+{{^vendorExtensions.isUuidCollection}}
+{{#required}}
+        try container.encode(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isUuidCollection}}
+{{/isUuid}}
+{{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isDecimalString}}
+{{/vars}}
+    }
+{{/hasVars}}
+{{/isAdditionalPropertiesTrue}}
+{{#isAdditionalPropertiesTrue}}
+    enum CodingKeys: String, CodingKey {
+{{#vars}}
+        case {{name}} = "{{baseName}}"
+{{/vars}}
+    }
+
+{{#hasVars}}
+    /// Creates a new {{classname}} instance.
+    public init({{#requiredVars}}{{name}}: {{{dataType}}}{{#isNullable}}?{{/isNullable}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{^vendorExtensions.siblingDefaultIsEnum}} = nil{{/vendorExtensions.siblingDefaultIsEnum}}, {{/optionalVars}}additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}] = [:]) {
+{{#requiredVars}}
+        self.{{name}} = {{name}}
+{{/requiredVars}}
+{{#optionalVars}}
+        self.{{name}} = {{name}}
+{{/optionalVars}}
+        self.additionalProperties = additionalProperties
+    }
+{{/hasVars}}
+{{^hasVars}}
+    /// Creates a new {{classname}} instance.
+    public init(additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}] = [:]) {
+        self.additionalProperties = additionalProperties
+    }
+{{/hasVars}}
+
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy({{#requiredVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}? = nil{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}?? = .none{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]? = nil{{/isAdditionalPropertiesTrue}}) -> {{classname}} {
+        return {{classname}}({{#requiredVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{name}}: {{name}} ?? self.{{name}}{{^-last}}, {{/-last}}{{/optionalVars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties: additionalProperties ?? self.additionalProperties{{/isAdditionalPropertiesTrue}})
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+{{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/isNullable}}
+{{^isNullable}}
+        self.{{name}} = try ObjectSerializer.decodeDecimalString(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isNarrowInt}}
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            : {{{.}}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+{{/defaultValue}}
+{{/vendorExtensions.isNarrowInt}}
+{{^vendorExtensions.isNarrowInt}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/isNullable}}
+{{^isNullable}}
+        self.{{name}} = try ObjectSerializer.decodeDuration(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
+{{/required}}
+{{^required}}
+{{#defaultValue}}
+        // When the key is absent, apply the schema default. The default literal
+        // is the wire-format String (e.g. "3600s"), so decode it through
+        // decodeDuration to convert it to the Swift Duration type, matching
+        // the present-key path and the non-duration default branch below.
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+            : try ObjectSerializer.decodeDuration({{{.}}})
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDuration($0) }
+{{/defaultValue}}
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
+{{#required}}
+{{#defaultValue}}
+{{^isEnum}}
+        /* A required property that carries a default (a discriminator value, for
+           one) is filled with that default when the key is absent. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode({{{dataType}}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
+            : {{{.}}}
+{{/isEnum}}
+{{#isEnum}}
+        self.{{name}} = try container.decode({{classname}}{{enumName}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
+{{/isEnum}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decode({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#isNullable}}?{{/isNullable}}.self, forKey: .{{name}})
+{{/defaultValue}}
+{{/required}}
+{{^required}}
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+            : {{#isEnum}}{{classname}}{{enumName}}(rawValue: {{{.}}}){{/isEnum}}{{^isEnum}}{{{.}}}{{/isEnum}}
+{{/defaultValue}}
+{{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+        /* A default written next to the $ref of an enum applies when the key is
+           absent; an explicit null stays nil. */
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+            : {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{^vendorExtensions.siblingDefaultIsEnum}}
+        self.{{name}} = try container.decodeIfPresent({{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}.self, forKey: .{{name}})
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{/defaultValue}}
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isNarrowInt}}
+{{/vendorExtensions.isDecimalString}}
+{{/vars}}
+
+        /* Decode additional properties */
+        let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+        let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
+        var additionalProperties = [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}]()
+        for key in dynamicContainer.allKeys {
+            if !knownKeys.contains(key.stringValue) {
+                let value = try dynamicContainer.decode({{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}.self, forKey: key)
+                additionalProperties[key.stringValue] = value
+            }
+        }
+        self.additionalProperties = additionalProperties
+{{#vars}}
+{{#isUri}}
+        try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
+{{/isUri}}
+{{#vendorExtensions.isIpAddress}}
+        try ObjectSerializer.requireIpAddress(self.{{name}}, format: "{{vendorExtensions.ipFormat}}", property: "{{baseName}}")
+{{/vendorExtensions.isIpAddress}}
+{{/vars}}
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+{{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { $0.description }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode({{name}}.description, forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { $0.description }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isDuration}}
+{{#required}}
+{{#isNullable}}
+        try container.encode(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode(try ObjectSerializer.encodeDuration({{name}}), forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent(try {{name}}.map { try ObjectSerializer.encodeDuration($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDuration}}
+{{^vendorExtensions.isDuration}}
+{{#isUuid}}
+{{#required}}
+        try container.encode({{name}}{{#isNullable}}?{{/isNullable}}.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}?.uuidString.lowercased(), forKey: .{{name}})
+{{/required}}
+{{/isUuid}}
+{{^isUuid}}
+{{#vendorExtensions.isUuidCollection}}
+{{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode(ObjectSerializer.lowercaseUuids({{name}}), forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { ObjectSerializer.lowercaseUuids($0) }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isUuidCollection}}
+{{^vendorExtensions.isUuidCollection}}
+{{#required}}
+        try container.encode(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isUuidCollection}}
+{{/isUuid}}
+{{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isDecimalString}}
+{{/vars}}
+
+        /* Encode additional properties */
+        var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
+        let declaredKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+        for (key, value) in additionalProperties where !declaredKeys.contains(key) {
+            let codingKey = DynamicCodingKey(stringValue: key)
+            try dynamicContainer.encode(value, forKey: codingKey)
+        }
+    }
+{{/isAdditionalPropertiesTrue}}
+}
+{{#hasPasswordVars}}
+
+/* A `format: password` property never reaches a log: reflection, print and
+   dump show it as ***. The wire form is unchanged. */
+extension {{classname}}: CustomReflectable {
+    public var customMirror: Mirror {
+        return Mirror(
+            self,
+            children: [
+{{#vars}}
+                (label: "{{name}}", value: {{#isPassword}}"***" as Any{{/isPassword}}{{^isPassword}}{{name}} as Any{{/isPassword}}),
+{{/vars}}
+            ],
+            displayStyle: .struct)
+    }
+}
+{{/hasPasswordVars}}
+
+{{#isAdditionalPropertiesTrue}}
+extension {{classname}}.CodingKeys: CaseIterable {
+    static var allCases: [{{classname}}.CodingKeys] {
+        return [
+{{#vars}}
+            .{{name}},
+{{/vars}}
+        ]
+    }
+}
+
+/// A coding key that can represent any string value.
+private struct DynamicCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+
+    init(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
+
+    init?(intValue: Int) {
+        self.stringValue = String(intValue)
+        self.intValue = intValue
+    }
+}
+{{/isAdditionalPropertiesTrue}}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+@available(*, deprecated, message: "This schema is deprecated.")
+{{/isDeprecated}}
+public struct {{classname}}: Codable, @unchecked Sendable {
+    private let _value: Any
+{{#oneOf}}
+
+    /// Wraps a `{{{.}}}` as this union's value, so a request body can be
+    /// built in code and not only decoded from JSON.
+    public init(_ value: {{{.}}}) {
+        self._value = value
+    }
+{{/oneOf}}
+{{#composedSchemas.oneOf}}
+
+    /// Wraps a `{{{dataType}}}` as this union's value; the named form of `init(_:)`.
+    public static func from{{vendorExtensions.variantName}}(_ value: {{{dataType}}}) -> {{classname}} {
+        return {{classname}}(value)
+    }
+
+    /// Whether this union holds a `{{{dataType}}}`.
+    public var is{{vendorExtensions.variantName}}: Bool {
+        return _value is {{{dataType}}}
+    }
+
+    /// The held value as a `{{{dataType}}}`, or nil when this union holds another variant.
+    public var as{{vendorExtensions.variantName}}: {{{dataType}}}? {
+        return _value as? {{{dataType}}}
+    }
+{{/composedSchemas.oneOf}}
+
+    public init(from decoder: Decoder) throws {
+{{#discriminator}}
+        /* Use discriminator to determine type */
+        let container = try decoder.singleValueContainer()
+        let data = try container.decode(AnyCodable.self)
+
+        struct DiscriminatorHelper: Decodable {
+            let {{propertyBaseName}}: String{{#vendorExtensions.discriminatorDefault}}?{{/vendorExtensions.discriminatorDefault}}
+        }
+        let rawData = try ObjectSerializer.encodeToData(data)
+        let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
+
+        switch disc.{{propertyBaseName}}{{#vendorExtensions.discriminatorDefault}} ?? ""{{/vendorExtensions.discriminatorDefault}} {
+{{#mappedModels}}
+        case "{{{mappingName}}}":
+            let v = try ObjectSerializer.decodeFromData(rawData, as: {{{modelName}}}.self)
+            self._value = v
+            return
+{{/mappedModels}}
+        default:
+{{#vendorExtensions.discriminatorDefault}}
+            /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+            self._value = try ObjectSerializer.decodeFromData(rawData, as: {{vendorExtensions.discriminatorDefault}}.self)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Unknown discriminator value: \(disc.{{propertyBaseName}})"
+                )
+            )
+{{/vendorExtensions.discriminatorDefault}}
+        }
+{{/discriminator}}
+{{^discriminator}}
+        let container = try decoder.singleValueContainer()
+        let data = try container.decode(AnyCodable.self)
+        let rawData = try ObjectSerializer.encodeToData(data)
+
+        /* Try each oneOf type in declaration order */
+{{#composedSchemas.oneOf}}
+        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{dataType}}}.self) {
+            self._value = v
+            return
+        }
+{{/composedSchemas.oneOf}}
+        throw DecodingError.dataCorrupted(
+            DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Data does not match any oneOf schemas for {{classname}}"
+            )
+        )
+{{/discriminator}}
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        /* A `format: byte` variant is represented as Data (scalar) or [Data]
+           (array). Encoding Data through its own Encodable conformance
+           (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+           encoder's base64 data strategy. Routing it through the single-value
+           container instead applies the configured .base64 strategy, so a byte
+           variant rides the wire as a base64 string (and an array of byte values
+           as an array of base64 strings), matching the bare format:byte field. */
+        switch _value {
+        case let bytes as Data:
+            try container.encode(bytes)
+        case let byteArrays as [Data]:
+            try container.encode(byteArrays)
+        case let encodable as Encodable:
+            try encodable.encode(to: encoder)
+        default:
+            try container.encodeNil()
+        }
+    }
+
+    /// Returns the matched value of the union type.
+    public func actualInstance() -> Any {
+        return _value
+    }
+
+    /// Returns the matched value cast to the specified type.
+    public func actualInstance<T>(as type: T.Type) -> T? {
+        return _value as? T
+    }
+}
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension {{classname}}: Hashable {
+    private var canonicalJson: Data? {
+        return try? ObjectSerializer.encodeToData(self)
+    }
+
+    public static func == (lhs: {{classname}}, rhs: {{classname}}) -> Bool {
+        guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+        return left == right
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(canonicalJson)
+    }
+}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+@available(*, deprecated, message: "This schema is deprecated.")
+{{/isDeprecated}}
+public struct {{classname}}: Codable, @unchecked Sendable {
+    /* anyOf is lossless: EVERY variant that successfully validates is retained,
+       not just the first match. A payload co-satisfying several variants keeps
+       them all so re-encoding emits the union of their fields with no silent
+       drop. `_values` holds each decoded variant in declaration order; `_value`
+       exposes the first for `actualInstance()`. */
+    private let _values: [Any]
+    private var _value: Any { _values[0] }
+
+    /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
+    /// the multi-instance constructors the other SDKs expose (e.g. Java's
+    /// `List<Object>` form and Kotlin's `matchedInstances = …`) so a co-satisfying
+    /// value can be built in code, not only decoded. An empty list wraps no variant,
+    /// so it yields `nil` instead of an instance that traps when it is read.
+    public init?(_ values: [Any]) {
+        guard !values.isEmpty else { return nil }
+        self._values = values
+    }
+{{#composedSchemas.anyOf}}
+
+    /// Whether any retained variant is a `{{{dataType}}}`.
+    public var is{{vendorExtensions.variantName}}: Bool {
+        return _values.contains { $0 is {{{dataType}}} }
+    }
+
+    /// The first retained variant that is a `{{{dataType}}}`, or nil when none is.
+    public var as{{vendorExtensions.variantName}}: {{{dataType}}}? {
+        return _values.lazy.compactMap { $0 as? {{{dataType}}} }.first
+    }
+{{/composedSchemas.anyOf}}
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let data = try container.decode(AnyCodable.self)
+        let rawData = try ObjectSerializer.encodeToData(data)
+
+        var matched: [Any] = []
+        /* Try each anyOf type in declaration order and RETAIN every variant that decodes. */
+{{#composedSchemas.anyOf}}
+        if let v = try? ObjectSerializer.decodeFromData(rawData, as: {{{dataType}}}.self) {
+            matched.append(v)
+        }
+{{/composedSchemas.anyOf}}
+        if matched.isEmpty {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Data does not match any anyOf schemas for {{classname}}"
+                )
+            )
+        }
+        self._values = matched
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        /* A `format: byte` variant is represented as Data (scalar) or [Data]
+           (array). Encoding Data through its own Encodable conformance
+           (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+           encoder's base64 data strategy. Routing it through the single-value
+           container instead applies the configured .base64 strategy, so a byte
+           variant rides the wire as a base64 string (and an array of byte values
+           as an array of base64 strings), matching the bare format:byte field. */
+        if _values.count == 1 {
+            var container = encoder.singleValueContainer()
+            switch _values[0] {
+            case let bytes as Data:
+                try container.encode(bytes)
+            case let byteArrays as [Data]:
+                try container.encode(byteArrays)
+            case let encodable as Encodable:
+                try encodable.encode(to: encoder)
+            default:
+                try container.encodeNil()
+            }
+            return
+        }
+
+        /* Multiple variants were co-satisfied. Encode each to its own JSON
+           object and MERGE the fields into a single union object so every
+           retained variant's data round-trips losslessly. Later variants
+           clobber earlier shared keys, so a collision resolves to the last
+           member's value and the key is emitted exactly once. Scalar
+           (non-object) variants are kept as a fallback only when no object
+           variant produced a merge. */
+        var merged: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}] = [:]
+        var scalarFallback: Any?
+        for variant in _values {
+            guard let encodable = variant as? Encodable else { continue }
+            let variantData = try ObjectSerializer.encodeToData(AnyEncodableBox(encodable))
+            if let object = try? ObjectSerializer.decodeFromData(variantData, as: [String: {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}AnyCodable{{/vendorExtensions.additionalPropertiesValue}}].self) {
+                for (key, value) in object {
+                    merged[key] = value
+                }
+            } else if let scalar = try? ObjectSerializer.decodeFromData(variantData, as: AnyCodable.self) {
+                scalarFallback = scalar.value
+            }
+        }
+
+        var container = encoder.singleValueContainer()
+        if !merged.isEmpty {
+            try container.encode(merged)
+        } else if let scalar = scalarFallback {
+            try container.encode(AnyCodable(scalar))
+        } else {
+            try container.encodeNil()
+        }
+    }
+
+    /// Returns the first retained variant of the union type.
+    public func actualInstance() -> Any {
+        return _value
+    }
+
+    /// Returns every retained variant, in declaration order. A lossless anyOf
+    /// may hold more than one when a payload co-satisfies multiple schemas.
+    public func matchedInstances() -> [Any] {
+        return _values
+    }
+}
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension {{classname}}: Hashable {
+    private var canonicalJson: Data? {
+        return try? ObjectSerializer.encodeToData(self)
+    }
+
+    public static func == (lhs: {{classname}}, rhs: {{classname}}) -> Bool {
+        guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+        return left == right
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(canonicalJson)
+    }
+}
+
+/* Type-erasing Encodable wrapper used by the lossless anyOf merge so a stored
+   `Any`-typed variant can be re-encoded through the serializer. */
+private struct AnyEncodableBox: Encodable {
+    private let _encode: (Encoder) throws -> Void
+    init(_ encodable: Encodable) {
+        self._encode = encodable.encode
+    }
+    func encode(to encoder: Encoder) throws {
+        try _encode(encoder)
+    }
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

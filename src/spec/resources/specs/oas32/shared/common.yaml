@@ -1,0 +1,15 @@
+# Reached only through the $self of ../openapi.yaml: that document declares
+# itself to live in this folder, so its relative reference "common.yaml"
+# resolves here and not next to the document.
+components:
+  schemas:
+    Ledger:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+        balance:
+          type: integer
+          format: int64

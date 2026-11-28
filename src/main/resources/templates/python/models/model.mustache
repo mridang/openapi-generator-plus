@@ -1,0 +1,749 @@
+{{>api_info}}
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+from {{packageName}}._types import CatchAllEnum
+
+
+{{! An integer-backed enum mixes in `int` (not `str`) so its members compare
+    and serialize as JSON numbers; pydantic/json then emit `1` rather than the
+    quoted `"1"` that `str, Enum` would produce. String enums keep `str`. }}
+class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}str{{/isLong}}{{/isInteger}}, CatchAllEnum):
+    """
+    {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
+    """
+
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    #: {{#lambda.singleLine}}{{#lambda.rstText}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rstText}}{{/lambda.singleLine}}
+    {{/enumDescription}}
+    {{{name}}} = {{{value}}}
+    {{/enumVars}}
+    {{/allowableValues}}
+    #: Any wire value this SDK does not list; it has no wire value and cannot be written.
+    UNKNOWN_DEFAULT_OPEN_API = {{#isInteger}}-9223372036854775808{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}'__unknown_default_open_api__'{{/isLong}}{{/isInteger}}
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, TypeAdapter, ValidationError, field_validator, model_serializer, model_validator
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+from {{packageName}}._types import ApiModel, hash_model, lenient_init
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Set, Tuple, Union
+
+
+class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}}):
+    """
+    {{{description}}}{{^description}}{{{classname}}}{{/description}}
+{{#isDeprecated}}
+
+    .. deprecated::
+        This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+
+    .. seealso::
+        `{{{description}}} <{{{url}}}>`_
+{{/externalDocumentation}}
+    """
+
+{{#composedSchemas.oneOf}}
+    {{name}}: Optional[{{{dataType}}}] = None
+{{/composedSchemas.oneOf}}
+    # Item 6 — pydantic 2 native discriminated unions
+    # (Annotated[Union[...], Field(discriminator='X')]) require each
+    # branch's discriminator field to be typed as Literal['mapping-name'].
+    # The OAS-driven codegen here emits StrictStr with a Field default
+    # (e.g. food_type: StrictStr = Field(default='DryFood', alias='foodType'))
+    # so the literal-typing precondition does not hold and the native
+    # Annotated form would raise PydanticUserError(discriminator-no-field)
+    # at import time. We keep a plain Union here and dispatch through
+    # `get_discriminator_value` in `ObjectSerializer._deserialize_composed`,
+    # which gives us the same explicit-error guarantee as the native form
+    # without needing a template-level overhaul of the child models.
+    actual_instance: Optional[Union[{{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}]] = None
+    # Declared-order tuple (NOT a set): the serializer trials these candidate
+    # schemas in order and the model validators promise "first declared
+    # variant wins". A set literal would iterate in hash order and break that
+    # contract, so we preserve the oneOf declaration order here.
+    one_of_schemas: ClassVar[Tuple[str, ...]] = ( {{#oneOf}}'{{.}}', {{/oneOf}})
+
+    # Pydantic default mode (lenient) is kept here. strict=True was tried
+    # for Gap S but it rejects legitimate JSON-to-Python coercions like
+    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
+    # enums as their string value). Surfacing wire-type bugs would
+    # require per-field validators on int/bool/float specifically —
+    # tracked in AGENT.md as a deferred sub-gap.
+    model_config = ConfigDict(
+        frozen=True,
+        protected_namespaces=(),
+    )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
+
+    @model_validator(mode='wrap')
+    @classmethod
+    def decode_wire_value(cls, data: Any, handler: Any) -> Any:
+        """Decodes a wire value held by a model property through the union rules.
+
+        A union is a property of another model when the schema of that property is
+        a union (an OAS 3.1 type array, a oneOf or an anyOf). Pydantic hands the
+        raw JSON value to this class, so it is resolved here exactly as a top-level
+        value is; the constructor's own keyword form passes through unchanged.
+        """
+        if isinstance(data, cls):
+            return data
+        if isinstance(data, dict) and ('actual_instance' in data or 'matched_instances' in data):
+            return handler(data)
+        from {{packageName}}.object_serializer import ObjectSerializer
+
+        return ObjectSerializer()._deserialize_composed(data, cls)
+
+    @model_serializer(mode='wrap')
+    def encode_wire_value(self, handler: Any, info: SerializationInfo) -> Any:
+        """Writes the union as the value it holds when it is a property of another model."""
+        instance = self.actual_instance
+        if isinstance(instance, BaseModel):
+            return instance.model_dump(
+                mode=info.mode, by_alias=True, exclude_none=True, context=info.context, warnings=False
+            )
+        return instance
+{{#discriminator}}
+
+    discriminator_value_class_map: ClassVar[Dict[str, str]] = {
+{{#mappedModels}}
+        '{{{mappingName}}}': '{{{modelName}}}',
+{{/mappedModels}}
+    }
+
+    _discriminator_property_name: ClassVar[str] = '{{discriminator.propertyBaseName}}'
+
+    @classmethod
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
+        """Returns the discriminator value (object type) of the data.
+
+        Gap AU: raises ValueError when the discriminator field is missing,
+        empty, or unknown. Previously the ObjectSerializer fell back to
+        wrapping the raw dict in `actual_instance`, producing a stitched
+        `{{classname}}` object that looked valid but couldn't be
+        `isinstance(..., DryFood)`-checked. The other 10 SDKs throw —
+        Python now matches.
+        """
+{{#vendorExtensions.discriminatorDefault}}
+        default_value = obj.get(cls._discriminator_property_name)
+        if not isinstance(default_value, str) or default_value not in cls.discriminator_value_class_map:
+            # defaultMapping (D187): a missing or unlisted value is the default variant.
+            return '{{vendorExtensions.discriminatorDefault}}'
+{{/vendorExtensions.discriminatorDefault}}
+        if cls._discriminator_property_name not in obj:
+            raise ValueError(
+                f"Missing discriminator field '{cls._discriminator_property_name}' "
+                f"in {{classname}} payload"
+            )
+        discriminator_value = obj[cls._discriminator_property_name]
+        if discriminator_value:
+            mapped = cls.discriminator_value_class_map.get(discriminator_value)
+            if mapped is None:
+                raise ValueError(
+                    f"Unknown discriminator value '{discriminator_value}' "
+                    f"for {{classname}}"
+                )
+            return mapped
+        else:
+            raise ValueError(
+                f"Empty discriminator value for '{cls._discriminator_property_name}' "
+                f"in {{classname}} payload"
+            )
+{{/discriminator}}
+
+    @lenient_init
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if args:
+            if len(args) > 1:
+                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+            if kwargs:
+                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+            super().__init__(actual_instance=args[0])
+        else:
+            super().__init__(**kwargs)
+
+{{^discriminator}}
+    @field_validator('actual_instance')
+    def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
+        {{#isNullable}}
+        if v is None:
+            return v
+
+        {{/isNullable}}
+        error_messages = []
+        # First-match semantics: return the FIRST oneOf variant the payload
+        # validates against rather than requiring exactly one match. A payload
+        # that satisfies more than one variant is ambiguous only in theory --
+        # the other 11 SDKs all resolve it to the first declared variant, so
+        # Python matches that behaviour for cross-SDK parity. The no-match
+        # case is still an error.
+        {{#composedSchemas.oneOf}}
+        {{#isContainer}}
+        try:
+            TypeAdapter({{{dataType}}}).validate_python(v)
+            return v
+        except (ValidationError, ValueError) as e:
+            error_messages.append(str(e))
+        {{/isContainer}}
+        {{^isContainer}}
+        {{#isPrimitiveType}}
+        try:
+            TypeAdapter({{{dataType}}}).validate_python(v)
+            return v
+        except (ValidationError, ValueError) as e:
+            error_messages.append(str(e))
+        {{/isPrimitiveType}}
+        {{^isPrimitiveType}}
+        if isinstance(v, {{{dataType}}}):
+            return v
+        error_messages.append(f'Error! Input type `{type(v)}` is not `{{{dataType}}}`')
+        {{/isPrimitiveType}}
+        {{/isContainer}}
+        {{/composedSchemas.oneOf}}
+        raise ValueError(
+            'No match found when setting `actual_instance` in {{{classname}}} with oneOf schemas: {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}. Details: '
+            + ', '.join(error_messages)
+        )
+{{/discriminator}}
+
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, TypeAdapter, ValidationError, field_validator, model_serializer, model_validator
+{{! A scalar member (an OAS 3.1 type array such as string or integer) is a strict
+    pydantic alias that the codegen imports set does not record, so the aliases are
+    imported here as the object model does. }}
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Union
+
+from {{packageName}}._types import ApiModel, hash_model, lenient_init
+
+
+class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}}):
+    """
+    {{{description}}}{{^description}}{{{classname}}}{{/description}}
+{{#isDeprecated}}
+
+    .. deprecated::
+        This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+
+    .. seealso::
+        `{{{description}}} <{{{url}}}>`_
+{{/externalDocumentation}}
+    """
+
+    actual_instance: Optional[Union[{{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}]] = None
+    # Retain-all (lossless) semantics: an anyOf payload may satisfy MORE than
+    # one variant at once (the schema is documented as matching one variant,
+    # another, OR BOTH). `matched_instances` holds EVERY variant the payload
+    # successfully decoded against, in declared order, so co-satisfied data is
+    # never silently dropped. `actual_instance` keeps pointing at the first
+    # match for backward compatibility with single-variant callers and the
+    # ObjectSerializer `hasattr(obj, 'actual_instance')` dispatch.
+    matched_instances: List[Union[{{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}]] = Field(default_factory=list)
+    # Declared-order tuple (NOT a set): the serializer trials these candidate
+    # schemas in order so retained variants follow the declared order. A set
+    # literal would iterate in hash order and make variant resolution
+    # non-deterministic.
+    any_of_schemas: ClassVar[Tuple[str, ...]] = ( {{#anyOf}}'{{.}}', {{/anyOf}})
+
+    # Pydantic default mode (lenient) is kept here. strict=True was tried
+    # for Gap S but it rejects legitimate JSON-to-Python coercions like
+    # list-to-Set (JSON has no Set type) and string-to-Enum (JSON encodes
+    # enums as their string value). Surfacing wire-type bugs would
+    # require per-field validators on int/bool/float specifically —
+    # tracked in AGENT.md as a deferred sub-gap.
+    model_config = ConfigDict(
+        frozen=True,
+        protected_namespaces=(),
+    )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
+
+    @model_validator(mode='wrap')
+    @classmethod
+    def decode_wire_value(cls, data: Any, handler: Any) -> Any:
+        """Decodes a wire value held by a model property through the union rules.
+
+        A union is a property of another model when the schema of that property is
+        a union (an OAS 3.1 type array, a oneOf or an anyOf). Pydantic hands the
+        raw JSON value to this class, so it is resolved here exactly as a top-level
+        value is; the constructor's own keyword form passes through unchanged.
+        """
+        if isinstance(data, cls):
+            return data
+        if isinstance(data, dict) and ('actual_instance' in data or 'matched_instances' in data):
+            return handler(data)
+        from {{packageName}}.object_serializer import ObjectSerializer
+
+        return ObjectSerializer()._deserialize_composed(data, cls)
+
+    @model_serializer(mode='wrap')
+    def encode_wire_value(self, handler: Any, info: SerializationInfo) -> Any:
+        """Writes the union as its wire value when it is a property of another model."""
+        context = info.context if isinstance(info.context, dict) else {}
+        return self.anyof_merged_dump(exact_numbers=bool(context.get('exact_numbers')))
+
+    @lenient_init
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if args:
+            if len(args) > 1:
+                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+            if kwargs:
+                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+            # A list positional carries the retain-all set of matched variants
+            # (built by ObjectSerializer when a payload satisfies several anyOf
+            # variants at once); the first element becomes `actual_instance`. A
+            # single non-list positional is the legacy single-variant form.
+            arg = args[0]
+            if isinstance(arg, list):
+                super().__init__(actual_instance=arg[0] if arg else None, matched_instances=list(arg))
+            else:
+                super().__init__(actual_instance=arg, matched_instances=[arg])
+        else:
+            super().__init__(**kwargs)
+
+    @field_validator('actual_instance')
+    def actual_instance_must_validate_anyof(cls, v: Any) -> Any:
+        if v is None:
+            return v
+        match = 0
+        {{#composedSchemas.anyOf}}
+        {{#isModel}}
+        if isinstance(v, {{{dataType}}}):
+            match += 1
+        {{/isModel}}
+        {{^isModel}}
+        {{! A scalar or container member is a typing alias that isinstance cannot check. }}
+        try:
+            TypeAdapter({{{dataType}}}).validate_python(v, strict=True)
+            match += 1
+        except ValidationError:
+            pass
+        {{/isModel}}
+        {{/composedSchemas.anyOf}}
+        if match == 0:
+            raise ValueError(
+                'No match found when setting `actual_instance` in {{{classname}}} with anyOf schemas: {{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}'
+            )
+        return v
+
+    def anyof_merged_dump(self, exact_numbers: bool = False) -> Dict[str, Any]:
+        """Merge every retained variant into one wire dict (lossless encode).
+
+        Each variant that the payload satisfied contributes its own WIRE
+        fields; the union is emitted so co-satisfied data round-trips with no
+        silent drop. Variants are merged in declared order, so a later
+        variant's value wins on the (rare) shared key and each key appears
+        exactly once. Falls back to the single `actual_instance` when no
+        retain-all set was recorded. ``exact_numbers`` is set by the
+        ObjectSerializer so a ``type: number`` field keeps its exact digits.
+        """
+        instances = self.matched_instances or ([self.actual_instance] if self.actual_instance is not None else [])
+        merged: Dict[str, Any] = {}
+        for instance in instances:
+            part: Any
+            if isinstance(instance, BaseModel):
+                part = instance.model_dump(
+                    mode='json',
+                    by_alias=True,
+                    exclude_none=True,
+                    context={'exact_numbers': True} if exact_numbers else None,
+                    warnings=False,
+                )
+            else:
+                part = instance
+            if isinstance(part, dict):
+                for key, value in part.items():
+                    merged[key] = value
+            else:
+                # A non-model variant (e.g. a primitive anyOf member) cannot be
+                # merged field-wise; return it directly as the sole payload.
+                return part  # type: ignore[return-value]
+        return merged
+
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+from __future__ import annotations
+
+import re
+import warnings
+from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, ValidationInfo, field_validator, model_serializer, model_validator
+{{! The strict scalar aliases are imported unconditionally because the
+    codegen `imports` set (rendered in the footer below) only records strict
+    types referenced directly by a property's dataType. A strict type nested
+    inside a container annotation (e.g. List of List of StrictInt) is missed
+    there, so without this line the forward-ref annotation cannot resolve and
+    model_rebuild leaves the model "not fully defined". Importing the four
+    aliases here is harmless when unused and keeps any nested-strict field
+    resolvable; the footer may re-import a subset, which Python tolerates. }}
+from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
+from {{packageName}}._types import ApiModel, hash_model
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
+{{#vendorExtensions.x-allof-child}}
+from {{packageName}}.models.{{vendorExtensions.x-allof-base-filename}} import {{vendorExtensions.x-allof-base-name}}
+{{/vendorExtensions.x-allof-child}}
+{{! A bare number default is built as a Decimal; ruff prunes it when unused. }}
+from decimal import Decimal
+{{#hasEnums}}
+from {{packageName}}._types import CatchAllEnum
+{{/hasEnums}}
+{{#hasChildren}}
+{{#discriminator}}
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+{{#mappedModels}}
+    from {{packageName}}.models.{{model.classFilename}} import {{modelName}}
+{{/mappedModels}}
+
+{{/discriminator}}
+{{/hasChildren}}
+{{#hasEnums}}
+{{#vars}}
+{{#isEnum}}
+
+
+class {{classname}}{{enumName}}(str, CatchAllEnum):
+    """{{classname}} - {{baseName}}"""
+
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    #: {{#lambda.singleLine}}{{#lambda.rstText}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rstText}}{{/lambda.singleLine}}
+    {{/enumDescription}}
+    {{{name}}} = {{{value}}}
+    {{/enumVars}}
+    {{/allowableValues}}
+    #: Any wire value this SDK does not list; it has no wire value and cannot be written.
+    UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
+
+    def __str__(self) -> str:
+        """The wire value, so interpolating a member gives the text the server sees."""
+        return str(self.value)
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
+
+
+class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}}):
+    """
+    {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
+{{#isDeprecated}}
+
+    .. deprecated::
+        This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+
+    .. seealso::
+        `{{{description}}} <{{{url}}}>`_
+{{/externalDocumentation}}
+    """
+
+{{#vars}}
+{{#example}}
+    # Example: {{{.}}}
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+    # {{{summary}}}
+    # {{{description}}}
+    # >>> {{{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{#deprecated}}
+    # .. deprecated:: This property is deprecated.
+{{/deprecated}}
+{{#required}}
+{{#isEnum}}
+    {{name}}: {{#isNullable}}Optional[{{/isNullable}}{{classname}}{{enumName}}{{#isNullable}}]{{/isNullable}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
+{{/isEnum}}
+{{^isEnum}}
+    {{name}}: {{#isNullable}}Optional[{{/isNullable}}{{{dataType}}}{{#isNullable}}]{{/isNullable}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
+{{/isEnum}}
+{{/required}}
+{{^required}}
+{{#isEnum}}
+    {{name}}: Optional[{{classname}}{{enumName}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
+{{/isEnum}}
+{{^isEnum}}
+    {{name}}: Optional[{{{dataType}}}] = Field({{#defaultValue}}{{#isEnumRef}}default_factory=lambda: {{{.}}}{{/isEnumRef}}{{^isEnumRef}}default={{{.}}}{{/isEnumRef}}{{/defaultValue}}{{^defaultValue}}default=None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
+{{/isEnum}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    additional_properties: Dict[str, {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}Optional[{{/isNullable}}{{{dataType}}}{{#isNullable}}]{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}Any{{/vendorExtensions.additionalPropertiesValue}}] = Field(default_factory=dict)
+
+    @model_validator(mode='before')
+    @classmethod
+    def _capture_additional_properties(cls, values: Any, info: ValidationInfo) -> Any:
+        """Collect JSON keys not declared as fields into additional_properties.
+
+        Pydantic v2 doesn't auto-merge unknown keys into a typed dict
+        field. Here we walk the incoming mapping, split known-vs-extra
+        based on the model's declared fields (by alias and by name), and
+        funnel extras into `additional_properties`. This makes the
+        Metadata-style schema (fixed fields + additionalProperties: {...})
+        round-trip without dropping data, matching the cross-language
+        contract.
+        """
+        if not isinstance(values, dict):
+            return values
+        # A wire decode (ObjectSerializer passes this context) addresses the
+        # declared property NAME only, so a key spelled like a snake_case
+        # attribute name is an unknown key and lands in the extras, as in the
+        # other SDKs. Constructors and direct validation also accept the
+        # attribute name.
+        wire_decode = bool(info.context and info.context.get('wire_decode'))
+        known: Set[str] = set()
+        # `aliases` holds only the WIRE aliases that differ from the Python
+        # field name (e.g. 'fieldName' for the field 'field_name'). Their
+        # presence in the incoming mapping is the PATH signal that this dict is
+        # a flat WIRE payload rather than field-name kwargs / re-validation.
+        aliases: Set[str] = set()
+        for fname, finfo in cls.model_fields.items():
+            if finfo.alias is None or not wire_decode:
+                known.add(fname)
+            if finfo.alias is not None:
+                known.add(finfo.alias)
+                if finfo.alias != fname:
+                    aliases.add(finfo.alias)
+        # The `additional_properties` key carries two distinct meanings and we
+        # must distinguish them by the call PATH / declared field, NOT by the
+        # value's runtime type (a dict value is ambiguous — see below):
+        #   1. Internal bucket — the declared `additional_properties` field.
+        #      When re-validating a value we produced ourselves or constructing
+        #      from field-name kwargs (e.g. `Metadata(additional_properties=
+        #      {...})`), the captured extras arrive under this field name and
+        #      must be spread back out, never nested.
+        #   2. Real wire key — a server may legitimately send a property named
+        #      literally `additional_properties` whose value is itself a dict
+        #      (additionalProperties allows any name). This must be funnelled
+        #      into extras under its real name rather than dropped.
+        # A flat wire payload addresses declared fields by their WIRE ALIAS, so
+        # a mapping that carries any aliased key is a wire payload and its
+        # `additional_properties` entry is a real wire property. Only when the
+        # mapping uses field NAMES (no wire alias present) do we treat an
+        # `additional_properties` dict as the internal bucket to seed from.
+        # This keys the decision on the path, so a dict-valued wire property is
+        # preserved instead of being silently swallowed by an `isinstance` test.
+        is_wire_payload = bool(aliases & values.keys())
+        raw_bucket = values.get('additional_properties')
+        extras: Dict[str, Any] = (
+            dict(raw_bucket)
+            if not is_wire_payload and isinstance(raw_bucket, dict)
+            else {}
+        )
+        merged: Dict[str, Any] = {}
+        for key, value in values.items():
+            if key == 'additional_properties' and not is_wire_payload and isinstance(value, dict):
+                # Internal bucket on the field-name path: already consumed as
+                # the seed above, so drop the wrapper key here.
+                continue
+            if key in known and key != 'additional_properties':
+                merged[key] = value
+            else:
+                # Everything else — including a real wire property literally
+                # named `additional_properties` — lands in extras under its own
+                # name so no data is lost.
+                extras[key] = value
+        merged['additional_properties'] = extras
+        return merged
+
+    @model_serializer(mode='wrap')
+    def _flatten_additional_properties(
+        self, handler: Callable[[Any], Dict[str, Any]], info: SerializationInfo
+    ) -> Dict[str, Any]:
+        """Re-flatten additional_properties to top level on serialize.
+
+        The mirror of `_capture_additional_properties`. Without this,
+        pydantic emits the captured extras nested under a literal
+        `additional_properties` key (e.g. `{"fieldName": ...,
+        "additional_properties": {"foo": "bar"}}`) instead of the
+        round-trip-faithful flat form `{"fieldName": ..., "foo": "bar"}`.
+        We run the default serializer, lift the captured extras out of the
+        `additional_properties` key, and merge them back at the top level.
+        Declared fields win on key collisions so an explicit field is never
+        clobbered by a stale extra.
+        """
+        data = handler(self)
+        extras = data.pop('additional_properties', None)
+        if isinstance(extras, dict):
+            for key, value in extras.items():
+                if key not in data:
+                    data[key] = value
+{{#vendorExtensions.hasRequiredNullable}}
+{{#vars}}
+{{#required}}
+{{#isNullable}}
+        data.setdefault({{#lambda.quotedLiteral}}{{{baseName}}}{{/lambda.quotedLiteral}} if info.by_alias else {{#lambda.quotedLiteral}}{{{name}}}{{/lambda.quotedLiteral}}, None)
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+{{/vendorExtensions.hasRequiredNullable}}
+        return data
+{{/isAdditionalPropertiesTrue}}
+{{^isAdditionalPropertiesTrue}}
+{{#vendorExtensions.hasRequiredNullable}}
+
+    @model_serializer(mode='wrap')
+    def _write_required_nullable(
+        self, handler: Callable[[Any], Dict[str, Any]], info: SerializationInfo
+    ) -> Dict[str, Any]:
+        """Always write the key of a required nullable property.
+
+        The serializer drops every None value, but a required property that
+        is nullable must stay on the wire as an explicit null.
+        """
+        data = handler(self)
+{{#vars}}
+{{#required}}
+{{#isNullable}}
+        data.setdefault({{#lambda.quotedLiteral}}{{{baseName}}}{{/lambda.quotedLiteral}} if info.by_alias else {{#lambda.quotedLiteral}}{{{name}}}{{/lambda.quotedLiteral}}, None)
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+        return data
+{{/vendorExtensions.hasRequiredNullable}}
+{{/isAdditionalPropertiesTrue}}
+{{! Item 9 — Gap AX.1 unevaluatedProperties:false is enforced natively
+    via ConfigDict(extra='forbid') on the model_config below; no
+    hand-rolled model_validator is required because pydantic 2 raises
+    a ValidationError on extra keys when extra='forbid'. }}
+{{! The pattern is enforced here with Python re only, never as a Field
+    pattern: pydantic-core's regex engine has no look-around, so a spec
+    pattern using one would make the model fail at import. }}
+{{#vars}}
+    {{#pattern}}
+
+    @field_validator('{{{name}}}')
+    def {{{name}}}_validate_regular_expression(cls, value: Any) -> Any:
+        """Validates the regular expression"""
+        if value is None:
+            return value
+        if not re.match({{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}}, value):
+            raise ValueError('must validate the regular expression ' + {{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}})
+        return value
+    {{/pattern}}
+{{/vars}}
+
+    # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
+    # per-field strictness, so the model-wide ConfigDict no longer needs
+    # strict=True. populate_by_name keeps both alias and snake_case
+    # field-name kwargs working in constructors.
+    model_config = ConfigDict(
+        populate_by_name=True,
+        frozen=True,
+        protected_namespaces=(),
+{{#isUnevaluatedPropertiesFalse}}
+        # Item 9 — OAS 3.1 unevaluatedProperties:false → pydantic native
+        # rejection of extra JSON keys (replaces the hand-rolled
+        # _reject_unknown_keys model_validator).
+        extra='forbid',
+{{/isUnevaluatedPropertiesFalse}}
+    )
+
+    def __hash__(self) -> int:
+        return hash_model(self)
+
+{{#hasChildren}}
+{{#discriminator}}
+    __discriminator_property_name: ClassVar[str] = '{{discriminator.propertyBaseName}}'
+
+    __discriminator_value_class_map: ClassVar[Dict[str, str]] = {
+        {{#mappedModels}}'{{{mappingName}}}': '{{{modelName}}}',{{/mappedModels}}
+    }
+
+    @classmethod
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
+        """Returns the discriminator value (object type) of the data.
+
+        Gap AU: raises ValueError when the discriminator field is missing
+        from the payload. Previously this returned None and the Pydantic
+        union container wrapped the raw dict in `actualInstance`,
+        producing a stitched `{{classname}}` object that looked valid but
+        couldn't be `isinstance(..., DryFood)`-checked. The other 10 SDKs
+        throw — Python now matches.
+        """
+{{#vendorExtensions.discriminatorDefault}}
+        default_value = obj.get(cls.__discriminator_property_name)
+        if not isinstance(default_value, str) or default_value not in cls.__discriminator_value_class_map:
+            # defaultMapping (D187): a missing or unlisted value is the default variant.
+            return '{{vendorExtensions.discriminatorDefault}}'
+{{/vendorExtensions.discriminatorDefault}}
+        if cls.__discriminator_property_name not in obj:
+            raise ValueError(
+                f"Missing discriminator field '{cls.__discriminator_property_name}' "
+                f"in {{classname}} payload"
+            )
+        discriminator_value = obj[cls.__discriminator_property_name]
+        if discriminator_value:
+            mapped = cls.__discriminator_value_class_map.get(discriminator_value)
+            if mapped is None:
+                raise ValueError(
+                    f"Unknown discriminator value '{discriminator_value}' "
+                    f"for {{classname}}"
+                )
+            return mapped
+        else:
+            raise ValueError(
+                f"Empty discriminator value for '{cls.__discriminator_property_name}' "
+                f"in {{classname}} payload"
+            )
+
+{{/discriminator}}
+{{#vendorExtensions.x-allof-base}}
+
+    @model_validator(mode='wrap')
+    @classmethod
+    def _route_to_subtype(cls, data: Any, handler: Any, info: ValidationInfo) -> Any:
+        """Decode the base type into the subtype its discriminator names.
+
+        Only the base itself routes: a subtype validates its own payload. A
+        missing, empty or unknown discriminator value raises ValueError, which
+        names the value, so decoding fails with the SDK serialization error.
+        """
+        if cls is not {{classname}} or not isinstance(data, dict):
+            return handler(data)
+        import {{packageName}}.models as _models
+        subtype = getattr(_models, cls.get_discriminator_value(data))
+        wire = bool(info.context and info.context.get('wire_decode'))
+        return subtype.model_validate(
+            data,
+            by_alias=True if wire else None,
+            by_name=False if wire else None,
+            context=info.context,
+        )
+{{/vendorExtensions.x-allof-base}}
+{{/hasChildren}}
+{{/anyOf}}
+{{/oneOf}}
+
+{{#imports}}
+{{{.}}}
+{{/imports}}
+
+{{classname}}.model_rebuild(raise_errors=False)
+{{/isEnum}}
+{{/model}}
+{{/models}}

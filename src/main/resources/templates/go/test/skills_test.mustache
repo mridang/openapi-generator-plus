@@ -1,0 +1,59 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestBhvLanggo096_Skills_UploadParametersAreDocumentedAsIoReader(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	if !strings.Contains(skills, "Multipart file parameters are typed as `io.Reader`;") {
+		t.Errorf("expected SKILLS.md to document file upload parameters as io.Reader")
+	}
+	if strings.Contains(skills, "typed as `*os.File`") {
+		t.Errorf("expected SKILLS.md not to document file upload parameters as *os.File")
+	}
+}
+
+func TestBhvLanggo097_Skills_ErrorHandlingExampleEndsWithTheBaseApiErrorArm(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	for _, want := range []string{
+		"var apiErr *{{packageName}}.ApiError",
+		"} else if errors.As(err, &apiErr) {",
+		"fmt.Printf(\"API error %d: %s\\n\", apiErr.StatusCode(), apiErr.Error())",
+	} {
+		if !strings.Contains(skills, want) {
+			t.Errorf("expected the SKILLS.md error handling example to contain %q", want)
+		}
+	}
+}
+
+func TestBhvSkills001_Skills_ErrorHandlingNamesTheRootAndTheSiblingsOfApiError(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	for _, want := range []string{
+		"`{{errorPrefix}}Error` (root interface)",
+		"  - `SerializationError`",
+		"  - `OAuth2ServerError`",
+		"  - `OAuth2TokenError`",
+		"var root {{packageName}}.{{errorPrefix}}Error",
+		"} else if errors.As(err, &root) {",
+	} {
+		if !strings.Contains(skills, want) {
+			t.Errorf("expected the SKILLS.md error handling section to contain %q", want)
+		}
+	}
+}
+
+func TestBhvSkills002_Skills_ConfigurationDocumentsTheRetries(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	for _, want := range []string{"### Retries", "`MaxRetries(0)` disables retries", "NewTransportOptionsBuilder().\n\t\tMaxRetries(0)", "`Retry-After`", "`InvalidateAccessToken`"} {
+		if !strings.Contains(skills, want) {
+			t.Errorf("expected SKILLS.md to contain %q", want)
+		}
+	}
+}

@@ -1,0 +1,927 @@
+{{>api_info}}
+import base64
+import hashlib
+import json
+import re
+import threading
+import time
+import pytest
+from typing import Any
+from unittest.mock import MagicMock
+from urllib.parse import urlparse, parse_qs
+
+from {{packageName}}.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
+from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
+from {{packageName}}.errors.not_found_exception import NotFoundException
+from {{packageName}}.errors import ApiException, SerializationException
+from {{packageName}}.errors.oauth2_token_exception import OAuth2TokenException
+from {{packageName}}.api_http_response import ApiHttpResponse
+
+
+def _without_pkce_and_nonce(url: str) -> str:
+    """The authorization URL without its trailing PKCE challenge and nonce."""
+    return re.sub(
+        r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256&nonce=[A-Za-z0-9_-]{43}$', '', url
+    )
+
+
+def _create_authenticator() -> OpenIdConnectAuthenticator:
+    return OpenIdConnectAuthenticator(
+        host='https://api.example.com',
+        openid_connect_url='https://auth.example.com/.well-known/openid-configuration',
+        client_id='oidc_client',
+        client_secret='oidc_secret',
+        redirect_uri='https://app.example.com/callback',
+        scopes=['openid', 'profile'],
+    )
+
+
+def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, MagicMock]:
+    """Helper that creates an authenticator and mocks the discovery endpoint."""
+    auth = _create_authenticator()
+    mock_client = MagicMock()
+    discovery_response = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps({
+            'authorization_endpoint': 'https://auth.example.com/authorize',
+            'token_endpoint': 'https://auth.example.com/token',
+            'issuer': 'https://auth.example.com',
+        }),
+        headers={'content-type': 'application/json'},
+    )
+    mock_client.send_request.return_value = discovery_response
+    auth.set_api_client(mock_client)
+    return auth, mock_client
+
+
+class TestOpenIdConnectAuthenticator:
+
+    def test_bhv_authoidc_002_builds_authorization_url_from_discovery(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        url = auth.build_authorization_url()
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+
+        assert parsed.netloc == 'auth.example.com'
+        assert parsed.path == '/authorize'
+        assert params['client_id'] == ['oidc_client']
+        assert params['response_type'] == ['code']
+        assert params['scope'] == ['openid profile']
+
+    def test_bhv_authoidc_010_the_discovery_document_is_fetched_from_the_issuer(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+
+        call_args = mock_client.send_request.call_args
+        assert call_args[0][0] == 'GET'
+        assert call_args[0][1] == 'https://auth.example.com/.well-known/openid-configuration'
+
+    def test_bhv_authoidc_008_discovery_is_sent_without_the_transport_default_headers(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_args.kwargs['no_redirect'] is True
+
+    def test_bhv_authoidc_017_obtains_token_after_code_exchange(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()  # force discovery so delegate is cached
+
+        # Reset mock to track new calls for exchange_code
+        mock_client.reset_mock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'access_token': 'oidc_access_token',
+                'expires_in': 3600,
+            }),
+            headers={'content-type': 'application/json'},
+        )
+
+        auth.exchange_code('oidc_code')
+
+        token_call = mock_client.send_request.call_args
+        assert token_call[0][0] == 'POST'
+        assert token_call[0][1] == 'https://auth.example.com/token'
+        body = token_call[0][3]
+        assert 'grant_type=authorization_code' in body
+        assert 'code=oidc_code' in body
+
+    def test_bhv_authoidc_013_get_auth_headers_returns_bearer_after_exchange(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()  # force discovery so delegate is cached
+
+        # Exchange code - returns token
+        mock_client.reset_mock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'access_token': 'oidc-tok',
+                'expires_in': 3600,
+            }),
+            headers={'content-type': 'application/json'},
+        )
+
+        auth.exchange_code('oidc-code')
+        headers = auth.get_auth_headers()
+
+        assert headers['Authorization'] == 'Bearer oidc-tok'
+
+    def test_bhv_authoidc_028_throws_when_no_api_client_injected(self) -> None:
+        auth = _create_authenticator()
+
+        with pytest.raises(RuntimeError) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is RuntimeError
+
+    def test_bhv_authoidc_014_get_host_returns_configured_host(self) -> None:
+        auth = _create_authenticator()
+
+        assert auth.get_host() == 'https://api.example.com'
+
+    def test_bhv_authoidc_019_redacts_secret(self) -> None:
+        """The repr masks the client_secret as ``***`` and never leaks it."""
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert 'oidc_secret' not in rendered
+        assert '***' in rendered
+
+    @pytest.mark.parametrize(
+        ('status', 'expected'),
+        [(404, NotFoundException), (500, InternalServerErrorException)],
+    )
+    def test_bhv_authoidc_027_discovery_non_2xx_status_raises(self, status: int, expected: type[ApiException]) -> None:
+        # Discovery is an HTTP call like any other: a non-2xx answer (e.g. a
+        # 500-HTML error page) raises the same status-specific error an API
+        # call would, not a confusing "invalid JSON" from json.loads.
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=status,
+            body='<html>Error</html>',
+            headers={'content-type': 'text/html'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(expected) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is expected
+        assert exc_info.value.status_code == status
+
+    def test_bhv_authoidc_016_discovery_document_not_json_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body='<html>not json</html>',
+            headers={'content-type': 'text/html'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is SerializationException
+
+    def test_bhv_authoidc_025_discovery_missing_authorization_endpoint_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'token_endpoint': 'https://auth.example.com/token'}),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException, match="OIDC discovery document is missing 'authorization_endpoint'"):
+            auth.build_authorization_url()
+
+    def test_bhv_authoidc_007_discovery_404_raises_not_found_exception(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=404,
+            body='<html>Not found</html>',
+            headers={'content-type': 'text/html'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(NotFoundException) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is NotFoundException
+        assert exc_info.value.status_code == 404
+
+    def test_bhv_authoidc_026_discovery_missing_token_endpoint_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'authorization_endpoint': 'https://auth.example.com/authorize'}),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException, match="OIDC discovery document is missing 'token_endpoint'") as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is SerializationException
+
+    def test_bhv_authoidc_011_fetches_discovery_document_only_once(self) -> None:
+        # The discovery document must be cached: a second build must reuse it
+        # rather than issue a second GET to the discovery endpoint.
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 1
+
+    def test_bhv_authoidc_029_concurrent_callers_on_a_cold_authenticator_share_one_discovery(self) -> None:
+        # The async layer runs each blocking call on its own thread, so callers
+        # that arrive together on a cold cache must share one discovery request.
+        auth = _create_authenticator()
+        discovery_response = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'authorization_endpoint': 'https://auth.example.com/authorize',
+                'token_endpoint': 'https://auth.example.com/token',
+                'issuer': 'https://auth.example.com',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        gate = threading.Event()
+        entered = threading.Event()
+        discoveries: list[int] = []
+
+        def gated_send(*args: Any, **kwargs: Any) -> ApiHttpResponse:
+            discoveries.append(1)
+            entered.set()
+            gate.wait(5)
+            return discovery_response
+
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = gated_send
+        auth.set_api_client(mock_client)
+
+        threads = [threading.Thread(target=auth.build_authorization_url) for _ in range(5)]
+        for thread in threads:
+            thread.start()
+        assert entered.wait(5)
+        time.sleep(0.1)
+        gate.set()
+        for thread in threads:
+            thread.join(5)
+
+        assert len(discoveries) == 1
+
+    def test_bhv_authoidc_018_discovery_empty_token_endpoint_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'authorization_endpoint': 'https://auth.example.com/authorize',
+                'token_endpoint': '',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException):
+            auth.build_authorization_url()
+
+
+def _discovery_client(cache_control: Any) -> MagicMock:
+    mock_client = MagicMock()
+    headers = {"content-type": "application/json"}
+    if cache_control is not None:
+        headers["cache-control"] = cache_control
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(
+            {
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+            }
+        ),
+        headers=headers,
+    )
+    return mock_client
+
+
+def _client_serving(document: dict[str, str]) -> MagicMock:
+    mock_client = MagicMock()
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(document),
+        headers={'content-type': 'application/json'},
+    )
+    return mock_client
+
+
+class TestDiscoveryDocumentIsChecked:
+    _OK = {
+        'authorization_endpoint': 'https://auth.example.com/authorize',
+        'token_endpoint': 'https://auth.example.com/token',
+    }
+
+    def _authenticator_serving(self, **overrides: str) -> OpenIdConnectAuthenticator:
+        auth = _create_authenticator()
+        auth.set_api_client(_client_serving({**self._OK, **overrides}))
+        return auth
+
+    def test_bhv_misc_200_an_issuer_for_another_server_is_rejected(self) -> None:
+        auth = self._authenticator_serving(issuer='https://evil.example.com')
+        with pytest.raises(
+            SerializationException,
+            match='OIDC discovery issuer does not match the discovery URL',
+        ):
+            auth.build_authorization_url()
+
+    def test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_cause_and_hides_its_body(self) -> None:
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body='["leaked-body"]',
+            headers={'content-type': 'application/json'},
+        )
+        auth = _create_authenticator()
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(SerializationException, match='OIDC discovery document is not a JSON object') as exc_info:
+            auth.build_authorization_url()
+
+        assert exc_info.value.__cause__ is None
+        assert 'leaked-body' not in str(exc_info.value)
+
+    def test_bhv_authoidc_004_an_issuer_with_a_trailing_slash_is_accepted(self) -> None:
+        auth = self._authenticator_serving(issuer='https://auth.example.com/')
+        assert auth.build_authorization_url().startswith('https://auth.example.com/authorize?')
+
+    def test_bhv_authoidc_024_a_document_without_an_issuer_is_accepted(self) -> None:
+        auth = self._authenticator_serving()
+        assert auth.build_authorization_url().startswith('https://auth.example.com/authorize?')
+
+    @pytest.mark.parametrize('field', ['authorization_endpoint', 'token_endpoint'])
+    def test_bhv_authoidc_005_a_clear_text_endpoint_is_rejected(self, field: str) -> None:
+        auth = self._authenticator_serving(**{field: 'http://auth.example.com/x'})
+        with pytest.raises(SerializationException, match=f"OIDC discovery '{field}' must use https"):
+            auth.build_authorization_url()
+
+    def test_bhv_lang_python_188_a_loopback_http_endpoint_is_accepted(self) -> None:
+        auth = self._authenticator_serving(authorization_endpoint='http://localhost:8080/authorize')
+        assert auth.build_authorization_url().startswith('http://localhost:8080/authorize?')
+
+
+    def test_bhv_authoidc_032_a_discovered_endpoint_that_is_not_https_is_rejected(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'authorization_endpoint': 'http://auth.example.com/authorize',
+                'token_endpoint': 'https://auth.example.com/token',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException, match="OIDC discovery 'authorization_endpoint' must use https"):
+            auth.build_authorization_url()
+
+
+class TestDiscoveryCacheLifetime:
+    @pytest.mark.parametrize(
+        ("headers", "expected"),
+        [
+            ({"Cache-Control": "max-age=120"}, 120),
+            ({"cache-control": "public, MAX-AGE=45"}, 45),
+            ({"Cache-Control": "max-age=0"}, 0),
+            ({"Cache-Control": "max-age=9999999999"}, 31536000),
+            ({"Cache-Control": "no-store"}, 86400),
+            ({"Cache-Control": "max-age=abc"}, 86400),
+            ({"content-type": "application/json"}, 86400),
+            ({}, 86400),
+            (None, 86400),
+        ],
+    )
+    def test_bhv_authoidc_003_max_age_is_read_from_the_cache_control_header(
+        self, headers: Any, expected: int
+    ) -> None:
+        from {{packageName}}.auth.oauth.openid_connect_authenticator import (
+            _parse_max_age,
+        )
+
+        assert _parse_max_age(headers) == expected
+
+    def test_bhv_authoidc_001_a_max_age_beyond_one_year_is_clamped_to_one_year(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=9999999999")
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.build_authorization_url()
+            clock.monotonic.return_value = 1000.0 + 31535999
+            auth.build_authorization_url()
+            assert mock_client.send_request.call_count == 1
+
+            clock.monotonic.return_value = 1000.0 + 31536000
+            auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+    def test_bhv_authoidc_009_failed_rediscovery_keeps_the_old_delegate(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        discovery = _discovery_client("max-age=100").send_request.return_value
+        failing = ApiHttpResponse(
+            status_code=500,
+            body='<html>Error</html>',
+            headers={'content-type': 'text/html'},
+        )
+        answers = {'discovery_up': True}
+        mock_client = MagicMock()
+
+        def respond(method: str, url: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if url.endswith('openid-configuration'):
+                return discovery if answers['discovery_up'] else failing
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'at-1', 'token_type': 'Bearer', 'expires_in': 3600}),
+                headers={'content-type': 'application/json'},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.exchange_code('the-code')
+            answers['discovery_up'] = False
+            clock.monotonic.return_value = 1100.0
+            with pytest.raises(InternalServerErrorException) as exc_info:
+                auth.get_auth_headers()
+            assert type(exc_info.value) is InternalServerErrorException
+            answers['discovery_up'] = True
+            clock.monotonic.return_value = 1101.0
+            assert auth.get_auth_headers() == {'Authorization': 'Bearer at-1'}
+
+    def test_bhv_authoidc_020_rediscovery_after_expiry_keeps_the_exchanged_session(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=100")
+        discovery = mock_client.send_request.return_value
+
+        def respond(method: str, url: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if url.endswith("openid-configuration"):
+                return discovery
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({"access_token": "at-1", "token_type": "Bearer", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.exchange_code("the-code")
+            clock.monotonic.return_value = 1100.0
+            # The cached document has expired: it is fetched again, and the code
+            # exchange made before it must still count.
+            assert auth.get_auth_headers() == {"Authorization": "Bearer at-1"}
+
+    def test_bhv_authoidc_031_a_document_is_refetched_once_its_max_age_has_passed(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=100")
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.build_authorization_url()
+            clock.monotonic.return_value = 1099.0
+            auth.build_authorization_url()
+            assert mock_client.send_request.call_count == 1
+
+            clock.monotonic.return_value = 1100.0
+            auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+    def test_bhv_authoidc_030_max_age_zero_refetches_on_every_use(self) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=0")
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+    @pytest.mark.parametrize("cache_control", ["public", "max-age=abc", "no-cache, must-revalidate"])
+    def test_bhv_auth_011_a_discovery_cache_header_without_a_usable_max_age_uses_the_default_lifetime(
+        self, cache_control: str
+    ) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client(cache_control)
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 1
+
+    def test_bhv_auth_029_after_the_cached_document_expires_later_calls_use_the_new_endpoints(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        documents = [
+            {
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+            },
+            {
+                "authorization_endpoint": "https://auth2.example.com/authorize",
+                "token_endpoint": "https://auth2.example.com/token",
+            },
+        ]
+        mock_client = MagicMock()
+
+        def respond(method: str, url: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if url.endswith("openid-configuration"):
+                return ApiHttpResponse(
+                    status_code=200,
+                    body=json.dumps(documents.pop(0)),
+                    headers={"cache-control": "max-age=100", "content-type": "application/json"},
+                )
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({"access_token": "at-1", "token_type": "Bearer", "expires_in": 3600}),
+                headers={"content-type": "application/json"},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            assert urlparse(auth.build_authorization_url()).netloc == "auth.example.com"
+            clock.monotonic.return_value = 1100.0
+            assert urlparse(auth.build_authorization_url()).netloc == "auth2.example.com"
+            auth.exchange_code("the-code")
+
+        assert mock_client.send_request.call_args[0][1] == "https://auth2.example.com/token"
+
+    def test_bhv_misc_199_discovery_runs_again_when_the_cached_document_has_a_zero_max_age(self) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client('max-age=0')
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+
+class TestDiscoveryTransportFailure:
+
+    def test_bhv_authoidc_033_a_failed_discovery_request_names_its_method_and_path(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=503,
+            body='down',
+            headers={'content-type': 'text/plain'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(ApiException) as exc_info:
+            auth.build_authorization_url()
+        assert exc_info.value.request_method == 'GET'
+        assert exc_info.value.request_path == '/.well-known/openid-configuration'
+    def test_bhv_authoidc_006_a_network_failure_reaches_the_caller_unchanged(self) -> None:
+        from {{packageName}}.errors import NetworkException
+
+        failure = NetworkException(message="connection refused")
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = failure
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(NetworkException) as excinfo:
+            auth.build_authorization_url()
+
+        assert excinfo.value is failure
+
+    def test_bhv_misc_201_a_failed_discovery_request_reports_its_path_without_the_query_string(self) -> None:
+        auth = OpenIdConnectAuthenticator(
+            host='https://api.example.com',
+            openid_connect_url='https://auth.example.com/.well-known/openid-configuration?tenant=a',
+            client_id='oidc_client',
+            client_secret='oidc_secret',
+            redirect_uri='https://app.example.com/callback',
+            scopes=['openid', 'profile'],
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=503,
+            body='down',
+            headers={'content-type': 'text/plain'},
+        )
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(ApiException) as exc_info:
+            auth.build_authorization_url()
+
+        assert exc_info.value.request_path == '/.well-known/openid-configuration'
+
+
+class TestOidcAuthorizationUrl:
+    def test_bhv_authoidc_022_the_authorization_url_always_requests_the_openid_scope_once(self) -> None:
+        auth, _ = _create_authenticator_with_discovery()
+
+        assert _without_pkce_and_nonce(auth.build_authorization_url()) == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=oidc_client"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=openid%20profile"
+        )
+
+
+class TestSsoAuthWrapper:
+    def test_bhv_authoidc_012_discovers_from_the_spec_url_and_requests_the_openid_scope(self) -> None:
+        from {{packageName}}.auth.oauth.sso_auth_authenticator import (
+            SsoAuthAuthenticator,
+        )
+
+        auth = SsoAuthAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+        mock_client = _discovery_client(None)
+        auth.set_api_client(mock_client)
+
+        assert _without_pkce_and_nonce(auth.build_authorization_url()) == (
+            "https://auth.example.com/authorize?response_type=code&client_id=cid"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=openid"
+        )
+        assert mock_client.send_request.call_args[0][1] == (
+            "https://auth.example.com/.well-known/openid-configuration"
+        )
+
+
+class TestOpenIdConnectRedactedRepr:
+    def test_bhv_authoidc_023_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+        assert repr(_create_authenticator()) == (
+            "OpenIdConnectAuthenticator(host='https://api.example.com', "
+            "openid_connect_url="
+            "'https://auth.example.com/.well-known/openid-configuration', "
+            "client_id='oidc_client', client_secret='***', "
+            "redirect_uri='https://app.example.com/callback', "
+            "scopes=('openid', 'profile'))"
+        )
+
+
+class TestOidcPkceAndInvalidation:
+    def test_bhv_misc_076_a_call_during_the_code_exchange_reuses_the_discovered_configuration(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+        auth.build_authorization_url()
+        gate = threading.Event()
+        entered = threading.Event()
+        discovery_requests: list[int] = []
+        discovery_response = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'authorization_endpoint': 'https://auth.example.com/authorize',
+                'token_endpoint': 'https://auth.example.com/token',
+                'issuer': 'https://auth.example.com',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        token_response = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'access_token': 'oidc-tok', 'expires_in': 3600}),
+            headers={'content-type': 'application/json'},
+        )
+
+        def gated_send(method: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if method == 'POST':
+                entered.set()
+                gate.wait(5)
+                return token_response
+            discovery_requests.append(1)
+            return discovery_response
+
+        mock_client.send_request.side_effect = gated_send
+        exchange = threading.Thread(target=auth.exchange_code, args=('oidc-code',))
+        exchange.start()
+        assert entered.wait(5)
+        url = auth.build_authorization_url()
+        gate.set()
+        exchange.join(5)
+
+        assert 'code_challenge=' in url
+        # The configuration was discovered before the exchange began, so the
+        # second build reuses it and sends no new discovery request.
+        assert len(discovery_requests) == 0
+
+    def test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_a_nonce(self) -> None:
+        auth, _ = _create_authenticator_with_discovery()
+
+        params = parse_qs(urlparse(auth.build_authorization_url()).query)
+
+        assert params['code_challenge_method'] == ['S256']
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', params['code_challenge'][0])
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', params['nonce'][0])
+
+    def test_bhv_authoidc_021_a_rediscovery_that_names_new_endpoints_keeps_the_verifier(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        endpoints = {'token_endpoint': 'https://auth.example.com/token'}
+
+        def respond(method: str, url: str, *args: Any, **kwargs: Any) -> ApiHttpResponse:
+            if url.endswith('openid-configuration'):
+                return ApiHttpResponse(
+                    status_code=200,
+                    body=json.dumps(
+                        {
+                            'authorization_endpoint': 'https://auth.example.com/authorize',
+                            'token_endpoint': endpoints['token_endpoint'],
+                        }
+                    ),
+                    headers={'content-type': 'application/json', 'cache-control': 'max-age=100'},
+                )
+            return ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 'at', 'expires_in': 3600}),
+                headers={'content-type': 'application/json'},
+            )
+
+        mock_client.send_request.side_effect = respond
+        auth.set_api_client(mock_client)
+        module = '{{packageName}}.auth.oauth.openid_connect_authenticator.time'
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            params = parse_qs(urlparse(auth.build_authorization_url()).query)
+            endpoints['token_endpoint'] = 'https://auth.example.com/moved/token'
+            clock.monotonic.return_value = 1100.0
+            auth.exchange_code('the-code')
+
+        token_call = mock_client.send_request.call_args
+        assert token_call[0][1] == 'https://auth.example.com/moved/token'
+        verifier = parse_qs(token_call[0][3])['code_verifier'][0]
+        digest = hashlib.sha256(verifier.encode('ascii')).digest()
+        challenge = base64.urlsafe_b64encode(digest).rstrip(b'=').decode('ascii')
+        assert challenge == params['code_challenge'][0]
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', params['nonce'][0])
+
+    def test_bhv_auth_002_invalidating_before_any_discovery_does_nothing(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.invalidate_access_token()
+
+        mock_client.send_request.assert_not_called()
+
+    def test_bhv_authoidc_015_a_dropped_token_is_replaced_by_a_refresh(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+        auth.build_authorization_url()
+        mock_client.send_request.side_effect = [
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps(
+                    {'access_token': 't1', 'refresh_token': 'r1', 'expires_in': 3600}
+                ),
+                headers={'content-type': 'application/json'},
+            ),
+            ApiHttpResponse(
+                status_code=200,
+                body=json.dumps({'access_token': 't2', 'expires_in': 3600}),
+                headers={'content-type': 'application/json'},
+            ),
+        ]
+        auth.exchange_code('c')
+        assert auth.get_auth_headers() == {'Authorization': 'Bearer t1'}
+
+        auth.invalidate_access_token()
+
+        assert auth.get_auth_headers() == {'Authorization': 'Bearer t2'}
+        assert 'refresh_token=r1' in mock_client.send_request.call_args[0][3]
+
+
+def _id_token(claims: dict[str, Any]) -> str:
+    """An unsigned compact JWT whose payload is the given claims."""
+
+    def encode(value: dict[str, Any]) -> str:
+        return base64.urlsafe_b64encode(json.dumps(value).encode('utf-8')).rstrip(b'=').decode('ascii')
+
+    return f"{encode({'alg': 'none'})}.{encode(claims)}.sig"
+
+
+def _claims(nonce: str, /, **overrides: Any) -> dict[str, Any]:
+    """Claims that pass every check for the given nonce, with the overrides applied."""
+    claims: dict[str, Any] = {
+        'iss': 'https://auth.example.com',
+        'aud': 'oidc_client',
+        'exp': int(time.time()) + 3600,
+        'nonce': nonce,
+    }
+    claims.update(overrides)
+    return claims
+
+
+def _authenticator_returning(id_token_for_nonce: Any) -> OpenIdConnectAuthenticator:
+    """An authenticator whose token endpoint answers with the id_token built from the URL's nonce."""
+    auth, mock_client = _create_authenticator_with_discovery()
+    nonce = parse_qs(urlparse(auth.build_authorization_url('s')).query)['nonce'][0]
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps({
+            'access_token': 'oidc-tok',
+            'expires_in': 3600,
+            'id_token': id_token_for_nonce(nonce),
+        }),
+        headers={'content-type': 'application/json'},
+    )
+    return auth
+
+
+class TestOidcIdTokenValidation:
+
+    def test_bhv_authoidc_034_each_authorization_url_carries_a_fresh_nonce(self) -> None:
+        auth, _ = _create_authenticator_with_discovery()
+
+        first = parse_qs(urlparse(auth.build_authorization_url('s')).query)['nonce'][0]
+        second = parse_qs(urlparse(auth.build_authorization_url('s')).query)['nonce'][0]
+
+        assert re.fullmatch(r'[A-Za-z0-9_-]{43}', first)
+        assert first != second
+
+    def test_bhv_authoidc_035_an_id_token_with_valid_claims_is_accepted(self) -> None:
+        auth = _authenticator_returning(
+            lambda nonce: _id_token(_claims(nonce, aud=['other', 'oidc_client']))
+        )
+
+        auth.exchange_code('oidc-code')
+
+        assert auth.get_auth_headers()['Authorization'] == 'Bearer oidc-tok'
+
+    def test_bhv_authoidc_036_an_id_token_with_another_nonce_is_rejected(self) -> None:
+        auth = _authenticator_returning(lambda nonce: _id_token(_claims(nonce, nonce='replayed')))
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token nonce does not match the authorization request'
+
+    def test_bhv_authoidc_037_an_id_token_from_another_issuer_is_rejected(self) -> None:
+        auth = _authenticator_returning(
+            lambda nonce: _id_token(_claims(nonce, iss='https://evil.example.com'))
+        )
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token issuer does not match the discovered issuer'
+
+    def test_bhv_authoidc_038_an_id_token_for_another_audience_is_rejected(self) -> None:
+        auth = _authenticator_returning(lambda nonce: _id_token(_claims(nonce, aud='other-client')))
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token audience does not contain the client id'
+
+    def test_bhv_authoidc_039_an_expired_id_token_is_rejected(self) -> None:
+        auth = _authenticator_returning(
+            lambda nonce: _id_token(_claims(nonce, exp=int(time.time()) - 120))
+        )
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token has expired'
+
+    def test_bhv_authoidc_040_a_malformed_id_token_is_rejected(self) -> None:
+        auth = _authenticator_returning(lambda nonce: 'not-a-jwt')
+
+        with pytest.raises(OAuth2TokenException) as raised:
+            auth.exchange_code('oidc-code')
+
+        assert str(raised.value) == 'The id_token is malformed'
+
+    def test_bhv_authoidc_041_a_rejected_id_token_leaves_no_session(self) -> None:
+        auth = _authenticator_returning(lambda nonce: _id_token(_claims(nonce, nonce='replayed')))
+        with pytest.raises(OAuth2TokenException):
+            auth.exchange_code('oidc-code')
+
+        with pytest.raises(RuntimeError):
+            auth.get_auth_headers()

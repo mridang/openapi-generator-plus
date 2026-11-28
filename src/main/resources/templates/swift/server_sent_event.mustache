@@ -1,0 +1,47 @@
+{{>api_info}}
+import Foundation
+
+/// One server-sent event: the fields of the standard envelope, with the data
+/// decoded.
+///
+/// ``description`` shows the event name and the id, never the data. `T` is the
+/// type the `data` field is decoded into (`String` for a plain payload).
+public struct ServerSentEvent<T: Sendable>: Sendable {
+    /// The event id, or `nil` when the stream has none.
+    public let id: String?
+
+    /// The event name, `message` when the server sent none.
+    public let event: String
+
+    /// The decoded `data` field.
+    public let data: T
+
+    /// The reconnection time in milliseconds the server named, or `nil`.
+    public let retry: Int?
+
+    /// The `data` field exactly as it arrived, lines joined with a line feed.
+    public let raw: String
+
+    /// Creates an event.
+    public init(id: String? = nil, event: String = "message", data: T, retry: Int? = nil, raw: String) {
+        self.id = id
+        self.event = event
+        self.data = data
+        self.retry = retry
+        self.raw = raw
+    }
+}
+
+extension ServerSentEvent: Equatable where T: Equatable {}
+
+extension ServerSentEvent: CustomStringConvertible, CustomDebugStringConvertible {
+    /// The event by its name and id; the data is never shown.
+    public var description: String {
+        return "ServerSentEvent(event: \(event), id: \(id ?? "nil"))"
+    }
+
+    /// The same text as ``description``.
+    public var debugDescription: String {
+        description
+    }
+}

@@ -1,0 +1,9 @@
+    [JsonRequired]
+    [JsonPropertyName("{{baseName}}")]
+    public required {{{dataType}}} {{name}}
+    {
+        get => _{{nameInCamelCase}};
+        init => _{{nameInCamelCase}} = value;
+    }
+
+    private readonly {{{dataType}}} _{{nameInCamelCase}} = null!;

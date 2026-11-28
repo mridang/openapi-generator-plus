@@ -1,0 +1,46 @@
+{{>api_info}}
+
+defmodule {{package}}.{{className}} do
+  @moduledoc """
+  Authenticator for the `{{{schemeName}}}` security scheme.
+  Delegates to `#{inspect({{package}}.{{baseClass}})}`.
+{{#schemeDeprecated}}
+
+  Deprecated: the API marks the security scheme '{{{schemeName}}}' as deprecated.
+{{/schemeDeprecated}}
+{{#hasEnvVars}}
+
+  Every credential not passed is read, once, when the authenticator is built, from the
+  environment variable of this scheme (an empty variable counts as unset). A credential
+  found in neither place raises `ArgumentError`, so the client fails when it is built and
+  not on its first request.
+
+{{#envVars}}
+    * `{{#lambda.elixirSnake}}{{field}}{{/lambda.elixirSnake}}`: `{{envName}}`
+{{/envVars}}
+{{/hasEnvVars}}
+  """
+
+{{#hasOAuth2MetadataUrl}}
+  @doc """
+  The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+  """
+  @spec metadata_url() :: String.t()
+  def metadata_url, do: {{{metadataUrlLiteral}}}
+
+{{/hasOAuth2MetadataUrl}}
+  @doc """
+  Creates an authenticator for the `{{{schemeName}}}` security scheme.
+  """
+  def new({{#constructorParams}}{{name}}{{#isCredential}} \\ nil{{/isCredential}}{{^-last}}, {{/-last}}{{/constructorParams}}) do
+{{#constructorParams}}
+{{#isCredential}}
+    {{name}} = {{moduleName}}.Auth.BaseAuthenticator.credential({{name}}, "{{fieldSnake}}", "{{envName}}")
+{{/isCredential}}
+{{/constructorParams}}
+{{#hasEnvVars}}
+
+{{/hasEnvVars}}
+    {{package}}.{{baseClass}}.new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})
+  end
+end

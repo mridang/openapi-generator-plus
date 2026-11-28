@@ -1,0 +1,44 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// Error for HTTP 422 Unprocessable Entity.
+#[derive(Debug, Clone)]
+pub struct UnprocessableEntityError {
+    client_error: ClientError,
+}
+
+impl UnprocessableEntityError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
+}
+
+impl fmt::Display for UnprocessableEntityError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.client_error.api_error(), f)
+    }
+}
+
+impl std::error::Error for UnprocessableEntityError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+/// Wraps a [`ClientError`] whose status is 422. Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ClientError> for UnprocessableEntityError {
+    type Error = ClientError;
+
+    fn try_from(client_error: ClientError) -> Result<Self, Self::Error> {
+        if client_error.api_error().status_code() == 422 {
+            Ok(Self { client_error })
+        } else {
+            Err(client_error)
+        }
+    }
+}

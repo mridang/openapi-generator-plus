@@ -1,0 +1,178 @@
+{{>api_info}}
+// Package otelhook is the OpenTelemetry adapter of the call hook. It records one
+// span, one request count and one duration histogram per operation call with the
+// OpenTelemetry API; it never needs the OpenTelemetry SDK. The SDK core imports
+// nothing from OpenTelemetry for it: import this package to use it.
+package otelhook
+
+import (
+	"context"
+	"errors"
+	"strconv"
+	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+
+	{{packageName}} "{{packageName}}/pkg"
+	errors_pkg "{{packageName}}/pkg/errors"
+)
+
+const (
+	// ScopeName is the instrumentation scope of the spans and the metrics: the
+	// published package name.
+	ScopeName = "{{packageName}}"
+	// ScopeVersion is the SDK version, carried by the instrumentation scope.
+	ScopeVersion = "{{packageVersion}}"
+)
+
+// Hook is a {{packageName}}.CallHook that records one span, one request count
+// and one duration value per call.
+//
+// The span is named with the operation id, has kind client and carries
+// http.request.method, url.template, server.address, http.response.status_code
+// (only when a response arrived) and error.type (only on failure). The counter
+// is http.client.request.count (unit {request}) and the histogram is
+// http.client.request.duration (unit s); both carry the span's attributes.
+//
+// The hook writes traceparent itself, with its propagator, so the header names
+// the client span as its parent.
+type Hook struct {
+	tracer      trace.Tracer
+	count       metric.Int64Counter
+	duration    metric.Float64Histogram
+	propagator  propagation.TextMapPropagator
+}
+
+// Option configures New.
+type Option func(*settings)
+
+type settings struct {
+	tracerProvider trace.TracerProvider
+	meterProvider  metric.MeterProvider
+	propagator     propagation.TextMapPropagator
+}
+
+// WithTracerProvider uses the given tracer provider instead of the global one.
+func WithTracerProvider(provider trace.TracerProvider) Option {
+	return func(s *settings) { s.tracerProvider = provider }
+}
+
+// WithMeterProvider uses the given meter provider instead of the global one.
+func WithMeterProvider(provider metric.MeterProvider) Option {
+	return func(s *settings) { s.meterProvider = provider }
+}
+
+// WithPropagator uses the given propagator to write traceparent instead of the
+// global one.
+func WithPropagator(propagator propagation.TextMapPropagator) Option {
+	return func(s *settings) { s.propagator = propagator }
+}
+
+// New creates the hook. Without options it uses the global tracer provider, meter
+// provider and propagator, which record nothing until the application registers
+// an SDK.
+func New(options ...Option) *Hook {
+	config := settings{}
+	for _, option := range options {
+		option(&config)
+	}
+	if config.tracerProvider == nil {
+		config.tracerProvider = otel.GetTracerProvider()
+	}
+	if config.meterProvider == nil {
+		config.meterProvider = otel.GetMeterProvider()
+	}
+	hook := &Hook{propagator: config.propagator}
+	hook.tracer = config.tracerProvider.Tracer(ScopeName, trace.WithInstrumentationVersion(ScopeVersion))
+	meter := config.meterProvider.Meter(ScopeName, metric.WithInstrumentationVersion(ScopeVersion))
+	// Creating an instrument fails only for an invalid name or unit, never for these.
+	hook.count, _ = meter.Int64Counter("http.client.request.count", metric.WithUnit("{request}"))
+	hook.duration, _ = meter.Float64Histogram("http.client.request.duration", metric.WithUnit("s"))
+	return hook
+}
+
+// Start starts the span, writes the traceparent header and returns the observer
+// that ends the span and records the metrics.
+func (h *Hook) Start(ctx context.Context, info {{packageName}}.CallInfo, headers map[string]string) ({{packageName}}.CallObserver, error) {
+	started := time.Now()
+	spanContext, span := h.tracer.Start(ctx, info.OperationID,
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(requestAttributes(info)...))
+	propagator := h.propagator
+	if propagator == nil {
+		propagator = otel.GetTextMapPropagator()
+	}
+	propagator.Inject(spanContext, propagation.MapCarrier(headers))
+	return &observer{hook: h, ctx: ctx, info: info, span: span, started: started}, nil
+}
+
+// observer keeps the caller's context so the metrics are recorded in it, the
+// way the other SDKs record them in the ambient context of the call.
+type observer struct {
+	hook    *Hook
+	ctx     context.Context
+	info    {{packageName}}.CallInfo
+	span    trace.Span
+	started time.Time
+}
+
+// Finish ends the span and records the count and the duration.
+func (o *observer) Finish(outcome {{packageName}}.CallOutcome) {
+	attributes := requestAttributes(o.info)
+	if outcome.StatusCode > 0 {
+		attributes = append(attributes, attribute.Int("http.response.status_code", outcome.StatusCode))
+	}
+	if errorType, failed := errorType(outcome); failed {
+		attributes = append(attributes, attribute.String("error.type", errorType))
+		o.span.SetStatus(codes.Error, "")
+	}
+	o.span.SetAttributes(attributes...)
+	o.span.End()
+	ctx := o.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	set := metric.WithAttributes(attributes...)
+	o.hook.count.Add(ctx, 1, set)
+	o.hook.duration.Record(ctx, time.Since(o.started).Seconds(), set)
+}
+
+func requestAttributes(info {{packageName}}.CallInfo) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		attribute.String("http.request.method", info.Method),
+		attribute.String("url.template", info.URLTemplate),
+		attribute.String("server.address", info.ServerAddress),
+	}
+}
+
+// errorType is the error.type of a call: the status code for a status of 400 or
+// more, otherwise timeout, network_error, serialization_error or cancelled, and
+// _OTHER for any other error. The second result is false for a success.
+func errorType(outcome {{packageName}}.CallOutcome) (string, bool) {
+	if outcome.StatusCode >= 400 {
+		return strconv.Itoa(outcome.StatusCode), true
+	}
+	err := outcome.Error
+	if err == nil {
+		return "", false
+	}
+	var timeout *errors_pkg.NetworkTimeoutError
+	var network *errors_pkg.NetworkError
+	var serialization *errors_pkg.SerializationError
+	switch {
+	case errors.As(err, &timeout):
+		return "timeout", true
+	case errors.As(err, &network):
+		return "network_error", true
+	case errors.As(err, &serialization):
+		return "serialization_error", true
+	case errors.Is(err, context.Canceled):
+		return "cancelled", true
+	}
+	return "_OTHER", true
+}

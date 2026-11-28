@@ -1,0 +1,120 @@
+{{>api_info}}
+
+namespace {{namespace}};
+{{#parsesAny}}
+
+use {{invokerPackage}}\Errors\SerializationException;
+{{/parsesAny}}
+
+/**
+ * The response headers the success response of the {{operationId}} operation declares, each in its
+ * declared type. A header the response did not carry is null.
+ */
+final class {{className}}
+{
+    /**
+{{#responseHeaders}}
+     * @param {{phpDocType}}|null ${{varName}} The `{{wireName}}` header{{#hasDescription}}: {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}{{/hasDescription}}
+{{#hasExample}}
+     *     Example: {{#lambda.phpdocDescription}}{{{example}}}{{/lambda.phpdocDescription}}
+{{/hasExample}}
+{{/responseHeaders}}
+     */
+    public function __construct(
+{{#responseHeaders}}
+        public readonly ?{{phpType}} ${{varName}} = null,
+{{/responseHeaders}}
+    ) {
+    }
+
+    /**
+     * Reads the declared headers from the raw response headers, such as the `headers` of the
+     * `ApiResult` the `WithHttpInfo` variant returns. Header names are compared without case, a list
+     * header is split on commas with each item trimmed, and an absent header stays null.
+     *
+     * @param array<string, string> $headers the raw response headers
+{{#parsesAny}}
+     * @throws SerializationException when a declared header does not parse as its declared type
+{{/parsesAny}}
+     */
+    public static function from(array $headers): self
+    {
+        $lower = array_change_key_case($headers, CASE_LOWER);
+{{#responseHeaders}}
+{{^isArray}}
+{{#isString}}
+        ${{varName}} = $lower['{{lowerWireName}}'] ?? null;
+{{/isString}}
+{{^isString}}
+        $raw = $lower['{{lowerWireName}}'] ?? null;
+        ${{varName}} = $raw === null ? null : {{#isInteger}}self::parseInt('{{wireName}}', '{{kind}}', $raw){{/isInteger}}{{#isLong}}self::parseInt('{{wireName}}', '{{kind}}', $raw){{/isLong}}{{#isNumber}}self::parseFloat('{{wireName}}', $raw){{/isNumber}}{{#isBoolean}}self::parseBool('{{wireName}}', $raw){{/isBoolean}};
+{{/isString}}
+{{/isArray}}
+{{#isArray}}
+        $raw = $lower['{{lowerWireName}}'] ?? null;
+        ${{varName}} = $raw === null ? null : array_map(
+            static fn (string $item): {{phpItemType}} => {{#isString}}trim($item){{/isString}}{{#isInteger}}self::parseInt('{{wireName}}', '{{kind}}', trim($item)){{/isInteger}}{{#isLong}}self::parseInt('{{wireName}}', '{{kind}}', trim($item)){{/isLong}}{{#isNumber}}self::parseFloat('{{wireName}}', trim($item)){{/isNumber}}{{#isBoolean}}self::parseBool('{{wireName}}', trim($item)){{/isBoolean}},
+            explode(',', $raw),
+        );
+{{/isArray}}
+{{/responseHeaders}}
+
+        return new self(
+{{#responseHeaders}}
+            {{varName}}: ${{varName}},
+{{/responseHeaders}}
+        );
+    }
+{{#parsesInt}}
+
+    /**
+     * A base-10 integer with an optional sign that fits in an int.
+     *
+     * @throws SerializationException when the value is not one
+     */
+    private static function parseInt(string $name, string $kind, string $value): int
+    {
+        if (preg_match('/^([+-]?)0*([0-9]+)$/', $value, $match) === 1) {
+            $canonical = ($match[1] === '-' && $match[2] !== '0' ? '-' : '') . $match[2];
+            $number = (int) $canonical;
+            if ((string) $number === $canonical) {
+                return $number;
+            }
+        }
+        throw new SerializationException("Response header '$name' is not a valid $kind: '$value'");
+    }
+{{/parsesInt}}
+{{#parsesFloat}}
+
+    /**
+     * A decimal number with an optional sign, fraction and exponent.
+     *
+     * @throws SerializationException when the value is not one
+     */
+    private static function parseFloat(string $name, string $value): float
+    {
+        if (preg_match('/^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$/', $value) === 1) {
+            return (float) $value;
+        }
+        throw new SerializationException("Response header '$name' is not a valid number: '$value'");
+    }
+{{/parsesFloat}}
+{{#parsesBool}}
+
+    /**
+     * Exactly `true` or `false`.
+     *
+     * @throws SerializationException when the value is neither
+     */
+    private static function parseBool(string $name, string $value): bool
+    {
+        return match ($value) {
+            'true' => true,
+            'false' => false,
+            default => throw new SerializationException(
+                "Response header '$name' is not a valid boolean: '$value'"
+            ),
+        };
+    }
+{{/parsesBool}}
+}

@@ -1,0 +1,966 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	neturl "net/url"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+	"{{packageName}}/pkg/auth/oauth"
+	apierrors "{{packageName}}/pkg/errors"
+)
+
+// fakeAuthCodeClient implements auth.ApiClient for auth code tests.
+type fakeAuthCodeClient struct {
+	responses []fakeAuthCodeResponse
+	index     int32
+	LastBody  string
+	LastURL   string
+}
+
+type fakeAuthCodeResponse struct {
+	body       string
+	statusCode int
+}
+
+func (c *fakeAuthCodeClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *fakeAuthCodeClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	_ = opts
+	c.LastURL = url
+	if body != nil {
+		if b, ok := body.([]byte); ok {
+			c.LastBody = string(b)
+		}
+	}
+	idx := atomic.AddInt32(&c.index, 1) - 1
+	resp := c.responses[idx]
+	return &auth.ApiHttpResponse{
+		StatusCode: resp.statusCode,
+		Body:       resp.body,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+func createAuthCodeAuthenticator() *oauth.OAuth2AuthorizationCodeAuthenticator {
+	return oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"read", "write"},
+		"",
+	)
+}
+
+func TestBhvAuthoauthtwoauthcode006_OAuth2AuthorizationCodeAuthenticator_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
+	t.Parallel()
+	auth := createAuthCodeAuthenticator()
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "response_type=code") {
+		t.Error("expected URL to contain response_type=code")
+	}
+	if !strings.Contains(url, "client_id=my-client-id") {
+		t.Error("expected URL to contain client_id=my-client-id")
+	}
+	if !strings.Contains(url, "redirect_uri=") {
+		t.Error("expected URL to contain redirect_uri")
+	}
+	if !strings.Contains(url, "scope=read") {
+		t.Error("expected URL to contain scope with read")
+	}
+	if !strings.HasPrefix(url, "https://auth.example.com/authorize?") {
+		t.Errorf("expected URL to start with authorization endpoint, got %q", url)
+	}
+}
+
+// The per-scheme wrapper requests the scopes its security scheme declares.
+func TestBhvLanggo059_OAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+	t.Parallel()
+	auth, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=pets%3Aread%20pets%3Awrite") {
+		t.Errorf("expected URL to carry the declared scopes, got %q", url)
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode007_OAuth2AuthorizationCodeAuthenticator_BuildsAuthorizationUrlWithState(t *testing.T) {
+	t.Parallel()
+	auth := createAuthCodeAuthenticator()
+
+	url := auth.BuildAuthorizationURL("csrf-state-123")
+
+	if !strings.Contains(url, "state=csrf-state-123") {
+		t.Errorf("expected URL to contain state=csrf-state-123, got %q", url)
+	}
+}
+
+// ExchangeCode runs on a callback goroutine while requests read the exchanged
+// flag on others. Run under the race detector (make test), this fails when the
+// flag is a plain bool.
+func TestBhvLanggo060_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := authObj.ExchangeCode("code"); err != nil {
+			t.Errorf("ExchangeCode failed: %v", err)
+		}
+	}()
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = authObj.AuthHeadersOrError()
+		}()
+	}
+	wg.Wait()
+
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok1" {
+		t.Errorf("expected the exchanged token to be used, got %q", got)
+	}
+}
+
+// oauth-exchangecode-no-empty-code-guard: ExchangeCode must reject an empty or
+// whitespace-only code before issuing the token POST.
+func TestBhvAuthoauthtwoauthcode010_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsEmptyCode(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t"} {
+		authObj := createAuthCodeAuthenticator()
+		err := authObj.ExchangeCode(bad)
+		if err == nil {
+			t.Fatalf("expected error for empty/whitespace code %q", bad)
+		}
+		if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
+			t.Errorf("expected ErrAuthCodeEmpty for code %q, got %v", bad, err)
+		}
+		if want := "authorization code must not be empty"; err.Error() != want {
+			t.Errorf("expected message %q for code %q, got %q", want, bad, err.Error())
+		}
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode011_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeRejectsWhitespaceOnlyCode(t *testing.T) {
+	t.Parallel()
+	// oauth-exchangecode-no-empty-code-guard: a whitespace-only code is distinct
+	// from the empty-string case and must also be rejected (TrimSpace guard)
+	// before any token POST is issued.
+	authObj := createAuthCodeAuthenticator()
+	err := authObj.ExchangeCode("   ")
+	if err == nil {
+		t.Fatalf("expected error for whitespace-only code")
+	}
+	if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
+		t.Errorf("expected ErrAuthCodeEmpty for whitespace-only code, got %v", err)
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode012_OAuth2AuthorizationCodeAuthenticator_ExchangesCodeWithCorrectGrantType(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("auth-code-xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(client.LastBody, "grant_type=authorization_code") {
+		t.Errorf("expected body to contain grant_type=authorization_code, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "code=auth-code-xyz") {
+		t.Errorf("expected body to contain code=auth-code-xyz, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "client_id=my-client-id") {
+		t.Errorf("expected body to contain client_id=my-client-id, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "client_secret=my-client-secret") {
+		t.Errorf("expected body to contain client_secret=my-client-secret, got %q", client.LastBody)
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode015_OAuth2AuthorizationCodeAuthenticator_IncludesRefreshTokenOnRefresh(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+			{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("auth-code-xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// AuthHeaders triggers a refresh since token is expired (expires_in=0 is stale on arrival)
+	headers := authObj.AuthHeaders()
+
+	if !strings.Contains(client.LastBody, "refresh_token=ref1") {
+		t.Errorf("expected body to contain refresh_token=ref1, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "grant_type=refresh_token") {
+		t.Errorf("expected body to contain grant_type=refresh_token, got %q", client.LastBody)
+	}
+	if headers["Authorization"] != "Bearer tok2" {
+		t.Errorf("expected Authorization 'Bearer tok2', got %q", headers["Authorization"])
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode027_OAuth2AuthorizationCodeAuthenticator_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	// AuthHeaders (interface method) must NOT panic if ExchangeCode was
+	// never called -- it now soft-fails to an empty map so the resulting
+	// request surfaces as a 401 instead of crashing the process. Callers
+	// that want a precise error use AuthHeadersOrError.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("AuthHeaders must not panic before ExchangeCode, got: %v", r)
+		}
+	}()
+
+	headers := authObj.AuthHeaders()
+	if len(headers) != 0 {
+		t.Errorf("expected empty headers before ExchangeCode, got %v", headers)
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode003_OAuth2AuthorizationCodeAuthenticator_AuthHeadersBeforeExchangeReturnsRecoverableError(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	// Construct without ExchangeCode, then prove the precondition
+	// violation is catchable: AuthHeadersOrError returns a sentinel error
+	// the caller can match on with errors.Is and recover from.
+	headers, err := authObj.AuthHeadersOrError()
+	if err == nil {
+		t.Fatal("expected AuthHeadersOrError to return error before ExchangeCode")
+	}
+	if headers != nil {
+		t.Errorf("expected nil headers on error, got %v", headers)
+	}
+	if !errors.Is(err, oauth.ErrAuthCodeNotExchanged) {
+		t.Errorf("expected ErrAuthCodeNotExchanged, got %v", err)
+	}
+
+	// Caller continues normally after catching -- no process crash.
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+// Auth headers requested before the code exchange fail with an error that names
+// ExchangeCode, the call the caller has to make first.
+func TestBhvAuthoauthtwoauthcode030_OAuth2AuthorizationCodeAuthenticator_AuthHeadersBeforeExchangeNamesExchangeCode(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	_, err := authObj.AuthHeadersOrError()
+	if err == nil {
+		t.Fatal("expected AuthHeadersOrError to fail before ExchangeCode")
+	}
+	if !strings.Contains(err.Error(), "ExchangeCode") {
+		t.Errorf("expected the error to name ExchangeCode, got %q", err.Error())
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode014_OAuth2AuthorizationCodeAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode019_OAuth2AuthorizationCodeAuthenticator_RedactsSecret(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
+		if strings.Contains(s, "my-client-secret") {
+			t.Errorf("expected client secret to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+func TestBhvAuthoauthtwoauthcode005_OAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStringUsesAmpSeparator(t *testing.T) {
+	t.Parallel()
+	// RFC 6749 §3.1: the authorization endpoint URI MAY already include a
+	// query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
+	// into the configured authorization_url). The builder must use '&' as
+	// the separator so existing params are preserved alongside the OAuth2
+	// ones, not '?' which would corrupt the URL.
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://x.auth0.com/authorize?audience=api",
+		"https://x.auth0.com/oauth/token",
+		"https://app.example.com/callback",
+		[]string{"read"},
+		"",
+	)
+
+	url := authObj.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "audience=api") {
+		t.Errorf("existing query param must be preserved: %q", url)
+	}
+	if !strings.Contains(url, "response_type=code") {
+		t.Errorf("response_type must be appended: %q", url)
+	}
+	if count := strings.Count(url, "?"); count != 1 {
+		t.Errorf("result must contain exactly one '?', got %d: %q", count, url)
+	}
+}
+
+// The authorize URL is a URL, not a form body: a space between scopes is %20,
+// never a plus, which a strict server reads as a literal plus.
+func TestBhvAuth014_OAuth2AuthorizationCodeAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+	t.Parallel()
+	url := createAuthCodeAuthenticator().BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read%20write") {
+		t.Errorf("expected URL to contain scope=read%%20write, got %q", url)
+	}
+	if strings.Contains(url, "+") {
+		t.Errorf("expected no plus sign in the authorize URL, got %q", url)
+	}
+}
+
+// Exactly `-._~` stays literal in the authorize URL's client_id, scope and
+// state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
+func TestBhvAuthoauthtwoauthcode004_OAuth2AuthorizationCodeAuthenticator_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"s~*!'()"},
+		"",
+	)
+
+	url := authObj.BuildAuthorizationURL("st~*!'()")
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"scope=s~%2A%21%27%28%29",
+		"state=st~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(url, want) {
+			t.Errorf("expected URL to contain %q, got %q", want, url)
+		}
+	}
+}
+
+// The code exchange is a form body, so the same punctuation rule applies there.
+func TestBhvAuthoauthtwoauthcode017_OAuth2AuthorizationCodeAuthenticator_ExchangeBodyPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"s~-._*!'()",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		nil,
+		"",
+	)
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("code~*!'()"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"client_secret=s~-._%2A%21%27%28%29",
+		"code=code~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(client.LastBody, want) {
+			t.Errorf("expected body to contain %q, got %q", want, client.LastBody)
+		}
+	}
+}
+
+// The code exchange goes to tokenUrl and the later refresh to refreshUrl.
+func TestBhvAuthoauthtwoauthcode024_OAuth2AuthorizationCodeAuthenticator_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"read"},
+		"https://auth.example.com/refresh",
+	)
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	if got := client.requests[0].url; got != "https://auth.example.com/token" {
+		t.Errorf("expected the code exchange at tokenUrl, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/refresh" {
+		t.Errorf("expected the refresh grant at refreshUrl, got %q", got)
+	}
+}
+
+// The per-scheme wrapper declares its own authorize, token and refresh URLs.
+func TestBhvAuthoauthtwoauthcode020_OAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_SendsTheSpecScopesAndUrls(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.SetApiClient(client)
+
+	if got := authObj.BuildAuthorizationURL(""); !strings.HasPrefix(got, "https://auth.example.com/authorize?") {
+		t.Errorf("expected the declared authorize URL, got %q", got)
+	}
+	if !strings.Contains(authObj.BuildAuthorizationURL(""), "scope=pets%3Aread%20pets%3Awrite") {
+		t.Errorf("expected the declared scopes in the authorize URL")
+	}
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+
+	if got := client.requests[0].url; got != "https://auth.example.com/oauth/token" {
+		t.Errorf("expected the code exchange at the declared token URL, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/oauth/refresh" {
+		t.Errorf("expected the refresh grant at the declared refresh URL, got %q", got)
+	}
+}
+
+// The printed form shows the non-secret fields and masks only the secret.
+func TestBhvAuthoauthtwoauthcode025_OAuth2AuthorizationCodeAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	repr := createAuthCodeAuthenticator().String()
+	for _, want := range []string{
+		`host: "https://api.example.com"`,
+		`clientID: "my-client-id"`,
+		`clientSecret: ***`,
+		`authorizationURL: "https://auth.example.com/authorize"`,
+		`tokenURL: "https://auth.example.com/token"`,
+		`redirectURI: "https://app.example.com/callback"`,
+		`scopes: ["read" "write"]`,
+	} {
+		if !strings.Contains(repr, want) {
+			t.Errorf("expected %q to contain %q", repr, want)
+		}
+	}
+}
+
+// The code exchange body and the authorize URL are emitted in the shared key
+// order, so the whole strings are pinned.
+func TestBhvAuthoauthtwoauthcode032_OAuth2AuthorizationCodeAuthenticator_ExchangeBodyAndAuthorizeUrlUseTheSharedOrder(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	wantURL := "https://auth.example.com/authorize?response_type=code&client_id=my-client-id" +
+		"&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s"
+	built := authObj.BuildAuthorizationURL("s")
+	if !strings.HasPrefix(built, wantURL+"&code_challenge=") || !strings.HasSuffix(built, "&code_challenge_method=S256") {
+		t.Errorf("expected authorize URL %q followed by the PKCE parameters, got %q", wantURL, built)
+	}
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantBody := "grant_type=authorization_code&code=C&client_id=my-client-id" +
+		"&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback" +
+		"&code_verifier="
+	if got := client.requests[0].body; !strings.HasPrefix(got, wantBody) || len(got) != len(wantBody)+43 {
+		t.Errorf("expected exchange body %q followed by the 43-character verifier, got %q", wantBody, got)
+	}
+}
+
+// pkceParams reads the PKCE parameters off an authorize URL.
+func pkceParams(t *testing.T, authorizeURL string) (challenge, method string) {
+	t.Helper()
+	parsed, err := neturl.Parse(authorizeURL)
+	if err != nil {
+		t.Fatalf("authorize URL does not parse: %v", err)
+	}
+	query := parsed.Query()
+	return query.Get("code_challenge"), query.Get("code_challenge_method")
+}
+
+// F858: the authorize URL carries an S256 challenge and the code exchange
+// proves it with the matching 43-character verifier (RFC 7636).
+func TestBhvAuthoauthtwoauthcode023_OAuth2AuthorizationCodeAuthenticator_AuthorizeUrlCarriesAPkceChallengeThatTheExchangeProves(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	challenge, method := pkceParams(t, authObj.BuildAuthorizationURL("s"))
+	if method != "S256" {
+		t.Errorf("expected code_challenge_method=S256, got %q", method)
+	}
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	form, err := neturl.ParseQuery(client.requests[0].body)
+	if err != nil {
+		t.Fatalf("exchange body does not parse: %v", err)
+	}
+	verifier := form.Get("code_verifier")
+	if len(verifier) != 43 {
+		t.Errorf("expected a 43-character verifier, got %d: %q", len(verifier), verifier)
+	}
+	digest := sha256.Sum256([]byte(verifier))
+	if want := base64.RawURLEncoding.EncodeToString(digest[:]); challenge != want {
+		t.Errorf("expected the challenge %q to be the S256 of the verifier, got %q", want, challenge)
+	}
+	if strings.Contains(client.requests[0].body, "nonce") {
+		t.Error("an OAuth2 exchange must not send a nonce")
+	}
+}
+
+// Each authorize URL starts a new challenge, and the verifier is single-use: a
+// second exchange without a new URL sends none.
+func TestBhvAuthoauthtwoauthcode009_OAuth2AuthorizationCodeAuthenticator_EachAuthorizeUrlStartsANewChallengeAndTheVerifierIsSingleUse(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	first, _ := pkceParams(t, authObj.BuildAuthorizationURL(""))
+	second, _ := pkceParams(t, authObj.BuildAuthorizationURL(""))
+	if first == "" || first == second {
+		t.Errorf("expected a new challenge per URL, got %q then %q", first, second)
+	}
+	if err := authObj.ExchangeCode("C1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := authObj.ExchangeCode("C2"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(client.requests[0].body, "code_verifier=") {
+		t.Errorf("expected the first exchange to prove the challenge, got %q", client.requests[0].body)
+	}
+	if strings.Contains(client.requests[1].body, "code_verifier") {
+		t.Errorf("expected no verifier on the second exchange, got %q", client.requests[1].body)
+	}
+}
+
+// RFC 6749 §6: the refresh authenticates the client like the code exchange
+// did, and a rejected refresh is one POST that surfaces as *OAuth2ServerError.
+func TestBhvAuthoauthtwoauthcode026_OAuth2AuthorizationCodeAuthenticator_RefreshCarriesClientCredentialsAndFailsAfterOnePost(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err := authObj.AuthHeadersOrError()
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 400 {
+		t.Fatalf("expected *OAuth2ServerError with status 400, got %T: %v", err, err)
+	}
+	if client.requestCount() != 2 {
+		t.Fatalf("expected the exchange and exactly one refresh POST, got %d requests", client.requestCount())
+	}
+	want := "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
+	if got := client.requests[1].body; got != want {
+		t.Errorf("expected refresh body %q, got %q", want, got)
+	}
+}
+
+// Without an authorization URL there is no PKCE verifier, so the exchange sends none.
+func TestBhvAuthoauthtwoauthcode001_OAuth2AuthorizationCodeAuthenticator_ExchangeWithoutAuthorizeUrlSendsNoVerifier(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(client.requests[0].body, "code_verifier") {
+		t.Errorf("expected no verifier without an authorization URL, got %q", client.requests[0].body)
+	}
+}
+
+// A rejected refresh is one POST and surfaces as *OAuth2ServerError.
+func TestBhvAuthoauthtwoauthcode002_OAuth2AuthorizationCodeAuthenticator_RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":0}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err := authObj.AuthHeadersOrError()
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if got := client.requestCount(); got != 2 {
+		t.Errorf("expected the exchange and exactly one refresh POST, got %d requests", got)
+	}
+}
+
+// The code exchange proves the challenge that the authorization URL carried.
+func TestBhvAuthoauthtwoauthcode008_OAuth2AuthorizationCodeAuthenticator_CodeExchangeProvesTheChallengeOfTheAuthorizationUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	challenge, _ := pkceParams(t, authObj.BuildAuthorizationURL(""))
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	form, err := neturl.ParseQuery(client.requests[0].body)
+	if err != nil {
+		t.Fatalf("exchange body does not parse: %v", err)
+	}
+	digest := sha256.Sum256([]byte(form.Get("code_verifier")))
+	if want := base64.RawURLEncoding.EncodeToString(digest[:]); challenge != want {
+		t.Errorf("expected the exchange to prove challenge %q, the S256 of its verifier is %q", challenge, want)
+	}
+}
+
+// An empty state is left out of the authorization URL.
+func TestBhvAuthoauthtwoauthcode018_OAuth2AuthorizationCodeAuthenticator_OmitsAnEmptyStateFromTheAuthorizationUrl(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	if got := authObj.BuildAuthorizationURL(""); strings.Contains(got, "state=") {
+		t.Errorf("expected no state parameter for an empty state, got %q", got)
+	}
+}
+
+// A second ExchangeCode really sends its code, even while the first token is
+// still valid, and its token replaces the first.
+func TestBhvAuthoauthtwoauthcode021_OAuth2AuthorizationCodeAuthenticator_SecondExchangeCodeSendsTheNewCode(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","refresh_token":"ref2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := authObj.ExchangeCode("b"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	if got := client.requests[1].body; !strings.HasPrefix(got, "grant_type=authorization_code&code=b&") {
+		t.Errorf("expected the second exchange to send code=b, got %q", got)
+	}
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok2" {
+		t.Errorf("expected the second exchange's token, got %q", got)
+	}
+}
+
+// A second exchange whose response has no refresh_token leaves no refresh
+// token behind: the later refresh sends an empty one, not the first session's.
+func TestBhvAuthoauthtwoauthcode022_OAuth2AuthorizationCodeAuthenticator_SecondExchangeWithoutRefreshTokenDropsTheOldOne(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":0}`, statusCode: 200},
+		{body: `{"access_token":"tok3","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := authObj.ExchangeCode("b"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := client.requests[2].body; !strings.HasPrefix(got, "grant_type=refresh_token&refresh_token=&") {
+		t.Errorf("expected the refresh to carry no refresh token, got %q", got)
+	}
+}
+
+// A rejected exchange keeps the previous session, so a mistyped code does not
+// log the user out.
+func TestBhvAuthoauthtwoauthcode013_OAuth2AuthorizationCodeAuthenticator_FailedExchangeKeepsThePreviousSession(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err := authObj.ExchangeCode("bad")
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok1" {
+		t.Errorf("expected the previous token to survive, got %q", got)
+	}
+}
+
+// F855: InvalidateAccessToken keeps the refresh token and the exchanged state,
+// so the next call is a refresh grant rather than ErrAuthCodeNotExchanged.
+func TestBhvAuthoauthtwoauthcode016_OAuth2AuthorizationCodeAuthenticator_InvalidateAccessTokenKeepsTheRefreshToken(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil || headers["Authorization"] != "Bearer tok2" {
+		t.Fatalf("expected Bearer tok2 after the invalidation, got %v, %v", headers, err)
+	}
+	if body := client.requests[1].body; !strings.Contains(body, "grant_type=refresh_token") || !strings.Contains(body, "refresh_token=ref1") {
+		t.Errorf("expected a refresh grant with the kept refresh token, got %q", body)
+	}
+}
+
+// The PKCE verifier proves the challenge on the first exchange only; a refresh never carries it.
+func TestBhvAuth020_OAuth2AuthorizationCodeAuthenticator_VerifierIsSentOnlyWithTheFirstExchange(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	_ = authObj.BuildAuthorizationURL("")
+	if err := authObj.ExchangeCode("C1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	authObj.InvalidateAccessToken()
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+	if !strings.Contains(client.requests[0].body, "code_verifier=") {
+		t.Errorf("expected the first exchange to carry the verifier, got %q", client.requests[0].body)
+	}
+	if strings.Contains(client.requests[1].body, "code_verifier") {
+		t.Errorf("expected the refresh to carry no verifier, got %q", client.requests[1].body)
+	}
+}
+
+// A failed first exchange records no session, so the client still reports the code as unexchanged.
+func TestBhvAuth028_OAuth2AuthorizationCodeAuthenticator_FailedFirstExchangeRecordsNoSession(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C1"); err == nil {
+		t.Fatal("expected the failed exchange to return an error")
+	}
+	if _, err := authObj.AuthHeadersOrError(); err == nil {
+		t.Error("expected the client to still report the code as unexchanged")
+	}
+}
+
+// The authorization-code flow builds the authorize URL with the declared scopes and the exact fixed parameters.
+func TestBhvAuth048_OAuth2AuthorizationCodeAuthenticator_BuildsTheExactAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+
+	got := a.BuildAuthorizationURL("xyz")
+	prefix := "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=xyz&code_challenge="
+	if !strings.HasPrefix(got, prefix) || !strings.HasSuffix(got, "&code_challenge_method=S256") {
+		t.Errorf("expected the exact authorize URL prefix %q, got %q", prefix, got)
+	}
+}
+
+// Before a code is exchanged the authenticator holds no token, so it refuses to produce auth headers.
+func TestBhvAuth052_OAuth2AuthorizationCodeAuthenticator_RefusesHeadersBeforeAnExchange(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+
+	if _, err := a.AuthHeadersOrError(); err == nil {
+		t.Error("expected AuthHeadersOrError to refuse before an exchange")
+	}
+	if _, err := a.AuthHeadersOrErrorContext(context.Background()); err == nil {
+		t.Error("expected AuthHeadersOrErrorContext to refuse before an exchange")
+	}
+	if headers := a.AuthHeaders(); len(headers) != 0 {
+		t.Errorf("expected no headers before an exchange, got %v", headers)
+	}
+}
+
+// A transport failure during the authorization code exchange reaches the caller as the same error.
+func TestBhvMisc028_OAuth2AuthorizationCodeAuthenticator_AnExchangeFailureIsReturnedUnchanged(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection reset")
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(unreachableTokenClient{cause: cause})
+	_ = authObj.BuildAuthorizationURL("state")
+
+	if err := authObj.ExchangeCode("the-code"); err != cause {
+		t.Errorf("expected the transport error unchanged, got %T: %v", err, err)
+	}
+}
+
+// The authorization URL keeps the configured endpoint and redirect URI exactly: no added trailing slash,
+// no dropped default port and no changed host case.
+func TestBhvMisc058_OAuth2AuthorizationCodeAuthenticator_TheConfiguredUrlsReachTheAuthorizeUrlExactly(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://Auth.Example.COM:443/authorize/",
+		"https://auth.example.com/token",
+		"https://App.example.com:8443/cb",
+		[]string{"read"},
+		"",
+	)
+	got := authObj.BuildAuthorizationURL("xyz")
+	if !strings.HasPrefix(got, "https://Auth.Example.COM:443/authorize/?") || !strings.Contains(got, "redirect_uri=https%3A%2F%2FApp.example.com%3A8443%2Fcb") {
+		t.Errorf("expected the configured endpoint and redirect URI exact, got %q", got)
+	}
+}
+
+// The authorization URL produced by a per-scheme wrapper carries the scopes that its security scheme declares.
+func TestBhvMisc062_OAuth2AuthorizationCodeAuthenticator_TheDeclaredScopesReachTheAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+	if got := authObj.BuildAuthorizationURL(""); !strings.Contains(got, "scope=read%20write") {
+		t.Errorf("expected the declared scopes in the authorize URL, got %q", got)
+	}
+}
+
+// A generated PKCE verifier is 43 characters from the unreserved set and differs on every call.
+func TestBhvMisc077_OAuth2AuthorizationCodeAuthenticator_PkceChallengeIsFreshEachCall(t *testing.T) {
+	t.Parallel()
+	challengeOf := func(raw string) string {
+		parsed, err := neturl.Parse(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return parsed.Query().Get("code_challenge")
+	}
+	first := challengeOf(createAuthCodeAuthenticator().BuildAuthorizationURL("s"))
+	second := challengeOf(createAuthCodeAuthenticator().BuildAuthorizationURL("s"))
+	if len(first) != 43 || first == second {
+		t.Errorf("expected a 43-character challenge that differs per call, got %q and %q", first, second)
+	}
+}

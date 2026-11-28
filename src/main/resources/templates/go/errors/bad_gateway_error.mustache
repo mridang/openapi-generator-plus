@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// BadGatewayError is the error for HTTP 502 Bad Gateway.
+type BadGatewayError struct {
+	ServerError
+}

@@ -1,0 +1,579 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('BearerAuthenticator', () {
+    test('bhv authscheme 009 a credential passed explicitly wins over its environment variable', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'explicit',
+        environmentVariable: 'OTHER_TOKEN',
+        environment: {'OTHER_TOKEN': 'fromenv'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+    });
+
+    test('bhv authbearer 018 an explicit token wins over the environment', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'explicit',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+    });
+
+    test('bhv authbearer 025 the environment variable is read once, at construction', () {
+      final environment = {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'};
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', environment: environment);
+
+      environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
+    });
+
+    test('bhv lifecycle 028 an explicit host and token win over the environment', () {
+      final auth = BearerAuthenticator(
+        host: 'https://explicit.example.com',
+        token: 'explicit',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.host(), equals('https://explicit.example.com'));
+      expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+    });
+
+    test('bhv lifecycle 032 a token passed to the client is preferred to the one in the environment', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'passed',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer passed'));
+    });
+
+    test('bhv authbearer 028 a bearer token containing CRLF is rejected at construction', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 025 the environment variable is read once, at construction', () {
+      final environment = {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'};
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', environment: environment);
+
+      environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
+    });
+
+    test('bhv auth 007 a named environment variable is read instead of the default', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        environmentVariable: 'OTHER_TOKEN',
+        environment: {'OTHER_TOKEN': 'other'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer other'));
+    });
+
+    test('bhv auth 040 an environment variable that is set but empty is treated as unset', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        ),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          contains(BearerAuthenticator.defaultEnvironmentVariable),
+        )),
+      );
+    });
+
+    test('bhv authbearer 019 an empty environment value counts as unset', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable))),
+      );
+    });
+
+    test('bhv authscheme 010 an empty environment value counts as unset and fails naming the variable', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable))),
+      );
+    });
+
+    test('bhv langdart 022 no token anywhere fails when the authenticator is built', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', environment: const {}),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv authbearer 026 a token and a provider together are refused', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          token: 'a',
+          tokenProvider: () => 'b',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv auth 039 passing both a token and a token provider is rejected with an error', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          token: 'a',
+          tokenProvider: () => 'b',
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv authbearer 014 the provider is asked on every request', () async {
+      var calls = 0;
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () => 'token${++calls}',
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer token1'));
+      expect((await auth.authHeadersAsync())['Authorization'], equals('Bearer token2'));
+    });
+
+    test('bhv auth 001 an asynchronous provider works through authHeadersAsync only', () async {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () async => 'later',
+      );
+
+      expect((await auth.authHeadersAsync())['Authorization'], equals('Bearer later'));
+      expect(auth.authHeaders, throwsStateError);
+    });
+
+    test('bhv authbearer 002 a provider result is validated like a fixed token', () async {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', tokenProvider: () => '');
+
+      await expectLater(auth.authHeadersAsync(), throwsArgumentError);
+    });
+
+    test('bhv authbearer 009 raw token is prefixed with Bearer', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
+      final headers = auth.authHeaders();
+      expect(headers['Authorization'], equals('Bearer xyz'));
+    });
+
+    test('bhv authbearer 012 rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv authbearer 022 a bearer authenticator rejects a non-ASCII token at construction', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv authbearer 027 a bearer authenticator rejects a whitespace-only token', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv authbearer 017 rejects an empty or whitespace token', () {
+      // bearer-no-empty-token-guard: an empty / whitespace-only token would
+      // emit a bare "Authorization: Bearer " header and send the request
+      // unauthenticated, so the constructor must reject it.
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ''),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message, 'message', contains('Bearer token must not be empty'))),
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ' \t\n\r\f\v '),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message, 'message', contains('Bearer token must not be empty'))),
+      );
+    });
+
+    test('bhv authbearer 016 a Unicode space is not blank, so the printable ASCII check rejects it', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '\u00A0'),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message, 'message', contains('printable ASCII'))),
+      );
+    });
+
+    test('bhv authbearer 011 redacts the token in toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored token.
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
+      expect(auth.toString(), isNot(contains('xyz')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+
+  group('BearerAuthenticator', () {
+    test('bhv authbearer 003 already prefixed token is not doubled', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'Bearer xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv authbearer 007 lowercase bearer prefix is stripped', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'bearer xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv misc 194 uppercase bearer prefix is stripped', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'BEARER xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv authbearer 008 mixed case bearer prefix is stripped', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'BeArEr xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv authbearer 015 a token that merely begins with the word bearer is kept whole', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'bearerxyz');
+
+      expect(
+        auth.authHeaders(),
+        equals({'Authorization': 'Bearer bearerxyz'}),
+      );
+    });
+
+    test('bhv authbearer 004 doubled bearer prefix is stripped only once', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'Bearer Bearer xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer Bearer xyz'}));
+    });
+
+    test('bhv authscheme 002 explicit arguments need no environment', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'xyz',
+        environment: const {},
+      );
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv authbearer 013 the redacted repr shows the host and masks the token', () {
+      expect(
+        BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz').toString(),
+        equals('BearerAuthenticator(host: {{{basePath}}}, token: ***)'),
+      );
+    });
+  });
+
+  group('BearerAuthenticator scheme wrappers', () {
+    final builders = <String, BearerAuthenticator Function(String)>{
+      'ServiceTokenAuthenticator': (token) =>
+          ServiceTokenAuthenticator(host: '{{{basePath}}}', token: token),
+      'PetStoreBearerAuthenticator': (token) =>
+          PetStoreBearerAuthenticator(host: '{{{basePath}}}', token: token),
+    };
+
+    test('bhv authbearer 006 every wrapper sends the token as a Bearer header', () {
+      builders.forEach((name, build) {
+        expect(
+          build('xyz').authHeaders(),
+          equals({'Authorization': 'Bearer xyz'}),
+          reason: name,
+        );
+      });
+    });
+
+    test('bhv authbearer 005 every wrapper rejects an empty token at construction', () {
+      builders.forEach((name, build) {
+        expect(() => build(''), throwsArgumentError, reason: name);
+      });
+    });
+
+    test('bhv authbearer 001 every wrapper prints its own name with the token masked', () {
+      builders.forEach((name, build) {
+        expect(
+          build('xyz').toString(),
+          equals('$name(host: {{{basePath}}}, token: ***)'),
+          reason: name,
+        );
+      });
+    });
+
+    test('bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable', () {
+      expect(
+        () => ServiceTokenAuthenticator(
+          host: '{{{basePath}}}',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'))),
+      );
+    });
+
+    test('bhv authbearer 023 generated bearer scheme wrappers emit a Bearer header and keep their own name', () {
+      builders.forEach((name, build) {
+        expect(build('xyz').authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+        expect(build('xyz').toString(), startsWith('$name('));
+      });
+    });
+  });
+
+{{#hasCredentialEnvVars}}
+  group('per-scheme authenticators', () {
+    test('bhv authbearer 010 reads its own variables from the environment', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
+        returnsNormally,
+        reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv authscheme 001 each credential scheme reads only its own variable from the environment', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: const {'UNRELATED_CREDENTIAL': 'x'},
+        ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv langdart 023 fails to build naming the variable when none is set', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(host: '{{{basePath}}}', environment: const {}),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv authscheme 003 each credential scheme fails at construction naming the variable when its environment variable is empty', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: {'{{firstVariable}}': ''},
+        ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv langdart 024 the scheme name in each generated bearer authenticator test identifies the scheme under test', () {
+{{#credentialSchemes}}
+      expect(
+        {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}).toString(),
+        startsWith('{{className}}('),
+        reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+{{#credentialSchemes}}
+{{#hasAuthSchemeTest}}
+    test('{{{authSchemeTestName}}}', () {
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: {{{emptyEnvironment}}},
+        ),
+        throwsA(isA<ArgumentError>().having(
+            (e) => e.message, 'message', contains('{{emptyVariable}}'))),
+      );
+    });
+{{/hasAuthSchemeTest}}
+{{/credentialSchemes}}
+  });
+{{/hasCredentialEnvVars}}
+{{#metadataUrlSchemes}}
+
+  group('per-scheme metadata url', () {
+    test('bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator', () {
+      expect({{className}}.metadataUrl, equals({{{metadataUrlLiteral}}}));
+    });
+  });
+{{/metadataUrlSchemes}}
+
+    test('bhv auth 003 an empty environment variable counts as no value, so the next source is used', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'fixed',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer fixed'));
+    });
+
+    test('bhv langdart 025 an unset environment variable and no other source fails at construction', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          environment: const {},
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv auth 012 each rejected credential raises an error whose message says why', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ''),
+        throwsA(isA<ArgumentError>()
+            .having((e) => '${e.message}', 'message', isNotEmpty)),
+      );
+    });
+
+    test('bhv auth 016 every string form of an authenticator masks its secret and names its own type', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'secretvalue');
+
+      expect('$auth', isNot(contains('secretvalue')));
+      expect(auth.toString(), contains('BearerAuthenticator'));
+    });
+
+    test('bhv auth 022 an explicit argument is used first, then the token provider, then the environment', () {
+      final explicit = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'explicit',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
+      );
+      final fromProvider = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
+        tokenProvider: () => 'from-provider',
+      );
+      final fromEnv = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
+      );
+
+      expect(explicit.authHeaders()['Authorization'], equals('Bearer explicit'));
+      expect(fromEnv.authHeaders()['Authorization'], equals('Bearer from-env'));
+      expect(fromProvider.authHeaders()['Authorization'], equals('Bearer from-provider'));
+    });
+
+    test('bhv auth 038 a token provider passed to the authenticator is used even when the environment holds a token', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
+        tokenProvider: () => 'from-provider',
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer from-provider'));
+    });
+
+    test('bhv auth 023 an explicitly passed empty credential is refused and is not replaced by the environment value', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          token: '',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv auth 030 concurrent reads of the token never observe a value that was not set', () async {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () async => 'tok',
+      );
+
+      final headers = await Future.wait(
+        List.generate(50, (_) => auth.authHeadersAsync()),
+      );
+      for (final header in headers) {
+        expect(header['Authorization'], equals('Bearer tok'));
+      }
+    });
+
+    test('bhv misc 001 replacing the token while other callers read the headers gives each read one complete token', () async {
+      var turn = 0;
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () async => 'tok${turn++ % 2}',
+      );
+
+      final headers = await Future.wait(
+        List.generate(40, (_) => auth.authHeadersAsync()),
+      );
+      for (final header in headers) {
+        expect(['Bearer tok0', 'Bearer tok1'], contains(header['Authorization']));
+      }
+    });
+
+    test('bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request', () async {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () async => 'live',
+      );
+
+      final headers = await auth.authHeadersAsync();
+      expect(headers['Authorization'], equals('Bearer live'));
+    });
+
+    test('bhv misc 067 a token provider that raises fails the request with that same error', () async {
+      final cause = StateError('provider boom');
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () => throw cause,
+      );
+
+      await expectLater(auth.authHeadersAsync(), throwsA(same(cause)));
+    });
+
+    test('bhv config 025 an empty token environment value counts as unset, so construction fails naming the missing variable', () {
+      expect(
+        () => BearerAuthenticator(
+          host: '{{{basePath}}}',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => '${e.message}', 'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable))),
+      );
+    });
+}
+{{/generateTests}}

@@ -1,0 +1,1096 @@
+{{>api_info}}
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+import Testing
+@testable import {{packageName}}
+
+/* Records whether the session was invalidated, so a test can prove the
+ * facade never closes a caller-supplied session. */
+private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+
+    var invalidated: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return flag
+    }
+
+    func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
+        lock.lock()
+        flag = true
+        lock.unlock()
+    }
+}
+
+@Suite final class ClientTests {
+
+    private let authenticator: BearerAuthenticator = {
+        // Constant host and token are known valid; build in do/catch so a
+        // future change surfaces a clear message instead of an opaque force-try
+        // crash.
+        do {
+            return try BearerAuthenticator(host: "{{{basePath}}}", token: "test-token")
+        } catch {
+            preconditionFailure("test BearerAuthenticator initialization failed: \(error)")
+        }
+    }()
+
+    /* The base URL comes from the default authenticator; the host initializer takes it from its own host argument. */
+    @Test func testBhvLifecycle030TheBaseUrlComesFromTheAuthenticatorOrTheHostArgument() throws {
+        let withAuthenticator = try Client(
+            authenticator: try BearerAuthenticator(host: "https://default.example.com", token: "t"))
+        defer { withAuthenticator.close() }
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+        #expect(withAuthenticator.{{clientPropertyName}}.config.baseURL == "https://default.example.com")
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvLifecycle012ConstructWithAuthenticatorOnly() throws {
+        _ = try {{clientClassName}}(authenticator: authenticator)
+    }
+
+    @Test func testBhvLifecycle010ConstructWithAuthenticatorAndNilTransportOptions() throws {
+        _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: nil)
+    }
+
+    @Test func testBhvLifecycle008ClosedClientRejectsFurtherRequests() async throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+        client.close()
+        client.close()
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.pet.getPetById(petId: 1)
+        }
+        #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
+    }
+
+    /* A request after close fails before any task is created on the caller's session. */
+    @Test func testBhvLifecycle035ARequestAfterCloseFailsWithoutReachingTheTransport() async throws {
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        client.close()
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.store.getInventory()
+        }
+        #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
+        let tasks: [URLSessionTask] = await withCheckedContinuation { continuation in
+            session.getAllTasks { continuation.resume(returning: $0) }
+        }
+        #expect(tasks.isEmpty)
+    }
+
+    /* A client built on a caller-supplied session sends its requests through that session. */
+    @Test func testBhvLifecycle042ASuppliedSessionCarriesTheClientsRequests() async throws {
+        let host = "https://supplied-042.example.com"
+        let client = try schemeClient(host: host)
+        defer { client.close() }
+
+        _ = try? await client.store.getInventory()
+
+        #expect(ClientStubProtocol.lastRequest(host: "supplied-042.example.com") != nil)
+    }
+
+    /* Closing the client cancels the streams that are open: the next read of each throws the closed-client error, and new calls are refused. */
+    @Test func testBhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() async throws {
+        let server = try RawServer { connection, _, _ in
+            connection.head(200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+            connection.chunk("tick")
+            connection.server.awaitRelease()
+        }
+        defer { server.stop() }
+        let client = try {{clientClassName}}(
+            authenticator: try BearerAuthenticator(host: server.origin, token: "t"))
+        let stream = try await client.pet.getPetAvatar(petId: 1)
+        var iterator = stream.makeAsyncIterator()
+        let first = try #require(try await iterator.next())
+        #expect(String(decoding: first, as: UTF8.self) == "tick")
+
+        let started = Date()
+        client.close()
+        #expect(Date().timeIntervalSince(started) < 5, "closing did not wait for the endless stream")
+
+        let closed = ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests")
+        let cancelled = await #expect(throws: ConfigurationError.self) {
+            _ = try await iterator.next()
+        }
+        #expect(cancelled == closed)
+        let refused = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.pet.getPetAvatar(petId: 1)
+        }
+        #expect(refused == closed)
+    }
+
+    /* A request after close never reaches the network. */
+    @Test func testBhvLifecycle043ARequestAfterCloseNeverReachesTheNetwork() async throws {
+        let host = "https://closed-043.example.com"
+        let client = try schemeClient(host: host)
+        client.close()
+
+        _ = try? await client.store.getInventory()
+
+        #expect(ClientStubProtocol.lastRequest(host: "closed-043.example.com") == nil)
+    }
+
+    /* Closing the client never invalidates a session the caller supplied. */
+    @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
+        let probe = InvalidationProbe()
+        let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        client.close()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        #expect(!probe.invalidated)
+        session.invalidateAndCancel()
+    }
+
+    /* After the client closes, the caller's session still accepts new tasks. */
+    @Test func testBhvLifecycle007CloseOnAClientWithASuppliedTransportLeavesItUsable() throws {
+        let session = URLSession(configuration: .ephemeral)
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        client.close()
+        let url = try #require(URL(string: "https://api.example.com/"))
+        let task = session.dataTask(with: url)
+        #expect(task.state == .suspended)
+        task.cancel()
+        session.invalidateAndCancel()
+    }
+
+    @Test func testBhvLifecycle011ConstructWithAuthenticatorAndTransportOptions() throws {
+        let transport = try TransportOptionsBuilder().build()
+
+        _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+    }
+
+    @Test func testBhvMisc298ClientWithAMalformedProxyUrlFailsWithInvalidProxy() {
+        #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
+            let transport = try TransportOptionsBuilder().proxy("not a valid url").build()
+            _ = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        }
+    }
+
+    /* An API key sent in a header rejects CR/LF and non-ASCII characters at
+     * construction, with ConfigurationError.invalidArgument. */
+    @Test(arguments: ["abc\r\nInjected: yes", "kéy"])
+    func testBhvLifecycle002ApiKeyHeaderRejectsCrlfAndNonAscii(apiKey: String) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try ApiKeyAuthenticator(
+                host: "{{{basePath}}}", keyParamName: "X-API-Key", apiKey: apiKey, location: .header)
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+    }
+
+    @Test func testBhvLifecycle003ApiKeyQueryAcceptsNonAscii() throws {
+        // RFC 7230 §3.2.6 — ApiKeyAuthenticator's HEADER location rejects
+        // anything outside printable ASCII + TAB (see
+        // ApiKeyAuthenticatorTests); the non-header path must NOT validate
+        // (it goes through URL-encoding downstream).
+        let auth = try ApiKeyAuthenticator(host: "{{{basePath}}}", keyParamName: "api_key", apiKey: "kéy", location: .query)
+        #expect(auth.queryParams() == ["api_key": "kéy"])
+    }
+
+    /* The token convenience initializer forwards the Bearer authenticator's
+     * ConfigurationError.invalidArgument for a token that cannot be sent. */
+    @Test(arguments: ["", "   ", "tok\r\nInjected: yes"])
+    func testBhvLifecycle017TokenInitializerRejectsInvalidToken(token: String) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try {{clientClassName}}(host: "{{{basePath}}}", accessToken: token)
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+    }
+
+    @Test func testBhvLifecycle039WithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
+        _ = try {{clientClassName}}.withToken(host: "{{{basePath}}}", accessToken: "abc.def-123")
+        _ = try {{clientClassName}}.withToken(
+            host: "{{{basePath}}}", accessToken: "abc", transportOptions: try TransportOptionsBuilder().build())
+        #expect(throws: ConfigurationError.self) {
+            _ = try {{clientClassName}}.withToken(host: "{{{basePath}}}", accessToken: "")
+        }
+    }
+
+    // bearer-no-empty-token-guard (F-A6-G1): the Bearer authenticator must
+    // reject an empty or whitespace-only token at construction (it would
+    // otherwise emit the literal header `Authorization: Bearer ` and send the
+    // request effectively unauthenticated), mirroring the api-key
+    // authenticator's existing empty-value guard. The rejection is covered by
+    // BearerAuthenticatorTests; this test pins the boundary that MUST still
+    // succeed: a non-empty token whose only
+    // whitespace is internal/leading is accepted and emitted verbatim, so the
+    // guard's `trimmingCharacters(...).isEmpty` check is asserted to be a
+    // whitespace-ONLY rejection and not an over-eager "contains whitespace"
+    // rejection that would break legitimate tokens.
+    @Test func testBhvLifecycle005BearerAcceptsNonEmptyTokenWithGuardInPlace() async throws {
+        let auth = try BearerAuthenticator(host: "{{{basePath}}}", token: "abc.def-123")
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer abc.def-123")
+    }
+
+    /* Tests/Spec is where hand-written specs are kept, so the test target must
+     * compile and run them; only the fixture data is left out of it. */
+    @Test func testBhvLangswift020SpecDirectoryIsPartOfTheTestTarget() throws {
+        let manifest = try String(
+            contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Package.swift"),
+            encoding: .utf8)
+        let exclude = try #require(manifest.range(of: #"exclude: \[[^\]]*\]"#, options: .regularExpression))
+        #expect(manifest[exclude].contains("\"Fixtures\""))
+        #expect(!manifest[exclude].contains("\"Spec\""))
+    }
+
+    // MARK: - Credentials from the environment
+
+    private final class TokenCounter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+
+        func next() -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            count += 1
+            return "provided-\(count)"
+        }
+    }
+
+    @Test func testBhvLifecycle014FromEnvironmentReadsTheHostAndTheToken() async throws {
+        let client = try environmentClient(environment: [
+            "{{envVarPrefix}}_HOST": "https://env.example.com",
+            "{{envVarPrefix}}_TOKEN": "env-token",
+        ])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(auth.host() == "https://env.example.com")
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+    }
+
+    @Test func testBhvLifecycle028ExplicitArgumentsWinOverTheEnvironment() async throws {
+        let client = try environmentClient(
+            host: "https://explicit.example.com", token: "explicit-token",
+            environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com",
+                "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(auth.host() == "https://explicit.example.com")
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+
+    @Test func testBhvAuthbearer019AnEmptyEnvironmentValueCountsAsUnset() {
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
+        ) {
+            _ = try environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        }
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
+        ) {
+            _ = try environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
+            ])
+        }
+    }
+
+    @Test func testBhvLifecycle032ATokenPassedToTheClientBeatsTheEnvironmentToken() async throws {
+        let client = try environmentClient(
+            token: "explicit-token",
+            environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com",
+                "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+
+    @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
+        }
+        #expect(error == ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable"))
+    }
+
+    /* An authenticator with no token, no environment value and a nil provider is refused at construction. */
+    @Test func testBhvAuth004NoTokenNoEnvironmentAndANilProviderIsRefused() {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try environmentClient(
+                host: "https://explicit.example.com", token: nil, tokenProvider: nil, environment: [:])
+        }
+        #expect(error == ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable"))
+    }
+
+    @Test func testBhvConfig025AnEmptyEnvironmentValueCountsAsUnset() {
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
+        ) {
+            _ = try environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        }
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
+        ) {
+            _ = try environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
+            ])
+        }
+    }
+
+    @Test func testBhvLifecycle013AMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try environmentClient(environment: [:])
+        }
+        #expect(throws: ConfigurationError.self) {
+            _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
+        }
+        #expect(throws: ConfigurationError.self) {
+            _ = try {{clientClassName}}.fromEnvironment(host: "https://explicit.example.com")
+        }
+    }
+
+    @Test func testBhvLangswift021ATokenProviderIsCalledBeforeEveryRequestAndBeatsTheEnvironmentToken() async throws {
+        let counter = TokenCounter()
+        let client = try environmentClient(
+            host: "https://explicit.example.com", tokenProvider: { counter.next() },
+            environment: ["{{envVarPrefix}}_TOKEN": "env-token"])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
+    }
+
+    /* A token provider's value is the bearer credential on an authenticated request. */
+    @Test func testBhvMisc066ATokenProviderValueIsSentAsTheBearer() async throws {
+        let host = "https://provider-066.example.com"
+        let client = try {{clientClassName}}(
+            authenticator: BearerAuthenticator(host: host, tokenProvider: { "provider-token" }),
+            transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+            callHook: nil)
+        defer { client.close() }
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "provider-066.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer provider-token")
+    }
+
+    /* When a token provider throws, the request fails with that same error. */
+    @Test func testBhvMisc067AProviderErrorIsTheRequestError() async throws {
+        let client = try {{clientClassName}}(
+            authenticator: BearerAuthenticator(
+                host: "https://provider-067.example.com", tokenProvider: { throw ProviderBoom() }),
+            transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+            callHook: nil)
+        defer { client.close() }
+
+        let error = await #expect(throws: ProviderBoom.self) {
+            _ = try await client.pet.getPetById(petId: 1)
+        }
+        #expect(error == ProviderBoom())
+    }
+
+    /* An empty environment variable counts as unset; an explicitly passed empty token is refused, never replaced by the environment. */
+    @Test func testBhvMisc068AnEmptyVariableIsUnsetAndAnEmptyArgumentIsRefused() throws {
+        #expect(throws: ConfigurationError.self) {
+            _ = try environmentClient(
+                host: "https://empty-068.example.com",
+                environment: ["{{envVarPrefix}}_TOKEN": ""])
+        }
+        #expect(throws: ConfigurationError.self) {
+            _ = try environmentClient(
+                host: "https://empty-068.example.com", token: "",
+                environment: ["{{envVarPrefix}}_TOKEN": "env-token"])
+        }
+    }
+
+    private struct ProviderBoom: Error, Equatable {}
+
+    // MARK: - Credentials of the scheme authenticators
+
+    @Test func testBhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsEnvironmentVariable() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit-value")
+    }
+
+    @Test func testBhvAuthbasic013AnExplicitCredentialWinsOverTheEnvironment() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit-value")
+    }
+
+    @Test func testBhvSerializationobject187AnExplicitKeyWinsOverTheEnvironment() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-key", name: "apiKey", variable: "EXAMPLE_API_KEY",
+            environment: ["EXAMPLE_API_KEY": "from-environment"])
+        #expect(value == "explicit-key")
+    }
+
+    @Test func testBhvLangswift022TheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
+        let value = try BaseAuthenticator.credential(
+            nil, name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "env-value")
+    }
+
+    /* An explicitly passed value wins over the environment variable of the same name. */
+    @Test func testBhvAuth041AnExplicitCredentialTakesPrecedenceOverTheEnvironment() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit-value")
+    }
+
+    /* An environment variable that is set but empty counts as unset, so the missing-credential error is raised. */
+    @Test func testBhvAuth040AnEmptyEnvironmentVariableIsTreatedAsUnset() {
+        #expect(throws: ConfigurationError.invalidArgument(
+            "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")) {
+            _ = try BaseAuthenticator.credential(
+                nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+        }
+    }
+
+    @Test func testBhvAuth023AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+        let value = try BaseAuthenticator.credential(
+            "", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "")
+    }
+
+    /* An explicitly passed empty value is kept, so its own validation rejects it rather than the environment. */
+    @Test func testBhvAuth042AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+        let value = try BaseAuthenticator.credential(
+            "", name: "token", variable: "EXAMPLE_TOKEN",
+            environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "")
+    }
+
+    @Test func testBhvAuth003AnEmptyOrMissingVariableIsAMissingCredential() {
+        let missing = ConfigurationError.invalidArgument(
+            "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")
+        #expect(throws: missing) {
+            _ = try BaseAuthenticator.credential(
+                nil, name: "token", variable: "EXAMPLE_TOKEN", environment: [:])
+        }
+        #expect(throws: missing) {
+            _ = try BaseAuthenticator.credential(
+                nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+        }
+    }
+
+    @Test func testBhvAuthscheme001EverySchemeReadsItsCredentialsFromTheEnvironment() throws {
+{{#perSchemeAuthEntries}}
+        _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
+{{/perSchemeAuthEntries}}
+    }
+
+    /* An explicit credential needs no environment at all. */
+    @Test func testBhvAuthscheme002EverySchemePrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
+{{#perSchemeAuthEntries}}
+        _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
+{{/perSchemeAuthEntries}}
+    }
+
+{{#perSchemeAuthEntries}}
+{{#metadataUrlTest}}
+    @Test func testBhvAuthscheme700ASchemeThatDeclaresOAuth2MetadataUrlExposesItAsAConstant() {
+        #expect({{className}}.metadataUrl == "{{{oauth2MetadataUrl}}}")
+    }
+
+{{/metadataUrlTest}}
+{{/perSchemeAuthEntries}}
+    /* The credential keyword is optional: the public initializer takes the host alone. */
+    @Test func testBhvLifecycle015EverySchemeCredentialKeywordCanBeOmitted() {
+{{#perSchemeAuthEntries}}
+        do {
+            let hostAlone: (String) throws -> {{className}} = { try {{className}}(host: $0) }
+            _ = hostAlone
+        }
+{{/perSchemeAuthEntries}}
+    }
+
+    @Test func testBhvLifecycle004EverySchemeFailsWhenACredentialIsMissing() {
+{{#perSchemeAuthEntries}}
+        do {
+{{#envVars}}
+{{#-first}}
+            let missing = ConfigurationError.invalidArgument(
+                "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
+{{/-first}}
+{{/envVars}}
+            #expect(throws: missing) {
+                _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [:])
+            }
+        }
+{{/perSchemeAuthEntries}}
+    }
+
+{{#perSchemeAuthEntries}}
+{{#hasEmptyVariableBhv}}
+    @Test func test{{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset() {
+{{#envVars}}
+{{#-first}}
+        let missing = ConfigurationError.invalidArgument(
+            "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
+{{/-first}}
+{{/envVars}}
+        #expect(throws: missing) {
+            _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+        }
+    }
+{{/hasEmptyVariableBhv}}
+{{/perSchemeAuthEntries}}
+    // MARK: - One credential per security scheme (F857)
+
+    /* Each test names its own host, because the stub files requests by host and
+       the tests of a suite run in parallel. */
+    private func schemeClient(
+        host: String, petStoreBearer: Authenticator? = nil, apiKeyHeader: Authenticator? = nil
+    ) throws -> {{clientClassName}} {
+        let transport = try TransportOptionsBuilder().session(ClientStubProtocol.session()).build()
+        return try {{clientClassName}}(
+            host: host, petStoreBearer: petStoreBearer, apiKeyHeader: apiKeyHeader,
+            transportOptions: transport)
+    }
+
+    @Test func testBhvAuth043ASchemeCredentialIsSentToTheOperationThatNamesItsScheme() async throws {
+        let host = "https://named-scheme.example.com"
+        let client = try schemeClient(
+            host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
+        defer { client.close() }
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "named-scheme.example.com"))
+        #expect(request.url?.absoluteString == "\(host)/pet/1")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer scheme-token")
+    }
+
+    /* addPet accepts apiKeyHeader first and petStoreBearer second, so a client
+       holding both sends the api key and not the bearer token. */
+    @Test func testBhvOperations148AnOperationUsesTheFirstSchemeItListsThatTheClientHolds() async throws {
+        let host = "https://first-scheme.example.com"
+        let client = try schemeClient(
+            host: host,
+            petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+            apiKeyHeader: try ApiKeyAuthenticator(
+                host: host, keyParamName: "X-API-Key", apiKey: "key-1", location: .header))
+        defer { client.close() }
+
+        _ = try await client.pet.addPet(pet: Pet(name: "Fido", photoUrls: []))
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "first-scheme.example.com"))
+        #expect(request.value(forHTTPHeaderField: "X-API-Key") == "key-1")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    @Test func testBhvLifecycle016AClientWithoutCredentialsSendsNone() async throws {
+        let client = try schemeClient(host: "https://no-credential.example.com")
+        defer { client.close() }
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "no-credential.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+    }
+
+    /* An operation declared without security never carries a credential, even
+       when the client holds one for every scheme. */
+    @Test func testBhvAuth021AnUnauthenticatedOperationNeverCarriesASchemeCredential() async throws {
+        let host = "https://unauthenticated.example.com"
+        let client = try schemeClient(
+            host: host,
+            petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+            apiKeyHeader: try ApiKeyAuthenticator(
+                host: host, keyParamName: "X-API-Key", apiKey: "key-1", location: .header))
+        defer { client.close() }
+
+        _ = try? await client.store.getInventory()
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "unauthenticated.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+    }
+
+    /* A client holding a credential sends none on an operation that declares no security requirement. */
+    @Test func testBhvAuth044AnOperationWithoutSecurityCarriesNoCredential() async throws {
+        let host = "https://no-security-044.example.com"
+        let client = try schemeClient(
+            host: host,
+            petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
+        defer { client.close() }
+
+        _ = try? await client.store.getInventory()
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "no-security-044.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    /* An operation that declares no security never sends the client's default credential. */
+    @Test func testBhvMisc064AnOperationThatDeclaresNoSecurityNeverSendsTheClientCredential() async throws {
+        let host = "https://no-security-064.example.com"
+        let client = try {{clientClassName}}(
+            authenticator: try BearerAuthenticator(host: host, token: "client-token"),
+            transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+            callHook: nil)
+        defer { client.close() }
+
+        _ = try? await client.store.getInventory()
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "no-security-064.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    }
+
+    /* Scheme credentials are copied when the client is built, so a later change to the caller's variable does not reach it. */
+    @Test func testBhvMisc065SchemeCredentialsAreCopiedAtBuild() async throws {
+        let host = "https://copied-065.example.com"
+        var bearer = try BearerAuthenticator(host: host, token: "first-token")
+        let client = try schemeClient(host: host, petStoreBearer: bearer)
+        defer { client.close() }
+        bearer = try BearerAuthenticator(host: host, token: "second-token")
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "copied-065.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer first-token")
+    }
+
+    /* A credential supplied for an operation's scheme replaces a default Authorization header set on the client. */
+    @Test func testBhvAuth045SchemeCredentialReplacesADefaultAuthorizationHeader() async throws {
+        let host = "https://default-header-045.example.com"
+        let transport = try TransportOptionsBuilder()
+            .session(ClientStubProtocol.session())
+            .defaultHeaders(["Authorization": "Default fallback"])
+            .build()
+        let client = try {{clientClassName}}(
+            host: host,
+            petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+            transportOptions: transport)
+        defer { client.close() }
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "default-header-045.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer scheme-token")
+    }
+
+    /* The client's authenticator reaches an operation that names its scheme, without any per-call credential. */
+    @Test func testBhvAuth046TheClientAuthenticatorReachesAnOperationThatNamesItsScheme() async throws {
+        let host = "https://client-authenticator-046.example.com"
+        let client = try schemeClient(
+            host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "client-token"))
+        defer { client.close() }
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "client-authenticator-046.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer client-token")
+    }
+
+    /* An operation lists several schemes and the client holds none of them, so no scheme credential is sent. */
+    @Test func testBhvAuth047NoSchemeCredentialIsSentWhenTheClientHoldsNoneOfTheListedSchemes() async throws {
+        let host = "https://none-held-047.example.com"
+        let client = try schemeClient(host: host)
+        defer { client.close() }
+
+        _ = try await client.pet.addPet(pet: Pet(name: "Fido", photoUrls: []))
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "none-held-047.example.com"))
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+    }
+
+    /* A credential that needs the transport gets the client's own. */
+    @Test func testBhvAuth025ASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
+        let aware = SchemeTransportProbe()
+        let client = try schemeClient(host: "https://transport.example.com", petStoreBearer: aware)
+        defer { client.close() }
+        #expect(aware.received)
+    }
+
+    /* A client credential that needs the HTTP transport is handed the client's own transport. */
+    @Test func testBhvMisc071AClientCredentialThatNeedsHttpReceivesTheClientsOwnTransport() throws {
+        let aware = SchemeTransportProbe()
+        let client = try {{clientClassName}}(
+            authenticator: aware,
+            transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+            callHook: nil)
+        defer { client.close() }
+        #expect(aware.received)
+    }
+
+    /* Every API group holds the scheme credential the client was built with. */
+    @Test func testBhvMisc072EachApiGroupHoldsTheSchemeCredentialTheClientWasBuilt() throws {
+        let host = "https://groups-072.example.com"
+        let held = try PetStoreBearerAuthenticator(host: host, token: "bearer-token")
+        let client = try schemeClient(host: host, petStoreBearer: held)
+        defer { client.close() }
+        #expect(client.pet.schemeAuthenticators.values.contains { ($0 as AnyObject) === held })
+        #expect(client.store.schemeAuthenticators.values.contains { ($0 as AnyObject) === held })
+    }
+
+    /* The client provides a generated wrapper class for every security scheme the spec declares. */
+    @Test func testBhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+        let declared: [Any.Type] = [
+{{#perSchemeAuthEntries}}
+            {{className}}.self,
+{{/perSchemeAuthEntries}}
+        ]
+{{#perSchemeAuthEntries}}
+        #expect(declared.contains { ObjectIdentifier($0) == ObjectIdentifier({{className}}.self) })
+{{/perSchemeAuthEntries}}
+    }
+
+    // MARK: - Call hook
+
+    /* A hook given to the client reaches every API object and fires with the
+       URLSession the caller supplied. */
+    @Test func testBhvLangswift078AHookGivenToTheClientFiresWithASuppliedTransportAndReachesEveryApi() async throws {
+        let host = "https://hooked-client.example.com"
+        let hook = ClientHook()
+        let transport = try TransportOptionsBuilder().session(ClientStubProtocol.session()).build()
+        let client = try {{clientClassName}}(
+            authenticator: try BearerAuthenticator(host: host, token: "t"), transportOptions: transport,
+            callHook: hook)
+        defer { client.close() }
+
+        _ = try await client.pet.getPetById(petId: 1)
+
+        let request = try #require(ClientStubProtocol.lastRequest(host: "hooked-client.example.com"))
+        #expect(request.value(forHTTPHeaderField: "X-Hook") == "from-client")
+        #expect(hook.starts == 1)
+        #expect(hook.finishes == 1)
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        #expect(client.{{clientPropertyName}}.config.callHook != nil)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvLangswift077AClientWithoutAHookHasNoneOnAnyApi() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+        defer { client.close() }
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        #expect(client.{{clientPropertyName}}.config.callHook == nil)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvLangswift023TheNamedFactoriesAndTheEnvironmentFactoryAlsoTakeAHook() throws {
+        let hook = ClientHook()
+        let viaToken = try {{clientClassName}}.withToken(host: "https://example.com", accessToken: "t", callHook: hook)
+        let viaAuthenticator = try {{clientClassName}}.withAuthenticator(authenticator, callHook: hook)
+        let viaEnvironment = try {{clientClassName}}.fromEnvironment(host: "https://example.com", token: "t", callHook: hook)
+        for client in [viaToken, viaAuthenticator, viaEnvironment] {
+            defer { client.close() }
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+            #expect(client.{{clientPropertyName}}.config.callHook != nil)
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+        }
+    }
+
+    @Test func testBhvLifecycle001ApiGroupsAreAccessible() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        _ = client.{{clientPropertyName}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}
+
+/* Sets a header and counts how often it is started and finished. */
+private final class ClientHook: CallHook, @unchecked Sendable {
+    private let lock = NSLock()
+    private var started = 0
+    private var finished = 0
+
+    var starts: Int { lock.withLock { started } }
+    var finishes: Int { lock.withLock { finished } }
+
+    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        lock.withLock { started += 1 }
+        headers["X-Hook"] = "from-client"
+        return Finisher(hook: self)
+    }
+
+    fileprivate func finish() {
+        lock.withLock { finished += 1 }
+    }
+
+    private struct Finisher: CallObserver {
+        let hook: ClientHook
+
+        func finish(_ outcome: CallOutcome) throws {
+            hook.finish()
+        }
+    }
+}
+
+/* A credential that records whether the client handed it a transport. */
+private final class SchemeTransportProbe: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+
+    var received: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return flag
+    }
+
+    func setApiClient(_ client: ApiClient) {
+        lock.lock()
+        flag = true
+        lock.unlock()
+    }
+
+    override func host() -> String { return "https://api.example.com" }
+    override func authHeaders() async -> [String: String] { return [:] }
+}
+
+/* Answers every request with an empty JSON object and remembers the last one,
+ * so a test can read the headers a call actually sent. */
+private final class ClientStubProtocol: URLProtocol {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var lastByHost: [String: URLRequest] = [:]
+
+    static func session() -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [ClientStubProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    static func lastRequest(host: String) -> URLRequest? {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastByHost[host]
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { return true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+    override func startLoading() {
+        ClientStubProtocol.lock.lock()
+        ClientStubProtocol.lastByHost[request.url?.host ?? ""] = request
+        ClientStubProtocol.lock.unlock()
+        let body = Data("{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".utf8)
+        if let url = request.url,
+            let response = HTTPURLResponse(
+                url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"])
+        {
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
+        }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{>test/FakeGroup}}
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+private final class FakeClient: {{clientClassName}}Protocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    let {{clientPropertyName}} = Fake{{classname}}()
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    var closed: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    func close() {
+        lock.lock()
+        count += 1
+        lock.unlock()
+    }
+}
+
+private func exposesEveryGroupAndCloses<C: {{clientClassName}}Protocol>(_ client: C) {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    _ = client.{{clientPropertyName}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    client.close()
+}
+
+/* The names of the operations a source file declares, between two markers. */
+private func operationNames(file: String, from start: String, to end: String?, prefix: String) throws -> [String] {
+    let source = try String(
+        contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/{{packageName}}/Api/\(file)"),
+        encoding: .utf8)
+    let lines = source.components(separatedBy: "\n")
+    let first = try #require(lines.firstIndex { $0.contains(start) })
+    let last = end.flatMap { marker in lines[first...].firstIndex { $0.hasPrefix(marker) } } ?? lines.count
+    return lines[first..<last].compactMap { line -> String? in
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix(prefix) else { return nil }
+        return trimmed.dropFirst(prefix.count).split(separator: "(").first.map(String.init)
+    }
+}
+
+private func firstApiAuthenticator(of client: {{clientClassName}}) -> Authenticator? {
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+    return client.{{clientPropertyName}}.authenticator
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+private func environmentClient(
+    host: String? = nil, token: String? = nil,
+    tokenProvider: (@Sendable () async throws -> String)? = nil,
+    environment: [String: String]
+) throws -> {{clientClassName}} {
+    return try {{clientClassName}}.fromEnvironment(
+        host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
+        environment: environment)
+}
+
+@Suite struct MockingTests {
+    private let authenticator: BearerAuthenticator = {
+        do {
+            return try BearerAuthenticator(host: "{{{basePath}}}", token: "test-token")
+        } catch {
+            preconditionFailure("test BearerAuthenticator initialization failed: \(error)")
+        }
+    }()
+
+    @Test func testBhvMocking001EveryGroupHasAProtocolTheClassImplements() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        func is{{classname}}<T: {{classname}}Protocol>(_ group: T) {}
+        is{{classname}}(client.{{clientPropertyName}})
+        let {{clientPropertyName}}Listed = try operationNames(
+            file: "{{classname}}Protocol.swift", from: "public protocol {{classname}}Protocol", to: "extension {{classname}}Protocol", prefix: "func ")
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        #expect({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.streamMethodName}}"))
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+        #expect({{clientPropertyName}}Listed.contains("{{operationId}}"))
+        #expect({{clientPropertyName}}Listed.contains("{{operationId}}WithHTTPInfo"))
+{{#vendorExtensions.op.hasPagesMethod}}
+        #expect({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.pagesMethodName}}"))
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvMocking002GroupProtocolListsExactlyThePublicOperationsOfTheClass() throws {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        let {{clientPropertyName}}Listed = try operationNames(
+            file: "{{classname}}Protocol.swift", from: "public protocol {{classname}}Protocol", to: "extension {{classname}}Protocol", prefix: "func ")
+        let {{clientPropertyName}}Declared = try operationNames(
+            file: "{{classname}}.swift", from: "public final class {{classname}}", to: nil, prefix: "public func ")
+        #expect(Set({{clientPropertyName}}Listed) == Set({{clientPropertyName}}Declared))
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test func testBhvMocking007ClientProtocolExposesEveryGroupTypedAsItsProtocolAndClose() throws {
+        let client = try {{clientClassName}}(authenticator: authenticator)
+
+        exposesEveryGroupAndCloses(client)
+    }
+
+    @Test func testBhvMocking008ClientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        let fake = FakeClient()
+
+        exposesEveryGroupAndCloses(fake)
+        fake.close()
+
+        #expect(fake.closed == 2)
+    }
+
+    /* Closing a client whose credentials hold nothing that needs releasing succeeds. */
+    @Test func testBhvMisc183ClosingAClientWithPlainCredentialsSucceeds() async throws {
+        let client = try {{clientClassName}}(authenticator: BearerAuthenticator(host: "https://example.com", token: "t"))
+        client.close()
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer t"])
+    }
+
+    /* A client built without a host or token takes each from the environment when it is not passed explicitly. */
+    @Test func testBhvMisc187AClientTakesTheHostAndTokenFromTheEnvironment() async throws {
+        let client = try environmentClient(host: nil, token: nil, environment: [
+            "{{envVarPrefix}}_HOST": "https://env.example.com",
+            "{{envVarPrefix}}_TOKEN": "env-token",
+        ])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(auth.host() == "https://env.example.com")
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+    }
+
+    /* A client built with only a default authenticator takes its host from that authenticator. */
+    @Test func testBhvMisc206AClientBuiltWithOnlyAnAuthenticatorTakesItsHostFromIt() throws {
+        let auth = try BearerAuthenticator(host: "https://only.example.com", token: "t")
+        let client = try {{clientClassName}}(authenticator: auth)
+        defer { client.close() }
+        #expect(firstApiAuthenticator(of: client)?.host() == "https://only.example.com")
+    }
+
+}

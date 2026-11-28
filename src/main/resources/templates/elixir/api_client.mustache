@@ -1,0 +1,119 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ApiClient do
+  @moduledoc """
+  Behaviour for API HTTP transport.
+
+  Implementations handle the actual HTTP request/response cycle and must define
+  `send_request/5`. The default implementation is `#{inspect({{moduleName}}.DefaultApiClient)}`.
+
+  An implementation that can hand out a response whose body has not been read
+  yet also defines `send_streaming/6`, which the operations that return a
+  `#{inspect({{moduleName}}.ByteStream)}` call. It is optional: an
+  implementation written before streaming keeps working for every buffered
+  call, and a streaming call on it fails with a `RuntimeError` that names it.
+
+  Implementations may optionally accept a 6th `opts` keyword list via
+  `send_request/6` to carry per-request transport hints. Currently recognised
+  keys:
+
+    * `:no_redirect` - when `true`, the implementation must NOT follow any 3xx
+      redirect and instead returns the first 3xx response to the caller as-is
+      (it does not raise). Used by the OAuth2 token endpoint POST so that a
+      malicious or misconfigured server cannot replay the credentialed body to
+      an attacker-controlled URL; the caller inspects and rejects the 3xx
+      itself. Defaults to `false`.
+
+    * `:no_default_headers` - when `true`, the implementation must not add the
+      transport's default headers to the call. Used for token endpoints and
+      OpenID Connect discovery, which live on another host than the API.
+      Defaults to `false`.
+  """
+
+  @doc """
+  Send an HTTP request and return the response.
+
+  ## Parameters
+
+    * `method` - HTTP method atom (e.g. `:get`, `:post`, `:put`, `:delete`).
+    * `url` - Fully qualified URL string.
+    * `headers` - Map of header names to values.
+    * `body` - Request body (serialized JSON string, binary, map for multipart form data, a
+      `#{inspect({{moduleName}}.BodySource)}` for a raw binary upload, or `nil`). Read a `BodySource`
+      with `#{inspect({{moduleName}}.BodySource)}.open/1`; send it as it is read, with its length as
+      `Content-Length` when that is known and chunked when it is not.
+
+  ## Returns
+
+    An `#{inspect({{moduleName}}.ApiHttpResponse)}` struct containing status code, body, and headers.
+  """
+  @callback send_request(
+              client :: struct(),
+              method :: atom(),
+              url :: String.t(),
+              headers :: %{optional(String.t()) => String.t()},
+              body :: term() | nil
+            ) :: {{moduleName}}.ApiHttpResponse.t()
+
+  @doc """
+  Send an HTTP request, optionally refusing to follow redirects.
+
+  Variant of `send_request/5` that carries a per-request `opts` keyword list.
+  When `:no_redirect` is `true`, any 3xx response (including 307/308) is
+  returned to the caller as-is rather than being replayed to the `Location`
+  target.
+
+  The default behaviour delegates to `send_request/5` when no opts are set, so
+  legacy clients without this callback remain valid behaviours; transport
+  implementations that own the redirect loop should implement this callback and
+  honour the flag.
+  """
+  @callback send_request(
+              client :: struct(),
+              method :: atom(),
+              url :: String.t(),
+              headers :: %{optional(String.t()) => String.t()},
+              body :: term() | nil,
+              opts :: keyword()
+            ) :: {{moduleName}}.ApiHttpResponse.t()
+
+  @doc """
+  Releases any resources held by this client (connection pool, sockets).
+
+  Implementations may be a no-op; implementations that own a pooled HTTP client
+  should dispose of it. This is a no-op when the underlying HTTP library uses a
+  globally supervised connection pool (as Req/Finch does).
+  """
+  @callback close(client :: struct()) :: :ok
+
+  @doc """
+  Send an HTTP request and return as soon as the response headers are accepted,
+  with the body not read yet.
+
+  The redirect, header and deadline rules are those of `send_request/6`, up to
+  the headers. `opts` takes the same keys, and `:idle_timeout` (milliseconds, or
+  `nil` for none) for the longest silence in the body; `:timeout` and
+  `:deadline` stop at the headers. Retries and the 401 replay run in the caller
+  of this callback, which never retries after the first body byte has been
+  handed to the caller. A non-2xx response is returned like any other, with its
+  body open.
+
+  Returns an `#{inspect({{moduleName}}.ApiStreamResponse)}`: the status, the
+  lower-cased headers, the body as an `Enumerable` of binaries (decoded when the
+  server compressed it) and a zero-arity `close` function that aborts the
+  connection instead of draining it. Reading the body raises
+  `#{inspect({{moduleName}}.Errors.StreamError)}` when the connection fails after
+  the headers and `#{inspect({{moduleName}}.Errors.NetworkTimeoutError)}` when it
+  stays silent longer than `:idle_timeout`.
+  """
+  @callback send_streaming(
+              client :: struct(),
+              method :: atom(),
+              url :: String.t(),
+              headers :: %{optional(String.t()) => String.t()},
+              body :: term() | nil,
+              opts :: keyword()
+            ) :: {{moduleName}}.ApiStreamResponse.t()
+
+  @optional_callbacks close: 1, send_request: 6, send_streaming: 6
+end

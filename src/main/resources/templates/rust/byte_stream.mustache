@@ -1,0 +1,125 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use bytes::Bytes;
+use futures_core::Stream;
+
+use crate::api_stream_response::BodyStream;
+
+/// The body of a binary response, read as it arrives. An operation whose
+/// success response is binary returns one instead of buffering the bytes, so a
+/// large download never has to fit in memory.
+///
+/// It is a [`Stream`] of `Result<Bytes, Box<dyn Error + Send + Sync>>`: iterate
+/// it with `StreamExt::next`, or take every byte with
+/// [`read_all`](Self::read_all). It also carries the
+/// [`status code`](Self::status_code) and the lower-cased
+/// [`headers`](Self::headers).
+///
+/// [`close`](Self::close) is idempotent and aborts the connection instead of
+/// draining the rest of the body; dropping the stream does the same, so stopping
+/// early never leaves a connection busy. A failure after the headers is the last
+/// item, a [`StreamError`](crate::errors::StreamError); a stall longer than the
+/// transport's `idle_timeout` is a
+/// [`NetworkTimeoutError`](crate::errors::NetworkTimeoutError). Closing the
+/// client cancels the streams still open: their next read is a
+/// [`ConfigurationError::InvalidState`](crate::errors::ConfigurationError::InvalidState).
+///
+/// The `Debug` and `Display` forms show the status code and the number of bytes
+/// delivered, never the headers, the URL or the content.
+pub struct ByteStream {
+    status_code: u16,
+    headers: HashMap<String, String>,
+    body: Option<BodyStream>,
+    delivered: u64,
+}
+
+impl ByteStream {
+    /// Wraps an open response body.
+    pub fn new(status_code: u16, headers: HashMap<String, String>, body: BodyStream) -> Self {
+        Self {
+            status_code,
+            headers,
+            body: Some(body),
+            delivered: 0,
+        }
+    }
+
+    /// Returns the HTTP status code of the response.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the response headers, with lower-cased names.
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers
+    }
+
+    /// The number of body bytes handed out so far.
+    pub fn bytes_delivered(&self) -> u64 {
+        self.delivered
+    }
+
+    /// Whether the stream has ended, failed or been closed.
+    pub fn is_closed(&self) -> bool {
+        self.body.is_none()
+    }
+
+    /// Aborts the connection and ends the stream; the next read finds it ended.
+    /// Closing again does nothing.
+    pub fn close(&mut self) {
+        self.body = None;
+    }
+
+    /// Reads the rest of the body into memory and leaves the stream closed. A
+    /// failure in the middle of the body is returned and also leaves the stream
+    /// closed.
+    pub async fn read_all(&mut self) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+        use futures_util::StreamExt as _;
+        let mut all: Vec<u8> = Vec::new();
+        while let Some(chunk) = self.next().await {
+            all.extend_from_slice(&chunk?);
+        }
+        Ok(all)
+    }
+}
+
+impl Stream for ByteStream {
+    type Item = Result<Bytes, Box<dyn std::error::Error + Send + Sync>>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let Some(body) = self.body.as_mut() else {
+            return Poll::Ready(None);
+        };
+        match body.as_mut().poll_next(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Some(Ok(chunk))) => {
+                self.delivered += chunk.len() as u64;
+                Poll::Ready(Some(Ok(chunk)))
+            }
+            Poll::Ready(Some(Err(failure))) => {
+                self.body = None;
+                Poll::Ready(Some(Err(failure)))
+            }
+            Poll::Ready(None) => {
+                self.body = None;
+                Poll::Ready(None)
+            }
+        }
+    }
+}
+
+impl std::fmt::Debug for ByteStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ByteStream(status={}, bytes={})", self.status_code, self.delivered)
+    }
+}
+
+impl std::fmt::Display for ByteStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}

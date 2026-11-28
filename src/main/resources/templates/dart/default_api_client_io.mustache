@@ -1,0 +1,283 @@
+{{>api_info}}
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+
+import 'abstract_api_client.dart';
+import 'errors/api_exception.dart';
+import 'errors/response_too_large_exception.dart';
+import 'transport_options.dart';
+
+export 'abstract_api_client.dart';
+
+/// Native [DefaultApiClient]: the transport selected on the Dart VM, Flutter
+/// mobile/desktop, and server runtimes (anywhere `dart:io` is available). It is
+/// chosen automatically by the conditional export in `default_api_client.dart`.
+///
+/// Backed by `dart:io`'s [HttpClient] via [IOClient], so it supports full
+/// transport configuration from [TransportOptions]: TLS verification, custom CA
+/// certificates, proxy routing (incl. basic-auth), and timeouts. All
+/// redirect handling, multipart encoding, charset decoding, and header
+/// injection are inherited from [AbstractApiClient]; this class supplies only
+/// the dart:io client and the gzip/deflate decompression.
+class DefaultApiClient extends AbstractApiClient {
+  /// Creates a client with the given transport settings.
+  ///
+  /// If [transportOptions] is null, default transport settings are used.
+  ///
+  /// A factory body (rather than an initializer list) is used so that a
+  /// failure to read/load/parse a caller-supplied custom CA certificate
+  /// is caught and rethrown as an [ArgumentError] instead of leaking a raw
+  /// `dart:io` FileSystemException / TlsException.
+  factory DefaultApiClient({TransportOptions? transportOptions}) {
+    final options = transportOptions ?? TransportOptionsBuilder().build();
+    return DefaultApiClient._(
+      options,
+      options.httpClient ?? _createClient(options),
+      AbstractApiClient.buildProxyAuthHeader(options.proxy),
+      options.httpClient == null,
+    );
+  }
+
+  DefaultApiClient._(
+    super.options,
+    super.client,
+    super.proxyAuth, [
+    super.ownsClient,
+  ]);
+
+  /// Decodes a streamed body with the dart:io codecs as it arrives. An empty
+  /// or `identity` encoding passes the body through; any other encoding
+  /// (`br`, `zstd`, or an unrecognised coding) raises a typed [ApiException]
+  /// rather than handing out still-encoded bytes.
+  @override
+  Stream<List<int>> decompressStream(
+    Stream<List<int>> body,
+    String contentEncoding,
+  ) {
+    switch (contentEncoding) {
+      case '':
+      case 'identity':
+        return body;
+      case 'gzip':
+      case 'x-gzip':
+        return gzip.decoder.bind(body);
+      case 'deflate':
+        return zlib.decoder.bind(body);
+      default:
+        throw ApiException(
+          statusCode: 0,
+          message: "Unsupported Content-Encoding '$contentEncoding'",
+        );
+    }
+  }
+
+  /// A raw `dart:io` socket, TLS or HTTP error means no HTTP response
+  /// arrived, so it surfaces as a `NetworkException`.
+  @override
+  bool isNetworkError(Object error) =>
+      error is SocketException ||
+      error is TlsException ||
+      error is HttpException;
+
+  /// Creates an [IOClient] configured from the given [TransportOptions].
+  ///
+  /// Configures TLS certificate verification, custom CA certificates,
+  /// and proxy routing based on transport option settings.
+  static http.Client _createClient(TransportOptions options) {
+    /* A custom CA certificate REPLACES the system trust store (it pins), like
+     * java/kotlin/go/swift/python/node: only a server certificate chaining to
+     * that CA is accepted. Without one the system roots are trusted. */
+    final pinned = options.caCertPath != null;
+    final context = SecurityContext(withTrustedRoots: !pinned);
+    if (pinned) {
+      /* A caller-supplied custom CA certificate (TLS pinning) that is
+       * missing, unreadable, or unparseable must fail fast. It is a
+       * configuration error, so it surfaces as an ArgumentError rather than
+       * the raw dart:io FileSystemException / TlsException. The two causes
+       * keep their own sentence (D79), so a message says whether the file
+       * could not be read or is not a PEM bundle. */
+      final path = options.caCertPath!;
+      final List<int> bytes;
+      try {
+        bytes = File(path).readAsBytesSync();
+      } on FileSystemException catch (e) {
+        throw ArgumentError(
+          'failed to read CA certificate from "$path": '
+          '${e.osError?.message ?? e.message}',
+        );
+      }
+      try {
+        context.setTrustedCertificatesBytes(bytes);
+      } on TlsException catch (e) {
+        final cause = e.osError?.message ?? e.message;
+        final reason = cause.isEmpty ? 'no PEM blocks found' : cause;
+        throw ArgumentError(
+          'failed to parse CA certificate from "$path": $reason',
+        );
+      }
+    }
+
+    final ioClient = HttpClient(context: context);
+    ioClient.autoUncompress = false;
+
+    if (!options.verifySsl) {
+      ioClient.badCertificateCallback = (_, __, ___) => true;
+    }
+
+    if (options.proxy != null) {
+      final proxy = options.proxy!;
+      ioClient.findProxy = (_) => 'PROXY ${proxy.host}:${proxy.port}';
+      /* Wire basic-auth into dart:io's per-proxy auth store so the
+       * underlying HttpClient sends Proxy-Authorization on the CONNECT
+       * tunnel (needed for HTTPS through an authenticating proxy).
+       * sendRequest also sets the header on plain HTTP requests via
+       * proxyAuthHeader for parity with Java/C#. */
+      if (proxy.userInfo.isNotEmpty) {
+        final parts = proxy.userInfo.split(':');
+        final user = Uri.decodeComponent(parts[0]);
+        final pass = parts.length > 1
+            ? Uri.decodeComponent(parts.sublist(1).join(':'))
+            : '';
+        ioClient.addProxyCredentials(
+          proxy.host,
+          proxy.port,
+          '',
+          HttpClientBasicCredentials(user, pass),
+        );
+      }
+    } else {
+      /* TransportOptions.proxy is the only proxy source: with none set the
+       * client connects directly and never consults HTTP(S)_PROXY or
+       * NO_PROXY, so traffic is never rerouted through a proxy the caller
+       * did not configure. */
+      ioClient.findProxy = (_) => 'DIRECT';
+    }
+
+    if (options.timeout != null) {
+      ioClient.connectionTimeout = Duration(milliseconds: options.timeout!);
+    }
+
+    return IOClient(ioClient);
+  }
+
+  /// Decompresses [bytes] according to [contentEncoding] using dart:io's
+  /// [GZipCodec] and [ZLibDecoder]. An empty body passes through unchanged for
+  /// ANY encoding (a legitimate 204/304/HEAD or empty 200 carries nothing to
+  /// decompress — matching java/kotlin/python/ruby/php/rust). An empty or
+  /// `identity` encoding passes the bytes through; `gzip`/`deflate` are decoded
+  /// (a non-empty body that fails to decode surfaces a typed [ApiException]);
+  /// any other encoding (`br`, `zstd`, or an unrecognised coding) raises a typed
+  /// [ApiException] rather than returning still-encoded bytes, matching the
+  /// canonical Java/Go/Ruby/PHP decompressors.
+  @override
+  Uint8List decompressBytes(Uint8List bytes, String contentEncoding) =>
+      _decompress(bytes, contentEncoding, null);
+
+  /// Inflates `gzip` and `deflate` through a chunked decoder whose output is
+  /// counted, so decoding stops as soon as it passes [maxBytes] and raises
+  /// [ResponseTooLargeException] instead of inflating the whole body.
+  @override
+  Uint8List decompressBytesWithin(
+    Uint8List bytes,
+    String contentEncoding,
+    int maxBytes,
+  ) =>
+      _decompress(bytes, contentEncoding, maxBytes);
+
+  Uint8List _decompress(
+    Uint8List bytes,
+    String contentEncoding,
+    int? maxBytes,
+  ) {
+    if (bytes.isEmpty) return bytes;
+    switch (contentEncoding) {
+      case '':
+        return bytes;
+      case 'gzip':
+      case 'x-gzip':
+        try {
+          if (maxBytes != null) {
+            return _inflateCapped(GZipCodec().decoder, bytes, maxBytes);
+          }
+          return Uint8List.fromList(GZipCodec().decode(bytes));
+        } on ResponseTooLargeException {
+          rethrow;
+        } catch (e) {
+          throw ApiException(
+            statusCode: 0,
+            message:
+                'Failed to decompress gzip response body: $e',
+            cause: e,
+          );
+        }
+      case 'deflate':
+        try {
+          if (maxBytes != null) {
+            return _inflateCapped(ZLibDecoder(), bytes, maxBytes);
+          }
+          return Uint8List.fromList(ZLibDecoder().convert(bytes));
+        } on ResponseTooLargeException {
+          rethrow;
+        } catch (e) {
+          throw ApiException(
+            statusCode: 0,
+            message:
+                'Failed to decompress deflate response body: $e',
+            cause: e,
+          );
+        }
+      case 'identity':
+        return bytes;
+      default:
+        /* An unrecognised (or multi-value) Content-Encoding is a response the
+         * client cannot honour; raise rather than return still-encoded bytes,
+         * matching the canonical decompressors (csharp/elixir/java/go/…). */
+        throw ApiException(
+          statusCode: 0,
+          message: "Unsupported Content-Encoding '$contentEncoding'",
+        );
+    }
+  }
+
+  /// Inflates [bytes] with [decoder] chunk by chunk into a sink that counts
+  /// the output and throws [ResponseTooLargeException] once it passes
+  /// [maxBytes], so at most one decoder chunk past the limit is ever produced.
+  static Uint8List _inflateCapped(
+    Converter<List<int>, List<int>> decoder,
+    Uint8List bytes,
+    int maxBytes,
+  ) {
+    final output = _CappedSink(maxBytes);
+    decoder.startChunkedConversion(output)
+      ..add(bytes)
+      ..close();
+    return output.takeBytes();
+  }
+}
+
+/// Collects decoded bytes and throws [ResponseTooLargeException] as soon as
+/// the total passes the limit.
+class _CappedSink implements Sink<List<int>> {
+  _CappedSink(this._limit);
+
+  final int _limit;
+  final BytesBuilder _bytes = BytesBuilder(copy: false);
+
+  @override
+  void add(List<int> chunk) {
+    if (_bytes.length + chunk.length > _limit) {
+      throw ResponseTooLargeException(limit: _limit, statusCode: 0);
+    }
+    _bytes.add(chunk);
+  }
+
+  @override
+  void close() {}
+
+  /// The bytes collected so far.
+  Uint8List takeBytes() => _bytes.takeBytes();
+}

@@ -1,0 +1,20 @@
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun {{operationId}}WithOptions(client: {{clientClassName}}) {
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+    client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}(options = {{{dataType}}}(timeout = 2_000, maxRetries = 0))
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+}
+```
+{{/exampleOperation}}
+{{/hasExampleOperation}}

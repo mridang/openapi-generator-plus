@@ -1,0 +1,2607 @@
+# frozen_string_literal: true
+
+# Integration tests for the Pet API endpoints.
+
+require 'test_helper'
+# The stdlib signature of TCPServer#initialize, (?String host, Integer port),
+# puts a required parameter after an optional one, which steep reads as a
+# single positional, so each TCPServer.new(host, port) below carries a
+# steep:ignore for that one diagnostic.
+require 'stringio'
+require 'socket'
+require 'base64'
+require 'date'
+
+# An ApiClient that records the URL, headers and body it is handed and answers
+# 200 with a minimal pet (or the given body), so the request an operation
+# builds can be inspected without a server.
+class RecordingPetClient
+  attr_reader :url, :headers, :calls, :request_body
+
+  def initialize(body: '{"name":"Rex","photoUrls":["u"]}', content_type: 'application/json')
+    @calls = 0
+    @body = body
+    @content_type = content_type
+  end
+
+  def send_request(_method, url, headers, body, **_kwargs)
+    @calls += 1
+    @url = url
+    @headers = headers
+    @request_body = body
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: 200,
+      body: @body,
+      headers: { 'content-type' => @content_type }
+    )
+  end
+end
+
+# A credential that sends a different token every time it is asked.
+class PagedRotatingAuthenticator < Petstore::Client::Auth::Authenticator
+  def initialize
+    super
+    @count = 0
+  end
+
+  def host
+    ''
+  end
+
+  def auth_headers
+    @count += 1
+    { 'Authorization' => "Bearer token-#{@count}" }
+  end
+end
+
+describe Petstore::Client::Api::PetApi do
+  parallelize_me!
+
+  before do
+    @api = Petstore::Client::Api::PetApi.new(nil, TEST_CONFIGURATION)
+    @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
+    @auth = Petstore::Client::Auth::BearerAuthenticator.new(@base_url, 'test-token')
+    @authed_api = Petstore::Client::Api::PetApi.new(nil, TEST_CONFIGURATION, @auth)
+  end
+
+  # Starts a one-shot TCP server that records the real outgoing request line,
+  # headers (lower-cased names) and body off the wire, then answers 200 with
+  # the given JSON +response_body+. The returned Queue receives one
+  # { request_line:, headers:, body: } Hash. Exercises the operation, the
+  # serializers and the transport end-to-end against a canned response.
+  def capture_wire_request(response_body)
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    captured = Queue.new
+    thread = Thread.new do
+      client = begin
+        server.accept
+      rescue StandardError
+        next
+      end
+      request_line = client.gets.to_s.strip
+      headers = {}
+      header_names = []
+      while (line = client.gets)
+        break if line.strip.empty?
+
+        name, value = line.split(':', 2)
+        header_names << name.to_s.strip.downcase
+        headers[name.to_s.strip.downcase] = value.to_s.strip
+      end
+      length = headers.fetch('content-length', '0').to_i
+      captured << { request_line: request_line, headers: headers, header_names: header_names,
+                    body: length.positive? ? client.read(length).to_s : '' }
+      client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
+      client.close
+    end
+    config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+    [Petstore::Client::Api::PetApi.new(nil, config), server, thread, captured]
+  end
+
+  describe '#add_pet' do
+    it 'bhv_operations_022 add_pet' do
+      pet = Petstore::Client::Models::Pet.new(
+        id: 12_345,
+        name: 'TestDog',
+        photo_urls: Set['http://example.com/photo.jpg'],
+        status: 'available'
+      )
+
+      result = @authed_api.add_pet(pet)
+
+      _(result).wont_be_nil
+      _(result.name).wont_be_nil
+    end
+  end
+
+  describe '#find_pets_by_status with no options' do
+    it 'bhv_misc_003 an all-optional operation sends no omitted parameter' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status
+        _(captured.pop[:request_line]).wont_include '?'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_005 a bare null list body raises an API error' do
+      api, server, thread, = capture_wire_request('null')
+      begin
+        _(-> { api.find_pets_by_status }).must_raise Petstore::Client::Errors::ApiError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#find_pets_by_status' do
+    it 'bhv_operations_039 find_pets_by_status' do
+      result = @api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
+
+      _(result).must_be_kind_of(Array)
+      _(result).wont_be_empty
+      _(result.first).must_be_kind_of(Petstore::Client::Models::Pet)
+    end
+
+    # Case 14 — `format: date` parameters (query `bornAfter`, header
+    # `Report-Date`) are date-only: they must go out as YYYY-MM-DD with no
+    # time component, never an ISO date-time like 2024-01-01T00:00:00Z.
+    it 'bhv_operations_069 serializes format:date query and header parameters as YYYY-MM-DD' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(
+          Petstore::Client::Api::Options::FindPetsByStatusOptions.new(
+            born_after: Date.new(2024, 1, 1),
+            report_date: Date.new(2024, 1, 1)
+          )
+        )
+        request = captured.pop
+
+        _(request[:request_line]).must_include 'bornAfter=2024-01-01'
+        _(request[:request_line]).wont_include 'T00'
+        _(request[:request_line]).wont_include '2024-01-01T'
+        _(request[:headers]['report-date']).must_equal '2024-01-01'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # A digit-leading parameter gets a legal identifier (n2nd_page) while the
+  # wire name stays 2ndPage.
+  describe '#find_pets_by_status digit-leading parameter' do
+    it 'bhv_operations_021 sends 2ndPage under its original name' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(n2nd_page: 2))
+        _(captured.pop[:request_line]).must_include '2ndPage=2'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#find_pets_by_status explicit empty status' do
+    it 'bhv_operations_040 sends an explicit empty status as a status key in the query' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: ''))
+        _(captured.pop[:request_line]).must_match(/[?&]status=(?:[& ]|\z)/)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_avatar_thumbnail malformed base64' do
+    it 'bhv_operations_063 rejects malformed base64 with a SerializationError' do
+      api, server, thread, captured = capture_wire_request('"not*base64*!"')
+      begin
+        _(-> { api.get_pet_avatar_thumbnail(1) }).must_raise Petstore::Client::Errors::SerializationError
+        captured.pop
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_by_name required query on the wire' do
+    it 'bhv_operations_065 sends the required query param on the wire' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
+        _(captured.pop[:request_line]).must_include 'category=dogs'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_by_note required nullable query on the wire' do
+    it 'bhv_operations_157 sends a null required nullable query parameter as an empty value' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: nil, rank: 3))
+        _(captured.pop[:request_line]).must_include '?note=&rank=3 '
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_158 sends every null required nullable query parameter in declaration order' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: nil, rank: nil))
+        _(captured.pop[:request_line]).must_include '?note=&rank= '
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_159 sends a non-null required nullable query parameter with its value' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_by_note(Petstore::Client::Api::Options::GetPetByNoteOptions.new(note: 'a b', rank: 3))
+        _(captured.pop[:request_line]).must_include '?note=a%20b&rank=3 '
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_by_name without its positional argument or options' do
+    it 'bhv_misc_007 a missing path parameter is named and no request is sent' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+
+      operation = :get_pet_by_name
+      err = assert_raises(ArgumentError) { api.public_send(operation, nil, nil) }
+      _(err.message).must_include "'name'"
+      _(client.calls).must_equal(0)
+    end
+
+    it 'bhv_misc_010 an operation with required options refuses a call that omits them' do
+      _(-> { @api.get_pet_by_name('Rex') }).must_raise ArgumentError
+    end
+  end
+
+  describe '#get_pet_by_name required query that is not nullable' do
+    it 'bhv_operations_125 refuses a null required query parameter before sending' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      # @type var missing: untyped
+      missing = nil
+      options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1')
+
+      err = assert_raises(ArgumentError) { api.get_pet_by_name('Rex', options) }
+      _(err.message).must_equal("Missing the required parameter 'category' when calling PetApi.get_pet_by_name")
+      _(client.calls).must_equal(0)
+    end
+  end
+
+  # F1158: a deepObject query parameter reaches the wire as bracketed keys.
+  describe '#find_pets_by_status deepObject filter' do
+    it 'bhv_operations_044 findPetsByStatus sends the deepObject filter as bracketed pairs' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(
+          Petstore::Client::Api::Options::FindPetsByStatusOptions.new(filter: { 'color' => 'brown', 'size' => 'large' })
+        )
+        line = captured.pop[:request_line]
+
+        _(line).must_include 'filter%5Bcolor%5D=brown'
+        _(line).must_include 'filter%5Bsize%5D=large'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_by_id' do
+    it 'bhv_operations_047 get_pet_by_id' do
+      result = @api.get_pet_by_id(1)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+      _(result.name).wont_be_nil
+    end
+  end
+
+  describe '#update_pet' do
+    it 'bhv_operations_087 update_pet' do
+      pet = Petstore::Client::Models::Pet.new(
+        id: 1,
+        name: 'UpdatedDog',
+        photo_urls: Set['http://example.com/updated.jpg'],
+        status: 'pending'
+      )
+
+      result = @api.update_pet(1, pet)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#delete_pet' do
+    it 'bhv_operations_027 delete_pet' do
+      @authed_api.delete_pet(1)
+    end
+  end
+
+  describe '#set_pet_avatar' do
+    it 'bhv_operations_070 set_pet_avatar' do
+      @api.set_pet_avatar(1, Petstore::Client::BodySource.of("\xFF\xD8\xFF"))
+    end
+
+    it 'bhv_operations_076 rejects an unrecognised request content-type' do
+      # An unknown content-type selector must be rejected client-side, not
+      # silently dropped in favour of the first declared type.
+      error = assert_raises(ArgumentError) do
+        @api.set_pet_avatar(1, Petstore::Client::BodySource.of("\xFF\xD8\xFF"), request_content_type: 'application/unknown-type')
+      end
+      _(error.message).must_include "Unsupported request content-type 'application/unknown-type' for "
+      _(error.message).must_match(/; declared types are \[[^"'\]]+(, [^"'\]]+)*\]\z/)
+    end
+
+    # Canonical regression (finding C1): setPetAvatar declares a request body of
+    # `type: string, format: binary` with a declared Content-Type of image/jpeg.
+    # The raw bytes must hit the wire UNCHANGED — not JSON-marshaled into "{}",
+    # not turned into a JSON int-array like [255,216,...], not base64-encoded —
+    # and the outgoing Content-Type must stay exactly "image/jpeg", never
+    # overridden to application/octet-stream or application/json.
+    #
+    # A one-shot TCP server captures the real outgoing body and Content-Type
+    # off the wire, exercising the operation's request_body construction plus
+    # BaseApi#serialize_body end-to-end rather than a helper in isolation.
+    def capture_avatar_request
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      captured_body = Queue.new
+      captured_content_type = Queue.new
+      thread = Thread.new do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        content_length = 0
+        request_content_type = ''
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          elsif line.downcase.start_with?('content-type:')
+            request_content_type = line.split(':', 2).last.strip
+          end
+          break if line.strip.empty?
+        end
+        captured_content_type << request_content_type
+        captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
+      [api, server, thread, captured_body, captured_content_type]
+    end
+
+    it 'bhv_operations_073 set_pet_avatar streams raw bytes with declared content type' do
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        # JPEG SOI marker — a known, non-trivial binary payload. The high bytes
+        # (0xFF) and the non-printable run make every wrong encoding distinct
+        # from the raw form.
+        raw = "\xFF\xD8\xFF\xE0".b
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw))
+
+        request_content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        # (1) The body is the exact raw bytes — not JSON-marshaled, not a JSON
+        # int-array, not base64.
+        _(sent).must_equal raw
+        _(sent).wont_include '[255'
+        _(sent).wont_include '255,216'
+        _(sent).wont_equal '{}'
+        _(sent).wont_equal '//j/4A==' # base64 of the four bytes
+
+        # (2) The declared Content-Type is preserved verbatim.
+        _(request_content_type).must_equal 'image/jpeg'
+        _(request_content_type).wont_match(/octet-stream/)
+        _(request_content_type).wont_match(%r{application/json})
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_072 sends the caller bytes verbatim when the JSON content type is selected' do
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\xFF\xD8\xFF\xE0".b
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw), request_content_type: 'application/json')
+        _(captured_content_type.pop).must_equal 'application/json'
+        _(captured_body.pop.b).must_equal raw
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical regression: setPetAvatar declares THREE request content-types
+    # (image/jpeg, image/png, application/json). Before the optional
+    # `request_content_type:` selector the wire Content-Type always collapsed to the
+    # first declared type (image/jpeg) and image/png was unreachable. The
+    # selector lets the caller choose among the declared types while staying
+    # backward compatible: an unspecified request_content_type still sends the first.
+    it 'bhv_operations_071 honours the selected request content type' do
+      # (1) Backward compatible — no selector sends the FIRST declared type.
+      api, server, thread, _captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\x89PNG\r\n\x1A\n".b
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw))
+        _(captured_content_type.pop).must_equal 'image/jpeg'
+      ensure
+        server.close
+        thread.join(2)
+      end
+
+      # (2) Selector set to image/png sends Content-Type: image/png for the
+      # same raw bytes — NOT image/jpeg.
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\x89PNG\r\n\x1A\n".b
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw), request_content_type: 'image/png')
+
+        request_content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        _(request_content_type).must_equal 'image/png'
+        _(request_content_type).wont_equal 'image/jpeg'
+        # The raw bytes still hit the wire unchanged — the selector only swaps
+        # the Content-Type header, it does not re-encode the body.
+        _(sent).must_equal raw
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_avatar' do
+    it 'bhv_operations_045 get_pet_avatar' do
+      result = @api.get_pet_avatar(1)
+
+      _(result).wont_be_nil
+      result.close
+    end
+
+    it 'bhv_streaming_009 a binary stream exposes the status and the lower-cased response headers' do
+      stream = @api.get_pet_avatar(1)
+      begin
+        _(stream.status_code).must_equal 200
+        _(stream.headers).must_include 'content-type'
+        _(stream.headers.keys).must_equal(stream.headers.keys.map(&:downcase))
+      ensure
+        stream.close
+      end
+
+      result = @api.get_pet_avatar_with_http_info(1)
+      begin
+        _(result.data).must_be_kind_of Petstore::Client::ByteStream
+        _(result.status_code).must_equal result.data.status_code
+        _(result.headers).must_equal result.data.headers
+        _(result.raw_body).must_be_empty
+      ensure
+        result.data.close
+      end
+    end
+  end
+
+  describe '#get_pet_avatar_thumbnail' do
+    it 'bhv_operations_046 get_pet_avatar_thumbnail' do
+      # The response is a top-level `type: string, format: byte` schema served
+      # as application/json, so it arrives as a JSON string literal
+      # ("dGVzdC1pbWFnZQ=="). The SDK must JSON-parse then base64-decode it to
+      # raw bytes — not return the un-decoded base64 string or the quoted
+      # literal. The mock serves the spec example, which decodes to "test-image".
+      result = @api.get_pet_avatar_thumbnail(1)
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(String)
+      _(result).must_equal('test-image')
+    end
+
+    # Same regression pinned against a canned wire response so it does not
+    # depend on the mock's example: a JSON string literal of the base64 text
+    # must be JSON-parsed and then base64-decoded to the raw bytes.
+    it 'bhv_operations_062 decodes a JSON-encoded base64 string response body to raw bytes' do
+      api, server, thread, captured = capture_wire_request('"dGVzdC1pbWFnZQ=="')
+      begin
+        result = api.get_pet_avatar_thumbnail(1)
+        captured.pop
+
+        _(result).must_be_kind_of(String)
+        _(result.b).must_equal 'test-image'.b
+        _(result).wont_equal 'dGVzdC1pbWFnZQ=='
+        _(result).wont_include '"'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#set_pet_avatar_thumbnail' do
+    it 'bhv_operations_074 set_pet_avatar_thumbnail' do
+      # SetPetAvatarThumbnailRequest is a oneOf [scalar format:byte, array of
+      # format:byte]. The caller supplies RAW bytes; the SDK base64-encodes
+      # the byte variant on the wire (the round-trip is asserted directly on
+      # the union in composed_schema_test). Here we only smoke the API call.
+      request = [0x89, 0x50, 0x4E, 0x47].pack('C*')
+
+      @api.set_pet_avatar_thumbnail(1, request)
+    end
+  end
+
+  describe '#set_pet_avatar_thumbnail on the wire' do
+    it 'bhv_operations_077 sends a byte body as a base64 json string' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        api.set_pet_avatar_thumbnail(1, [0x89, 0x50, 0x4E, 0x47].pack('C*'))
+        _(captured.pop[:body]).must_equal '"iVBORw=="'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#upload_pet_certificate' do
+    it 'bhv_operations_090 upload_pet_certificate' do
+      options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
+        file: StringIO.new('cert-data')
+      )
+      result = @api.upload_pet_certificate(1, options)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#upload_pet_document undeclared request content type' do
+    it 'bhv_operations_093 rejects an undeclared request content type' do
+      error = assert_raises(ArgumentError) do
+        @api.upload_pet_document(
+          1,
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+            file: StringIO.new('doc-data'),
+            document_type: 'vaccination_record',
+            notes: 'Annual checkup'
+          ),
+          request_content_type: 'application/unknown-type'
+        )
+      end
+      _(error.message).must_include "Unsupported request content-type 'application/unknown-type' for "
+    end
+  end
+
+  describe '#upload_pet_document' do
+    it 'bhv_operations_091 upload_pet_document' do
+      result = @api.upload_pet_document(
+        1,
+        Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+          file: StringIO.new('doc-data'),
+          document_type: 'vaccination_record',
+          notes: 'Annual checkup'
+        )
+      )
+
+      _(result).wont_be_nil
+    end
+
+    it 'bhv_operations_147 sends the multipart parts in declaration order' do
+      api, server, thread, captured_body, _captured_content_type = capture_document_request
+      begin
+        api.upload_pet_document(
+          1,
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+            file: StringIO.new('doc-data'),
+            document_type: 'vaccination_record',
+            notes: 'Annual checkup'
+          )
+        )
+        body = captured_body.pop
+        offsets = %w[file documentType notes].map { |part| body.index("name=\"#{part}\"") }
+        _(offsets.compact.size).must_equal 3
+        _(offsets).must_equal offsets.sort
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # octet-stream-raw-body parity: uploadPetDocument declares TWO request
+    # content-types — multipart/form-data AND application/octet-stream. When the
+    # caller selects application/octet-stream the SDK must send the file's RAW
+    # bytes with Content-Type: application/octet-stream — NOT a multipart/form-data
+    # envelope, no multipart boundary, not base64. The request body is assembled
+    # as a form-parts Hash for the multipart case; the bug is that the transport
+    # dispatches multipart on `body.is_a?(Hash)`, so without unwrapping the single
+    # binary part an octet-stream selection silently still ships multipart. A
+    # one-shot TCP server captures the real outgoing Content-Type and body off the
+    # wire, exercising request_body construction plus BaseApi#serialize_body and
+    # the transport end-to-end.
+    def capture_document_request
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      captured_body = Queue.new
+      captured_content_type = Queue.new
+      thread = Thread.new do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        content_length = 0
+        request_content_type = ''
+        client.gets # request line
+        while (line = client.gets)
+          if line.downcase.start_with?('content-length:')
+            content_length = line.split(':', 2).last.strip.to_i
+          elsif line.downcase.start_with?('content-type:')
+            request_content_type = line.split(':', 2).last.strip
+          end
+          break if line.strip.empty?
+        end
+        captured_content_type << request_content_type
+        captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
+      [api, server, thread, captured_body, captured_content_type]
+    end
+
+    it 'bhv_operations_092 sends raw bytes when application/octet-stream is selected' do
+      api, server, thread, captured_body, captured_content_type = capture_document_request
+      begin
+        raw = "\x00\x01\x02PDFBYTES\xFF".b
+        api.upload_pet_document(
+          1,
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(file: StringIO.new(raw)),
+          request_content_type: 'application/octet-stream'
+        )
+
+        request_content_type = captured_content_type.pop
+        sent = captured_body.pop.b
+
+        # (1) Content-Type is the selected raw binary type — NOT multipart.
+        _(request_content_type).must_equal 'application/octet-stream'
+        _(request_content_type).wont_match(/multipart/)
+        _(request_content_type).wont_match(/boundary/)
+
+        # (2) The body is the exact raw bytes — not a multipart envelope, no
+        # boundary delimiter, no Content-Disposition part header, not base64.
+        _(sent).must_equal raw
+        _(sent).wont_include 'Content-Disposition'
+        _(sent).wont_include 'form-data'
+        _(sent).wont_match(/\A--/) # multipart boundary delimiter
+        _(sent).wont_include Base64.strict_encode64(raw)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # F1125: non-string scalar form fields go out as plain text parts in their
+    # canonical wire form, not as JSON parts and not through to_s.
+    it 'bhv_operations_095 sends boolean, integer, date-time and enum fields as plain text multipart parts' do
+      api, server, thread, captured_body, = capture_document_request
+      begin
+        api.upload_pet_document(
+          1,
+          Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+            file: StringIO.new('doc'), is_primary: true, page_count: 3,
+            taken_at: Time.utc(2024, 1, 2, 3, 4, 5), swatch: 'red' # steep:ignore ArgumentTypeMismatch
+          )
+        )
+        body = captured_body.pop
+
+        _(body).must_include("name=\"isPrimary\"\r\n\r\ntrue\r\n")
+        _(body).must_include("name=\"pageCount\"\r\n\r\n3\r\n")
+        _(body).must_include("name=\"takenAt\"\r\n\r\n2024-01-02T03:04:05.000+00:00\r\n")
+        _(body).must_include("name=\"swatch\"\r\n\r\nred\r\n")
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # S16 / F406: a caller-supplied stream is read, never closed.
+    it 'bhv_transport_091 leaves a caller-supplied upload stream open' do
+      api, server, thread, captured_body, = capture_document_request
+      begin
+        io = StringIO.new('doc')
+        api.upload_pet_document(1, Petstore::Client::Api::Options::UploadPetDocumentOptions.new(file: io))
+        captured_body.pop
+
+        _(io.closed?).must_equal(false)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_094 still sends a multipart body when multipart/form-data is selected (default)' do
+      # Guards against over-correction: the default (and explicit multipart)
+      # selection must keep shipping a multipart/form-data envelope.
+      [nil, 'multipart/form-data'].each do |selected|
+        api, server, thread, captured_body, captured_content_type = capture_document_request
+        begin
+          api.upload_pet_document(
+            1,
+            Petstore::Client::Api::Options::UploadPetDocumentOptions.new(
+              file: StringIO.new('doc-data'),
+              document_type: 'vaccination_record'
+            ),
+            request_content_type: selected
+          )
+
+          request_content_type = captured_content_type.pop
+          sent = captured_body.pop.b
+
+          _(request_content_type).must_match(%r{\Amultipart/form-data})
+          _(request_content_type).must_match(/boundary=/)
+          _(sent).must_include 'Content-Disposition'
+          _(sent).must_include 'doc-data'
+        ensure
+          server.close
+          thread.join(2)
+        end
+      end
+    end
+  end
+
+  describe '#add_pet_photos' do
+    it 'bhv_operations_023 add_pet_photos' do
+      metadata = Petstore::Client::Models::PhotoMetadata.new(caption: 'Test photo', is_primary: true)
+
+      result = @api.add_pet_photos(
+        1,
+        Petstore::Client::Api::Options::AddPetPhotosOptions.new(
+          files: [StringIO.new('photo1')],
+          metadata: metadata
+        )
+      )
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(Array)
+    end
+  end
+
+  describe '#download_pet_document' do
+    it 'bhv_operations_035 download_pet_document' do
+      result = @api.download_pet_document(1, 1)
+
+      _(result).wont_be_nil
+      result.close
+    end
+  end
+
+  describe '#get_pet_photo' do
+    it 'bhv_operations_055 get_pet_photo' do
+      result = @api.get_pet_photo(1, 1)
+
+      _(result).wont_be_nil
+      result.close
+    end
+
+    it 'bhv_operations_501 sends only the media type the caller names in the per-call Accept header' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        api.get_pet_photo(
+          1, 1, Petstore::Client::Api::Options::GetPetPhotoOptions.new(headers: { 'Accept' => 'image/png' })
+        ).close
+        request = captured.pop
+
+        _(request[:header_names].count('accept')).must_equal 1
+        _(request[:headers]['accept']).must_equal 'image/png'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_pet_passport' do
+    it 'bhv_operations_053 get_pet_passport' do
+      result = @api.get_pet_passport(1)
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(Petstore::Client::Models::PetPassport)
+    end
+  end
+
+  describe '#get_pet_tag' do
+    it 'bhv_operations_058 sends styled path and query parameters' do
+      result = @api.get_pet_tag(
+        5,
+        'cute',
+        Petstore::Client::Api::Options::GetPetTagOptions.new(colors: %w[blue black], sizes: %w[S M])
+      )
+
+      _(result).wont_be_nil
+    end
+
+    # F1143 / F1158: the styled path segments, the deepObject and the
+    # object-valued query and header parameters reach the wire as the OAS
+    # style tables say, never as an object's to_s.
+    it 'bhv_operations_060 sends matrix and label path segments' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        api.get_pet_tag(5, 'cute')
+        request = captured.pop
+
+        _(request[:request_line]).must_match(%r{\AGET /pet/(;|%3B)petId(=|%3D)5/tag/\.cute[ ?]})
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_067 expands object-valued query and header parameters by style' do
+      api, server, thread, captured = capture_wire_request('{"name":"Rex","photoUrls":["u"]}')
+      begin
+        criteria = Petstore::Client::Models::PetCriteria.new(breed: 'lab', min_age: 3)
+        api.get_pet_tag(
+          5, 'cute',
+          Petstore::Client::Api::Options::GetPetTagOptions.new(
+            criteria: criteria, criteria_csv: criteria, criteria_deep: criteria, x_criteria: criteria
+          )
+        )
+        request = captured.pop
+        line = request[:request_line]
+
+        _(line).must_include 'breed=lab&min_age=3'
+        _(line).must_include 'criteriaCsv=breed%2Clab%2Cmin_age%2C3'
+        _(line).must_include 'criteriaDeep%5Bbreed%5D=lab'
+        _(line).must_include 'criteriaDeep%5Bmin_age%5D=3'
+        _(request[:headers]['x-criteria']).must_equal 'breed,lab,min_age,3'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # F1068 / F1127: the matrix-style date segment, the required session cookie
+  # and the date-array query reach the wire, and the required parameters are
+  # refused before anything is sent.
+  describe '#get_pet_summary' do
+    def summary_api(client)
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      Petstore::Client::Api::PetApi.new(client, config)
+    end
+
+    it 'bhv_operations_057 sends the matrix date segment, the session cookie and the date array, and returns the text' do
+      client = RecordingPetClient.new(body: 'hello', content_type: 'text/plain')
+      options = Petstore::Client::Api::Options::GetPetSummaryOptions.new(
+        session: 'abc', days: [Date.new(2024, 2, 1), Date.new(2024, 2, 2)]
+      )
+
+      result = summary_api(client).get_pet_summary(7, Date.new(2024, 1, 15), options)
+
+      _(result).must_equal('hello')
+      _(client.url).must_include('/pet/7/summary/;asOf=2024-01-15?')
+      _(client.url).must_include('days=2024-02-01&days=2024-02-02')
+      _(client.headers['Cookie']).must_equal('session=abc')
+    end
+
+    it 'bhv_operations_056 refuses a nil or empty required session cookie before sending' do
+      [nil, ''].each_case do |session|
+        client = RecordingPetClient.new
+        # @type var missing: untyped
+        missing = session
+        options = Petstore::Client::Api::Options::GetPetSummaryOptions.new(session: missing)
+
+        err = assert_raises(ArgumentError) { summary_api(client).get_pet_summary(7, Date.new(2024, 1, 15), options) }
+        _(err.message).must_equal("Missing the required parameter 'session' when calling PetApi.get_pet_summary")
+        _(client.calls).must_equal(0)
+      end
+    end
+  end
+
+  describe '#get_pet_by_name required header' do
+    it 'bhv_operations_050 refuses a nil or empty required X-Correlation-Id header before sending' do
+      [nil, ''].each_case do |value|
+        client = RecordingPetClient.new
+        config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = Petstore::Client::Api::PetApi.new(client, config)
+        # @type var missing: untyped
+        missing = value
+        options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: missing)
+
+        err = assert_raises(ArgumentError) { api.get_pet_by_name('Rex', options) }
+        _(err.message).must_equal("Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name")
+        _(client.calls).must_equal(0)
+      end
+    end
+  end
+
+  # F1142: a request body that is the anyOf wrapper, with a path parameter and
+  # OAuth, is sent as the matched variant's JSON and the answer decoded back.
+  describe '#add_pet_treatment' do
+    it 'bhv_operations_024 sends the variant JSON under the client credentials and decodes the answer' do
+      client = RecordingPetClient.new(body: '{"drugName":"aspirin","dosage":"5mg"}')
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config, @auth)
+      treatment = Petstore::Client::Models::Medication.new(drug_name: 'aspirin', dosage: '5mg')
+
+      result = api.add_pet_treatment(7, treatment) # steep:ignore ArgumentTypeMismatch
+
+      _(client.url).must_equal('http://127.0.0.1:1/pet/7/treatment')
+      _(JSON.parse(client.request_body)).must_equal('drugName' => 'aspirin', 'dosage' => '5mg')
+      _(client.headers['Authorization']).must_equal('Bearer test-token')
+      _(result).must_be_kind_of(Petstore::Client::Models::Medication)
+      _(result.drug_name).must_equal('aspirin')
+    end
+  end
+
+  describe '#get_pet_summary doc comments' do
+    it 'bhv_langruby_001 shows the summary, description and parameter prose without literal escapes' do
+      path = String(Object.const_source_location(Petstore::Client::Api::PetApi.name)&.first)
+      source = File.read(path)
+      _(source).must_include(%q(# Get a <plain> "text" summary & it's short))
+      _(source).must_include(%q(# Returns '''plain''' text for <tt>/pets/#{id}</tt> and <b> & "c" it's done))
+    end
+
+    it 'bhv_langruby_002 shows the options parameter prose without literal escapes' do
+      path = String(Object.const_source_location(Petstore::Client::Api::Options::GetPetSummaryOptions.name)&.first)
+      source = File.read(path)
+      _(source).must_include(%q(# @param session [String] Session token: "a<b>" & it's required))
+    end
+  end
+
+  describe 'per-operation server variables' do
+    it 'bhv_langruby_003 resolves the URL from enum values' do
+      server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
+        version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
+      )
+
+      _(server.url).must_equal('https://sandbox.example.com/api/v3')
+    end
+
+    it 'bhv_servers_020 rejects a value outside the enum' do
+      err = _(lambda {
+        Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'attacker.net/x#', version: 'v2')
+      }).must_raise(ArgumentError)
+
+      _(err.message).must_equal(
+        "Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [staging, sandbox]"
+      )
+    end
+
+    it 'bhv_langruby_004 rejects a value outside the enum on a later variable' do
+      err = _(lambda {
+        Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'staging', version: 'v9')
+      }).must_raise(ArgumentError)
+
+      _(err.message).must_include("Invalid value 'v9' for server variable 'version'")
+    end
+
+    it 'bhv_misc_260 rejects nil for an enum variable' do
+      err = _(lambda {
+        Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(region: nil) # steep:ignore ArgumentTypeMismatch
+      }).must_raise(ArgumentError)
+
+      _(err.message).must_include("Invalid value '' for server variable 'region'")
+    end
+  end
+
+  describe '#get_external_pet_info' do
+    it 'bhv_operations_061 uses per-operation server URL' do
+      # The operation's own server wins over the client's base URL: the client
+      # points at a closed port, the per-operation server at the mock server.
+      mock_url = @base_url
+      server = Class.new(Petstore::Client::Api::GetExternalPetInfoServer) do
+        define_method(:url) { mock_url }
+      end.new
+      config = Petstore::Client::Configuration.new(
+        base_url: 'http://127.0.0.1:1',
+        default_headers: { 'Authorization' => 'Bearer test-token' }
+      )
+      api = Petstore::Client::Api::PetApi.new(nil, config)
+
+      result = api.get_external_pet_info(1, server: server)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  # required-nested-param-validation: getPetByName has a simple string path
+  # param (name) AND a REQUIRED query param (category) carried on the Options
+  # object. The generated method must raise ArgumentError when either is nil,
+  # not just the path param — previously only path/body were guarded so a nil
+  # required query param sailed through to the wire.
+  describe '#get_pet_by_name required-param validation' do
+    it 'bhv_operations_132 a missing required options object names the first required field' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', nil)
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_operations_164 raises ArgumentError when the required query param category is nil' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_misc_004 calling an operation with required fields and no options object raises naming the first missing field' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_misc_012 raises ArgumentError when the required path param name is nil' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_operations_049 raises ArgumentError when the required string query param category is empty' do
+      # required-string-empty parity (go/rust/swift/elixir): an empty
+      # string for a required string param means the caller omitted it,
+      # so it must be rejected exactly like nil.
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: '', x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_operations_052 raises ArgumentError when the required string path param name is empty' do
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include 'name'
+    end
+
+    it 'bhv_operations_051 rejects the dot segments as the path param name before dispatch' do
+      ['.', '..'].each_case do |segment|
+        client = RecordingPetClient.new
+        config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = Petstore::Client::Api::PetApi.new(client, config)
+        options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'c', x_correlation_id: 'corr-1')
+        err = assert_raises(ArgumentError) { api.get_pet_by_name(segment, options) }
+        _(err.message).must_equal "Path parameter 'name' must not be '.' or '..'"
+        _(client.calls).must_equal 0
+      end
+    end
+
+    it 'bhv_operations_064 sends a name that only contains dots inside it' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'c', x_correlation_id: 'corr-1')
+      api.get_pet_by_name('a..b', options)
+      _(client.url).must_include '/pet/byName/a..b?'
+    end
+  end
+
+  describe 'error handling' do
+    def new_pet_api_for_mock(status, request_content_type, body)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = begin
+            server.accept
+          rescue StandardError
+            break
+          end
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{request_content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      # The server answers one request, so the transport must not send a second.
+      transport = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.max_retries(0).build)
+      api = Petstore::Client::Api::PetApi.new(transport, config)
+      [api, server, thread]
+    end
+
+    it 'bhv_operations_037 error_handling_not_found' do
+      api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
+      begin
+        _(-> { api.get_pet_by_id(99_999) }).must_raise Petstore::Client::Errors::NotFoundError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_mocking_004 a fake raises the typed error and the caller handles it like the real client' do
+      fake = new_fake_pet_api(fail_with: Petstore::Client::Errors::NotFoundError.new(message: 'missing'))
+      real, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
+      begin
+        _(classify { look_up(fake, 1) }).must_equal 'not found'
+        _(classify { look_up(real, 1) }).must_equal(classify { look_up(fake, 1) })
+        _(-> { look_up(fake, 1) }).must_raise Petstore::Client::Errors::ApiError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_038 raises error on 500 response' do
+      api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::Errors::InternalServerError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_034 download_binary_mock' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
+      begin
+        result = api.get_pet_avatar(1)
+        _(result.read_all).must_equal 'FAKE_BINARY_DATA'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_089 upload_multipart_mock' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"code":200,"type":"","message":"success"}')
+      begin
+        options = Petstore::Client::Api::Options::UploadPetCertificateOptions.new(
+          file: StringIO.new('fake-cert-data')
+        )
+        result = api.upload_pet_certificate(1, options)
+        _(result).wont_be_nil
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_136 a bare JSON null body from a model operation throws an API error naming the operation' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', 'null')
+      begin
+        err = assert_raises(Petstore::Client::Errors::ApiError) do
+          api.get_pet_by_id(1)
+        end
+        _(err.status_code).must_equal 200
+        _(err.message).must_include 'Expected a response body for get_pet_by_id but received none'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # convenience-empty-body-handling: a body-returning operation that
+    # receives an empty 200 body must raise a typed ApiError from the
+    # unwrapped convenience method, never return a silent nil.
+    it 'bhv_operations_036 raises ApiError when a body-returning op gets an empty body' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '')
+      begin
+        err = assert_raises(Petstore::Client::Errors::ApiError) do
+          api.get_pet_by_id(1)
+        end
+        _(err.status_code).must_equal 200
+        _(err.message).must_include 'Expected a response body for get_pet_by_id but received none'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_127 a malformed 2xx body fails loud with a serialization error instead of returning the raw string' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{not valid json')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::Errors::SerializationError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_138 throws the exception class specific to the status of an error response' do
+      api, server, thread = new_pet_api_for_mock(400, 'application/json', '{"message":"Bad request"}')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::Errors::BadRequestError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # malformed-2xx-body-fails-loud (canonical 11): a 200 response whose body
+    # is present but NOT valid JSON for the declared model must propagate the
+    # deserialize failure, never return the raw string or a silent nil. The
+    # SDK wraps the parse error as SerializationError; the convenience method
+    # must let it surface so a corrupt-upstream bug is loud at the call site.
+    it 'bhv_operations_130 raises when a 2xx body is malformed JSON for the declared model' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"id":1,"name":')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise Petstore::Client::Errors::SerializationError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  # path-double-encoding: a styled path-param value containing reserved
+  # characters must be percent-encoded EXACTLY ONCE. Before the fix the api
+  # template wrapped the already-encoded serializer output in a second
+  # encode_path_segment pass, turning a space into %2520 instead of %20.
+  describe 'path encoding' do
+    def capture_request_line(status, request_content_type, body)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        captured << client.gets.to_s
+        while (line = client.gets)
+          break if line.strip.empty?
+        end
+        response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{request_content_type}\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
+      [api, server, thread, captured]
+    end
+
+    it 'bhv_operations_059 sends format:byte query and header params as padded standard base64, with the standard alphabet' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: 'hi', x_fingerprint: 'hi'))
+      _(client.url).must_include 'fingerprint=aGk%3D'
+      _(client.headers['X-Fingerprint']).must_equal 'aGk='
+
+      alphabet = RecordingPetClient.new
+      api = Petstore::Client::Api::PetApi.new(alphabet, config)
+      api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: "\xFB\xFF".b))
+      _(alphabet.url).must_include 'fingerprint=%2B%2F8%3D'
+    end
+
+    it 'bhv_operations_066 percent-encodes a # in an allowReserved value instead of truncating the query' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(revision: 'v1.0/beta:rc1#frag'))
+      _(client.url).must_include 'revision=v1.0/beta:rc1%23frag'
+    end
+
+    # optional-array-param parity (Wave D): an OPTIONAL array query parameter
+    # set to multiple values must serialise to its declared OAS style, never a
+    # language debug blob. getPetTag carries two optional array query params:
+    # `colors` (pipeDelimited) and `sizes` (spaceDelimited). The wrong (debug)
+    # form would inspect the Array itself, emitting something like
+    # `colors=%5B%22blue%22%2C+%22black%22%5D` ('["blue", "black"]') on the
+    # wire. Here we assert the styled forms reach the wire and that no
+    # debug/inspect blob does.
+    it 'bhv_operations_068 serialises optional array query params as styled values, not a debug blob' do
+      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
+      api, server, thread, captured = capture_request_line(200, 'application/json', body)
+      begin
+        api.get_pet_tag(
+          5,
+          'cute',
+          Petstore::Client::Api::Options::GetPetTagOptions.new(
+            colors: %w[blue black], sizes: %w[S M]
+          )
+        )
+        request_line = captured.pop
+
+        # colors is pipeDelimited -> "blue|black"; the pipe is percent-encoded
+        # to %7C by CGI on the way out.
+        _(request_line).must_include 'colors=blue%7Cblack'
+        # sizes is spaceDelimited -> "S M"; the space percent-encodes to %20.
+        _(request_line).must_include 'sizes=S%20M'
+
+        # The Array#inspect / to_s debug forms must NOT appear: no literal
+        # brackets, no quoted-element list, no `, ` joiner from Array#to_s.
+        _(request_line).wont_include '%5B' # '['
+        _(request_line).wont_include '%5D' # ']'
+        _(request_line).wont_include '%22' # '"'
+        _(request_line).wont_include 'colors=%5B'
+        _(request_line).wont_include '%2C+' # ', ' debug joiner
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'with_http_info methods' do
+    describe '#get_pet_by_id_with_http_info' do
+      it 'bhv_operations_048 get_pet_by_id_with_http_info' do
+        result = @api.get_pet_by_id_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+        _(result.data).wont_be_nil
+        _(result.raw_body).wont_be_nil
+      end
+    end
+
+    describe '#add_pet_with_http_info' do
+      it 'bhv_operations_025 add_pet_with_http_info' do
+        pet = Petstore::Client::Models::Pet.new(
+          id: 99,
+          name: 'HttpInfoDog',
+          photo_urls: Set['http://example.com/photo.jpg'],
+          status: 'available'
+        )
+
+        result = @authed_api.add_pet_with_http_info(pet)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+        _(result.data).wont_be_nil
+      end
+    end
+
+    describe '#update_pet_with_http_info' do
+      it 'bhv_operations_088 update_pet_with_http_info' do
+        pet = Petstore::Client::Models::Pet.new(
+          id: 1,
+          name: 'UpdatedDog',
+          photo_urls: Set['http://example.com/updated.jpg'],
+          status: 'pending'
+        )
+
+        result = @api.update_pet_with_http_info(1, pet)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+      end
+    end
+
+    describe '#delete_pet_with_http_info' do
+      it 'bhv_operations_031 delete_pet_with_http_info' do
+        result = @authed_api.delete_pet_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+      end
+    end
+
+    describe '#find_pets_by_status_with_http_info' do
+      it 'bhv_operations_042 find_pets_by_status_with_http_info' do
+        result = @api.find_pets_by_status_with_http_info(
+          Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+        )
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+      end
+    end
+
+    describe '#get_pet_passport_with_http_info' do
+      it 'bhv_operations_054 get_pet_passport_with_http_info' do
+        result = @api.get_pet_passport_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+        _(result.data).wont_be_nil
+      end
+    end
+  end
+
+  describe 'scheme credentials on the wire' do
+    # capture_auth_header: spin up a one-shot TCP server that records the
+    # Authorization header (if any) of the first request and returns a
+    # minimal Pet JSON body so the body-returning convenience method is happy.
+    def capture_auth_header
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        client.gets # request line
+        saw_auth = false
+        while (line = client.gets)
+          if line.downcase.start_with?('authorization:')
+            captured << line
+            saw_auth = true
+          end
+          break if line.strip.empty?
+        end
+        captured << :none unless saw_auth
+        body = '{"id":1,"name":"x","photoUrls":[]}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      [server, port, thread, captured]
+    end
+
+    # F857: the credential the client holds for the scheme the operation names
+    # is applied to the outgoing request. The default header carries one token;
+    # the scheme credential carries a different one and must win on the wire.
+    it 'bhv_operations_079 applies the credential of the scheme the operation names' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer default-token' }
+        )
+        scheme_auth = Petstore::Client::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'scheme-token')
+        api = Petstore::Client::Api::PetApi.new(nil, config, nil, { 'petStoreBearer' => scheme_auth })
+
+        pet = Petstore::Client::Models::Pet.new(
+          id: 1,
+          name: 'OverrideDog',
+          photo_urls: Set['http://example.com/p.jpg']
+        )
+        api.add_pet(pet)
+
+        header_line = captured.pop
+        _(header_line).must_include 'Bearer scheme-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # no-scheme-credential-uses-config-default: when the client holds no
+    # credential for a scheme the operation names, the base client falls back to
+    # the credentials configured on the Configuration object.
+    it 'bhv_operations_081 falls back to the configured credentials when the client holds no scheme credential' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer config-default-token' }
+        )
+        api = Petstore::Client::Api::PetApi.new(nil, config)
+
+        pet = Petstore::Client::Models::Pet.new(
+          id: 1,
+          name: 'DefaultCredsDog',
+          photo_urls: Set['http://example.com/p.jpg']
+        )
+        # No scheme credential and no client authenticator: the configured
+        # default credentials apply.
+        api.add_pet(pet, Petstore::Client::Api::Options::AddPetOptions.new)
+
+        header_line = captured.pop
+        _(header_line).must_include 'Bearer config-default-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_020 never sends a credential held for a scheme the operation does not name' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+        admin_auth = Petstore::Client::Auth::BasicAuthenticator.new("http://127.0.0.1:#{port}", 'admin', 's3cret')
+        api = Petstore::Client::Api::PetApi.new(nil, config, nil, { 'adminBasic' => admin_auth })
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'UnnamedDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        _(captured.pop).must_equal :none
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_026 uses the client-level authenticator when no scheme credential matches' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+        client_auth = Petstore::Client::Auth::BearerAuthenticator.new("http://127.0.0.1:#{port}", 'client-token')
+        admin_auth = Petstore::Client::Auth::BasicAuthenticator.new("http://127.0.0.1:#{port}", 'admin', 's3cret')
+        api = Petstore::Client::Api::PetApi.new(nil, config, client_auth, { 'adminBasic' => admin_auth })
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'ClientAuthDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        _(captured.pop).must_include 'Bearer client-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_078 add pet without Options uses the configured credentials when no scheme credential is held' do
+      server, port, thread, captured = capture_auth_header
+
+      begin
+        config = Petstore::Client::Configuration.new(
+          base_url: "http://127.0.0.1:#{port}",
+          default_headers: { 'Authorization' => 'Bearer config-no-options-token' }
+        )
+        api = Petstore::Client::Api::PetApi.new(nil, config)
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'NoOptionsDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        _(captured.pop).must_include 'Bearer config-no-options-token'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_080 uses the first declared scheme the client holds a credential for' do
+      _api, server, thread, captured = capture_wire_request('{"id":1,"name":"x","photoUrls":[]}')
+
+      begin
+        base = "http://127.0.0.1:#{server.addr[1]}"
+        config = Petstore::Client::Configuration.new(base_url: base, default_headers: {})
+        schemes = {
+          'petStoreBearer' => Petstore::Client::Auth::BearerAuthenticator.new(base, 'bearer-second'),
+          'apiKeyHeader' => Petstore::Client::Auth::ApiKeyAuthenticator.new(base, 'X-API-Key', 'key-first', Petstore::Client::Auth::ApiKeyLocation::HEADER)
+        }
+        api = Petstore::Client::Api::PetApi.new(nil, config, nil, schemes)
+
+        pet = Petstore::Client::Models::Pet.new(id: 1, name: 'FirstSchemeDog', photo_urls: Set['http://example.com/p.jpg'])
+        api.add_pet(pet)
+
+        headers = captured.pop[:headers]
+        _(headers['x-api-key']).must_equal 'key-first'
+        _(headers).wont_include 'authorization'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # immutable-options: Options objects are constructed via keyword
+    # arguments only. The generated classes expose attr_reader members and
+    # freeze themselves at the end of #initialize, so reading values works
+    # but no writer (setter) is exposed and the instance is frozen.
+    it 'bhv_options_063 builds immutable Options from keyword arguments' do
+      options = Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available')
+
+      _(options.status).must_equal 'available'
+      refute_respond_to options, :status=
+      assert_predicate options, :frozen?
+    end
+
+    # no-per-call-auth-member: the client holds the credentials, one per
+    # security scheme (F857), so no Options object carries an `auth` member,
+    # whether or not its operation is secured. Each still carries the per-call
+    # timeout, headers and max_retries.
+    it 'bhv_operations_086 does not expose an auth member on any Options object' do
+      %w[AddPetOptions DeletePetOptions GetPetByIdOptions].each do |name|
+        options = Petstore::Client::Api::Options.const_get(name).new
+        _(options).wont_respond_to :auth
+        _(options).wont_respond_to :auth=
+        _(options).must_respond_to :timeout
+      end
+    end
+  end
+
+  # End-to-end form-urlencoded body assembly through the real generated
+  # set_pet_preferences operation (POST /pet/{petId}/preferences). These
+  # capture the raw request body off the wire so the assertions exercise the
+  # operation's request_body construction plus BaseApi#serialize_body, not
+  # just a helper in isolation.
+  describe 'form-urlencoded body assembly (set_pet_preferences)' do
+    # capture_request_body: one-shot TCP server that records the full request
+    # body and returns a minimal ApiResponse JSON so the convenience method
+    # is satisfied.
+    def capture_request_body
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      captured = Queue.new
+      thread = Thread.new do
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
+        content_length = 0
+        client.gets # request line
+        while (line = client.gets)
+          content_length = line.split(':', 2).last.strip.to_i if line.downcase.start_with?('content-length:')
+          break if line.strip.empty?
+        end
+        captured << (content_length.positive? ? client.read(content_length).to_s : '')
+        body = '{"code":200,"type":"","message":"ok"}'
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+        client.print(response)
+        client.close
+      end
+      config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(nil, config)
+      [api, server, thread, captured]
+    end
+
+    it 'bhv_operations_156 sends the form fields in the order the specification declares them' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', tags: %w[a b], note: 'n'
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent.split('&').map { |pair| pair.split('=', 2).first }).must_equal(%w[nickname tags tags note])
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 1 — a repeated-key array (`tags=a&tags=b`), not a
+    # comma-joined value or a bracketed `tags[]` form.
+    it 'bhv_serializationwire_053 expands an array form property to repeated keys' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', tags: %w[a b]
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'tags=a&tags=b'
+        _(sent).wont_include 'tags=a,b'
+        _(sent).wont_include 'tags%5B%5D'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A form field whose Encoding Object sets allowReserved keeps the RFC 3986
+    # reserved characters literal and still encodes a space and a '#'.
+    it 'bhv_serializationwire_501 keeps the reserved characters of an allowReserved form field literal' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'rex', route: 'v1.0/beta:rc1 a#b'
+        )
+        api.set_pet_preferences(1, options)
+        _(captured.pop).must_equal 'nickname=rex&route=v1.0/beta:rc1%20a%23b'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A form field whose Encoding Object sets style is written with the
+    # query-parameter styling, then form-encoded as one field.
+    it 'bhv_serializationwire_502 writes a styled form field through the query styling' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'rex', aliases: ['a b', 'c']
+        )
+        api.set_pet_preferences(1, options)
+        _(captured.pop).must_equal 'nickname=rex&aliases=a+b%7Cc'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A multipart part whose Encoding Object declares a Content-Type and a
+    # part header carries both after its Content-Disposition line.
+    it 'bhv_serializationwire_503 writes the declared part Content-Type and headers of a multipart part' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::AttachPetFilesOptions.new(
+          file: StringIO.new('bin'), caption: 'hello'
+        )
+        api.attach_pet_files(1, options)
+        sent = captured.pop
+        _(sent).must_include "name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello\r\n"
+        _(sent).must_include "name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\nbin\r\n"
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
+    # from the body entirely; only the required `nickname` is sent.
+    it 'bhv_langruby_005 omits absent optional form properties' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_equal 'nickname=Rex'
+        _(sent).wont_include 'tags'
+        _(sent).wont_include 'note'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Case 14 — a `format: date` form field serializes date-only (YYYY-MM-DD),
+    # never as a date-time.
+    it 'bhv_operations_019 serializes a format:date form property as YYYY-MM-DD' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', renewal_date: Date.new(2024, 1, 1)
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'renewalDate=2024-01-01'
+        _(sent).wont_include '2024-01-01T'
+        _(sent).wont_include '2024-01-01%20'
+        _(sent).wont_include '00%3A00'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_operations_075 serializes a format:date-time form property in the canonical form' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', reminder: Time.utc(2024, 1, 15, 10, 30, 0)
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00'
+        _(sent).wont_include '%20'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Canonical behavior 3 — a space inside a form value is encoded as '+',
+    # never '%20' (WHATWG application/x-www-form-urlencoded rules).
+    it 'bhv_serializationwire_055 encodes a space in a form value as + not %20' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Mr Whiskers', note: 'good boy'
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'nickname=Mr+Whiskers'
+        _(sent).must_include 'note=good+boy'
+        _(sent).wont_include '%20'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'YARD doc comments' do
+    # The contiguous '#' block directly above 'def find_pets_by_status(': YARD and RDoc
+    # attach nothing that sits above a blank line.
+    def doc_block(name)
+      root = File.expand_path('../..', File.dirname(__FILE__))
+      lines = File.readlines(File.join(root, 'lib', 'petstore/client', 'api', 'pet_api.rb'))
+      index = lines.index { |line| line.lstrip.start_with?("def #{name}(") }
+      lines.first(index.to_i).reverse.take_while { |line| line.strip.start_with?('#') }.reverse.map(&:strip)
+    end
+
+    it 'bhv_operations_041 keeps the summary and the options param attached to find_pets_by_status' do
+      block = doc_block('find_pets_by_status')
+      _(block.first).must_equal '# Finds Pets by status'
+      _(block).must_include '# @param options [FindPetsByStatusOptions] ' \
+                            'per-call options: the optional timeout, headers and max_retries, ' \
+                            'plus the query, header, form and cookie parameters'
+      _(block).must_include '# @raise [ApiError] if fails to make API call'
+    end
+
+    # F1155: the deprecation marker sits on the data method and on its
+    # with_http_info twin, only on the deprecated operations, and on the
+    # deprecated parameter and model.
+    it 'bhv_operations_033 marks a deprecated operation on both of its methods' do
+      %w[find_pets_by_status find_pets_by_status_with_http_info get_pet_by_id get_pet_by_id_with_http_info].each do |name|
+        _(doc_block(name)).must_include '# @deprecated This operation is deprecated.'
+      end
+    end
+
+    it 'bhv_langruby_006 does not mark an operation that is not deprecated' do
+      %w[add_pet add_pet_with_http_info delete_pet].each do |name|
+        _(doc_block(name)).wont_include '# @deprecated This operation is deprecated.'
+      end
+    end
+
+    it 'bhv_langruby_007 marks the deprecated parameter on its options class' do
+      path = String(Object.const_source_location(Petstore::Client::Api::Options::FindPetsByStatusOptions.name)&.first)
+      _(File.read(path)).must_include '# @deprecated This parameter is deprecated.'
+    end
+
+    it 'bhv_operations_032 marks the deprecated model' do
+      path = String(Object.const_source_location(Petstore::Client::Models::Tag.name)&.first)
+      _(File.read(path)).must_include '# @deprecated This schema is deprecated.'
+    end
+
+    it 'bhv_operations_082 documents no per-call authenticator on any options' do
+      _(doc_block('add_pet')).must_include '# @param options [AddPetOptions] ' \
+                                           'per-call options: the optional timeout, headers and max_retries'
+      _(doc_block('add_pet')).wont_include 'authenticator'
+      _(doc_block('delete_pet')).must_include '# @param options [DeletePetOptions] ' \
+                                              'per-call options: the optional timeout, headers and max_retries, ' \
+                                              'plus the query, header, form and cookie parameters'
+      _(doc_block('delete_pet')).wont_include 'authenticator'
+    end
+
+    # Binary downloads are returned as a ByteStream, never a File, so the YARD
+    # tag and the RBS signature say so.
+    it 'bhv_langruby_008 declares the ByteStream a binary download returns in YARD' do
+      %w[get_pet_avatar download_pet_document get_pet_photo].each do |name|
+        _(doc_block(name)).must_include '# @return [ByteStream]'
+      end
+    end
+
+    it 'bhv_langruby_009 declares the ByteStream a binary download returns in RBS' do
+      root = File.expand_path('../..', File.dirname(__FILE__))
+      rbs = File.read(File.join(root, 'sig', 'petstore/client', 'api', 'pet_api.rbs'))
+      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
+                          '-> ::Petstore::Client::ByteStream'
+      _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
+                          '-> ::Petstore::Client::ApiResult[::Petstore::Client::ByteStream]'
+      _(rbs).wont_include '-> File'
+      _(rbs).wont_include 'ApiResult[File]'
+    end
+  end
+
+  describe 'format:date path parameter' do
+    it 'bhv_operations_043 serializes find_pets_born_on as YYYY-MM-DD with no time component' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_born_on(Date.new(2024, 1, 1))
+
+        _(captured.pop[:request_line]).must_equal 'GET /pet/born-on/2024-01-01 HTTP/1.1'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'operation cookie parameter' do
+    # F840: a value that holds a character outside RFC 6265's cookie-octet set
+    # (space, double quote, comma, semicolon, backslash, a control character or
+    # anything non-ASCII) fails before a request is sent; the caller encodes it.
+    it 'bhv_operations_029 fails closed for a cookie value outside the cookie-octet set without sending a request' do
+      ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", 'a b', 'a"b', 'a,b', 'a;b', 'a\\b', "caf\u00e9"].each_case do |value|
+        client = RecordingPetClient.new
+        config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = Petstore::Client::Api::PetApi.new(client, config)
+
+        err = assert_raises(ArgumentError) do
+          api.delete_pet(1, Petstore::Client::Api::Options::DeletePetOptions.new(api_key: value))
+        end
+        _(err.message).must_equal "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+        _(client.calls).must_equal 0
+      end
+    end
+
+    it 'bhv_operations_028 sends a valid value in the Cookie header' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+
+      api.delete_pet(1, Petstore::Client::Api::Options::DeletePetOptions.new(api_key: 'abc123'))
+      _(client.headers['Cookie']).must_equal 'api_key=abc123'
+    end
+
+    # Every character of these is a legal cookie-octet, so the value goes out
+    # exactly as given: nothing is percent-encoded or decoded.
+    it 'bhv_operations_030 sends a cookie value made only of legal cookie-octets raw' do
+      ['a=b==', 'a%20b', 'a/b+c', 'a.b~c_d-e', 'a:b@c!d'].each_case do |value|
+        client = RecordingPetClient.new
+        config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = Petstore::Client::Api::PetApi.new(client, config)
+
+        api.delete_pet(1, Petstore::Client::Api::Options::DeletePetOptions.new(api_key: value))
+        _(client.headers['Cookie']).must_equal "api_key=#{value}"
+      end
+    end
+  end
+
+  describe 'generated operation server variants' do
+    def url_sent_to(operation_server)
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      yield api, operation_server
+      client.url
+    end
+
+    it 'bhv_operations_160 a call to an external-variant operation is sent to the URL of the generated server variant' do
+      url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
+        api.get_external_pet_info(7, server: server)
+      end
+      _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
+    end
+
+    it 'bhv_operations_083 sends the single-server operation to its fixed URL' do
+      url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
+        api.get_external_pet_info(7, server: server)
+      end
+      _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
+    end
+
+    it 'bhv_operations_153 sends the operation to the client base URL when no server is passed' do
+      url = url_sent_to(nil) { |api, server| api.get_external_pet_info(7, server: server) }
+      _(url).must_equal 'http://127.0.0.1:1/pet/7/external'
+    end
+
+    it 'bhv_langruby_010 substitutes the server variables into the templated URL' do
+      environment = Petstore::Client::Api::GetStagingPetInfoServerEnvironment
+      version = Petstore::Client::Api::GetStagingPetInfoServerVersion
+      server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: environment::SANDBOX, version: version::V3
+      )
+      url = url_sent_to(server) { |api, chosen| api.get_staging_pet_info(7, server: chosen) }
+      _(url).must_equal 'https://sandbox.example.com/api/v3/pet/7/staging'
+    end
+
+    it 'bhv_operations_085 sends the multi-server operation to whichever server is chosen' do
+      primary = url_sent_to(Petstore::Client::Api::GetMultiServerPetInfoServerPrimary.new) do |api, server|
+        api.get_multi_server_pet_info(7, server: server)
+      end
+      regional = url_sent_to(
+        Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(
+          region: Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion::EU
+        )
+      ) { |api, server| api.get_multi_server_pet_info(7, server: server) }
+
+      _(primary).must_equal 'https://primary.example.com/v1/pet/7/multi'
+      _(regional).must_equal 'https://eu.example.com/v1/pet/7/multi'
+    end
+
+    it 'bhv_misc_219 an operation with several servers sends its request to the server chosen for that operation' do
+      server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
+        version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
+      )
+      url = url_sent_to(server) { |api, chosen| api.get_staging_pet_info(7, server: chosen) }
+
+      _(url).must_match %r{\Ahttps://sandbox\.example\.com/api/v3/}
+    end
+
+    # The Mirror variant has two variables, and its channel values hold
+    # characters that are special in a URL and in a string literal.
+    it 'bhv_operations_084 resolves the Mirror variant for channels that are special in a URL and a string literal' do
+      {
+        'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
+        "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
+      }.each_case do |channel, expected|
+        server = Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
+          region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: channel
+        )
+        url = url_sent_to(server) { |api, chosen| api.get_multi_server_pet_info(7, server: chosen) }
+        _(url).must_equal expected
+      end
+    end
+  end
+
+  # A hand-written fake of the group: it fakes one operation and records the call.
+  def new_fake_pet_api(fail_with: nil)
+    calls = []
+    fake = Object.new
+    fake.define_singleton_method(:calls) { calls }
+    fake.define_singleton_method(:get_pet_by_id) do |pet_id, options = nil, server: nil|
+      calls << [pet_id, options, server]
+      raise fail_with if fail_with
+
+      Petstore::Client::Models::Pet.new(name: 'fake', photo_urls: Set.new)
+    end
+    fake
+  end
+
+  # Code under test: it takes the group interface, never the generated class.
+  def look_up(group, pet_id)
+    group.get_pet_by_id(pet_id)
+  end
+
+  def classify
+    yield
+    'none'
+  rescue Petstore::Client::Errors::NotFoundError
+    'not found'
+  rescue Petstore::Client::Errors::ApiError
+    'api error'
+  end
+
+  it 'bhv_mocking_003 a fake is accepted where the interface is accepted and receives the arguments' do
+    fake = new_fake_pet_api
+
+    pet = look_up(fake, 42)
+
+    _(pet.name).must_equal 'fake'
+    _(fake.calls.map(&:first)).must_equal [42]
+  end
+
+  it 'bhv_mocking_005 a call through the interface sends the same request as the class call' do
+    group = @api
+
+    direct = @api.get_pet_by_id_with_http_info(1)
+    through = group.get_pet_by_id_with_http_info(1)
+
+    _(through.status_code).must_equal direct.status_code
+    _(through.raw_body).must_equal direct.raw_body
+    _(through.data).must_equal direct.data
+  end
+
+  it 'bhv_mocking_006 a call without options reaches the full signature with none set' do
+    fake = new_fake_pet_api
+
+    look_up(fake, 7)
+
+    _(fake.calls).must_equal [[7, nil, nil]]
+  end
+
+  # The call hook is told the operation as the spec writes it, whichever of the
+  # two variants of an operation the caller uses.
+  describe 'call hook' do
+    def hooked_pet_api(hook)
+      config = Petstore::Client::Configuration.builder.base_url('http://127.0.0.1:1').call_hook(hook).build
+      Petstore::Client::Api::PetApi.new(RecordingPetClient.new(body: '[]'), config)
+    end
+
+    it 'bhv_hooks_009 starts and finishes the hook once for each of the plain and the WithHttpInfo variant' do
+      hook = RecordingCallHook.new
+      api = hooked_pet_api(hook)
+
+      api.find_pets_by_status
+      _(hook.infos.length).must_equal 1
+      _(hook.outcomes.length).must_equal 1
+
+      api.find_pets_by_status_with_http_info
+      _(hook.infos.length).must_equal 2
+      _(hook.outcomes.length).must_equal 2
+    end
+  end
+
+  # The lists that come one page at a time, read from an in-process server that answers
+  # by the cursor it is asked for.
+  describe 'paged lists' do
+    def pet_json(name)
+      %({"id":1,"name":"#{name}","photoUrls":[]})
+    end
+
+    # A catalog page: the pets of page +page+ of +size+, and the cursor of the page after it.
+    def catalog_body(page, size, pages)
+      items = (0...size).map { |index| pet_json("p#{page}-#{index}") }.join(',')
+      following = page + 1 < pages ? %(,"next_cursor":"c#{page + 1}") : ''
+      %({"items":[#{items}]#{following}})
+    end
+
+    def page_of(request)
+      cursor = request.param('cursor')
+      cursor.nil? ? 0 : cursor[1..].to_i
+    end
+
+    # A catalog of +pages+ pages of +size+ pets; the cursor of page n is "c" followed by n.
+    def catalog_server(pages, size)
+      PagedServer.new { |request, _number| PagedReply.ok(catalog_body(page_of(request), size, pages)) }
+    end
+
+    # A feed page: one pet and a Link header that names the next page, or none on the last.
+    def feed_server(pages, &link)
+      PagedServer.new do |request, _number|
+        index = request.param('page').to_i
+        headers = index + 1 < pages ? { 'Link' => link.call(index + 1) } : {}
+        PagedReply.ok("[#{pet_json("f#{index}")}]", headers)
+      end
+    end
+
+    def same_origin_feed(pages)
+      origin = [] # : Array[PagedServer]
+      feed_server(pages) { |following| "<#{origin.first.url}/pet/feed?page=#{following}&secret=s3>; rel=\"next\"" }
+        .tap { |server| origin << server }
+    end
+
+    # The pets p<from> to p<to - 1>, as JSON objects separated by commas.
+    def pets_json(from, to)
+      (from...to).map { |index| pet_json("p#{index}") }.join(',')
+    end
+
+    # Five pets, p0 to p4, answered in slices of two from the offset asked for; past the last pet the page is empty.
+    def offset_server
+      PagedServer.new do |request, _number|
+        offset = request.param('offset').to_i
+        PagedReply.ok(%({"items":[#{pets_json(offset, [offset + 2, 5].min)}]}))
+      end
+    end
+
+    # Five pets, p0 to p4, answered in numbered pages of two from page 1; every page says has_more, so the list
+    # ends on the empty page after the last pet.
+    def page_number_server
+      PagedServer.new do |request, _number|
+        first = ((request.param('page') || '1').to_i - 1) * 2
+        PagedReply.ok(%({"items":[#{pets_json(first, [first + 2, 5].min)}],"has_more":true}))
+      end
+    end
+
+    # Five pets, p0 to p4, answered in pages of two after the id given; has_more is false on the last page.
+    def after_server
+      PagedServer.new do |request, _number|
+        after = request.param('starting_after')
+        first = after.nil? ? 0 : after[1..].to_i + 1
+        last = [first + 2, 5].min
+        PagedReply.ok(%({"data":[#{pets_json(first, last)}],"has_more":#{last < 5},"last_id":"p#{last - 1}"}))
+      end
+    end
+
+    # Feed pages f0 to f<pages - 1>, one pet each, with the URL of the next page in the body, on the same origin.
+    def next_url_server(pages)
+      origin = [] # : Array[PagedServer]
+      server = PagedServer.new do |request, _number|
+        index = request.param('p').to_i
+        following = index + 1 < pages ? %(,"next_url":"#{origin.first.url}/pet/next?p=#{index + 1}") : ''
+        PagedReply.ok(%({"items":[#{pet_json("f#{index}")}]#{following}}))
+      end
+      origin << server
+      server
+    end
+
+    def pet_api_for(server, transport: nil, headers: {}, authenticator: nil)
+      transport ||= Petstore::Client::TransportOptions.builder.max_retries(0).build
+      config = Petstore::Client::Configuration.new(base_url: server.url, default_headers: headers)
+      Petstore::Client::Api::PetApi.new(Petstore::Client::DefaultApiClient.new(transport), config, authenticator)
+    end
+
+    def names(list)
+      list.map(&:name)
+    end
+
+    # What a read delivers before it raises: the names read, and the error.
+    def read_until_error(list, error_class)
+      delivered = []
+      error = assert_raises(error_class) { list.each { |pet| delivered << pet.name } }
+      [delivered, error]
+    end
+
+    def catalog_options(**members)
+      Petstore::Client::Api::Options::ListPetCatalogOptions.new(**members)
+    end
+
+    it 'bhv_pagination_001 a paged operation reads no page until the first item or page is requested' do
+      server = catalog_server(2, 2)
+      list = pet_api_for(server).list_pet_catalog_pages
+      _(server.seen).must_be_empty
+      [list.items, list.pages, list.each].each { |view| _(view).must_be_kind_of Enumerator }
+      _(server.seen).must_be_empty
+      _(list.items.first.name).must_equal 'p0-0'
+      _(server.seen.length).must_equal 1
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_002 a token-cursor operation yields every item of every page in order and sends the next page cursor' do
+      server = catalog_server(3, 2)
+      _(names(pet_api_for(server).list_pet_catalog_pages)).must_equal %w[p0-0 p0-1 p1-0 p1-1 p2-0 p2-1]
+      _(server.params('cursor')).must_equal [nil, 'c1', 'c2']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_003 the next request is sent only when the consumer asks for more items' do
+      server = catalog_server(3, 2)
+      items = pet_api_for(server).list_pet_catalog_pages.items
+      2.times { items.next }
+      _(server.seen.length).must_equal 1
+      items.next
+      _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_004 an offset and limit operation advances the offset by the items received and ends on an empty page' do
+      server = offset_server
+      _(names(pet_api_for(server).list_pet_offsets_pages)).must_equal %w[p0 p1 p2 p3 p4]
+      _(server.params('offset')).must_equal [nil, '2', '4', '5']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_005 a page-number operation starts at the supplied page and increments it' do
+      server = page_number_server
+      _(names(pet_api_for(server).list_pet_page_numbers_pages)).must_equal %w[p0 p1 p2 p3 p4]
+      _(server.params('page')).must_equal [nil, '2', '3', '4']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_006 an id-cursor operation ends when has_more is false' do
+      server = after_server
+      _(names(pet_api_for(server).list_pets_after_pages)).must_equal %w[p0 p1 p2 p3 p4]
+      _(server.params('starting_after')).must_equal [nil, 'p1', 'p3']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_007 a Link-header operation follows rel=next and ends when it is absent' do
+      server = same_origin_feed(3)
+      _(names(pet_api_for(server).list_pet_feed_pages)).must_equal %w[f0 f1 f2]
+      _(server.params('page')).must_equal [nil, '1', '2']
+      _(server.seen[2].path).must_equal '/pet/feed'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_008 a Link next URL on another origin is refused and no credentials are sent to it' do
+      elsewhere = PagedServer.new { |_request, _number| PagedReply.ok("[#{pet_json('stolen')}]") }
+      origin = PagedServer.new do |_request, _number|
+        PagedReply.ok("[#{pet_json('f0')}]", { 'Link' => "<#{elsewhere.url}/pet/feed?page=1>; rel=\"next\"" })
+      end
+      api = pet_api_for(origin, headers: { 'Authorization' => 'Bearer secret' })
+      delivered, refused = read_until_error(api.list_pet_feed_pages, Petstore::Client::Errors::PaginationError)
+      _(delivered).must_equal ['f0']
+      _(origin.seen.first.headers['authorization']).must_equal 'Bearer secret'
+      _(refused.message).wont_include 'page=1'
+      _(elsewhere.seen).must_be_empty
+      _(origin.seen.length).must_equal 1
+    ensure
+      elsewhere&.close
+      origin&.close
+    end
+
+    it 'bhv_pagination_009 an empty page with a next cursor continues and an absent, null or empty cursor ends' do
+      ['', ',"next_cursor":null', ',"next_cursor":""'].each_case do |ending|
+        server = PagedServer.new do |request, _number|
+          PagedReply.ok(
+            request.param('cursor').nil? ? '{"items":[],"next_cursor":"c1"}' : %({"items":[#{pet_json('only')}]#{ending}})
+          )
+        end
+        begin
+          _(names(pet_api_for(server).list_pet_catalog_pages)).must_equal ['only']
+          _(server.seen.length).must_equal 2
+        ensure
+          server.close
+        end
+      end
+    end
+
+    it 'bhv_pagination_010 pages yields one page per response with its items, status, headers, decoded body and next cursor' do
+      server = PagedServer.new do |request, _number|
+        page = page_of(request)
+        PagedReply.ok(catalog_body(page, 2, 2), { 'X-Page' => page.to_s })
+      end
+      pages = pet_api_for(server).list_pet_catalog_pages.pages.to_a
+      _(pages.length).must_equal 2
+      _(names(pages[0].items)).must_equal %w[p0-0 p0-1]
+      _(pages[0].result.status_code).must_equal 200
+      _(pages.map { |page| page.result.headers['x-page'] }).must_equal %w[0 1]
+      _(pages[0].result.data).must_be_kind_of Petstore::Client::Models::PetCatalogPage
+      _(pages[0].next_cursor).must_equal 'c1'
+      _(pages[1].next_cursor).must_be_nil
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_011 the cursor passed to the paged method is the starting position and the first request sends it' do
+      server = catalog_server(3, 1)
+      _(names(pet_api_for(server).list_pet_catalog_pages(catalog_options(cursor: 'c1')))).must_equal %w[p1-0 p2-0]
+      _(server.seen.first.param('cursor')).must_equal 'c1'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_012 resuming with the next cursor of a page continues with the following page' do
+      server = catalog_server(3, 1)
+      api = pet_api_for(server)
+      resume = api.list_pet_catalog_pages.pages.first.next_cursor
+      _(resume).must_equal 'c1'
+      _(names(api.list_pet_catalog_pages(catalog_options(cursor: resume)))).must_equal %w[p1-0 p2-0]
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_013 every other parameter, including the page size, is repeated unchanged on each page request' do
+      server = catalog_server(3, 1)
+      names(pet_api_for(server).list_pet_catalog_pages(catalog_options(limit: 1, headers: { 'X-Keep' => 'yes' })))
+      _(server.seen.length).must_equal 3
+      server.seen.each do |request|
+        _(request.param('limit')).must_equal '1'
+        _(request.headers['x-keep']).must_equal 'yes'
+      end
+      _(server.params('cursor')).must_equal [nil, 'c1', 'c2']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_014 a cursor equal to the one just sent raises a PaginationError instead of looping' do
+      server = PagedServer.new { |_request, number| PagedReply.ok(%({"items":[#{pet_json("p#{number}")}],"next_cursor":"c1"})) }
+      delivered, failure = read_until_error(pet_api_for(server).list_pet_catalog_pages, Petstore::Client::Errors::PaginationError)
+      _(delivered).must_equal %w[p1 p2]
+      _(failure.request_path).must_equal '/pet/catalog'
+      _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_015 an error on a later page is raised after the earlier pages items were delivered and ends iteration' do
+      server = PagedServer.new do |request, _number|
+        request.param('cursor').nil? ? PagedReply.ok(catalog_body(0, 2, 3)) : PagedReply.new(404, '{}', {}, 0)
+      end
+      delivered, failure = read_until_error(pet_api_for(server).list_pet_catalog_pages, Petstore::Client::Errors::NotFoundError)
+      _(delivered).must_equal %w[p0-0 p0-1]
+      _(failure.status_code).must_equal 404
+      _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_016 a 503 on the second page is retried under the retry rules and iteration continues' do
+      server = PagedServer.new do |_request, number|
+        page = number == 1 ? 0 : 1
+        number == 2 ? PagedReply.status(503) : PagedReply.ok(catalog_body(page, 1, 2))
+      end
+      transport = Petstore::Client::TransportOptions.builder.max_retries(2).build
+      _(names(pet_api_for(server, transport: transport).list_pet_catalog_pages)).must_equal %w[p0-0 p1-0]
+      _(server.params('cursor')).must_equal [nil, 'c1', 'c1']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_017 the per-call timeout, headers and retry count apply to each page request' do
+      server = PagedServer.new do |_request, number|
+        page = number == 2 ? 0 : 1
+        number.odd? ? PagedReply.status(503) : PagedReply.ok(catalog_body(page, 1, 2))
+      end
+      names(pet_api_for(server).list_pet_catalog_pages(catalog_options(max_retries: 1, headers: { 'X-Trace' => 't1' })))
+      _(server.seen.length).must_equal 4
+      server.seen.each { |request| _(request.headers['x-trace']).must_equal 't1' }
+
+      slow = PagedServer.new do |request, _number|
+        reply = PagedReply.ok(catalog_body(page_of(request), 1, 2))
+        request.param('cursor').nil? ? reply : reply.after(1.5)
+      end
+      delivered, = read_until_error(
+        pet_api_for(slow).list_pet_catalog_pages(catalog_options(timeout: 300)), Petstore::Client::Errors::NetworkTimeoutError
+      )
+      _(delivered).must_equal ['p0-0']
+    ensure
+      server&.close
+      slow&.close
+    end
+
+    it 'bhv_pagination_018 stopping early sends no further request and leaves nothing to close' do
+      server = catalog_server(3, 2)
+      _(pet_api_for(server).list_pet_catalog_pages.items.first.name).must_equal 'p0-0'
+      _(server.seen.length).must_equal 1
+      _(pet_api_for(server).list_pet_catalog_pages.first(3).length).must_equal 3
+      _(server.seen.length).must_equal 3
+      _(pet_api_for(server).list_pet_catalog_pages).wont_respond_to :close
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_019 cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout' do
+      cancelled = Class.new(StandardError)
+      server = PagedServer.new do |request, _number|
+        reply = PagedReply.ok(catalog_body(page_of(request), 1, 2))
+        request.param('cursor').nil? ? reply : reply.after(8)
+      end
+      transport = Petstore::Client::TransportOptions.builder.max_retries(0).timeout(20_000).build
+      list = pet_api_for(server, transport: transport).list_pet_catalog_pages
+      failure = nil
+      reader = Thread.new do
+        list.to_a
+      rescue StandardError => e
+        failure = e
+      end
+      sleep 0.02 while server.seen.length < 2
+      reader.raise(cancelled.new)
+      reader.join(5)
+      _(reader.alive?).must_equal false
+      _(failure).must_be_instance_of cancelled
+      _(failure).wont_be_kind_of Petstore::Client::Errors::NetworkTimeoutError
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_020 iterating a second time starts again from the starting position' do
+      server = catalog_server(2, 2)
+      list = pet_api_for(server).list_pet_catalog_pages
+      _(names(list)).must_equal names(list)
+      _(server.seen.length).must_equal 4
+      _(server.params('cursor')).must_equal [nil, 'c1', nil, 'c1']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_021 a page that does not decode on a later page fails with the serialization error after the earlier items' do
+      server = PagedServer.new do |_request, number|
+        PagedReply.ok(number == 1 ? catalog_body(0, 1, 2) : '{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}')
+      end
+      delivered, = read_until_error(pet_api_for(server).list_pet_catalog_pages, Petstore::Client::Errors::SerializationError)
+      _(delivered).must_equal ['p0-0']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_022 a refreshed credential is used for the next page' do
+      server = catalog_server(3, 1)
+      names(pet_api_for(server, authenticator: PagedRotatingAuthenticator.new).list_pet_catalog_pages)
+      _(server.seen.map { |request| request.headers['authorization'] }).must_equal(
+        ['Bearer token-1', 'Bearer token-2', 'Bearer token-3']
+      )
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_023 an error from a Link-driven page request carries the path without the query' do
+      server = PagedServer.new do |request, _number|
+        if request.param('page')
+          PagedReply.new(500, '{}', {}, 0)
+        else
+          PagedReply.ok("[#{pet_json('f0')}]", { 'Link' => '</pet/feed?page=1&secret=s3>; rel="next"' })
+        end
+      end
+      delivered, failure = read_until_error(pet_api_for(server).list_pet_feed_pages, Petstore::Client::Errors::ApiError)
+      _(delivered).must_equal ['f0']
+      _(failure.status_code).must_equal 500
+      _(failure.request_path).must_equal '/pet/feed'
+      _(failure.message).wont_include 's3'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method' do
+      paged = Petstore::Client::Api::PetApi.public_instance_methods(false).grep(/_pages\z/).sort
+      _(paged).must_equal %i[
+        list_pet_catalog_pages list_pet_events_pages list_pet_feed_pages list_pet_next_url_pages list_pet_notes_pages
+        list_pet_offsets_pages list_pet_page_numbers_pages list_pets_after_pages
+      ]
+      _(Petstore::Client::Api::PetApi.public_method_defined?(:list_pet_matches)).must_equal true
+    end
+
+    it 'bhv_pagination_025 a paged method has the same parameters in the same order as the base method and the base method is unchanged' do
+      server = catalog_server(1, 1)
+      %i[list_pet_catalog list_pet_events list_pet_feed list_pet_next_url list_pet_notes list_pet_offsets list_pet_page_numbers list_pets_after].each_case do |base|
+        pages = Petstore::Client::Api::PetApi.instance_method(:"#{base}_pages")
+        _(pages.parameters).must_equal Petstore::Client::Api::PetApi.instance_method(base).parameters
+      end
+      _(pet_api_for(server).list_pet_catalog).must_be_kind_of Petstore::Client::Models::PetCatalogPage
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_026 the generator option overrides inference and can switch an operation or the whole feature off' do
+      api = Petstore::Client::Api::PetApi
+      _(api.public_method_defined?(:list_pet_events_pages)).must_equal true
+      _(api.public_method_defined?(:list_pet_archive_pages)).must_equal false
+      _(api.public_method_defined?(:list_pet_archive)).must_equal true
+    end
+
+    it 'bhv_pagination_027 headers and options given to the paged method are sent on every page request' do
+      server = same_origin_feed(3)
+      options = Petstore::Client::Api::Options::ListPetFeedOptions.new(limit: 1, headers: { 'X-Keep' => 'yes' })
+      names(pet_api_for(server).list_pet_feed_pages(options))
+      _(server.seen.length).must_equal 3
+      server.seen.each { |request| _(request.headers['x-keep']).must_equal 'yes' }
+      _(server.seen.first.param('limit')).must_equal '1'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_028 the cursor for the next page is taken from the accepted response, never from a retried attempt' do
+      server = PagedServer.new do |request, number|
+        if number == 1
+          PagedReply.new(503, '{"items":[],"next_cursor":"WRONG"}', { 'Retry-After' => '0' }, 0)
+        else
+          PagedReply.ok(catalog_body(request.param('cursor').nil? ? 0 : 1, 1, 2))
+        end
+      end
+      transport = Petstore::Client::TransportOptions.builder.max_retries(2).build
+      _(names(pet_api_for(server, transport: transport).list_pet_catalog_pages)).must_equal %w[p0-0 p1-0]
+      _(server.params('cursor')).must_equal [nil, nil, 'c1']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_029 a next URL in the body is followed and a next URL on another origin is refused' do
+      server = next_url_server(3)
+      _(names(pet_api_for(server).list_pet_next_url_pages)).must_equal %w[f0 f1 f2]
+      _(server.params('p')).must_equal [nil, '1', '2']
+      elsewhere = PagedServer.new { |_request, _number| PagedReply.ok(%({"items":[#{pet_json('stolen')}]})) }
+      origin = PagedServer.new do |_request, _number|
+        PagedReply.ok(%({"items":[#{pet_json('f0')}],"next_url":"#{elsewhere.url}/pet/next?p=1"}))
+      end
+      api = pet_api_for(origin, headers: { 'Authorization' => 'Bearer secret' })
+      delivered, refused = read_until_error(api.list_pet_next_url_pages, Petstore::Client::Errors::PaginationError)
+      _(delivered).must_equal ['f0']
+      _(origin.seen.first.headers['authorization']).must_equal 'Bearer secret'
+      _(refused.message).wont_include 'p=1'
+      _(elsewhere.seen).must_be_empty
+    ensure
+      server&.close
+      elsewhere&.close
+      origin&.close
+    end
+
+    it 'bhv_pagination_030 a vendor extension on an operation is read as a hint, and the override option wins over it' do
+      _(Petstore::Client::Api::PetApi.public_method_defined?(:list_pet_notes_pages)).must_equal true
+    end
+
+    it 'bhv_pagination_031 the repeated-cursor failure is a PaginationError and is not a network error or an API error' do
+      error_class = Petstore::Client::Errors::PaginationError
+      _(error_class.superclass).must_equal ::Petstore::Client::Errors::OpenAPIError
+      server = PagedServer.new { |_request, _number| PagedReply.ok('{"items":[],"next_cursor":"c1"}') }
+      failure = assert_raises(error_class) { names(pet_api_for(server).list_pet_catalog_pages(catalog_options(cursor: 'c1'))) }
+      _(failure).wont_be_kind_of Petstore::Client::Errors::ApiError
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_032 an operation that is streamed is never also given a paged method' do
+      store = Petstore::Client::Api::StoreApi
+      _(store.public_instance_methods(false).grep(/_pages\z/)).must_be_empty
+      _(store.public_method_defined?(:export_orders_stream)).must_equal true
+    end
+  end
+end

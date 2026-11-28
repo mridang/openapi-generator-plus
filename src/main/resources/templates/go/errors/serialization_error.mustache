@@ -1,0 +1,111 @@
+{{>api_info}}
+package errors
+
+import (
+	"fmt"
+	"strings"
+)
+
+// SerializationError is returned when serialization or deserialization fails: a
+// value cannot be encoded to, or decoded from, its wire form (malformed JSON, a
+// wrong primitive type, a missing required field, an unknown enum value or a
+// malformed date, time or duration). It satisfies the branded {{errorPrefix}}Error
+// root, so it shares a common ancestor with the transport-level ApiError hierarchy.
+//
+// Its state is immutable: fields are set once at construction via
+// NewSerializationError and read through the Message and Cause getters.
+//
+// A failure to decode a response body also carries the response it came from
+// (status, headers, raw body) and the request that was sent (method and path
+// without its query); those are empty when the failure did not come from a
+// response.
+type SerializationError struct {
+	message         string
+	cause           error
+	statusCode      int
+	responseHeaders map[string]string
+	responseBody    string
+	requestMethod   string
+	requestPath     string
+}
+
+// NewSerializationError creates a SerializationError. The underlying decode or
+// encode error is kept as the cause, so errors.Is and errors.As still reach it.
+func NewSerializationError(message string, cause error) *SerializationError {
+	return &SerializationError{message: message, cause: cause}
+}
+
+// Message returns the error message.
+func (e *SerializationError) Message() string {
+	return e.message
+}
+
+// Cause returns the underlying error, if any.
+func (e *SerializationError) Cause() error {
+	return e.cause
+}
+
+// AttachResponse records the response whose body could not be decoded and the
+// request it answers; the query string and any fragment are cut off the path.
+// The SDK calls it once, where it decodes the response; a value that is already
+// set is kept.
+func (e *SerializationError) AttachResponse(statusCode int, headers map[string]string, body, method, path string) {
+	if e.statusCode != 0 || e.requestMethod != "" {
+		return
+	}
+	if cut := strings.IndexAny(path, "?#"); cut >= 0 {
+		path = path[:cut]
+	}
+	e.statusCode = statusCode
+	e.responseHeaders = headers
+	e.responseBody = body
+	e.requestMethod = method
+	e.requestPath = path
+}
+
+// StatusCode returns the HTTP status of the response that could not be
+// decoded, or 0 when the failure did not come from a response.
+func (e *SerializationError) StatusCode() int {
+	return e.statusCode
+}
+
+// ResponseHeaders returns the headers of the response that could not be
+// decoded, or nil when the failure did not come from a response.
+func (e *SerializationError) ResponseHeaders() map[string]string {
+	return e.responseHeaders
+}
+
+// ResponseBody returns the raw body of the response that could not be decoded,
+// or an empty string when the failure did not come from a response.
+func (e *SerializationError) ResponseBody() string {
+	return e.responseBody
+}
+
+// RequestMethod returns the HTTP method of the request whose response could not
+// be decoded, or an empty string when the failure did not come from a response.
+func (e *SerializationError) RequestMethod() string {
+	return e.requestMethod
+}
+
+// RequestPath returns the path of the request whose response could not be
+// decoded, without its query string, or an empty string when the failure did
+// not come from a response.
+func (e *SerializationError) RequestPath() string {
+	return e.requestPath
+}
+
+// is{{errorPrefix}}Error brands SerializationError as a {{errorPrefix}}Error.
+func (e *SerializationError) is{{errorPrefix}}Error() {}
+
+// Error implements the error interface.
+func (e *SerializationError) Error() string {
+	if e.cause != nil {
+		return fmt.Sprintf("%s: %v", e.message, e.cause)
+	}
+	return e.message
+}
+
+// Unwrap returns the underlying error so errors.Is and errors.As can reach it.
+func (e *SerializationError) Unwrap() error {
+	return e.cause
+}

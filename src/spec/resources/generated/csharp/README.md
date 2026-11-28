@@ -1,0 +1,596 @@
+# Swagger Petstore - OpenAPI 3.0 SDK
+
+Auto-generated C# SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## API information
+
+Pets, owners and orders for integration tests
+
+- **Contact:** Petstore API support
+- **Contact email:** support@example.com
+- **Contact URL:** https://example.com/support
+- **License:** Apache 2.0 (https://spdx.org/licenses/Apache-2.0.html)
+- **Terms of service:** https://example.com/terms
+
+## Requirements
+
+- **.NET 10** (Long Term Support, supported until November 2028) runtime / SDK or newer
+- **C# 14** language version (`LangVersion=14`)
+- **dotnet CLI 10.x** or newer — install from <https://dotnet.microsoft.com/download/dotnet/10.0>
+
+Tooling baked into the project:
+
+- **Formatter:** `dotnet format` (built into the SDK) and `dotnet csharpier`
+- **Linter / style:** `dotnet csharpier check` and `dotnet format --verify-no-changes`, with `EnforceCodeStyleInBuild=true` applying the `.editorconfig` code-style rules during the build
+- **Static analysis:** [`Microsoft.CodeAnalysis.NetAnalyzers`](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) (Roslyn analyzers), with `EnableNETAnalyzers=true` and `AnalysisLevel=latest-all`
+
+## Installation
+
+```bash
+dotnet add package PetstoreClient
+```
+
+## Usage
+
+```csharp statements
+using PetstoreClient;
+
+var host =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_HOST")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_HOST is not set");
+var token =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+using var client = Client.WithToken(host, token);
+var result = await client.Store.GetDefaultsAsync();
+Console.WriteLine(result);
+```
+
+The client is `IDisposable`: dispose it to release its connections. A disposed
+client throws `InvalidOperationException`. Streams that are still open are cancelled. Errors derive from
+`OpenAPIException`; `ApiException` carries an HTTP response or a transport
+failure, `NetworkException` and `NetworkTimeoutException` mean no HTTP response
+arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md)
+for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfoAsync` variant returning an `ApiResult<T>`
+with `StatusCode`, `Data`, `RawBody` and the lower-cased `Headers`. It is the way
+to read a response header. An operation whose success response declares headers
+also has a `<Operation>ResponseHeaders` type;
+`<Operation>ResponseHeaders.From(result.Headers)` reads them in their declared types.
+
+### Timeouts
+
+`TransportOptionsBuilder.Timeout(5000)` sets one end-to-end budget in milliseconds
+(a positive integer) for the whole call, redirects and retries included; the
+default is 60000. A call that exceeds it fails with `NetworkTimeoutException`.
+
+`TransportOptions.Builder().MaxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
+### Automatic retries
+
+A failed request is retried automatically, twice by default:
+`TransportOptionsBuilder.MaxRetries(n)` sets the number of retries and `0`
+turns them off. A retry is made after a network error that happened before a
+response arrived and after the statuses 408, 409, 429 and 500-599 (not 501).
+The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After`
+the server sent (seconds or an HTTP date, at most 60 s). Retries never extend
+the request timeout, cancelling stops them, every retry rebuilds the headers
+(so it carries current authentication), and a single-use `BodySource` or
+multipart body is never retried.
+
+### Per-call options
+
+Every operation takes an optional options object (named after the operation, as in
+`<Operation>Options`) that accepts three per-call settings next to its parameters: `Timeout` (milliseconds,
+greater than zero) replaces the transport timeout for that call, `MaxRetries` replaces
+the retry limit (`0` turns retries off) and `Headers` adds request headers, sent after
+the default and authentication headers and replacing a header of the same name.
+Anything left null keeps the transport's setting. An operation with no parameters and
+no security requirement has an options object too, with only these three settings.
+
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfoAsync` variant alike, and also when you supply your own transport.
+
+```csharp file
+using System.Diagnostics;
+using PetstoreClient;
+
+public static class TimingExample
+{
+    public static Client Create() =>
+        Client.WithToken("https://api.example.com", "your-token", callHook: new TimingHook());
+}
+
+internal sealed class TimingObserver(CallInfo info, long started) : ICallObserver
+{
+    public void Finish(CallOutcome outcome) =>
+        Console.WriteLine(
+            $"{info.OperationId} {outcome.StatusCode} {Stopwatch.GetElapsedTime(started).TotalMilliseconds} ms");
+}
+
+internal sealed class TimingHook : ICallHook
+{
+    public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+    {
+        headers["X-Caller"] = "billing";
+        return new TimingObserver(info, Stopwatch.GetTimestamp());
+    }
+}
+```
+
+`Start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `OperationId` (as written in the spec), `Method`, `UrlTemplate`, `Url` (without query string and fragment) and `ServerAddress`. It returns the observer to call when the call ends, or `null`. `Finish(outcome)` runs exactly once on every way the call can end, with `StatusCode` (`0` when no response arrived), the lower-cased response `Headers` (`null` when no response arrived) and the `Error` the caller receives (`null` on success). An error thrown by `Start` reaches the caller unchanged, nothing is sent and `Finish` is not called; an error thrown by `Finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `ICallHook.Chain(first, second)`: they start in the order given and finish in the reverse order. `Start` and `Finish` run inline and must not block.
+
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. It is built on the `ActivitySource` and `Meter` types of the base class library, so there is nothing to install: pass `new OpenTelemetryCallHook()`, and add the source and the meter named `PetstoreClient` to your OpenTelemetry setup (`AddSource` and `AddMeter`).
+
+```csharp statements
+using PetstoreClient;
+
+using var client = Client.WithToken(
+    "https://api.example.com", "your-token", callHook: new OpenTelemetryCallHook());
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
+### Error details
+
+An `ApiException` and every subclass carry `RequestMethod` and `RequestPath` (the path
+without its query string) next to `StatusCode` and `ResponseBody`, and the message names
+them: `API returned status code 404 for GET /items/7`. The query string is left out so a
+key or token sent in it never reaches a log.
+
+### Immutable models
+
+Model properties are `init`-only and each model is a C# `record`, so a model is never
+changed after it is built: copy it with a `with` expression, `var next = item with { Name = "x" };`.
+The copy is shallow, so a list or dictionary property still refers to the same collection.
+A union (`oneOf`) wrapper is immutable too and is built with a typed factory, `Wrapper.FromVariant(value)`,
+and read back with `IsVariant()` and `AsVariant()`.
+
+### Several success responses
+
+An operation that declares more than one 2xx response with different schemas returns
+a union, and the body is decoded as the schema of the status that arrived: `200` as the
+first, `201` as the second. Ask the union which one it holds with its `Is...()` and
+`As...()` members.
+
+### Credentials from the environment
+
+`Client.FromEnvironment()` reads the host from `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and the bearer
+token from `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, once, when the client is built; an empty value counts as unset.
+The `host`, `token` and `tokenProvider` arguments win over the environment, and a
+`tokenProvider` callback is called before every request, so a token refreshed elsewhere is
+picked up. A missing host or credential fails the call that builds the client.
+
+Each per-scheme authenticator reads its own credentials the same way. Every credential argument is
+optional: an argument you pass wins, else the variable is read once, in the constructor, and an
+empty value counts as unset. A credential that is neither passed nor set fails the constructor with
+`InvalidOperationException` that names the variable. The bearer authenticators also take a
+`tokenProvider` callback in place of a token, and it wins over the environment.
+
+| Variable | Scheme | Credential |
+|---|---|---|
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` | `adminBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` | `adminBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` | `apiKeyHeader` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` | `apiKeyQuery` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` | `archiveDigest` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` | `archiveDigest` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` | `browserAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` | `deviceAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` | `internalApiKey` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` | `legacyAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` | `legacyAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` | `legacyAuth` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` | `legacyAuth` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` | `machineAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` | `machineAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` | `petStoreBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` | `petStoreBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` | `petStoreBearer` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` | `serviceToken` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` | `sessionCookie` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` | `ssoAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` | `ssoAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` | `ssoAuth` | `redirectUri` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` | `userAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` | `userAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` | `userAuth` | `redirectUri` |
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call RequestDeviceAuthorizationAsync() to get the user code and verification URI to show to the user, then PollForTokenAsync() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+### Response compression
+
+The client asks for `gzip, deflate, br` and decodes the response itself, so the body you read
+is always the decoded one. A `Content-Encoding` it cannot decode fails with an `ApiException`
+that carries the real status.
+
+### Logging
+
+The SDK writes no logs. To see requests and responses, wrap the transport: pass a
+`DelegatingHandler` through `TransportOptionsBuilder.HttpMessageHandler(...)`, or implement
+`IApiClient`.
+
+### Optional versus nullable
+
+A property that is optional is `T?` and null means it was absent. A property that is optional
+and also `nullable: true` collapses into the same `T?`: an absent key and an explicit `null`
+read the same, and neither is written back. A required nullable property keeps its key and is
+written as `null`. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list decodes to the enum's catch-all member (`UnknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
+
+### Response headers
+
+`ApiResult.Headers` and `ApiException.ResponseHeaders` are a plain map with lower-cased names.
+A header the server repeats (`Link`, `Set-Cookie`) is joined into one value with `, ` in the
+order it arrived, so a `Set-Cookie` value is not parsed for you.
+
+### Configuration and transport options
+
+`Configuration` holds what belongs to the API (the base URL and default headers) and
+`TransportOptions` holds how bytes travel (proxy, TLS, timeouts, retries). They stay separate:
+the transport is shared by every API group, the configuration is per group.
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call is answered with 401, the cached access
+token is dropped (the refresh token is kept) and the request is sent once more
+with fresh headers. A second 401 is raised as `UnauthorizedException`. A single-use
+or multipart body is not replayed, and API key, basic and bearer authenticators never
+replay.
+
+### Request id
+
+`TransportOptionsBuilder.InjectRequestId(true)` adds a unique `X-Request-ID`
+header to every request unless you set your own (header names are matched
+case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+Every operation takes a trailing `CancellationToken cancellationToken = default`.
+Cancelling it aborts the in-flight request and raises
+`OperationCanceledException`, which is distinct from the
+`NetworkTimeoutException` raised when the request timeout elapses.
+`TransportOptionsBuilder.CancellationToken(...)` sets a client-level token that
+is linked with every call's token, so either one cancels the request. Pass
+the built options as the second constructor argument:
+`new Client(authenticator, transport)`.
+
+```csharp file
+using PetstoreClient;
+
+public static class Cancellation
+{
+    public static async Task GetDefaultsWithinTwoSecondsAsync(Client client)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await client.Store.GetDefaultsAsync(cancellationToken: cts.Token);
+    }
+}
+```
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `Dispose()` that aborts the connection instead of draining it, so close it when you stop early (`await using`). `ReadAllAsync()` reads the rest into memory and leaves the stream closed.
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Api.Options;
+
+public static class Download
+{
+    public static async Task SaveToAsync(Client client, long petId, long documentId, DownloadPetDocumentOptions? options, string target)
+    {
+        await using ByteStream stream = await client.Pet.DownloadPetDocumentAsync(petId, documentId, options);
+        Console.WriteLine(stream.StatusCode);
+        await using FileStream file = File.Create(target);
+        await stream.CopyToAsync(file);
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.Dispose()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreamingAsync` fails a stream call with `NotSupportedException` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.Of(bytes)`, `BodySource.OfFile(path)` or `BodySource.FromFactory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.Once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `Once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<Operation>StreamAsync` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`Id`, `Event`, `Data`, `Retry` and the raw data text as `Raw`; `T` is the schema of the `data`, or a string). Iterate it (`await foreach`), and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `MaxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Models;
+using PetstoreClient.Api.Options;
+
+public static class JsonLinesFeed
+{
+    public static async Task ReadAsync(Client client, ExportOrdersOptions? options)
+    {
+        await using JsonLinesStream<Order> feed = await client.Store.ExportOrdersStreamAsync(options);
+        await foreach (Order item in feed)
+        {
+            Console.WriteLine(item);
+        }
+    }
+}
+```
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Api.Options;
+
+public static class SseFeed
+{
+    public static async Task ReadAsync(Client client, WatchNoticesOptions? options)
+    {
+        await using SseStream<string> feed = await client.Store.WatchNoticesStreamAsync(options);
+        await foreach (ServerSentEvent<string> item in feed)
+        {
+            Console.WriteLine(item.Data);
+        }
+    }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `ReconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `MaxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.Dispose()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `IdleTimeout` and `LastEventId`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<Operation>PagesAsync` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, TCursor>`, where `T` is the item type and `TCursor` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Iterate the paginator (`await foreach`) for the items, or call `Pages()` for `Page<T, TCursor>` values with `Items`, `NextCursor` and `Result`, the same result that the `WithHttpInfoAsync` variant returns (an `IApiResult`, which you cast to the `ApiResult<T>` of the page type for the decoded body), so the status and headers stay reachable. Iterating again starts again from the starting position.
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Models;
+using PetstoreClient.Api.Options;
+
+public static class ListEverything
+{
+    public static async Task ReadAsync(Client client, ListPetCatalogOptions? options)
+    {
+        Paginator<Pet, string?> list = client.Pet.ListPetCatalogPagesAsync(options);
+        await foreach (Pet item in list)
+        {
+            Console.WriteLine(item);
+        }
+        await foreach (Page<Pet, string?> page in list.Pages())
+        {
+            Console.WriteLine($"{page.Items.Count} items, status {page.Result.StatusCode}");
+        }
+    }
+}
+```
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `null` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationException`, a direct child of `OpenAPIException`, after its items were delivered, instead of looping. There is no total limit and no collect-all: stop the loop with `break`.
+
+How each style ends and resumes: an id list passes the `last_id` or `next_cursor` of each page as the starting cursor of the next request and ends when a declared `has_more` is false. An offset list starts at the offset you pass, sends the offset past the items it received on each next request, and ends on an empty page or when a declared `has_more` is false. A page-number list sends the page you pass, or none, and then asks for the page after each one, and ends on an empty page or when a declared `has_more` is false. A next URL list takes the URL in the body of each page, follows it only within the origin of the client, and ends when the property is absent, `null` or empty. A cursor, offset or page that does not advance raises `PaginationException` as a token cursor does.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationException` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+A list whose page body carries the next URL in a property (a next URL list) is followed in the same way as a `Link` list: the URL is taken from the body of each response, a next URL that leaves the scheme, host or port of the client is refused with `PaginationException`, nothing is sent to it, and such a method cannot resume from a saved position.
+
+The generator finds a paged operation by its names and shape. The operation must be a GET with one JSON 2xx response, and it must match exactly one of these styles. A token cursor is one query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker`, paired with a next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type. An id cursor is one query parameter among `starting_after`, `after_id` and `after`, paired with a boolean `has_more` and a string `last_id` or `next_cursor` property. A `Link` list has a `Link` header declared on the response. An offset list has an `offset` query parameter with a `limit`, and a page-number list has a `page` query parameter with one of `per_page`, `page_size`, `size` or `limit`. A next URL list has no cursor parameter and a string property with `format: uri` or `uri-reference`, or one named `next_url`, `next_uri`, `nextlink` or `next_link`, that is optional or nullable. An operation that matches more than one style is ambiguous, and one that is streamed is never paged; either keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty, hasMoreProperty}`, where the style is `token`, `link`, `id`, `offset`, `page` or `body`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+### Custom HTTP transport
+
+`TransportOptionsBuilder.HttpClient(...)` carries requests on your own
+`HttpClient`, and `TransportOptionsBuilder.HttpMessageHandler(...)` wraps your
+own handler in the SDK's client. The SDK keeps its timeout, `User-Agent`,
+default headers and redirect policy on top and never disposes what you
+supplied: you own its lifecycle. The supplied client or handler owns its proxy,
+TLS and connection pool, so combining it with `Proxy`, `CaCertPath` or
+`VerifySsl(false)` fails in `Build()` with an `ArgumentException`, and so does
+a stock handler with `AllowAutoRedirect` turned on.
+
+### Testing your code
+
+Every API group has an interface (`IPetApi`) and the client has one (`IClient`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```csharp file
+using System.Reflection;
+using PetstoreClient;
+using PetstoreClient.Api;
+
+public class Fake : DispatchProxy
+{
+    public List<string> Calls { get; } = new();
+
+    // A fake is any implementation of the interface; this one records every call it receives.
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        Calls.Add(targetMethod!.Name);
+        return null;
+    }
+}
+
+public static class FakeExample
+{
+    // Code under test takes the group interface, never the generated class.
+    public static void Use(IPetApi api) { }
+
+    public static void Main()
+    {
+        var group = DispatchProxy.Create<IPetApi, Fake>();
+        Use(group);
+    }
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; use a proxy like this one, or delegate to a base fake, so only the operation you fake is written.
+
+## Build
+
+```bash
+dotnet build
+```
+
+## Test
+
+```bash
+dotnet test
+```
+
+## Format / Lint / Analyze
+
+```bash
+# Apply formatting (CSharpier + dotnet format)
+make format
+# or directly:
+dotnet csharpier format .
+dotnet format --severity warn
+
+# Verify formatting without writing changes
+make lint
+# or directly:
+dotnet csharpier check .
+dotnet format --verify-no-changes --severity warn
+
+# Run the Roslyn analyzers with warnings as errors
+make analyze
+# or directly:
+dotnet build --no-restore /warnaserror
+```
+
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a direct or transitive NuGet package has a known vulnerability (`dotnet list package --vulnerable --include-transitive`).
+
+## Package
+
+- Name: `PetstoreClient`
+- Version: `1.0.0`
+- License: Apache-2.0
+
+The package follows semantic versioning: a patch release only fixes bugs, a minor
+release only adds members, and a major release may change the public API. The
+package targets .NET 10 or newer, and a runtime that reaches its end of support is
+dropped from the supported set in a major release. The XML documentation file and
+symbol package (`.snupkg`) ship with it, so IntelliSense and the debugger show the
+summaries and the sources.
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+`format: number` and `format: decimal` fields map to .NET's `decimal`,
+a base-10 type that represents monetary values exactly — `0.1m + 0.2m`
+is `0.3m`, with no binary rounding error. Arithmetic on prices,
+balances, and other money-typed fields is safe.
+
+`format: float` and `format: double` are different: they map to the
+binary floating-point types `float` and `double`, so values like
+`0.1 + 0.2` evaluate to `0.30000000000000004`. Do not use those
+formats for money. If a numeric field carries currency, model it as
+`format: number` (decimal) in the spec, or parse the raw response body
+yourself and convert to `decimal`.
+
+`format: int64` is unaffected — .NET's `long` natively represents the
+full 64-bit range without precision loss.
+
+### Trimming and Blazor WebAssembly
+
+This SDK works in applications published with **`PublishTrimmed`**
+(Release Blazor WebAssembly, single-file deployments, etc.). The SDK
+serializes through `System.Text.Json`'s reflection-based resolver, which
+trimming would normally break, so two things keep it safe: the models
+are preserved by an embedded `ILLink.Descriptors.xml` keep-list, and the
+serializer pins a `DefaultJsonTypeInfoResolver` so reflection stays
+enabled under trimming. The generated models deserialize through a
+parameterless constructor and `required` init accessors (with a
+backward-compatible convenience constructor), so the trimmer has no
+constructor parameter names to strip. A trimmed consumer will emit
+`IL2026`/`IL2075` trim-analysis warnings pointing at the SDK — these are
+expected for any reflection-based serializer and are non-fatal; the
+keep-list guarantees the required types survive.
+
+**Native AOT is not supported.** Full ahead-of-time compilation
+(`PublishAot` / `RunAOTCompilation`) removes reflection entirely, which
+the custom converters and reflection-based serialization rely on.
+Supporting AOT would require regenerating the serialization layer with
+the System.Text.Json source generator. Use the (default, interpreted or
+trimmed) JIT/IL runtime instead.
+
+### Enum string forms
+
+A generated enum is a native C# `enum`, so `ToString()` and string interpolation give
+the member name (`Color.Red` prints `Red`), not the value on the wire (`red`). The
+wire value is written and read only by the enum's JSON converter; do not build
+URLs or log lines from `ToString()` when you need the wire value.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, and by
+the generated models only where the C# model layer does it natively:
+System.Text.Json enforces required members, integer ranges and wire types,
+and nothing else. The SDK does not check the remaining keywords before the
+request is sent. `uniqueItems` arrays are modelled as `HashSet<T>` and sent in
+the set's natural enumeration order, not sorted.
+
+Constraint validation can be turned on with the `ValidateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `HttpClientHandler` and pass it with
+`TransportOptionsBuilder.HttpMessageHandler(...)`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+with an `ArgumentException` when `Build()` is called. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares Apache-2.0, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

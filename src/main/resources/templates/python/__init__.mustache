@@ -1,0 +1,137 @@
+{{>api_info}}
+__version__ = '{{packageVersion}}'
+
+# Define package exports
+__all__ = [
+    {{#apiInfo}}{{#apis}}'{{classname}}',
+    '{{classname}}Protocol',
+    {{/apis}}{{/apiInfo}}'Authenticator',
+    '{{clientClassName}}',
+    '{{clientClassName}}Protocol',
+    'ApiClient',
+    'BodySource',
+    'ByteStream',
+    'JsonLinesStream',
+    'ServerSentEvent',
+    'SseStream',
+    'StreamOptions',
+    'Paginator',
+    'Page',
+    'Configuration',
+    'CallHook',
+    'CallObserver',
+    'CallInfo',
+    'CallOutcome',
+    'chain',
+    'TransportOptions',
+    'ServerConfiguration',
+    'ServerVariable',
+    '{{errorPrefix}}Exception',
+    'ApiException',
+    'ClientException',
+    'ServerException',
+    'BadRequestException',
+    'UnauthorizedException',
+    'ForbiddenException',
+    'NotFoundException',
+    'ConflictException',
+    'UnprocessableEntityException',
+    'TooManyRequestsException',
+    'PaymentRequiredException',
+    'MethodNotAllowedException',
+    'RequestTimeoutException',
+    'GoneException',
+    'PayloadTooLargeException',
+    'UnsupportedMediaTypeException',
+    'LockedException',
+    'NotImplementedException',
+    'BadGatewayException',
+    'ServiceUnavailableException',
+    'GatewayTimeoutException',
+    'InternalServerErrorException',
+    'NetworkException',
+    'NetworkTimeoutException',
+    'StreamException',
+    'ResponseTooLargeException',
+    'PaginationException',
+    'SerializationException',
+    'OAuth2ServerException',
+    'OAuth2TokenException',
+    {{#hasHttpSignatureMethods}}'HttpSigningConfiguration',
+    {{/hasHttpSignatureMethods}}{{#models}}{{#model}}'{{classname}}'{{^-last}},
+    {{/-last}}{{#-last}},{{/-last}}{{/model}}{{/models}}
+]
+
+# import apis into sdk package
+{{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classFilename}} import {{classname}} as {{classname}}
+from {{apiPackage}}.{{classFilename}} import {{classname}}Protocol as {{classname}}Protocol
+{{/apis}}{{/apiInfo}}
+# import ApiClient
+from {{packageName}}.api_client import ApiClient as ApiClient
+from {{packageName}}.body_source import BodySource as BodySource
+from {{packageName}}.byte_stream import ByteStream as ByteStream
+from {{packageName}}.json_lines_stream import JsonLinesStream as JsonLinesStream
+from {{packageName}}.server_sent_event import ServerSentEvent as ServerSentEvent
+from {{packageName}}.sse_stream import SseStream as SseStream
+from {{packageName}}.stream_options import StreamOptions as StreamOptions
+from {{packageName}}.paginator import Paginator as Paginator
+from {{packageName}}.page import Page as Page
+from {{packageName}}.auth.authenticator import Authenticator as Authenticator
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}Protocol as {{clientClassName}}Protocol
+from {{packageName}}.configuration import Configuration as Configuration
+from {{packageName}}.call_hook import CallHook as CallHook
+from {{packageName}}.call_hook import CallObserver as CallObserver
+from {{packageName}}.call_hook import CallInfo as CallInfo
+from {{packageName}}.call_hook import CallOutcome as CallOutcome
+from {{packageName}}.call_hook import chain as chain
+from {{packageName}}.transport_options import TransportOptions as TransportOptions
+from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration
+from {{packageName}}.server_configuration import ServerVariable as ServerVariable
+from {{packageName}}.errors import {{errorPrefix}}Exception as {{errorPrefix}}Exception
+from {{packageName}}.errors import ApiException as ApiException
+from {{packageName}}.errors import ClientException as ClientException
+from {{packageName}}.errors import ServerException as ServerException
+from {{packageName}}.errors import BadRequestException as BadRequestException
+from {{packageName}}.errors import UnauthorizedException as UnauthorizedException
+from {{packageName}}.errors import ForbiddenException as ForbiddenException
+from {{packageName}}.errors import NotFoundException as NotFoundException
+from {{packageName}}.errors import ConflictException as ConflictException
+from {{packageName}}.errors import UnprocessableEntityException as UnprocessableEntityException
+from {{packageName}}.errors import TooManyRequestsException as TooManyRequestsException
+from {{packageName}}.errors import PaymentRequiredException as PaymentRequiredException
+from {{packageName}}.errors import MethodNotAllowedException as MethodNotAllowedException
+from {{packageName}}.errors import RequestTimeoutException as RequestTimeoutException
+from {{packageName}}.errors import GoneException as GoneException
+from {{packageName}}.errors import PayloadTooLargeException as PayloadTooLargeException
+from {{packageName}}.errors import UnsupportedMediaTypeException as UnsupportedMediaTypeException
+from {{packageName}}.errors import LockedException as LockedException
+from {{packageName}}.errors import NotImplementedException as NotImplementedException
+from {{packageName}}.errors import BadGatewayException as BadGatewayException
+from {{packageName}}.errors import ServiceUnavailableException as ServiceUnavailableException
+from {{packageName}}.errors import GatewayTimeoutException as GatewayTimeoutException
+from {{packageName}}.errors import InternalServerErrorException as InternalServerErrorException
+from {{packageName}}.errors import NetworkException as NetworkException
+from {{packageName}}.errors import NetworkTimeoutException as NetworkTimeoutException
+from {{packageName}}.errors import StreamException as StreamException
+from {{packageName}}.errors import ResponseTooLargeException as ResponseTooLargeException
+from {{packageName}}.errors import PaginationException as PaginationException
+from {{packageName}}.errors import SerializationException as SerializationException
+from {{packageName}}.errors import OAuth2ServerException as OAuth2ServerException
+from {{packageName}}.errors import OAuth2TokenException as OAuth2TokenException
+{{#hasHttpSignatureMethods}}
+from {{packageName}}.signing import HttpSigningConfiguration as HttpSigningConfiguration
+{{/hasHttpSignatureMethods}}
+
+# import models into sdk package
+{{#models}}
+{{#model}}
+from {{modelPackage}}.{{classFilename}} import (
+    {{classname}} as {{classname}},
+)
+{{/model}}
+{{/models}}
+{{#recursionLimit}}
+
+__import__('sys').setrecursionlimit({{{.}}})
+{{/recursionLimit}}

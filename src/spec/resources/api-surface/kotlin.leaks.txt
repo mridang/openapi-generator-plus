@@ -1,0 +1,109 @@
+# Public Kotlin signatures allowed to name a third-party type: <signature> | <reason>
+com/example/petstore/BodySource$Companion: public final fun once (Lio/ktor/utils/io/ByteReadChannel;Ljava/lang/Long;)Lcom/example/petstore/BodySource; | a streamed upload body can be read from a Ktor ByteReadChannel
+com/example/petstore/BodySource$Companion: public final fun once (Lkotlinx/coroutines/flow/Flow;Ljava/lang/Long;)Lcom/example/petstore/BodySource; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/BodySource: public final fun chunks ()Lkotlinx/coroutines/flow/Flow; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/ByteStream: public final fun chunks ()Lkotlinx/coroutines/flow/Flow; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/JsonLinesStream: public final fun items ()Lkotlinx/coroutines/flow/Flow; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/ObjectSerializer$Companion: public final fun getContextualSerializersModule ()Lkotlinx/serialization/modules/SerializersModule; | ObjectSerializer's kotlinx.serialization helpers are public; they should be internal
+com/example/petstore/ObjectSerializer: public final fun getJson ()Lkotlinx/serialization/json/Json; | ObjectSerializer's kotlinx.serialization helpers are public; they should be internal
+com/example/petstore/ObjectSerializer: public final fun parseToJsonElement (Ljava/lang/String;)Lkotlinx/serialization/json/JsonElement; | ObjectSerializer's kotlinx.serialization helpers are public; they should be internal
+com/example/petstore/ObjectSerializer: public fun <init> (Lkotlinx/serialization/json/Json;)V | ObjectSerializer's kotlinx.serialization helpers are public; they should be internal
+com/example/petstore/ObjectSerializerKt: public static final fun rejectUnevaluatedKeys (Lkotlinx/serialization/json/JsonElement;Lkotlinx/serialization/descriptors/SerialDescriptor;)V | ObjectSerializer's kotlinx.serialization helpers are public; they should be internal
+com/example/petstore/ObjectSerializerKt: public static final fun validateScalarLeaves (Lkotlinx/serialization/json/JsonElement;Lkotlinx/serialization/descriptors/SerialDescriptor;Ljava/lang/String;)V | ObjectSerializer's kotlinx.serialization helpers are public; they should be internal
+com/example/petstore/OpenTelemetryCallHook$Companion: public final fun create (Lio/opentelemetry/api/OpenTelemetry;)Lcom/example/petstore/OpenTelemetryCallHook; | the OpenTelemetry hook is built from the caller's OpenTelemetry instance by design
+com/example/petstore/OpenTelemetryCallHook: public static final fun create (Lio/opentelemetry/api/OpenTelemetry;)Lcom/example/petstore/OpenTelemetryCallHook; | the OpenTelemetry hook is built from the caller's OpenTelemetry instance by design
+com/example/petstore/Paginator: public final fun items ()Lkotlinx/coroutines/flow/Flow; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/Paginator: public final fun pages ()Lkotlinx/coroutines/flow/Flow; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/SseStream: public final fun events ()Lkotlinx/coroutines/flow/Flow; | streams and pages are exposed as a kotlinx.coroutines Flow, the idiomatic Kotlin async sequence
+com/example/petstore/TransportOptions$Builder: public final fun httpClient (Lio/ktor/client/HttpClient;)Lcom/example/petstore/TransportOptions$Builder; | TransportOptions accepts a caller-supplied Ktor HttpClient by design
+com/example/petstore/TransportOptions: public final fun getHttpClient ()Lio/ktor/client/HttpClient; | TransportOptions accepts a caller-supplied Ktor HttpClient by design
+com/example/petstore/models/Account$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/ApiResponse$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/AttachPetFilesRequest$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Availability$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/BinaryVault$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Blobs$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Car$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Category$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Circle$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Color$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Counters$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Defaults$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Defaults$ModeEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Department$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/DryFood$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/EdgeCases$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/EdgeCases$PhaseEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Employee$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Freeform$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Ledger$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Medication$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/MemberNotFound$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Memo$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Metadata$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/ModelError$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/ModelResult$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Moments$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/NativeValues$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Order$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Order$StatusEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Pet$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Pet$StatusEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetAfterPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetArchivePage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetCatalogPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetCriteria$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetEventPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetFood$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetMatchPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetNextUrlPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetNotePage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetOffsetPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetPageNumberPage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetPassport$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetTreatment$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetWithOwner$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PetWithOwner$StatusEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Photo$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PhotoMetadata$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/PhotoMetadataLocation$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Priority$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/ProjectNotFound$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Rank$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/RejectedRequest$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/RequiredNullable$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Reservation$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/ReservationReceipt$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/ReserveStockResponse$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Roster$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Separator$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/SetPetAvatarRequest$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/SetPetAvatarThumbnailRequest$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Shape$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Shape$Serializer: public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/example/petstore/models/Shape; | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+com/example/petstore/models/Shape$Serializer: public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor; | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+com/example/petstore/models/Shape$Serializer: public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/example/petstore/models/Shape;)V | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+com/example/petstore/models/Sparse$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Square$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Stage$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/StateConflict$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/StockItem$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/StrictTag$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Subscription$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Subscription$IntervalEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Surgery$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Swatch$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Tag$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Tier$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/TreatmentRecord$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/TreeNode$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Truck$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/UnexpectedFailure$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/UpstreamFailure$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Vehicle$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+com/example/petstore/models/Vehicle$Serializer: public fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/example/petstore/models/Vehicle; | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+com/example/petstore/models/Vehicle$Serializer: public fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor; | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+com/example/petstore/models/Vehicle$Serializer: public fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/example/petstore/models/Vehicle;)V | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+com/example/petstore/models/WetFood$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer; | the serialization plugin's companion serializer() of a @Serializable class
+public final class com/example/petstore/models/Shape$Serializer : kotlinx/serialization/KSerializer | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal
+public final class com/example/petstore/models/Vehicle$Serializer : kotlinx/serialization/KSerializer | the union's custom KSerializer is public so @Serializable(with=) can name it; it could be internal

@@ -1,0 +1,24 @@
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{#notes}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{#returnType}}
+     * @return {@code {{{returnType}}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+{{/externalDocs}}
+     */

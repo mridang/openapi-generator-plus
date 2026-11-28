@@ -1,0 +1,52 @@
+{{>api_info}}
+namespace {{package}};
+{{#imports}}
+
+use {{.}};
+{{/imports}}
+
+/**
+ * Scheme-specific authenticator for the {{schemeName}} security scheme.
+{{#schemeDeprecated}}
+ *
+ * Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
+ */
+final class {{className}} extends {{baseClass}}
+{
+{{#hasOAuth2MetadataUrl}}
+    /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
+    public const string METADATA_URL = {{{oauth2MetadataUrlLiteral}}};
+{{#hasCredentialEnvVars}}
+
+{{/hasCredentialEnvVars}}
+{{^hasCredentialEnvVars}}
+{{#hasCustomConstructor}}
+
+{{/hasCustomConstructor}}
+{{/hasCredentialEnvVars}}
+{{/hasOAuth2MetadataUrl}}
+{{#hasCredentialEnvVars}}
+    protected const array ENV_VARS = [
+{{#credentialEnvVars}}
+        '{{field}}' => '{{envName}}',
+{{/credentialEnvVars}}
+    ];
+{{#hasCustomConstructor}}
+
+{{/hasCustomConstructor}}
+{{/hasCredentialEnvVars}}
+{{#hasCustomConstructor}}
+    public function __construct(
+        {{#constructorParams}}
+        {{#sensitive}}#[\SensitiveParameter] {{/sensitive}}{{type}} ${{name}}{{#defaultNull}} = null{{/defaultNull}}{{^-last}},{{/-last}}
+        {{/constructorParams}}
+    ) {
+        parent::__construct(
+            {{#superArgs}}
+            {{.}}{{^-last}},{{/-last}}
+            {{/superArgs}}
+        );
+    }
+{{/hasCustomConstructor}}
+}

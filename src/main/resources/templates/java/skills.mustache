@@ -1,0 +1,604 @@
+# {{appNameBase}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>{{groupId}}</groupId>
+    <artifactId>{{artifactId}}</artifactId>
+    <version>{{artifactVersion}}</version>
+</dependency>
+```
+
+Or with Gradle:
+
+```groovy
+implementation '{{groupId}}:{{artifactId}}:{{artifactVersion}}'
+```
+
+## Quick Start
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+
+{{>usage_statements}}
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor{{#hasClientSchemes}} or, one per security scheme, to `{{clientClassName}}.builder(host)`{{/hasClientSchemes}}.
+
+### Bearer Token
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.BearerAuthenticator;
+
+var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+A token that rotates comes from a callback that runs before every request (pass either a token or a callback, never both):
+
+```java file
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import java.util.function.Supplier;
+
+class RotatingToken {
+    static BearerAuthenticator authenticator(Supplier<String> currentToken) {
+        return new BearerAuthenticator("https://api.example.com", currentToken);
+    }
+}
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.BasicAuthenticator;
+
+var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.ApiKeyAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyLocation;
+
+var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.HEADER);
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+import java.util.List;
+
+var authenticator = new OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", List.of());
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.oauth.OAuth2AuthorizationCodeAuthenticator;
+import java.util.List;
+
+var authenticator = new OAuth2AuthorizationCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", List.of());
+var client = new {{clientClassName}}(authenticator);
+authenticator.exchangeCode("authorization-code");
+```
+
+`buildAuthorizationUrl(state)` adds a PKCE S256 `code_challenge` (RFC 7636) and keeps the matching 43-character verifier, which `exchangeCode` sends as `code_verifier`; call it before `exchangeCode`.
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator;
+import java.util.List;
+
+var authenticator = new OAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password", List.of());
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator;
+import java.util.List;
+
+var authenticator = new OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", List.of());
+authenticator.setAccessToken("your-access-token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator;
+import java.util.List;
+
+var authenticator = new OpenIdConnectAuthenticator(
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", List.of());
+var client = new {{clientClassName}}(authenticator);
+authenticator.exchangeCode("authorization-code");
+```
+
+{{/hasOpenIdConnect}}
+{{#hasClientSchemes}}
+### Credentials per security scheme
+
+`{{clientClassName}}.builder(host)` takes one optional credential per security scheme, named after the scheme. Each operation uses the credential of the first scheme in its own security list that the client holds, falls back to the single authenticator of `new {{clientClassName}}(authenticator)` when it holds none of them, and sends no credential when there is neither or when the operation declares `security: []`. There is no per-call scheme override and no authenticator on an options object.
+
+{{>credentials_per_scheme}}
+
+{{/hasClientSchemes}}
+{{#hasSecuritySchemeEnvVars}}
+### Credentials from the environment
+
+The authenticator generated for a security scheme (in the `auth` package, named after the scheme) reads a credential you pass as `null` or an empty string from an environment variable, once, when it is built. A value you pass wins. A credential found in neither place throws `IllegalArgumentException` naming the variable.
+
+| Scheme | Credential | Variable |
+| --- | --- | --- |
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+The base `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` never read the environment; A rotating token comes from a callback instead: `new BearerAuthenticator(host, tokenProvider)`.
+
+{{/hasSecuritySchemeEnvVars}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Expired tokens
+
+When the API answers an OAuth2 or OpenID Connect request with `401`, the authenticator drops the cached access token (`invalidateAccessToken()`, the refresh token is kept) and the request is sent once more with fresh headers. A second `401` raises `UnauthorizedException`. Single-use and multipart bodies are not replayed; API key, basic and bearer authenticators never replay.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```java statements
+import {{invokerPackage}}.auth.oauth.ClientAuthMethod;
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+
+var authenticator = new OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", java.util.List.of(), ClientAuthMethod.BASIC);
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. A server the spec gives a name is also found by that name with `Servers.byName("name")`, which fails with `IllegalArgumentException` when no server has the name. Pass the desired server's URL to the client:
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.Servers;
+
+var client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), "your-token");
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.Authenticator;
+
+var fake = new Authenticator() {
+    public java.util.Map<String, String> getAuthHeaders() {
+        return java.util.Map.of("Authorization", "Bearer test-token");
+    }
+    public String getHost() { return "https://api.example.com"; }
+};
+
+var client = new {{clientClassName}}(fake);
+```
+
+## Error Handling
+
+Every error the SDK raises derives from `{{errorPrefix}}Exception` (unchecked). Catch it to handle everything, or catch the more specific branches below. The error hierarchy is:
+
+- `{{errorPrefix}}Exception` (root)
+  - `SerializationException` (a request or response body could not be encoded or decoded)
+  - `OAuth2ServerException` (the token endpoint answered with an OAuth2 error response)
+  - `OAuth2TokenException` (the token response was unusable, for example no `access_token`)
+  - `ApiException` (an HTTP response or its absence)
+    - `ClientException` (4xx)
+      - `BadRequestException` (400)
+      - `UnauthorizedException` (401)
+      - `ForbiddenException` (403)
+      - `NotFoundException` (404)
+      - `ConflictException` (409)
+      - `UnprocessableEntityException` (422)
+      - `TooManyRequestsException` (429)
+      - `PaymentRequiredException` (402)
+      - `MethodNotAllowedException` (405)
+      - `RequestTimeoutException` (408)
+      - `GoneException` (410)
+      - `PayloadTooLargeException` (413)
+      - `UnsupportedMediaTypeException` (415)
+      - `LockedException` (423)
+    - `ServerException` (5xx)
+      - `InternalServerErrorException` (500)
+      - `NotImplementedException` (501)
+      - `BadGatewayException` (502)
+      - `ServiceUnavailableException` (503)
+      - `GatewayTimeoutException` (504)
+    - `NetworkException` (no HTTP response, status 0)
+      - `NetworkTimeoutException` (the request timed out, status 0)
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}```java file
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.errors.ClientException;
+import {{invokerPackage}}.errors.NotFoundException;
+import {{invokerPackage}}.errors.ServerException;
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+class ErrorHandling {
+    static void {{operationId}}OrReport({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        try {
+{{#returnType}}
+            var result = client.{{clientPropertyName}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}});
+            System.out.println(result);
+{{/returnType}}
+{{^returnType}}
+            client.{{clientPropertyName}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}});
+{{/returnType}}
+        } catch (NotFoundException e) {
+            System.out.println("Not found: " + e.getMessage());
+        } catch (ClientException e) {
+            System.out.println("Client error " + e.getStatusCode() + ": " + e.getMessage());
+        } catch (ServerException e) {
+            System.out.println("Server error: " + e.getMessage());
+        } catch (ApiException e) {
+            System.out.println("API error: " + e.getMessage());
+        }
+    }
+}
+```{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+An `ApiException` also carries `getRequestMethod()` and `getRequestPath()` (no query string), which `toString()` renders as a `Request: GET /path` line.
+
+## Configuration
+
+### Custom Transport Options
+
+```java file
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.TransportOptions;
+import {{invokerPackage}}.auth.Authenticator;
+
+class Transport {
+    static {{clientClassName}} build(Authenticator authenticator) {
+        var transport = TransportOptions.builder()
+            .proxy("http://proxy:3128")
+            .timeout(5000)
+            .maxRetries(3)
+            .build();
+
+        return new {{clientClassName}}(authenticator, transport);
+    }
+}
+```
+
+### Retries
+
+`maxRetries` (default `2`, `0` disables) retries a network error that happened before any response, and HTTP 408, 409, 429 and 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (seconds or an HTTP date, capped at 60 s). Retries share the single end-to-end `timeout` and never extend it, a thread interrupt cancels the wait, and a single-use `BodySource` is never retried.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (try-with-resources). `readAllBytes()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```java file
+import {{invokerPackage}}.ByteStream;
+import {{invokerPackage}}.{{clientClassName}};
+{{#binaryStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+class Download {
+    static void saveTo({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, Path target)
+            throws IOException {
+        try (ByteStream stream = client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})) {
+            System.out.println(stream.getStatusCode());
+            Files.copy(stream, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+}
+```
+{{/binaryStreamOperation}}
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedOperationException` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.ofFile(path)` or `BodySource.fromSupplier(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+{{#hasJsonLinesStreamOperation}}
+
+```java file
+import {{invokerPackage}}.JsonLinesStream;
+import {{invokerPackage}}.{{clientClassName}};
+{{#jsonLinesStreamOperation}}
+{{#vendorExtensions.op.streamTyped}}
+import {{modelPackage}}.{{{vendorExtensions.op.streamItemJava}}};
+{{/vendorExtensions.op.streamTyped}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+class JsonLinesFeed {
+    static void read({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        try (JsonLinesStream<{{{vendorExtensions.op.streamItemJava}}}> feed = client.{{#jsonLinesStreamGroup}}{{clientPropertyName}}{{/jsonLinesStreamGroup}}.{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})) {
+            while (feed.hasNext()) {
+                System.out.println(feed.next());
+            }
+        }
+    }
+}
+```
+{{/jsonLinesStreamOperation}}
+{{/hasJsonLinesStreamOperation}}
+{{#hasSseStreamOperation}}
+
+```java file
+import {{invokerPackage}}.SseStream;
+import {{invokerPackage}}.{{clientClassName}};
+{{#sseStreamOperation}}
+{{#vendorExtensions.op.streamTyped}}
+import {{modelPackage}}.{{{vendorExtensions.op.streamItemJava}}};
+{{/vendorExtensions.op.streamTyped}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+class SseFeed {
+    static void read({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        try (SseStream<{{{vendorExtensions.op.streamItemJava}}}> feed = client.{{#sseStreamGroup}}{{clientPropertyName}}{{/sseStreamGroup}}.{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})) {
+            while (feed.hasNext()) {
+                System.out.println(feed.next().data());
+            }
+        }
+    }
+}
+```
+{{/sseStreamOperation}}
+{{/hasSseStreamOperation}}
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, C>`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Iterate the paginator for the items, call `stream()` for a `Stream<T>`, or call `pages()` for `Page<T, C>` values with `items()`, `nextCursor()` and `result()`, the same `ApiResult` that the `WithHttpInfo` variant returns, so the status and headers stay reachable. Iterating again starts again from the starting position.
+{{#hasPagedOperation}}
+
+```java file
+import {{invokerPackage}}.Page;
+import {{invokerPackage}}.Paginator;
+import {{invokerPackage}}.{{clientClassName}};
+{{#pagedOperation}}
+{{#vendorExtensions.op.pagination.itemModel}}
+import {{modelPackage}}.{{{.}}};
+{{/vendorExtensions.op.pagination.itemModel}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+class ListEverything {
+    static void read({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        {{{vendorExtensions.op.pagination.javaPaginatorType}}} list = client.{{#pagedGroup}}{{clientPropertyName}}{{/pagedGroup}}.{{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}});
+        for ({{{vendorExtensions.op.pagination.itemType}}} item : list) {
+            System.out.println(item);
+        }
+        for (Page<{{{vendorExtensions.op.pagination.itemType}}}, {{#vendorExtensions.op.pagination.isToken}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isToken}}{{#vendorExtensions.op.pagination.isLink}}Void{{/vendorExtensions.op.pagination.isLink}}> page : list.pages()) {
+            System.out.println(page.items().size() + " items, status " + page.result().statusCode());
+        }
+    }
+}
+```
+{{/pagedOperation}}
+{{/hasPagedOperation}}
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `null` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationException`, a direct child of `{{errorPrefix}}Exception`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `Stream.limit`.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationException` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+The generator finds a paged operation by its names: a GET with one JSON 2xx response that has one array property, and either one cursor query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker` paired with one next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type, or a `Link` header declared on the response. An operation that is ambiguous, or is streamed, keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty}`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+### Custom HTTP client
+
+```java statements
+import {{invokerPackage}}.TransportOptions;
+
+var httpClient = java.net.http.HttpClient.newBuilder()
+    .followRedirects(java.net.http.HttpClient.Redirect.NEVER)
+    .build();
+var transport = TransportOptions.builder().httpClient(httpClient).build();
+```
+
+The SDK sends every request through your client and never closes it. Combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
+
+### Closing the client
+
+`close()` is graceful and idempotent: it marks the client closed and returns, requests already in flight finish, and the transport the SDK created is released when the last of them completes. A request issued after that throws `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). Streams that are still open are cancelled. A `java.net.http.HttpClient` you supplied is never closed.
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as given when every character is a legal RFC 6265 cookie-octet (`%` is one, so a value you percent-encoded yourself goes out unchanged). Any other value (space, double quote, comma, semicolon, backslash, control or non-ASCII character) throws `IllegalArgumentException` before the request is sent; percent-encode it first. The SDK never encodes a cookie value.
+
+### Cancellation
+
+Interrupt the calling thread; the call throws `java.util.concurrent.CancellationException` (the `InterruptedException` is its cause) and is never reported as `NetworkTimeoutException`.
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}```java file
+import {{invokerPackage}}.{{clientClassName}};
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+import java.util.concurrent.Executors;
+
+class Cancellation {
+    static void {{operationId}}ThenCancel({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+        var executor = Executors.newSingleThreadExecutor();
+        var task = executor.submit(() -> client.{{clientPropertyName}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}));
+        task.cancel(true);
+        executor.shutdown();
+    }
+}
+```{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+### Per-call options
+
+Every operation takes an optional trailing `<Operation>Options` object, even one with no parameters of its own and no security. It also takes `timeout(millis)`, `maxRetries(n)` and `headers(map)`, which apply to that call only (it never carries an authenticator); leave it out or pass `null` to use the client's settings.
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode()`, `data()`, `rawBody()`, `headers()`). `timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
+
+### Hooks and telemetry
+
+One optional hook runs around every call: `{{clientClassName}}.builder(host).callHook(hook).build()` (or `Configuration.builder().callHook(hook)`). `CallHook.start(info, headers)` runs once per call after the headers are final and may edit them; it returns a `CallObserver` (or `null`) whose `finish(outcome)` runs exactly once with the status (`0` when no response arrived), the lower-cased headers (`null` when none arrived) and the error. An error from `start` reaches the caller; an error from `finish` is swallowed. `CallHook.chain(a, b)` starts in order and finishes in reverse. `OpenTelemetryCallHook.create()` records one span, `http.client.request.count` and `http.client.request.duration` per call; it needs `opentelemetry-api` on the classpath.
+
+## API Methods
+
+Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+## Models
+
+Models are generated as immutable Java classes in the `{{modelPackage}}` package: the fields are `final`, a model is made with its `builder()` (or its constructor when it has required properties) and copied with `toBuilder()`. A required property that is missing fails when the model is built.
+
+{{#models}}{{#model}}{{#-first}}{{^isEnum}}{{#vars}}{{#-first}}```java file
+import {{modelPackage}}.{{classname}};
+
+class Models {
+    static {{classname}} changed({{classname}} model, {{#isEnum}}{{classname}}.{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} value) {
+        return model.toBuilder().{{vendorExtensions.builderName}}(value).build();
+    }
+}
+```{{/-first}}{{/vars}}{{/isEnum}}{{/-first}}{{/model}}{{/models}}
+
+A model that accepts extra keys reads them through `getAdditionalProperties()` (unmodifiable) and writes them with the builder's `putAdditionalProperty`, `putAllAdditionalProperties`, `removeAdditionalProperty` and `additionalProperties(map)`. A `oneOf` or `anyOf` model has `ofVariant(v)`, and for a plain class variant `isVariant()` and `asVariant()`.
+
+## Binary / File Uploads
+
+A raw binary request body is a `BodySource` (see Streaming). Multipart file parameters are typed as `java.io.InputStream` (`List<InputStream>` for a multi-file field). A binary response body is returned as a `ByteStream`, which is a `java.io.InputStream` (see Streaming).
+
+## Comment Style
+
+Never place a comment on the same line as code. Use block comments (`/* ... */`); Javadoc (`/** ... */`) is fine.
+
+```good
+/* This explains the logic */
+int x = 1;
+```
+
+```bad
+// This explains the logic
+int x = 1;
+```

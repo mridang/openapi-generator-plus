@@ -1,0 +1,821 @@
+{{>api_info}}
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
+  @moduledoc """
+  {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
+
+  Values are exposed as atoms (e.g. `:{{#allowableValues}}{{#enumVars}}{{#-first}}{{nameLowercase}}{{/-first}}{{/enumVars}}{{/allowableValues}}`) and as the canonical
+  {{#isInteger}}integer{{/isInteger}}{{#isLong}}integer{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}} form via `value/1` when wire interop is needed.
+  """
+
+  @typedoc "One of the declared enum atoms for {{classname}}."
+  @type declared :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}
+
+  @typedoc "One of the allowed enum atoms for {{classname}}, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+  @doc """
+  {{#lambda.singleLine}}{{#lambda.elixirHeredoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.elixirHeredoc}}{{/lambda.singleLine}}
+  """
+{{/enumDescription}}
+{{^enumDescription}}
+  @doc "Enum value `{{nameLowercase}}`"
+{{/enumDescription}}
+  def {{nameLowercase}}, do: :"{{nameLowercase}}"
+
+{{/enumVars}}
+{{/allowableValues}}
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
+  @spec all_values() :: [declared(), ...]
+  def all_values do
+    [{{#allowableValues}}{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
+  end
+
+  @doc "Map an atom to its wire string value."
+  @spec value(declared()) :: {{#isInteger}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isInteger}}{{#isLong}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
+{{#allowableValues}}
+{{#enumVars}}
+  def value(:"{{nameLowercase}}"), do: {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+
+  @doc """
+  Map a wire value back to its atom — the inverse of `value/1`.
+
+  Deserialization must round-trip the declared wire value (which may be
+  non-lowercase like `"Available"`, hyphenated like `"on-hold"`, or an
+  integer for an integer-backed enum) rather than naively atomizing the
+  raw string. Returns `{:error, value}` for an unrecognised wire value so
+  the caller can raise instead of minting an arbitrary atom.
+  """
+  @spec from_value(term()) :: declared() | {:error, term()}
+{{#allowableValues}}
+{{#enumVars}}
+  def from_value({{{value}}}), do: :"{{nameLowercase}}"
+{{/enumVars}}
+{{/allowableValues}}
+  def from_value(value), do: {:error, value}
+end
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
+  {{#description}}
+  @moduledoc "{{{.}}}"
+  {{/description}}
+  {{^description}}
+  @moduledoc "Union type for {{classname}} (oneOf)."
+  {{/description}}
+
+  @typedoc "A value of any of the oneOf variants."
+  @type t :: term()
+
+  {{#discriminator}}
+  {{#oneOf}}
+  {{#-first}}
+  @doc "List of types defined in oneOf (OpenAPI v3)."
+  @spec openapi_one_of() :: [{{#oneOf}}:"{{.}}"{{^-last}} | {{/-last}}{{/oneOf}}, ...]
+  def openapi_one_of do
+    [
+  {{/-first}}
+      :"{{.}}"{{^-last}},{{/-last}}
+  {{#-last}}
+    ]
+  end
+
+  {{/-last}}
+  {{/oneOf}}
+  {{/discriminator}}
+  {{^discriminator}}
+  {{! Variants are tried in schema declaration order (composedSchemas keeps it); the bare oneOf set is alphabetical. }}
+  {{#composedSchemas.oneOf}}
+  {{#-first}}
+  @doc "List of types defined in oneOf (OpenAPI v3), in declaration order."
+  @dialyzer {:nowarn_function, openapi_one_of: 0}
+  @spec openapi_one_of() :: [atom(), ...]
+  def openapi_one_of do
+    [
+  {{/-first}}
+      :"{{#isAnyType}}AnyType{{/isAnyType}}{{^isAnyType}}{{{dataType}}}{{/isAnyType}}"{{^-last}},{{/-last}}
+  {{#-last}}
+    ]
+  end
+
+  {{/-last}}
+  {{/composedSchemas.oneOf}}
+  {{/discriminator}}
+  {{#discriminator}}
+  @doc "Discriminator property name."
+  def openapi_discriminator_name, do: :{{propertyBaseName}}
+
+  {{#mappedModels}}
+  {{#-first}}
+  @doc "Discriminator mapping."
+  def openapi_discriminator_mapping do
+    %{
+  {{/-first}}
+      "{{{mappingName}}}" => :{{modelName}}{{^-last}},{{/-last}}
+  {{#-last}}
+    }
+  end
+
+  {{/-last}}
+  {{/mappedModels}}
+  {{/discriminator}}
+{{#composedSchemas.oneOf}}
+  {{#isModel}}
+  @doc """
+  Wraps a `{{{dataType}}}` as a `{{classname}}`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{moduleName}}.Models.{{{dataType}}}.t()) :: {{moduleName}}.Models.{{{dataType}}}.t()
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(%{{moduleName}}.Models.{{{dataType}}}{} = value), do: value
+
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(value) do
+    raise ArgumentError,
+          "Expected a {{{dataType}}} for {{classname}}, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `{{classname}}` value is a `{{{dataType}}}`."
+  @spec {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?(t()) :: boolean()
+  def {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+    do: match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}})
+
+  @doc "The `{{{dataType}}}` variant of a built `{{classname}}` value, or `nil` when it is another variant."
+  @spec as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(t()) :: {{moduleName}}.Models.{{{dataType}}}.t() | nil
+  def as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}) do
+    if match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+      do: {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}},
+      else: nil
+  end
+
+  {{/isModel}}
+{{/composedSchemas.oneOf}}
+  @doc "Build the appropriate type from data."
+  @spec build({{#discriminator}}map() | list() | nil{{/discriminator}}{{^discriminator}}term(){{/discriminator}}) :: term()
+  {{#discriminator}}
+  # The discriminator is read by key, which only a JSON object supports; any
+  # other non-nil value is a wire-shape failure, not a raw Access error.
+  def build(data) when not is_map(data) and not is_nil(data) do
+    raise {{moduleName}}.Errors.SerializationError,
+          message: "Expected a JSON object for {{classname}}, got #{inspect(data)}"
+  end
+
+  {{/discriminator}}
+  def build(data) do
+  {{#discriminator}}
+    discriminator_value = data[to_string(openapi_discriminator_name())]
+  {{#vendorExtensions.discriminatorDefault}}
+    # defaultMapping (D187): a missing or unlisted value is the default variant.
+    if is_nil(discriminator_value) or
+         not Map.has_key?(openapi_discriminator_mapping(), to_string(discriminator_value)) do
+      {{moduleName}}.ObjectSerializer.convert_to_type(data, "{{vendorExtensions.discriminatorDefault}}")
+    else
+      do_build_discriminated(data, discriminator_value)
+    end
+  {{/vendorExtensions.discriminatorDefault}}
+  {{^vendorExtensions.discriminatorDefault}}
+    # Raise on missing/unknown discriminator instead of silently
+    # returning nil. Aligns with Python, Swift, Dart, Go, Rust
+    # which throw on union no-match (5 of 12 SDKs already strict;
+    # we promote Elixir to the same behaviour here).
+    if is_nil(discriminator_value) do
+      raise {{moduleName}}.Errors.SerializationError,
+            message: "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
+    end
+
+    do_build_discriminated(data, discriminator_value)
+  {{/vendorExtensions.discriminatorDefault}}
+  {{/discriminator}}
+  {{^discriminator}}
+    result =
+      Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
+        if type_name == :AnyType do
+          {:cont, nil}
+        else
+          try do
+            r = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
+            {:halt, r}
+          rescue
+            _ -> {:cont, nil}
+          end
+        end
+      end)
+
+    cond do
+      not is_nil(result) -> result
+      :AnyType in openapi_one_of() -> data
+      true ->
+        # Raise on union no-match (see comment above).
+        raise {{moduleName}}.Errors.SerializationError,
+              message: "JSON did not match any schema in the {{classname}} oneOf union"
+    end
+  {{/discriminator}}
+  end
+
+  {{^discriminator}}
+  @doc false
+  @spec serialize(term()) :: term()
+  def serialize(value) do
+    if byte_union?() do
+      encode_byte_variant(value)
+    else
+      {{moduleName}}.ObjectSerializer.sanitize_for_serialization(value)
+    end
+  end
+
+  # True when at least one declared variant is a `format: byte` leaf
+  # (descriptor "binary()"/"ByteArray") or an array thereof ("[binary()]"
+  # etc.). Inspected at runtime from `openapi_one_of/0` so no per-variant
+  # codegen flag is required.
+  defp byte_union? do
+    Enum.any?(openapi_one_of(), fn type_name ->
+      String.contains?(Atom.to_string(type_name), "binary()") or
+        String.contains?(Atom.to_string(type_name), "ByteArray")
+    end)
+  end
+
+  # base64-encode a scalar byte value, or recurse over a list of them so each
+  # innermost `binary()` leaf becomes a base64 string. A non-binary value (or
+  # an already-typed model) falls back to the generic serializer.
+  defp encode_byte_variant(value) when is_binary(value), do: Base.encode64(value)
+
+  defp encode_byte_variant(value) when is_list(value),
+    do: Enum.map(value, &encode_byte_variant/1)
+
+  defp encode_byte_variant(value),
+    do: {{moduleName}}.ObjectSerializer.sanitize_for_serialization(value)
+
+  {{/discriminator}}
+  {{#discriminator}}
+  defp do_build_discriminated(data, discriminator_value) do
+    {{#mappedModels}}
+    {{#-first}}
+    klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
+
+    if is_nil(klass_name) do
+      raise {{moduleName}}.Errors.SerializationError,
+            message: "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+    end
+
+    # Gap 4.7: the discriminator mapping must point at one of the
+    # `oneOf` `$ref` entries. A spec where the mapping references a
+    # schema outside the union is malformed; refuse to deserialize
+    # instead of silently building an off-union type.
+    unless klass_name in openapi_one_of() do
+      raise {{moduleName}}.Errors.SerializationError,
+            message:
+              "Discriminator '#{discriminator_value}' for {{classname}} resolves to " <>
+                "'#{klass_name}', which is not listed in oneOf"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+    {{/-first}}
+    {{/mappedModels}}
+    {{^mappedModels}}
+    # Gap 4.7: with no explicit mapping the discriminator value is
+    # used as the type name directly. Refuse the build if that name
+    # is not one of the `oneOf` `$ref` entries.
+    candidate = to_string(discriminator_value)
+
+    listed? =
+      Enum.any?(openapi_one_of(), fn ref -> Atom.to_string(ref) == candidate end)
+
+    unless listed? do
+      raise {{moduleName}}.Errors.SerializationError,
+            message:
+              "Discriminator value '#{discriminator_value}' for {{classname}} is not " <>
+                "listed in oneOf"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, candidate)
+    {{/mappedModels}}
+  end
+  {{/discriminator}}
+end
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
+  {{#description}}
+  @moduledoc "{{{.}}}"
+  {{/description}}
+  {{^description}}
+  @moduledoc "Union type for {{classname}} (anyOf)."
+  {{/description}}
+
+  @typedoc "A value of any of the anyOf variants."
+  @type t :: term()
+
+  {{! Variants are kept in schema declaration order (composedSchemas); the bare anyOf set is alphabetical. }}
+  {{#composedSchemas.anyOf}}
+  {{#-first}}
+  @doc "List of types defined in anyOf (OpenAPI v3), in declaration order."
+  @spec openapi_any_of() :: [String.t()]
+  def openapi_any_of do
+    [
+  {{/-first}}
+      "{{#isAnyType}}AnyType{{/isAnyType}}{{^isAnyType}}{{{dataType}}}{{/isAnyType}}"{{^-last}},{{/-last}}
+  {{#-last}}
+    ]
+  end
+
+  {{/-last}}
+  {{/composedSchemas.anyOf}}
+{{#composedSchemas.anyOf}}
+  {{#isModel}}
+  @doc """
+  Wraps a `{{{dataType}}}` as a `{{classname}}`: the union value is the variant itself, so
+  this checks the type and returns it. Raises `ArgumentError` for any other value.
+  """
+  @spec from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{moduleName}}.Models.{{{dataType}}}.t()) :: {{moduleName}}.Models.{{{dataType}}}.t()
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(%{{moduleName}}.Models.{{{dataType}}}{} = value), do: value
+
+  def from_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(value) do
+    raise ArgumentError,
+          "Expected a {{{dataType}}} for {{classname}}, got: #{inspect(value)}"
+  end
+
+  @doc "Whether a built `{{classname}}` value is a `{{{dataType}}}`."
+  @spec {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?(t()) :: boolean()
+  def {{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}?({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+    do: match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}})
+
+  @doc "The `{{{dataType}}}` variant of a built `{{classname}}` value, or `nil` when it is another variant."
+  @spec as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}(t()) :: {{moduleName}}.Models.{{{dataType}}}.t() | nil
+  def as_{{#lambda.elixirSnake}}{{{dataType}}}{{/lambda.elixirSnake}}({{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}) do
+    if match?(%{{moduleName}}.Models.{{{dataType}}}{}, {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}}),
+      do: {{#lambda.elixirSnake}}{{classname}}{{/lambda.elixirSnake}},
+      else: nil
+  end
+
+  {{/isModel}}
+{{/composedSchemas.anyOf}}
+  @doc "Build the appropriate type from data."
+  @spec build(term()) :: term()
+  def build(data) do
+    candidates =
+      openapi_any_of()
+      |> Enum.reject(& &1 == "AnyType")
+      |> Enum.map(fn type_name ->
+        fn d -> {{moduleName}}.ObjectSerializer.convert_to_type(d, type_name) end
+      end)
+
+    if "AnyType" in openapi_any_of() do
+      # AnyType admits any payload, so a payload no typed variant matches is
+      # still valid: keep it raw rather than raising.
+      case {{moduleName}}.ObjectSerializer.match_any_of(data, candidates) do
+        {:ok, value} -> value
+        :no_match -> data
+      end
+    else
+      # resolve_any_of raises on union no-match instead of returning nil,
+      # so an out-of-spec payload surfaces a loud error like the other SDKs.
+      {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
+    end
+  end
+
+  @doc "The first retained variant of a built value."
+  @spec actual_instance(t()) :: term()
+  def actual_instance(%{{moduleName}}.AnyOfComposite{instances: [first | _]}), do: first
+  def actual_instance(value), do: value
+
+  @doc "Every variant that matched, in schema declaration order."
+  @spec matched_instances(t()) :: [term()]
+  def matched_instances(%{{moduleName}}.AnyOfComposite{instances: instances}), do: instances
+  def matched_instances(nil), do: []
+  def matched_instances(value), do: [value]
+end
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#hasVars}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
+  {{#description}}
+  @moduledoc """
+  {{{.}}}
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+{{#vars}}{{#deprecated}}
+
+  **Deprecated field** `{{name}}` — this property is deprecated.
+{{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
+  {{#externalDocumentation}}
+
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
+  {{/externalDocumentation}}
+  """
+  {{/description}}
+  {{^description}}
+  @moduledoc """
+  Model for {{classname}}.
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+{{#vars}}{{#deprecated}}
+
+  **Deprecated field** `{{name}}` — this property is deprecated.
+{{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
+  {{#externalDocumentation}}
+
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
+  {{/externalDocumentation}}
+  """
+  {{/description}}
+
+{{#vars}}
+{{#isEnum}}
+{{^isArray}}
+{{#allowableValues}}
+  defmodule {{enumName}} do
+    @moduledoc "Allowed values of {{classname}}.{{baseName}}"
+
+    @typedoc "One of the declared enum atoms for {{classname}}.{{baseName}}."
+    @type declared :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}
+
+    @typedoc "One of the allowed enum atoms for {{classname}}.{{baseName}}, or the catch-all `:unknown_default_open_api`."
+    @type t :: declared() | :unknown_default_open_api
+{{#enumVars}}
+
+{{#enumDescription}}
+    @doc """
+    {{#lambda.singleLine}}{{#lambda.elixirHeredoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.elixirHeredoc}}{{/lambda.singleLine}}
+    """
+{{/enumDescription}}
+{{^enumDescription}}
+    @doc "Enum value `{{nameLowercase}}`"
+{{/enumDescription}}
+    def {{nameLowercase}}, do: :"{{nameLowercase}}"
+{{/enumVars}}
+
+    @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+    def unknown_default_open_api, do: :unknown_default_open_api
+
+    @doc "All declared values as atoms; the catch-all member is not one of them."
+    @spec all_values() :: [declared(), ...]
+    def all_values do
+      [{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}]
+    end
+
+    @doc "Map an atom to its wire value."
+    @spec value(declared()) :: {{#isInteger}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isInteger}}{{#isLong}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
+{{#enumVars}}
+    def value(:"{{nameLowercase}}"), do: {{{value}}}
+{{/enumVars}}
+
+    @doc """
+    Map a wire value back to its atom, the inverse of `value/1`.
+
+    Returns `{:error, value}` for an unrecognised wire value.
+    """
+    @spec from_value(term()) :: declared() | {:error, term()}
+{{#enumVars}}
+    def from_value({{{value}}}), do: :"{{nameLowercase}}"
+{{/enumVars}}
+    def from_value(value), do: {:error, value}
+  end
+
+{{/allowableValues}}
+{{/isArray}}
+{{/isEnum}}
+{{/vars}}
+  @type t :: %__MODULE__{
+  {{#vars}}
+          {{name}}: {{#isEnum}}{{^isArray}}{{enumName}}.t(){{/isArray}}{{#isArray}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isArray}}{{/isEnum}}{{^isEnum}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+  {{/vars}}
+  {{#isAdditionalPropertiesTrue}}
+          additional_properties: %{String.t() => {{#vendorExtensions.additionalPropertiesValue}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#isNullable}} | nil{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any(){{/vendorExtensions.additionalPropertiesValue}}}
+  {{/isAdditionalPropertiesTrue}}
+        }
+
+  {{#hasRequired}}
+  @enforce_keys [
+  {{#requiredVars}}
+  {{^defaultValue}}
+    :{{name}}{{^-last}},{{/-last}}
+  {{/defaultValue}}
+  {{#defaultValue}}
+  {{#isDiscriminator}}
+    :{{name}}{{^-last}},{{/-last}}
+  {{/isDiscriminator}}
+  {{/defaultValue}}
+  {{/requiredVars}}
+  ]
+  {{/hasRequired}}
+  {{#vendorExtensions.x-has-password-field}}
+  # format: password fields stay out of inspect/1 and log lines.
+  @derive {Inspect, except: [{{#vars}}{{#isPassword}}:{{name}}, {{/isPassword}}{{/vars}}]}
+
+  {{/vendorExtensions.x-has-password-field}}
+  defstruct [
+  {{#vars}}
+{{#defaultValue}}
+    {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/defaultValue}}
+{{^defaultValue}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+    {{name}}: :"{{#lambda.lowercase}}{{{vendorExtensions.siblingDefaultEnumVar}}}{{/lambda.lowercase}}"{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{^vendorExtensions.siblingDefaultIsEnum}}
+    :{{name}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{/defaultValue}}
+  {{/vars}}
+  {{#isAdditionalPropertiesTrue}}
+    additional_properties: %{}
+  {{/isAdditionalPropertiesTrue}}
+  ]
+
+  @doc "Attribute mapping from Elixir field name to JSON key."
+  @spec attribute_map() :: %{atom() => String.t()}
+  def attribute_map do
+    %{
+  {{#vars}}
+      {{name}}: "{{{baseName}}}"{{^-last}},{{/-last}}
+  {{/vars}}
+    }
+  end
+
+  @doc "Inverse mapping from JSON key to Elixir field name."
+  @spec json_key_map() :: %{String.t() => atom()}
+  def json_key_map do
+    attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+  {{#allVars}}
+      "{{{baseName}}}"{{^-last}},{{/-last}}
+  {{/allVars}}
+    ]
+  end
+
+  @doc """
+  JSON keys of the required, non-nullable properties.
+
+  Divergence #10: deserialization hard-fails when one of these keys is
+  absent or explicitly null in the wire payload, rather than silently
+  building a partial struct. Required-but-nullable properties and
+  required properties carrying a default value are intentionally excluded
+  (a default satisfies the requirement, and a nullable field admits null),
+  matching the Go / PHP / Kotlin reference behaviour.
+  """
+  @spec required_fields() :: [String.t()]
+  def required_fields do
+    []
+  {{#requiredVars}}
+  {{^defaultValue}}
+  {{^isNullable}}
+    |> List.insert_at(-1, "{{{baseName}}}")
+  {{/isNullable}}
+  {{/defaultValue}}
+  {{/requiredVars}}
+  end
+
+  @doc """
+  JSON keys of the required, nullable properties.
+
+  These keys must be present in the wire payload (an absent key is a
+  missing-required error) but an explicit `null` is a legal value, kept as
+  `nil`. When encoding, the key is always written, as `null` when the value
+  is `nil`.
+  """
+  @spec required_nullable_fields() :: [String.t()]
+  def required_nullable_fields do
+    []
+  {{#requiredVars}}
+  {{^defaultValue}}
+  {{#isNullable}}
+    |> List.insert_at(-1, "{{{baseName}}}")
+  {{/isNullable}}
+  {{/defaultValue}}
+  {{/requiredVars}}
+  end
+
+  @doc "Attribute type mapping."
+  @spec openapi_types() :: %{atom() => String.t()}
+  def openapi_types do
+    %{
+  {{#vars}}
+      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}={{#lambda.elixirEnumWire}}{{{value}}}{{/lambda.elixirEnumWire}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{#isUri}}URI{{/isUri}}{{^isUri}}{{#vendorExtensions.isDecimalString}}DecimalString{{/vendorExtensions.isDecimalString}}{{^vendorExtensions.isDecimalString}}{{{dataType}}}{{/vendorExtensions.isDecimalString}}{{/isUri}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
+  {{/vars}}
+    }
+  end
+
+{{#hasChildren}}
+{{#discriminator}}
+  @doc "Discriminator property name."
+  @spec openapi_discriminator_name() :: :{{propertyBaseName}}
+  def openapi_discriminator_name, do: :{{propertyBaseName}}
+
+  @doc "Discriminator mapping: each wire value names the subtype it decodes into."
+  @spec openapi_discriminator_mapping() :: %{String.t() => {{#mappedModels}}:{{modelName}}{{^-last}} | {{/-last}}{{/mappedModels}}}
+  def openapi_discriminator_mapping do
+    %{
+  {{#mappedModels}}
+      "{{{mappingName}}}" => :{{modelName}}{{^-last}},{{/-last}}
+  {{/mappedModels}}
+    }
+  end
+
+  @doc """
+  Decodes a payload of this allOf base into the subtype its discriminator names.
+
+  A missing discriminator, or a value the mapping does not list, raises
+  `SerializationError` and the message names the value.
+  """
+  @spec build(map() | list() | nil) :: term()
+  def build(data) when not is_map(data) do
+    raise {{moduleName}}.Errors.SerializationError,
+          message: "Expected a JSON object for {{classname}}, got #{inspect(data)}"
+  end
+
+  def build(data) do
+    discriminator_value = data[to_string(openapi_discriminator_name())]
+{{#vendorExtensions.discriminatorDefault}}
+
+    # defaultMapping (D187): a missing or unlisted value is the default variant.
+    klass_name =
+      Map.get(openapi_discriminator_mapping(), to_string(discriminator_value)) ||
+        "{{vendorExtensions.discriminatorDefault}}"
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+  end
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
+
+    if is_nil(discriminator_value) do
+      raise {{moduleName}}.Errors.SerializationError,
+            message: "Missing discriminator '#{openapi_discriminator_name()}' for {{classname}}"
+    end
+
+    klass_name = Map.get(openapi_discriminator_mapping(), to_string(discriminator_value))
+
+    if is_nil(klass_name) do
+      raise {{moduleName}}.Errors.SerializationError,
+            message: "Unknown discriminator value for {{classname}}: '#{discriminator_value}'"
+    end
+
+    {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(klass_name))
+  end
+{{/vendorExtensions.discriminatorDefault}}
+
+{{/discriminator}}
+{{/hasChildren}}
+{{#isAdditionalPropertiesTrue}}
+  @doc "Whether this model accepts additional properties."
+  def additional_properties, do: true
+{{#additionalPropertiesType}}
+
+  @doc "The type of additional property values."
+  def additional_properties_type, do: "{{{additionalPropertiesType}}}"
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isNullable}}
+
+  @doc "Whether a null additional property value is kept."
+  def additional_properties_nullable, do: true
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
+{{/additionalPropertiesType}}
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+  @doc false
+  @spec strict_properties?() :: true
+  def strict_properties?, do: true
+{{/isUnevaluatedPropertiesFalse}}
+end
+{{/hasVars}}
+{{^hasVars}}
+defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
+  {{#description}}
+  @moduledoc """
+  {{{.}}}
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+{{#vars}}{{#deprecated}}
+
+  **Deprecated field** `{{name}}` — this property is deprecated.
+{{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
+  {{#externalDocumentation}}
+
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
+  {{/externalDocumentation}}
+  """
+  {{/description}}
+  {{^description}}
+  @moduledoc """
+  Model for {{classname}}.
+{{#vars}}{{#vendorExtensions.pluralExamples}}
+
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.pluralExamples}}{{/vars}}
+{{#vars}}{{#deprecated}}
+
+  **Deprecated field** `{{name}}` — this property is deprecated.
+{{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
+  {{#externalDocumentation}}
+
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
+  {{/externalDocumentation}}
+  """
+  {{/description}}
+
+  @type t :: %__MODULE__{}
+
+  defstruct []
+
+  @doc "Attribute mapping from Elixir field name to JSON key."
+  @spec attribute_map() :: %{atom() => String.t()}
+  def attribute_map, do: %{}
+
+  @doc "Inverse mapping from JSON key to Elixir field name."
+  @spec json_key_map() :: %{String.t() => atom()}
+  def json_key_map, do: %{}
+
+  @doc "JSON keys in schema declaration order (none for this schema)."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order, do: []
+
+  @doc "JSON keys of required, non-nullable properties (none for this schema)."
+  @spec required_fields() :: [String.t()]
+  def required_fields, do: []
+
+  @doc "Attribute type mapping."
+  @spec openapi_types() :: %{atom() => String.t()}
+  def openapi_types, do: %{}
+end
+{{/hasVars}}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

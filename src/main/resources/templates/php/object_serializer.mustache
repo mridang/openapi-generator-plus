@@ -1,0 +1,2880 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+use Brick\Math\BigDecimal;
+use Brick\Math\BigNumber;
+use Brick\Math\NumberSyntax;
+use {{invokerPackage}}\Errors\SerializationException;
+use {{invokerPackage}}\Serializer\DsMapNormalizer;
+use {{invokerPackage}}\Serializer\DsSetNormalizer;
+use {{invokerPackage}}\Serializer\DsAwareObjectNormalizer;
+use {{invokerPackage}}\Serializer\DsVectorNormalizer;
+use {{invokerPackage}}\Serializer\DecimalNormalizer;
+use {{invokerPackage}}\Serializer\DurationNormalizer;
+use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
+use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
+use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Exception\NotNormalizableValueException;
+use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
+use Symfony\Component\Serializer\Mapping\Loader\AttributeLoader;
+use Symfony\Component\Serializer\NameConverter\MetadataAwareNameConverter;
+use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
+use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
+use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
+use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\UidNormalizer;
+use Symfony\Component\Serializer\Serializer;
+
+/**
+ * Handles JSON serialization and deserialization for API requests and responses.
+ * All serde operations in the generated client route through this class.
+ * The parameter encoding methods provide consistent value conversion for
+ * URL path, query string, header, and form parameters.
+ *
+ * @internal This class is part of the SDK's internal serialization plumbing
+ *           and is not part of the public API. It may change or be removed
+ *           in any release without notice.
+ */
+class ObjectSerializer
+{
+    /**
+     * Maximum allowed JSON nesting depth. A malicious 100k-deep
+     * `{"a":{"a":...}}` payload must be refused rather than recurse through
+     * the interpreter's stack, so the cap is pinned here rather than left to
+     * the parser's default. All twelve SDKs use the same cap.
+     */
+    public const int MAX_JSON_DEPTH = 1000;
+
+    /* json_decode counts the outermost array or object as one level, so its
+     * depth argument must be one larger than the number of nested containers
+     * to accept: 1000 nested arrays need 1001. Passing MAX_JSON_DEPTH itself
+     * would reject a payload that is exactly at the cap. */
+    public const int JSON_DECODE_DEPTH = self::MAX_JSON_DEPTH + 1;
+
+    /* H4: emit sub-second precision on the wire. \DateTime::ATOM
+     * ("Y-m-d\TH:i:sP") has no fractional-second component, so a date-time
+     * carrying milliseconds (2020-01-02T03:04:05.123Z) serialized to whole
+     * seconds — a lossy, asymmetric round-trip, since the decoder
+     * (new \DateTime($wire)) happily parses the fraction back. RFC3339_EXTENDED
+     * ("Y-m-d\TH:i:s.vP") appends the 3-digit millisecond fraction (.v) while
+     * keeping the same numeric UTC offset (+00:00) the offset tests and the
+     * decoder already expect, so the fraction the decoder accepts is now also
+     * emitted and the round-trip is lossless to the millisecond. */
+    /** @var string */
+    private const string DATE_TIME_FORMAT = \DateTime::RFC3339_EXTENDED;
+
+    private const int MAX_SANITIZE_DEPTH = 512;
+
+    private static int $sanitizeDepth = 0;
+
+    private static ?Serializer $serializer = null;
+
+    /* The most digits a decimal is read with. A short exponent such as 1e1000000000 would
+     * otherwise expand to gigabytes of digits. */
+    private const int MAX_DECIMAL_DIGITS = 4096;
+
+    /** @var string|null the JSON text being decoded, the source of the exact digits of its numbers */
+    private static ?string $sourceText = null;
+
+    /** @var mixed the JSON text being decoded with every number kept as its digits, built on first use */
+    private static mixed $numberTexts = null;
+
+    private static bool $numberTextsBuilt = false;
+
+    /**
+     * @var list<int|string>|null where the payload a union's build() is deciding on sits in the
+     *                            JSON text being decoded, so the variant it hands to deserialize()
+     *                            reads its decimals from their digits; null outside a union
+     */
+    private static ?array $unionPath = null;
+
+    /** @var string|null the per-process marker of a number-shaped decimal on its way to json_encode */
+    private static ?string $decimalMarker = null;
+
+    /** @var array<class-string, array<string, array{0: string, 1: string, 2: bool}>> the decimal and model properties of each class */
+    private static array $decimalPlans = [];
+
+    /**
+     * Gets the Symfony Serializer instance.
+     */
+    private static function getSerializer(): Serializer
+    {
+        if (!self::$serializer instanceof Serializer) {
+            $phpDocExtractor = new PhpDocExtractor();
+            $reflectionExtractor = new ReflectionExtractor();
+
+            $propertyTypeExtractor = new PropertyInfoExtractor(
+                listExtractors: [$reflectionExtractor],
+                typeExtractors: [$phpDocExtractor, $reflectionExtractor],
+                descriptionExtractors: [$phpDocExtractor],
+                accessExtractors: [$reflectionExtractor],
+                initializableExtractors: [$reflectionExtractor]
+            );
+
+            self::$serializer = new Serializer([
+                /* An enum value this SDK does not list decodes to the enum's
+                 * catch-all case, and the catch-all case cannot be written. */
+                new class implements NormalizerInterface, DenormalizerInterface {
+                    private BackedEnumNormalizer $inner;
+
+                    public function __construct()
+                    {
+                        $this->inner = new BackedEnumNormalizer();
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function normalize(mixed $data, ?string $format = null, array $context = []): string|int
+                    {
+                        if ($data instanceof \UnitEnum && $data->name === 'UNKNOWN_DEFAULT_OPEN_API') {
+                            throw new \InvalidArgumentException(
+                                'The catch-all enum case UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written'
+                            );
+                        }
+
+                        return $this->inner->normalize($data, $format, $context);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsNormalization(
+                        mixed $data,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return $this->inner->supportsNormalization($data, $format, $context);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): mixed {
+                        if (is_subclass_of($type, \BackedEnum::class)) {
+                            $backing = (string) (new \ReflectionEnum($type))->getBackingType();
+                            $fits = ($backing === 'int' && is_int($data)) || ($backing === 'string' && is_string($data));
+                            if ($fits && $type::tryFrom($data) === null && defined($type . '::UNKNOWN_DEFAULT_OPEN_API')) {
+                                return constant($type . '::UNKNOWN_DEFAULT_OPEN_API');
+                            }
+                        }
+
+                        return $this->inner->denormalize($data, $type, $format, $context);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return $this->inner->supportsDenormalization($data, $type, $format, $context);
+                    }
+
+                    /** @return array<string, bool|null> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return $this->inner->getSupportedTypes($format);
+                    }
+                },
+                /* 4.8: register the protobuf-JSON DurationNormalizer BEFORE
+                 * any \DateInterval handling (Symfony's built-in
+                 * DateIntervalNormalizer would otherwise emit ISO-8601, which
+                 * a google.protobuf.Duration server rejects with HTTP 400).
+                 * Symfony tries normalizers in list order and the first whose
+                 * supportsNormalization() matches wins, so placing this first
+                 * makes every \DateInterval — standalone or as a model
+                 * property routed through DsAwareObjectNormalizer — serialize
+                 * to the "3600s" wire form and denormalize back. */
+                new DurationNormalizer(),
+                /* A `format: decimal` value is a Brick\Math\BigDecimal. The
+                 * object normalizer would otherwise walk its internals. */
+                new DecimalNormalizer(),
+                /* A `format: date-time` model field (\DateTime) decodes only
+                 * from RFC 3339 text, through the same gate as a top-level
+                 * value. Registered before DateTimeNormalizer, whose decode
+                 * falls back to the lenient \DateTime constructor ("tomorrow",
+                 * offset-less text read in the host zone). Encode, and the
+                 * \DateTimeImmutable `format: time` fields, stay with
+                 * DateTimeNormalizer. */
+                new class implements DenormalizerInterface {
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): \DateTime {
+                        if (!is_string($data)) {
+                            throw new \InvalidArgumentException(
+                                'Expected an RFC 3339 date-time string but got ' . get_debug_type($data)
+                            );
+                        }
+
+                        return ObjectSerializer::parseRfc3339($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return ltrim($type, '\\') === \DateTime::class;
+                    }
+
+                    /** @return array<string, bool> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return [\DateTime::class => true];
+                    }
+                },
+                /* A `format: time` model field (\DateTimeImmutable) is an RFC 3339
+                 * partial-time on the wire (H:i:s, plus .SSS only when the
+                 * milliseconds are non-zero), never a full date-time. Registered
+                 * before DateTimeNormalizer so it wins for both directions. */
+                new class implements NormalizerInterface, DenormalizerInterface {
+                    /** @param array<string, mixed> $context */
+                    public function normalize(mixed $data, ?string $format = null, array $context = []): string
+                    {
+                        \assert($data instanceof \DateTimeInterface);
+
+                        return ObjectSerializer::formatTime($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsNormalization(
+                        mixed $data,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return $data instanceof \DateTimeImmutable;
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): \DateTimeImmutable {
+                        if (!is_string($data)) {
+                            throw new \InvalidArgumentException(
+                                'Expected an RFC 3339 time string but got ' . get_debug_type($data)
+                            );
+                        }
+
+                        return ObjectSerializer::parseTime($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return ltrim($type, '\\') === \DateTimeImmutable::class;
+                    }
+
+                    /** @return array<string, bool> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return [\DateTimeImmutable::class => true];
+                    }
+                },
+                new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
+                /* A `format: uuid` model field is a Symfony Uuid. Without this
+                 * normalizer the object normalizer sees a plain string on decode
+                 * and rejects it, and would walk the Uuid object on encode. The
+                 * canonical form is the lowercase RFC 4122 text. */
+                new UidNormalizer(),
+                new DsMapNormalizer(),
+                new DsSetNormalizer(),
+                new DsVectorNormalizer(),
+                new ArrayDenormalizer(),
+                /* DsAwareObjectNormalizer replaces Symfony's stock
+                 * ObjectNormalizer here. It extends AbstractObjectNormalizer
+                 * directly (since ObjectNormalizer is final in Symfony 7)
+                 * and overrides denormalizeParameter to intercept any
+                 * constructor parameter whose declared type names
+                 * \Ds\Vector / \Ds\Set / \Ds\Map, denormalize each inner
+                 * element through this chain, and wrap the result in the
+                 * typed container — preserving the immutable Phase-2 PHP
+                 * type-surface end-to-end. */
+                new DsAwareObjectNormalizer(
+                    nameConverter: new MetadataAwareNameConverter(
+                        new ClassMetadataFactory(new AttributeLoader())
+                    ),
+                    propertyTypeExtractor: $propertyTypeExtractor,
+                ),
+            ], [new JsonEncoder()]);
+        }
+
+        return self::$serializer;
+    }
+
+    /**
+     * Sanitize data for serialization.
+     *
+     * @param mixed $data the data to sanitize
+     *
+     * @return mixed sanitized form of $data
+     */
+    /**
+     * The wire value of a oneOf or anyOf wrapper held by a model property, built
+     * by the same rules as a top-level union.
+     *
+     * @internal
+     */
+    public static function unionWireValue(object $union): mixed
+    {
+        return self::sanitizeForSerialization($union);
+    }
+
+    private static function sanitizeForSerialization(mixed $data): mixed
+    {
+        /* A self-referencing array (or model) would recurse until PHP's stack is exhausted, which
+         * segfaults instead of throwing. Nesting is counted here so a cycle raises the serialization
+         * error like every other unserializable value. */
+        if (self::$sanitizeDepth >= self::MAX_SANITIZE_DEPTH) {
+            throw new SerializationException(
+                'Value is nested more than ' . self::MAX_SANITIZE_DEPTH . ' levels deep or is cyclic'
+            );
+        }
+        self::$sanitizeDepth++;
+        try {
+            return self::sanitizeNode($data);
+        } finally {
+            self::$sanitizeDepth--;
+        }
+    }
+
+    private static function sanitizeNode(mixed $data): mixed
+    {
+        if (is_scalar($data) || $data === null) {
+            return $data;
+        }
+
+        if ($data instanceof \DateTimeInterface) {
+            return $data->format(self::DATE_TIME_FORMAT);
+        }
+
+        if ($data instanceof \DateInterval) {
+            /* 4.8: serialize OAS `format: duration` as a protobuf-JSON
+             * duration string (e.g. "3600s" / "3600.000000001s"). This is
+             * the wire form google.protobuf.Duration expects — an ISO-8601
+             * duration is rejected by protobuf-JSON servers. */
+            return self::formatProtobufDuration($data);
+        }
+
+        if ($data instanceof \Symfony\Component\Uid\Uuid) {
+            return $data->toRfc4122();
+        }
+
+        if ($data instanceof BigNumber) {
+            /* A decimal outside a model property marked as a string is a bare JSON number. */
+            return self::decimalMarker($data->toBigDecimal());
+        }
+
+        if (is_array($data)) {
+            foreach ($data as $property => $value) {
+                $data[$property] = self::sanitizeForSerialization($value);
+            }
+            /* A map (an array with keys, not a list) is written with its keys in
+             * ascending order, so equal data always produces identical output. A
+             * list keeps its order. A model is normalized by the object branch
+             * below and keeps its declaration order. */
+            if (!array_is_list($data)) {
+                ksort($data, SORT_STRING);
+            }
+            return $data;
+        }
+
+        if ($data instanceof \Ds\Set) {
+            /* A unique collection is written in a defined order: code point order for
+             * strings (strcmp compares bytes, which is code point order in UTF-8) and
+             * numeric order for numbers, so equal sets always give identical output. */
+            $items = $data->toArray();
+            usort($items, static fn (mixed $a, mixed $b): int => match (true) {
+                is_string($a) && is_string($b) => strcmp($a, $b),
+                $a instanceof BigNumber && $b instanceof BigNumber => $a->compareTo($b),
+                default => $a <=> $b,
+            });
+
+            return self::sanitizeForSerialization($items);
+        }
+
+        if (is_object($data)) {
+            /* anyOf retain-all: a non-discriminated anyOf wrapper holds EVERY
+             * variant that matched at deserialize (see resolveAnyOfAll). Merge
+             * the sanitized field-set of each retained variant so the union of
+             * all variants' fields round-trips losslessly — a payload that
+             * co-satisfied two variants re-emits both variants' fields rather
+             * than silently dropping all but the first. Later variants win on a
+             * key collision, so when two members declare the same wire key the
+             * last-declared member's value is the one emitted, exactly once. */
+            if (method_exists($data, 'getMatchedInstances')) {
+                /** @var array<int, mixed> $instances */
+                $instances = $data->getMatchedInstances();
+                $merged = [];
+                $keyed = false;
+                foreach ($instances as $instance) {
+                    $sanitized = self::sanitizeForSerialization($instance);
+                    if (!is_array($sanitized) && !$sanitized instanceof \ArrayObject) {
+                        /* A scalar variant (an OAS 3.1 type array) cannot be
+                         * merged field by field; it is the whole value. */
+                        return $sanitized;
+                    }
+                    if ($sanitized instanceof \ArrayObject) {
+                        $keyed = true;
+                        $sanitized = $sanitized->getArrayCopy();
+                    }
+                    /* array_replace keeps integer keys where array_merge
+                     * would renumber them, so numeric additionalProperties
+                     * keys survive the union. */
+                    $merged = array_replace($merged, $sanitized);
+                }
+                return $keyed ? self::asJsonObject($merged) : $merged;
+            }
+
+            if (method_exists($data, 'getActualInstance')) {
+                return self::sanitizeForSerialization(self::encodeByteVariant($data, $data->getActualInstance()));
+            }
+
+            /** @var array<string, mixed> $normalized */
+            $normalized = self::getSerializer()->normalize($data, null, [
+                AbstractObjectNormalizer::SKIP_NULL_VALUES => true,
+            ]);
+            /* OAS `additionalProperties` flatten: the normalizer emits a model's
+             * open map under a literal `additionalProperties` key, at the root
+             * and in every nested model. See flattenAdditionalProperties. */
+            /** @var array<array-key, mixed>|\ArrayObject<array-key, mixed> $flattened */
+            $flattened = self::flattenAdditionalProperties($data, $normalized);
+            return $flattened;
+        }
+
+        throw new \InvalidArgumentException('Cannot serialize value of type ' . get_debug_type($data));
+    }
+
+    /**
+     * Lift every model's additionalProperties entries to the top level of its
+     * own JSON object, walking the value and its normalized form together.
+     *
+     * A model that declares an open additionalProperties map carries a public
+     * `\Ds\Map $additionalProperties` property. The Symfony normalizer walks
+     * every public property, so the map is emitted under a literal nested
+     * `additionalProperties` key, and it does so for a model nested in another
+     * model or in a list or map as well as for the root. The wire contract
+     * requires the entries flattened into the model's object (matching
+     * Python's re-flatten and Java's `@JsonAnyGetter`). Each declared property
+     * is matched to its wire key by its SerializedName, a declared property
+     * wins over an extra entry of the same name, and composed wrappers are left
+     * as the normalizer produced them.
+     *
+     * @param mixed $value      the value that was normalized
+     * @param mixed $normalized the normalizer's output for $value
+     * @return mixed the normalized form with every open map flattened
+     */
+    private static function flattenAdditionalProperties(mixed $value, mixed $normalized): mixed
+    {
+        if (!is_array($normalized)) {
+            return $normalized;
+        }
+        if ($value instanceof \Ds\Map) {
+            foreach ($value as $key => $item) {
+                if ((is_int($key) || is_string($key)) && array_key_exists($key, $normalized)) {
+                    $normalized[$key] = self::flattenAdditionalProperties($item, $normalized[$key]);
+                }
+            }
+            return $normalized;
+        }
+        if ($value instanceof \Ds\Sequence || $value instanceof \Ds\Set || is_array($value)) {
+            $items = is_array($value) ? $value : $value->toArray();
+            if (array_is_list($items) && count($items) !== count($normalized)) {
+                return $normalized;
+            }
+            foreach ($items as $key => $item) {
+                if (array_key_exists($key, $normalized)) {
+                    $normalized[$key] = self::flattenAdditionalProperties($item, $normalized[$key]);
+                }
+            }
+            return $normalized;
+        }
+        if (
+            !is_object($value)
+            || method_exists($value, 'getActualInstance')
+            || method_exists($value, 'getMatchedInstances')
+        ) {
+            return $normalized;
+        }
+        /* The normalizer keys a model by its wire names (its name converter
+         * reads the SerializedName attribute in both directions), so each
+         * declared property is matched by wire name. */
+        $properties = self::publicModelProperties($value);
+        foreach ($normalized as $key => $item) {
+            if (isset($properties[$key])) {
+                $normalized[$key] = self::flattenAdditionalProperties($properties[$key]->getValue($value), $item);
+                if (self::isDecimalString($properties[$key])) {
+                    $normalized[$key] = self::decimalMarkersAsText($normalized[$key]);
+                }
+            }
+        }
+        /* A required property that is nullable always has its key on the wire,
+         * as null when unset, although null values are otherwise skipped. */
+        foreach (self::requiredNullableProperties($value::class) as $wireName) {
+            if (!array_key_exists($wireName, $normalized)) {
+                $normalized[$wireName] = null;
+            }
+        }
+        if (
+            property_exists($value, 'additionalProperties')
+            && $value->additionalProperties instanceof \Ds\Map
+        ) {
+            unset($normalized['additionalProperties']);
+            /* Iterate via toArray() so the keys are typed as the native PHP
+             * array-key (int|string) rather than the Ds\Map's mixed key type;
+             * additionalProperties keys are always JSON strings, and an
+             * int|string casts to string cleanly (no phpstan cast.string). */
+            $extraType = self::additionalPropertiesType($value::class)[0];
+            foreach ($value->additionalProperties->toArray() as $extraKey => $extraValue) {
+                if (array_key_exists((string) $extraKey, $normalized)) {
+                    continue;
+                }
+                $normalized[(string) $extraKey] = self::sanitizeForSerialization(
+                    $extraType === 'byte' && is_string($extraValue) ? base64_encode($extraValue) : $extraValue
+                );
+            }
+            return self::asJsonObject($normalized);
+        }
+        return $normalized;
+    }
+
+    /**
+     * The initialized public instance properties of a model, keyed by wire
+     * name (the SerializedName, or the PHP name without one). The synthetic
+     * `additionalProperties` property is never a wire key and is left out.
+     *
+     * @return array<string, \ReflectionProperty>
+     */
+    private static function publicModelProperties(object $model): array
+    {
+        $properties = [];
+        foreach ((new \ReflectionObject($model))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            if (
+                $property->isStatic()
+                || $property->getName() === 'additionalProperties'
+                || !$property->isInitialized($model)
+            ) {
+                continue;
+            }
+            $properties[self::wireNameOf($property)] = $property;
+        }
+        return $properties;
+    }
+
+    /**
+     * The wire name of a model property: its SerializedName, or its PHP name.
+     */
+    private static function wireNameOf(\ReflectionProperty $property): string
+    {
+        $wireName = $property->getName();
+        foreach (
+            $property->getAttributes(
+                \Symfony\Component\Serializer\Attribute\SerializedName::class
+            ) as $attr
+        ) {
+            $args = $attr->getArguments();
+            if (isset($args[0]) && is_string($args[0])) {
+                $wireName = $args[0];
+            } elseif (isset($args['name']) && is_string($args['name'])) {
+                $wireName = $args['name'];
+            }
+        }
+        return $wireName;
+    }
+
+    /**
+     * Keep a model's field map a JSON object on the wire.
+     *
+     * PHP turns numeric-string array keys into ints, so a model whose only
+     * keys are numeric additionalProperties ("0", "1") becomes a list that
+     * json_encode writes as a JSON array. An ArrayObject always encodes as an
+     * object, so a non-empty list-shaped map is wrapped. Named fields and the
+     * empty map are returned unchanged (the empty map is forced to an object
+     * by serialize()). Only called for a model with additionalProperties,
+     * never for a Ds container, which is legitimately a list.
+     *
+     * @param array<array-key, mixed> $fields the field map of one model
+     * @return array<array-key, mixed>|\ArrayObject<array-key, mixed>
+     */
+    private static function asJsonObject(array $fields): array|\ArrayObject
+    {
+        return $fields !== [] && array_is_list($fields) ? new \ArrayObject($fields) : $fields;
+    }
+
+    /**
+     * Parse an RFC 3339 date-time: YYYY-MM-DDTHH:MM:SS, an optional fraction
+     * of any length, then Z or a numeric offset. Offset-less text, date-only
+     * text, free text ("tomorrow"), other date layouts and epoch numbers are
+     * rejected, so the result never depends on the host time zone or the
+     * current date. A fraction beyond microseconds is truncated, since
+     * \DateTime keeps six digits.
+     *
+     * @throws \InvalidArgumentException when the text is not an RFC 3339 date-time
+     */
+    public static function parseRfc3339(string $text): \DateTime
+    {
+        $pattern = '/\A(\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2})(?:\.(\d+))?([Zz]|[+-]\d{2}:\d{2})\z/';
+        if (preg_match($pattern, $text, $parts) !== 1) {
+            throw new \InvalidArgumentException(
+                sprintf("Invalid date-time '%s': expected RFC 3339 with a time-zone offset", $text)
+            );
+        }
+        $fraction = $parts[2] !== '' ? '.' . substr($parts[2], 0, 6) : '';
+        $offset = strtoupper($parts[3]) === 'Z' ? '+00:00' : $parts[3];
+        $wallClock = strtoupper($parts[1]);
+        $parsed = \DateTime::createFromFormat(
+            $fraction === '' ? '!Y-m-d\\TH:i:sP' : '!Y-m-d\\TH:i:s.uP',
+            $wallClock . $fraction . $offset
+        );
+        /* createFromFormat rolls an out-of-range field over (Feb 30 becomes
+         * Mar 1); reading the wall clock back catches that. */
+        if ($parsed === false || $parsed->format('Y-m-d\\TH:i:s') !== $wallClock) {
+            throw new \InvalidArgumentException(
+                sprintf("Invalid date-time '%s': not a calendar date and time", $text)
+            );
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * Base64-encode a `format: byte` parameter value (RFC 4648 standard
+     * alphabet with padding) before the usual query, header, path or form
+     * encoding. php models bytes as a plain string, so the API layer calls
+     * this only for parameters declared `format: byte`; each element of a
+     * list or map is encoded and null stays null (the parameter is omitted).
+     */
+    public static function encodeBase64Param(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return base64_encode($value);
+        }
+        if (is_array($value)) {
+            return array_map(
+                static fn (mixed $element): mixed => is_string($element) ? base64_encode($element) : $element,
+                $value
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Whether a value is a primitive that {@see stringify()} renders as plain
+     * text: a scalar, a date-time, a duration, a uuid or a backed enum. Models,
+     * maps and lists are not primitives.
+     */
+    public static function isPrimitiveValue(mixed $value): bool
+    {
+        return is_scalar($value)
+            || $value instanceof \DateTimeInterface
+            || $value instanceof \DateInterval
+            || $value instanceof \BackedEnum
+            || $value instanceof \Symfony\Component\Uid\Uuid;
+    }
+
+    /**
+     * Format a `format: time` value as an RFC 3339 partial-time: `H:i:s`, plus
+     * a `.SSS` millisecond fraction only when the milliseconds are non-zero.
+     * Finer digits are truncated, never rounded, and the value is never a full
+     * date-time.
+     *
+     * @param \DateTimeInterface $time the time-of-day value
+     * @return string e.g. `10:30:00` or `10:30:00.123`
+     */
+    public static function formatTime(\DateTimeInterface $time): string
+    {
+        $text = $time->format('H:i:s');
+        $millis = substr($time->format('u'), 0, 3);
+
+        return $millis === '000' ? $text : $text . '.' . $millis;
+    }
+
+    /**
+     * Parse a `format: time` wire string (e.g. `14:30:00` or
+     * `14:30:00.123456789`) into a \DateTimeImmutable with today's date
+     * implied.
+     *
+     * @throws \Exception when the text is not a time
+     */
+    public static function parseTime(string $text): \DateTimeImmutable
+    {
+        try {
+            return new \DateTimeImmutable($text);
+        } catch (\Exception) {
+            $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $text);
+            return new \DateTimeImmutable((string) $cleaned);
+        }
+    }
+
+    /**
+     * Convert a value to its string representation.
+     *
+     * This is the canonical scalar-to-string conversion method. All parameter
+     * encoding methods delegate to this method for type conversion.
+     *
+     * @param mixed $value the value to convert
+     * @return string the string representation
+     */
+    public static function stringify(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format(self::DATE_TIME_FORMAT);
+        }
+
+        if ($value instanceof \DateInterval) {
+            return self::formatProtobufDuration($value);
+        }
+
+        if ($value instanceof \Symfony\Component\Uid\Uuid) {
+            return $value->toRfc4122();
+        }
+
+        if ($value instanceof BigNumber) {
+            /* Plain notation with every digit and the scale it was written with. */
+            return $value->toString();
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_float($value)) {
+            /* A whole-number float keeps its ".0" (1.0, not 1), like the
+             * other SDKs; (string) drops the fraction. Non-finite values and
+             * exponent forms already carry their own marker. */
+            if (!is_finite($value)) {
+                return (string) $value;
+            }
+            /* (string) honours the precision ini (default 14) and would cut
+             * 0.1234567890123456 to 14 digits; json_encode writes the
+             * shortest round-trip form, the same bytes as a JSON body, and
+             * PRESERVE_ZERO_FRACTION keeps the ".0" of a whole number. */
+            $text = json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+            return $text === false ? (string) $value : str_replace('e', 'E', $text);
+        }
+
+        if (is_int($value)) {
+            return (string) $value;
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return (string) $value->value;
+        }
+
+        $encoded = json_encode($value);
+        return $encoded === false ? '' : $encoded;
+    }
+
+    /**
+     * Serialize an object to a JSON string.
+     *
+     * @throws SerializationException when the value cannot be serialized. The
+     *         native serializer exception (\RuntimeException,
+     *         \InvalidArgumentException, …) is preserved as the previous
+     *         exception so the SDK never leaks framework-native serde types
+     *         out of its public surface.
+     */
+    public static function serialize(mixed $data): string
+    {
+        try {
+            $sanitized = self::sanitizeForSerialization($data);
+            /* #3: an empty body must serialize to a JSON object `{}`, not an
+             * empty JSON array `[]`. A model whose fields are all null
+             * normalizes to an empty array (SKIP_NULL_VALUES), and PHP's
+             * json_encode([]) yields `[]` — which protobuf-JSON servers
+             * reject. Force object encoding for the empty-array case so the
+             * wire form matches the `{}` the other SDKs send. */
+            /* Slashes, non-ASCII text and U+2028/U+2029 go out literally, like
+             * the other SDKs (and this class's own query-value encoding),
+             * instead of as \/ and \uXXXX escapes. */
+            $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_LINE_TERMINATORS;
+            if ($sanitized === []) {
+                $flags |= JSON_FORCE_OBJECT;
+            }
+            $json = json_encode($sanitized, $flags);
+            if ($json === false) {
+                throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
+            }
+            return self::writeDecimalNumbers($json);
+        } catch (SerializationException $e) {
+            throw $e;
+        } catch (\InvalidArgumentException | \RuntimeException | \OverflowException | \JsonException $e) {
+            throw new SerializationException(
+                'Failed to serialize object to JSON: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+
+    /**
+     * Deserialize a JSON string to an object of the specified type.
+     *
+     * Public entry point: any native serializer exception
+     * (\InvalidArgumentException, \RuntimeException, \OverflowException,
+     * \JsonException, …) raised while parsing or denormalizing is wrapped in
+     * the SDK-owned {@see SerializationException}, with the native exception
+     * preserved as the previous exception. This keeps framework-native serde
+     * types off the public surface and gives cross-SDK parity with the other
+     * language clients.
+     *
+     * @template T of object
+     *
+     * @param mixed                     $data        object or primitive to be deserialized
+     * @param class-string<T>|string    $class       class name is passed as a string
+     * @param array<string, string>|null $httpHeaders HTTP headers
+     *
+     * @return ($class is class-string<T> ? T|null : mixed) a single deserialized instance, an array, or a primitive
+     *
+     * @throws SerializationException when deserialization fails
+     */
+    public static function deserialize(mixed $data, string $class, ?array $httpHeaders = null): mixed
+    {
+        /* An empty response body decodes to null, like a bare JSON null and
+         * like the absent body the other 11 SDKs return null for. Guarded at
+         * the public entry point (not in the recursive internal path, where an
+         * empty string may be a legitimate primitive value). */
+        if ($data === null || $data === '') {
+            return null;
+        }
+        $outerText = self::$sourceText;
+        $outerNumbers = self::$numberTexts;
+        $outerBuilt = self::$numberTextsBuilt;
+        $outerUnionPath = self::$unionPath;
+        /* A variant a union's build() decodes is the payload at the union's place in the text
+         * still being decoded, so it keeps that text and reads its decimals from their digits.
+         * The place is used once: anything the variant decodes in turn starts afresh. */
+        $path = is_string($data) ? [] : $outerUnionPath;
+        self::$unionPath = null;
+        if ($path === null || is_string($data)) {
+            self::$sourceText = is_string($data) ? $data : null;
+            self::$numberTexts = null;
+            self::$numberTextsBuilt = false;
+        }
+        try {
+            if (is_string($data)) {
+                self::assertJsonDepth($data);
+            }
+            $decoded = self::deserializeInternal($data, $class, $httpHeaders, false, $path);
+            self::assertWireFormats($decoded, 0);
+
+            return $decoded;
+        } catch (SerializationException $e) {
+            throw $e;
+        } catch (
+            \InvalidArgumentException
+            | \RuntimeException
+            | \OverflowException
+            | \JsonException
+            | \DateException $e
+        ) {
+            throw new SerializationException(
+                'Failed to deserialize JSON: ' . $e->getMessage(),
+                0,
+                $e
+            );
+        } finally {
+            self::$sourceText = $outerText;
+            self::$numberTexts = $outerNumbers;
+            self::$numberTextsBuilt = $outerBuilt;
+            self::$unionPath = $outerUnionPath;
+        }
+    }
+
+    /** @var array<class-string, array<string, string>> the wire format of each marked property, by class */
+    private static array $wireFormatsByClass = [];
+
+    /**
+     * Refuses a decoded model that holds a string which is not what the schema declared for it: an
+     * absolute URI, an IPv4 address or an IPv6 address (the properties marked with {@see WireFormat}).
+     * Models inside lists, maps and other models are checked as well.
+     *
+     * @throws \InvalidArgumentException when a marked property holds a value that is not of its format
+     */
+    private static function assertWireFormats(mixed $value, int $depth): void
+    {
+        if ($depth > self::MAX_JSON_DEPTH) {
+            return;
+        }
+        if (is_array($value) || $value instanceof \Ds\Collection) {
+            foreach ($value as $item) {
+                self::assertWireFormats($item, $depth + 1);
+            }
+
+            return;
+        }
+        if (!is_object($value) || !str_starts_with($value::class, '{{modelPackage}}\\')) {
+            return;
+        }
+        $class = $value::class;
+        if (!isset(self::$wireFormatsByClass[$class])) {
+            $formats = [];
+            foreach ((new \ReflectionClass($class))->getProperties() as $property) {
+                $marks = $property->getAttributes(WireFormat::class);
+                if ($marks !== []) {
+                    $formats[$property->getName()] = $marks[0]->newInstance()->format;
+                }
+            }
+            self::$wireFormatsByClass[$class] = $formats;
+        }
+        foreach (get_object_vars($value) as $name => $item) {
+            $format = self::$wireFormatsByClass[$class][$name] ?? null;
+            if ($format !== null && is_string($item) && !self::isWireFormat($format, $item)) {
+                throw new \InvalidArgumentException(
+                    "Value for $name is not a valid $format: " . self::describeValue($item)
+                );
+            }
+            self::assertWireFormats($item, $depth + 1);
+        }
+    }
+
+    /**
+     * Whether $text is a value of the wire format: an absolute URI, an IPv4 address in dotted decimal
+     * with no leading zero, or an IPv6 address, none with whitespace, brackets, a prefix length or a
+     * zone identifier.
+     */
+    private static function isWireFormat(string $format, string $text): bool
+    {
+        if ($text === '' || $text !== trim($text)) {
+            return false;
+        }
+
+        return match ($format) {
+            'uri' => preg_match('/^[A-Za-z][A-Za-z0-9+.\-]*:[^\s]*$/', $text) === 1 && parse_url($text) !== false,
+            'ipv4' => filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false,
+            'ipv6' => filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false,
+            default => true,
+        };
+    }
+
+    /**
+     * Refuses a JSON text nested deeper than {@see MAX_JSON_DEPTH} with the
+     * canonical message, whatever the parser would say. Brackets inside string
+     * literals do not count. A text with no more openers than the cap cannot
+     * be too deep, so only a payload with many of them is scanned.
+     *
+     * @throws SerializationException when the nesting exceeds the cap
+     */
+    private static function assertJsonDepth(string $json): void
+    {
+        if (substr_count($json, '[') + substr_count($json, '{') <= self::MAX_JSON_DEPTH) {
+            return;
+        }
+        /** @var list<true> $open one entry per container still open */
+        $open = [];
+        $inString = false;
+        $escaped = false;
+        $length = strlen($json);
+        for ($i = 0; $i < $length; $i++) {
+            $char = $json[$i];
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($char === '\\') {
+                    $escaped = true;
+                } elseif ($char === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+            if ($char === '"') {
+                $inString = true;
+            } elseif ($char === '[' || $char === '{') {
+                $open[] = true;
+                if (count($open) > self::MAX_JSON_DEPTH) {
+                    throw new SerializationException(
+                        'JSON nesting depth ' . count($open) . ' exceeds limit ' . self::MAX_JSON_DEPTH
+                    );
+                }
+            } elseif ($char === ']' || $char === '}') {
+                array_pop($open);
+            }
+        }
+    }
+
+    /**
+     * Rejects a null element of an array, list or map whose element type is a
+     * generated model. Model-typed items are non-nullable, so a null is a wire
+     * violation rather than a value to keep or drop. A null element of a
+     * numeric or boolean type is rejected the same way, because it is checked
+     * exactly like a single primitive of that type. Elements of any other
+     * type (strings, dates, mixed) are unaffected.
+     *
+     * @param mixed  $element      the decoded element
+     * @param string $elementClass the qualified element type
+     *
+     * @throws \InvalidArgumentException when a model-typed element is null
+     */
+    private static function assertModelElementPresent(mixed $element, string $elementClass): void
+    {
+        if ($element !== null) {
+            return;
+        }
+        $bare = ltrim($elementClass, '\\');
+        $strictPrimitive = in_array($bare, ['int', 'integer', 'float', 'number', 'bool', 'boolean'], true);
+        if ($strictPrimitive || str_starts_with($bare, '{{modelPackage}}\\')) {
+            throw new \InvalidArgumentException("Null is not a valid '$elementClass' element");
+        }
+    }
+
+    /**
+     * Internal recursive deserialization implementation.
+     *
+     * Native serializer exceptions raised here are caught and wrapped by the
+     * public {@see deserialize()} entry point.
+     *
+     * @param mixed                     $data        object or primitive to be deserialized
+     * @param string                    $class       class name is passed as a string
+     * @param array<string, string>|null $httpHeaders HTTP headers
+     * @param bool                      $decoded     true when $data is already a decoded JSON value (a
+     *                                               container element) rather than raw JSON text, so a
+     *                                               string must not be JSON-decoded a second time
+     * @param list<int|string>|null     $path        where $data sits in the JSON text being decoded, so
+     *                                               a decimal can be read from its digits; null when it
+     *                                               did not come from that text
+     *
+     * @return mixed a single deserialized instance, an array, or a primitive
+     */
+    private static function deserializeInternal(
+        mixed $data,
+        string $class,
+        ?array $httpHeaders = null,
+        bool $decoded = false,
+        ?array $path = null
+    ): mixed {
+        if (null === $data) {
+            return null;
+        }
+
+        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+         * but Windows-generated payloads often include one and PHP's
+         * json_decode silently returns null on BOM. Strip silently for
+         * parity with Java Jackson / C# System.Text.Json which strip
+         * transparently. */
+        if (is_string($data) && str_starts_with($data, "\xEF\xBB\xBF")) {
+            $data = substr($data, 3);
+        }
+
+        $class = ltrim($class, '\\');
+
+        /* Phase-2 PHP type-surface: when the api template hands us a
+         * typed container hint like `Ds\Vector<Item>` /
+         * `Ds\Set<Item>` / `Ds\Map<integer>` (compiled by the
+         * deserialize_arg partial from the operation's returnProperty
+         * item tree), decode the JSON body, recursively deserialize
+         * each element against the inner type so model instances /
+         * DateTime / URI / enum fields route through their dedicated
+         * normalizers, then wrap the result in the matching Ds
+         * container. The inner type string is run through
+         * qualifySchemaName so short model names (e.g. "Item") resolve
+         * to their FQN while primitives ("integer", "string") pass
+         * through unchanged.
+         *
+         * Nested generic containers recurse: a return type such as
+         * `\Ds\Vector<\Ds\Map<Category>>` (array of map of model)
+         * captures `\Ds\Map<Category>` as the inner type, which
+         * qualifySchemaName leaves intact (it already carries a
+         * backslash) and the per-element deserializeInternal() call
+         * re-enters this same branch, descending one container level
+         * per recursion so the innermost leaves become typed Category
+         * instances rather than raw maps. The greedy `(.+)` captures
+         * everything between the first `<` and the final `>`, keeping
+         * any nested `<...>` payload intact. */
+        if (preg_match('/^Ds\\\\(Vector|Set|Map)<(.+)>$/', $class, $containerMatch)) {
+            $container = $containerMatch[1];
+            $inner = self::qualifySchemaName(trim($containerMatch[2]));
+            $data = $decoded ? $data : self::decodeJson($data);
+            if (!is_array($data)) {
+                throw new \InvalidArgumentException("Invalid container '$class'");
+            }
+            if ($container === 'Map') {
+                /** @var array<string, mixed> $mapItems */
+                $mapItems = [];
+                /** @var array<array-key, mixed> $data */
+                foreach ($data as $key => $value) {
+                    self::assertModelElementPresent($value, $inner);
+                    $mapItems[(string) $key] = self::deserializeInternal(
+                        $value,
+                        $inner,
+                        null,
+                        true,
+                        $path === null ? null : [...$path, $key]
+                    );
+                }
+                return new \Ds\Map($mapItems);
+            }
+            /** @var array<int, mixed> $listItems */
+            $listItems = [];
+            /** @var array<array-key, mixed> $data */
+            foreach ($data as $index => $value) {
+                self::assertModelElementPresent($value, $inner);
+                $listItems[] = self::deserializeInternal(
+                    $value,
+                    $inner,
+                    null,
+                    true,
+                    $path === null ? null : [...$path, $index]
+                );
+            }
+            return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
+        }
+
+        if (str_ends_with($class, '[]')) {
+            $data = $decoded ? $data : self::decodeJson($data);
+
+            if (!is_array($data)) {
+                throw new \InvalidArgumentException("Invalid array '$class'");
+            }
+
+            $subClass = substr($class, 0, -2);
+            $values = [];
+            foreach ($data as $index => $value) {
+                self::assertModelElementPresent($value, self::qualifySchemaName($subClass));
+                $values[] = self::deserializeInternal(
+                    $value,
+                    $subClass,
+                    null,
+                    true,
+                    $path === null ? null : [...$path, $index]
+                );
+            }
+            return $values;
+        }
+
+        if (preg_match('/^(array<|map\[)/', $class)) {
+            $data = $decoded ? $data : self::decodeJson($data);
+            $data = (array) $data;
+            $inner = substr($class, 4, -1);
+            /** @var array<mixed> $deserialized */
+            $deserialized = [];
+            if (strrpos($inner, ',') !== false) {
+                $subClassArray = explode(',', $inner, 2);
+                /* 4.6: qualify the value-type so map values deep-deserialize
+                 * into model instances. Without qualification the recursive
+                 * deserialize call sees an unqualified short name (e.g. 'Foo'),
+                 * class_exists() reports false, and the entry comes back as
+                 * the raw decoded array instead of a typed Foo. */
+                $subClass = self::qualifySchemaName(trim($subClassArray[1]));
+                /** @var array<string, mixed> $data */
+                foreach ($data as $key => $value) {
+                    self::assertModelElementPresent($value, $subClass);
+                    $deserialized[$key] = self::deserializeInternal(
+                        $value,
+                        $subClass,
+                        null,
+                        true,
+                        $path === null ? null : [...$path, $key]
+                    );
+                }
+            }
+            return $deserialized;
+        }
+
+        /* A top-level `format: byte` response carried as application/json is a
+         * JSON string literal holding the base64-encoded bytes (e.g.
+         * "dGVzdC1pbWFnZQ=="). Unlike a non-JSON binary body — which the
+         * transport layer base64-decodes in BaseApi — this body reaches the
+         * deserializer as JSON text, so JSON-parse the literal and then
+         * base64-decode the inner string to recover the raw bytes. Returning
+         * the un-decoded base64 string (or the quoted literal) would diverge
+         * from the byte-decoding SDKs (python/go/java/rust). */
+        if ($class === 'byte') {
+            $data = $decoded ? $data : self::decodeJson($data);
+            if ($data === null || $data === '') {
+                return null;
+            }
+            if (!is_string($data)) {
+                throw new \InvalidArgumentException(
+                    "Expected a base64 string for 'byte' but got " . gettype($data)
+                );
+            }
+            /* Invalid base64 is a wire-shape violation; throw rather than
+             * silently returning the raw undecoded string. Only strict RFC
+             * 4648 text passes (see isStrictBase64). */
+            $decoded = self::isStrictBase64($data) ? base64_decode($data, true) : false;
+            if ($decoded === false) {
+                throw new SerializationException(
+                    "Invalid base64 for 'byte': " . $data
+                );
+            }
+            return $decoded;
+        }
+
+        $primitives = [
+            'string', 'int', 'integer', 'float', 'number',
+            'bool', 'boolean', 'mixed', 'void',
+        ];
+        if (in_array($class, $primitives, true)) {
+            /* A raw body is parsed as JSON text; a container element is already
+             * a decoded value and is never parsed again (a string element such
+             * as "true" or "5" is a string, not a bool or an int). Either way
+             * the value must then already have the declared JSON type: a wrong
+             * type is rejected rather than coerced ("abc" to 0, 1.9 to 1,
+             * true to 1, "5" to 5). For int-typed raw bodies
+             * JSON_BIGINT_AS_STRING preserves a value above PHP_INT_MAX as a
+             * digit string, so the str to int to str round-trip equality below
+             * is a bcmath-free overflow check. */
+            $bigIntText = false;
+            if (!$decoded && is_string($data)) {
+                $bigIntText = ($class === 'int' || $class === 'integer')
+                    && preg_match('/^\s*-?\d+\s*$/', $data) === 1;
+                $data = json_decode(
+                    $data,
+                    true,
+                    self::JSON_DECODE_DEPTH,
+                    JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING
+                );
+                if ($data === null) {
+                    return null;
+                }
+            }
+            if ($class === 'mixed' || $class === 'void') {
+                return $data;
+            }
+            if ($class === 'int' || $class === 'integer') {
+                if ($bigIntText && is_string($data)) {
+                    $casted = (int) $data;
+                    if ((string) $casted !== $data) {
+                        throw new \OverflowException(
+                            "Value '$data' overflows PHP int range "
+                            . '(PHP_INT_MIN..PHP_INT_MAX)'
+                        );
+                    }
+                    return $casted;
+                }
+                if (is_int($data)) {
+                    return $data;
+                }
+            } elseif ($class === 'float' || $class === 'number') {
+                if (is_float($data) && !is_finite($data)) {
+                    /* 1e400 overflows to INF in json_decode; a decoded number
+                     * must be finite. */
+                    throw new \InvalidArgumentException(
+                        sprintf("Expected a finite number of type '%s' but got a non-finite value", $class)
+                    );
+                }
+                if (is_int($data) || is_float($data)) {
+                    return (float) $data;
+                }
+            } elseif ($class === 'bool' || $class === 'boolean') {
+                if (is_bool($data)) {
+                    return $data;
+                }
+            } elseif (is_string($data)) {
+                return $data;
+            }
+            throw new \InvalidArgumentException(
+                sprintf("Expected a JSON value of type '%s' but got %s", $class, get_debug_type($data))
+            );
+        }
+
+        if ($class === 'object') {
+            $data = $decoded ? $data : self::decodeJson($data);
+            return (array) $data;
+        }
+
+        if ($class === 'DateTime') {
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                return self::parseRfc3339($data);
+            }
+            return null;
+        }
+
+        if ($class === 'DateTimeImmutable') {
+            /* 4.8: OAS `format: time` (RFC 3339 partial-time, e.g.
+             * "14:30:00") maps to \DateTimeImmutable. PHP has no
+             * dedicated time-of-day type; \DateTimeImmutable parses the
+             * wire string with today's date implied and callers project
+             * the time portion via format('H:i:s'). */
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                return self::parseTime($data);
+            }
+            return null;
+        }
+
+        if ($class === 'DateInterval') {
+            /* 4.8: OAS `format: duration` is a protobuf-JSON duration
+             * string (e.g. "3600s" / "3600.000000001s" / "-1.5s"). The
+             * ISO-8601 form \DateInterval's constructor parses is NOT the
+             * wire form here, so we parse the protobuf-JSON shape and build
+             * a round-tripping interval. Invalid strings surface as the
+             * SerializationException used elsewhere for bad input. */
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                return self::parseProtobufDuration($data);
+            }
+            return null;
+        }
+
+        if ($class === BigDecimal::class) {
+            /* A `format: decimal` body or element. Raw text is read from its digits; a decoded
+             * element is read through its place in the JSON text. Either shape is accepted, since
+             * only a model property says whether the decimal travels as a number or a string. */
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+                if ($literal === null) {
+                    return null;
+                }
+                if (is_int($literal) || is_float($literal)) {
+                    return self::parseDecimalText(trim($data), false, 'value');
+                }
+
+                return self::readDecimal($literal, null, null, 'value');
+            }
+
+            return self::readDecimal($data, null, $path, 'value');
+        }
+
+        if ($class === 'Symfony\Component\Uid\Uuid') {
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                return \Symfony\Component\Uid\Uuid::fromString($data);
+            }
+            return null;
+        }
+
+        if ($class === 'SplFileObject') {
+            assert(is_string($data) || is_resource($data));
+
+            $tempDir = sys_get_temp_dir();
+
+            $pattern = '/inline; filename=[\'"]?([^\'"\s]+)[\'"]?$/i';
+            if (
+                is_array($httpHeaders)
+                && array_key_exists('Content-Disposition', $httpHeaders)
+                && preg_match($pattern, $httpHeaders['Content-Disposition'], $match)
+            ) {
+                $sanitizedFilename = $match[1];
+                $pathPattern = "/.*[\/\\\\](.*)$/";
+                if (preg_match($pathPattern, $sanitizedFilename, $pathMatch)) {
+                    $sanitizedFilename = $pathMatch[1];
+                }
+                $filename = $tempDir . DIRECTORY_SEPARATOR . $sanitizedFilename;
+            } else {
+                $filename = tempnam($tempDir, '');
+                if ($filename === false) {
+                    throw new \RuntimeException('Failed to create temporary file');
+                }
+            }
+
+            if (is_resource($data)) {
+                $dest = fopen($filename, 'w');
+                if ($dest === false) {
+                    throw new \RuntimeException("Failed to open file: $filename");
+                }
+                stream_copy_to_stream($data, $dest);
+                fclose($dest);
+            } else {
+                file_put_contents($filename, $data);
+            }
+
+            return new \SplFileObject($filename, 'r');
+        }
+
+        if (enum_exists($class)) {
+            $data = $decoded ? $data : self::decodeJson($data);
+            /** @var object $result */
+            $result = self::getSerializer()->denormalize($data, $class);
+            return $result;
+        }
+
+        /* A classic allOf base (a schema with a discriminator that subtypes
+         * compose with allOf) decodes to the subtype its discriminator value
+         * names. subtypeClass() throws on a missing, non-string or unknown
+         * value, and returns the class itself for a subtype, so the recursion
+         * stops at the subtype. A payload that is not a JSON object falls
+         * through to the normal path, which reports it. */
+        if (class_exists($class) && method_exists($class, 'subtypeClass')) {
+            $payload = !$decoded && is_string($data)
+                ? json_decode($data, true, self::JSON_DECODE_DEPTH)
+                : $data;
+            if (is_array($payload)) {
+                $subtype = $class::subtypeClass($payload);
+                if ($subtype !== $class) {
+                    return self::deserializeInternal($data, $subtype, $httpHeaders, $decoded, $path);
+                }
+            }
+        }
+
+        /* Gap AU-residual: a oneOf/anyOf composed model carries a static
+         * build() + a getActualInstance() accessor instead of
+         * SerializedName-decorated typed properties. Routing it through the
+         * generic Symfony denormalize() below would silently wrap the raw
+         * decoded array in an empty union container — including a payload
+         * that is missing the discriminator property. build() owns the
+         * discriminator routing and THROWS on a missing / unknown / non-string
+         * discriminator value (matching the other 10 SDKs); dispatch composed
+         * classes through it so the contract violation surfaces loudly instead
+         * of producing an un-typeable wrapper. The native
+         * \InvalidArgumentException build() raises is wrapped in
+         * SerializationException by the public deserialize() entry point. */
+        if (
+            class_exists($class)
+            && method_exists($class, 'build')
+            && method_exists($class, 'getActualInstance')
+        ) {
+            $payload = !$decoded && is_string($data)
+                ? json_decode($data, true, self::JSON_DECODE_DEPTH)
+                : $data;
+            $outerUnionPath = self::$unionPath;
+            self::$unionPath = $path;
+            try {
+                /** @var object $built */
+                $built = $class::build($payload);
+            } finally {
+                self::$unionPath = $outerUnionPath;
+            }
+            return $built;
+        }
+
+        /* Only a raw body is JSON text. A container element is already a decoded
+         * value, so a string element is never parsed again into an object. */
+        if (!$decoded && is_string($data)) {
+            $payload = null;
+            try {
+                $payload = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+                /* A bare JSON `null` body decodes to a null return, matching the
+                 * absent/null body the other 10 SDKs return null for, rather
+                 * than throwing "Expected a JSON object, got null". */
+                if ($payload === null) {
+                    return null;
+                }
+                if (!is_array($payload)) {
+                    throw new \InvalidArgumentException(
+                        sprintf('Expected a JSON object, got %s', get_debug_type($payload))
+                    );
+                }
+                self::assertRequiredPresent($payload, $class);
+                self::assertPrimitiveTypes($payload, $class);
+                self::assertNoUnknownProperties($payload, $class);
+                self::assertBase64Fields($payload, $class);
+                $payload = self::liftDecimals($payload, $class, $path, 0);
+                /* Canonical #4: pass the JSON format so Symfony widens an
+                 * integral JSON value to a `float` property (e.g. {"lat":5}
+                 * into a `?float $lat`). validateAndDenormalize only applies
+                 * the int->float widening when the format string contains
+                 * "json"; called without a format it raises
+                 * NotNormalizableValueException for the integral value. The
+                 * body always arrives as decoded JSON here, so naming the
+                 * format is correct and matches the int-from-double widening
+                 * the other SDKs perform. */
+                /** @var object $result */
+                $result = self::getSerializer()->denormalize($payload, $class, JsonEncoder::FORMAT);
+                return self::captureAdditionalProperties($result, $payload);
+            } catch (SerializationException $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                throw new SerializationException(self::decodeFailureMessage($e, $payload), 0, $e);
+            }
+        }
+
+        try {
+            if ($decoded && !is_array($data)) {
+                throw new \InvalidArgumentException(
+                    sprintf('Expected a JSON object, got %s', get_debug_type($data))
+                );
+            }
+            if (is_array($data)) {
+                self::assertRequiredPresent($data, $class);
+                self::assertPrimitiveTypes($data, $class);
+                self::assertNoUnknownProperties($data, $class);
+                self::assertBase64Fields($data, $class);
+                $data = self::liftDecimals($data, $class, $path, 0);
+            }
+            /* Pass the JSON format so Symfony widens an integral JSON value
+             * to a `float` property (Canonical #4); see the string-data
+             * branch above for the full rationale. */
+            /** @var object $result */
+            $result = self::getSerializer()->denormalize($data, $class, JsonEncoder::FORMAT);
+            if (is_array($data)) {
+                $result = self::captureAdditionalProperties($result, $data);
+            }
+            return $result;
+        } catch (SerializationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new SerializationException(self::decodeFailureMessage($e, $data), 0, $e);
+        }
+    }
+
+    /**
+     * The message of a decode failure. The Symfony enum and type errors name the expected
+     * type but not the value that was refused, so when the failure carries the path of the
+     * property it came from, the wire value found at that path in the decoded payload is
+     * added, as a JSON literal.
+     */
+    private static function decodeFailureMessage(\Throwable $e, mixed $payload): string
+    {
+        $message = 'Failed to deserialize JSON: ' . $e->getMessage();
+        if (!($e instanceof NotNormalizableValueException) || !is_array($payload)) {
+            return $message;
+        }
+        $path = $e->getPath();
+        if ($path === null || $path === '') {
+            return $message;
+        }
+        $value = $payload;
+        foreach (explode('.', $path) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return $message;
+            }
+            $value = $value[$segment];
+        }
+        if (!is_scalar($value)) {
+            return $message;
+        }
+        return $message . sprintf(' (got %s at "%s")', json_encode($value, JSON_UNESCAPED_SLASHES), $path);
+    }
+
+    /**
+     * Decode a raw JSON text body. Anything that is not a string (an already
+     * decoded value) is returned unchanged, and unparseable text decodes to
+     * null, which the callers reject with their own typed error.
+     */
+    private static function decodeJson(mixed $data): mixed
+    {
+        return is_string($data) ? json_decode($data, true, self::JSON_DECODE_DEPTH) : $data;
+    }
+
+    /**
+     * F-BM-05 — hard-fail on a missing required property at deserialize.
+     *
+     * The generated model constructor declares every required var as a
+     * non-defaulted parameter, so a payload that omits one is a contract
+     * violation. Symfony's denormalizer is lenient for required-but-nullable
+     * types (it silently passes null), so we walk the constructor parameters
+     * that have no default value, map each to its wire name via the matching
+     * property's SerializedName attribute, and throw an SDK-typed
+     * InvalidArgumentException when the key is absent — aligning PHP with the
+     * other 11 SDKs which all reject a missing required field.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertRequiredPresent(array $data, string $class): void
+    {
+        if (!class_exists($class)) {
+            return;
+        }
+        $reflection = new \ReflectionClass($class);
+        $constructor = $reflection->getConstructor();
+        if ($constructor === null) {
+            return;
+        }
+        foreach ($constructor->getParameters() as $param) {
+            if ($param->isOptional() || $param->isDefaultValueAvailable()) {
+                continue;
+            }
+            $wireName = $param->getName();
+            if ($reflection->hasProperty($param->getName())) {
+                $property = $reflection->getProperty($param->getName());
+                foreach (
+                    $property->getAttributes(
+                        \Symfony\Component\Serializer\Attribute\SerializedName::class
+                    ) as $attr
+                ) {
+                    $args = $attr->getArguments();
+                    if (isset($args[0]) && is_string($args[0])) {
+                        $wireName = $args[0];
+                    } elseif (isset($args['name']) && is_string($args['name'])) {
+                        $wireName = $args['name'];
+                    }
+                }
+            }
+            if (!array_key_exists($wireName, $data)) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Missing required property '%s' on %s",
+                    $wireName,
+                    $class
+                ));
+            }
+            /* DIVERGENCE #10: reject an explicitly-NULL value for a required,
+             * non-nullable field. array_key_exists is true for an explicit
+             * `"name": null`, so the absent-key check above lets a null
+             * through to a non-nullable constructor parameter, where Symfony's
+             * denormalizer behaviour is version-dependent and not guaranteed
+             * to throw. Inspect the parameter's declared type: when the value
+             * is null and the type does NOT allow null, that is a contract
+             * violation. Required-but-nullable parameters (type allows null)
+             * are left untouched, so an explicit null stays valid for them. */
+            $paramType = $param->getType();
+            if (
+                $data[$wireName] === null
+                && $paramType !== null
+                && !$paramType->allowsNull()
+            ) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Required property '%s' on %s must not be null",
+                    $wireName,
+                    $class
+                ));
+            }
+        }
+    }
+
+    /**
+     * Gap S — strict primitive type-check.
+     *
+     * Symfony's ObjectNormalizer is permissive: it silently coerces
+     * {"id": "42"} into an int property and {"active": 1} into a bool
+     * property. Walking the declared properties via Reflection and
+     * asserting that incoming primitive types match the declared
+     * PHP type makes wire-type bugs throw an InvalidArgumentException
+     * instead of producing a corrupted typed object. Aligns PHP with
+     * Java/Kotlin/C#/Go/Swift/Rust which throw on type mismatch.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertPrimitiveTypes(array $data, string $class): void
+    {
+        if (!class_exists($class)) {
+            return;
+        }
+        /* class_exists guarantees ReflectionClass won't throw — no try/catch needed. */
+        $reflection = new \ReflectionClass($class);
+        foreach ($reflection->getProperties() as $property) {
+            $type = $property->getType();
+            if (!$type instanceof \ReflectionNamedType) {
+                continue;
+            }
+            $typeName = $type->getName();
+            $serializedName = $property->getName();
+            foreach ($property->getAttributes(\Symfony\Component\Serializer\Attribute\SerializedName::class) as $attr) {
+                $args = $attr->getArguments();
+                if (isset($args[0]) && is_string($args[0])) {
+                    $serializedName = $args[0];
+                } elseif (isset($args['name']) && is_string($args['name'])) {
+                    $serializedName = $args['name'];
+                }
+            }
+            if (!array_key_exists($serializedName, $data)) {
+                continue;
+            }
+            $value = $data[$serializedName];
+            if ($value === null) {
+                continue;
+            }
+            if ($typeName === 'float' && is_float($value) && !is_finite($value)) {
+                /* 1e400 overflows to INF in json_decode; a decoded number must be finite. */
+                throw new \InvalidArgumentException(sprintf(
+                    "Expected a finite number for property '%s' on %s but got a non-finite value",
+                    $serializedName,
+                    $class
+                ));
+            }
+            $valid = match ($typeName) {
+                'int' => is_int($value),
+                'float' => is_int($value) || is_float($value),
+                'bool' => is_bool($value),
+                'string' => is_string($value),
+                'array' => is_array($value),
+                default => true,
+            };
+            if (!$valid) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Gap S: property '%s' on %s expects %s, got %s",
+                    $serializedName,
+                    $class,
+                    $typeName,
+                    get_debug_type($value)
+                ));
+            }
+        }
+    }
+
+    /**
+     * OAS 3.1 / JSON Schema 2020-12 `unevaluatedProperties: false` enforcement.
+     *
+     * The model template emits a static `assertNoUnknownProperties(array $data)`
+     * helper on every schema that declares `unevaluatedProperties: false`; that
+     * helper throws when the decoded payload carries a key not declared on the
+     * schema. Symfony's denormalizer is permissive and silently drops extra
+     * attributes, so the per-model helper has to run BEFORE denormalize() for
+     * the contract to bite. This guard dispatches to the model's own helper
+     * when present (and is a no-op for every other class), aligning PHP with
+     * Python's `extra="forbid"` and Java's throwing `@JsonAnySetter`.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertNoUnknownProperties(array $data, string $class): void
+    {
+        if (!class_exists($class) || !method_exists($class, 'assertNoUnknownProperties')) {
+            return;
+        }
+        /* Dispatch via Reflection rather than a dynamic `$class::method()` call:
+         * the static method's presence was confirmed by method_exists, and
+         * ReflectionMethod::invoke keeps the call statically analysable at
+         * PHPStan level 9 (a string-typed class-string static call is not). The
+         * model-side helper throws \InvalidArgumentException on an unknown key;
+         * the surrounding deserialize() try/catch wraps it in
+         * SerializationException. */
+        (new \ReflectionMethod($class, 'assertNoUnknownProperties'))->invoke(null, $data);
+    }
+
+    /**
+     * Whether a string is strict RFC 4648 base64: standard alphabet, a length
+     * that is a multiple of four with `=` padding, no whitespace or newline
+     * and no URL-safe `-` or `_`. Non-zero trailing pad bits are not checked.
+     */
+    public static function isStrictBase64(string $text): bool
+    {
+        return preg_match('~\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?\z~', $text) === 1;
+    }
+
+    /**
+     * The wire names of the required properties of a model that are nullable.
+     * A model marks them in its protected REQUIRED_NULLABLE_PROPERTIES
+     * constant, read here through reflection so the marker is not part of the
+     * model's public surface; a subclass adds to what its parents declare.
+     *
+     * @param class-string $class
+     * @return list<string>
+     */
+    private static function requiredNullableProperties(string $class): array
+    {
+        $found = [];
+        $reflection = new \ReflectionClass($class);
+        while ($reflection !== false) {
+            $constant = $reflection->getReflectionConstant('REQUIRED_NULLABLE_PROPERTIES');
+            if ($constant !== false && $constant->getDeclaringClass()->getName() === $reflection->getName()) {
+                $value = $constant->getValue();
+                if (is_array($value)) {
+                    foreach ($value as $name) {
+                        if (is_string($name)) {
+                            $found[] = $name;
+                        }
+                    }
+                }
+            }
+            $reflection = $reflection->getParentClass();
+        }
+
+        return $found;
+    }
+
+    /**
+     * The `format: byte` properties of a model, as property name => shape
+     * (`scalar`, `list` or `map`). A model marks them in its private
+     * protected BYTE_PROPERTIES constant, read here through reflection so the
+     * marker is not part of the model's public surface; a subclass adds to
+     * what its parents declare.
+     *
+     * @internal
+     * @return array<string, string>
+     */
+    public static function byteProperties(string $class): array
+    {
+        if (!class_exists($class)) {
+            return [];
+        }
+        $found = [];
+        $reflection = new \ReflectionClass($class);
+        while ($reflection !== false) {
+            $constant = $reflection->getReflectionConstant('BYTE_PROPERTIES');
+            if ($constant !== false && $constant->getDeclaringClass()->getName() === $reflection->getName()) {
+                $value = $constant->getValue();
+                if (is_array($value)) {
+                    foreach ($value as $name => $shape) {
+                        if (is_string($name) && is_string($shape)) {
+                            $found[$name] = $shape;
+                        }
+                    }
+                }
+            }
+            $reflection = $reflection->getParentClass();
+        }
+        return $found;
+    }
+
+    /**
+     * The decode type of the additional property values of a model with a typed
+     * additionalProperties, and whether a null value is allowed. A model marks
+     * them in its protected ADDITIONAL_PROPERTIES_TYPE and
+     * ADDITIONAL_PROPERTIES_NULLABLE constants, read through reflection so the
+     * markers are not part of the model's public surface. A free-form model has
+     * neither, and the result is `[null, true]`.
+     *
+     * @internal
+     * @return array{0: string|null, 1: bool} the value type and whether null is allowed
+     */
+    public static function additionalPropertiesType(string $class): array
+    {
+        if (!class_exists($class)) {
+            return [null, true];
+        }
+        $reflection = new \ReflectionClass($class);
+        $type = $reflection->getReflectionConstant('ADDITIONAL_PROPERTIES_TYPE');
+        if ($type === false || !is_string($type->getValue())) {
+            return [null, true];
+        }
+        return [$type->getValue(), $reflection->getReflectionConstant('ADDITIONAL_PROPERTIES_NULLABLE') !== false];
+    }
+
+    /**
+     * Base64-encode the raw bytes a oneOf wrapper holds for a `format: byte`
+     * variant, so the wire form is the base64 string (or list of strings).
+     * The wrapper marks its byte variants in its protected BYTE_VARIANTS
+     * constant; any other instance is returned unchanged.
+     */
+    private static function encodeByteVariant(object $wrapper, mixed $instance): mixed
+    {
+        $constant = (new \ReflectionClass($wrapper))->getReflectionConstant('BYTE_VARIANTS');
+        $variants = $constant === false ? [] : $constant->getValue();
+        if (!is_array($variants)) {
+            return $instance;
+        }
+        if (is_string($instance) && in_array('scalar', $variants, true)) {
+            return base64_encode($instance);
+        }
+        if ($instance instanceof \Ds\Vector && in_array('list', $variants, true)) {
+            return new \Ds\Vector(array_map(
+                static fn (mixed $element): mixed => is_string($element) ? base64_encode($element) : $element,
+                $instance->toArray()
+            ));
+        }
+        return $instance;
+    }
+
+    /**
+     * Reject a `format: byte` model field whose wire value is not strict
+     * base64 (see isStrictBase64), so malformed text fails at decode time
+     * rather than being handed to the model as bytes.
+     *
+     * A byte field (scalar, list element or map value) is recognised by the
+     * model's protected BYTE_PROPERTIES constant (see byteProperties). Each
+     * string element is checked; null is left alone.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertBase64Fields(array $data, string $class): void
+    {
+        $byteProperties = self::byteProperties($class);
+        if ($byteProperties === [] || !class_exists($class)) {
+            return;
+        }
+        $reflection = new \ReflectionClass($class);
+        foreach ($reflection->getProperties() as $property) {
+            if (!isset($byteProperties[$property->getName()])) {
+                continue;
+            }
+            $wireName = self::wireNameOf($property);
+            if (!array_key_exists($wireName, $data)) {
+                continue;
+            }
+            $value = $data[$wireName];
+            $elements = is_array($value) ? $value : [$value];
+            foreach ($elements as $element) {
+                if (is_string($element) && !self::isStrictBase64($element)) {
+                    throw new \InvalidArgumentException(sprintf(
+                        "Invalid base64 for format: byte property '%s' on %s",
+                        $wireName,
+                        $class
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
+     * OAS `additionalProperties` capture.
+     *
+     * The model template emits a public `\Ds\Map $additionalProperties`
+     * property on every schema that declares an open `additionalProperties`
+     * map. Symfony's denormalizer maps only the declared/SerializedName-tagged
+     * properties and drops every other decoded key, so without this step the
+     * undeclared keys are lost (data loss) and `$additionalProperties` stays
+     * null. This collects every decoded key that does NOT correspond to a
+     * declared property (matched by its wire / SerializedName) into a
+     * `\Ds\Map` and assigns it, mirroring Python's capture validator and
+     * Java's `@JsonAnySetter`. Returns the object unchanged when it has no
+     * `additionalProperties` property.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function captureAdditionalProperties(object $result, array $data): object
+    {
+        foreach (self::publicModelProperties($result) as $wireName => $property) {
+            if (array_key_exists($wireName, $data)) {
+                self::captureNestedAdditionalProperties($property->getValue($result), $data[$wireName]);
+            }
+        }
+        if (!property_exists($result, 'additionalProperties')) {
+            return $result;
+        }
+        $reflection = new \ReflectionClass($result);
+        /* Build the set of wire names that map to a declared property so they
+         * are NOT swept into the additionalProperties bag. Each declared
+         * property contributes its SerializedName (or, absent the attribute,
+         * its PHP name). The synthetic `additionalProperties` property itself
+         * is never a wire key. */
+        $declaredWireNames = [];
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->getName() === 'additionalProperties') {
+                continue;
+            }
+            $declaredWireNames[self::wireNameOf($property)] = true;
+        }
+
+        [$valueType, $nullable] = self::additionalPropertiesType($result::class);
+        $int32 = $reflection->getReflectionConstant('ADDITIONAL_PROPERTIES_INT32') !== false;
+
+        /** @var array<string, mixed> $extra */
+        $extra = [];
+        foreach ($data as $key => $value) {
+            if (isset($declaredWireNames[(string) $key])) {
+                continue;
+            }
+            if ($valueType !== null) {
+                /* A typed bucket decodes each extra like the element of a map of the
+                 * same type: a wrong JSON type fails and a null is rejected unless the
+                 * value schema is nullable. */
+                if ($value === null && !$nullable) {
+                    throw new \InvalidArgumentException(
+                        sprintf("Null is not a valid additional property value for '%s'", (string) $key)
+                    );
+                }
+                $value = self::deserializeInternal($value, self::qualifySchemaName($valueType), null, true);
+                if ($int32 && is_int($value) && ($value < -2147483648 || $value > 2147483647)) {
+                    throw new \InvalidArgumentException(
+                        sprintf("Additional property '%s' is outside the int32 range", (string) $key)
+                    );
+                }
+            }
+            $extra[(string) $key] = $value;
+        }
+        if ($extra !== []) {
+            /* The property is a read-only, non-null `\Ds\Map` (empty by default
+             * and created by the constructor), so the undeclared keys are put
+             * into that map: callers read them back through the same container
+             * type the model documents. */
+            $bag = $result->additionalProperties;
+            if ($bag instanceof \Ds\Map) {
+                $bag->putAll($extra);
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Capture additionalProperties on the models nested in a decoded value.
+     *
+     * Symfony denormalizes a nested model directly, so its undeclared keys
+     * are dropped just as the root's would be. This walks the decoded value
+     * together with its raw JSON (a model property, a list element or a map
+     * value) and runs the same capture on every nested model.
+     *
+     * @param mixed $value the denormalized value
+     * @param mixed $raw   the decoded JSON it was built from
+     */
+    private static function captureNestedAdditionalProperties(mixed $value, mixed $raw): void
+    {
+        if (!is_array($raw)) {
+            return;
+        }
+        if ($value instanceof \Ds\Map) {
+            foreach ($value as $key => $item) {
+                if ((is_int($key) || is_string($key)) && array_key_exists($key, $raw)) {
+                    self::captureNestedAdditionalProperties($item, $raw[$key]);
+                }
+            }
+            return;
+        }
+        if ($value instanceof \Ds\Sequence || $value instanceof \Ds\Set || is_array($value)) {
+            $items = is_array($value) ? $value : $value->toArray();
+            if (array_is_list($items) && count($items) !== count($raw)) {
+                return;
+            }
+            foreach ($items as $key => $item) {
+                if (array_key_exists($key, $raw)) {
+                    self::captureNestedAdditionalProperties($item, $raw[$key]);
+                }
+            }
+            return;
+        }
+        if (is_object($value) && !($value instanceof \UnitEnum)) {
+            self::captureAdditionalProperties($value, $raw);
+        }
+    }
+
+    /**
+     * Convert a value to a string suitable for use as a URL path parameter.
+     */
+    public static function toPathValue(mixed $value): string
+    {
+        return self::stringify($value);
+    }
+
+    /**
+     * Formats a `format: date` value as YYYY-MM-DD for wire serialization.
+     * PHP has only DateTime (no separate date-only type), so the codegen
+     * checks the spec format and routes through this helper to strip the
+     * time component. Without this, a date param goes out as a full ATOM
+     * (ISO+offset) string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
+     * Ruby/Elixir) with native LocalDate types.
+     */
+    public static function toPathDateValue(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+        if (is_string($value)) {
+            return substr($value, 0, 10);
+        }
+        return self::stringify($value);
+    }
+
+    /**
+     * Convert a value to a representation suitable for use as a query parameter.
+     * For collections, joins using the specified collection format delimiter.
+     *
+     * @return mixed the query value
+     */
+    public static function toQueryValue(mixed $value, ?string $collectionFormat = null): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_array($value)) {
+            $items = array_map([self::class, 'stringify'], $value);
+            return match ($collectionFormat) {
+                'ssv' => implode(' ', $items),
+                'tsv' => implode("\t", $items),
+                'pipes' => implode('|', $items),
+                'multi' => $items,
+                default => implode(',', $items), // csv or default
+            };
+        }
+
+        return self::stringify($value);
+    }
+
+    /**
+     * Convert a value to a string suitable for use as an HTTP header value.
+     */
+    public static function toHeaderValue(mixed $value): string
+    {
+        if (is_array($value)) {
+            return implode(',', array_map(static fn ($v): string => self::stringify($v), $value));
+        }
+
+        return self::stringify($value);
+    }
+
+    /**
+     * Convert a value to a string suitable for use as an HTTP cookie value.
+     * Cookie values follow the same encoding rules as header values.
+     *
+     * @param mixed $value the value to convert
+     *
+     * @return string string representation
+     */
+    public static function toCookieValue(mixed $value): string
+    {
+        return self::toHeaderValue($value);
+    }
+
+    /**
+     * Convert a value to a representation suitable for use as a form parameter.
+     */
+    public static function toFormValue(mixed $value): string
+    {
+        if ($value instanceof \SplFileObject) {
+            return $value->getRealPath();
+        }
+        return self::stringify($value);
+    }
+
+    /**
+     * Resolve a oneOf schema by trying each candidate deserializer in order.
+     * Each candidate is a closure that accepts the raw data and returns a
+     * deserialized value, or throws on failure.
+     *
+     * @param mixed               $data       the data to match
+     * @param array<callable>     $candidates list of deserializer closures
+     *
+     * @return mixed the first successfully deserialized value
+     *
+     * @throws \UnexpectedValueException when the data matches none of the
+     *         candidate schemas. Throws rather than returning null so that
+     *         shape-mismatch bugs surface loudly — aligns with Python,
+     *         Swift, Dart, Go, Rust (5 of 12 already throw).
+     */
+    public static function resolveOneOf(mixed $data, array $candidates): mixed
+    {
+        foreach ($candidates as $candidate) {
+            try {
+                return $candidate($data);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+        throw new \UnexpectedValueException(
+            'No oneOf/anyOf variant matched the JSON'
+        );
+    }
+
+    /**
+     * Resolve an anyOf schema by trying each candidate deserializer in order.
+     * Delegates to {@see resolveOneOf}.
+     *
+     * @param mixed               $data       the data to match
+     * @param array<callable>     $candidates list of deserializer closures
+     *
+     * @return mixed the first successfully deserialized value
+     *
+     * @throws \UnexpectedValueException when the data matches none of the
+     *         candidate schemas
+     */
+    public static function resolveAnyOf(mixed $data, array $candidates): mixed
+    {
+        return self::resolveOneOf($data, $candidates);
+    }
+
+    /**
+     * Resolve an anyOf schema by collecting EVERY candidate that successfully
+     * deserializes, not just the first. The OAS `anyOf` keyword matches when
+     * the data satisfies one OR MORE of the listed schemas, so a payload that
+     * co-satisfies several variants must retain all of them — returning only
+     * the first would silently drop the other variants' fields and break a
+     * lossless round-trip. Each retained variant is held independently; the
+     * union of their fields is re-emitted on serialize via
+     * {@see sanitizeForSerialization} (which merges the field-set of every
+     * variant exposed through getMatchedInstances()).
+     *
+     * @param mixed           $data       the data to match
+     * @param array<callable> $candidates list of deserializer closures
+     *
+     * @return array<int, mixed> every successfully deserialized variant, in
+     *         declaration order
+     *
+     * @throws \UnexpectedValueException when the data matches no candidate
+     *         schema. Throws rather than returning an empty list so a
+     *         shape-mismatch surfaces loudly, mirroring {@see resolveOneOf}.
+     */
+    public static function resolveAnyOfAll(mixed $data, array $candidates): array
+    {
+        $matched = [];
+        foreach ($candidates as $candidate) {
+            try {
+                $matched[] = $candidate($data);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+        if ($matched === []) {
+            throw new \UnexpectedValueException(
+                'No oneOf/anyOf variant matched the JSON'
+            );
+        }
+        return $matched;
+    }
+
+    /**
+     * Renders a decoded value for a model's string form: strings quoted with their contents, lists
+     * in brackets, maps with their keys, models through their own string form, and null, booleans
+     * and numbers as written. Nothing here throws.
+     */
+    public static function describeValue(mixed $value): string
+    {
+        if ($value === null) {
+            return 'null';
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+        if (is_string($value)) {
+            return "'" . addcslashes($value, "'\\") . "'";
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return "'" . $value->format(\DateTimeInterface::RFC3339_EXTENDED) . "'";
+        }
+        if ($value instanceof \BackedEnum) {
+            return self::describeValue($value->value);
+        }
+        if ($value instanceof \Ds\Map) {
+            return self::describePairs($value->toArray());
+        }
+        if ($value instanceof \Ds\Collection) {
+            return '[' . implode(', ', array_map(self::describeValue(...), $value->toArray())) . ']';
+        }
+        if (is_array($value)) {
+            return array_is_list($value)
+                ? '[' . implode(', ', array_map(self::describeValue(...), $value)) . ']'
+                : self::describePairs($value);
+        }
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return '<' . get_debug_type($value) . '>';
+    }
+
+    /**
+     * Renders an associative array as {key: value} pairs for describeValue().
+     *
+     * @param array<array-key, mixed> $pairs
+     */
+    private static function describePairs(array $pairs): string
+    {
+        $parts = [];
+        foreach ($pairs as $key => $item) {
+            $parts[] = self::describeValue((string) $key) . ': ' . self::describeValue($item);
+        }
+
+        return '{' . implode(', ', $parts) . '}';
+    }
+
+    /**
+     * Structural equality of two decoded values, used by every generated equals() method.
+     *
+     * Scalars and null compare by value, arrays entry by entry under the same key, date-times by
+     * the instant they name (whatever their zone), sets as unordered members, vectors and maps by
+     * content, enums by case, and models and unions through their own equals(). Values of
+     * different classes are never equal, and nothing here throws.
+     */
+    public static function valuesEqual(mixed $left, mixed $right): bool
+    {
+        if ($left instanceof \DateTimeInterface) {
+            return $right instanceof \DateTimeInterface && $left == $right;
+        }
+        if ($left instanceof BigNumber) {
+            /* Decimals compare by value, so 1.5 equals 1.50, as in the other SDKs. */
+            return $right instanceof BigNumber && $left->isEqualTo($right);
+        }
+        if ($left instanceof \Ds\Set) {
+            return $right instanceof \Ds\Set
+                && $left->count() === $right->count()
+                && self::sameMembers($left->toArray(), $right->toArray());
+        }
+        if ($left instanceof \Ds\Collection) {
+            return $right instanceof \Ds\Collection
+                && $left::class === $right::class
+                && self::valuesEqual($left->toArray(), $right->toArray());
+        }
+        if (is_array($left)) {
+            if (!is_array($right) || count($left) !== count($right)) {
+                return false;
+            }
+            foreach ($left as $key => $value) {
+                if (!array_key_exists($key, $right) || !self::valuesEqual($value, $right[$key])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        if (is_object($left)) {
+            if (!is_object($right) || $left::class !== $right::class) {
+                return false;
+            }
+            if ($left instanceof \UnitEnum) {
+                return $left === $right;
+            }
+            if (method_exists($left, 'equals')) {
+                return (bool) $left->equals($right);
+            }
+
+            return $left == $right;
+        }
+
+        return $left === $right;
+    }
+
+    /**
+     * Whether every member of $left has an equal member in $right, each matched once.
+     *
+     * @param array<array-key, mixed> $left
+     * @param array<array-key, mixed> $right
+     */
+    private static function sameMembers(array $left, array $right): bool
+    {
+        foreach ($left as $member) {
+            $matched = null;
+            foreach ($right as $key => $candidate) {
+                if (self::valuesEqual($member, $candidate)) {
+                    $matched = $key;
+                    break;
+                }
+            }
+            if ($matched === null) {
+                return false;
+            }
+            unset($right[$matched]);
+        }
+
+        return true;
+    }
+
+    /**
+     * The marker a number-shaped decimal is encoded as, replaced by its digits once the JSON text
+     * is written (see writeDecimalNumbers). The marker starts with a NUL and a per-process nonce,
+     * so no string a caller sends can be mistaken for it.
+     *
+     * @internal
+     */
+    public static function decimalMarker(BigDecimal $decimal): string
+    {
+        return self::decimalMarkerPrefix() . $decimal->toString();
+    }
+
+    private static function decimalMarkerPrefix(): string
+    {
+        if (self::$decimalMarker === null) {
+            self::$decimalMarker = "\0" . bin2hex(random_bytes(8)) . ':';
+        }
+
+        return self::$decimalMarker;
+    }
+
+    /**
+     * Writes every decimal marker in an encoded JSON text as a bare JSON number with the
+     * decimal's digits, in plain notation.
+     */
+    private static function writeDecimalNumbers(string $json): string
+    {
+        $encodedPrefix = substr((string) json_encode(self::decimalMarkerPrefix()), 1, -1);
+        if (!str_contains($json, $encodedPrefix)) {
+            return $json;
+        }
+        $written = preg_replace(
+            '/"' . preg_quote($encodedPrefix, '/') . '(-?[0-9]+(?:\.[0-9]+)?)"/',
+            '$1',
+            $json
+        );
+        if ($written === null) {
+            throw new \RuntimeException('Failed to write a decimal as a JSON number');
+        }
+
+        return $written;
+    }
+
+    /**
+     * Turns the decimal markers in a normalized value back into the decimal's text, for a
+     * property whose decimal travels as a JSON string.
+     */
+    private static function decimalMarkersAsText(mixed $normalized): mixed
+    {
+        if (is_string($normalized) && str_starts_with($normalized, self::decimalMarkerPrefix())) {
+            return substr($normalized, strlen(self::decimalMarkerPrefix()));
+        }
+        if (is_array($normalized)) {
+            foreach ($normalized as $key => $item) {
+                $normalized[$key] = self::decimalMarkersAsText($item);
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Whether a model property holds a decimal that travels as a JSON string (a `type: string`
+     * with `format: decimal`), which the model marks with {@see WireFormat}.
+     */
+    private static function isDecimalString(\ReflectionProperty $property): bool
+    {
+        foreach ($property->getAttributes(WireFormat::class) as $mark) {
+            if ($mark->newInstance()->format === 'decimal') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Reads a decoded JSON value as a decimal. A string-shaped decimal is read only from a JSON
+     * string, a number-shaped one only from a JSON number, and a null shape takes either. A JSON
+     * number is read from its digits in the JSON text, never through the float json_decode made
+     * of it; only a value with no JSON text behind it (decoded by the caller) is read from its
+     * float, in its shortest form.
+     *
+     * @internal
+     * @param bool|null             $stringShaped true for a JSON string, false for a JSON number, null for either
+     * @param list<int|string>|null $path         where the value sits in the JSON text being decoded
+     *
+     * @throws \InvalidArgumentException when the value is not of the declared JSON type or is not a decimal
+     */
+    public static function readDecimal(mixed $value, ?bool $stringShaped, ?array $path, string $name): ?BigDecimal
+    {
+        if ($value === null || $value instanceof BigDecimal) {
+            return $value;
+        }
+        if ($value instanceof BigNumber) {
+            return $value->toBigDecimal();
+        }
+        if (is_string($value)) {
+            if ($stringShaped === false) {
+                throw new \InvalidArgumentException(
+                    "Expected a JSON number for decimal '$name' but got a quoted string"
+                );
+            }
+
+            return self::parseDecimalText($value, true, $name);
+        }
+        if (!is_int($value) && !is_float($value)) {
+            throw new \InvalidArgumentException(
+                "Expected a decimal for '$name' but got " . get_debug_type($value)
+            );
+        }
+        if ($stringShaped === true) {
+            throw new \InvalidArgumentException(
+                "Expected a JSON string for decimal '$name' but got a bare number"
+            );
+        }
+        $text = $path === null ? null : self::numberTextAt($path);
+        if ($text !== null) {
+            return self::parseDecimalText($text, false, $name);
+        }
+        if (is_int($value)) {
+            return BigDecimal::of($value);
+        }
+        if (!is_finite($value)) {
+            throw new \InvalidArgumentException("Expected a finite decimal for '$name'");
+        }
+
+        return BigDecimal::fromFloatShortest($value);
+    }
+
+    /**
+     * Reads decimal text exactly: the plain form (`-12.50`) for a decimal written as a string,
+     * and a JSON number (an exponent allowed) for one written as a number.
+     *
+     * @throws \InvalidArgumentException when the text is not a decimal
+     */
+    private static function parseDecimalText(string $text, bool $stringShaped, string $name): BigDecimal
+    {
+        $pattern = $stringShaped
+            ? '/^-?[0-9]+(?:\.[0-9]+)?$/D'
+            : '/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/D';
+        if (preg_match($pattern, $text) !== 1) {
+            throw new \InvalidArgumentException("Value for '$name' is not a decimal number: " . $text);
+        }
+        try {
+            return BigDecimal::parse($text, NumberSyntax::SCIENTIFIC, self::MAX_DECIMAL_DIGITS);
+        } catch (\Brick\Math\Exception\MathException $e) {
+            throw new \InvalidArgumentException(
+                "Value for '$name' is not a decimal this SDK reads: " . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+
+    /**
+     * The digits of the JSON number at a place in the text being decoded, or null when there is
+     * no text or no number there. The text is decoded a second time, with every number kept as
+     * its digits, the first time a decimal needs it.
+     *
+     * @param list<int|string> $path
+     */
+    private static function numberTextAt(array $path): ?string
+    {
+        if (!self::$numberTextsBuilt) {
+            self::$numberTextsBuilt = true;
+            self::$numberTexts = self::$sourceText === null ? null : self::decodeKeepingNumberText(self::$sourceText);
+        }
+        $node = self::$numberTexts;
+        foreach ($path as $key) {
+            if (!is_array($node) || !array_key_exists($key, $node)) {
+                return null;
+            }
+            $node = $node[$key];
+        }
+
+        return is_string($node) ? $node : null;
+    }
+
+    /**
+     * Decodes a JSON text with every number turned into a string of its digits, so the value at
+     * any place has the same shape as json_decode gives and a number keeps what was written.
+     */
+    private static function decodeKeepingNumberText(string $json): mixed
+    {
+        if (str_starts_with($json, "\xEF\xBB\xBF")) {
+            $json = substr($json, 3);
+        }
+        $quoted = preg_replace_callback(
+            '/"(?:[^"\\\\]++|\\\\.)*+"|-?(?:0|[1-9][0-9]*+)(?:\.[0-9]++)?(?:[eE][+-]?[0-9]++)?/',
+            static fn (array $match): string => $match[0][0] === '"' ? $match[0] : '"' . $match[0] . '"',
+            $json
+        );
+        if ($quoted === null) {
+            return null;
+        }
+
+        return json_decode($quoted, true, self::JSON_DECODE_DEPTH);
+    }
+
+    /**
+     * Replaces every decimal of a decoded model payload, and of the models nested in it, with a
+     * BigDecimal read exactly (see readDecimal), so the denormalizer never sees the float
+     * json_decode made of a decimal. A wrong JSON type fails here.
+     *
+     * @param array<array-key, mixed> $data
+     * @param list<int|string>|null   $path where the payload sits in the JSON text being decoded
+     * @return array<array-key, mixed>
+     */
+    private static function liftDecimals(array $data, string $class, ?array $path, int $depth): array
+    {
+        if ($depth > self::MAX_JSON_DEPTH) {
+            return $data;
+        }
+        foreach (self::decimalPlan($class) as $wireName => [$kind, $target, $stringShaped]) {
+            if (!array_key_exists($wireName, $data) || $data[$wireName] === null) {
+                continue;
+            }
+            $value = $data[$wireName];
+            $at = $path === null ? null : [...$path, $wireName];
+            if ($kind === 'decimal') {
+                $data[$wireName] = self::readDecimal($value, $stringShaped, $at, $wireName);
+            } elseif ($kind === 'model' && is_array($value)) {
+                $data[$wireName] = self::liftDecimals($value, self::concreteClass($target, $value), $at, $depth + 1);
+            } elseif (is_array($value)) {
+                foreach ($value as $key => $item) {
+                    $itemAt = $at === null ? null : [...$at, $key];
+                    if ($kind === 'decimals') {
+                        $value[$key] = self::readDecimal($item, $stringShaped, $itemAt, $wireName);
+                    } elseif (is_array($item)) {
+                        $value[$key] = self::liftDecimals($item, self::concreteClass($target, $item), $itemAt, $depth + 1);
+                    }
+                }
+                $data[$wireName] = $value;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * The class a nested payload decodes to: the subtype an allOf base's discriminator names, or
+     * the declared class.
+     *
+     * @param array<array-key, mixed> $payload
+     */
+    private static function concreteClass(string $class, array $payload): string
+    {
+        /* A discriminated oneOf names its variant the same way, so the decimals of a union held
+         * in a model are read from their digits before the union is built from them. */
+        if (
+            class_exists($class)
+            && method_exists($class, 'getActualInstance')
+            && (new \ReflectionClass($class))->hasConstant('DISCRIMINATOR_MAPPING')
+        ) {
+            $property = (new \ReflectionClassConstant($class, 'DISCRIMINATOR_PROPERTY'))->getValue();
+            $mapping = (new \ReflectionClassConstant($class, 'DISCRIMINATOR_MAPPING'))->getValue();
+            $value = is_string($property) ? ($payload[$property] ?? null) : null;
+            $variant = is_string($value) && is_array($mapping) ? ($mapping[$value] ?? null) : null;
+
+            return is_string($variant) ? $variant : $class;
+        }
+        if (!method_exists($class, 'subtypeClass')) {
+            return $class;
+        }
+        try {
+            $subtype = (new \ReflectionMethod($class, 'subtypeClass'))->invoke(null, $payload);
+        } catch (\Throwable) {
+            return $class;
+        }
+
+        return is_string($subtype) ? $subtype : $class;
+    }
+
+    /**
+     * The properties of a model that hold decimals or other models, by wire name: the kind
+     * (`decimal`, `decimals` for a list or map of them, `model`, `models`), the model class, and
+     * whether a decimal travels as a JSON string.
+     *
+     * @return array<string, array{0: string, 1: string, 2: bool}>
+     */
+    private static function decimalPlan(string $class): array
+    {
+        if (!class_exists($class) || !str_starts_with($class, '{{modelPackage}}\\')) {
+            return [];
+        }
+        if (isset(self::$decimalPlans[$class])) {
+            return self::$decimalPlans[$class];
+        }
+        $plan = [];
+        foreach ((new \ReflectionClass($class))->getProperties() as $property) {
+            $type = $property->getType();
+            if (!$type instanceof \ReflectionNamedType || $type->isBuiltin() || $property->isStatic()) {
+                continue;
+            }
+            $typeName = ltrim($type->getName(), '\\');
+            $stringShaped = self::isDecimalString($property);
+            if ($typeName === BigDecimal::class) {
+                $plan[self::wireNameOf($property)] = ['decimal', '', $stringShaped];
+                continue;
+            }
+            if (str_starts_with($typeName, 'Ds\\')) {
+                $doc = (string) $property->getDocComment();
+                if (preg_match('/@var\s+\\\\?Ds\\\\(?:Vector|Set|Map)<(?:[^<>,]+,\s*)?\\\\?([A-Za-z0-9_\\\\]+)>/', $doc, $inner) !== 1) {
+                    continue;
+                }
+                $element = ltrim($inner[1], '\\');
+                if ($element === BigDecimal::class) {
+                    $plan[self::wireNameOf($property)] = ['decimals', '', $stringShaped];
+                } elseif (str_starts_with($element, '{{modelPackage}}\\') && class_exists($element)) {
+                    $plan[self::wireNameOf($property)] = ['models', $element, false];
+                }
+                continue;
+            }
+            if (str_starts_with($typeName, '{{modelPackage}}\\') && !enum_exists($typeName)) {
+                $plan[self::wireNameOf($property)] = ['model', $typeName, false];
+            }
+        }
+        self::$decimalPlans[$class] = $plan;
+
+        return $plan;
+    }
+
+    /**
+     * Qualify an unqualified model class name with the model namespace.
+     * Primitive types (string, int, etc.) and already-qualified names are returned as-is.
+     */
+    public static function qualifySchemaName(string $schema): string
+    {
+        if (str_contains($schema, '\\') || !preg_match('/^[A-Z]/', $schema)) {
+            return $schema;
+        }
+        $fqcn = '{{modelPackage}}\\' . $schema;
+        return class_exists($fqcn) ? $fqcn : $schema;
+    }
+
+    /**
+     * Decode an OAS `format: byte` wire value (strict RFC 4648 base64) to its
+     * raw binary string. Invalid base64 THROWS a SerializationException
+     * (matching ruby/elixir) so a wire-shape violation surfaces to the caller.
+     */
+    private static function decodeBytes(string $encoded): string
+    {
+        $decoded = self::isStrictBase64($encoded) ? base64_decode($encoded, true) : false;
+        if ($decoded === false) {
+            throw new SerializationException(
+                "Invalid base64 for format: byte: " . $encoded
+            );
+        }
+        return $decoded;
+    }
+
+    /**
+     * Resolve the scalar `format: byte` branch of a oneOf/anyOf union.
+     *
+     * The wire form for `format: byte` is a base64 STRING. This candidate is
+     * invoked by {@see resolveOneOf} with already-decoded PHP data (the
+     * composed model's build() json_decodes the body before dispatching), so
+     * it receives a PHP string for the scalar branch and returns the decoded
+     * raw bytes as the union's actual instance; serializing the union
+     * base64-encodes them again. A non-string or non-base64 payload throws so
+     * {@see resolveOneOf} falls through to the next declared branch; this is
+     * what keeps a scalar base64 string from being mis-parsed as the array
+     * variant when both byte branches exist.
+     */
+    public static function decodeByteOneOfScalar(mixed $data): string
+    {
+        if (!is_string($data)) {
+            throw new \InvalidArgumentException(
+                'Expected a base64 string for the scalar byte variant but got '
+                . get_debug_type($data)
+            );
+        }
+        return self::decodeBytes($data);
+    }
+
+    /**
+     * Resolve the array `format: byte` branch of a oneOf/anyOf union.
+     *
+     * Each element travels on the wire as a base64 STRING. This candidate is
+     * invoked by {@see resolveOneOf} with already-decoded PHP data, so it
+     * receives a PHP array of strings for the array branch, validates and
+     * decodes every element, and returns a {@see \Ds\Vector} holding the raw
+     * bytes. A non-array payload, or one with a non-string or non-base64
+     * element, throws so {@see resolveOneOf} falls through to the next branch.
+     *
+     * @return \Ds\Vector<string>
+     */
+    public static function decodeByteOneOfArray(mixed $data): \Ds\Vector
+    {
+        if (!is_array($data)) {
+            throw new \InvalidArgumentException(
+                'Expected an array of base64 strings for the array byte variant'
+                . ' but got ' . get_debug_type($data)
+            );
+        }
+        $items = [];
+        foreach ($data as $element) {
+            if (!is_string($element)) {
+                throw new \InvalidArgumentException(
+                    'Expected every array byte element to be a base64 string but got '
+                    . get_debug_type($element)
+                );
+            }
+            $items[] = self::decodeBytes($element);
+        }
+        return new \Ds\Vector($items);
+    }
+
+    /**
+     * 4.8: format a \DateInterval as a protobuf-JSON duration string.
+     *
+     * google.protobuf.Duration is encoded as the number of seconds followed
+     * by an "s" suffix (e.g. "3600s"); fractional seconds are written as a
+     * decimal with 3, 6, or 9 digits — the smallest precision that preserves
+     * the value (e.g. "3600.000000001s"). google.protobuf.Duration has no
+     * month/year components, so the interval's ->y/->m are ignored (protobuf
+     * durations never set them); days are folded into seconds. A negative
+     * interval (->invert === 1) is prefixed with "-".
+     */
+    public static function formatProtobufDuration(\DateInterval $interval): string
+    {
+        $sign = $interval->invert === 1 ? '-' : '';
+
+        $seconds = ((($interval->d * 24 + $interval->h) * 60) + $interval->i) * 60
+            + $interval->s;
+        /* ->f is fractional seconds in the range [0, 1); scale to nanos and
+         * round to the nearest whole nanosecond. */
+        $nanos = (int) round($interval->f * 1_000_000_000);
+        if ($nanos >= 1_000_000_000) {
+            $seconds += intdiv($nanos, 1_000_000_000);
+            $nanos %= 1_000_000_000;
+        }
+
+        if ($nanos === 0) {
+            return $sign . $seconds . 's';
+        }
+
+        /* Zero-pad to 9 digits, then trim trailing zeros down to the nearest
+         * 3/6/9-digit boundary so the fraction stays a valid protobuf-JSON
+         * sub-second value. */
+        $frac = str_pad((string) $nanos, 9, '0', STR_PAD_LEFT);
+        if (str_ends_with($frac, '000000')) {
+            $frac = substr($frac, 0, 3);
+        } elseif (str_ends_with($frac, '000')) {
+            $frac = substr($frac, 0, 6);
+        }
+
+        return $sign . $seconds . '.' . $frac . 's';
+    }
+
+    /**
+     * 4.8: parse a protobuf-JSON duration string into a \DateInterval.
+     *
+     * Accepts the wire form "[-]<seconds>[.<frac>]s" (e.g. "3600s",
+     * "3600.000000001s", "-1.5s"). The whole-seconds part becomes the
+     * interval's seconds; the fractional part is right-padded to 9 digits and
+     * stored as ->f so the value round-trips through formatProtobufDuration.
+     * A leading "-" sets ->invert. Any other shape throws the SDK-owned
+     * SerializationException used elsewhere for malformed input.
+     *
+     * Returns a {@see PreciseDuration} (a \DateInterval subclass) rather than a
+     * stock \DateInterval: native ->f truncates sub-microsecond fractions to
+     * 0.0, which would silently drop nanosecond durations on parse.
+     */
+    public static function parseProtobufDuration(string $value): \DateInterval
+    {
+        if (preg_match('/^(-?)(\d+)(?:\.(\d{1,9}))?s$/', $value, $m) !== 1) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': "
+                . 'expected "<seconds>[.<fraction>]s"'
+            );
+        }
+
+        /* PHP's \DateInterval::$f stores at most microsecond precision: any
+         * value below 1e-6 assigned to it is truncated to 0.0, so a plain
+         * \DateInterval cannot round-trip the nanosecond fractions that
+         * google.protobuf.Duration allows (e.g. "3600.000000001s"). Build a
+         * PreciseDuration instead — a \DateInterval subclass that bypasses the
+         * lossy native initialiser and keeps ->f as a full-precision float. */
+        /* A seconds count beyond the integer range would saturate in (int) and
+         * be read as PHP_INT_MAX without an error, so check it survives the
+         * cast unchanged before it is used. */
+        $digits = ltrim($m[2], '0');
+        if ($digits === '') {
+            $digits = '0';
+        }
+        if ((string) (int) $digits !== $digits) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': seconds overflow the integer range"
+            );
+        }
+
+        /* D88: the protobuf range is +-315576000000 s. The bound itself is
+         * accepted only with a zero fraction; anything past it is rejected. */
+        if ((int) $digits > 315576000000
+            || ((int) $digits === 315576000000 && isset($m[3]) && (int) $m[3] !== 0)) {
+            throw new SerializationException(
+                "Invalid protobuf-JSON duration '$value': outside the protobuf range of +-315576000000 seconds"
+            );
+        }
+
+        $interval = new PreciseDuration();
+        $interval->s = (int) $digits;
+
+        if (isset($m[3])) {
+            /* Right-pad the captured fraction to 9 digits (nanoseconds) so the
+             * scale is fixed regardless of how many digits were written: ".1"
+             * -> "100000000" ns -> 0.1s, ".000000001" -> "000000001" -> 1 ns
+             * -> 1.0e-9 s. \d{1,9} guarantees a non-empty capture. */
+            $interval->f = (int) str_pad($m[3], 9, '0', STR_PAD_RIGHT) / 1_000_000_000;
+        }
+
+        if ($m[1] === '-') {
+            $interval->invert = 1;
+        }
+
+        return $interval;
+    }
+}

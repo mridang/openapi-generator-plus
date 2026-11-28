@@ -1,0 +1,236 @@
+{{>api_info}}
+
+/*
+ * The opt-in check of a request body against the validation keywords of its
+ * schema, run when `Configuration.validateConstraints` is on. Internal
+ * plumbing: it is not re-exported from the package entry point.
+ */
+
+/** A check of one model: the model's value and the path of the value in the body. */
+type ModelCheck = (value: Record<string, unknown>, prefix: string) => void;
+
+/**
+ * The rules shared by every model check.
+ *
+ * @internal
+ */
+export class ConstraintValidator {
+  /** The compiled patterns by their source; `null` for one the engine cannot compile. */
+  private static readonly patterns = new Map<string, RegExp | null>();
+
+  /**
+   * Check a request body before it is serialized. A body that is not one of
+   * the models with a check, or a list of them, passes unchecked.
+   *
+   * @param body the request body as the operation was given it
+   * @param bodyType the model name of the body, or of its items for a list body
+   * @throws TypeError naming the path and the rule of the first violation
+   */
+  static validate(body: unknown, bodyType: string): void {
+    const check = Object.hasOwn(MODEL_CHECKS, bodyType) ? MODEL_CHECKS[bodyType] : undefined;
+    if (check === undefined || body === null || typeof body !== 'object') {
+      return;
+    }
+    if (Array.isArray(body)) {
+      body.forEach((item: unknown, index: number) => {
+        if (item !== null && typeof item === 'object') {
+          check(item as Record<string, unknown>, `[${index}]`);
+        }
+      });
+      return;
+    }
+    check(body as Record<string, unknown>, '');
+  }
+
+  /**
+   * Raise the argument error for a violation.
+   *
+   * @param path the path of the value in the body
+   * @param rule the rule the value breaks
+   * @throws TypeError always
+   */
+  static refuse(path: string, rule: string): never {
+    throw new TypeError(`Invalid request body: ${path} ${rule}`);
+  }
+
+  /**
+   * The path of a property below a prefix.
+   *
+   * @param prefix the path of the model holding the property, empty at the root
+   * @param name the wire name of the property
+   * @returns the joined path
+   */
+  static join(prefix: string, name: string): string {
+    return prefix === '' ? name : `${prefix}.${name}`;
+  }
+
+  /**
+   * The length of a string in Unicode code points.
+   *
+   * @param value the string
+   * @returns the number of code points
+   */
+  static codePoints(value: unknown): number {
+    return [...String(value)].length;
+  }
+
+  /**
+   * The number of items of a list or set, or of keys of a map.
+   *
+   * @param value the list, set or map
+   * @returns its size
+   */
+  static sizeOf(value: unknown): number {
+    if (Array.isArray(value)) {
+      return value.length;
+    }
+    if (value instanceof Set || value instanceof Map) {
+      return value.size;
+    }
+    return Object.keys(value as object).length;
+  }
+
+  /**
+   * The items of a list or set.
+   *
+   * @param value the list or set
+   * @returns its items in order
+   */
+  static itemsOf(value: unknown): unknown[] {
+    return Array.isArray(value) ? value : [...(value as Iterable<unknown>)];
+  }
+
+  /**
+   * Whether a number is a multiple of a limit, within 1e-9 of a whole quotient.
+   *
+   * @param value the number
+   * @param limit the positive divisor
+   * @returns whether the quotient is whole
+   */
+  static isMultipleOf(value: unknown, limit: number): boolean {
+    const quotient = Number(value) / limit;
+    return Math.abs(quotient - Math.round(quotient)) < 1e-9;
+  }
+
+  /**
+   * Whether a string contains a match of a pattern. A pattern the engine
+   * cannot compile is not enforced, so it always matches.
+   *
+   * @param value the string
+   * @param pattern the pattern source
+   * @returns whether the value matches or the pattern is not enforced
+   */
+  static matches(value: unknown, pattern: string): boolean {
+    if (!ConstraintValidator.patterns.has(pattern)) {
+      let compiled: RegExp | null;
+      try {
+        compiled = new RegExp(pattern, 'u');
+      } catch {
+        compiled = null;
+      }
+      ConstraintValidator.patterns.set(pattern, compiled);
+    }
+    const regex = ConstraintValidator.patterns.get(pattern) ?? null;
+    return regex === null || regex.test(String(value));
+  }
+}
+{{#constraintModels}}
+
+/**
+ * Check a value of the {{{classname}}} model.
+ *
+ * @param value the value
+ * @param prefix the path of the value in the body, empty at the root
+ */
+function check{{{classname}}}(value: Record<string, unknown>, prefix: string): void {
+{{#vendorExtensions.constraintProps}}
+  {
+    const property = value[{{#lambda.tsString}}{{{name}}}{{/lambda.tsString}}];
+    if (property != null) {
+      const path = ConstraintValidator.join(prefix, {{#lambda.tsString}}{{{baseName}}}{{/lambda.tsString}});
+{{#checks}}
+{{#isMinLength}}
+      if (ConstraintValidator.codePoints(property) < {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMinLength}}
+{{#isMaxLength}}
+      if (ConstraintValidator.codePoints(property) > {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMaxLength}}
+{{#isPattern}}
+      if (!ConstraintValidator.matches(property, {{#lambda.tsString}}{{{pattern}}}{{/lambda.tsString}})) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isPattern}}
+{{#isMinimum}}
+      if (Number(property) < {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMinimum}}
+{{#isMaximum}}
+      if (Number(property) > {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+      if (Number(property) <= {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+      if (Number(property) >= {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+      if (!ConstraintValidator.isMultipleOf(property, {{{limit}}})) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMultipleOf}}
+{{#isMinItems}}
+      if (ConstraintValidator.sizeOf(property) < {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMinItems}}
+{{#isMaxItems}}
+      if (ConstraintValidator.sizeOf(property) > {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMaxItems}}
+{{#isMinProperties}}
+      if (ConstraintValidator.sizeOf(property) < {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMinProperties}}
+{{#isMaxProperties}}
+      if (ConstraintValidator.sizeOf(property) > {{{limit}}}) {
+        ConstraintValidator.refuse(path, {{#lambda.tsString}}{{{message}}}{{/lambda.tsString}});
+      }
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+      if (typeof property === 'object') {
+        check{{{nestedModel}}}(property as Record<string, unknown>, path);
+      }
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+      ConstraintValidator.itemsOf(property).forEach((item: unknown, index: number) => {
+        if (item !== null && typeof item === 'object') {
+          check{{{nestedItemsModel}}}(item as Record<string, unknown>, `${path}[${index}]`);
+        }
+      });
+{{/hasNestedItemsModel}}
+    }
+  }
+{{/vendorExtensions.constraintProps}}
+}
+{{/constraintModels}}
+
+/** The check of every model that has one, by model name. */
+const MODEL_CHECKS: Readonly<Record<string, ModelCheck>> = {
+{{#constraintModels}}
+  {{#lambda.tsString}}{{{classname}}}{{/lambda.tsString}}: check{{{classname}}},
+{{/constraintModels}}
+};

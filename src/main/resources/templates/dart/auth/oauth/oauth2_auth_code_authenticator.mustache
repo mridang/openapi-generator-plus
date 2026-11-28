@@ -1,0 +1,322 @@
+{{>api_info}}
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import '../../api_client.dart';
+import '../../environment.dart';
+import '../../value_serializer.dart';
+import '../base_authenticator.dart';
+import '../http_aware_authenticator.dart';
+import 'oauth2_token_manager.dart';
+
+/// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
+/// flow authentication.
+///
+/// Implements [HttpAwareAuthenticator] so that token exchange requests use the
+/// shared [ApiClient] with the same transport configuration (proxy, TLS,
+/// timeouts) as regular API calls.
+///
+/// Usage:
+///  1. Call [buildAuthorizationUrl] to get the authorization URL
+///  2. Redirect the user to that URL
+///  3. After the callback, call [exchangeCode] with the auth code
+///  4. Use the authenticator normally -- tokens are managed automatically
+class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
+    implements HttpAwareAuthenticator, AccessTokenInvalidating {
+  final String _host;
+  final String _clientId;
+  final String _clientSecret;
+  final String _authorizationUrl;
+  final String _tokenUrl;
+  final String _refreshUrl;
+  final String _redirectUri;
+  final List<String> _scopes;
+  final OAuth2TokenManager _tokenManager;
+  bool _tokenExchanged = false;
+
+  /* PKCE (RFC 7636) verifier of the last authorization URL built; it is sent
+   * with the next code exchange and then dropped. */
+  String? _pkceVerifier;
+
+  /// Creates a new authorization code authenticator.
+  ///
+  /// If [refreshUrl] is empty, the [tokenUrl] is used for refresh requests.
+  ///
+  /// Each credential not passed is read from its environment variable (default
+  /// `{{envVarPrefix}}_CLIENT_ID`, `{{envVarPrefix}}_CLIENT_SECRET` and
+  /// `{{envVarPrefix}}_REDIRECT_URI`, or the names given). An empty variable
+  /// counts as unset.
+  OAuth2AuthorizationCodeAuthenticator({
+    required String host,
+    String? clientId,
+    String? clientSecret,
+    String? clientIdVariable,
+    String? clientSecretVariable,
+    required String authorizationUrl,
+    required String tokenUrl,
+    String? redirectUri,
+    String? redirectUriVariable,
+    List<String> scopes = const [],
+    String refreshUrl = '',
+    Map<String, String>? environment,
+  })  : _host = host,
+        _clientId = requireCredential(clientId,
+            clientIdVariable ?? '{{envVarPrefix}}_CLIENT_ID', 'clientId', environment),
+        _clientSecret = requireCredential(clientSecret,
+            clientSecretVariable ?? '{{envVarPrefix}}_CLIENT_SECRET', 'clientSecret', environment),
+        _authorizationUrl = authorizationUrl,
+        _tokenUrl = tokenUrl,
+        _refreshUrl = refreshUrl.isEmpty ? tokenUrl : refreshUrl,
+        _redirectUri = requireCredential(redirectUri,
+            redirectUriVariable ?? '{{envVarPrefix}}_REDIRECT_URI', 'redirectUri', environment),
+        _scopes = scopes,
+        _tokenManager = OAuth2TokenManager();
+
+  @override
+  String host() => _host;
+
+  @override
+  void setApiClient(ApiClient client) {
+    _tokenManager.setApiClient(client);
+  }
+
+  /// The PKCE code verifier of the last authorization URL built, or null when
+  /// none is pending (no URL built yet, or the code was already exchanged).
+  String? get pendingPkceVerifier => _pkceVerifier;
+
+  /// Hands over the PKCE [verifier] a previous authenticator built, so a
+  /// wrapper that replaces this authenticator between building the
+  /// authorization URL and exchanging the code (OpenID Connect rediscovery)
+  /// still proves the challenge.
+  void resumePkce(String? verifier) {
+    _pkceVerifier = verifier;
+  }
+
+  /// The PKCE `S256` code challenge for [verifier]:
+  /// `BASE64URL(SHA256(ASCII(verifier)))` without padding (RFC 7636 section 4.2).
+  static String pkceChallenge(String verifier) =>
+      base64Url.encode(_sha256(ascii.encode(verifier))).replaceAll('=', '');
+
+  /// A fresh PKCE code verifier: 32 random bytes as unpadded base64url, which
+  /// is 43 characters (RFC 7636 section 4.1).
+  static String _newPkceVerifier() {
+    final random = Random.secure();
+    final bytes = Uint8List.fromList(
+        List<int>.generate(32, (_) => random.nextInt(256)));
+    return base64Url.encode(bytes).replaceAll('=', '');
+  }
+
+  /// Builds the authorization URL to redirect the user to.
+  ///
+  /// The [state] parameter is optional and used for CSRF protection. The URL
+  /// carries a PKCE `S256` challenge; the matching verifier is kept in this
+  /// authenticator and sent by the next [exchangeCode].
+  String buildAuthorizationUrl([String state = '']) {
+    final params = <String, String>{
+      'response_type': 'code',
+      'client_id': _clientId,
+      'redirect_uri': _redirectUri,
+    };
+    if (_scopes.isNotEmpty) {
+      params['scope'] = _scopes.join(' ');
+    }
+    if (state.isNotEmpty) {
+      params['state'] = state;
+    }
+    /* RFC 9700 section 2.1.1 / RFC 7636: bind the code to this client with a
+     * PKCE S256 challenge; the verifier is kept for exchangeCode. */
+    final verifier = _newPkceVerifier();
+    _pkceVerifier = verifier;
+    params['code_challenge'] = pkceChallenge(verifier);
+    params['code_challenge_method'] = 'S256';
+    /* Uri.encodeQueryComponent encodes a space as '+'; RFC 3986 requires %20
+     * in a query component (a strict server reads '+' as a literal plus). */
+    final query = params.entries
+        .map((e) =>
+            '${encodeRfc3986QueryComponent(e.key)}=${encodeRfc3986QueryComponent(e.value)}')
+        .join('&');
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component. Use '&' as the separator when one is already
+     * present so existing params are preserved, '?' otherwise. */
+    final separator = _authorizationUrl.contains('?') ? '&' : '?';
+    return '$_authorizationUrl$separator$query';
+  }
+
+  /// Exchanges an authorization code for an access token.
+  ///
+  /// [idTokenCheck], when given, receives the response's `id_token` before
+  /// the session is replaced; OpenID Connect uses it to validate the claims.
+  Future<void> exchangeCode(
+    String code, {
+    void Function(String? idToken)? idTokenCheck,
+  }) async {
+    /* Cross-cutting `oauth-exchangecode-no-empty-code-guard`: refuse an
+     * empty/whitespace authorization code before issuing the token POST,
+     * so a missing code surfaces as a clear local error instead of a
+     * confusing downstream token-endpoint rejection. */
+    if (code.trim().isEmpty) {
+      throw ArgumentError('Authorization code must not be empty');
+    }
+    final params = <String, String>{
+      'grant_type': 'authorization_code',
+      'code': code,
+      'client_id': _clientId,
+      'client_secret': _clientSecret,
+      'redirect_uri': _redirectUri,
+    };
+    final verifier = _pkceVerifier;
+    if (verifier != null) {
+      params['code_verifier'] = verifier;
+    }
+    /* Always POST the new code: the exchange bypasses the token cache and
+     * the refresh path, replaces the session on success and keeps the
+     * previous one on failure. */
+    await _tokenManager.exchange(_tokenUrl, params, const {}, idTokenCheck);
+    _pkceVerifier = null;
+    _tokenExchanged = true;
+  }
+
+  @override
+  Map<String, String> authHeaders() {
+    if (!_tokenExchanged) {
+      throw StateError('Must call exchangeCode() before making API requests');
+    }
+    /* A valid token may need an async refresh; an empty map would send the
+     * request unauthenticated without any error. */
+    throw StateError(
+        'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.');
+  }
+
+  /// Asynchronously retrieves auth headers with a valid access token.
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    if (!_tokenExchanged) {
+      throw StateError('Must call exchangeCode() before making API requests');
+    }
+
+    /* The refresh grant carries the client credentials (RFC 6749 sections
+     * 6 and 3.2.1); being a refresh_token grant, the manager posts it once. */
+    final params = <String, String>{
+      'grant_type': 'refresh_token',
+      'refresh_token': _tokenManager.refreshToken,
+      'client_id': _clientId,
+      'client_secret': _clientSecret,
+    };
+
+    final token = await _tokenManager.getAccessToken(_refreshUrl, params);
+    return {'Authorization': 'Bearer $token'};
+  }
+
+  /// Redacts the client secret so it never leaks through logging, string
+  /// interpolation, or `toString()`. Non-secret fields stay visible.
+  @override
+  String toString() =>
+      '$runtimeType(host: $_host, clientId: $_clientId, clientSecret: ***, '
+      'authorizationUrl: $_authorizationUrl, tokenUrl: $_tokenUrl, '
+      'refreshUrl: $_refreshUrl, redirectUri: $_redirectUri, scopes: $_scopes, '
+      'tokenExchanged: $_tokenExchanged)';
+
+  /// Drops the cached access token so the next request obtains a new one (a
+  /// refresh grant first, as the refresh token is kept). Called by the SDK
+  /// when the API answers 401; callers may use it to force a refresh.
+  @override
+  void invalidateAccessToken() {
+    _tokenManager.invalidateAccessToken();
+  }
+
+  /* SHA-256 (FIPS 180-4) in plain Dart, so the SDK needs no native binary and
+   * no extra package. Every addition is masked back to 32 bits, which keeps
+   * it correct on the web where an int is a double. */
+  static const List<int> _k = <int>[
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+    0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+    0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+    0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+    0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+    0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ];
+
+  static List<int> _sha256(List<int> message) {
+    const mask = 0xFFFFFFFF;
+    int rotr(int x, int n) => ((x >> n) | (x << (32 - n))) & mask;
+
+    final padded = BytesBuilder()
+      ..add(message)
+      ..addByte(0x80);
+    while (padded.length % 64 != 56) {
+      padded.addByte(0);
+    }
+    final bitLength = message.length * 8;
+    final high = bitLength ~/ 0x100000000;
+    final low = bitLength % 0x100000000;
+    for (final word in [high, low]) {
+      for (var shift = 24; shift >= 0; shift -= 8) {
+        padded.addByte((word >> shift) & 0xFF);
+      }
+    }
+    final data = padded.toBytes();
+
+    final h = <int>[
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+    ];
+    final w = List<int>.filled(64, 0);
+    for (var offset = 0; offset < data.length; offset += 64) {
+      for (var i = 0; i < 16; i++) {
+        final j = offset + i * 4;
+        w[i] = ((data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | data[j + 3]) &
+            mask;
+      }
+      for (var i = 16; i < 64; i++) {
+        final s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
+        final s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) & mask;
+      }
+      var a = h[0];
+      var b = h[1];
+      var c = h[2];
+      var d = h[3];
+      var e = h[4];
+      var f = h[5];
+      var g = h[6];
+      var hh = h[7];
+      for (var i = 0; i < 64; i++) {
+        final s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        final ch = (e & f) ^ ((~e & mask) & g);
+        final t1 = (hh + s1 + ch + _k[i] + w[i]) & mask;
+        final s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        final maj = (a & b) ^ (a & c) ^ (b & c);
+        final t2 = (s0 + maj) & mask;
+        hh = g;
+        g = f;
+        f = e;
+        e = (d + t1) & mask;
+        d = c;
+        c = b;
+        b = a;
+        a = (t1 + t2) & mask;
+      }
+      h[0] = (h[0] + a) & mask;
+      h[1] = (h[1] + b) & mask;
+      h[2] = (h[2] + c) & mask;
+      h[3] = (h[3] + d) & mask;
+      h[4] = (h[4] + e) & mask;
+      h[5] = (h[5] + f) & mask;
+      h[6] = (h[6] + g) & mask;
+      h[7] = (h[7] + hh) & mask;
+    }
+    final digest = <int>[];
+    for (final word in h) {
+      for (var shift = 24; shift >= 0; shift -= 8) {
+        digest.add((word >> shift) & 0xFF);
+      }
+    }
+    return digest;
+  }
+}

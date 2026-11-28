@@ -1,0 +1,353 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Docker\API\Model\ContainersCreatePostBody;
+use Testcontainers\Container\GenericContainer;
+use Testcontainers\Container\StartedGenericContainer;
+use Testcontainers\Wait\WaitForLog;
+
+/**
+ * Calls a method with arguments the static analyser cannot check, so a test can pass a deliberately
+ * wrong value and prove the runtime refusal. The method name is a runtime value, so it is not checked.
+ */
+function callUnchecked(object $target, string $method, mixed ...$args): mixed
+{
+    return $target->{$method}(...$args);
+}
+
+/**
+ * Builds an instance with arguments the static analyser cannot check (see callUnchecked). The spread
+ * call is made from this strict file, so a wrong scalar type is refused rather than coerced.
+ *
+ * @param class-string $class
+ * @param array<int|string, mixed> $args positional or named constructor arguments
+ */
+function newUnchecked(string $class, array $args): object
+{
+    return new $class(...$args);
+}
+
+/**
+ * Calls a method with an argument array the static analyser cannot check (see callUnchecked).
+ *
+ * @param array<int|string, mixed> $args
+ */
+function callWithArray(object $target, string $method, array $args): mixed
+{
+    return $target->{$method}(...$args);
+}
+
+/**
+ * Builds a container that publishes every port it exposes.
+ *
+ * testcontainers-php sets host PortBindings but never Config.ExposedPorts, so the
+ * daemon only publishes ports the image already EXPOSEs. mridang/chasm exposes 4010
+ * but not 8443, and ubuntu/squid exposes 3128 but not the 3129 auth port, so on a
+ * strict daemon (CI) those bindings are silently dropped and getMappedPort() comes
+ * back empty; a lenient daemon (local Docker Desktop) publishes them anyway, which
+ * hides the bug. The returned container sets ExposedPorts for every requested port.
+ * Each value is an empty object ({}); the beluga normalizer wraps it in a JsonObject,
+ * so passing an empty array serialises correctly. An anonymous class is used because
+ * a named class in this bootstrap would break the tests' PSR-4 autoloading.
+ */
+function exposingContainer(string $image): GenericContainer
+{
+    return new class ($image) extends GenericContainer {
+        protected function createContainerConfig(): ContainersCreatePostBody
+        {
+            $config = parent::createContainerConfig();
+            $exposed = [];
+            foreach ($this->exposedPorts as $port) {
+                $exposed[$port] = [];
+            }
+            $config->setExposedPorts($exposed);
+
+            return $config;
+        }
+    };
+}
+
+/**
+ * Builds a hand-written fake of an interface: an object that implements every method of it,
+ * records each call in `$calls` as [method name, arguments] with the declared defaults filled in,
+ * raises `$failWith` when given, and otherwise returns `$result`. It is generated from the
+ * interface with eval only so that one helper serves every API group; it needs no mocking library.
+ *
+ * @template T of object
+ * @param class-string<T> $interface
+ * @return T
+ */
+function fakeGroup(string $interface, ?\Throwable $failWith = null, mixed $result = null): object
+{
+    $methods = '';
+    foreach ((new \ReflectionClass($interface))->getMethods() as $method) {
+        $params = [];
+        $names = [];
+        foreach ($method->getParameters() as $param) {
+            $type = $param->getType();
+            $default = $param->isDefaultValueAvailable() ? ' = ' . var_export($param->getDefaultValue(), true) : '';
+            $params[] = ($type === null ? '' : $type . ' ') . '$' . $param->getName() . $default;
+            $names[] = '$' . $param->getName();
+        }
+        $returnType = $method->hasReturnType() ? (string) $method->getReturnType() : null;
+        $call = '$this->record(\'' . $method->getName() . '\', [' . implode(', ', $names) . '])';
+        $body = $returnType === 'void' ? $call . ';' : 'return ' . $call . ';';
+        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')'
+            . ($returnType === null ? '' : ': ' . $returnType) . ' { ' . $body . ' }' . "\n";
+    }
+    $source = 'return new class($failWith, $result) implements \\' . ltrim($interface, '\\') . ' {'
+        . ' /** @var list<array{string, array<mixed>}> */ public array $calls = [];'
+        . ' public function __construct(private ?\\Throwable $failWith, private mixed $result) {}'
+        . ' /** @param array<mixed> $arguments */'
+        . ' private function record(string $method, array $arguments): mixed {'
+        . ' $this->calls[] = [$method, $arguments];'
+        . ' if ($this->failWith !== null) { throw $this->failWith; }'
+        . ' return $this->result; }'
+        . $methods . '};';
+
+    /** @var T $fake */
+    $fake = eval($source);
+
+    return $fake;
+}
+
+/**
+ * The calls a fake from fakeGroup() received, as [method name, arguments] in order.
+ *
+ * @return list<array{string, array<mixed>}>
+ */
+function fakeCalls(object $fake): array
+{
+    $calls = (new \ReflectionProperty($fake, 'calls'))->getValue($fake);
+    assert(is_array($calls));
+
+    /** @var list<array{string, array<mixed>}> $list */
+    $list = array_values($calls);
+
+    return $list;
+}
+
+/*
+ * A generated test may import a package that only the generator knows about,
+ * and every real client keep-lists its own composer.json, so the two silently
+ * drift apart and the suite dies at collection with a class-not-found. The
+ * generator-owned .openapi-generator/DEV-DEPENDENCIES lists what the generated
+ * tests need; fail here, before a single test file is loaded, naming that file.
+ */
+$declaredPath = __DIR__ . '/../.openapi-generator/DEV-DEPENDENCIES';
+if (!is_file($declaredPath)) {
+    fwrite(STDERR, "[bootstrap] .openapi-generator/DEV-DEPENDENCIES is missing from the "
+        . "project root; regenerate the SDK.\n");
+    exit(1);
+}
+$composerRaw = file_get_contents(__DIR__ . '/../composer.json');
+/** @var array<string, mixed> $composerManifest */
+$composerManifest = json_decode(is_string($composerRaw) ? $composerRaw : '{}', true);
+/** @var array<string, string> $requireDev */
+$requireDev = is_array($composerManifest['require-dev'] ?? null) ? $composerManifest['require-dev'] : [];
+$declaredLines = file($declaredPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+foreach ($declaredLines === false ? [] : $declaredLines as $line) {
+    $entry = trim($line);
+    if ($entry === '') {
+        continue;
+    }
+    $name = explode(' ', $entry, 2)[0];
+    if (array_key_exists($name, $requireDev)) {
+        continue;
+    }
+    fwrite(STDERR, "[bootstrap] composer.json does not declare \"$name\", which "
+        . ".openapi-generator/DEV-DEPENDENCIES lists as required by the generated tests. "
+        . "Add it to require-dev; the generator cannot edit a keep-listed manifest.\n");
+    exit(1);
+}
+
+/**
+ * Wrapper around getMappedPort that falls back to `docker port` CLI
+ * when the beluga-php/docker-php-api library throws a TypeError
+ * due to unparseable healthcheck timestamps.
+ */
+function safeGetMappedPort(StartedGenericContainer $container, int $port): int
+{
+    try {
+        return $container->getMappedPort($port);
+    } catch (\Throwable $e) {
+        // Fallback to docker CLI port lookup when the testcontainers-php
+        // library can't see the mapping or chokes on healthcheck
+        // timestamps. Catching Throwable since the lib may throw its
+        // own subclassed exception types that we don't import.
+        $containerId = $container->getId();
+        $rawOutput = shell_exec("docker port $containerId $port 2>/dev/null");
+        $output = is_string($rawOutput) ? trim($rawOutput) : '';
+        if (preg_match('/:(\d+)$/', $output, $matches)) {
+            return (int) $matches[1];
+        }
+        throw $e;
+    }
+}
+
+$hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
+$specPath = $hostAppPath . '/tests/fixtures/openapi.yaml';
+$chasmCertPath = $hostAppPath . '/tests/fixtures/certs/server.pem';
+$chasmKeyPath = $hostAppPath . '/tests/fixtures/certs/server-key.pem';
+
+/* CHASM_HTTP_URL and PROXY_URL point at instances that are already running, with the other
+ * variables the tests read already set beside them; nothing is started. */
+if (getenv('CHASM_HTTP_URL') !== false && getenv('PROXY_URL') !== false) {
+    putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
+    return;
+}
+
+/*
+ * Paratest runs each worker as its own process, and every one of them runs
+ * this bootstrap, so without a lock they all start their Chasm and Squid at
+ * the same instant. Across a full run that is twenty-odd containers racing
+ * for the daemon, and Chasm's WaitForLog times out waiting for a container
+ * that is merely starved. The exception names the container, which reads as
+ * a container fault rather than the stampede it actually is.
+ *
+ * Bringing them up one worker at a time costs a little wall clock and removes
+ * the race. The lock is held only for the startup window, not the tests.
+ */
+$startupLock = fopen(sys_get_temp_dir() . '/openapi-generator-fixture-startup.lock', 'c');
+if ($startupLock !== false) {
+    flock($startupLock, LOCK_EX);
+}
+
+$chasm = exposingContainer('mridang/chasm:1.3.0')
+    ->withExposedPorts(4010, 8443)
+    ->withMount($specPath, '/tmp/openapi.yaml')
+    ->withMount($chasmCertPath, '/certs/cert.pem')
+    ->withMount($chasmKeyPath, '/certs/key.pem')
+    ->withCommand([
+        'mock', '/tmp/openapi.yaml', '--host', '0.0.0.0',
+        '--tls-cert', '/certs/cert.pem',
+        '--tls-key', '/certs/key.pem',
+        '--tls-port', '8443',
+    ])
+    ->withWait(new WaitForLog('Listening on', false, 120000))
+    ->start();
+
+$chasmHost = $chasm->getHost();
+$chasmHttpUrl = 'http://' . $chasmHost . ':' . safeGetMappedPort($chasm, 4010);
+
+// HTTPS port resolution falls back to docker CLI when testcontainers-php
+// can't see it. If both fail, set a placeholder so the bootstrap doesn't
+// die; tests requiring TLS will fail individually rather than killing
+// the whole suite.
+try {
+    $chasmHttpsUrl = 'https://' . $chasmHost . ':' . safeGetMappedPort($chasm, 8443);
+} catch (\Throwable $e) {
+    fwrite(STDERR, "[bootstrap] could not resolve chasm HTTPS port: " . $e->getMessage() . "\n");
+    $chasmHttpsUrl = 'https://chasm-tls-unavailable.invalid';
+}
+
+putenv('API_BASE_URL=' . $chasmHttpUrl);
+putenv('CHASM_HTTP_URL=' . $chasmHttpUrl);
+putenv('CHASM_HTTPS_URL=' . $chasmHttpsUrl);
+putenv('CHASM_INTERNAL_HTTP_URL=http://chasm:4010');
+putenv('CHASM_INTERNAL_HTTPS_URL=https://chasm:8443');
+
+// Create a shared Docker network so Squid can reach Chasm directly
+// via container alias, avoiding host.docker.internal DNS issues.
+// Uses the Docker Engine API via Unix socket (no docker CLI needed).
+$dockerSocket = getenv('DOCKER_HOST') ?: 'unix:///var/run/docker.sock';
+$socketPath = str_replace('unix://', '', $dockerSocket);
+$networkName = 'proxy-test-network-' . bin2hex(random_bytes(4));
+
+/**
+ * Send a request to the Docker Engine API via Unix socket.
+ *
+ * @param string                              $socketPath Unix socket path
+ * @param string                              $endpoint   API path (e.g. "/networks/create")
+ * @param string                              $method     HTTP method
+ * @param array<string, mixed>|null           $body       JSON body to send
+ */
+function dockerApiRequest(string $socketPath, string $endpoint, string $method = 'POST', ?array $body = null): void
+{
+    if ($socketPath === '' || $method === '') {
+        return;
+    }
+    $ch = curl_init("http://localhost$endpoint");
+    curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    if ($body !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, (string) json_encode($body));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    }
+    curl_exec($ch);
+}
+
+dockerApiRequest($socketPath, '/networks/create', 'POST', ['Name' => $networkName]);
+dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
+    'Container' => $chasm->getId(),
+    'EndpointConfig' => ['Aliases' => ['chasm']],
+]);
+
+// Start Squid proxy
+$squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
+
+$squid = exposingContainer('ubuntu/squid:6.10-24.10_beta')
+    ->withExposedPorts(3128, 3129)
+    ->withMount($squidConfPath, '/etc/squid/squid.conf')
+    // The image declares VOLUME for both paths, so every container would
+    // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+    // mode=1777 because squid runs as the unprivileged `proxy` user.
+    ->withTmpfs('/var/log/squid', 'rw,mode=1777')
+    ->withTmpfs('/var/spool/squid', 'rw,mode=1777')
+    ->start();
+
+dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
+    'Container' => $squid->getId(),
+]);
+
+// Give Squid a moment to initialize
+sleep(3);
+
+// PROXY_URL falls back the same way chasm HTTPS does — when
+// testcontainers-php can't read the mapped port, set a placeholder so
+// the bootstrap doesn't kill the whole pest run. Proxy-using tests
+// will fail individually with a clearer error.
+try {
+    putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
+    // Port 3129 answers 407 unless the request carries Basic proxy
+    // credentials; any user name and password are accepted.
+    putenv('PROXY_AUTH_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3129));
+} catch (\Throwable $e) {
+    fwrite(STDERR, "[bootstrap] could not resolve squid proxy port: " . $e->getMessage() . "\n");
+    putenv('PROXY_URL=http://proxy-unavailable.invalid:0');
+    putenv('PROXY_AUTH_URL=http://proxy-unavailable.invalid:0');
+}
+if ($startupLock !== false) {
+    flock($startupLock, LOCK_UN);
+    fclose($startupLock);
+}
+
+putenv('CA_CERT_PATH=' . getcwd() . '/tests/fixtures/certs/ca.pem');
+
+register_shutdown_function(function () use ($chasm, $squid, $networkName, $socketPath): void {
+    // Each cleanup step is wrapped because paratest's worker processes
+    // run their own bootstrap and treat any non-zero exit during
+    // shutdown as a "Worker crashed" — failing the whole run. When the
+    // PHP runtime is already tearing down, container.stop() can hit a
+    // dead docker socket and throw; swallow each failure so the worker
+    // exits cleanly.
+    try {
+        $squid->stop();
+    } catch (\Throwable) {
+        // ignored
+    }
+    try {
+        $chasm->stop();
+    } catch (\Throwable) {
+        // ignored
+    }
+    try {
+        dockerApiRequest($socketPath, "/networks/$networkName", 'DELETE');
+    } catch (\Throwable) {
+        // ignored
+    }
+});

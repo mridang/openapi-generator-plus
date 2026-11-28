@@ -1,0 +1,54 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>The hook <see cref="ICallHook.Chain"/> returns.</summary>
+internal sealed class ChainedCallHook(IReadOnlyList<ICallHook> hooks) : ICallHook
+{
+    /// <inheritdoc/>
+    public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+    {
+        List<ICallObserver> started = [];
+        try
+        {
+            foreach (ICallHook hook in hooks)
+            {
+                ICallObserver? observer = hook.Start(info, headers);
+                if (observer is not null)
+                {
+                    started.Add(observer);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            FinishAll(started, new CallOutcome(0, null, e));
+            throw;
+        }
+        return started.Count == 0 ? null : new ChainedObserver(started);
+    }
+
+    private static void FinishAll(List<ICallObserver> observers, CallOutcome outcome)
+    {
+        for (int i = observers.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                observers[i].Finish(outcome);
+            }
+            catch (Exception ex)
+                when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                /* One observer failing never stops the others from finishing. */
+            }
+        }
+    }
+
+    private sealed class ChainedObserver(List<ICallObserver> observers) : ICallObserver
+    {
+        public void Finish(CallOutcome outcome)
+        {
+            FinishAll(observers, outcome);
+        }
+    }
+}

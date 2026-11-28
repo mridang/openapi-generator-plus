@@ -1,0 +1,75 @@
+{{>api_info}}
+
+namespace {{invokerPackage}}\Serializer;
+
+use Brick\Math\BigDecimal;
+use {{invokerPackage}}\ObjectSerializer;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+
+/**
+ * Round-trips a `format: decimal` value as a `Brick\Math\BigDecimal`.
+ *
+ * A number-shaped decimal must reach the wire as a bare JSON number with every digit, which
+ * json_encode cannot write from an object, so normalize() hands back a marker that
+ * {@see ObjectSerializer::serialize()} replaces with the digits after encoding. A string-shaped
+ * decimal is turned back into its plain text by the serializer before encoding.
+ *
+ * On decode the serializer replaces each decimal in the payload with a BigDecimal read from the
+ * digits of the JSON text, so denormalize() normally receives a BigDecimal and returns it. A
+ * string is read as decimal text; an integer is exact; a float only reaches this class through
+ * a path that has no JSON text (a value decoded by the caller) and is read in its shortest form.
+ *
+ * @internal This class is part of the SDK's internal serialization plumbing
+ *           and is not part of the public API. The Symfony Serializer
+ *           interface types on its normalize/denormalize methods are forced
+ *           by the Symfony contract. It may change or be removed in any
+ *           release without notice.
+ */
+final class DecimalNormalizer implements NormalizerInterface, DenormalizerInterface
+{
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function normalize(mixed $object, ?string $format = null, array $context = []): string
+    {
+        \assert($object instanceof BigDecimal);
+        return ObjectSerializer::decimalMarker($object);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
+    {
+        return $data instanceof BigDecimal;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): BigDecimal
+    {
+        $decimal = ObjectSerializer::readDecimal($data, null, null, 'value');
+        if (!$decimal instanceof BigDecimal) {
+            throw new \InvalidArgumentException('Expected a decimal but got null');
+        }
+        return $decimal;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
+    {
+        return ltrim($type, '\\') === BigDecimal::class;
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function getSupportedTypes(?string $format): array
+    {
+        return [BigDecimal::class => true];
+    }
+}

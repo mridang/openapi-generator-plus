@@ -1,0 +1,12 @@
+module Petstore::Client::Models
+  class Separator
+    SPACE_1: String
+    VALUE_0040_0040: String
+    A_B: String
+    A_B_2: String
+    UNKNOWN_DEFAULT_OPEN_API: String
+    VALUES: Array[String]
+    def self.all_vars: () -> Array[String]
+    def self.validate!: (String?) -> String?
+  end
+end

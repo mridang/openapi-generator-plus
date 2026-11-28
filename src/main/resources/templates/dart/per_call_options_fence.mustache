@@ -1,0 +1,17 @@
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```dart file
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+Future<void> {{operationId}}WithinTwoSeconds({{clientClassName}} client) async {
+  await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^isOptions}}null, {{/isOptions}}{{#isOptions}}
+    const {{{dataType}}}(
+      timeout: 2000,
+      headers: {'X-Trace': 'abc'},
+      maxRetries: 0,
+    ),
+  {{/isOptions}}{{/vendorExtensions.op.signatureArgs}});
+}
+```
+{{/exampleOperation}}
+{{/hasExampleOperation}}

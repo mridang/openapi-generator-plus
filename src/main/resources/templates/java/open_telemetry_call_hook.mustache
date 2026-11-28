@@ -1,0 +1,179 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.NetworkException;
+import {{invokerPackage}}.errors.NetworkTimeoutException;
+import {{invokerPackage}}.errors.SerializationException;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
+import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
+import java.util.Map;
+import java.util.concurrent.CancellationException;
+import javax.annotation.Nullable;
+
+/**
+ * A {@link CallHook} that records one span, one request count and one duration value per call
+ * with the OpenTelemetry API. It never needs the OpenTelemetry SDK, and the SDK core takes no
+ * dependency on it: add {@code opentelemetry-api} to use this class.
+ *
+ * <p>The span is named with the operation id, has kind client and carries
+ * {@code http.request.method}, {@code url.template}, {@code server.address},
+ * {@code http.response.status_code} (only when a response arrived) and {@code error.type} (only
+ * on failure). The counter is {@code http.client.request.count} (unit {@code {request}}) and the
+ * histogram is {@code http.client.request.duration} (unit {@code s}); both carry the span's
+ * attributes. The instrumentation scope is named after the published package and carries the
+ * SDK version.
+ *
+ * <p>The hook writes {@code traceparent} itself, with the propagator of the provider it was
+ * given, so the header names the client span as its parent. With no provider configured the
+ * global one is used, which records nothing until the application registers an SDK.
+ */
+public final class OpenTelemetryCallHook implements CallHook {
+
+    private static final String SCOPE_NAME = "{{artifactId}}";
+    private static final String SCOPE_VERSION = "{{artifactVersion}}";
+
+    private static final AttributeKey<String> METHOD = AttributeKey.stringKey("http.request.method");
+    private static final AttributeKey<String> TEMPLATE = AttributeKey.stringKey("url.template");
+    private static final AttributeKey<String> SERVER = AttributeKey.stringKey("server.address");
+    private static final AttributeKey<Long> STATUS = AttributeKey.longKey("http.response.status_code");
+    private static final AttributeKey<String> ERROR_TYPE = AttributeKey.stringKey("error.type");
+
+    @Nullable private final OpenTelemetry fixed;
+    @Nullable private volatile Instruments instruments;
+
+    private OpenTelemetryCallHook(@Nullable OpenTelemetry fixed) {
+        this.fixed = fixed;
+    }
+
+    /**
+     * Create a hook that uses the global OpenTelemetry instance, looked up at every call.
+     *
+     * @return the hook
+     */
+    public static OpenTelemetryCallHook create() {
+        return new OpenTelemetryCallHook(null);
+    }
+
+    /**
+     * Create a hook that uses the given OpenTelemetry instance instead of the global one.
+     *
+     * @param openTelemetry the tracer, meter and propagator provider to use
+     * @return the hook
+     */
+    public static OpenTelemetryCallHook create(OpenTelemetry openTelemetry) {
+        return new OpenTelemetryCallHook(java.util.Objects.requireNonNull(openTelemetry));
+    }
+
+    @Override
+    public CallObserver start(CallInfo info, Map<String, String> headers) {
+        final Instruments in = instruments();
+        final long started = System.nanoTime();
+        final Span span =
+                in.tracer
+                        .spanBuilder(info.operationId())
+                        .setSpanKind(SpanKind.CLIENT)
+                        .setAttribute(METHOD, info.method())
+                        .setAttribute(TEMPLATE, info.urlTemplate())
+                        .setAttribute(SERVER, info.serverAddress())
+                        .startSpan();
+        in.openTelemetry
+                .getPropagators()
+                .getTextMapPropagator()
+                .inject(Context.current().with(span), headers, Map::put);
+        return outcome -> {
+            final AttributesBuilder attributes =
+                    Attributes.builder()
+                            .put(METHOD, info.method())
+                            .put(TEMPLATE, info.urlTemplate())
+                            .put(SERVER, info.serverAddress());
+            if (outcome.statusCode() > 0) {
+                attributes.put(STATUS, (long) outcome.statusCode());
+            }
+            final String errorType = errorType(outcome);
+            if (errorType != null) {
+                attributes.put(ERROR_TYPE, errorType);
+                span.setStatus(StatusCode.ERROR);
+            }
+            final Attributes finished = attributes.build();
+            span.setAllAttributes(finished);
+            span.end();
+            in.count.add(1, finished);
+            in.duration.record((System.nanoTime() - started) / 1_000_000_000.0, finished);
+        };
+    }
+
+    @Nullable
+    private static String errorType(CallOutcome outcome) {
+        if (outcome.statusCode() >= 400) {
+            return Integer.toString(outcome.statusCode());
+        }
+        final Throwable error = outcome.error();
+        if (error == null) {
+            return null;
+        }
+        if (error instanceof NetworkTimeoutException) {
+            return "timeout";
+        }
+        if (error instanceof NetworkException) {
+            return "network_error";
+        }
+        if (error instanceof SerializationException) {
+            return "serialization_error";
+        }
+        if (error instanceof CancellationException) {
+            return "cancelled";
+        }
+        return "_OTHER";
+    }
+
+    private Instruments instruments() {
+        final OpenTelemetry current = fixed != null ? fixed : GlobalOpenTelemetry.get();
+        final Instruments cached = instruments;
+        if (cached != null && cached.openTelemetry == current) {
+            return cached;
+        }
+        final Instruments built = new Instruments(current);
+        instruments = built;
+        return built;
+    }
+
+    /** The instruments of one OpenTelemetry instance, built once and reused. */
+    private static final class Instruments {
+        final OpenTelemetry openTelemetry;
+        final Tracer tracer;
+        final LongCounter count;
+        final DoubleHistogram duration;
+
+        Instruments(OpenTelemetry openTelemetry) {
+            this.openTelemetry = openTelemetry;
+            this.tracer =
+                    openTelemetry
+                            .getTracerProvider()
+                            .tracerBuilder(SCOPE_NAME)
+                            .setInstrumentationVersion(SCOPE_VERSION)
+                            .build();
+            final Meter meter =
+                    openTelemetry
+                            .getMeterProvider()
+                            .meterBuilder(SCOPE_NAME)
+                            .setInstrumentationVersion(SCOPE_VERSION)
+                            .build();
+            this.count =
+                    meter.counterBuilder("http.client.request.count").setUnit("{request}").build();
+            this.duration =
+                    meter.histogramBuilder("http.client.request.duration").setUnit("s").build();
+        }
+    }
+}

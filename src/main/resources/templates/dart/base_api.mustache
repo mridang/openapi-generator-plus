@@ -1,0 +1,1639 @@
+{{>api_info}}
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:mime/mime.dart';
+
+import '../api_client.dart';
+import '../api_http_response.dart';
+import '../api_result.dart';
+import '../api_stream_response.dart';
+import '../auth/authenticator.dart';
+{{#hasDigestAuth}}
+import '../auth/digest_authenticator.dart';
+{{/hasDigestAuth}}
+import '../auth/http_aware_authenticator.dart';
+import '../body_source.dart';
+import '../byte_stream.dart';
+import '../call_hook.dart';
+import '../call_info.dart';
+import '../call_outcome.dart';
+import '../configuration.dart';
+import '../constraint_validator.dart';
+import '../default_api_client.dart';
+import '../header_selector.dart';
+import '../json_lines_stream.dart';
+import '../object_serializer.dart';
+import '../retry_after.dart';
+import '../sse_stream.dart';
+import '../stream_options.dart';
+import '../value_serializer.dart';
+import '../trace_context_util.dart';
+import '../errors/api_exception.dart';
+import '../errors/network_exception.dart';
+import '../errors/network_timeout_exception.dart';
+
+/// Base class for all API classes.
+///
+/// Provides the [invokeApi] method that handles URL construction, header
+/// selection, body serialization, request dispatch, and response
+/// deserialization.
+class BaseApi {
+  /// Create an API instance.
+  ///
+  /// Parameters:
+  ///   - [apiClient]: the HTTP transport client. When omitted a
+  ///     [DefaultApiClient] with default transport options is used.
+  ///   - [config]: API-level configuration (base URL and default headers).
+  ///     When omitted the default configuration is used.
+  ///   - [authenticator]: default authenticator for operations without
+  ///     explicit auth.
+  BaseApi({
+    ApiClient? apiClient,
+    Configuration? config,
+    Authenticator? authenticator,
+    Map<String, Authenticator>? schemeAuthenticators,
+  })  : apiClient = apiClient ?? DefaultApiClient(),
+        config = config ?? Configuration.defaultConfiguration(),
+        _headerSelector = HeaderSelector(),
+        _authenticator = authenticator,
+        _schemes = Map<String, Authenticator>.of(schemeAuthenticators ?? const {}) {
+    /* A scheme credential that sends HTTP requests of its own (token exchange,
+       discovery) is given this API's transport as soon as the client is built,
+       so it never reaches a request without one. */
+    for (final credential in _schemes.values) {
+      if (credential is HttpAwareAuthenticator) {
+        credential.setApiClient(this.apiClient);
+      }
+    }
+  }
+
+  /// The HTTP transport client used for sending requests.
+  final ApiClient apiClient;
+
+  /// API-level configuration (base URL and default headers).
+  final Configuration config;
+
+  /// Content negotiation logic for Accept and Content-Type headers.
+  final HeaderSelector _headerSelector;
+
+  /* The credential of each security scheme, by the scheme's name in the spec. */
+  final Map<String, Authenticator> _schemes;
+
+  /// The authenticator of the first of [names] the client has a credential for,
+  /// or null when it has none of them, which leaves the call to the default
+  /// authenticator (and sends no credential when there is none).
+  Authenticator? schemeAuthenticator(List<String> names) {
+    for (final name in names) {
+      final found = _schemes[name];
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  /// The authenticator for an operation whose security block lists [groups]:
+  /// each group is one requirement, so a group of several schemes needs the
+  /// credentials of all of them and a request carries every one. The first
+  /// group the client holds every credential of wins, else the first group it
+  /// holds at least one credential of; null when it holds none.
+  Authenticator? requirementAuthenticator(List<List<String>> groups) {
+    List<Authenticator>? partial;
+    for (final group in groups) {
+      final held = <Authenticator>[
+        for (final name in group)
+          if (_schemes[name] != null) _schemes[name]!,
+      ];
+      if (held.isEmpty) {
+        continue;
+      }
+      if (held.length == group.length) {
+        return held.length == 1 ? held.first : _AllOfAuthenticator.of(held);
+      }
+      partial ??= held;
+    }
+    if (partial == null) {
+      return null;
+    }
+    return partial.length == 1 ? partial.first : _AllOfAuthenticator.of(partial);
+  }
+
+  /// Optional authenticator for request-level auth when not passed per-call.
+  final Authenticator? _authenticator;
+
+  /// Invoke an API operation and return the raw HTTP response.
+  ///
+  /// Handles URL construction, header selection, authentication, body
+  /// serialization, and request dispatch. Throws an [ApiException] when the
+  /// response status is not 2xx.
+  ///
+  /// A 401 on a call authenticated by an OAuth2 or OpenID Connect
+  /// authenticator drops the cached access token and replays the request once
+  /// with fresh headers. When the transport has [RetryingApiClient.maxRetries]
+  /// above 0, a network error before a response and a response with status 408,
+  /// 409, 429 or 5xx other than 501 are sent again with a growing delay (see
+  /// [TransportOptions.maxRetries]), always within the end-to-end timeout.
+  /// A multipart body is never sent twice.
+  ///
+  /// Parameters:
+  ///   - [method]: HTTP method (GET, POST, PUT, DELETE, etc.)
+  ///   - [path]: URL path (with path params already substituted)
+  ///   - [queryParams]: query parameters
+  ///   - [headerParams]: custom header parameters
+  ///   - [body]: request body
+  ///   - [accepts]: acceptable response content types
+  ///   - [contentType]: request content type
+  ///   - [returnType]: return type for deserialization (empty for void)
+  ///   - [auth]: optional authenticator for operation-specific auth
+  ///   - [rawBody]: true when the body parameter is `format: binary`; its
+  ///     bytes are then sent unchanged under any selected content type
+  ///   - [timeout]: end-to-end timeout in milliseconds for this call only,
+  ///     replacing the transport's; must not be negative
+  ///   - [callHeaders]: headers for this call only; they replace a default or
+  ///     operation header of the same name in any case
+  ///   - [maxRetries]: retries for this call only, replacing the transport's;
+  ///     0 disables them and a negative value is refused
+  ///   - [errorSchemas]: the error factories of the operation by declared
+  ///     status (`404`, `4XX`, `default`), or null when it declares none
+  ///   - [operationId]: the operation id as written in the spec, handed to the
+  ///     [CallHook] of the configuration
+  ///   - [urlTemplate]: the spec path template of the operation, handed to the
+  ///     [CallHook] of the configuration
+  Future<ApiHttpResponse> invokeApi({
+    required String method,
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    String returnType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+  }) {
+    final run = _CallRun(config.callHook, operationId, urlTemplate);
+    return run.observe<ApiHttpResponse>(
+      () => _send(
+        run: run,
+        method: method,
+        path: path,
+        queryParams: queryParams,
+        headerParams: headerParams,
+        body: body,
+        accepts: accepts,
+        contentType: contentType,
+        returnType: returnType,
+        auth: auth,
+        rawBody: rawBody,
+        timeout: timeout,
+        callHeaders: callHeaders,
+        maxRetries: maxRetries,
+        errorSchemas: errorSchemas,
+      ),
+      (response) => (response.statusCode, response.headers),
+    );
+  }
+
+  Future<ApiHttpResponse> _send({
+    required _CallRun run,
+    required String method,
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    String returnType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    bool stream = false,
+    int? idleTimeout,
+  }) async {
+    /* With validateConstraints on, a body that breaks a validation keyword of
+     * its schema is refused before anything is built, hooked or sent. */
+    if (config.validateConstraints && body != null) {
+      validateRequestBody(body);
+    }
+    if (timeout != null && timeout < 1) {
+      throw ArgumentError(
+          'Invalid timeout: must be a positive number of milliseconds (got $timeout)');
+    }
+    if (maxRetries != null && maxRetries < 0) {
+      throw ArgumentError(
+          'Invalid maxRetries: must be zero or a positive number (got $maxRetries)');
+    }
+    final targetUrl = _urlFor(config.baseUrl, path);
+    final multipartType = _multipartTypeOf(contentType);
+    /* The path the errors name: the base path prefix and the operation path,
+     * with no scheme, host, query or fragment. */
+    final requestPath = _requestPathOf(targetUrl);
+
+    /* Three-state auth resolution (the no-auth sentinel is a distinct
+     * third state, so `null` is no longer overloaded):
+     *   - auth IS the `noAuth` sentinel  -> apply NO credentials; the
+     *     operation is `security: []` and must never pick up the
+     *     client-level authenticator.
+     *   - auth is null                   -> no per-call override; fall
+     *     back to the configured client authenticator (secured op).
+     *   - auth is a real authenticator   -> per-call override; use it. */
+    final Authenticator? effectiveAuth =
+        identical(auth, noAuth) ? null : (auth ?? _authenticator);
+    /* Only the client-level authenticator is injected by the Client
+     * constructor. A per-call OAuth2 or OIDC authenticator would otherwise
+     * fail with 'API client has not been injected', so it gets the transport
+     * this API class uses (proxy, TLS, timeouts) before its first token
+     * request. */
+    if (effectiveAuth != null &&
+        auth != null &&
+        effectiveAuth is HttpAwareAuthenticator) {
+      effectiveAuth.setApiClient(apiClient);
+    }
+    /* Admit the request now, before the first await, so a close() made right
+     * after the API method is called still lets the request finish, even while
+     * it waits for a token. */
+    final transport = apiClient;
+    final admitting = transport is AdmittingApiClient ? transport : null;
+    final finish = admitting?.beginRequest();
+    /* Only the first attempt rides on that admission. A retry or a replay is
+     * a new send, so it is refused once the client has been closed. */
+    var first = true;
+    final client = apiClient;
+    final budgetMs =
+        timeout ?? (client is RetryingApiClient ? client.timeoutMillis : null);
+    final clock = Stopwatch()..start();
+    /* One attempt: everything that depends on the credentials (query
+     * parameters, headers, cookies) is built afresh, so a replay or a retry
+     * is a new request that carries current authentication, never a copy of
+     * the previous one. */
+    Future<ApiHttpResponse> sendOnce() async {
+      var requestUrl = targetUrl;
+      final allQueryParams = <String, Object?>{};
+      if (queryParams != null) {
+        allQueryParams.addAll(queryParams);
+      }
+      if (effectiveAuth != null) {
+        allQueryParams.addAll(effectiveAuth.queryParams());
+      }
+
+      final queryString = _buildQueryString(allQueryParams);
+      if (queryString.isNotEmpty) {
+        requestUrl =
+            '$requestUrl${requestUrl.contains('?') ? '&' : '?'}$queryString';
+      }
+
+      final isMultipart = multipartType != null && body is Map<String, Object?>;
+      final headers = _headerSelector.selectHeaders(accepts, contentType, isMultipart);
+
+      /* A default or operation header replaces a negotiated header of the same
+       * name whatever its case, so `accept` never sits beside `Accept`. */
+      _mergeHeaders(headers, config.defaultHeaders);
+
+      if (headerParams != null) {
+        _mergeHeaders(headers, headerParams);
+      }
+
+      if (callHeaders != null) {
+        /* A per-call header replaces a default or operation header of the
+         * same name whatever its case. */
+        _mergeHeaders(headers, callHeaders);
+      }
+
+      final authNames = <String>{};
+      if (effectiveAuth != null) {
+        /* Await the async variant so token-exchange OAuth flows (client-
+           credentials, password, authorization-code) perform their token fetch
+           and contribute a real Authorization header; non-token schemes fall
+           through to the synchronous authHeaders via the default implementation. */
+        final authHeaders = await effectiveAuth.authHeadersAsync();
+        headers.addAll(authHeaders);
+        authNames.addAll(authHeaders.keys.map((name) => name.toLowerCase()));
+{{#hasDigestAuth}}
+        /* HTTP Digest (D192): the answer to the remembered challenge, for
+         * this method and request target, once the authenticator has one. */
+        if (effectiveAuth is DigestAuthenticator) {
+          final answer = effectiveAuth.authorization(
+              method.toUpperCase(), _requestTargetOf(requestUrl));
+          if (answer != null) {
+            _mergeHeaders(headers, {'Authorization': answer});
+            authNames.add('authorization');
+          }
+        }
+{{/hasDigestAuth}}
+
+        final cookies = effectiveAuth.cookieParams();
+        if (cookies.isNotEmpty) {
+          /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+             parsers don't URL-decode, so `=` (base64 padding) would
+             arrive as literal `%3D` and break JWT/session cookies.
+             Validate and pass through raw instead. */
+          final cookieNameRe = RegExp(r"^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$");
+          final cookieValueRe = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
+          final cookieParts = cookies.entries.map((e) {
+            if (!cookieNameRe.hasMatch(e.key)) {
+              throw ArgumentError("Cookie name '${e.key}' contains characters forbidden by RFC 6265");
+            }
+            if (!cookieValueRe.hasMatch(e.value)) {
+              throw ArgumentError("Cookie value for '${e.key}' contains characters forbidden by RFC 6265");
+            }
+            return '${e.key}=${e.value}';
+          }).toList();
+          final cookieStr = cookieParts.join('; ');
+          if (headers.containsKey('Cookie')) {
+            headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';
+          } else {
+            headers['Cookie'] = cookieStr;
+          }
+        }
+      }
+
+      TraceContextUtil.injectTraceContext(headers);
+      run.beforeSend(method, targetUrl, headers, authNames);
+
+      final Object? serializedBody;
+      if (multipartType != null && body is Map<String, Object?>) {
+        final boundary = _generateUuid();
+        headers['Content-Type'] = '$multipartType; boundary=$boundary';
+        serializedBody = _buildMultipartBody(body, boundary);
+      } else {
+        serializedBody = _serializeBody(body, contentType, rawBody: rawBody);
+      }
+      if (serializedBody == null) {
+        headers.removeWhere((name, _) => name.toLowerCase() == 'content-type');
+      }
+
+      /* A deadline that passed while the credentials were being obtained is a
+       * timeout, and the request never reaches the transport. */
+      if (budgetMs != null && clock.elapsedMilliseconds >= budgetMs) {
+        throw NetworkTimeoutException(
+            message: 'Request timed out after $budgetMs ms');
+      }
+      if (stream) {
+        return _openStream(
+          admitted: first && admitting != null,
+          method: method,
+          url: requestUrl,
+          headers: headers,
+          body: serializedBody,
+          timeout: timeout,
+          idleTimeout: idleTimeout,
+        );
+      }
+      final send = first && admitting != null
+          ? admitting.sendAdmittedRequest
+          : apiClient.sendRequest;
+      return send(
+        method,
+        requestUrl,
+        headers,
+        serializedBody,
+        timeout: timeout,
+      );
+    }
+
+    final maxRetriesLeft =
+        maxRetries ?? (client is RetryingApiClient ? client.maxRetries : 0);
+    /* A multipart body is never sent twice, and neither is a single-use body
+     * source: the one stream was read to its end by the first send, so it is
+     * never retried, replayed after a 401 or buffered to make that possible. */
+    final replayable = multipartType == null &&
+        !(body is BodySource && !body.isReplayable);
+    var retries = 0;
+    var reauthenticated = false;
+    final Object? credential = effectiveAuth;
+    final invalidating =
+        credential is AccessTokenInvalidating ? credential : null;
+    try {
+      while (true) {
+        ApiHttpResponse? response;
+        ApiException? failure;
+        try {
+          final pending = sendOnce();
+          response = (first || budgetMs == null)
+              ? await pending
+              : await pending.timeout(_budgetLeft(budgetMs, clock), onTimeout: () {
+                  /* A stream that opens after the budget is gone is never
+                   * handed out, so its connection is dropped. */
+                  unawaited(pending.then<void>((opened) {
+                    if (opened is _StreamReply) {
+                      return opened.stream.close();
+                    }
+                  }, onError: (Object _) {}));
+                  throw NetworkTimeoutException(
+                      message: 'Request timed out after $budgetMs ms');
+                });
+        } on _HookStartFailure catch (e) {
+          /* An error of the hook's start reaches the caller unchanged. */
+          Error.throwWithStackTrace(e.error, e.stackTrace);
+        } on NetworkException catch (e) {
+          failure = e.withRequest(method, requestPath);
+        } on ApiException catch (e) {
+          throw e.withRequest(method, requestPath);
+        }
+        first = false;
+
+        if (response != null) {
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            return response;
+          }
+          /* A revoked or rotated token keeps failing while it is cached. On a
+           * 401 from a request that carried a token this SDK fetched, drop the
+           * token, obtain a new one (a refresh grant first) and replay the
+           * request once. A second 401, or a failed re-authentication, is
+           * reported as the usual error. */
+          if (response.statusCode == 401 &&
+              !reauthenticated &&
+              replayable &&
+              invalidating != null) {
+            reauthenticated = true;
+            invalidating.invalidateAccessToken();
+            try {
+              await effectiveAuth!.authHeadersAsync();
+              continue;
+            } catch (_) {
+              /* Fall through to the 401. */
+            }
+{{#hasDigestAuth}}
+          } else if (response.statusCode == 401 &&
+              !reauthenticated &&
+              replayable &&
+              effectiveAuth is DigestAuthenticator) {
+            /* HTTP Digest (D192): the first request goes without credentials.
+             * A Digest challenge the authenticator accepts is answered and the
+             * request replayed once; anything else leaves the 401 as it is. */
+            reauthenticated = true;
+            final challenge = _headerValue(response.headers, 'www-authenticate');
+            if (challenge != null && effectiveAuth.acceptChallenge(challenge)) {
+              continue;
+            }
+{{/hasDigestAuth}}
+          } else if (replayable &&
+              retries < maxRetriesLeft &&
+              _isRetryableStatus(response.statusCode)) {
+            final delay = _retryDelay(retries, response.headers);
+            if (_withinBudget(delay, budgetMs, clock)) {
+              retries++;
+              await sleepBeforeRetry(delay);
+              continue;
+            }
+          }
+          throw ApiException.fromResponse(
+            response.statusCode,
+            response.headers,
+            response.body,
+            requestMethod: method,
+            requestPath: requestPath,
+            errorSchemas: errorSchemas,
+          );
+        }
+
+        /* No response arrived: a network error. A timeout is not retried, since
+         * the budget that expired would be spent again on the same request. A
+         * non-idempotent method is not sent a second time, because the first send
+         * may already have changed the server. */
+        if (replayable &&
+            const {'GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'}
+                .contains(method.toUpperCase()) &&
+            retries < maxRetriesLeft &&
+            failure is! NetworkTimeoutException &&
+            !_isTlsFailure(failure!)) {
+          final delay = _retryDelay(retries, const {});
+          if (_withinBudget(delay, budgetMs, clock)) {
+            retries++;
+            await sleepBeforeRetry(delay);
+            continue;
+          }
+        }
+        throw failure!;
+      }
+    } finally {
+      finish?.call();
+    }
+  }
+
+  /// Opens one stream attempt: a success hands back the open stream, any other
+  /// status reads a bounded part of its body, closes it and returns it as an
+  /// ordinary buffered response, so the loop raises the typed error (or retries,
+  /// or replays after a 401) exactly as for a buffered call.
+  Future<ApiHttpResponse> _openStream({
+    required bool admitted,
+    required String method,
+    required String url,
+    required Map<String, String> headers,
+    required Object? body,
+    required int? timeout,
+    required int? idleTimeout,
+  }) async {
+    final transport = apiClient;
+    if (transport is! StreamingApiClient) {
+      throw UnsupportedError(
+          '${transport.runtimeType} cannot stream: it does not implement '
+          'sendStreaming, so an operation that returns a stream cannot be '
+          'called through it');
+    }
+    final admitting = transport is AdmittingStreamingApiClient ? transport : null;
+    final reply = admitted && admitting != null
+        ? await admitting.sendAdmittedStreaming(method, url, headers, body,
+            timeout: timeout, idleTimeout: idleTimeout)
+        : await transport.sendStreaming(method, url, headers, body,
+            timeout: timeout, idleTimeout: idleTimeout);
+    if (reply.statusCode >= 200 && reply.statusCode < 300) {
+      return _StreamReply(reply);
+    }
+    final bytes = await reply.readBounded(_streamErrorBodyLimit);
+    final contentType = reply.headers.entries
+            .where((e) => e.key.toLowerCase() == 'content-type')
+            .map((e) => e.value)
+            .firstOrNull ??
+        '';
+    return ApiHttpResponse(
+      statusCode: reply.statusCode,
+      body: AbstractApiClient.isTextContentType(contentType)
+          ? AbstractApiClient.decodeText(bytes, contentType)
+          : base64Encode(bytes),
+      headers: reply.headers,
+    );
+  }
+
+  /// The most of an error body a stream call reads before it raises the error.
+  static const int _streamErrorBodyLimit = 64 * 1024;
+
+  /// Invoke an operation whose success response is binary and return its body
+  /// as a [ByteStream], unread.
+  ///
+  /// Everything up to the response headers is the buffered call: the same
+  /// retries, redirects, authentication, 401 replay, headers and call hook. A
+  /// non-2xx status raises the same typed error as a buffered call, its body
+  /// read up to 64 KiB and closed, and no stream is returned. Nothing is
+  /// retried after the first body byte.
+  ///
+  /// Parameters are as for [invokeApi], without the return type. Returns an
+  /// [ApiResult] whose data is the open [ByteStream] and whose raw body is
+  /// empty. Throws an [UnsupportedError] naming the transport when it does not
+  /// implement [StreamingApiClient].
+  Future<ApiResult<ByteStream>> invokeApiForStream({
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+    int? idleTimeout,
+  }) {
+    final run = _CallRun(config.callHook, operationId, urlTemplate);
+    return run.observe<ApiResult<ByteStream>>(
+      () async {
+        final response = await _send(
+          run: run,
+          method: method,
+          path: path,
+          queryParams: queryParams,
+          headerParams: headerParams,
+          body: body,
+          accepts: accepts,
+          contentType: contentType,
+          auth: auth,
+          rawBody: rawBody,
+          timeout: timeout,
+          callHeaders: callHeaders,
+          maxRetries: maxRetries,
+          errorSchemas: errorSchemas,
+          stream: true,
+          idleTimeout: idleTimeout,
+        );
+        final opened = (response as _StreamReply).stream;
+        return ApiResult<ByteStream>(
+          statusCode: opened.statusCode,
+          data: ByteStream(
+            statusCode: opened.statusCode,
+            headers: opened.headers,
+            source: opened.body,
+          ),
+          rawBody: '',
+          headers: opened.headers,
+        );
+      },
+      (result) => (result.statusCode, result.headers),
+    );
+  }
+
+  /// Invoke an operation whose success response is a JSON Lines body and return
+  /// its items as a lazy stream. Everything up to the headers is the buffered
+  /// call; a non-2xx status raises the typed error and no stream is returned.
+  ///
+  /// Parameters are as for [invokeApiForStream], plus [decoder], which decodes
+  /// one line into an item (null hands each line over as a string), and
+  /// [streamOptions].
+  Future<JsonLinesStream<T>> invokeApiForJsonLines<T>({
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+    T Function(String line)? decoder,
+    StreamOptions? streamOptions,
+  }) async {
+    final options = streamOptions ?? const StreamOptions();
+    final result = await invokeApiForStream(
+      method: method,
+      operation: operation,
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: body,
+      accepts: accepts,
+      contentType: contentType,
+      auth: auth,
+      rawBody: rawBody,
+      timeout: timeout,
+      callHeaders: callHeaders,
+      maxRetries: maxRetries,
+      errorSchemas: errorSchemas,
+      operationId: operationId,
+      urlTemplate: urlTemplate,
+      idleTimeout: options.idleTimeout,
+    );
+    return JsonLinesStream<T>(
+      result.data!,
+      decoder ?? (String line) => line as T,
+      options.maxEventBytes ?? 1024 * 1024,
+      method,
+      _requestPathOf(_urlFor(config.baseUrl, path)),
+    );
+  }
+
+  /// Invoke an operation whose success response is a server-sent events body
+  /// and return its events as a lazy stream that reconnects. Each connection is
+  /// a fresh stream call, so the headers and the credential are built again;
+  /// the stream adds `Accept-Encoding: identity` and `Cache-Control: no-cache`
+  /// unless the caller set them (the `Accept` header is the one the operation
+  /// negotiates) and `Last-Event-ID` once it has an id.
+  ///
+  /// Parameters are as for [invokeApiForStream], plus [decoder], which decodes
+  /// the `data` field (null hands it over as a string), [terminator], a `data`
+  /// value that ends the stream, and [streamOptions]. A failure of the first
+  /// request is raised here.
+  Future<SseStream<T>> invokeApiForSse<T>({
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+    T Function(String data)? decoder,
+    String? terminator,
+    StreamOptions? streamOptions,
+  }) {
+    final options = streamOptions ?? const StreamOptions();
+    final sseHeaders = <String, String>{...?headerParams};
+    bool named(Map<String, String> headers, String name) =>
+        headers.keys.any((key) => key.toLowerCase() == name.toLowerCase());
+    for (final entry in const {
+      'Cache-Control': 'no-cache',
+      'Accept-Encoding': 'identity',
+    }.entries) {
+      if (!named(sseHeaders, entry.key) &&
+          !named(callHeaders ?? const {}, entry.key) &&
+          !named(config.defaultHeaders, entry.key)) {
+        sseHeaders[entry.key] = entry.value;
+      }
+    }
+    Future<ByteStream> opener(String lastEventId) async {
+      final headers = Map<String, String>.of(sseHeaders);
+      if (lastEventId.isNotEmpty) {
+        headers['Last-Event-ID'] = lastEventId;
+      }
+      final result = await invokeApiForStream(
+        method: method,
+        operation: operation,
+        path: path,
+        queryParams: queryParams,
+        headerParams: headers,
+        body: body,
+        accepts: accepts,
+        contentType: contentType,
+        auth: auth,
+        rawBody: rawBody,
+        timeout: timeout,
+        callHeaders: callHeaders,
+        maxRetries: maxRetries,
+        errorSchemas: errorSchemas,
+        operationId: operationId,
+        urlTemplate: urlTemplate,
+        idleTimeout: options.idleTimeout,
+      );
+      return result.data!;
+    }
+
+    return SseStream.open<T>(
+      opener: opener,
+      decoder: decoder,
+      terminator: terminator,
+      options: options,
+      hasBody: body != null,
+      singleUseBody: body is BodySource && !body.isReplayable,
+      method: method,
+      path: _requestPathOf(_urlFor(config.baseUrl, path)),
+    );
+  }
+
+  /// The URL a call is sent to: [path] as is when absolute, otherwise joined
+  /// onto [baseUrl]. A trailing slash on [baseUrl] is stripped when [path]
+  /// starts with `/`, so `https://x/` + `/y` gives `https://x/y`, not
+  /// `https://x//y`, which most servers route to 404.
+  static String _urlFor(String baseUrl, String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    final base = path.startsWith('/')
+        ? baseUrl.replaceAll(RegExp(r'/+$'), '')
+        : baseUrl;
+    return base + path;
+  }
+
+  /// The path the errors name: the base path prefix and the operation path,
+  /// with no scheme, host, query or fragment.
+  static String _requestPathOf(String url) =>
+      url.startsWith('http://') || url.startsWith('https://')
+          ? ApiException.stripQuery(Uri.parse(url).path)
+          : ApiException.stripQuery(url);
+
+{{#hasDigestAuth}}
+  /// The request target of [url]: its path and query, without the scheme, the
+  /// host or a fragment.
+  static String _requestTargetOf(String url) {
+    final target = url
+        .split('#')
+        .first
+        .replaceFirst(RegExp(r'^[A-Za-z][A-Za-z0-9+.-]*://[^/?]*'), '');
+    return target.startsWith('/') ? target : '/$target';
+  }
+
+  /// The value of the response header [name], matched in any letter case, or
+  /// null when it is absent.
+  static String? _headerValue(Map<String, String> headers, String name) {
+    final values = headers.entries
+        .where((e) => e.key.toLowerCase() == name)
+        .map((e) => e.value)
+        .toList();
+    return values.isEmpty ? null : values.join(', ');
+  }
+
+{{/hasDigestAuth}}
+  /// Waits for [delay] before a retry. Overridable so a test does not have to
+  /// wait for real time.
+  Future<void> sleepBeforeRetry(Duration delay) => Future<void>.delayed(delay);
+
+  /// Merges [extra] into [headers]: a header replaces one of the same name in
+  /// any letter case instead of being sent beside it.
+  static void _mergeHeaders(Map<String, String> headers, Map<String, String> extra) {
+    extra.forEach((name, value) {
+      headers.removeWhere((k, _) => k.toLowerCase() == name.toLowerCase());
+      headers[name] = value;
+    });
+  }
+
+  /// Whether a response with [status] is worth sending again: 408, 409, 429
+  /// and every 5xx but 501 (not implemented, which no retry fixes).
+  static bool _isRetryableStatus(int status) =>
+      status == 408 ||
+      status == 409 ||
+      status == 429 ||
+      (status >= 500 && status <= 599 && status != 501);
+
+  /// Whether a network [failure] is a TLS or certificate failure. The shared
+  /// loop cannot name the dart:io types (the web build has none), so it matches
+  /// the type name or the platform text the transport carries in the message
+  /// or the cause. A TLS failure is never retried: the same peer would fail the
+  /// same handshake again.
+  static bool _isTlsFailure(ApiException failure) {
+    final text = '${failure.message} ${failure.cause}';
+    return text.contains('TlsException') ||
+        text.contains('HandshakeException') ||
+        text.contains('CERTIFICATE_VERIFY_FAILED');
+  }
+
+  /// Time left of the end-to-end timeout of [budgetMs] milliseconds, never
+  /// negative.
+  static Duration _budgetLeft(int budgetMs, Stopwatch clock) {
+    final left = budgetMs - clock.elapsedMilliseconds;
+    return Duration(milliseconds: left < 0 ? 0 : left);
+  }
+
+  /// Whether a retry after [delay] still fits in the end-to-end timeout of
+  /// [budgetMs] milliseconds (null: no timeout). The retries never extend it.
+  static bool _withinBudget(Duration delay, int? budgetMs, Stopwatch clock) =>
+      budgetMs == null ||
+      delay.inMilliseconds < _budgetLeft(budgetMs, clock).inMilliseconds;
+
+  /// The wait before retry number [retries] (0 for the first): the server's
+  /// `Retry-After` (seconds or an HTTP date) capped at 60 s, else 0.5 s doubling
+  /// to 8 s less up to 25% jitter.
+  static Duration _retryDelay(int retries, Map<String, String> headers) {
+    final retryAfter = retryAfterOf(headers);
+    if (retryAfter != null) {
+      return retryAfter;
+    }
+    final seconds = min(0.5 * pow(2, retries).toDouble(), 8.0);
+    final jittered = seconds * (1 - 0.25 * Random().nextDouble());
+    return Duration(milliseconds: (jittered * 1000).round());
+  }
+
+  /// Invoke an API operation and return the full result including status
+  /// code, headers, and raw body alongside the deserialized data.
+  ///
+  /// Calls [invokeApi] to get the raw [ApiHttpResponse], then deserializes
+  /// the response body when [returnType] is not empty.
+  ///
+  /// Parameters are as for [invokeApi], plus [deserialize], the function that
+  /// converts the response body into the return type, [deserializeByStatus],
+  /// which does the same for an operation whose 2xx responses have different
+  /// schemas and is told the status code the server answered with (it takes
+  /// the place of [deserialize]), and [operation], the `Class.operationId`
+  /// name used in error messages.
+  ///
+  /// Returns an [ApiResult] containing deserialized data, status code, raw
+  /// body, and headers.
+  Future<ApiResult<T>> invokeApiForResult<T>({
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    String returnType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    T Function(String body)? deserialize,
+    T Function(String body, int statusCode)? deserializeByStatus,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+  }) {
+    final run = _CallRun(config.callHook, operationId, urlTemplate);
+    return run.observe<ApiResult<T>>(
+      () => _sendForResult<T>(
+        run: run,
+        method: method,
+        operation: operation,
+        path: path,
+        queryParams: queryParams,
+        headerParams: headerParams,
+        body: body,
+        accepts: accepts,
+        contentType: contentType,
+        returnType: returnType,
+        auth: auth,
+        rawBody: rawBody,
+        timeout: timeout,
+        callHeaders: callHeaders,
+        maxRetries: maxRetries,
+        deserialize: deserialize,
+        deserializeByStatus: deserializeByStatus,
+        errorSchemas: errorSchemas,
+      ),
+      (result) => (result.statusCode, result.headers),
+    );
+  }
+
+  Future<ApiResult<T>> _sendForResult<T>({
+    required _CallRun run,
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    String returnType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    T Function(String body)? deserialize,
+    T Function(String body, int statusCode)? deserializeByStatus,
+    Map<String, ErrorFactory>? errorSchemas,
+  }) async {
+    final response = await _send(
+      run: run,
+      method: method,
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: body,
+      accepts: accepts,
+      contentType: contentType,
+      returnType: returnType,
+      auth: auth,
+      rawBody: rawBody,
+      timeout: timeout,
+      callHeaders: callHeaders,
+      maxRetries: maxRetries,
+      errorSchemas: errorSchemas,
+    );
+
+    final T Function(String body)? decode = deserialize ??
+        (deserializeByStatus == null
+            ? null
+            : (String body) => deserializeByStatus(body, response.statusCode));
+
+    T? data;
+    try {
+      if (returnType.isNotEmpty && response.body.isNotEmpty) {
+        final responseContentType = response.headers.entries
+            .where((e) => e.key.toLowerCase() == 'content-type')
+            .map((e) => e.value)
+            .firstOrNull ?? '';
+        /* Binary response handling: DefaultApiClient encodes non-text
+         * response bodies as base64. When the SDK method expects bytes
+         * (`List<int>` / `Uint8List`), decode the base64 back to raw
+         * bytes here rather than handing the caller a base64 string.
+         * Detect binary by either the returnType signature or a binary
+         * content-type (octet-stream, image, audio, video media types). */
+        final returnsBytes = returnType == 'List<int>' || returnType == 'Uint8List';
+        final isJsonBody = _headerSelector.isJsonMime(responseContentType) ||
+            (responseContentType.isEmpty && !returnsBytes);
+        if (isJsonBody && response.body.trim() == 'null') {
+          /* A bare JSON `null` is an absent body, not a value: leave data null
+           * so the convenience method raises its uniform empty-body
+           * ApiException, instead of the generated deserializer casting null
+           * to the return type and surfacing a raw TypeError. */
+          data = null;
+        } else if (returnsBytes && _headerSelector.isJsonMime(responseContentType)) {
+          /* Top-level `format: byte` response carried as application/json: the
+           * body is a JSON string LITERAL, e.g. `"dGVzdC1pbWFnZQ=="` (quotes
+           * included). JSON-parse it first to recover the inner base64 string,
+           * then base64-decode to raw bytes. Decoding the raw body directly
+           * would either choke on the quotes or (via the utf8 fallback) return
+           * the bytes of the quoted literal — both wrong. */
+          final inner = parseJson(response.body);
+          if (inner is String) {
+            data = decodeBase64(inner) as T?;
+          } else {
+            /* Not a string literal (shouldn't happen for format:byte); fall
+             * back to the binary decode path below by treating it as raw. */
+            data = Uint8List.fromList(utf8.encode(response.body)) as T?;
+          }
+        } else if (returnsBytes) {
+          try {
+            /* Body may be either base64 (the DefaultApiClient path) or a
+             * raw UTF-8 string (e.g. a test server writing JSON-encoded
+             * placeholder bytes for a binary endpoint). Try base64 first,
+             * fall back to utf8 bytes. */
+            final bytes = base64Decode(response.body);
+            data = bytes as T?;
+          } catch (_) {
+            data = Uint8List.fromList(utf8.encode(response.body)) as T?;
+          }
+        } else if ((responseContentType.isEmpty ||
+                _headerSelector.isJsonMime(responseContentType)) &&
+            decode != null) {
+          /* Some servers omit Content-Type on a JSON body; an absent/empty
+           * content-type defaults to JSON deserialization rather than dropping
+           * the body, matching swift/node and the other SDKs. */
+          data = decode(response.body);
+        } else if (returnType == 'String' && _isTextContentType(responseContentType)) {
+          data = response.body as T?;
+        } else if (returnType == 'String') {
+          /* A string result under a binary content type: the transport carries
+           * the bytes as base64 text, which is an internal carrier and never
+           * reaches the caller; return the decoded bytes as text. */
+          try {
+            data = utf8.decode(base64Decode(response.body), allowMalformed: true) as T?;
+          } on FormatException {
+            data = response.body as T?;
+          }
+        } else if (responseContentType.isEmpty ||
+            _headerSelector.isJsonMime(responseContentType)) {
+          /* A JSON body with no deserializer supplied leaves data null;
+           * rawBody is still populated. */
+          data = null;
+        } else {
+          /* A non-JSON body can only be returned verbatim for a String return
+           * type with a text media type; anything else would be a raw string
+           * typed as a model, so refuse it and name the Content-Type. */
+          final mediaType = responseContentType.split(';').first.trim();
+          throw SerializationException(
+            "Unexpected response Content-Type '$mediaType'"
+            "${operation.isEmpty ? '' : ' for $operation'}"
+            ': expected a JSON body',
+          );
+        }
+      }
+    } on SerializationException catch (e) {
+      /* A body that cannot be decoded still names the response it came in
+       * and the request that drew it. */
+      throw e.withResponse(
+        statusCode: response.statusCode,
+        responseHeaders: response.headers,
+        responseBody: response.body,
+        requestMethod: method,
+        requestPath: _requestPathOf(_urlFor(config.baseUrl, path)),
+      );
+    }
+
+    return ApiResult<T>(
+      statusCode: response.statusCode,
+      data: data,
+      rawBody: response.body,
+      headers: response.headers,
+    );
+  }
+
+  /// Reports whether [contentType] names a text media type (text/*,
+  /// application/xml, application/javascript or a +xml suffix) whose body may
+  /// be returned verbatim as a String.
+  bool _isTextContentType(String contentType) {
+    final mediaType = contentType.split(';').first.trim().toLowerCase();
+    return mediaType.startsWith('text/')
+        || mediaType == 'application/xml'
+        || mediaType == 'application/javascript'
+        || mediaType.endsWith('+xml');
+  }
+
+  /// Encodes a form field key or value.
+  ///
+  /// `application/x-www-form-urlencoded` requires a space to be encoded as `+`
+  /// (WHATWG URL / HTML form-encoding), not `%20`; a literal `+` is `%2B`.
+  /// Only the RFC 3986 unreserved set `A-Za-z0-9-._~` stays literal, so
+  /// `! ' ( ) *` are percent-encoded like in every other SDK.
+  String _encodeFormComponent(String s) =>
+      encodeRfc3986QueryComponent(s, spaceToPlus: true);
+
+  /// Builds the query string from [queryParams], omitting null values.
+  String _buildQueryString(Map<String, Object?> queryParams) {
+    if (queryParams.isEmpty) return '';
+
+    final parts = <String>[];
+    for (final entry in queryParams.entries) {
+      final key = entry.key;
+      var value = entry.value;
+      if (value == null) continue;
+
+      /* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+       * characters literal instead of percent-encoding them. */
+      var allowReserved = false;
+      if (value is AllowReservedValue) {
+        value = value.value;
+        allowReserved = true;
+      }
+
+      if (value is ExplodedObject) {
+        for (final (name, text) in value.entries) {
+          parts.add('${encodeRfc3986QueryComponent(name)}='
+              '${_encodeQueryValue(text, allowReserved)}');
+        }
+        continue;
+      }
+
+      final encodedKey = encodeRfc3986QueryComponent(key);
+      if (value is List<String>) {
+        for (final item in value) {
+          parts.add('$encodedKey=${_encodeQueryValue(item, allowReserved)}');
+        }
+      } else if (value is String) {
+        parts.add('$encodedKey=${_encodeQueryValue(value, allowReserved)}');
+      } else {
+        parts.add('$encodedKey=${_encodeQueryValue(stringify(value), allowReserved)}');
+      }
+    }
+
+    return parts.join('&');
+  }
+
+  /// Encodes a query-parameter value, preserving RFC 3986 reserved
+  /// characters when the parameter declared `allowReserved: true` and
+  /// otherwise keeping only the RFC 3986 unreserved set literal with a `%20`
+  /// space (a strict server reads `+` as a literal plus). A literal `+` is
+  /// `%2B`. Matches the other SDKs.
+  String _encodeQueryValue(String value, bool allowReserved) {
+    return allowReserved
+        ? encodeQueryAllowingReserved(value)
+        : encodeRfc3986QueryComponent(value);
+  }
+
+  /// The media type a multipart request goes out under, or null when
+  /// [contentType] is not a multipart type. A declared subtype such as
+  /// `multipart/mixed` is kept; a value that is not a plain `multipart/<token>`
+  /// falls back to `multipart/form-data` so it can never reach a header.
+  static String? _multipartTypeOf(String contentType) {
+    if (!contentType.startsWith('multipart/')) {
+      return null;
+    }
+    return RegExp(r"^multipart/[A-Za-z0-9!#$&^_.+-]+$").hasMatch(contentType)
+        ? contentType
+        : 'multipart/form-data';
+  }
+
+  /// Serialize the request body based on content type.
+  ///
+  /// Binary content types (image/* or application/octet-stream) pass the body
+  /// through as bytes, `text/plain` is stringified, and
+  /// `application/x-www-form-urlencoded` is encoded field by field. All other
+  /// content types are JSON-serialized. multipart/form-data bodies are
+  /// assembled separately by [_buildMultipartBody], so this returns null for
+  /// them.
+  ///
+  /// When [rawBody] is true the operation's body parameter is `format:
+  /// binary`, so caller-supplied bytes go out verbatim whatever content type
+  /// was selected (including `application/json`); the selector only changes
+  /// the Content-Type header and the bytes are never JSON-encoded.
+  Object? _serializeBody(Object? body, String contentType, {bool rawBody = false}) {
+    if (body == null) return null;
+
+    /* A body source is sent as it is read, never serialized or buffered. */
+    if (body is BodySource) return body;
+
+    if (rawBody) {
+      if (body is Uint8List) return body;
+      if (body is List<int>) return Uint8List.fromList(body);
+      if (body is String) return Uint8List.fromList(utf8.encode(body));
+    }
+
+    if (contentType == 'multipart/form-data' ||
+        (_multipartTypeOf(contentType) != null && body is Map<String, Object?>)) {
+      return null;
+    }
+
+    if (contentType.startsWith('image/') || contentType == 'application/octet-stream') {
+      if (body is Uint8List) return body;
+      if (body is List<int>) return Uint8List.fromList(body);
+      if (body is String) return Uint8List.fromList(utf8.encode(body));
+    }
+
+    if (contentType == 'text/plain') {
+      return Uint8List.fromList(utf8.encode('$body'));
+    }
+
+    if (contentType == 'application/x-www-form-urlencoded') {
+      if (body is Map<String, Object?>) {
+        final parts = <String>[];
+        for (final entry in body.entries) {
+          var value = entry.value;
+          /* A null field is dropped entirely rather than emitted as `key=`. */
+          if (value == null) continue;
+          /* A multipart part encoding has no effect on a form-urlencoded
+           * body: the field is sent as its plain value. */
+          if (value is EncodedPart) {
+            value = value.value;
+          }
+          /* OAS allowReserved on the field's Encoding Object: the value keeps
+           * the query-legal reserved characters literal, exactly as a query
+           * parameter with allowReserved does. */
+          var allowReserved = false;
+          if (value is AllowReservedValue) {
+            value = value.value;
+            allowReserved = true;
+          }
+          final encode = allowReserved
+              ? encodeQueryAllowingReserved
+              : _encodeFormComponent;
+          /* An object field styled by its Encoding Object (style form,
+           * explode true) contributes one field per property. */
+          if (value is ExplodedObject) {
+            for (final (name, text) in value.entries) {
+              parts.add('${_encodeFormComponent(name)}=${encode(text)}');
+            }
+            continue;
+          }
+          final encodedKey = _encodeFormComponent(entry.key);
+          if (value is List && value is! Uint8List) {
+            /* Array values emit a REPEATED key (`tags=a&tags=b`), never a
+             * single `tags=[a, b]` from List.toString(). */
+            for (final item in value) {
+              if (item == null) continue;
+              _requireFormScalar(entry.key, item as Object);
+              parts.add('$encodedKey=${encode(stringify(item))}');
+            }
+          } else {
+            _requireFormScalar(entry.key, value);
+            parts.add('$encodedKey=${encode(stringify(value))}');
+          }
+        }
+        return Uint8List.fromList(utf8.encode(parts.join('&')));
+      }
+    }
+
+    return Uint8List.fromList(utf8.encode(serialize(body)));
+  }
+
+  /// Throws a [SerializationException] unless [value] is a scalar.
+  ///
+  /// The generator defines no encoding (OAS `style`/`explode`) for an object,
+  /// map or nested array inside an `application/x-www-form-urlencoded` body,
+  /// so such a value is rejected instead of sending its `toString()`.
+  void _requireFormScalar(String name, Object value) {
+    if (!_isScalar(value)) {
+      throw SerializationException(
+          'form-urlencoded field $name must be a scalar or array of scalars');
+    }
+  }
+
+  /// Reports whether [value] is a primitive that [stringify] renders in its
+  /// canonical text form (string, number, boolean, date-time, duration,
+  /// `format: byte` bytes, uuid or enum), as opposed to a map or model.
+  bool _isScalar(Object value) =>
+      value is String ||
+      value is num ||
+      value is bool ||
+      value is DateTime ||
+      value is Duration ||
+      value is Uint8List ||
+      value is UuidValue ||
+      value is Enum;
+
+  /// Build a multipart/form-data request body from a map of form fields.
+  ///
+  /// Each entry value may be a `List<int>` (binary), a `List` (repeated
+  /// field), or any other value which is converted to its string
+  /// representation.
+  Uint8List _buildMultipartBody(Map<String, Object?> formFields, String boundary) {
+    final parts = <List<int>>[];
+
+    for (final entry in formFields.entries) {
+      final name = entry.key;
+      var value = entry.value;
+      /* The field's Encoding Object declares the part Content-Type and part
+       * headers; a list applies them to each item. */
+      String? contentType;
+      var partHeaders = const <String, String>{};
+      if (value is EncodedPart) {
+        contentType = value.contentType;
+        partHeaders = value.headers;
+        value = value.value;
+      }
+      /* allowReserved has no effect on a multipart body: the value is sent
+       * unchanged. */
+      if (value is AllowReservedValue) {
+        value = value.value;
+      }
+      if (value is List && value is! List<int>) {
+        for (final item in value) {
+          _appendMultipartField(parts, boundary, name, item,
+              contentType: contentType, headers: partHeaders);
+        }
+      } else {
+        _appendMultipartField(parts, boundary, name, value,
+            contentType: contentType, headers: partHeaders);
+      }
+    }
+    parts.add(utf8.encode('--$boundary--\r\n'));
+
+    final builder = BytesBuilder();
+    for (final part in parts) {
+      builder.add(part);
+    }
+    return builder.toBytes();
+  }
+
+  /// Appends one multipart field named [name] with [value] to [parts].
+  ///
+  /// [contentType] is the part Content-Type the field's Encoding Object
+  /// declares, which replaces the one chosen here (a text part that has none
+  /// gets it); [headers] are the declared part headers, written after the
+  /// Content-Type in order.
+  void _appendMultipartField(
+    List<List<int>> parts,
+    String boundary,
+    String name,
+    Object? value, {
+    String? contentType,
+    Map<String, String> headers = const {},
+  }) {
+    /* Validate the field name on every branch (string, number, boolean,
+     * JSON, binary) before it lands in Content-Disposition. The name is
+     * interpolated directly into `Content-Disposition: form-data; name="..."`,
+     * so CR/LF/NUL must be rejected even when the value is not binary, and
+     * quote/backslash must be escaped so a malicious name cannot break out of
+     * the `name="..."` parameter. */
+    validateMultipartFieldName(name);
+    final safeName = escapeMultipartFieldName(name);
+    final extraHeaders =
+        headers.entries.map((h) => '${h.key}: ${h.value}\r\n').join();
+    if (value is List<int>) {
+      /* Derive the part's Content-Type from the filename extension
+       * (`.png` -> `image/png`), falling back to `application/octet-stream`
+       * when the name carries no recognised extension. The form field name
+       * doubles as the filename here because the spec models a binary form
+       * field as raw bytes with no separate filename slot. */
+      validateMultipartFilename(name);
+      final mimeType =
+          contentType ?? lookupMimeType(name) ?? 'application/octet-stream';
+      /* A non-ASCII filename must be emitted as an RFC 5987
+       * `filename*=UTF-8''<pct-encoded>` parameter (with an ASCII
+       * `filename="..."` fallback), not as raw UTF-8 bytes inside the quoted
+       * `filename="..."` — the latter is non-conformant and mangled by strict
+       * parsers. buildFilenameDirective emits the plain `filename="..."` for
+       * ASCII names and adds `filename*` only when needed. */
+      final filenameDirective = buildFilenameDirective(name);
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; $filenameDirective\r\nContent-Type: $mimeType\r\n$extraHeaders\r\n',
+      ));
+      parts.add(value);
+      parts.add(utf8.encode('\r\n'));
+    } else if (value != null && _isScalar(value)) {
+      /* A primitive (string, number, boolean, date-time, duration, uuid,
+       * enum) is a text part with no part Content-Type unless the Encoding
+       * Object declares one, carrying the canonical [stringify] form; only
+       * maps and models are JSON parts. */
+      final typeHeader =
+          contentType == null ? '' : 'Content-Type: $contentType\r\n';
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n$typeHeader$extraHeaders\r\n${stringify(value)}\r\n',
+      ));
+    } else if (value is Map) {
+      final json = serialize(value);
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: ${contentType ?? 'application/json'}\r\n$extraHeaders\r\n$json\r\n',
+      ));
+    } else if (value != null) {
+      final serialized = serialize(value);
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: ${contentType ?? 'application/json'}\r\n$extraHeaders\r\n$serialized\r\n',
+      ));
+    }
+  }
+
+  /// Generates a random (version 4) UUID used as the multipart boundary.
+  String _generateUuid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20, 32)}';
+  }
+}
+
+/// The reply of a stream attempt that succeeded: an [ApiHttpResponse] with no
+/// body that carries the open [ApiStreamResponse] through the send loop.
+class _StreamReply extends ApiHttpResponse {
+  _StreamReply(this.stream)
+      : super(statusCode: stream.statusCode, body: '', headers: stream.headers);
+
+  final ApiStreamResponse stream;
+}
+
+/// An error thrown by [CallHook.start], carried out of the send loop so that it
+/// reaches the caller unchanged.
+class _HookStartFailure {
+  _HookStartFailure(this.error, this.stackTrace);
+
+  final Object error;
+  final StackTrace stackTrace;
+}
+
+/// The state of one operation call as far as the [CallHook] is concerned: the
+/// observer [CallHook.start] returned and the header edits the hook made, which
+/// are applied again to every further send of the call.
+class _CallRun {
+  _CallRun(this._hook, this._operationId, this._urlTemplate);
+
+  final CallHook? _hook;
+  final String _operationId;
+  final String _urlTemplate;
+  bool _started = false;
+  CallObserver? _observer;
+
+  /// The edits the hook made to the headers, by header name; null removes it.
+  final Map<String, String?> _edits = {};
+
+  /// Calls [CallHook.start] on the first send of the call, and on every later
+  /// send applies the edits it made. A header the authentication of this send
+  /// provides (by lower-case name in [authNames]) is not overwritten.
+  void beforeSend(
+    String method,
+    String target,
+    Map<String, String> headers,
+    Set<String> authNames,
+  ) {
+    final hook = _hook;
+    if (hook == null) {
+      return;
+    }
+    if (_started) {
+      _edits.forEach((name, value) {
+        if (authNames.contains(name.toLowerCase())) {
+          return;
+        }
+        if (value == null) {
+          headers.remove(name);
+        } else {
+          headers[name] = value;
+        }
+      });
+      return;
+    }
+    _started = true;
+    final before = Map<String, String>.of(headers);
+    try {
+      _observer = hook.start(
+        CallInfo.of(
+          operationId: _operationId,
+          method: method,
+          urlTemplate: _urlTemplate,
+          target: target,
+        ),
+        headers,
+      );
+    } catch (e, s) {
+      throw _HookStartFailure(e, s);
+    }
+    headers.forEach((name, value) {
+      if (before[name] != value) {
+        _edits[name] = value;
+      }
+    });
+    for (final name in before.keys) {
+      if (!headers.containsKey(name)) {
+        _edits[name] = null;
+      }
+    }
+  }
+
+  /// Runs [body] and tells the observer how it ended: [describe] gives the
+  /// status and the headers of a result, and an error thrown by [body] is
+  /// reported and rethrown as it is.
+  Future<R> observe<R>(
+    Future<R> Function() body,
+    (int, Map<String, String>) Function(R result) describe,
+  ) async {
+    if (_hook == null) {
+      return body();
+    }
+    final R result;
+    try {
+      result = await body();
+    } catch (e) {
+      _finish(_outcomeOfError(e));
+      rethrow;
+    }
+    final (status, headers) = describe(result);
+    _finish(CallOutcome(
+      statusCode: status,
+      headers: _lowerCased(headers),
+      error: null,
+    ));
+    return result;
+  }
+
+  /// Tells the observer, if there is one, that the call has ended. An error of
+  /// the observer is swallowed: it never replaces the result of the call.
+  void _finish(CallOutcome outcome) {
+    final observer = _observer;
+    _observer = null;
+    if (observer == null) {
+      return;
+    }
+    try {
+      observer.finish(outcome);
+    } catch (_) {
+      /* The call still returns its result or its own error. */
+    }
+  }
+
+  static CallOutcome _outcomeOfError(Object error) {
+    if (error is ApiException) {
+      return CallOutcome(
+        statusCode: error.statusCode,
+        headers: _lowerCasedOrNull(error.responseHeaders),
+        error: error,
+      );
+    }
+    if (error is SerializationException) {
+      return CallOutcome(
+        statusCode: error.statusCode ?? 0,
+        headers: _lowerCasedOrNull(error.responseHeaders),
+        error: error,
+      );
+    }
+    return CallOutcome(statusCode: 0, headers: null, error: error);
+  }
+
+  static Map<String, String>? _lowerCasedOrNull(Map<String, String>? headers) =>
+      headers == null ? null : _lowerCased(headers);
+
+  static Map<String, String> _lowerCased(Map<String, String> headers) =>
+      Map.unmodifiable({
+        for (final entry in headers.entries) entry.key.toLowerCase(): entry.value,
+      });
+}
+
+/* The credentials of every scheme one security requirement names together:
+ * headers, query parameters and cookies of all of them are sent. */
+class _AllOfAuthenticator implements Authenticator, HttpAwareAuthenticator {
+  _AllOfAuthenticator(this._parts);
+
+  /// The composite of [parts]; one that can drop a cached access token is
+  /// returned as such, so a 401 replays the request only when a part holds one.
+  static Authenticator of(List<Authenticator> parts) =>
+      parts.any(_invalidates)
+          ? _AllOfInvalidatingAuthenticator(parts)
+          : _AllOfAuthenticator(parts);
+
+  static bool _invalidates(Authenticator part) {
+    final Object candidate = part;
+    return candidate is AccessTokenInvalidating;
+  }
+
+  final List<Authenticator> _parts;
+
+  @override
+  String host() => _parts.first.host();
+
+  @override
+  Map<String, String> authHeaders() =>
+      {for (final part in _parts) ...part.authHeaders()};
+
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    final merged = <String, String>{};
+    for (final part in _parts) {
+      merged.addAll(await part.authHeadersAsync());
+    }
+    return merged;
+  }
+
+  @override
+  Map<String, String> queryParams() =>
+      {for (final part in _parts) ...part.queryParams()};
+
+  @override
+  Map<String, String> cookieParams() =>
+      {for (final part in _parts) ...part.cookieParams()};
+
+  @override
+  void setApiClient(ApiClient client) {
+    for (final part in _parts) {
+      if (part is HttpAwareAuthenticator) {
+        part.setApiClient(client);
+      }
+    }
+  }
+
+}
+
+class _AllOfInvalidatingAuthenticator extends _AllOfAuthenticator
+    implements AccessTokenInvalidating {
+  _AllOfInvalidatingAuthenticator(super.parts);
+
+  @override
+  void invalidateAccessToken() {
+    for (final part in _parts) {
+      final Object candidate = part;
+      if (candidate is AccessTokenInvalidating) {
+        candidate.invalidateAccessToken();
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+let host = std::env::var("{{envPrefix}}_BASE_URL")?;
+let token = std::env::var("{{envPrefix}}_ACCESS_TOKEN")?;
+let client = {{clientClassName}}::with_token(Some(&host), Some(&token), None)?;
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+let result = client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isServer}}None, {{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}None{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}).await;
+client.close();
+{{#returnType}}
+let value = result?;
+println!("{value:?}");
+{{/returnType}}
+{{^returnType}}
+result?;
+{{/returnType}}
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+client.close();
+{{/hasExampleOperation}}

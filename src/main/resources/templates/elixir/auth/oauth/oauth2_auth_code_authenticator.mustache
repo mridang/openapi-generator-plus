@@ -1,0 +1,221 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
+  @moduledoc """
+  Authenticator for OAuth2 authorization code flow.
+
+  Implements `HttpAwareAuthenticator` so that token exchange requests
+  use the shared `ApiClient` with the same transport configuration
+  (proxy, TLS, timeouts) as regular API calls.
+
+  ## Usage
+
+  1. Call `build_authorization_url/2` to get the authorization URL.
+  2. Redirect the user to that URL.
+  3. After the callback, call `exchange_code/2` with the auth code.
+  4. Use the authenticator normally -- tokens are managed automatically.
+  """
+
+  use {{moduleName}}.Auth.BaseAuthenticator
+  @behaviour {{moduleName}}.Auth.HttpAwareAuthenticator
+
+  @type t :: %__MODULE__{
+          host: String.t(),
+          client_id: String.t(),
+          client_secret: String.t(),
+          authorization_url: String.t(),
+          token_url: String.t(),
+          refresh_url: String.t(),
+          redirect_uri: String.t(),
+          scopes: [String.t()],
+          token_manager: pid() | nil
+        }
+
+  # Credential fields are masked as `***` in the Inspect representation (they stay
+  # visible but never leak into logs or stack traces); see the impl below.
+  defstruct [
+    :host,
+    :client_id,
+    :client_secret,
+    :authorization_url,
+    :token_url,
+    :refresh_url,
+    :redirect_uri,
+    :scopes,
+    :token_manager
+  ]
+
+  defimpl Inspect do
+    def inspect(auth, opts), do: Inspect.Any.inspect(%{auth | client_secret: mask(auth.client_secret), token_manager: mask(auth.token_manager)}, opts)
+
+    defp mask(nil), do: nil
+    defp mask(_secret), do: "***"
+  end
+
+  @doc """
+  Create a new authorization code authenticator.
+
+  `client_id` and `client_secret` may be `nil`; they are then read from the
+  environment variables `{{envVarPrefix}}_CLIENT_ID` and `{{envVarPrefix}}_CLIENT_SECRET`.
+  """
+  @spec new(String.t(), String.t() | nil, String.t() | nil, String.t(), String.t(), String.t(), [String.t()], keyword()) ::
+          t()
+  def new(host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes, opts \\ []) do
+    client_id = {{moduleName}}.Auth.BaseAuthenticator.credential(client_id, "CLIENT_ID")
+    client_secret = {{moduleName}}.Auth.BaseAuthenticator.credential(client_secret, "CLIENT_SECRET")
+
+    {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+
+    %__MODULE__{
+      host: host,
+      client_id: client_id,
+      client_secret: client_secret,
+      authorization_url: authorization_url,
+      token_url: token_url,
+      refresh_url: Keyword.get(opts, :refresh_url, token_url),
+      redirect_uri: redirect_uri,
+      scopes: scopes,
+      token_manager: manager
+    }
+  end
+
+  @impl {{moduleName}}.Auth.HttpAwareAuthenticator
+  def set_api_client(%__MODULE__{} = self, client) do
+    {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(self.token_manager, client)
+    self
+  end
+
+  @doc """
+  Build the authorization URL to redirect the user to.
+
+  ## Parameters
+
+    * `self` - The authenticator instance.
+    * `state` - Optional CSRF state parameter.
+
+  """
+  @spec build_authorization_url(t(), String.t() | nil) :: String.t()
+  def build_authorization_url(%__MODULE__{} = self, state \\ nil) do
+    # A list, not a map: the parameters go on the wire in this fixed order.
+    params =
+      [{"response_type", "code"}, {"client_id", self.client_id}, {"redirect_uri", self.redirect_uri}] ++
+        if(self.scopes != [], do: [{"scope", Enum.join(self.scopes, " ")}], else: []) ++
+        if(state in [nil, ""], do: [], else: [{"state", state}])
+
+    # RFC 9700 section 2.1.1 / RFC 7636: bind the code to this client with a
+    # PKCE S256 challenge. The verifier is kept in the token manager for
+    # exchange_code/2.
+    params =
+      params ++
+        [
+          {"code_challenge", {{moduleName}}.Auth.OAuth.OAuth2TokenManager.begin_pkce(self.token_manager)},
+          {"code_challenge_method", "S256"}
+        ]
+
+    # RFC 6749 §3.1: the authorization endpoint URI MAY already include
+    # a query component. Use '&' as the separator when one is already
+    # present so existing params are preserved, '?' otherwise.
+    separator = if String.contains?(self.authorization_url, "?"), do: "&", else: "?"
+
+    # URI.encode_query emits '+' for a space; RFC 3986 requires %20 in a query
+    # component (a strict server reads '+' as a literal plus).
+    "#{self.authorization_url}#{separator}#{URI.encode_query(params) |> String.replace("+", "%20")}"
+  end
+
+  @doc """
+  Exchange an authorization code for an access token.
+
+  ## Parameters
+
+    * `self` - The authenticator instance.
+    * `code` - The authorization code from the callback.
+
+  ## Returns
+
+    The authenticator. The exchange is recorded in the shared token manager, so
+    every copy of the authenticator (including the one the client holds) is
+    ready for API requests.
+  """
+  @spec exchange_code(t(), String.t()) :: t()
+  def exchange_code(%__MODULE__{} = self, code), do: exchange_code_checked(self, code, nil)
+
+  # Exchanges the code, handing the response's id_token to `id_token_check`
+  # before the session is replaced. OpenID Connect uses this.
+  @doc false
+  @spec exchange_code_checked(t(), String.t(), (String.t() | nil -> any()) | nil) :: t()
+  def exchange_code_checked(%__MODULE__{} = self, code, id_token_check) do
+    # Reject an empty/whitespace authorization code before POSTing to the
+    # token endpoint: an empty `code` would otherwise be sent verbatim and
+    # surface as a confusing server-side `invalid_grant` rather than a
+    # clear client-side error.
+    if not is_binary(code) or String.trim(code) == "" do
+      raise ArgumentError, "Authorization code must not be empty"
+    end
+
+    params = %{
+      "grant_type" => "authorization_code",
+      "code" => code,
+      "client_id" => self.client_id,
+      "client_secret" => self.client_secret,
+      "redirect_uri" => self.redirect_uri
+    }
+
+    # Prove the PKCE challenge of the authorization URL built last; a code
+    # exchange without one (no URL built here) sends no verifier.
+    params =
+      case {{moduleName}}.Auth.OAuth.OAuth2TokenManager.code_verifier(self.token_manager) do
+        nil -> params
+        verifier -> Map.put(params, "code_verifier", verifier)
+      end
+
+    # Always POSTs this code (never answers from the cache or the refresh path)
+    # and replaces the session; a rejected code keeps the previous session.
+    _token =
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(
+        self.token_manager,
+        self.token_url,
+        params,
+        %{},
+        id_token_check
+      )
+    self
+  end
+
+  @doc """
+  Release what the authenticator started (its token manager and, for OpenID
+  Connect, the discovery cache). Idempotent. Called by `{{clientClassName}}.close/1`.
+  """
+  @impl {{moduleName}}.Auth.HttpAwareAuthenticator
+  def close(%__MODULE__{} = self) do
+    {{moduleName}}.Auth.OAuth.OAuth2TokenManager.stop(self.token_manager)
+  end
+
+  @doc """
+  Drop the cached access token so that the next call fetches a new one. The
+  refresh token is kept. The SDK calls this when the server answers a request
+  with 401, before it sends that request once more.
+  """
+  @spec invalidate_access_token(t()) :: :ok
+  def invalidate_access_token(%__MODULE__{} = self) do
+    {{moduleName}}.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(self.token_manager)
+  end
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def host(%__MODULE__{} = self), do: self.host
+
+  @impl {{moduleName}}.Auth.Authenticator
+  def auth_headers(%__MODULE__{} = self) do
+    unless {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchanged?(self.token_manager) do
+      raise "Must call exchange_code() before making API requests"
+    end
+
+    params = %{
+      "grant_type" => "refresh_token",
+      "refresh_token" => {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || "",
+      "client_id" => self.client_id,
+      "client_secret" => self.client_secret
+    }
+    token = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params)
+    %{"Authorization" => "Bearer #{token}"}
+  end
+end

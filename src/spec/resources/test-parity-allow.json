@@ -1,0 +1,120 @@
+{
+ "partialGroups": [
+  {
+   "reason": "tracked in #118",
+   "keys": [
+    "credentials",
+    "readme",
+    "schemeauthenticator",
+    "schemeauthenticators",
+    "skills"
+   ]
+  }
+ ],
+ "languages": {
+  "dart": {
+   "missingTests": [
+    {
+     "reason": "Dart has no brotli or zstd decoder in the standard library and the SDK takes no native or third-party dependency for one, so DefaultApiClient advertises only gzip and deflate and refuses a br or zstd body with a typed ApiException ('refuses a br response it cannot decode' and 'refuses a zstd response it cannot decode'); a decoded br or zstd body cannot be read",
+     "keys": [
+      "defaultapiclient::decompressesbrotliresponse",
+      "defaultapiclient::decompresseszstdresponse"
+     ]
+    }
+   ]
+  },
+  "go": {
+   "extraGroups": [
+    {
+     "reason": "Go-only groups: Iso8601 covers the Duration, DateTime and TimeOfDay helpers the other SDKs get from their runtime, Model covers the generated model struct and Set, and RequestOption covers the variadic RequestOption values that replace default arguments and overloads",
+     "keys": [
+      "iso8601",
+      "model",
+      "requestoption"
+     ]
+    }
+   ]
+  },
+  "node": {
+   "extraGroups": [
+    {
+     "reason": "the portable web (fetch) transport exists only in the Node SDK",
+     "keys": [
+      "webportabletransport"
+     ]
+    }
+   ]
+  },
+  "php": {
+   "extraGroups": [
+    {
+     "reason": "only the PHP SDK has an authenticator class that applies the several schemes of one security requirement together; no other SDK has such a type, so there is nothing to test under that name",
+     "keys": [
+      "compositeauthenticator"
+     ]
+    },
+    {
+     "reason": "PSR-18 is a PHP-only HTTP client interface, so only the PHP SDK has a client for it",
+     "keys": [
+      "psr18apiclientunit"
+     ]
+    }
+   ]
+  },
+  "ruby": {
+   "extraGroups": [
+    {
+     "reason": "the gemspec is a Ruby-only manifest, so only the Ruby SDK tests it",
+     "keys": [
+      "gemmanifest"
+     ]
+    }
+   ]
+  },
+  "rust": {
+   "extraGroups": [
+    {
+     "reason": "in-crate tests of crate-private Rust items the other languages have no counterpart for: the ApiClient trait's default methods and header helpers, the DateTime newtype around chrono, and the Base64Serde serde adapter",
+     "keys": [
+      "apiclient",
+      "base64serde",
+      "datetime"
+     ]
+    },
+    {
+     "reason": "a Rust-only test helper module that the other languages keep inside their test fixtures",
+     "keys": [
+      "testcontainershelper"
+     ]
+    }
+   ]
+  },
+  "swift": {
+   "missingTests": [
+    {
+     "reason": "swift-corelibs-foundation never surfaces a server-trust challenge on Linux, where the swift spec runs, so DefaultApiClient refuses verifySsl(false) and a custom CA certificate there with ConfigurationError.invalidCACertificate (DefaultApiClientUnitTests, TransportOptionsTests); the Apple-only DefaultApiClientStubTests covers the success path",
+     "keys": [
+      "defaultapiclient::makeshttpsrequestwithcustomcacert",
+      "defaultapiclient::makeshttpsrequestwithverifysslfalse"
+     ]
+    },
+    {
+     "reason": "swift-corelibs-foundation has no connectionProxyDictionary on Linux, where the swift spec runs, so DefaultApiClient refuses any proxy there with ConfigurationError.invalidProxy and a request cannot go through the Squid container; the Apple-only DefaultApiClientStubTests covers the success path and proxy credentials",
+     "keys": [
+      "defaultapiclient::makeshttprequestthroughproxy",
+      "defaultapiclient::makeshttpsrequestthroughproxywithverifysslfalse",
+      "defaultapiclient::proxywithcredentialsinjectsbasicauthorization",
+      "transportoptions::settingproxyissupportedonallplatforms"
+     ]
+    },
+    {
+     "reason": "URLSession negotiates and decodes only gzip and deflate (the README section Response compression), the SDK has no brotli or zstd decoder and never sets Accept-Encoding, so a br or zstd body cannot be read",
+     "keys": [
+      "defaultapiclient::decompressesbrotliresponse",
+      "defaultapiclient::decompresseszstdresponse"
+     ]
+    }
+   ]
+  }
+ }
+}

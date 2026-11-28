@@ -1,0 +1,16 @@
+{{#vendorExtensions.op.operationExamples}}
+{{#-first}}
+     *
+{{/-first}}
+     * {{#lambda.kdoc}}{{{heading}}} example: {{{summary}}}{{/lambda.kdoc}}
+{{#hasDescription}}
+     * {{#lambda.kdoc}}{{{description}}}{{/lambda.kdoc}}
+{{/hasDescription}}
+     * `{{#lambda.kdoc}}{{{value}}}{{/lambda.kdoc}}`
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.exposedExtensions}}
+{{#-first}}
+     *
+{{/-first}}
+     * {{#lambda.kdoc}}Extension {{{name}}}: {{{value}}}{{/lambda.kdoc}}
+{{/vendorExtensions.op.exposedExtensions}}

@@ -1,0 +1,253 @@
+{{>api_info}}
+import Foundation
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+/// Protocol for per-operation server URLs for {{operationId}}.
+public protocol {{serverTypeName}} {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+public enum {{serverTypeName}}{{enumTypeName}}: String {
+{{#enumValues}}
+    case {{name}} = {{{literal}}}
+{{/enumValues}}
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
+{{#serverVariables}}
+    public let {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}
+{{/serverVariables}}
+
+    public init({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
+{{#serverVariables}}
+        self.{{camelName}} = {{camelName}}
+{{/serverVariables}}
+    }
+
+    public func getUrl() -> String {
+{{#serverVariables.0}}
+        var url = "{{url}}"
+{{#serverVariables}}
+        url = url.replacingOccurrences(of: "{" + "{{name}}" + "}", with: {{#hasEnumValues}}{{camelName}}.rawValue{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
+{{/serverVariables}}
+        return url
+{{/serverVariables.0}}
+{{^serverVariables.0}}
+        return "{{url}}"
+{{/serverVariables.0}}
+    }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/tagSummary}}
+{{#tagDescription}}
+/// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}
+{{/tagParent}}
+{{#tagExternalDocs}}
+/// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+{{/tagExternalDocs}}
+public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sendable {
+    /// Creates a new `{{classname}}`.
+    public override init(
+        apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+        schemeAuthenticators: [String: Authenticator] = [:]
+    ) {
+        super.init(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemeAuthenticators)
+    }
+{{#operation}}
+
+{{#summary}}
+    /// {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+{{/summary}}
+{{#notes}}
+    /// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+    /// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#externalDocs}}
+    /// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+{{/externalDocs}}
+{{#vendorExtensions.op.signatureArgs.0}}
+    ///
+    /// - Parameters:
+{{#allParams}}
+{{#isPathParam}}
+    ///   - {{paramName}}: {{#description}}{{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}{{/description}}{{^description}}The {{paramName}} path parameter.{{/description}}
+{{/isPathParam}}
+{{#isBodyParam}}
+    ///   - {{paramName}}: {{#description}}{{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}{{/description}}{{^description}}The request body.{{/description}}
+{{/isBodyParam}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+{{/isOptions}}
+{{#isServer}}
+    ///   - server: Optional per-operation server override.
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes}}
+{{#-last}}
+{{^-first}}
+    ///   - requestContentType: Optional request Content-Type, chosen from the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
+{{/-first}}
+{{/-last}}
+{{/consumes}}
+{{#vendorExtensions.op.streamOnly}}
+    ///   - streamOptions: The stream settings (`idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`), or nil for the defaults.
+{{/vendorExtensions.op.streamOnly}}
+{{/vendorExtensions.op.signatureArgs.0}}
+{{>api/operation_doc_throws}}
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+    ///
+    /// ### `{{paramName}}` — {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#vendorExtensions.op.hasOperationExamples}}
+    ///
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+    /// {{#lambda.singleLine}}{{{heading}}} example: {{{summary}}}{{/lambda.singleLine}}
+{{#hasDescription}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+{{/hasDescription}}
+    /// ```json
+    /// {{#lambda.singleLine}}{{{value}}}{{/lambda.singleLine}}
+    /// ```
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+    ///
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+    /// {{#lambda.singleLine}}Extension {{{name}}}: {{{value}}}{{/lambda.singleLine}}
+{{/vendorExtensions.op.exposedExtensions}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.signatureArgs.0}}, {{/vendorExtensions.op.signatureArgs.0}}streamOptions: StreamOptions? = nil) async throws -> {{{returnType}}} {
+{{>api/operation_prelude}}
+
+{{#vendorExtensions.op.streamsSse}}
+        return try await invokeAPIForSse(
+            params, streamOptions: streamOptions,{{#hasSseTerminator}} terminator: "{{{sseTerminator}}}",{{/hasSseTerminator}}
+            decode: {{#vendorExtensions.op.streamTyped}}{ try BaseApi.decodeStreamItem($0, as: {{{vendorExtensions.op.streamItemSwift}}}.self) }{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}{ (text: String) -> String in text }{{/vendorExtensions.op.streamTyped}})
+{{/vendorExtensions.op.streamsSse}}
+{{#vendorExtensions.op.streamsJsonLines}}
+        return try await invokeAPIForJsonLines(
+            params, streamOptions: streamOptions,
+            decode: {{#vendorExtensions.op.streamTyped}}{ try BaseApi.decodeStreamItem($0, as: {{{vendorExtensions.op.streamItemSwift}}}.self) }{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}{ (text: String) -> String in text }{{/vendorExtensions.op.streamTyped}})
+{{/vendorExtensions.op.streamsJsonLines}}
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        let result = try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: requestContentType{{/-first}}{{/-last}}{{/consumes}})
+{{#returnType}}
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Expected a response body for {{operationId}} but received none",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
+{{/returnType}}
+{{^returnType}}
+        _ = result
+{{/returnType}}
+    }
+
+    /// Performs the {{operationId}} operation and returns the full API result.
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        return try await {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}, {{/vendorExtensions.op.signatureArgs}}pageURL: nil)
+    }
+
+    /* One page of the list: the first when `pageURL` is nil, else the URL the Link header or the body named. */
+    func {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}pageURL: String?) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{>api/operation_prelude}}
+
+{{#returnType}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+        /* Several 2xx responses with different schemas: the body is read as the
+         * schema of the status that arrived. */
+        return try await invokeAPIForResult(params) { (response: ApiHttpResponse) -> {{{vendorExtensions.op.successUnionType}}}? in
+            switch response.statusCode {
+{{#vendorExtensions.op.successResponses}}
+            case {{statusCode}}:
+                return try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self)
+                    .map { {{{vendorExtensions.op.successUnionType}}}($0) }
+{{/vendorExtensions.op.successResponses}}
+            default:
+                /* An undeclared success status takes the first success schema that
+                 * decodes the body, in declaration order. */
+                var lastError: Error?
+{{#vendorExtensions.op.successResponses}}
+                do {
+                    if let value = try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self) {
+                        return {{{vendorExtensions.op.successUnionType}}}(value)
+                    }
+                } catch {
+                    lastError = error
+                }
+{{/vendorExtensions.op.successResponses}}
+                if let lastError { throw lastError }
+                return nil
+            }
+        }
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
+{{#vendorExtensions.op.streamsBinary}}
+        return try await invokeAPIForStream(params)
+{{/vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamsBinary}}
+        return try await invokeAPIForResult(params, as: {{{.}}}.self)
+{{/vendorExtensions.op.streamsBinary}}
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/returnType}}
+{{^returnType}}
+        return try await invokeAPIForEmptyResult(params)
+{{/returnType}}
+    }
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+}
+{{/operations}}

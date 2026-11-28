@@ -1,0 +1,651 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.ApiException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import {{invokerPackage}}.auth.ApiKeyAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyLocation;
+import {{invokerPackage}}.auth.Authenticator;
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+import org.junit.jupiter.api.Test;
+
+import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+@SuppressWarnings("NullAway")
+class ClientTest {
+
+    private final BearerAuthenticator authenticator =
+            new BearerAuthenticator("{{{basePath}}}", "test-token");
+
+    @Test
+    void bhvLifecycle012ConstructWithAuthenticatorOnly() throws ApiException {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+
+        assertNotNull(client);
+    }
+
+    @Test
+    void bhvLifecycle008ClosedClientRejectsFurtherRequests() {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+        client.close();
+        client.close();
+
+        IllegalStateException refused = assertThrows(IllegalStateException.class,
+                () -> client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+        assertEquals("ApiClient has been closed and can no longer send requests", refused.getMessage());
+    }
+
+    @Test
+    void bhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() throws Exception {
+        try (DefaultApiClientUnitTest.RawServer server =
+                DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest::oneChunkThenHold)) {
+            {{clientClassName}} client = new {{clientClassName}}(authenticator);
+            ApiStreamResponse open =
+                    client.transport()
+                            .sendStreaming("GET", server.url("/items/events"), java.util.Map.of(), null, null, null, null);
+            assertEquals("tick", new String(open.body().readNBytes(4), StandardCharsets.UTF_8));
+
+            long started = System.nanoTime();
+            client.close();
+            assertTrue(
+                    System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(5),
+                    "closing did not wait for the endless stream");
+
+            IllegalStateException cancelled =
+                    assertThrows(IllegalStateException.class, () -> open.body().read());
+            assertEquals("ApiClient has been closed and can no longer send requests", cancelled.getMessage());
+            assertThrows(
+                    IllegalStateException.class,
+                    () ->
+                            client.transport()
+                                    .sendStreaming(
+                                            "GET", server.url("/items/events"), java.util.Map.of(), null, null, null, null));
+        }
+    }
+
+    @Test
+    void bhvLifecycle007ClosingTheClientLeavesASuppliedHttpClientOpen() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        {{clientClassName}} client = new {{clientClassName}}(
+                authenticator, TransportOptions.builder().httpClient(supplied).build());
+        client.close();
+
+        assertFalse(supplied.isTerminated());
+        supplied.close();
+    }
+
+    @Test
+    void bhvLifecycle015BuilderTakesOneSetterPerSecuritySchemeNamedAfterIt() {
+        java.util.List<String> setters = java.util.Arrays.stream({{clientClassName}}.Builder.class.getDeclaredMethods())
+                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
+                .map(java.lang.reflect.Method::getName)
+                .sorted()
+                .collect(java.util.stream.Collectors.toList());
+
+        assertEquals(java.util.List.of({{#clientSchemes}}"{{methodName}}", {{/clientSchemes}}"build", "callHook", "transportOptions").stream()
+                        .sorted()
+                        .collect(java.util.stream.Collectors.toList()),
+                setters);
+    }
+
+    @Test
+    void bhvLifecycle043BuilderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther() {
+        {{clientClassName}} client = {{clientClassName}}.builder("{{{basePath}}}")
+                .transportOptions(TransportOptions.builder().build())
+                .build();
+
+        assertNotNull(client);
+        client.close();
+        client.close();
+        assertThrows(IllegalStateException.class,
+                () -> client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+    }
+
+    @Test
+    void bhvLifecycle009ClosingTheClientLeavesASuppliedHttpClientOpenWhenBuiltFromTheBuilder() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        {{clientClassName}} client = {{clientClassName}}.builder("{{{basePath}}}")
+                .transportOptions(TransportOptions.builder().httpClient(supplied).build())
+                .build();
+        client.close();
+
+        assertFalse(supplied.isTerminated());
+        supplied.close();
+    }
+    @Test
+    void bhvLifecycle036ClosingTwiceRaisesNoErrorAndReleasesNothingFurther() {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> {
+            client.close();
+            client.close();
+        });
+    }
+
+    @Test
+    void bhvLifecycle039ClientWithAnEmptyTokenIsRefusedAndAValidTokenBuilds() {
+        assertThrows(IllegalArgumentException.class, () -> Client.withToken("{{{basePath}}}", ""));
+        assertNotNull(Client.withToken("{{{basePath}}}", "valid-token"));
+    }
+
+    @Test
+    void bhvLifecycle040LeavingATryWithResourcesBlockClosesTheClient() {
+        {{clientClassName}} client;
+        try ({{clientClassName}} scoped = new {{clientClassName}}(authenticator)) {
+            client = scoped;
+        }
+        assertThrows(IllegalStateException.class,
+                () -> client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+    }
+
+
+    @Test
+    void bhvLifecycle038CustomTransportWithoutCloseCanBeClosedTwice() {
+        // F1123: close is on the ApiClient contract with a no-op default, so a
+        // transport that implements only the send method is still closable.
+        ApiClient transport = (method, url, headers, body) ->
+                new ApiHttpResponse(200, "", java.util.Map.of());
+
+        transport.close();
+        transport.close();
+
+        assertEquals(200,
+                transport.sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null)
+                        .statusCode());
+    }
+
+    @Test
+    void bhvLifecycle011ConstructWithAuthenticatorAndTransportOptions() throws ApiException {
+        TransportOptions transport = TransportOptions.builder().build();
+
+        {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
+
+        assertNotNull(client);
+    }
+
+    @Test
+    void bhvAuthBearer028BearerRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
+        // newlines from .env / file reads, which would CRLF-inject the
+        // Authorization header. Also reject non-ASCII to avoid silent
+        // UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "tok\r\nInjected: yes").getAuthHeaders());
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "ñoño").getAuthHeaders());
+    }
+
+    @Test
+    void bhvLifecycle005BearerRejectsEmptyToken() {
+        // bearer-no-empty-token-guard: an empty or whitespace-only token would
+        // emit a bare "Authorization: Bearer " header and send the request
+        // unauthenticated. It must be rejected, like the api-key empty guard.
+        // Validation is lazy (at getAuthHeaders) on this non-final class to
+        // avoid SpotBugs CT_CONSTRUCTOR_THROW, matching the CR/LF check above.
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "").getAuthHeaders());
+        assertThrows(IllegalArgumentException.class,
+                () -> new BearerAuthenticator("{{{basePath}}}", "   ").getAuthHeaders());
+    }
+
+    @Test
+    void bhvLifecycle002ApiKeyHeaderRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's HEADER location must reject any value
+        // outside printable ASCII + TAB to prevent both header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        // Query / Cookie locations are URL-encoded by the transport so
+        // they are not subject to the same restriction.
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                "{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+                .getAuthHeaders());
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyAuthenticator(
+                "{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+                .getAuthHeaders());
+        // Non-header locations accept arbitrary chars (they go through
+        // their own URL-encoding pipeline downstream).
+        assertNotNull(new ApiKeyAuthenticator(
+                "{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY)
+                .getQueryParams());
+    }
+
+    @Test
+    void bhvLifecycle003ApiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+                java.util.Collections.singletonMap("api_key", "kéy"),
+                new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY)
+                        .getQueryParams());
+    }
+
+    @Test
+    void bhvLangjava057TheProjectManifestDeclaresADescription() throws Exception {
+        // Publish metadata parity: the generated pom.xml must carry a
+        // non-empty <description> so the artifact has a description on
+        // Maven Central, matching the python/ruby/dart manifests.
+        java.nio.file.Path pom = java.nio.file.Paths.get("pom.xml");
+        assertTrue(java.nio.file.Files.exists(pom), "pom.xml must be in the working dir");
+        String contents = java.nio.file.Files.readString(pom);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("<description>(.*?)</description>", java.util.regex.Pattern.DOTALL)
+                .matcher(contents);
+        assertTrue(matcher.find(), "pom.xml must contain a <description> element");
+        assertFalse(matcher.group(1).isBlank(), "<description> must not be empty");
+    }
+
+    @Test
+    void bhvLifecycle001ApiGroupsAreAccessible() throws ApiException {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }    @Test
+    void bhvLifecycle010ConstructWithAuthenticatorAndNullTransportOptionsUsesDefaults() {
+        try (Client client = Client.withToken("{{{basePath}}}", "test-token", null)) {
+            assertNotNull(client);
+        }
+    }
+
+    @Test
+    void bhvMisc204ClientWithoutHostOrTokenFailsAtOnce() {
+        assertThrows(IllegalArgumentException.class, () ->
+                Client.withToken("{{{basePath}}}", null));
+    }
+
+    @Test
+    void bhvMisc206ClientWithOnlyAnAuthenticatorTakesItsHost() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<String> seenPath =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/", exchange -> {
+            seenPath.set(exchange.getRequestURI().getPath());
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String host = "http://localhost:" + server.getAddress().getPort();
+            try (Client client = new Client(new BearerAuthenticator(host, "test-token"))) {
+                client.store.deleteOrder(2L);
+            }
+        } finally {
+            server.stop(0);
+        }
+        assertEquals("/store/order/2", seenPath.get());
+    }
+
+    @Test
+    void bhvLifecycle013WithTokenRefusesABlankTokenWhenNoVariableGivesOne() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                Client.withToken("{{{basePath}}}", "   "));
+        assertEquals("Bearer token must not be empty", ex.getMessage());
+    }
+
+    @Test
+    void bhvLifecycle016WithTokenRefusesAnEmptyTokenInsteadOfSendingNoAuthentication() {
+        assertThrows(IllegalArgumentException.class, () ->
+                Client.withToken("{{{basePath}}}", ""));
+    }
+
+    @Test
+    void bhvLifecycle017ATokenProviderIsUsedInPlaceOfAStaticToken() {
+        BearerAuthenticator provided =
+                new BearerAuthenticator("{{{basePath}}}", () -> "provided-token");
+        assertEquals("Bearer provided-token", provided.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvLifecycle004ApiKeyHeaderRejectsCrLfAndNonAscii() {
+        for (String key : new String[] {"abc\r\ndef", "töken"}) {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new ApiKeyAuthenticator("{{{basePath}}}", "X-API-Key", key, ApiKeyLocation.HEADER));
+        }
+    }
+
+    @Test
+    void bhvLifecycle030TheDefaultAuthenticatorSuppliesTheBaseUrl() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<String> seenPath =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/", exchange -> {
+            seenPath.set(exchange.getRequestURI().getPath());
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String host = "http://localhost:" + server.getAddress().getPort();
+            try (Client client = new Client(new BearerAuthenticator(host, "test-token"))) {
+                client.store.deleteOrder(1L);
+            }
+        } finally {
+            server.stop(0);
+        }
+        assertEquals("/store/order/1", seenPath.get());
+    }
+
+    @Test
+    void bhvLifecycle006BearerRejectsCrLfAndNonAscii() {
+        for (String token : new String[] {"abc\r\ndef", "töken"}) {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new BearerAuthenticator("{{{basePath}}}", token));
+        }
+    }
+
+    @Test
+    void bhvAuth025ACredentialThatSendsRequestsIsGivenTheClientsTransport() throws Exception {
+        // The credential has no transport of its own: the token request it sends must go
+        // through the transport the client was built with, which reaches this server.
+        HttpServer tokenServer = HttpServer.create(new InetSocketAddress(0), 0);
+        tokenServer.createContext(
+                "/token",
+                exchange -> {
+                    byte[] body = "{\"access_token\":\"from-transport\",\"expires_in\":3600}"
+                            .getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().add("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        tokenServer.start();
+        try {
+            String tokenUrl = "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/token";
+            OAuth2ClientCredentialsAuthenticator credential =
+                    new OAuth2ClientCredentialsAuthenticator(
+                            "{{{basePath}}}", "client-id", "client-secret", tokenUrl, List.of());
+            try ({{clientClassName}} client =
+                    new {{clientClassName}}(credential, TransportOptions.builder().build())) {
+                assertNotNull(client);
+                assertEquals("Bearer from-transport", credential.getAuthHeaders().get("Authorization"));
+            }
+        } finally {
+            tokenServer.stop(0);
+        }
+    }
+
+
+    @Test
+    void bhvMocking001EveryGroupHasAnInterfaceTheClassImplements() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertTrue({{apiPackage}}.{{classname}}Interface.class.isAssignableFrom({{apiPackage}}.{{classname}}.class));
+        java.util.Set<String> {{clientPropertyName}}Listed = new java.util.HashSet<>();
+        for (java.lang.reflect.Method method : {{apiPackage}}.{{classname}}Interface.class.getMethods()) {
+            {{clientPropertyName}}Listed.add(method.getName());
+        }
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        assertTrue({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.streamMethodName}}"));
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+        assertTrue({{clientPropertyName}}Listed.contains("{{operationId}}"));
+        assertTrue({{clientPropertyName}}Listed.contains("{{operationId}}WithHttpInfo"));
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test
+    void bhvMocking002GroupInterfaceListsExactlyThePublicOperationsOfTheClass() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+                publicMethodNames({{apiPackage}}.{{classname}}.class.getDeclaredMethods()),
+                publicMethodNames({{apiPackage}}.{{classname}}Interface.class.getMethods()));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private static java.util.Set<String> publicMethodNames(java.lang.reflect.Method[] methods) {
+        java.util.Set<String> names = new java.util.TreeSet<>();
+        for (java.lang.reflect.Method method : methods) {
+            if (java.lang.reflect.Modifier.isPublic(method.getModifiers()) && !method.isSynthetic()) {
+                names.add(method.getName());
+            }
+        }
+        return names;
+    }
+
+    @Test
+    void bhvMocking007ClientInterfaceExposesEveryGroupTypedAsItsInterfaceAndClose() throws Exception {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+        {{clientClassName}}Interface viaInterface = client;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+                {{apiPackage}}.{{classname}}Interface.class,
+                {{clientClassName}}Interface.class.getMethod("get{{clientAccessorSuffix}}").getReturnType());
+        assertSame(client.{{clientPropertyName}}, viaInterface.get{{clientAccessorSuffix}}());
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        viaInterface.close();
+        assertThrows(IllegalStateException.class,
+                () -> client.transport().sendRequest("GET", "http://localhost:1/", java.util.Map.of(), null));
+    }
+
+    @Test
+    void bhvMocking008ClientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        int[] closed = {0};
+        {{clientClassName}}Interface fake = new {{clientClassName}}Interface() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+            @Override
+            public {{apiPackage}}.{{classname}}Interface get{{clientAccessorSuffix}}() {
+                return ({{apiPackage}}.{{classname}}Interface) java.lang.reflect.Proxy.newProxyInstance(
+                        {{apiPackage}}.{{classname}}Interface.class.getClassLoader(),
+                        new Class<?>[] { {{apiPackage}}.{{classname}}Interface.class },
+                        (proxy, method, args) -> null);
+            }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+            @Override
+            public void close() {
+                closed[0]++;
+            }
+        };
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(fake.get{{clientAccessorSuffix}}());
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        fake.close();
+        fake.close();
+        assertEquals(2, closed[0]);
+    }
+
+
+    @Test
+    void bhvHooks010TheClientBuilderHandsTheHookToEveryApiAndItFiresWithASuppliedTransport()
+            throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/", exchange -> {
+            byte[] body = "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        java.util.List<String> started = new java.util.concurrent.CopyOnWriteArrayList<>();
+        java.util.List<Integer> finished = new java.util.concurrent.CopyOnWriteArrayList<>();
+        CallHook hook = (info, headers) -> {
+            started.add(info.operationId() + " " + info.urlTemplate());
+            return outcome -> finished.add(outcome.statusCode());
+        };
+        try (supplied) {
+            {{clientClassName}} client = {{clientClassName}}.builder("http://127.0.0.1:" + server.getAddress().getPort())
+                    .transportOptions(TransportOptions.builder().httpClient(supplied).build())
+                    .callHook(hook)
+                    .build();
+            client.store.getInventory();
+
+            assertEquals(java.util.List.of("getInventory /store/inventory"), started);
+            assertEquals(java.util.List.of(200), finished);
+            client.close();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvLifecycle042RequestsGoThroughTheSuppliedHttpClient() throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+        java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+        server.createContext("/ping", exchange -> {
+            hits.incrementAndGet();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            {{invokerPackage}}.DefaultApiClient apiClient = new {{invokerPackage}}.DefaultApiClient(
+                    TransportOptions.builder().httpClient(supplied).build());
+            {{invokerPackage}}.ApiHttpResponse response = apiClient.sendRequest("GET",
+                    "http://localhost:" + server.getAddress().getPort() + "/ping", java.util.Map.of(), null);
+            assertEquals(200, response.statusCode());
+            assertEquals(1, hits.get());
+        } finally {
+            supplied.close();
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvLifecycle044RequestInFlightWhenClosedStillCompletes() throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+        server.createContext("/slow", exchange -> {
+            try {
+                Thread.sleep(400);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            byte[] out = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, out.length);
+            exchange.getResponseBody().write(out);
+            exchange.close();
+        });
+        server.start();
+        {{invokerPackage}}.DefaultApiClient apiClient = new {{invokerPackage}}.DefaultApiClient();
+        java.util.concurrent.atomic.AtomicReference<{{invokerPackage}}.ApiHttpResponse> result =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        Thread caller = new Thread(() -> {
+            try {
+                result.set(apiClient.sendRequest("GET",
+                        "http://localhost:" + server.getAddress().getPort() + "/slow", java.util.Map.of(), null));
+            } catch (RuntimeException e) {
+                result.set(null);
+            }
+        });
+        try {
+            caller.start();
+            Thread.sleep(100);
+            apiClient.close();
+            caller.join(5000);
+            assertNotNull(result.get());
+            assertEquals(200, result.get().statusCode());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvLifecycle045ClosingTheClientLeavesTheSuppliedHttpClientSendingRequests() throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+        server.createContext("/after", exchange -> {
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            {{invokerPackage}}.DefaultApiClient apiClient = new {{invokerPackage}}.DefaultApiClient(
+                    TransportOptions.builder().httpClient(supplied).build());
+            apiClient.close();
+            java.net.http.HttpResponse<Void> response = supplied.send(
+                    java.net.http.HttpRequest.newBuilder(java.net.URI.create(
+                            "http://localhost:" + server.getAddress().getPort() + "/after")).build(),
+                    java.net.http.HttpResponse.BodyHandlers.discarding());
+            assertEquals(200, response.statusCode());
+        } finally {
+            supplied.close();
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvMisc071ACredentialThatNeedsHttpReceivesTheClientsTransport() throws Exception {
+        // The credential has no transport of its own: the token request it sends must go
+        // through the transport the client was built with, which reaches this server.
+        HttpServer tokenServer = HttpServer.create(new InetSocketAddress(0), 0);
+        tokenServer.createContext(
+                "/token",
+                exchange -> {
+                    byte[] body = "{\"access_token\":\"from-transport\",\"expires_in\":3600}"
+                            .getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().add("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        tokenServer.start();
+        try {
+            String tokenUrl = "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/token";
+            OAuth2ClientCredentialsAuthenticator credential =
+                    new OAuth2ClientCredentialsAuthenticator(
+                            "{{{basePath}}}", "client-id", "client-secret", tokenUrl, List.of());
+            try ({{clientClassName}} client =
+                    new {{clientClassName}}(credential, TransportOptions.builder().build())) {
+                assertNotNull(client);
+                assertEquals("Bearer from-transport", credential.getAuthHeaders().get("Authorization"));
+            }
+        } finally {
+            tokenServer.stop(0);
+        }
+    }
+
+    @Test
+    void bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+        java.util.stream.Stream.of({{#clientSchemes}}{{{importName}}}.class, {{/clientSchemes}}Authenticator.class)
+                .forEach(wrapper -> assertTrue(Authenticator.class.isAssignableFrom(wrapper), wrapper.getName()));
+    }
+}

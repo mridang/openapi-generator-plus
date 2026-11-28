@@ -1,0 +1,154 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * API-level configuration for generated client classes.
+ *
+ * Holds the base URL and default headers that are applied to every API
+ * request. Transport-level settings (TLS, proxy, timeouts) belong in
+ * [TransportOptions] and are configured on the [DefaultApiClient].
+ *
+ * This class is immutable and thread-safe. Use [builder] to
+ * create instances:
+ * ```
+ * val config = Configuration.builder()
+ *     .baseUrl("https://api.example.com")
+ *     .defaultHeader("Authorization", "Bearer token")
+ *     .build()
+ * ```
+ *
+ * @property baseUrl The base URL for all API requests. Defaults to the first server URL from the
+ *   OpenAPI specification.
+ * @property defaultHeaders Default headers included in every API request. These headers are merged
+ *   after transport-level headers from [TransportOptions] but before operation-specific headers
+ *   and authentication headers.
+ * @property callHook The [CallHook] that runs around every operation call, or `null` for none. It runs
+ *   above the transport, so it also fires when you supply your own Ktor client. It is not part of the
+ *   string form.
+ * @property validateConstraints Whether every request body is checked against the validation keywords
+ *   of its schema before it is sent. Off by default; when on, a body that breaks one is refused with an
+ *   [IllegalArgumentException] and nothing is sent.
+ */
+class Configuration private constructor(
+    val baseUrl: String,
+    val defaultHeaders: Map<String, String>,
+    val callHook: CallHook? = null,
+    val validateConstraints: Boolean = false,
+) {
+    companion object {
+        /**
+         * Create a new builder for constructing [Configuration] instances.
+         *
+         * @return a new builder
+         */
+        fun builder(): Builder = Builder()
+
+        /**
+         * Return a [Configuration] with default values.
+         *
+         * A fresh instance every call: the SDK keeps no process-wide default
+         * a caller could swap out from under another caller.
+         *
+         * @return a configuration with the spec-defined base URL and no default headers
+         */
+        fun defaultConfiguration(): Configuration = builder().build()
+    }
+
+    /**
+     * Builder for creating immutable [Configuration] instances.
+     */
+    class Builder {
+        private var baseUrl: String = "{{{basePath}}}"
+        private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
+        private var callHook: CallHook? = null
+        private var validateConstraints: Boolean = false
+
+        /**
+         * Set the base URL for all API requests.
+         *
+         * @param baseUrl the base URL
+         * @return this builder
+         */
+        fun baseUrl(baseUrl: String): Builder = apply { this.baseUrl = baseUrl }
+
+        /**
+         * Add a single default header to include in every API request.
+         *
+         * @param name header name
+         * @param value header value
+         * @return this builder
+         */
+        fun defaultHeader(name: String, value: String): Builder = apply {
+            defaultHeaders[name] = value
+        }
+
+        /**
+         * Add multiple default headers to include in every API request.
+         *
+         * @param headers map of header names to values
+         * @return this builder
+         */
+        fun defaultHeaders(headers: Map<String, String>): Builder = apply {
+            defaultHeaders.putAll(headers)
+        }
+
+        /**
+         * Use a server configuration with variable overrides to set the base URL.
+         *
+         * Resolves the server URL template with the given variable overrides
+         * and uses the result as the base URL. Variables not present in the map
+         * use their default values. Enum validation is performed by
+         * [ServerConfiguration.getUrl].
+         *
+         * @param serverConfig the server configuration to use
+         * @param variables variable overrides (may be null for defaults)
+         * @return this builder
+         */
+        fun server(serverConfig: ServerConfiguration, variables: Map<String, String>? = null): Builder = apply {
+            this.baseUrl = serverConfig.getUrl(variables ?: emptyMap())
+        }
+
+        /**
+         * Set the hook that runs around every operation call.
+         *
+         * @param callHook the hook, or `null` for none
+         * @return this builder
+         */
+        fun callHook(callHook: CallHook?): Builder = apply { this.callHook = callHook }
+
+        /**
+         * Check every request body against the `minLength`, `maxLength`, `pattern`, `minimum`,
+         * `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`,
+         * `minProperties` and `maxProperties` keywords of its schema, and of the models it holds,
+         * before it is sent. Off by default. A body that breaks one is refused with an
+         * [IllegalArgumentException] such as `Invalid request body: label must be at least 2 characters long`.
+         *
+         * @param validateConstraints `true` to check request bodies
+         * @return this builder
+         */
+        fun validateConstraints(validateConstraints: Boolean): Builder = apply { this.validateConstraints = validateConstraints }
+
+        /**
+         * Build and return an immutable [Configuration] instance.
+         *
+         * @return the configured instance
+         */
+        fun build(): Configuration =
+            Configuration(baseUrl, java.util.Collections.unmodifiableMap(defaultHeaders.toMap()), callHook, validateConstraints)
+    }
+
+    /**
+     * A redacted string form: a default header that carries a credential (see
+     * [DefaultApiClient.isSensitiveHeader]) prints as `***`, so logging a configuration
+     * never leaks the API key, token or cookie it holds (S15).
+     *
+     * @return the string form with the sensitive header values masked
+     */
+    override fun toString(): String {
+        val headers = defaultHeaders.entries.joinToString(", ", "{", "}") { (name, value) ->
+            "$name=" + if (DefaultApiClient.isSensitiveHeader(name)) "***" else value
+        }
+        return "Configuration(baseUrl=$baseUrl, defaultHeaders=$headers)"
+    }
+}

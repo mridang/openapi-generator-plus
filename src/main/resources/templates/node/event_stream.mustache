@@ -1,0 +1,265 @@
+{{>api_info}}
+
+import { AbstractApiClient } from './abstract-api-client{{importFileExtension}}';
+import { ApiError } from './errors/api-error{{importFileExtension}}';
+
+/** The longest an SSE reconnect wait grows to, in milliseconds. */
+const MAX_RECONNECT_DELAY_MILLIS = 30_000;
+
+/** A line or event that is longer than the configured limit. */
+export class TooLongError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TooLongError';
+  }
+}
+
+/**
+ * Splits a byte stream into lines on CRLF, LF or a lone CR, decoding UTF-8 and
+ * dropping a leading byte order mark. A CR sets a flag that skips an LF that
+ * follows it, so a CRLF split over two reads is one line end and no read
+ * blocks to look ahead.
+ */
+export class LineReader {
+  private readonly decoder = new TextDecoder('utf-8');
+  private text = '';
+  private position = 0;
+  private skipLineFeed = false;
+  private ended = false;
+
+  /** Whether the line last returned ended with a line terminator; a last line cut off by the end of the stream does not. */
+  terminated = true;
+
+  /**
+   * @param reader the reader of the response body
+   * @param maxBytes the longest a line may be, in bytes
+   */
+  constructor(
+    private readonly reader: ReadableStreamDefaultReader<Uint8Array>,
+    private readonly maxBytes: number
+  ) {}
+
+  /**
+   * Reads the next line without its terminator.
+   *
+   * @returns the line, or null at the end of the stream
+   * @throws TooLongError when a line is longer than the limit; the stream's own
+   *   failure when the body fails
+   */
+  async readLine(): Promise<string | null> {
+    for (;;) {
+      if (this.skipLineFeed && this.position < this.text.length) {
+        this.skipLineFeed = false;
+        if (this.text[this.position] === '\n') {
+          this.position++;
+        }
+        continue;
+      }
+      let end = -1;
+      for (let i = this.position; i < this.text.length; i++) {
+        const ch = this.text.charCodeAt(i);
+        if (ch === 10 || ch === 13) {
+          end = i;
+          break;
+        }
+      }
+      if (end >= 0) {
+        const line = this.text.slice(this.position, end);
+        this.skipLineFeed = this.text.charCodeAt(end) === 13;
+        this.position = end + 1;
+        this.compact();
+        if (Buffer.byteLength(line) > this.maxBytes) {
+          throw new TooLongError(`A line is longer than ${this.maxBytes} bytes`);
+        }
+        this.terminated = true;
+        return line;
+      }
+      if (this.text.length - this.position > this.maxBytes && Buffer.byteLength(this.text.slice(this.position)) > this.maxBytes) {
+        throw new TooLongError(`A line is longer than ${this.maxBytes} bytes`);
+      }
+      if (this.ended) {
+        if (this.position >= this.text.length) {
+          return null;
+        }
+        const rest = this.text.slice(this.position);
+        this.text = '';
+        this.position = 0;
+        this.terminated = false;
+        return rest;
+      }
+      const { done, value } = await this.reader.read();
+      if (done) {
+        this.ended = true;
+        this.text += this.decoder.decode();
+      } else {
+        this.text += this.decoder.decode(value, { stream: true });
+      }
+    }
+  }
+
+  /** Drops the text that was read, so the buffer does not grow with the stream. */
+  private compact(): void {
+    if (this.position > 65536) {
+      this.text = this.text.slice(this.position);
+      this.position = 0;
+    }
+  }
+}
+
+/** One dispatched event, before its data is decoded. */
+export interface RawEvent {
+  readonly id: string | null;
+  readonly event: string;
+  readonly data: string;
+  readonly retry: number | null;
+}
+
+/** Reads server-sent events from a line reader (WHATWG HTML, "Server-sent events"). */
+export class SseParser {
+  private readonly lines: LineReader;
+  private lastId: string;
+  private lastRetry: number | null = null;
+
+  /**
+   * @param reader the reader of the response body
+   * @param maxEventBytes the longest a line or an event may be, in bytes
+   * @param lastEventId the id the stream starts from, or null for none
+   */
+  constructor(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    private readonly maxEventBytes: number,
+    lastEventId: string | null
+  ) {
+    this.lines = new LineReader(reader, maxEventBytes);
+    this.lastId = lastEventId ?? '';
+  }
+
+  /** The last event id seen, which a reconnect sends; empty when none. */
+  get lastEventId(): string {
+    return this.lastId;
+  }
+
+  /** The reconnection time the server last named, in milliseconds, or null when it never named one. */
+  get retry(): number | null {
+    return this.lastRetry;
+  }
+
+  /**
+   * Reads up to the next event that carries data.
+   *
+   * @returns the event, or null at the end of the stream (a cut-off event is dropped)
+   * @throws TooLongError when a line or an event is longer than the limit
+   */
+  async next(): Promise<RawEvent | null> {
+    let data = '';
+    let dataBytes = 0;
+    let hasData = false;
+    let name = '';
+    let idBuffer = this.lastId;
+    for (;;) {
+      const line = await this.lines.readLine();
+      if (line === null || !this.lines.terminated) {
+        return null;
+      }
+      if (line === '') {
+        this.lastId = idBuffer;
+        if (!hasData) {
+          name = '';
+          continue;
+        }
+        return {
+          id: this.lastId === '' ? null : this.lastId,
+          event: name === '' ? 'message' : name,
+          data: data.slice(0, -1),
+          retry: this.lastRetry
+        };
+      }
+      if (line[0] === ':') {
+        continue;
+      }
+      let field = line;
+      let value = '';
+      const colon = line.indexOf(':');
+      if (colon >= 0) {
+        field = line.slice(0, colon);
+        value = line.slice(colon + 1);
+        if (value.startsWith(' ')) {
+          value = value.slice(1);
+        }
+      }
+      switch (field) {
+        case 'data':
+          dataBytes += Buffer.byteLength(value) + 1;
+          if (dataBytes > this.maxEventBytes) {
+            throw new TooLongError(`An event is longer than ${this.maxEventBytes} bytes`);
+          }
+          data += value + '\n';
+          hasData = true;
+          break;
+        case 'event':
+          name = value;
+          break;
+        case 'id':
+          if (!value.includes('\0')) {
+            idBuffer = value;
+          }
+          break;
+        case 'retry':
+          if (/^[0-9]{1,17}$/.test(value)) {
+            this.lastRetry = Number(value);
+          }
+          break;
+        default:
+          /* an unknown field is ignored */
+          break;
+      }
+    }
+  }
+}
+
+/**
+ * How long to wait before reconnect number `attempt` (1 for the first): the
+ * server's `retry` value, else `Retry-After`, else `base` doubling to 30
+ * seconds, reduced by up to 25% of jitter.
+ *
+ * @param attempt the consecutive reconnect number, from 1
+ * @param base the first delay in milliseconds
+ * @param serverRetry the last `retry` value of the stream, or null
+ * @param retryAfter the `Retry-After` of the failure in milliseconds, or null
+ * @param jitterSample a uniform random value in [0, 1)
+ * @returns the wait in milliseconds
+ */
+export function reconnectWaitMillis(
+  attempt: number,
+  base: number,
+  serverRetry: number | null,
+  retryAfter: number | null,
+  jitterSample: number
+): number {
+  if (serverRetry !== null) {
+    return serverRetry;
+  }
+  if (retryAfter !== null) {
+    return retryAfter;
+  }
+  const doubled = Math.min(MAX_RECONNECT_DELAY_MILLIS, base * 2 ** Math.min(attempt - 1, 20));
+  return Math.floor(Math.min(MAX_RECONNECT_DELAY_MILLIS, doubled) * (1 - 0.25 * jitterSample));
+}
+
+/**
+ * The `Retry-After` of a failed connection in milliseconds, when the failure is
+ * a 429, 502, 503 or 504 that carried one.
+ *
+ * @param failure why the connection was lost
+ * @returns the wait the server asked for, or null
+ */
+export function retryAfterOf(failure: unknown): number | null {
+  if (!(failure instanceof ApiError)) {
+    return null;
+  }
+  const status = failure.statusCode;
+  if (status !== 429 && status !== 502 && status !== 503 && status !== 504) {
+    return null;
+  }
+  return AbstractApiClient.retryAfterMillis(failure.responseHeaders?.['retry-after']);
+}

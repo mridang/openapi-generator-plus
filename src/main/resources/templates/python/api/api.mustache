@@ -1,0 +1,521 @@
+{{>api_info}}
+
+from __future__ import annotations
+
+{{#operations}}{{#hasServerTypeDefs}}from abc import ABC, abstractmethod
+from enum import Enum
+{{/hasServerTypeDefs}}{{/operations}}from typing import Any, Dict, List, Mapping, Optional, Protocol
+from pydantic import AwareDatetime, StrictBool, StrictFloat, StrictInt, StrictStr
+
+{{#imports}}
+{{import}}
+{{/imports}}
+
+from ..api_client import ApiClient
+from ..api_result import ApiResult
+from ..configuration import Configuration
+from .base_api import BaseApi, _is_valid_cookie_value
+{{#hasAnySecurityNoneOp}}
+from .base_api import NO_AUTH
+{{/hasAnySecurityNoneOp}}
+from ..value_serializer import ValueSerializer
+from ..auth.authenticator import Authenticator
+from ..errors import ApiException
+{{#optionsImports}}
+from .options.{{optionsFileName}} import {{optionsClassName}}
+{{/optionsImports}}
+
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+class {{serverTypeName}}(ABC):
+    """Server type for the {{operationId}} operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+class {{serverTypeName}}{{enumTypeName}}(str, Enum):
+{{#enumValues}}
+    {{name}} = {{{literal}}}
+{{/enumValues}}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
+{{#hasDescription}}
+    """{{{description}}}"""
+{{/hasDescription}}
+
+    def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
+{{#serverVariables}}
+        self.{{snakeName}} = {{snakeName}}
+{{/serverVariables}}
+{{^serverVariables}}
+        pass
+{{/serverVariables}}
+
+    def get_url(self) -> str:
+        url = '{{url}}'
+{{#serverVariables}}
+        url = url.replace('{' + '{{name}}' + '}', {{#hasEnumValues}}self.{{snakeName}}.value{{/hasEnumValues}}{{^hasEnumValues}}self.{{snakeName}}{{/hasEnumValues}})
+{{/serverVariables}}
+        return url
+{{/variants}}
+{{/serverTypeDefs}}
+
+class {{classname}}Protocol(Protocol):
+    """The contract of :class:`{{classname}}`: every operation of the {{baseName}} API group and its
+    ``_with_http_info`` variant. Depend on it instead of the class to substitute a hand-written fake
+    in your own tests; the class satisfies it structurally.
+    """
+{{#operation}}
+{{^vendorExtensions.op.streamOnly}}
+
+    async def {{operationId}}(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
+        """The ``{{operationId}}`` operation."""
+        ...
+
+    async def {{operationId}}_with_http_info(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """The ``{{operationId}}`` operation with its status code, headers and body."""
+        ...
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+
+    async def {{operationId}}_stream(
+        self,
+{{>api/operation_args}}        stream_options: Optional[StreamOptions] = None,
+    ) -> {{{returnType}}}:
+        """The ``{{operationId}}_stream`` operation: its {{#vendorExtensions.op.streamsSse}}server-sent events{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}JSON Lines items{{/vendorExtensions.op.streamsJsonLines}} as a stream."""
+        ...
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_protocol}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/operation}}
+
+
+class {{classname}}(BaseApi):
+    r"""{{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagSummary}}
+{{#tagDescription}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagDescription}}
+{{#tagParent}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagParent}}
+{{#tagExternalDocs}}
+
+    .. seealso::
+        `{{#lambda.rstText}}{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}{{/lambda.rstText}} <{{{url}}}>`_
+{{/tagExternalDocs}}
+    """
+
+    def __init__(
+        self,
+        api_client: Optional[ApiClient] = None,
+        config: Optional[Configuration] = None,
+        authenticator: Optional[Authenticator] = None,
+        scheme_authenticators: Optional[Mapping[str, Authenticator]] = None,
+    ):
+        super().__init__(api_client, config, authenticator, scheme_authenticators)
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    async def {{operationId}}_stream(
+        self,
+{{>api/operation_args}}        stream_options: Optional[StreamOptions] = None,
+    ) -> {{{returnType}}}:
+        """{{{summary}}}
+{{#notes}}
+        {{{.}}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+        {{{.}}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#pathParams}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :param stream_options: the stream settings: idle timeout, reconnects, reconnect delay, last event id and the longest line or event
+        :return: {{{returnType}}}
+        :raises ApiException: if the first request fails
+{{>api/operation_doc_raises}}{{>api/operation_doc_examples}}{{#isDeprecated}}
+
+        .. deprecated::
+            This operation is deprecated.
+{{/isDeprecated}}
+        """
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+        from .. import errors as _errors
+
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+        return await self._invoke_api_for_{{#vendorExtensions.op.streamsSse}}sse{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}json_lines{{/vendorExtensions.op.streamsJsonLines}}(
+            '{{httpMethod}}',
+            path,
+            query_params,
+            header_params,
+            body,
+            [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
+            {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}self._requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}({{#schemeIds}}"{{{schemeLiteral}}}",{{^-last}} {{/-last}}{{/schemeIds}}){{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}self._scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeLiteral}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}None{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
+{{#bodyParam}}
+{{#isBinary}}
+            raw_body=True,
+{{/isBinary}}
+{{/bodyParam}}
+            operation_name='{{operationId}}',
+            operation_id={{#lambda.quotedLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.quotedLiteral}},
+            url_template={{#lambda.quotedLiteral}}{{{path}}}{{/lambda.quotedLiteral}},
+            request_options=options,
+{{#vendorExtensions.op.streamTyped}}
+            item_type='{{{vendorExtensions.op.streamItemPython}}}',
+{{/vendorExtensions.op.streamTyped}}
+{{#vendorExtensions.op.streamsSse}}
+{{#hasSseTerminator}}
+            terminator='{{{sseTerminator}}}',
+{{/hasSseTerminator}}
+{{/vendorExtensions.op.streamsSse}}
+            stream_options=stream_options,
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+            error_schemas={
+{{#vendorExtensions.op.errorSchemaResponses}}
+                '{{{status}}}': _errors.{{{schemaClassName}}}.from_error_response,
+{{/vendorExtensions.op.errorSchemaResponses}}
+            },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+        )
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+
+    async def {{operationId}}(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
+        """{{{summary}}}
+{{#notes}}
+        {{{.}}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+        {{{.}}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#pathParams}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+        # {{{summary}}}
+        # {{{description}}}
+        # >>> {{{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+        # {{{summary}}}
+        # {{{description}}}
+        # >>> {{{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+{{#vendorExtensions.hasMultipleConsumes}}
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
+{{/vendorExtensions.hasMultipleConsumes}}
+{{#returnType}}
+        :return: {{{returnType}}}
+{{/returnType}}
+        :raises ApiException: if fails to make API call
+{{>api/operation_doc_raises}}{{>api/operation_doc_examples}}{{#isDeprecated}}
+
+        .. deprecated::
+            This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+
+        .. seealso::
+            `{{{description}}} <{{{url}}}>`_
+{{/externalDocs}}
+        """
+        result = await self.{{operationId}}_with_http_info(
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isPath}}
+            {{paramName}},
+{{/isPath}}
+{{#isBody}}
+            {{paramName}},
+{{/isBody}}
+{{#isOptions}}
+            options=options,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#servers}}
+{{#-first}}
+            server=server,
+{{/-first}}
+{{/servers}}
+{{#vendorExtensions.hasMultipleConsumes}}
+            request_content_type=request_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+        )
+
+{{#returnType}}
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message='Expected a response body for {{operationId}} but received none',
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+{{/returnType}}
+        return result.data
+
+    async def {{operationId}}_with_http_info(
+        self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """{{{summary}}} (with HTTP info)
+{{#notes}}
+        {{{.}}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+        {{{.}}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#pathParams}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
+{{/bodyParam}}
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+{{#vendorExtensions.hasMultipleConsumes}}
+        :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
+{{/vendorExtensions.hasMultipleConsumes}}
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+{{>api/operation_doc_raises}}{{#isDeprecated}}
+
+        .. deprecated::
+            This operation is deprecated.
+{{/isDeprecated}}
+        """
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        return await self._{{operationId}}_page(
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isPath}}
+            {{paramName}},
+{{/isPath}}
+{{#isBody}}
+            {{paramName}},
+{{/isBody}}
+{{#isOptions}}
+            options=options,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.hasMultipleConsumes}}
+            request_content_type=request_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+        )
+
+    async def _{{operationId}}_page(
+        self,
+{{>api/operation_args}}        page_url: Optional[str] = None,
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """One page of the list: the first when ``page_url`` is ``None``, else the URL the previous page named."""
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        if page_url is not None:
+            path = page_url
+            query_params.clear()
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{^vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+        def decode_success(status_code: int, body: str) -> Any:
+            """Decode the body by the status code the server answered with."""
+{{#vendorExtensions.op.successResponses}}
+            if {{#isRange}}200 <= status_code < 300{{/isRange}}{{^isRange}}status_code == {{statusCode}}{{/isRange}}:
+                return {{{vendorExtensions.op.successUnionType}}}(self._object_serializer.deserialize(body, '{{{returnType}}}'))
+{{/vendorExtensions.op.successResponses}}
+            return self._object_serializer.deserialize(body, '{{{vendorExtensions.op.successUnionType}}}')
+
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+        from .. import errors as _errors
+
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+        return await self._invoke_api_for_{{#vendorExtensions.op.streamsBinary}}stream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}result{{/vendorExtensions.op.streamsBinary}}(
+            '{{httpMethod}}',
+            path,
+            query_params,
+            header_params,
+            body,
+            [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
+{{^vendorExtensions.op.streamsBinary}}
+            {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
+{{/vendorExtensions.op.streamsBinary}}
+            {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}self._requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}({{#schemeIds}}"{{{schemeLiteral}}}",{{^-last}} {{/-last}}{{/schemeIds}}){{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}self._scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeLiteral}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}None{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
+{{#bodyParam}}
+{{#isBinary}}
+            raw_body=True,
+{{/isBinary}}
+{{/bodyParam}}
+            operation_name='{{operationId}}',
+            operation_id={{#lambda.quotedLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.quotedLiteral}},
+            url_template={{#lambda.quotedLiteral}}{{{path}}}{{/lambda.quotedLiteral}},
+            request_options=options,
+{{^vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+            decode_success=decode_success,
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+            error_schemas={
+{{#vendorExtensions.op.errorSchemaResponses}}
+                '{{{status}}}': _errors.{{{schemaClassName}}}.from_error_response,
+{{/vendorExtensions.op.errorSchemaResponses}}
+            },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+        )
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/operation}}
+{{/operations}}

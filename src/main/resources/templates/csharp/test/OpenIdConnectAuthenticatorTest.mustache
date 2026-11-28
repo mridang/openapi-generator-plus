@@ -1,0 +1,1090 @@
+{{>api_info}}
+
+using {{packageName}}.Errors;
+using {{packageName}};
+using {{packageName}}.Auth.OAuth;
+using Xunit;
+
+namespace Test;
+
+public class OpenIdConnectAuthenticatorTest
+{
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly Queue<ApiHttpResponse> _responses = new();
+
+        internal void Enqueue(string body, int statusCode = 200)
+        {
+            _responses.Enqueue(new ApiHttpResponse(statusCode, body, new Dictionary<string, string>()));
+        }
+
+        internal void EnqueueWithCacheControl(string body, string cacheControl)
+        {
+            _responses.Enqueue(new ApiHttpResponse(
+                200,
+                body,
+                new Dictionary<string, string> { ["Cache-Control"] = cacheControl }));
+        }
+
+        public string? LastBody { get; private set; }
+        public Uri? LastUrl { get; private set; }
+        public string? LastMethod { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            LastMethod = method;
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private sealed class ThrowingApiClient(Exception failure) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromException<ApiHttpResponse>(failure);
+        }
+    }
+
+    private static readonly string[] Scopes = new[] { "openid", "profile" };
+
+    private static OpenIdConnectAuthenticator CreateAuthenticator()
+    {
+        return new OpenIdConnectAuthenticator(
+            "https://api.example.com",
+            new Uri("https://auth.example.com/.well-known/openid-configuration"),
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+    }
+
+    [Fact]
+    public void BhvAuth001SyncAuthHeadersThrowsTheCanonicalAsyncExchangeError()
+    {
+        OpenIdConnectAuthenticator auth = CreateAuthenticator();
+
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        Assert.Equal(
+            "OAuth2 authenticators require async token exchange; use GetAuthHeadersAsync() instead.",
+            ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc002BuildsAuthorizationUrlFromDiscovery()
+    {
+        var client = new FakeApiClient();
+        // Discovery document response
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("my-state");
+
+        string urlStr = url.ToString();
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr, StringComparison.Ordinal);
+        Assert.Contains("response_type=code", urlStr, StringComparison.Ordinal);
+        Assert.Contains("client_id=my-client-id", urlStr, StringComparison.Ordinal);
+        Assert.Contains("state=my-state", urlStr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc018OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("");
+
+        Assert.DoesNotContain("state", url.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc010TheDiscoveryDocumentIsFetchedFromTheIssuer()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal("GET", client.LastMethod);
+        Assert.Equal(
+            new Uri("https://auth.example.com/.well-known/openid-configuration"),
+            client.LastUrl);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc017ObtainsTokenAfterCodeExchange()
+    {
+        var client = new FakeApiClient();
+        // Discovery document
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        // Token response
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("oidc-code");
+
+        Assert.Contains("grant_type=authorization_code", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("code=oidc-code", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc013GetAuthHeadersReturnsBearerAfterExchange()
+    {
+        var client = new FakeApiClient();
+        // Discovery document
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        // Token response
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
+        // Refresh response (for GetAuthHeaders)
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("oidc-code");
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc028ThrowsWhenNoApiClientInjected()
+    {
+        var auth = CreateAuthenticator();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc025ThrowsWhenDiscoveryMissingAuthorizationEndpoint()
+    {
+        var client = new FakeApiClient();
+        {{! Missing authorization_endpoint must throw rather than build a delegate with a null/empty endpoint URL. }}
+        client.Enqueue("{\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.Contains("OIDC discovery document is missing 'authorization_endpoint'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc026ThrowsWhenDiscoveryMissingTokenEndpoint()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"authorization_endpoint\":\"https://auth.example.com/authorize\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc024RejectsADiscoveryDocumentWhoseIssuerDiffersFromTheDiscoveryUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"issuer\":\"https://evil.example.com\","
+                + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.Contains("issuer", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc004AcceptsAnIssuerWithATrailingSlash()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"issuer\":\"https://auth.example.com/\","
+                + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync();
+        Assert.StartsWith("https://auth.example.com/authorize?", url.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("http://auth.example.com/token", "https://auth.example.com/authorize")]
+    [InlineData("https://auth.example.com/token", "http://auth.example.com/authorize")]
+    public async Task BhvAuthoidc032RejectsADiscoveredEndpointThatIsNotHttps(string tokenEndpoint, string authorizationEndpoint)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"" + authorizationEndpoint + "\","
+                + "\"token_endpoint\":\"" + tokenEndpoint + "\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.Contains("must use https", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc005AcceptsAPlainHttpEndpointOnALoopbackHost()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"http://127.0.0.1:8080/authorize\","
+                + "\"token_endpoint\":\"http://localhost:8080/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync();
+        Assert.StartsWith("http://127.0.0.1:8080/authorize?", url.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc016MalformedDiscoveryDocumentRaisesSerializationException()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{not json");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc007Discovery404RaisesNotFoundException()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("not found", statusCode: 404);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Equal(404, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc199DiscoveryRunsAgainWhenTheCachedDocumentHasAZeroMaxAge()
+    {
+        var client = new CacheControlApiClient("max-age=0");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(2, client.GetRequestCount);
+    }
+
+    [Fact]
+    public async Task BhvMisc200ADiscoveryDocumentWhoseIssuerNamesAnotherServerIsRejected()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"issuer\":\"https://evil.example.com\","
+                + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task BhvMisc201AFailedDiscoveryRequestReportsItsPathWithoutTheQueryString()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("down", statusCode: 503);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.DoesNotContain("?", ex.RequestPath ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc033DiscoveryFailureNamesTheRequestMethodAndPath()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("down", statusCode: 503);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Equal("GET", ex.RequestMethod);
+        Assert.Equal("/.well-known/openid-configuration", ex.RequestPath);
+    }
+
+    private sealed class HeaderRecordingHandler : HttpMessageHandler
+    {
+        public Dictionary<string, string> Headers { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            foreach (var header in request.Headers)
+            {
+                Headers[header.Key] = string.Join(",", header.Value);
+            }
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                    System.Text.Encoding.UTF8,
+                    "application/json"),
+            });
+        }
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc008DiscoveryDoesNotSendTheTransportDefaultHeaders()
+    {
+        using var handler = new HeaderRecordingHandler();
+        var transport = TransportOptions.Builder()
+            .DefaultHeader("Authorization", "Bearer api-only")
+            .DefaultHeader("X-Api-Key", "api-key")
+            .Build();
+        using var client = new DefaultApiClient(new HttpClient(handler), transport);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = await auth.BuildAuthorizationUrlAsync("my-state");
+
+        Assert.False(handler.Headers.ContainsKey("Authorization"));
+        Assert.False(handler.Headers.ContainsKey("X-Api-Key"));
+        Assert.True(handler.Headers.ContainsKey("Accept"));
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc006DiscoveryTransportFailurePropagatesNetworkException()
+    {
+        // Discovery is an HTTP call like any other: a transport failure from
+        // the ApiClient must reach the caller unchanged, not rewrapped.
+        var failure = new {{packageName}}.Errors.NetworkException(
+            "connection refused", new HttpRequestException("refused"));
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new ThrowingApiClient(failure));
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Same(failure, ex);
+    }
+
+    [Fact]
+    public void BhvAuthoidc014GetHostReturnsConfiguredHost()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc027ThrowsWhenDiscoveryReturnsNon2xxStatus()
+    {
+        var client = new FakeApiClient();
+        // A non-2xx discovery response (e.g. a 500 HTML error page) must
+        // surface as the ApiException subclass for its status, not an
+        // "invalid JSON" parse failure of the HTML error page body.
+        client.Enqueue("<html>internal server error</html>", statusCode: 500);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.Equal(500, ex.StatusCode);
+        Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+    }
+
+    [Fact]
+    public async Task BhvAuth011DiscoveryWithoutMaxAgeIsCachedForTheDefaultLifetime()
+    {
+        var client = new CacheControlApiClient("public");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, client.GetRequestCount);
+
+        var unparseable = new CacheControlApiClient("max-age=soon");
+        var second = CreateAuthenticator();
+        second.SetApiClient(unparseable);
+
+        await second.BuildAuthorizationUrlAsync();
+        await second.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, unparseable.GetRequestCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc011FetchesDiscoveryDocumentOnlyOnce()
+    {
+        var client = new CountingApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        // The cached discovery document must be reused on the second call.
+        Assert.Equal(1, client.GetRequestCount);
+    }
+
+    /// <summary>
+    /// ToString() must redact the client secret: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public async Task BhvAuthoidc029ConcurrentCallersOnAColdAuthenticatorShareOneDiscoveryRequest()
+    {
+        var client = new CountingApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var calls = new List<Task<Uri>>();
+        for (int i = 0; i < 5; i++)
+        {
+            calls.Add(Task.Run(() => auth.BuildAuthorizationUrlAsync()));
+        }
+        Uri[] urls = await Task.WhenAll(calls);
+
+        Assert.Equal(1, client.GetRequestCount);
+        foreach (Uri url in urls)
+        {
+            Assert.StartsWith("https://auth.example.com/authorize?", url.OriginalString, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void BhvAuthoidc019RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        string repr = auth.ToString();
+        Assert.DoesNotContain("my-client-secret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthoidc023ReprShowsTheNonSecretFields()
+    {
+        Assert.Equal(
+            "OpenIdConnectAuthenticator(Host=https://api.example.com, "
+            + "OpenIdConnectUrl=https://auth.example.com/.well-known/openid-configuration, "
+            + "ClientId=my-client-id, ClientSecret=***)",
+            CreateAuthenticator().ToString());
+    }
+
+    [Fact]
+    public async Task BhvLangcsharp048RejectsAClearTextEndpointThatIsNotLoopback()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"http://192.168.1.10/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        Assert.Contains("must use https", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc001AMaxAgeBeyondOneYearIsClampedToOneYear()
+    {
+        // The ceiling keeps the document cached: a max-age far past one year
+        // is held to one year, so the second call is served from the cache.
+        var client = new CacheControlApiClient("max-age=31536001");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(1, client.GetRequestCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc022TheAuthorizationUrlRequestsTheOpenIdScopeExactlyOnce()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        var auth = new OpenIdConnectAuthenticator(
+            "https://api.example.com",
+            new Uri("https://auth.example.com/.well-known/openid-configuration"),
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://app.example.com/callback"),
+            ["profile", "openid", "openid"]);
+        auth.SetApiClient(client);
+
+        string url = (await auth.BuildAuthorizationUrlAsync()).ToString();
+
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(url, "openid"));
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc009FailedRediscoveryKeepsTheOldDelegate()
+    {
+        // The discovery cache expires at once (max-age=0), so every call
+        // rediscovers. A failed rediscovery must leave the exchanged session
+        // in place, so the call after it still carries the token.
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new FailingRediscoveryApiClient());
+
+        await auth.ExchangeCodeAsync("the-code");
+        await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer at-1", headers["Authorization"]);
+    }
+
+    [Theory]
+    [InlineData("max-age=0", 2)]
+    [InlineData("public, max-age=3600", 1)]
+    [InlineData("no-store", 1)]
+    [InlineData("max-age=9000000000000000000", 1)]
+    [InlineData("max-age=99999999999999999999", 1)]
+    public async Task BhvAuthoidc003DiscoveryIsReusedOnlyWhileItsMaxAgeHolds(string cacheControl, int expectedFetches)
+    {
+        /* A max-age of zero expires the cached document at once, so the second
+           call fetches it again. A positive max-age, or a header with no
+           max-age directive (which falls back to the 24 hour default), reuses
+           the cached document. A max-age beyond the one year ceiling, even one
+           past the range of a long, is clamped rather than overflowing the
+           expiry arithmetic. */
+        var client = new CacheControlApiClient(cacheControl);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(expectedFetches, client.GetRequestCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc020RediscoveryAfterExpiryKeepsTheExchangedSession()
+    {
+        /* max-age=0 expires the cached document at once, so the call after the code
+           exchange fetches it again; the exchange made before must still count. */
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new ExchangingApiClient());
+
+        await auth.ExchangeCodeAsync("the-code");
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer at-1", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc021RediscoveryKeepsThePkceVerifierOfTheBuiltAuthorizationUrl()
+    {
+        /* Every discovery names a different token endpoint, so the second one
+           builds a new delegate around the previous session; the verifier of
+           the URL built before must survive into the code exchange. */
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        await auth.ExchangeCodeAsync("the-code");
+
+        var challenge = System.Web.HttpUtility.ParseQueryString(url.Query)["code_challenge"];
+        var verifier = System.Web.HttpUtility.ParseQueryString(client.LastTokenBody!)["code_verifier"];
+        Assert.Equal(2, client.Discoveries);
+        Assert.Equal("S256", System.Web.HttpUtility.ParseQueryString(url.Query)["code_challenge_method"]);
+        Assert.Equal(43, verifier!.Length);
+        Assert.Equal(
+            Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier)))
+                .TrimEnd('=').Replace('+', '-').Replace('/', '_'),
+            challenge);
+    }
+
+    [Fact]
+    public async Task BhvAuth029RediscoveryAfterExpirySendsTheRefreshToEndpointsOfTheNewDocument()
+    {
+        /* max-age=0 expires the discovery document at once. The second discovery
+           names a new token endpoint, so the refresh made after it must go to that
+           endpoint and not to the one from the first document. */
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("the-code");
+        auth.InvalidateAccessToken();
+        _ = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, client.Discoveries);
+        Assert.Equal(new Uri("https://auth.example.com/token2"), client.LastTokenUrl);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc015InvalidatingTheAccessTokenRefreshesWithTheHeldRefreshToken()
+    {
+        var client = new RotatingDiscoveryApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        await auth.ExchangeCodeAsync("the-code");
+        Assert.Equal("Bearer at-1", (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]);
+
+        auth.InvalidateAccessToken();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer at-2", headers["Authorization"]);
+        Assert.Contains("grant_type=refresh_token", client.LastTokenBody!, StringComparison.Ordinal);
+        Assert.Contains("refresh_token=rt-1", client.LastTokenBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuth002InvalidatingBeforeAnyDiscoveryIsHarmless()
+    {
+        CreateAuthenticator().InvalidateAccessToken();
+    }
+
+    private sealed class RotatingDiscoveryApiClient : IApiClient
+    {
+        private int _tokens;
+        public int Discoveries { get; private set; }
+        public string? LastTokenBody { get; private set; }
+        public Uri? LastTokenUrl { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            if (method == "GET")
+            {
+                Discoveries++;
+                return Task.FromResult(new ApiHttpResponse(
+                    200,
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token" + Discoveries + "\"}",
+                    new Dictionary<string, string> { { "Cache-Control", "max-age=0" } }));
+            }
+
+            LastTokenBody = body?.ToString();
+            LastTokenUrl = url;
+            _tokens++;
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at-" + _tokens + "\",\"refresh_token\":\"rt-1\",\"expires_in\":3600}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class ExchangingApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            if (method == "GET")
+            {
+                return Task.FromResult(new ApiHttpResponse(
+                    200,
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                    new Dictionary<string, string> { { "Cache-Control", "max-age=0" } }));
+            }
+
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    private sealed class FailingRediscoveryApiClient : IApiClient
+    {
+        private int _discoveries;
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            if (method != "GET")
+            {
+                return Task.FromResult(new ApiHttpResponse(
+                    200,
+                    "{\"access_token\":\"at-1\",\"token_type\":\"Bearer\",\"expires_in\":3600}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+            }
+
+            _discoveries++;
+            if (_discoveries == 2)
+            {
+                return Task.FromResult(new ApiHttpResponse(500, "unavailable", new Dictionary<string, string>()));
+            }
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                new Dictionary<string, string> { { "Cache-Control", "max-age=0" } }));
+        }
+    }
+
+    private sealed class CacheControlApiClient(string cacheControl) : IApiClient
+    {
+        public int GetRequestCount { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            GetRequestCount++;
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                new Dictionary<string, string> { { "Cache-Control", cacheControl } }));
+        }
+    }
+
+    private sealed class CountingApiClient : IApiClient
+    {
+        private readonly Queue<ApiHttpResponse> _responses = new();
+
+        public int GetRequestCount { get; private set; }
+
+        internal void Enqueue(string body, int statusCode = 200)
+        {
+            _responses.Enqueue(new ApiHttpResponse(statusCode, body, new Dictionary<string, string>()));
+        }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            if (method == "GET")
+            {
+                GetRequestCount++;
+            }
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private static string Discovery(string authorizePath)
+    {
+        return "{\"authorization_endpoint\":\"https://auth.example.com/" + authorizePath + "\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}";
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc030DiscoveryServedWithMaxAgeZeroIsFetchedAgainOnEveryUse()
+    {
+        var client = new FakeApiClient();
+        client.EnqueueWithCacheControl(Discovery("authorize-1"), "max-age=0");
+        client.EnqueueWithCacheControl(Discovery("authorize-2"), "max-age=0");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        Uri second = await auth.BuildAuthorizationUrlAsync();
+
+        Assert.StartsWith("https://auth.example.com/authorize-2?", second.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc031CachedDiscoveryIsFetchedAgainOnceItsMaxAgeHasElapsed()
+    {
+        var client = new FakeApiClient();
+        client.EnqueueWithCacheControl(Discovery("authorize-1"), "max-age=1");
+        client.EnqueueWithCacheControl(Discovery("authorize-2"), "max-age=1");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await Task.Delay(TimeSpan.FromMilliseconds(1100), TestContext.Current.CancellationToken);
+        Uri second = await auth.BuildAuthorizationUrlAsync();
+
+        Assert.StartsWith("https://auth.example.com/authorize-2?", second.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc070ADiscoveryDocumentThatIsNotAnObjectKeepsNoCauseAndHidesItsBody()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("[\"leaked-body\"]");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+
+        Assert.Equal("OIDC discovery document is not a JSON object", ex.Message);
+        Assert.Null(ex.InnerException);
+        Assert.DoesNotContain("leaked-body", ex.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class GatedExchangeApiClient : IApiClient
+    {
+        private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Discoveries { get; private set; }
+        public Task Entered => _entered.Task;
+
+        public void Release() => _release.TrySetResult();
+
+        public async Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            if (method == "GET")
+            {
+                Discoveries++;
+                return new ApiHttpResponse(
+                    200,
+                    "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                    new Dictionary<string, string>());
+            }
+
+            _entered.TrySetResult();
+            await _release.Task.ConfigureAwait(false);
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } });
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc076ACallDuringTheCodeExchangeReusesTheDiscoveredConfiguration()
+    {
+        var client = new GatedExchangeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        _ = await auth.BuildAuthorizationUrlAsync("s");
+
+        var exchange = auth.ExchangeCodeAsync("oidc-code");
+        await client.Entered.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        client.Release();
+        await exchange;
+
+        Assert.Contains("code_challenge=", url.Query, StringComparison.Ordinal);
+        Assert.Equal(1, client.Discoveries);
+    }
+
+    [Fact]
+    public async Task BhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndANonce()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        var query = System.Web.HttpUtility.ParseQueryString(url.Query);
+
+        Assert.Equal("S256", query["code_challenge_method"]);
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", query["code_challenge"]!);
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", query["nonce"]!);
+    }
+
+    private const string IssuerDiscovery =
+        "{\"issuer\":\"https://auth.example.com\","
+            + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}";
+
+    private static string Base64Url(string text)
+    {
+        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    /* An unsigned compact JWT whose payload is the given claims. */
+    private static string IdToken(string claims)
+    {
+        return Base64Url("{\"alg\":\"none\"}") + "." + Base64Url(claims) + ".sig";
+    }
+
+    /* Claims that pass every check for the given nonce, with one claim replaced when named. */
+    private static string Claims(string nonce, string name = "", string value = "")
+    {
+        var claims = new List<KeyValuePair<string, string>>
+        {
+            new("iss", "\"https://auth.example.com\""),
+            new("aud", "\"my-client-id\""),
+            new("exp", (DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 3600).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new("nonce", "\"" + nonce + "\""),
+        };
+        int at = claims.FindIndex(c => c.Key == name);
+        if (at >= 0)
+        {
+            claims[at] = new(name, value);
+        }
+        return "{" + string.Join(",", claims.Select(c => "\"" + c.Key + "\":" + c.Value)) + "}";
+    }
+
+    /* An authenticator that has built an authorization URL and whose token endpoint
+       answers with the id_token that the function builds from the URL's nonce. */
+    private static async Task<OpenIdConnectAuthenticator> AuthenticatorReturning(Func<string, string> idTokenForNonce)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(IssuerDiscovery);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        Uri url = await auth.BuildAuthorizationUrlAsync("s");
+        string nonce = System.Web.HttpUtility.ParseQueryString(url.Query)["nonce"]!;
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600,\"id_token\":\"" + idTokenForNonce(nonce) + "\"}");
+        return auth;
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc034EachAuthorizationUrlCarriesAFreshNonce()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(IssuerDiscovery);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri first = await auth.BuildAuthorizationUrlAsync("s");
+        Uri second = await auth.BuildAuthorizationUrlAsync("s");
+
+        string? firstNonce = System.Web.HttpUtility.ParseQueryString(first.Query)["nonce"];
+        Assert.Matches("^[A-Za-z0-9_-]{43}$", firstNonce!);
+        Assert.NotEqual(firstNonce, System.Web.HttpUtility.ParseQueryString(second.Query)["nonce"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc035AnIdTokenWithValidClaimsIsAccepted()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "aud", "[\"other\",\"my-client-id\"]")));
+
+        await auth.ExchangeCodeAsync("oidc-code");
+
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc036AnIdTokenWithAnotherNonceIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "nonce", "\"replayed\"")));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token nonce does not match the authorization request", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc037AnIdTokenFromAnotherIssuerIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "iss", "\"https://evil.example.com\"")));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token issuer does not match the discovered issuer", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc038AnIdTokenForAnotherAudienceIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "aud", "\"other-client\"")));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token audience does not contain the client id", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc039AnExpiredIdTokenIsRejected()
+    {
+        string expired = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 120).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "exp", expired)));
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token has expired", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc040AMalformedIdTokenIsRejected()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(_ => "not-a-jwt");
+
+        OAuth2TokenException ex = await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        Assert.Equal("The id_token is malformed", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvAuthoidc041ARejectedIdTokenLeavesNoSession()
+    {
+        OpenIdConnectAuthenticator auth = await AuthenticatorReturning(
+            nonce => IdToken(Claims(nonce, "nonce", "\"replayed\"")));
+        await Assert.ThrowsAsync<OAuth2TokenException>(() => auth.ExchangeCodeAsync("oidc-code"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+    }
+}

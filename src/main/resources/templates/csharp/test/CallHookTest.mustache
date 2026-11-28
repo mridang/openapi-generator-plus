@@ -1,0 +1,78 @@
+{{>api_info}}
+
+using {{packageName}};
+using Xunit;
+
+namespace Test;
+
+public class CallHookTest
+{
+    private static readonly CallInfo Info =
+        new("op", "GET", "/items/{id}", "http://localhost/items/7", "localhost");
+
+    private sealed class Probe(string name, List<string> log, bool observes = true, Exception? failOnStart = null)
+        : ICallHook
+    {
+        public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+        {
+            log.Add("start " + name);
+            if (failOnStart is not null)
+            {
+                throw failOnStart;
+            }
+            headers["X-" + name] = name;
+            return observes ? new Observer(name, log) : null;
+        }
+
+        private sealed class Observer(string name, List<string> log) : ICallObserver
+        {
+            public void Finish(CallOutcome outcome)
+            {
+                log.Add("finish " + name + " " + outcome.StatusCode);
+            }
+        }
+    }
+
+    [Fact]
+    public void BhvHooks020ChainStartsTheHooksInOrderAndFinishesTheirObserversInReverseOrderAndSkipsAHookThatReturnsNothing()
+    {
+        var log = new List<string>();
+        var headers = new Dictionary<string, string>();
+        ICallHook chain = ICallHook.Chain(
+            new Probe("a", log), new Probe("b", log, observes: false), new Probe("c", log));
+
+        ICallObserver? observer = chain.Start(Info, headers);
+        observer!.Finish(new CallOutcome(204, null, null));
+
+        Assert.Equal(["start a", "start b", "start c", "finish c 204", "finish a 204"], log);
+        Assert.Equal(["X-a", "X-b", "X-c"], headers.Keys);
+    }
+
+    [Fact]
+    public void BhvLangcsharp051AChainOfHooksThatReturnNothingReturnsNoObserver()
+    {
+        ICallHook chain = ICallHook.Chain(new Probe("a", [], observes: false), new Probe("b", [], observes: false));
+
+        Assert.Null(chain.Start(Info, new Dictionary<string, string>()));
+    }
+
+    [Fact]
+    public void BhvLangcsharp052AnErrorFromALaterHookReachesTheCallerAndFinishesTheObserversAlreadyStarted()
+    {
+        var log = new List<string>();
+        var failure = new InvalidOperationException("refused");
+        ICallHook chain = ICallHook.Chain(new Probe("a", log), new Probe("b", log, failOnStart: failure));
+
+        var thrown = Assert.Throws<InvalidOperationException>(
+            () => chain.Start(Info, new Dictionary<string, string>()));
+
+        Assert.Same(failure, thrown);
+        Assert.Equal(["start a", "start b", "finish a 0"], log);
+    }
+
+    [Fact]
+    public void BhvLangcsharp053ChainRejectsANullHookList()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => ICallHook.Chain(null!));
+    }
+}

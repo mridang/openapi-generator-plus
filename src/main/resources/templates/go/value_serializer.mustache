@@ -1,0 +1,812 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"bytes"
+	"encoding"
+	"encoding/json"
+	"fmt"
+	"net/url"
+	"reflect"
+	"sort"
+	"strings"
+
+	"cloud.google.com/go/civil"
+)
+
+// serializeValue serializes a value for use in an HTTP request parameter.
+//
+// The serialization strategy depends on the location:
+//   - path: scalar values are stringified and percent-encoded
+//   - query: nil values are omitted (returns nil); collections are formatted
+//     according to collectionFormat
+//   - header: collections are joined with commas; nil values become empty strings
+//   - any other location: nil values become empty strings, scalars are stringified
+//
+// Parameters:
+//   - value: the value to serialize (may be nil)
+//   - location: where the parameter appears: "path", "query", "header", or "cookie"
+//   - schemaType: the OpenAPI schema type (currently unused, reserved for
+//     future format-aware serialization)
+//   - collectionFormat: the collection format: "multi", "csv", "ssv", "tsv",
+//     or "pipes" (only relevant for query parameters)
+//
+// Returns the serialized value: a string, a []string (for "multi" query
+// collections), or nil to omit the parameter.
+func serializeValue(value any, location, schemaType, collectionFormat string) any {
+	if value == nil {
+		return serializeNil(location)
+	}
+
+	if items, ok := toStringSlice(value); ok {
+		if location == "query" {
+			switch collectionFormat {
+			case "multi":
+				return items
+			case "ssv":
+				return strings.Join(items, " ")
+			case "tsv":
+				return strings.Join(items, "\t")
+			case "pipes":
+				return strings.Join(items, "|")
+			default:
+				return strings.Join(items, ",")
+			}
+		}
+		return strings.Join(items, ",")
+	}
+
+	strVal := stringify(value)
+	if location == "path" {
+		return encodePathSegment(strVal)
+	}
+	return strVal
+}
+
+// encodePathSegment percent-encodes a value for use as a URL path segment.
+//
+// Encodes characters that are not allowed in a URI path segment per RFC 3986,
+// but preserves the sub-delimiters (including ";", "=", ",", ":", etc.) that
+// OAS 3.0 matrix/label/simple styles use as structural separators in the
+// styled value.
+//
+// The preserved set matches the canonical encoding used by Java, Node, C#,
+// Swift, etc.: ; = , : @ ! $ & ' ( ) * +
+//
+// Returns the percent-encoded path segment.
+func encodePathSegment(value string) string {
+	if value == "" {
+		return value
+	}
+	// url.PathEscape encodes everything except unreserved characters.
+	// Restore the sub-delimiters that must be preserved in path segments.
+	encoded := url.PathEscape(value)
+	encoded = strings.ReplaceAll(encoded, "%3B", ";")
+	encoded = strings.ReplaceAll(encoded, "%3D", "=")
+	encoded = strings.ReplaceAll(encoded, "%2C", ",")
+	encoded = strings.ReplaceAll(encoded, "%3A", ":")
+	encoded = strings.ReplaceAll(encoded, "%40", "@")
+	encoded = strings.ReplaceAll(encoded, "%21", "!")
+	encoded = strings.ReplaceAll(encoded, "%24", "$")
+	encoded = strings.ReplaceAll(encoded, "%26", "&")
+	encoded = strings.ReplaceAll(encoded, "%27", "'")
+	encoded = strings.ReplaceAll(encoded, "%28", "(")
+	encoded = strings.ReplaceAll(encoded, "%29", ")")
+	encoded = strings.ReplaceAll(encoded, "%2A", "*")
+	encoded = strings.ReplaceAll(encoded, "%2B", "+")
+	return encoded
+}
+
+// encodeQueryAllowingReserved percent-encodes a query value while leaving the
+// RFC 3986 reserved characters literal (OAS allowReserved: true).
+//
+// Everything that is not RFC 3986 reserved or unreserved — spaces, control
+// characters, non-ASCII — is still percent-encoded, so the result is always a
+// valid URL query segment. Only the RFC 3986 section 3.4 query-legal reserved
+// set : / ? @ ! $ & ' ( ) * + , ; = is restored after url.QueryEscape
+// over-encodes it; "#", "[" and "]" stay percent-encoded because a literal "#"
+// starts the URL fragment and the brackets are not legal in a query. url.QueryEscape
+// emits "+" for a space, so it is normalised to "%20" first; a literal "+" in
+// the value is already "%2B" at that point and is restored with the rest of the
+// reserved set.
+func encodeQueryAllowingReserved(value string) string {
+	if value == "" {
+		return value
+	}
+	encoded := url.QueryEscape(value)
+	encoded = strings.ReplaceAll(encoded, "+", "%20")
+	encoded = strings.ReplaceAll(encoded, "%3A", ":")
+	encoded = strings.ReplaceAll(encoded, "%2F", "/")
+	encoded = strings.ReplaceAll(encoded, "%3F", "?")
+	encoded = strings.ReplaceAll(encoded, "%40", "@")
+	encoded = strings.ReplaceAll(encoded, "%21", "!")
+	encoded = strings.ReplaceAll(encoded, "%24", "$")
+	encoded = strings.ReplaceAll(encoded, "%26", "&")
+	encoded = strings.ReplaceAll(encoded, "%27", "'")
+	encoded = strings.ReplaceAll(encoded, "%28", "(")
+	encoded = strings.ReplaceAll(encoded, "%29", ")")
+	encoded = strings.ReplaceAll(encoded, "%2A", "*")
+	encoded = strings.ReplaceAll(encoded, "%2B", "+")
+	encoded = strings.ReplaceAll(encoded, "%2C", ",")
+	encoded = strings.ReplaceAll(encoded, "%3B", ";")
+	encoded = strings.ReplaceAll(encoded, "%3D", "=")
+	return encoded
+}
+
+// allowReservedValue wraps a query value so the query-string builder preserves
+// RFC 3986 reserved characters (OAS allowReserved: true) instead of
+// percent-encoding them. The wrapped value is a string, or a []string for an
+// exploded parameter.
+type allowReservedValue struct {
+	value any
+}
+
+// maybeAllowReserved wraps value in an allowReservedValue when the parameter
+// declares allowReserved: true; otherwise it returns value unchanged. A nil
+// value is never wrapped, so it is still omitted from the query string.
+func maybeAllowReserved(value any, allowReserved bool) any {
+	if value == nil || !allowReserved {
+		return value
+	}
+	return allowReservedValue{value: value}
+}
+
+// encodedPart wraps a multipart field value with what the field's Encoding
+// Object declares: the part Content-Type (empty when none is declared) and the
+// part headers, in declaration order. The multipart encoder writes them on the
+// part (on each part, for a list value); every other reader of the form map
+// sees through the wrapper to the value.
+type encodedPart struct {
+	value       any
+	contentType string
+	headers     [][2]string
+}
+
+// newEncodedPart wraps value in an encodedPart. A nil value is never wrapped,
+// so it is still omitted from the body.
+func newEncodedPart(value any, contentType string, headers ...[2]string) any {
+	if value == nil {
+		return nil
+	}
+	return encodedPart{value: value, contentType: contentType, headers: headers}
+}
+
+// unwrapFormValue returns the value of a form field with its allowReserved and
+// encodedPart wrappers removed, whether allowReserved was set, and the part
+// encoding (nil when none is declared).
+func unwrapFormValue(value any) (any, bool, *encodedPart) {
+	allowReserved := false
+	var part *encodedPart
+	for {
+		switch wrapped := value.(type) {
+		case allowReservedValue:
+			allowReserved = true
+			value = wrapped.value
+		case encodedPart:
+			declared := wrapped
+			part = &declared
+			value = wrapped.value
+		default:
+			return value, allowReserved, part
+		}
+	}
+}
+
+// pathReservedOctets maps the upper-case hex of each percent-encoded octet that
+// allowReservedInPath turns back into its literal reserved character.
+var pathReservedOctets = map[string]byte{
+	"2F": '/', "3A": ':', "40": '@', "21": '!', "24": '$', "26": '&', "27": '\'',
+	"28": '(', "29": ')', "2A": '*', "2B": '+', "2C": ',', "3B": ';', "3D": '=',
+}
+
+// allowReservedInPath turns the percent-encoded RFC 3986 reserved characters
+// / : @ ! $ & ' ( ) * + , ; = of an already path-encoded value back into their
+// literal form (OAS 3.2 allowReserved: true on a path parameter). The hex may be
+// upper or lower case. Every other escape stays as it is, so "?", "#", "[",
+// "]", a space and "%" (as %25) remain encoded, and a value the caller already
+// percent-encoded (encoded again to %252F) is not decoded.
+func allowReservedInPath(encoded string) string {
+	if !strings.Contains(encoded, "%") {
+		return encoded
+	}
+	var out strings.Builder
+	out.Grow(len(encoded))
+	for i := 0; i < len(encoded); i++ {
+		if encoded[i] == '%' && i+2 < len(encoded) {
+			if literal, ok := pathReservedOctets[strings.ToUpper(encoded[i+1:i+3])]; ok {
+				out.WriteByte(literal)
+				i += 2
+				continue
+			}
+		}
+		out.WriteByte(encoded[i])
+	}
+	return out.String()
+}
+
+// cookiePairs renders one style: cookie parameter (OAS 3.2) as its Cookie
+// header fragment. A nil value, an empty array and an empty object give the
+// empty string, so nothing is sent. A scalar is name=value; an array is
+// name=a,b (explode false) or name=a; name=b (explode true); an object, in its
+// wire-name declaration order with null properties dropped, is
+// name=k1,v1,k2,v2 (explode false) or k1=v1; k2=v2 (explode true). Values are
+// never percent-encoded: every item, key and value must consist of RFC 6265
+// cookie-octets, or ErrInvalidCookie is returned naming the parameter.
+func cookiePairs(name string, value any, explode bool) (string, error) {
+	if value == nil {
+		return "", nil
+	}
+	if rv := reflect.ValueOf(value); rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return "", nil
+	}
+	invalid := fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, name)
+	if items, isArray := toStringSlice(value); isArray {
+		if len(items) == 0 {
+			return "", nil
+		}
+		parts := make([]string, 0, len(items))
+		for _, item := range items {
+			if !isValidCookieValue(item) {
+				return "", invalid
+			}
+			parts = append(parts, name+"="+item)
+		}
+		if explode {
+			return strings.Join(parts, "; "), nil
+		}
+		return name + "=" + strings.Join(items, ","), nil
+	}
+	if pairs, ok := objectEntries(value); ok {
+		if len(pairs) == 0 {
+			return "", nil
+		}
+		flat := make([]string, 0, len(pairs)*2)
+		assigned := make([]string, 0, len(pairs))
+		for _, pair := range pairs {
+			if !isValidCookieValue(pair[0]) || !isValidCookieValue(pair[1]) {
+				return "", invalid
+			}
+			flat = append(flat, pair[0], pair[1])
+			assigned = append(assigned, pair[0]+"="+pair[1])
+		}
+		if explode {
+			return strings.Join(assigned, "; "), nil
+		}
+		return name + "=" + strings.Join(flat, ","), nil
+	}
+	text := stringify(value)
+	if !isValidCookieValue(text) {
+		return "", invalid
+	}
+	return name + "=" + text, nil
+}
+
+// serializeDeepObject serializes a deepObject-style query parameter.
+//
+// Produces a map of flattened keys in the form paramName[key] to stringified
+// values, suitable for inclusion in a query string. Accepts map[string]any,
+// map[string]string, or pointers to these types.
+//
+// Parameters:
+//   - paramName: the parameter name (e.g. "filter")
+//   - value: the map value to serialize
+//
+// Returns a map of expanded keys to serialized values, or an empty map if value is nil.
+// A nested object or array under any key is refused with a *SerializationError,
+// because deepObject expresses one level of properties only.
+func serializeDeepObject(paramName string, value any) (map[string]string, error) {
+	result := make(map[string]string)
+	if value == nil {
+		return result, nil
+	}
+	if rv := reflect.ValueOf(value); rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return result, nil
+		}
+		value = rv.Elem().Interface()
+	}
+
+	nestedError := func(key string) error {
+		return newSerializationError(fmt.Sprintf("deepObject parameter %s[%s] holds a nested object or array", paramName, key), nil)
+	}
+	switch m := value.(type) {
+	case map[string]any:
+		for key, val := range m {
+			if val == nil {
+				continue
+			}
+			if isNestedValue(val) {
+				return nil, nestedError(key)
+			}
+			result[fmt.Sprintf("%s[%s]", paramName, key)] = stringify(val)
+		}
+	case map[string]string:
+		for key, val := range m {
+			result[fmt.Sprintf("%s[%s]", paramName, key)] = val
+		}
+	default:
+		/* A model (or any other object): one entry per property. */
+		if pairs, ok := objectEntries(value); ok {
+			if key, found := nestedProperty(value); found {
+				return nil, nestedError(key)
+			}
+			for _, pair := range pairs {
+				result[fmt.Sprintf("%s[%s]", paramName, pair[0])] = pair[1]
+			}
+		}
+	}
+	return result, nil
+}
+
+// isNestedValue reports whether a value is an object or an array, the shapes
+// deepObject cannot express. Date-times, durations, byte strings and scalars
+// are not nested.
+func isNestedValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Map:
+		return true
+	case reflect.Slice, reflect.Array:
+		return rv.Type().Elem().Kind() != reflect.Uint8
+	case reflect.Struct:
+		return !isTemporalScalar(rv)
+	default:
+		return false
+	}
+}
+
+// nestedProperty returns the wire name of the first property of a model whose
+// JSON value is an object or an array. objectEntries writes such a value as its
+// JSON text, so the check looks at the JSON kind rather than the text.
+func nestedProperty(value any) (string, bool) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", false
+	}
+	var props map[string]json.RawMessage
+	if err := json.Unmarshal(data, &props); err != nil {
+		return "", false
+	}
+	for key, raw := range props {
+		if len(raw) > 0 && (raw[0] == '{' || raw[0] == '[') {
+			return key, true
+		}
+	}
+	return "", false
+}
+
+// queryPairs is an object-valued query parameter that explodes into one
+// name=value pair per property, in the object's declaration order.
+type queryPairs [][2]string
+
+// objectEntries lists the properties of an object-valued parameter (a model
+// struct or a string-keyed map) as name/value pairs, in declaration order for a
+// model and in sorted order for a map. A null property is left out. A property
+// that is itself an object or array keeps its JSON text. The bool is false for
+// anything that is not an object, so scalars, enums, date-times and slices keep
+// their own encoding.
+func objectEntries(value any) ([][2]string, bool) {
+	if value == nil {
+		return nil, false
+	}
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return nil, false
+		}
+		rv = rv.Elem()
+	}
+	switch rv.Kind() {
+	case reflect.Map:
+		if rv.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		keys := make([]string, 0, rv.Len())
+		for _, k := range rv.MapKeys() {
+			keys = append(keys, k.String())
+		}
+		sort.Strings(keys)
+		pairs := make([][2]string, 0, len(keys))
+		for _, k := range keys {
+			v := rv.MapIndex(reflect.ValueOf(k).Convert(rv.Type().Key())).Interface()
+			if v == nil {
+				continue
+			}
+			pairs = append(pairs, [2]string{k, stringify(v)})
+		}
+		return pairs, true
+	case reflect.Struct:
+		marshaler := reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+		if rv.Type().Implements(marshaler) || reflect.PointerTo(rv.Type()).Implements(marshaler) {
+			return nil, false
+		}
+	default:
+		return nil, false
+	}
+	data, err := json.Marshal(rv.Interface())
+	if err != nil {
+		return nil, false
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return nil, false
+	}
+	var pairs [][2]string
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil, false
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return nil, false
+		}
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return nil, false
+		}
+		switch {
+		case string(raw) == "null":
+			continue
+		case len(raw) > 0 && raw[0] == '"':
+			var text string
+			if err := json.Unmarshal(raw, &text); err != nil {
+				return nil, false
+			}
+			pairs = append(pairs, [2]string{key, text})
+		default:
+			pairs = append(pairs, [2]string{key, string(raw)})
+		}
+	}
+	return pairs, true
+}
+
+// serializeObject renders an object-valued parameter in the given style. The
+// exploded form of a query parameter becomes queryPairs; every other shape is
+// a single string.
+func serializeObject(paramName string, pairs [][2]string, location, style string, explode bool) any {
+	if len(pairs) == 0 {
+		return serializeNil(location)
+	}
+	flat := make([]string, 0, len(pairs)*2)
+	assigned := make([]string, 0, len(pairs))
+	for _, pair := range pairs {
+		flat = append(flat, pair[0], pair[1])
+		assigned = append(assigned, pair[0]+"="+pair[1])
+	}
+	csv := strings.Join(flat, ",")
+	switch style {
+	case "form":
+		if explode && location == "query" {
+			return queryPairs(pairs)
+		}
+		if explode {
+			return strings.Join(assigned, "&")
+		}
+		return csv
+	case "matrix":
+		if explode {
+			return ";" + strings.Join(assigned, ";")
+		}
+		return ";" + paramName + "=" + csv
+	case "label":
+		if explode {
+			return "." + strings.Join(assigned, ".")
+		}
+		return "." + csv
+	case "spaceDelimited":
+		return strings.Join(flat, " ")
+	case "pipeDelimited":
+		return strings.Join(flat, "|")
+	default:
+		if explode {
+			return strings.Join(assigned, ",")
+		}
+		return csv
+	}
+}
+
+// requirePathParam returns ErrMissingRequiredParameter when a path parameter is
+// nil or an empty string, and ErrInvalidPathParameter when it is exactly "." or
+// "..", which a URL parser would resolve as a dot segment and so re-route the
+// request to a different endpoint (RFC 3986 section 5.2.4).
+//
+// Path parameters are required components of the URL — accepting an empty
+// string would silently produce a malformed URL like `/resource//details`,
+// which most servers route to 404 instead of surfacing the bug at the call
+// site. A named string enum path param has its own dynamic type rather than
+// string, so a plain `value.(string)` assertion misses an empty zero-value
+// enum. Dereference any pointer and inspect the underlying kind via
+// reflection so a string-kinded value of any named type is caught.
+func requirePathParam(paramName string, value any) error {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() {
+		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	if rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.String && rv.String() == "" {
+		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	if d, ok := value.(civil.Date); ok && d.IsZero() {
+		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	if rv.Kind() == reflect.String && (rv.String() == "." || rv.String() == "..") {
+		return fmt.Errorf("%w: path parameter '%s' must not be '.' or '..'", ErrInvalidPathParameter, paramName)
+	}
+	return nil
+}
+
+// serializeStyled serializes a value with OAS 3.0 parameter style formatting.
+//
+// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+// styles. deepObject is handled separately by serializeDeepObject.
+//
+// Parameters:
+//   - paramName: the parameter name
+//   - value: the value to serialize (may be nil)
+//   - location: where the parameter appears: "path", "query", "header", or "cookie"
+//   - schemaType: the OpenAPI schema type
+//   - collectionFormat: the collection format (may be empty)
+//   - style: the OAS 3.0 parameter style (may be empty)
+//   - explode: whether to explode arrays
+//
+// Returns the serialized value, or nil to omit the parameter.
+func serializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
+	serialized, err := serializeStyledChecked(paramName, value, location, schemaType, collectionFormat, style, explode)
+	if err != nil {
+		return nil
+	}
+	return serialized
+}
+
+// serializeStyledChecked is serializeStyled that also reports a value the
+// style cannot carry: an object-valued parameter with a property that is itself
+// an object or an array has no encoding in any style, so it fails with a
+// *SerializationError and no request is sent.
+func serializeStyledChecked(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) (any, error) {
+	if style != "" && value != nil {
+		if err := rejectNestedObjectLeaf(value); err != nil {
+			return nil, err
+		}
+	}
+	return serializeStyledValue(paramName, value, location, schemaType, collectionFormat, style, explode), nil
+}
+
+// rejectNestedObjectLeaf returns a *SerializationError when value is an object
+// with a property that is itself an object or an array. Scalars, arrays and
+// values that are not objects pass.
+func rejectNestedObjectLeaf(value any) error {
+	if _, isArray := toStringSlice(value); isArray {
+		return nil
+	}
+	if _, ok := objectEntries(value); !ok {
+		return nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	var properties map[string]json.RawMessage
+	if json.Unmarshal(data, &properties) != nil {
+		return nil
+	}
+	names := make([]string, 0, len(properties))
+	for name := range properties {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if trimmed := bytes.TrimSpace(properties[name]); len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+			return newSerializationError(fmt.Sprintf("object-valued parameter property '%s' must be a scalar, not a nested value", name), nil)
+		}
+	}
+	return nil
+}
+
+func serializeStyledValue(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
+	if style == "" {
+		return serializeValue(value, location, schemaType, collectionFormat)
+	}
+
+	items, isArray := toStringSlice(value)
+
+	/* An object-valued parameter (a model or a map) is encoded property by
+	 * property in its declaration order. */
+	if !isArray && value != nil {
+		if pairs, ok := objectEntries(value); ok {
+			if location == "path" {
+				for i := range pairs {
+					pairs[i][0], pairs[i][1] = encodePathSegment(pairs[i][0]), encodePathSegment(pairs[i][1])
+				}
+			}
+			return serializeObject(paramName, pairs, location, style, explode)
+		}
+	}
+
+	// For path styles, percent-encode each individual item BEFORE applying
+	// the structural separators (";", "=", ".", ",") that the style defines.
+	// This ensures reserved characters inside the value are escaped while
+	// the style's structural punctuation remains literal.
+	if location == "path" {
+		encoded := make([]string, len(items))
+		for i, item := range items {
+			encoded[i] = encodePathSegment(item)
+		}
+		items = encoded
+		if !isArray && value != nil {
+			value = encodePathSegment(stringify(value))
+		}
+	}
+
+	switch style {
+	case "matrix":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				var parts []string
+				for _, v := range items {
+					parts = append(parts, fmt.Sprintf(";%s=%s", paramName, v))
+				}
+				return strings.Join(parts, "")
+			}
+			return fmt.Sprintf(";%s=%s", paramName, strings.Join(items, ","))
+		}
+		return fmt.Sprintf(";%s=%s", paramName, stringify(value))
+
+	case "label":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				return "." + strings.Join(items, ".")
+			}
+			return "." + strings.Join(items, ",")
+		}
+		return "." + stringify(value)
+
+	case "spaceDelimited":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				return items
+			}
+			return strings.Join(items, " ")
+		}
+		return stringify(value)
+
+	case "pipeDelimited":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				return items
+			}
+			return strings.Join(items, "|")
+		}
+		return stringify(value)
+
+	case "form":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			if explode {
+				return items
+			}
+			return strings.Join(items, ",")
+		}
+		return stringify(value)
+
+	case "simple":
+		if value == nil {
+			if location == "query" {
+				return nil
+			}
+			return ""
+		}
+		if isArray {
+			return strings.Join(items, ",")
+		}
+		return stringify(value)
+
+	default:
+		return serializeValue(value, location, schemaType, collectionFormat)
+	}
+}
+
+// serializeNil returns the serialized form of a nil value: nil (omit the
+// parameter) for a query parameter, an empty string for every other location.
+func serializeNil(location string) any {
+	if location == "query" {
+		return nil
+	}
+	return ""
+}
+
+// toStringSlice attempts to convert a value to a []string.
+//
+// Returns the string slice and true if the conversion was successful.
+//
+// The fast-path type switches cover the common []string / []any shapes. For
+// everything else — pointers to slices (e.g. *[]string for an OPTIONAL array
+// parameter), and slices of named element types (e.g. []Color, *[]MyEnum) —
+// it falls back to reflection: any pointer is dereferenced, and a slice or
+// array of any element type is stringified per element. Without this, an
+// optional array param arrives as *[]string and misses both type switch
+// cases, falling through to %v debug formatting that emits garbage like
+// `&[blue black]` into the query string instead of properly styled values.
+func toStringSlice(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		return v, true
+	case []any:
+		items := make([]string, len(v))
+		for i, item := range v {
+			items[i] = stringify(item)
+		}
+		return items, true
+	}
+
+	rv := reflect.ValueOf(value)
+	// Dereference a pointer (e.g. *[]string for an optional array param). A nil
+	// pointer is not an array value, so report no slice.
+	if rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return nil, false
+		}
+		rv = rv.Elem()
+	}
+	// Reflect over slices and arrays of arbitrary element types (named string
+	// enums, typed scalars) that the type switch above cannot name. Each element
+	// is stringified through the same per-element path as []any, so enum and
+	// scalar elements encode identically whether boxed as []any or a typed slice.
+	/* []byte (format:byte) is one base64 scalar, not a list of numbers, and a
+	 * [16]byte (uuid.UUID) is one canonical-text scalar. */
+	if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Type().Elem().Kind() == reflect.Uint8 {
+		return nil, false
+	}
+	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+		items := make([]string, rv.Len())
+		for i := range rv.Len() {
+			items[i] = stringify(rv.Index(i).Interface())
+		}
+		return items, true
+	}
+
+	return nil, false
+}

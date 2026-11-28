@@ -1,0 +1,394 @@
+{{>api_info}}
+import Foundation
+import Testing
+@testable import {{packageName}}
+
+/* Credentials are validated eagerly in BasicAuthenticator.init. Negative
+ * scenarios (CR/LF/NUL/colon) throw ConfigurationError.invalidArgument, a
+ * caller mistake that is not part of the SDK error hierarchy. */
+@Suite final class BasicAuthenticatorTests {
+
+    @Test func testBhvAuthbasic011ValidCredentialsProduceBasicHeader() async throws {
+        let auth = try BasicAuthenticator(
+            host: "https://api.example.com",
+            username: "alice",
+            password: "s3cret"
+        )
+        let headers = await auth.authHeaders()
+        #expect(headers["Authorization"] == "Basic YWxpY2U6czNjcmV0")
+    }
+
+    /* Non-ASCII credentials are sent as their UTF-8 bytes. */
+    @Test func testBhvAuthbasic004NonAsciiCredentialsAreEncodedAsUtf8() async throws {
+        let auth = try BasicAuthenticator(
+            host: "https://api.example.com",
+            username: "\u{FC}n\u{EF}c\u{F8}d\u{E9}",
+            password: "p\u{E4}ssw\u{F6}rd"
+        )
+        let headers = await auth.authHeaders()
+        #expect(headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==")
+    }
+
+    /* A password may contain ':' (only the user-id may not) and an empty
+     * password is still a valid credential. */
+    @Test func testBhvAuthbasic018PasswordMayContainColonAndMayBeEmpty() async throws {
+        let withColon = try BasicAuthenticator(
+            host: "https://api.example.com", username: "alice", password: "a:b")
+        #expect(await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
+        let empty = try BasicAuthenticator(
+            host: "https://api.example.com", username: "alice", password: "")
+        #expect(await empty.authHeaders()["Authorization"] == "Basic YWxpY2U6")
+    }
+
+    /* Each rejection names the offending field exactly. */
+    @Test(arguments: [
+        ("alice\r\n", "s3cret", "Basic auth username must not contain CR, LF, or NUL characters"),
+        ("alice", "s3c\u{0}ret", "Basic auth password must not contain CR, LF, or NUL characters"),
+        ("alice", "s3c\nret", "Basic auth password must not contain CR, LF, or NUL characters"),
+        ("ali:ce", "s3cret", "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)"),
+    ])
+    func testBhvErrors081RejectionMessagesNameTheOffendingField(username: String, password: String, message: String) {
+        #expect(throws: ConfigurationError.invalidArgument(message)) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: username, password: password)
+        }
+    }
+
+    /* authenticator-secret-in-default-string-repr: the default string
+     * representation must never expose the stored password. */
+    @Test func testBhvAuthbasic005PasswordIsNotLeakedInDefaultStringRepr() async throws {
+        let auth = try BasicAuthenticator(
+            host: "https://api.example.com",
+            username: "alice",
+            password: "s3cret"
+        )
+        #expect(!String(describing: auth).contains("s3cret"))
+    }
+
+    @Test func testBhvAuthbasic006RedactsSecret() async throws {
+        let auth = try BasicAuthenticator(
+            host: "https://api.example.com",
+            username: "alice",
+            password: "s3cret"
+        )
+        let description = String(describing: auth)
+        #expect(!description.contains("s3cret"))
+        #expect(description.contains("***"))
+        /* Everything except the secret stays visible. */
+        #expect(description == "BasicAuthenticator(host: https://api.example.com, username: alice, password: ***)")
+        #expect(String(reflecting: auth) == description)
+    }
+
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+     * included, so the redacted description is not enough: the reflection
+     * must hide the secret too. */
+    @Test func testBhvLangswift015DumpDoesNotLeakSecret() async throws {
+        let auth = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "dump-secret-pass")
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("dump-secret-pass"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
+    /* Malformed credentials would corrupt the Authorization header (RFC 7617
+     * §2): each is rejected at construction with
+     * ConfigurationError.invalidArgument, never a trap. */
+    @Test(arguments: [
+        ("alice\r\n", "s3cret"),
+        ("alice", "s3c\u{0}ret"),
+        ("ali:ce", "s3cret"),
+    ])
+    func testBhvLangswift016RejectsMalformedCredentialsAtConstruction(username: String, password: String) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com",
+                username: username,
+                password: password
+            )
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+    }
+
+    @Test func testBhvAuthbasic008RejectsUsernameWithColonAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: "ali:ce", password: "s3cret")
+        }
+    }
+
+    @Test func testBhvAuthbasic009RejectsUsernameWithCrlfAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain CR, LF, or NUL characters")) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: "alice\r\n", password: "s3cret")
+        }
+    }
+
+    @Test func testBhvAuthbasic007RejectsPasswordWithNulAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth password must not contain CR, LF, or NUL characters")) {
+            _ = try BasicAuthenticator(
+                host: "https://api.example.com", username: "alice", password: "s3c\u{0}ret")
+        }
+    }
+
+    // MARK: - Generated scheme wrappers
+
+    /* Each HTTP basic securityScheme generates a wrapper that sends the same
+     * Basic header, validates eagerly and masks the password in its repr. */
+    @Test(arguments: ["AdminBasic", "PetStoreBasic"])
+    func testBhvAuthbasic002SchemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String) async throws {
+        let auth = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
+        #expect(await auth.authHeaders() == ["Authorization": "Basic YWxpY2U6czNjcmV0"])
+        #expect(auth.queryParams().isEmpty)
+        #expect(auth.cookieParams().isEmpty)
+        #expect(
+            String(describing: auth)
+                == "\(scheme)Authenticator(host: https://api.example.com, username: alice, password: ***)")
+        #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")) {
+            _ = try Self.schemeWrapper(scheme, username: "ali:ce", password: "s3cret")
+        }
+    }
+
+    /* Each basic authenticator reads its credentials from the environment when none are passed, and an explicit pair wins. */
+    @Test func testBhvAuthbasic001BasicAuthenticatorsSendTheCredentialsFromTheEnvironmentUnlessTheyArePassed() async throws {
+{{#perSchemeAuthEntries}}
+{{#isBasicScheme}}
+        do {
+            let fromEnvironment = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [{{#envVars}}"{{envName}}": "env-{{field}}"{{^-last}}, {{/-last}}{{/envVars}}])
+            let envEncoded = Data("env-username:env-password".utf8).base64EncodedString()
+            #expect(await fromEnvironment.authHeaders() == ["Authorization": "Basic \(envEncoded)"])
+            let explicit = try {{className}}(host: "https://api.example.com", username: "alice", password: "explicit-value", environment: [{{#envVars}}"{{envName}}": "env-{{field}}"{{^-last}}, {{/-last}}{{/envVars}}])
+            let explicitEncoded = Data("alice:explicit-value".utf8).base64EncodedString()
+            #expect(await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
+        }
+{{/isBasicScheme}}
+{{/perSchemeAuthEntries}}
+    }
+
+    /* A credential passed by neither route, or an empty variable (unset), fails when the authenticator is built, before any request; the message names the missing credential by its variable. */
+    @Test func testBhvAuthbasic003BasicAuthenticatorsFailAtConstructionWhenACredentialIsMissingOrEmpty() throws {
+{{#perSchemeAuthEntries}}
+{{#isBasicScheme}}
+        do {
+            #expect(throws: ConfigurationError.self) {
+                _ = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [:])
+            }
+            #expect(throws: ConfigurationError.self) {
+                _ = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+            }
+        }
+{{/isBasicScheme}}
+{{/perSchemeAuthEntries}}
+    }
+
+    /* An empty variable counts as unset: construction fails and the message names the missing credential by its variable. */
+    @Test func testBhvAuthbasic012BasicAuthenticatorsAnEmptyVariableCountsAsUnset() throws {
+{{#perSchemeAuthEntries}}
+{{#isBasicScheme}}
+        do {
+            let error = #expect(throws: ConfigurationError.self) {
+                _ = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
+            }
+            if case .invalidArgument(let message)? = error {
+                #expect(message.hasPrefix("Missing the credential '"))
+                #expect(message.contains("environment variable"))
+            } else {
+                Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            }
+        }
+{{/isBasicScheme}}
+{{/perSchemeAuthEntries}}
+    }
+    /* Each HTTP basic wrapper emits the same Basic header as the base authenticator it extends. */
+    @Test(arguments: ["AdminBasic", "PetStoreBasic"])
+    func testBhvAuthbasic019SchemeWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator(scheme: String) async throws {
+        let base = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "s3cret")
+        let expected = await base.authHeaders()
+        let wrapper = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
+        #expect(await wrapper.authHeaders() == expected)
+    }
+
+    private static func schemeWrapper(_ scheme: String, username: String, password: String) throws -> BasicAuthenticator {
+        let host = "https://api.example.com"
+        switch scheme {
+        case "AdminBasic": return try AdminBasicAuthenticator(host: host, username: username, password: password)
+        default: return try PetStoreBasicAuthenticator(host: host, username: username, password: password)
+        }
+    }
+
+    /* A basic authenticator masks the password in its debug output. */
+    @Test func testBhvAuthbasic020AuthenticatorMasksThePasswordInDebugOutput() throws {
+        let auth = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "debug-password-value")
+        #expect(!String(reflecting: auth).contains("debug-password-value"))
+    }
+
+    @Test func testBhvAuthbasic010DescriptionShowsHostAndUsernameAndMasksPassword() throws {
+        let auth = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "masked-password-value")
+        #expect(auth.description.contains("host: https://api.example.com"))
+        #expect(auth.description.contains("username: alice"))
+        #expect(!auth.description.contains("masked-password-value"))
+    }
+    // MARK: - Behaviour catalogue: credential resolution
+
+    /* A credential that is not passed is read from its own environment variable, and no other. */
+    @Test func testBhvAuth007GenericCredentialReadsOnlyItsOwnVariable() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BaseAuthenticator.credential(nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["OTHER_TOKEN": "x"])
+        }
+    }
+
+    /* The explicit argument is used before the environment variable. */
+    @Test func testBhvAuth022ExplicitArgumentBeatsTheEnvironmentVariable() throws {
+        let value = try BaseAuthenticator.credential(
+            "explicit", name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": "env-value"])
+        #expect(value == "explicit")
+    }
+
+    /* Each credential field takes its own environment variable, independently of the other fields. */
+    @Test func testBhvAuth024EachFieldReadsItsOwnEnvironmentVariable() throws {
+        let environment = ["EXAMPLE_USERNAME": "alice", "EXAMPLE_PASSWORD": "s3cret"]
+        let username = try BaseAuthenticator.credential(
+            nil, name: "username", variable: "EXAMPLE_USERNAME", environment: environment)
+        let password = try BaseAuthenticator.credential(
+            nil, name: "password", variable: "EXAMPLE_PASSWORD", environment: environment)
+        #expect(username == "alice")
+        #expect(password == "s3cret")
+    }
+
+    /* A Basic username may not contain a colon, because the colon separates it from the password. */
+    @Test func testBhvAuth036BasicRejectsAUsernameContainingAColon() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BasicAuthenticator(host: "https://api.example.com", username: "ali:ce", password: "s3cret")
+        }
+    }
+
+    /* The Basic and Bearer scheme authenticators send the same header as their base authenticators and reject invalid input the same way. */
+    @Test func testBhvMisc193SchemeAuthenticatorsMatchTheirBaseAuthenticators() async throws {
+        let basicExpected = try await BasicAuthenticator(host: "https://api.example.com", username: "user", password: "pass").authHeaders()
+        let bearerExpected = try await BearerAuthenticator(host: "https://api.example.com", token: "xyz").authHeaders()
+{{#perSchemeAuthEntries}}
+{{#isBasicScheme}}
+        do {
+            let wrapper = try {{className}}(host: "https://api.example.com", username: "user", password: "pass")
+            #expect(await wrapper.authHeaders() == basicExpected)
+            #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")) {
+                _ = try {{className}}(host: "https://api.example.com", username: "us:er", password: "pass")
+            }
+        }
+{{/isBasicScheme}}
+{{#isBearerScheme}}
+        do {
+            let wrapper = try {{className}}(host: "https://api.example.com", token: "xyz")
+            #expect(try await wrapper.authHeaders() == bearerExpected)
+            #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+                _ = try {{className}}(host: "https://api.example.com", token: "abc\r\nX-Forwarded: yes")
+            }
+        }
+{{/isBearerScheme}}
+{{/perSchemeAuthEntries}}
+    }
+{{#hasDigestAuth}}
+
+    // MARK: - HTTP Digest (D192)
+
+    /// The RFC 7616 section 3.9.1 example: its nonce, opaque and client nonce.
+    private static let digestNonce = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"
+    private static let digestOpaque = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"
+    private static let digestCnonce = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
+
+    /// The RFC 7616 example user's DigestAuthenticator with the example's client nonce.
+    private func digestAuthenticator() throws -> DigestAuthenticator {
+        let auth = try DigestAuthenticator(host: "https://api.example.com", username: "Mufasa", password: "Circle of Life")
+        auth.fixCnonce(Self.digestCnonce)
+        return auth
+    }
+
+    /// Feeds a challenge and returns the answer for GET /dir/index.html.
+    private func digestAnswer(_ challenge: String) throws -> String? {
+        let auth = try digestAuthenticator()
+        #expect(auth.acceptChallenge(challenge))
+        return auth.authorization(method: "GET", requestTarget: "/dir/index.html")
+    }
+
+    /* The MD5 answer to the RFC 7616 example challenge has the published
+     * response and the header fields in the fixed order. */
+    @Test func testBhvAuthdigest700TheMd5AnswerToTheRfc7616ExampleIsThePublishedOne() throws {
+        let got = try digestAnswer(
+            "Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm=MD5, "
+                + "nonce=\"\(Self.digestNonce)\", opaque=\"\(Self.digestOpaque)\"")
+        #expect(
+            got == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", algorithm=MD5, response=\"8ca523f5e9506fed4657c9700eebdbec\", "
+                + "qop=auth, nc=00000001, cnonce=\"\(Self.digestCnonce)\", opaque=\"\(Self.digestOpaque)\"")
+    }
+
+    /* The SHA-256 answer to the RFC 7616 example has the published response,
+     * and the -sess variants hash the first value again with the nonce and the cnonce. */
+    @Test(arguments: [
+        ("SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"),
+        ("MD5-sess", "e783283f46242139c486a698fec7211d"),
+        ("SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"),
+    ])
+    func testBhvAuthdigest701TheSha256AndSessAnswersAreThePublishedOnes(algorithm: String, response: String) throws {
+        let got = try digestAnswer(
+            "Basic realm=\"other\", Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", "
+                + "algorithm=\(algorithm), nonce=\"\(Self.digestNonce)\", opaque=\"\(Self.digestOpaque)\", "
+                + "Digest realm=\"http-auth@example.org\", algorithm=MD5, nonce=\"other\"")
+        #expect(
+            got == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", algorithm=\(algorithm), response=\"\(response)\", "
+                + "qop=auth, nc=00000001, cnonce=\"\(Self.digestCnonce)\", opaque=\"\(Self.digestOpaque)\"")
+    }
+
+    /* A challenge without qop is answered in the RFC 2069 form, with no qop, nc
+     * or cnonce; opaque is echoed only when sent and algorithm only when named, as written. */
+    @Test func testBhvAuthdigest704AChallengeWithoutQopIsAnsweredInTheRfc2069Form() throws {
+        let plain = try digestAnswer("Digest realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\"")
+        #expect(
+            plain == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", response=\"7b2cc3b30e75b4777ea31027084363fd\"")
+        let named = try digestAnswer(
+            "digest realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", algorithm=md5, "
+                + "opaque=\"\(Self.digestOpaque)\"")
+        #expect(
+            named == "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"\(Self.digestNonce)\", "
+                + "uri=\"/dir/index.html\", algorithm=md5, response=\"7b2cc3b30e75b4777ea31027084363fd\", "
+                + "opaque=\"\(Self.digestOpaque)\"")
+    }
+
+    /* A challenge that offers only qop=auth-int, or names an unknown algorithm,
+     * is not answered: nothing is accepted and no header is produced. */
+    @Test(arguments: [
+        "Digest realm=\"r\", nonce=\"n\", qop=\"auth-int\"",
+        "Digest realm=\"r\", nonce=\"n\", algorithm=SHA-512-256",
+        "Basic realm=\"r\"",
+    ])
+    func testBhvAuthdigest705AnAuthIntOnlyOrUnknownAlgorithmChallengeIsNotAnswered(challenge: String) throws {
+        let auth = try digestAuthenticator()
+        #expect(!auth.acceptChallenge(challenge))
+        #expect(auth.authorization(method: "GET", requestTarget: "/dir/index.html") == nil)
+    }
+
+    /* An empty username, a line break or NUL in either field, or a double quote
+     * in the username fails at construction, and the string form masks the password. */
+    @Test(arguments: [
+        ("", "pw", "Digest username must not be empty"),
+        ("ali\nce", "pw", "Digest credentials must not contain a line break or NUL"),
+        ("alice", "p\rw", "Digest credentials must not contain a line break or NUL"),
+        ("alice", "p\u{0}w", "Digest credentials must not contain a line break or NUL"),
+        ("ali\"ce", "pw", "Digest username must not contain a double quote"),
+    ])
+    func testBhvAuthdigest706DigestCredentialsAreCheckedAtConstruction(
+        username: String, password: String, message: String
+    ) throws {
+        #expect(throws: ConfigurationError.invalidArgument(message)) {
+            _ = try DigestAuthenticator(host: "https://api.example.com", username: username, password: password)
+        }
+        let auth = try DigestAuthenticator(host: "https://api.example.com", username: "alice", password: "s3cret")
+        #expect(String(describing: auth) == "DigestAuthenticator(host: https://api.example.com, username: alice, password: ***)")
+        #expect(String(reflecting: auth) == String(describing: auth))
+    }
+{{/hasDigestAuth}}
+}

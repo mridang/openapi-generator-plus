@@ -1,0 +1,726 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Errors;
+using {{packageName}}.Auth.OAuth;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using Xunit;
+
+namespace Test;
+
+public class OAuth2AuthorizationCodeAuthenticatorTest
+{
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly Queue<ApiHttpResponse> _responses = new();
+
+        internal void Enqueue(string body, int statusCode = 200)
+        {
+            _responses.Enqueue(new ApiHttpResponse(statusCode, body, new Dictionary<string, string>()));
+        }
+
+        public string? LastBody { get; private set; }
+        public Uri? LastUrl { get; private set; }
+        public int CallCount { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            CallCount++;
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private sealed class FailingApiClient(Exception failure) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            throw failure;
+        }
+    }
+
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
+    private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticator()
+    {
+        return new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+    }
+
+    [Fact]
+    public void BhvLangcsharp049TokenExchangedFieldIsVolatile()
+    {
+        FieldInfo field = typeof(OAuth2AuthorizationCodeAuthenticator).GetField(
+            "_tokenExchanged", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        Assert.Contains(typeof(IsVolatile), field.GetRequiredCustomModifiers());
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode006BuildsAuthorizationUrlWithRequiredParams()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl();
+
+        string urlStr = url.ToString();
+        Assert.Contains("response_type=code", urlStr, StringComparison.Ordinal);
+        Assert.Contains("client_id=my-client-id", urlStr, StringComparison.Ordinal);
+        Assert.Contains("redirect_uri=", urlStr, StringComparison.Ordinal);
+        Assert.Contains("scope=read%20write", url.OriginalString, StringComparison.Ordinal);
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode007BuildsAuthorizationUrlWithState()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl("csrf-state-123");
+
+        Assert.Contains("state=csrf-state-123", url.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode018OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var auth = CreateAuthenticator();
+
+        string url = auth.BuildAuthorizationUrl("").OriginalString;
+
+        Assert.DoesNotContain("state", url, StringComparison.Ordinal);
+        string withoutPkce = System.Text.RegularExpressions.Regex.Replace(
+            auth.BuildAuthorizationUrl().OriginalString,
+            "&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$",
+            "");
+        Assert.Equal(withoutPkce, System.Text.RegularExpressions.Regex.Replace(
+            url, "&code_challenge=[A-Za-z0-9_-]+&code_challenge_method=S256$", ""));
+    }
+
+
+    [Fact]
+    public void BhvAuth008S256ChallengeMatchesTheRfc7636AppendixBVector()
+    {
+        Assert.Equal(
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            OAuth2AuthorizationCodeAuthenticator.S256Challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"));
+    }
+
+    [Fact]
+    public void BhvAuth014AuthorizeUrlEncodesScopeSpacesAsPercent20()
+    {
+        string url = CreateAuthenticator().BuildAuthorizationUrl().OriginalString;
+
+        Assert.Contains("scope=read%20write", url, StringComparison.Ordinal);
+        Assert.DoesNotContain("+", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuth020VerifierIsSentOnlyWithTheFirstExchange()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        _ = auth.BuildAuthorizationUrl();
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Contains("code_verifier", client.LastBody!, StringComparison.Ordinal);
+        Assert.Null(auth.PkceVerifier);
+
+        auth.InvalidateAccessToken();
+        _ = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain("code_verifier", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    private static string S256(string verifier)
+    {
+        return Convert
+            .ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier)))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode023AuthorizationUrlCarriesAPkceS256ChallengeThatTheCodeExchangeProves()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var query = System.Web.HttpUtility.ParseQueryString(auth.BuildAuthorizationUrl("s").Query);
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        var form = System.Web.HttpUtility.ParseQueryString(client.LastBody!);
+
+        Assert.Equal("S256", query["code_challenge_method"]);
+        Assert.Equal(43, form["code_verifier"]!.Length);
+        Assert.Equal(S256(form["code_verifier"]!), query["code_challenge"]);
+        Assert.DoesNotContain("nonce", auth.BuildAuthorizationUrl().Query, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode001ACodeExchangeWithoutAnAuthorizationUrlSendsNoCodeVerifier()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.DoesNotContain("code_verifier", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode009EveryAuthorizationUrlGetsAFreshVerifierAndAnExchangeSpendsIt()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var first = System.Web.HttpUtility.ParseQueryString(auth.BuildAuthorizationUrl().Query)["code_challenge"];
+        var second = System.Web.HttpUtility.ParseQueryString(auth.BuildAuthorizationUrl().Query)["code_challenge"];
+        await auth.ExchangeCodeAsync("one");
+        string firstBody = client.LastBody!;
+        await auth.ExchangeCodeAsync("two");
+
+        Assert.NotEqual(first, second);
+        Assert.Equal(second, S256(System.Web.HttpUtility.ParseQueryString(firstBody)["code_verifier"]!));
+        Assert.DoesNotContain("code_verifier", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode016InvalidatingTheAccessTokenKeepsTheRefreshTokenAndRefreshesNext()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Equal("Bearer tok1", (await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken))["Authorization"]);
+        Assert.Equal(1, client.CallCount);
+
+        auth.InvalidateAccessToken();
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer tok2", headers["Authorization"]);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuth053ExchangingACodeDiscardsARefreshTokenHeldBefore()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+        await auth.ExchangeCodeAsync("first-code");
+        await auth.ExchangeCodeAsync("second-code");
+
+        auth.InvalidateAccessToken();
+        try
+        {
+            await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        Assert.DoesNotContain("refresh_token=ref1", client.LastBody ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode012ExchangesCodeWithCorrectGrantType()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.NotNull(client.LastBody);
+        Assert.Contains("grant_type=authorization_code", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("code=auth-code-xyz", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_id=my-client-id", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_secret=my-client-secret", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode010ExchangeCodeRejectsEmptyCode()
+    {
+        // oauth-exchangecode-no-empty-code-guard: an empty/whitespace
+        // authorization code is a precondition error and must be rejected
+        // before any token POST is issued.
+        var client = new FakeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var empty = await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // D09: the canonical message (ArgumentException appends the parameter name).
+        Assert.StartsWith("Authorization code must not be empty", empty.Message, StringComparison.Ordinal);
+        // No request should have been sent for the rejected codes.
+        Assert.Null(client.LastBody);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode011ExchangeCodeRejectsWhitespaceOnlyCode()
+    {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // any token POST is issued (IsNullOrWhiteSpace guard).
+        var client = new FakeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // No request should have been sent for the rejected code.
+        Assert.Null(client.LastBody);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode015IncludesRefreshTokenOnRefresh()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        // GetAuthHeadersAsync triggers a refresh since token is expired
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.Equal("Bearer tok2", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuth028AFailedFirstExchangeRecordsNoSessionAndStillReportsUnexchanged()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = await Assert.ThrowsAsync<OAuth2ServerException>(() => auth.ExchangeCodeAsync("rejected-code"));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("Must call ExchangeCodeAsync() before making API requests", ex.Message);
+    }
+
+    [Fact]
+    public async Task BhvMisc028ATransportFailureDuringTheCodeExchangeReachesTheCallerUnchanged()
+    {
+        var failure = new NetworkException("connection reset");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(new FailingApiClient(failure));
+
+        var ex = await Assert.ThrowsAsync<NetworkException>(() => auth.ExchangeCodeAsync("auth-code-xyz"));
+        Assert.Same(failure, ex);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode027ThrowsBeforeExchangeCodeCalled()
+    {
+        var auth = CreateAuthenticator();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("Must call ExchangeCodeAsync() before making API requests", ex.Message);
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode014GetHostReturnsConfiguredHost()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode003AuthHeadersBeforeExchangeReturnsRecoverableError()
+    {
+        var auth = CreateAuthenticator();
+
+        // Calling GetAuthHeadersAsync before ExchangeCodeAsync is a
+        // precondition violation. It must surface as a catchable exception
+        // so callers can recover -- not as a process crash.
+        InvalidOperationException caught = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+        Assert.NotNull(caught);
+
+        // Caller continues normally after catching -- no process crash.
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode005AuthorizeUrlWithExistingQueryStringUsesAmpSeparator()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://x.auth0.com/authorize?audience=api"),
+            new Uri("https://x.auth0.com/oauth/token"),
+            new Uri("https://app.example.com/callback"),
+            ["read"]);
+
+        string url = auth.BuildAuthorizationUrl().ToString();
+
+        Assert.Contains("audience=api", url, StringComparison.Ordinal);
+        Assert.Contains("response_type=code", url, StringComparison.Ordinal);
+        Assert.Equal(1, url.Split('?').Length - 1);
+    }
+
+    private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticatorWithRedirect(Uri redirect)
+    {
+        return new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            redirect,
+            Scopes);
+    }
+
+    /// <summary>
+    /// The redirect_uri must reach the authorize URL exactly as configured:
+    /// no trailing slash added to a host-only value, no default port dropped
+    /// and no host lower-casing (System.Uri.ToString() does all three).
+    /// </summary>
+    [Theory]
+    [InlineData("http://localhost:8080", "redirect_uri=http%3A%2F%2Flocalhost%3A8080&")]
+    [InlineData("https://App.Example.com:443/cb", "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb&")]
+    public void BhvMisc058AuthorizationUrlSendsRedirectUriVerbatim(string redirect, string expected)
+    {
+        var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
+
+        string url = auth.BuildAuthorizationUrl().ToString();
+
+        Assert.Contains(expected, url, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The authorization endpoint must reach the authorize URL exactly as
+    /// configured: no default port dropped and no host lower-casing.
+    /// </summary>
+    [Fact]
+    public void BhvLangcsharp050AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://Auth.Example.com:443/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        Assert.StartsWith("https://Auth.Example.com:443/authorize?response_type=code&", url, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The code-exchange body must carry the same verbatim redirect_uri as
+    /// the authorize URL, since the provider compares the two byte for byte.
+    /// </summary>
+    [Theory]
+    [InlineData("http://localhost:8080", "redirect_uri=http%3A%2F%2Flocalhost%3A8080")]
+    [InlineData("https://App.Example.com:443/cb", "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb")]
+    public async Task BhvAuthoauthtwoauthcode008CodeExchangeSendsRedirectUriVerbatim(string redirect, string expected)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.NotNull(client.LastBody);
+        Assert.Contains(expected, client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain(expected + "%2F", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// ToString() must redact the client secret: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void BhvAuthoauthtwoauthcode019RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        string repr = auth.ToString();
+        Assert.DoesNotContain("my-client-secret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode025ReprShowsTheNonSecretFields()
+    {
+        var auth = CreateAuthenticator();
+        Assert.Equal(
+            "OAuth2AuthorizationCodeAuthenticator(Host=https://api.example.com, "
+            + "ClientId=my-client-id, ClientSecret=***, "
+            + "AuthorizationUrl=https://auth.example.com/authorize, "
+            + "TokenUrl=https://auth.example.com/token, "
+            + "RedirectUri=https://app.example.com/callback, Scopes=[read, write])",
+            auth.ToString());
+    }
+
+    [Fact]
+    public void BhvAuthoauthtwoauthcode004AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            ["a~b", "c*d"]);
+
+        string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
+
+        Assert.Contains("client_id=id~%2A%21%27%28%29&", url, StringComparison.Ordinal);
+        Assert.Contains("scope=a~b%20c%2Ad", url, StringComparison.Ordinal);
+        Assert.Contains("state=s%21t%28a%29te%27", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode017CodeExchangeBodyPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "sec~*!'()",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("co~*!'()de");
+
+        Assert.Contains("code=co~%2A%21%27%28%29de", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_id=id~%2A%21%27%28%29", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_secret=sec~%2A%21%27%28%29", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode024RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes,
+            new Uri("https://auth.example.com/refresh"));
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwopassword020RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode026RefreshBodyCarriesTheClientCredentials()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret",
+            client.LastBody);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode002RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        OAuth2ServerException ex = await Assert.ThrowsAsync<OAuth2ServerException>(
+            () => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("invalid_grant", ex.Code);
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode021SecondExchangeCodeSendsTheNewCode()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"refresh_token\":\"ref2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("a");
+        await auth.ExchangeCodeAsync("b");
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, client.CallCount);
+        Assert.Contains("grant_type=authorization_code", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("code=b", client.LastBody!, StringComparison.Ordinal);
+        Assert.Equal("Bearer tok2", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode022SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":0}");
+        client.Enqueue("{\"access_token\":\"tok3\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("a");
+        await auth.ExchangeCodeAsync("b");
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("refresh_token=&", client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain("ref1", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode013FailedExchangeKeepsThePreviousSession()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("a");
+        await Assert.ThrowsAsync<OAuth2ServerException>(() => auth.ExchangeCodeAsync("bad"));
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer tok1", headers["Authorization"]);
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode030HeadersBeforeTheExchangeNameTheExchangeCall()
+    {
+        var auth = CreateAuthenticator();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("ExchangeCodeAsync()", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvAuthoauthtwoauthcode032CodeExchangeBodyUsesTheFixedParameterOrder()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("C");
+
+        Assert.StartsWith(
+            "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+            client.LastBody!,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvMisc062TheDeclaredScopesReachTheAuthorizationUrl()
+    {
+        string url = CreateAuthenticator().BuildAuthorizationUrl().OriginalString;
+
+        Assert.Contains("scope=read%20write", url, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> ExchangedVerifierAsync()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        _ = auth.BuildAuthorizationUrl("s");
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        return System.Web.HttpUtility.ParseQueryString(client.LastBody!)["code_verifier"]!;
+    }
+
+    [Fact]
+    public async Task BhvMisc077AGeneratedPkceVerifierIs43UnreservedCharactersAndDiffersPerCall()
+    {
+        string first = await ExchangedVerifierAsync();
+        string second = await ExchangedVerifierAsync();
+
+        Assert.Equal(43, first.Length);
+        Assert.Matches("^[A-Za-z0-9._~-]{43}$", first);
+        Assert.NotEqual(first, second);
+    }
+}

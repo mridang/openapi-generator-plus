@@ -1,0 +1,381 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+use {{invokerPackage}}\Errors\PaginationException;
+
+/**
+ * The items of a paged list, read lazily. The method that returns it sends no request; the first
+ * request goes out when you first read an item or a page, and each next request goes out only when
+ * you ask for more. Every page is an ordinary call, so the retries, timeouts, redirects,
+ * authentication, redaction, headers and per-call options of the method apply to each one.
+ *
+ * Iterate it with `foreach` for the items, call {@see items()} for the same items as a generator, or
+ * {@see pages()} for the pages with their cursor and result. Each iteration starts again from the
+ * starting position, so two loops read the list twice. Stopping early leaves nothing to close. A
+ * failed page request raises its SDK error from the read that needed it, after the items of the
+ * earlier pages were delivered, and ends that iteration; a cursor equal to the one just sent raises a
+ * {@see PaginationException} from the next read, after the items of the page that repeated it.
+ *
+ * @template T the item type
+ * @template C the cursor type, which is the type of the cursor request parameter; `null` for a list
+ *             that is followed by a `Link` header or a next URL in the body
+ *
+ * @implements \IteratorAggregate<int, T>
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final class Paginator implements \IteratorAggregate
+{
+    /**
+     * @param \Closure(): \Generator<int, Page<T, C>> $source starts a new read of the pages
+     */
+    private function __construct(private readonly \Closure $source)
+    {
+    }
+
+    /**
+     * Creates a paginator that follows a token cursor. Used by the generated `...Pages` methods.
+     *
+     * @template TItem
+     * @template TCursor of int|string
+     * @template TBody
+     *
+     * @param TCursor|null                             $start       the cursor of the first request, or null to start at the beginning
+     * @param \Closure(TCursor|null): ApiResult<mixed> $fetch       sends the request for a cursor (null for none) and returns its result
+     * @param \Closure(TBody): iterable<TItem>         $items       reads the items of a decoded page
+     * @param \Closure(TBody): (TCursor|null)          $next        reads the cursor of the next page from a decoded page; absent, null or empty ends the list
+     * @param string                                   $requestPath the path of the operation, for errors
+     *
+     * @return Paginator<TItem, TCursor>
+     */
+    public static function ofCursor(
+        mixed $start,
+        \Closure $fetch,
+        \Closure $items,
+        \Closure $next,
+        string $requestPath,
+    ): self {
+        /** @var \Closure(): \Generator<int, Page<TItem, TCursor>> $source */
+        $source = static fn (): \Generator => self::cursorPages(
+            $start,
+            $fetch,
+            $items,
+            static fn (mixed $sent, mixed $body): mixed => $next($body),
+            $requestPath
+        );
+
+        return new self($source);
+    }
+
+    /**
+     * Creates a paginator that follows the `rel="next"` link of the `Link` header. Used by the
+     * generated `...Pages` methods.
+     *
+     * @template TItem
+     * @template TBody
+     *
+     * @param string                                  $baseUrl     the base URL of the client; a next URL that leaves its scheme, host or port is refused
+     * @param \Closure(string|null): ApiResult<mixed> $fetch       sends the request for a URL (null for the first page) and returns its result
+     * @param \Closure(TBody): iterable<TItem>        $items       reads the items of a decoded page
+     * @param string                                  $requestPath the path of the operation, for errors
+     *
+     * @return Paginator<TItem, null>
+     */
+    public static function ofLink(string $baseUrl, \Closure $fetch, \Closure $items, string $requestPath): self
+    {
+        /** @var \Closure(): \Generator<int, Page<TItem, null>> $source */
+        $source = static fn (): \Generator => self::linkPages(
+            $baseUrl,
+            $fetch,
+            $items,
+            static fn (ApiResult $result): ?string => self::linkHeaderNext($result),
+            $requestPath
+        );
+
+        return new self($source);
+    }
+
+    /**
+     * The URL of the rel="next" link of the Link header of a response, or null when it has none.
+     *
+     * @param ApiResult<mixed> $result
+     */
+    private static function linkHeaderNext(ApiResult $result): ?string
+    {
+        foreach ($result->headers as $name => $value) {
+            if (strtolower((string) $name) === 'link') {
+                return LinkHeader::next($value);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Creates a paginator that follows an offset: the next offset is the offset sent (0 for none) plus the
+     * number of items received, and the list ends on an empty page or when the has_more flag of the page
+     * is false. Used by the generated `...Pages` methods.
+     *
+     * @template TItem
+     * @template TBody
+     *
+     * @param int|null                          $start       the offset of the first request, or null to send none
+     * @param \Closure(int|null): ApiResult<mixed> $fetch    sends the request for an offset (null for none) and returns its result
+     * @param \Closure(TBody): iterable<TItem>  $items       reads the items of a decoded page
+     * @param \Closure(TBody): (bool|null)|null $hasMore     reads the has_more flag of a decoded page, or null when the list does not declare one
+     * @param string                            $requestPath the path of the operation, for errors
+     *
+     * @return Paginator<TItem, int>
+     */
+    public static function ofOffset(
+        ?int $start,
+        \Closure $fetch,
+        \Closure $items,
+        ?\Closure $hasMore,
+        string $requestPath,
+    ): self {
+        /** @var \Closure(): \Generator<int, Page<TItem, int>> $source */
+        $source = static fn (): \Generator => self::cursorPages(
+            $start,
+            $fetch,
+            $items,
+            static fn (?int $sent, mixed $body, array $list): ?int => self::advances($list, $hasMore, $body)
+                ? ($sent ?? 0) + count($list)
+                : null,
+            $requestPath
+        );
+
+        return new self($source);
+    }
+
+    /**
+     * Creates a paginator that counts pages: the first request sends the page number given, or none, and
+     * each next request sends the page after the one it asked for. The list ends on an empty page or when
+     * the has_more flag of the page is false. Used by the generated `...Pages` methods.
+     *
+     * @template TItem
+     * @template TBody
+     *
+     * @param int|null                          $start       the page number of the first request, or null to send none (page 1 is the first)
+     * @param \Closure(int|null): ApiResult<mixed> $fetch    sends the request for a page number (null for none) and returns its result
+     * @param \Closure(TBody): iterable<TItem>  $items       reads the items of a decoded page
+     * @param \Closure(TBody): (bool|null)|null $hasMore     reads the has_more flag of a decoded page, or null when the list does not declare one
+     * @param string                            $requestPath the path of the operation, for errors
+     *
+     * @return Paginator<TItem, int>
+     */
+    public static function ofPage(
+        ?int $start,
+        \Closure $fetch,
+        \Closure $items,
+        ?\Closure $hasMore,
+        string $requestPath,
+    ): self {
+        /** @var \Closure(): \Generator<int, Page<TItem, int>> $source */
+        $source = static fn (): \Generator => self::cursorPages(
+            $start,
+            $fetch,
+            $items,
+            static fn (?int $sent, mixed $body, array $list): ?int => self::advances($list, $hasMore, $body)
+                ? ($sent ?? 1) + 1
+                : null,
+            $requestPath
+        );
+
+        return new self($source);
+    }
+
+    /**
+     * Creates a paginator that follows a next URL in the body of each page. Used by the generated
+     * `...Pages` methods.
+     *
+     * @template TItem
+     * @template TBody
+     *
+     * @param string                                  $baseUrl     the base URL of the client; a next URL that leaves its scheme, host or port is refused
+     * @param \Closure(string|null): ApiResult<mixed> $fetch       sends the request for a URL (null for the first page) and returns its result
+     * @param \Closure(TBody): iterable<TItem>        $items       reads the items of a decoded page
+     * @param \Closure(TBody): (string|null)          $next        reads the next URL from a decoded page; absent, null or empty ends the list
+     * @param string                                  $requestPath the path of the operation, for errors
+     *
+     * @return Paginator<TItem, null>
+     */
+    public static function ofNextUrl(
+        string $baseUrl,
+        \Closure $fetch,
+        \Closure $items,
+        \Closure $next,
+        string $requestPath,
+    ): self {
+        /** @var \Closure(): \Generator<int, Page<TItem, null>> $source */
+        $source = static fn (): \Generator => self::linkPages(
+            $baseUrl,
+            $fetch,
+            $items,
+            static fn (ApiResult $result): ?string => $result->data === null ? null : $next($result->data),
+            $requestPath
+        );
+
+        return new self($source);
+    }
+
+    /**
+     * The items, starting at the starting position.
+     *
+     * @return \Generator<int, T>
+     */
+    public function getIterator(): \Generator
+    {
+        return $this->items();
+    }
+
+    /**
+     * The items, one at a time, starting at the starting position. The request for the next page is
+     * sent only when the last item of the page before it was consumed.
+     *
+     * @return \Generator<int, T>
+     */
+    public function items(): \Generator
+    {
+        foreach ($this->pages() as $page) {
+            yield from $page->items;
+        }
+    }
+
+    /**
+     * The pages, each with its items, next cursor and result. Every call starts again at the starting
+     * position.
+     *
+     * @return \Generator<int, Page<T, C>>
+     */
+    public function pages(): \Generator
+    {
+        return ($this->source)();
+    }
+
+    /**
+     * The pages of a cursor list: each request sends the cursor that the page before it named, and the
+     * cursor after a page is what $next returns for the request that was sent and the page it returned.
+     *
+     * @template TCursor of int|string
+     * @template TBody
+     *
+     * @param TCursor|null                                              $start
+     * @param \Closure(TCursor|null): ApiResult<mixed>                  $fetch
+     * @param \Closure(TBody): iterable<mixed>                          $items
+     * @param \Closure(TCursor|null, TBody, list<mixed>): (TCursor|null) $next
+     *
+     * @return \Generator<int, Page<mixed, mixed>>
+     */
+    private static function cursorPages(mixed $start, \Closure $fetch, \Closure $items, \Closure $next, string $requestPath): \Generator
+    {
+        $sent = $start;
+        while (true) {
+            $result = $fetch($sent);
+            $body = $result->data;
+            $list = $body === null ? [] : self::listOf($items($body));
+            $following = $body === null ? null : $next($sent, $body, $list);
+            if ($following === null || $following === '') {
+                yield new Page($list, null, $result);
+
+                return;
+            }
+            $repeated = $following === $sent;
+            /** @var Page<mixed, mixed> $page */
+            $page = new Page($list, $following, $result);
+            yield $page;
+            if ($repeated) {
+                /* The page itself is good: it was delivered, and the next read raises. */
+                throw new PaginationException(
+                    'The server returned the cursor that was just sent, so the list cannot advance',
+                    $requestPath
+                );
+            }
+            $sent = $following;
+        }
+    }
+
+    /**
+     * The pages of a list whose next URL is read from each response, from its Link header or its body.
+     *
+     * @param \Closure(ApiResult<mixed>): (string|null) $nextOf
+     *
+     * @return \Generator<int, Page<mixed, mixed>>
+     */
+    private static function linkPages(string $baseUrl, \Closure $fetch, \Closure $items, \Closure $nextOf, string $requestPath): \Generator
+    {
+        $url = null;
+        while (true) {
+            $result = $fetch($url);
+            $body = $result->data;
+            $list = $body === null ? [] : self::listOf($items($body));
+            $link = $nextOf($result);
+            if ($link === null || $link === '') {
+                yield new Page($list, null, $result);
+
+                return;
+            }
+            try {
+                $target = self::resolve($baseUrl, $url, $link, $requestPath);
+                if ($target === $url) {
+                    throw new PaginationException(
+                        'The server returned a next link to the page that was just read, so the list cannot advance',
+                        $requestPath
+                    );
+                }
+            } catch (PaginationException $refused) {
+                /* The page itself is good: it was delivered, and the next read raises. */
+                yield new Page($list, null, $result);
+
+                throw $refused;
+            }
+            yield new Page($list, null, $result);
+            $url = $target;
+        }
+    }
+
+    /**
+     * Resolves a link against the page just read and refuses a scheme, host or port other than the
+     * client's, so that no credential is sent anywhere else.
+     */
+    private static function resolve(string $baseUrl, ?string $current, string $link, string $requestPath): string
+    {
+        $target = AbstractApiClient::resolveUrl($current ?? $baseUrl, trim($link));
+        if ($target === null) {
+            throw new PaginationException('The next link is not a valid URI', $requestPath);
+        }
+        $scheme = strtolower((string) parse_url($target, PHP_URL_SCHEME));
+        if (!in_array($scheme, ['http', 'https'], true) || !AbstractApiClient::sameOrigin($baseUrl, $target)) {
+            throw new PaginationException(
+                'The next link leaves the origin of the request and was not followed',
+                $requestPath
+            );
+        }
+
+        return $target;
+    }
+
+    /**
+     * Whether a page with these items continues: it has items and its has_more flag is not false.
+     *
+     * @param list<mixed> $items
+     * @param \Closure(mixed): (bool|null)|null $hasMore
+     */
+    private static function advances(array $items, ?\Closure $hasMore, mixed $body): bool
+    {
+        return $items !== [] && ($hasMore === null || $hasMore($body) !== false);
+    }
+
+    /**
+     * The items of a decoded page as a list.
+     *
+     * @param iterable<mixed> $items
+     *
+     * @return list<mixed>
+     */
+    private static function listOf(iterable $items): array
+    {
+        return array_values(is_array($items) ? $items : iterator_to_array($items, false));
+    }
+}

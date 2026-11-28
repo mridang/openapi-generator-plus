@@ -1,0 +1,123 @@
+{{>api_info}}
+
+/**
+ * The body of a binary response, read as it arrives. An operation whose
+ * success response is binary returns one instead of buffering the bytes, so a
+ * large download never has to fit in memory.
+ *
+ * It is a Web `ReadableStream<Uint8Array>`: iterate it with `for await`, pipe
+ * it with `pipeTo`, or take every byte with {@link readAll}. It also carries
+ * the {@link statusCode} and the lower-cased {@link headers}.
+ *
+ * {@link close} is idempotent and aborts the connection instead of draining the
+ * rest of the body, so close the stream when you stop early. A failure after
+ * the headers surfaces from a read as a `StreamError`; a stall longer than the
+ * transport's `idleTimeout` is a `NetworkTimeoutError`. Closing the client
+ * cancels the streams still open: their next read raises the closed-client
+ * error.
+ *
+ * {@link toString} shows the status code and the number of bytes delivered,
+ * never the headers, the URL or the content.
+ */
+export class ByteStream extends ReadableStream<Uint8Array> {
+  /** The HTTP status code of the response. */
+  readonly statusCode: number;
+
+  /** The response headers, with lower-cased names and repeated values joined by `", "` (frozen). */
+  readonly headers: Readonly<Record<string, string>>;
+
+  private readonly state: {
+    delivered: number;
+    closed: boolean;
+    readonly reader: ReadableStreamDefaultReader<Uint8Array>;
+  };
+
+  /**
+   * Wraps an open response body.
+   *
+   * @param statusCode the HTTP status code
+   * @param headers the response headers, lower-cased
+   * @param source the open body; this stream closes it
+   */
+  constructor(statusCode: number, headers: Readonly<Record<string, string>>, source: ReadableStream<Uint8Array>) {
+    const state = { delivered: 0, closed: false, reader: source.getReader() };
+    super(
+      {
+        async pull(controller): Promise<void> {
+          if (state.closed) {
+            throw new Error('ByteStream has been closed');
+          }
+          const { done, value } = await state.reader.read();
+          if (state.closed) {
+            throw new Error('ByteStream has been closed');
+          }
+          if (done) {
+            controller.close();
+            return;
+          }
+          state.delivered += value.byteLength;
+          controller.enqueue(value);
+        },
+        async cancel(reason?: unknown): Promise<void> {
+          state.closed = true;
+          await state.reader.cancel(reason).catch(() => undefined);
+        }
+      },
+      { highWaterMark: 0 }
+    );
+    this.statusCode = statusCode;
+    this.headers = Object.freeze({ ...headers });
+    this.state = state;
+  }
+
+  /**
+   * Reads every remaining byte and closes the stream, so the call leaves
+   * nothing open.
+   *
+   * @returns the remaining bytes, in order
+   * @throws TypeError if the stream is locked by another reader
+   */
+  async readAll(): Promise<Buffer> {
+    const reader = this.getReader();
+    const chunks: Uint8Array[] = [];
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+      await this.close();
+    }
+    return Buffer.concat(chunks);
+  }
+
+  /** Closes the stream and aborts the connection; later calls do nothing. */
+  async close(): Promise<void> {
+    if (this.state.closed) {
+      return;
+    }
+    this.state.closed = true;
+    await this.state.reader.cancel().catch(() => undefined);
+  }
+
+  /**
+   * Describes the stream by its status code and the bytes delivered so far.
+   *
+   * @returns the redacted description
+   */
+  toString(): string {
+    return `ByteStream{statusCode=${this.statusCode}, bytesDelivered=${this.state.delivered}}`;
+  }
+
+  toJSON(): Record<string, unknown> {
+    return { statusCode: this.statusCode, bytesDelivered: this.state.delivered };
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
+}

@@ -1,239 +1,87 @@
 # Opigen: Opinionated OpenAPI Codegen
 
-A toolkit for normalizing OpenAPI specifications and generating clean, minimal, and opinionated client SDKs.
+Opigen generates client SDKs from an OpenAPI 3 specification (3.0, 3.1 or 3.2) in twelve languages: Java, Kotlin, C#, Node.js / TypeScript, Python, Ruby, PHP, Go, Rust, Swift, Dart and Elixir. It is built on OpenAPI Generator, but it emits only the source a client needs (models, operations, authentication, errors and a transport) plus a manifest, a README and a `SKILLS.md` reference for each SDK, instead of a full project with its own scaffolding. The SDKs are meant to be dropped into an existing code base.
 
-This project was created to address the verbosity and extensive boilerplate often produced by standard code generators. Instead of creating a complete project with build scripts, documentation, and tests, these tools focus on producing only the essential source code: the models and the API interfaces. This allows developers to integrate the generated code seamlessly into their existing projects without unnecessary clutter.
+The twelve SDKs are deliberately alike. They have the same entry class, the same way to configure a transport, the same error hierarchy, the same retry and timeout behaviour and the same wire format. They differ only where a language's own idiom demands it, so a team that uses more than one language reads the same API in each.
 
-The core philosophy is to enforce a set of "sane defaults" based on modern development practices, ensuring the output is immediately useful and easy to maintain.
+## How it works
 
-### Features
+Generation has two steps. First the specification is normalized: an optional set of rules standardizes the document so that every language sees the same input (JSON as the only content type, filtering by path, HTTP method or tag, handling of empty request bodies, and custom rules written in JavaScript). Then a language generator (`java-plus`, `node-plus` and so on) renders the SDK from templates. The SDK produced for a language is checked against a committed copy of the output, compiled, linted and exercised by tests against a mock server before a change is accepted.
 
-The toolkit consists of two main components: an OpenAPI normalizer and a suite of custom code generators.
-
-**OpenAPI Normalizer**
-
-Before code generation, the tool can preprocess and standardize your OpenAPI v3 specification. This step ensures consistency and can fix common issues, leading to more reliable code generation downstream. Key normalization features include:
-
-* **JSON-Only Content**: Enforces `application/json` as the only allowed content type across the entire API specification, removing other defined types.
-* **Path Filtering**: Selectively includes or excludes API paths using regular expressions, allowing you to generate SDKs for just a subset of your API.
-* **Empty Request Body Handling**: Automatically processes operations with empty request bodies, either by removing them or tagging them based on your configuration.
-* **Scriptable Custom Rules**: Hook into your own JavaScript-based transformations via GraalVM.
-
-**Opinionated Code Generators**
-
-A set of custom generators that produce lean, modern clients for various languages. They are "opinionated" in that they make specific technology choices and generate only what is necessary.
-* **Java**: Generates a minimal client using Apache HttpClient for requests, Jackson for JSON serialization, and the modern `java.time` library for dates
-* **PHP**: Creates a Guzzle-based client that uses `camelCase` for variable and parameter naming and generates a `ModelInterface.php` for type-hinting.
-* **Python**: Produces a simple client built on `urllib3`. It generates the necessary `__init__.py` files to ensure the output is a well-formed Python package.
-* **Ruby**: Creates a modern client using Typhoeus for performance. It correctly generates namespaced modules and Zeitwerk-compatible, snake_cased filenames for seamless autoloading.
-* **Node.js / TypeScript**: A Fetch API-based client configured for modern JavaScript environments, supporting ES Modules with `.js` import extensions.
+The pipeline, the normalizer rules and the standard shape of a generated SDK are described in [docs/how-it-works.md](docs/how-it-works.md).
 
 ## Installation
 
-A pre-built Docker image is available from the GitHub Container Registry (GHCR) and is the recommended way to run the tool.
+A pre-built Docker image is published to the GitHub Container Registry and is the recommended way to run the generator.
 
-First, pull the latest image:
 ```shell
 docker pull ghcr.io/mridang/openapi-generator-plus:latest
-````
-
-You can then run the generator by mounting your current directory and passing the arguments directly to the container. For example:
-
-```shell
-docker run --rm -v "${PWD}:/local" ghcr.io/mridang/openapi-generator-plus:latest generate --input-spec /local/spec.json --output /local/output --generator-name java-plus
 ```
 
-#### Advanced Usage
-
-If you prefer to run the application directly, you can fetch the required JARs from their respective repositories and build the classpath manually.
+To run the generator without Docker, fetch the OpenAPI Generator CLI jar and the `codegen-plus` jar and put both on the classpath:
 
 ```shell
-wget -O artifact.jar "https://repo1.maven.org/maven2/com/example/my-artifact/1.0.0/my-artifact-1.0.0.jar"
-
 java -cp "./openapi-generator-cli.jar:./codegen-plus.jar" \
   org.openapitools.codegen.OpenAPIGenerator generate \
-# ... add other arguments here
+  --input-spec spec.json --output client --generator-name java-plus
 ```
 
 ## Usage
 
-Regardless of whether you use Docker or run the JARs directly, the core of this tool is the generate command. It requires a set of arguments to control the code generation process.
-
-The generate command accepts the following key arguments:
-
-* `--generator-name=<generator_name>`: Specifies which custom generator to use (e.g., ruby-plus, java-plus).
-* `--input-spec=<path_to_spec.json>`: The path to your OpenAPI specification file.
-* `--output=<output_directory>`: The directory where the generated code will be saved.
-* `--config=<config.yml>`: An optional path to a configuration file for generator-specific options. See the examples below.
-* `--openapi-normalizer "RULE=VALUE,..."`: An optional string to configure the OpenAPI normalizer rules.
-
-## Configuration
-
-Here’s how you can use a simple YAML config file to drive the generator for each language. Just create a file with the content below and point to it with the `--config` flag.
-
-### Generate a Java Client
-
-For a Java client, your `config.yml` might look like this:
-
-```yaml
-groupId: com.testme
-invokerPackage: com.testme
-apiPackage: com.testme.api
-modelPackage: com.testme.model
-artifactId: client
-artifactVersion: 0.0.1
-library: apache-httpclient
-dateLibrary: java8
-developerName: Opigen
-developerOrganization: example.com
-developerOrganizationUrl: [https://example.com/](https://example.com/)
-developerEmail: developer@example.com
-licenseName: Apache License, Version 2.0
-licenseUrl: [https://www.apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0)
-serializationLibrary: jackson
-disallowAdditionalPropertiesIfNotPresent: false
-useOneOfDiscriminatorLookup: true
-hideGenerationTimestamp: true
-```
-
-Assuming you have your OpenAPI specification in a file named `spec.json` and the following configuration saved as `config.yml` in your current directory.
-To generate the client, run the following command with your `config.yml`. This config file sets up all the important details for a Maven project, like the `groupId` and `artifactId`, along with developer info and our choice of libraries.
+Mount your working directory and pass the usual `generate` arguments:
 
 ```shell
-docker run --rm \
-  --volume="${PWD}:/local" \
-  my-generator generate \
-    --input-spec="/local/spec.json" \
-    --generator-name="java-plus" \
-    --output="/local/client" \
-    --config="/local/config.yml"
+docker run --rm -v "${PWD}:/local" ghcr.io/mridang/openapi-generator-plus:latest generate \
+  --input-spec /local/spec.json \
+  --generator-name java-plus \
+  --output /local/client \
+  --config /local/config.yml
 ```
 
-### Generate a Node.js / TypeScript Client
+The key arguments are:
 
-To generate a modern TypeScript client, you could use a `config.yml` like this:
+* `--generator-name`: the generator to use. The names are in the table below.
+* `--input-spec`: the path to your OpenAPI specification.
+* `--output`: the directory the SDK is written to.
+* `--config`: an optional YAML file of generator options. Each language accepts its own options, which are listed on its page.
+* `--openapi-normalizer "RULE=VALUE,..."`: an optional string that configures the normalizer rules. Besides `FILTER_PATHS` (regular expressions, comma-separated), operations can be filtered with `FILTER_METHODS`, `EXCLUDE_METHODS`, `FILTER_TAGS` and `EXCLUDE_TAGS`, each taking a `|`-separated list, for example `FILTER_METHODS=get|head,EXCLUDE_TAGS=admin|internal`. See the rule table in [docs/how-it-works.md](docs/how-it-works.md).
 
-```yaml
-npmName: "@opigen/client"
-npmVersion: 0.0.1
-supportsES6: true
-ensureUniqueParams: true
-modelPropertyNaming: original
-disallowAdditionalPropertiesIfNotPresent: false
-withInterfaces: false
-useSingleRequestParameter: true
-enumUnknownDefaultCase: true
-importFileExtension: ".js"
+Two options are accepted by every generator:
 
-```
+| Option | Default | Description |
+|---|---|---|
+| `clientClassName` | `Client` | The name of the entry class that users instantiate. Setting `clientClassName: Zitadel` produces a class named `Zitadel`. |
+| `errorPrefix` | `OpenAPI` | The prefix of the root error type that every SDK error descends from. Each language appends its own suffix, so the default produces `OpenAPIException` (Java, Kotlin, C#, PHP, Python, Dart) or `OpenAPIError` (Go, Node, Ruby, Rust, Swift, Elixir). File names and snake-case identifiers follow the prefix. |
 
-Assuming you have your OpenAPI specification in a file named `spec.json` and the following configuration saved as `config.yml` in your current directory.
-You can generate the client by running the command below with your `config.yml`. This setup is perfect for a modern Node.js project because it configures the NPM package details and ensures the output uses modern features like ES6 and `.js` file extensions for imports, which is great for ES Modules.
+## Languages
 
-```shell
-docker run --rm \
-  --volume="${PWD}:/local" \
-  my-generator generate \
-    --input-spec="/local/spec.json" \
-    --generator-name="node-plus" \
-    --output="/local/client" \
-    --config="/local/config.yml"
+Each language has a page with its supported versions, type mapping, dependencies, options and known limits. The minimum version is read from the build manifest of the generated example SDK; the language page is the one place that states it in full. The package name is the example the generator produces from the petstore specification used in this repository, and the option that sets it is shown in brackets.
 
-```
+| Language | Generator | Generated package name (option) | Minimum version | Page |
+|---|---|---|---|---|
+| Java | `java-plus` | `petstore-client` (`artifactId`) | Java 21 | [docs/languages/java.md](docs/languages/java.md) |
+| Kotlin | `kotlin-plus` | `petstore-client` (`artifactId`) | Kotlin 2.2 on JVM 17 | [docs/languages/kotlin.md](docs/languages/kotlin.md) |
+| C# | `csharp-plus` | `PetstoreClient` (`packageName`) | .NET 10, C# 14 | [docs/languages/csharp.md](docs/languages/csharp.md) |
+| Node.js / TypeScript | `node-plus` | `petstore-client` (`npmName`) | Node.js 22 | [docs/languages/node.md](docs/languages/node.md) |
+| Python | `python-plus` | `petstore-client` (`projectName`) | Python 3.10 | [docs/languages/python.md](docs/languages/python.md) |
+| Ruby | `ruby-plus` | `petstore_client` (`gemName`) | Ruby 3.2 | [docs/languages/ruby.md](docs/languages/ruby.md) |
+| PHP | `php-plus` | `openapi/petstoreclient` (`packageName`) | PHP 8.3 | [docs/languages/php.md](docs/languages/php.md) |
+| Go | `go-plus` | `petstore` (`packageName`) | Go 1.26 | [docs/languages/go.md](docs/languages/go.md) |
+| Rust | `rust-plus` | `petstore` (`packageName`) | Rust 1.85 | [docs/languages/rust.md](docs/languages/rust.md) |
+| Swift | `swift-plus` | `PetstoreClient` (`projectName`) | Swift 6.0, macOS 13, iOS 16 | [docs/languages/swift.md](docs/languages/swift.md) |
+| Dart | `dart-plus` | `petstore_client` (`pubName`) | Dart 3.11 | [docs/languages/dart.md](docs/languages/dart.md) |
+| Elixir | `elixir-plus` | `petstore_client` (`packageName`) | Elixir 1.17 | [docs/languages/elixir.md](docs/languages/elixir.md) |
 
-### Generate a PHP Client
+## More documentation
 
-For PHP, here's a sample `config.yml`:
-
-```yaml
-packageName: opigen/client
-variableNamingConvention: camelCase
-invokerPackage: Opigen\Client
-disallowAdditionalPropertiesIfNotPresent: false
-
-```
-
-Assuming you have your OpenAPI specification in a file named `spec.json` and the following configuration saved as `config.yml` in your current directory.
-Use the following command along with your `config.yml` to generate the client. The config here sets up the project for Composer by defining the `packageName` and the root PHP namespace (`invokerPackage`), and also switches the code style to `camelCase` to match common PHP conventions.
-
-```shell
-docker run --rm \
-  --volume="${PWD}:/local" \
-  my-generator generate \
-    --input-spec="/local/spec.json" \
-    --generator-name="php-plus" \
-    --output="/local/client" \
-    --config="/local/config.yml"
-```
-
-### Generate a Python Client
-
-Here's how you might configure the Python generator.
-
-```yaml
-projectName: opigen-client
-packageName: opigen_client
-packageVersion: 0.0.1
-library: urllib3
-packageUrl: [https://github.com/opigen/client](https://github.com/opigen/client)
-disallowAdditionalPropertiesIfNotPresent: false
-useOneOfDiscriminatorLookup: true
-
-```
-
-Assuming you have your OpenAPI specification in a file named `spec.json` and the following configuration saved as `config.yml` in your current directory.
-Run the generator with the following command, pointing to your `config.yml`. This config provides the necessary details for a Python package, like the `projectName` and `packageName`, which will be used to create the `setup.py` file.
-
-```shell
-docker run --rm \
-  --volume="${PWD}:/local" \
-  my-generator generate \
-    --input-spec="/local/spec.json" \
-    --generator-name="python-plus" \
-    --output="/local/client" \
-    --config="/local/config.yml"
-```
-
-### Generate a Ruby Client
-
-And for Ruby, your `config.yml` could be:
-
-```yaml
-projectName: opigen-client
-gemName: opigen-client
-gemVersion: 0.0.1
-library: typhoeus
-gemAuthorEmail: developer@example.com
-gemAuthor: Opigen
-gemHomepage: [https://example.com/](https://example.com/)
-gemLicense: Apache-2.0
-moduleName: Opigen::Client
-disallowAdditionalPropertiesIfNotPresent: false
-
-```
-
-Assuming you have your OpenAPI specification in a file named `spec.json` and the following configuration saved as `config.yml` in your current directory.
-To generate the Ruby client, execute the command below using your `config.yml`. This file is all about setting up the metadata for the Ruby gem, defining everything that will go into the `.gemspec` file, from the gem's name and author to the top-level module (`moduleName`) that will namespace all the generated code.
-
-```shell
-docker run --rm \
-  --volume="${PWD}:/local" \
-  my-generator generate \
-    --input-spec="/local/spec.json" \
-    --generator-name="ruby-plus" \
-    --output="/local/client" \
-    --config="/local/config.yml"
-```
-
-## Caveats
-
-None.
+* [docs/how-it-works.md](docs/how-it-works.md): the pipeline, the normalizer, the generated SDK format and the checks a change must pass.
+* [docs/types.md](docs/types.md): how every OpenAPI type and format maps to a type in each language.
+* [docs/decisions.md](docs/decisions.md): the behaviour all twelve SDKs share, what is not supported and why, and the work that is still open.
 
 ## Contributing
 
-Contributions are welcome! If you find a bug or have suggestions for improvement,
-please open an issue or submit a pull request.
+Contributions are welcome. If you find a bug or have a suggestion, open an issue or submit a pull request. Read [AGENTS.md](AGENTS.md) first: it holds the working rules, including the requirement to update the documentation in the same change.
 
 ## License
 
-Apache License 2.0 © 2024 Mridang Agarwalla
+Apache License 2.0, copyright 2024 Mridang Agarwalla. See [LICENSE](LICENSE).

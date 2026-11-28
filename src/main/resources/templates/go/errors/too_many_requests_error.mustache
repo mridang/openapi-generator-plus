@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// TooManyRequestsError is the error for HTTP 429 Too Many Requests.
+type TooManyRequestsError struct {
+	ClientError
+}

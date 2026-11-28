@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Test;
+
+/*
+ * A stand-in model for the parameter-style tests: declared in its own file, one class per file,
+ * rather than taken from the generated models so the tests hold for every spec this SDK is
+ * generated from. Composer's strict PSR-4 autoload-dev rule (PetstoreClient\Test\ => tests/)
+ * refuses a class declared in a file with another name.
+ */
+final class SerializerProbe
+{
+    public readonly string $breed;
+
+    #[\Symfony\Component\Serializer\Attribute\SerializedName('min_age')]
+    public readonly int $minAge;
+
+    public function __construct(string $breed, int $minAge)
+    {
+        $this->breed = $breed;
+        $this->minAge = $minAge;
+    }
+}

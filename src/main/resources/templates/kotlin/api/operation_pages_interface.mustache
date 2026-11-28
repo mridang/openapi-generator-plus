@@ -1,0 +1,9 @@
+
+    /**
+     * The `{{operationId}}` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [{{operationId}}WithHttpInfo].
+     */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    fun {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{vendorExtensions.op.pagination.kotlinPaginatorType}}}

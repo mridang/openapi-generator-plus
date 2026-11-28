@@ -1,0 +1,383 @@
+{{>api_info}}
+
+import base64
+import binascii
+import json
+import re
+import secrets
+import threading
+import time
+from typing import Dict, Mapping, Optional, Sequence, Tuple
+from urllib.parse import urlparse
+
+from ...api_client import ApiClient
+from ..http_aware_authenticator import HttpAwareAuthenticator
+from .oauth2_authorization_code_authenticator import OAuth2AuthorizationCodeAuthenticator
+from ...errors import ApiException
+from ...errors.oauth2_token_exception import OAuth2TokenException
+from ...errors.serialization_exception import SerializationException
+
+# RFC 8414 recommended default max-age for OIDC discovery documents.
+_DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
+# One-year ceiling on a server-supplied max-age (D08).
+_MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000
+_MAX_AGE_PATTERN = re.compile(r'max-age=([0-9]+)', re.IGNORECASE)
+# Clock skew allowed when checking the expiry of an id_token.
+_ID_TOKEN_CLOCK_SKEW_SECONDS = 60
+
+
+def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
+    """Parse ``Cache-Control: max-age=<seconds>`` from response headers.
+
+    Returns 86400 (RFC 8414 default) if the header is absent or does not
+    contain a ``max-age`` directive.
+    """
+    if not headers:
+        return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+    for key, value in headers.items():
+        if key.lower() == 'cache-control':
+            match = _MAX_AGE_PATTERN.search(value)
+            if match:
+                try:
+                    return min(int(match.group(1)), _MAX_DISCOVERY_MAX_AGE_SECONDS)
+                except ValueError:
+                    return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+            return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+    return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+
+
+def _decode_id_token(id_token: str) -> Dict[str, object]:
+    """The claims of a compact JWS: the second segment, base64url-decoded JSON."""
+    parts = id_token.split('.')
+    if len(parts) != 3:
+        raise OAuth2TokenException('The id_token is malformed')
+    payload = parts[1]
+    try:
+        decoded = base64.b64decode(
+            payload + '=' * (-len(payload) % 4), altchars=b'-_', validate=True
+        )
+        claims = json.loads(decoded.decode('utf-8'))
+    except (binascii.Error, ValueError):
+        raise OAuth2TokenException('The id_token is malformed') from None
+    if not isinstance(claims, dict):
+        raise OAuth2TokenException('The id_token is malformed')
+    return claims
+
+
+def _is_secure_endpoint(url: str) -> bool:
+    """True for an https URL, or an http URL on a loopback host."""
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+    except ValueError:
+        return False
+    if parsed.scheme == 'https':
+        return True
+    return parsed.scheme == 'http' and host in ('localhost', '127.0.0.1', '::1')
+
+
+class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
+    """Authenticator for OpenID Connect.
+
+    Fetches the OIDC discovery document to discover the authorization and
+    token endpoints, then delegates to an
+    :class:`OAuth2AuthorizationCodeAuthenticator`.
+
+    Each authorization URL carries a fresh ``nonce``. The code exchange
+    validates the claims of the ``id_token`` in the token response: the nonce
+    of the authorization URL, the discovered issuer, the client id in the
+    audience and an expiry that has not passed (60 seconds of clock skew are
+    allowed). The signature of the id_token is not verified.
+
+    Implements :class:`HttpAwareAuthenticator` so that both the discovery
+    request and subsequent token exchange requests use the shared
+    :class:`ApiClient` with the same transport configuration (proxy, TLS,
+    timeouts) as regular API calls.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        openid_connect_url: str,
+        client_id: str,
+        client_secret: str,
+        redirect_uri: str,
+        scopes: Sequence[str],
+    ) -> None:
+        """Create a new OpenID Connect authenticator.
+
+        Args:
+            host: API base URL.
+            openid_connect_url: OIDC discovery document URL.
+            client_id: OAuth2 client ID.
+            client_secret: OAuth2 client secret.
+            redirect_uri: Redirect URI registered with the provider.
+            scopes: Requested scopes.
+        """
+        self._host = host
+        self._openid_connect_url = openid_connect_url
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._redirect_uri = redirect_uri
+        # OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid".
+        self._scopes = tuple(["openid", *(s for s in scopes if s != "openid")])
+        self._api_client: Optional[ApiClient] = None
+        self._delegate: Optional[OAuth2AuthorizationCodeAuthenticator] = None
+        self._discovery_expiry: float = 0.0
+        self._discovered_endpoints: Optional[Tuple[str, str]] = None
+        self._discovery_lock = threading.Lock()
+        # The issuer named by the last discovery document, None when it named none.
+        self._discovered_issuer: Optional[str] = None
+        # The nonce of the last authorization URL built, until the exchange uses it.
+        self._pending_nonce: Optional[str] = None
+
+    def set_api_client(self, api_client: ApiClient) -> None:
+        """Inject the shared API client for making HTTP requests.
+
+        Args:
+            api_client: The shared API client instance.
+        """
+        self._api_client = api_client
+
+    def _get_delegate(self) -> OAuth2AuthorizationCodeAuthenticator:
+        """Lazily discover the OIDC endpoints and create the delegate.
+
+        Honors the ``Cache-Control: max-age=<seconds>`` header from the
+        discovery response and re-fetches when the cached document is stale.
+        Defaults to the RFC 8414 recommended max-age of 86400 seconds when
+        the header is absent.
+
+        Returns:
+            The authorization code authenticator delegate.
+
+        Raises:
+            RuntimeError: If no API client has been injected.
+            ApiException: If the discovery request answers with a non-2xx
+                status (the status-specific subclass where there is one).
+            SerializationException: If the discovery document is unusable.
+        """
+        if self._delegate is not None and time.monotonic() < self._discovery_expiry:
+            return self._delegate
+        # Callers run on worker threads (the async layer calls the blocking client
+        # through asyncio.to_thread), so a cold or expired cache is filled once:
+        # the first caller discovers, and callers that arrived meanwhile reuse it.
+        with self._discovery_lock:
+            if self._delegate is not None and time.monotonic() < self._discovery_expiry:
+                return self._delegate
+            return self._discover()
+
+    def _discover(self) -> OAuth2AuthorizationCodeAuthenticator:
+        """Fetch the discovery document and build or refresh the delegate.
+
+        Called with ``_discovery_lock`` held.
+        """
+        if self._api_client is None:
+            raise RuntimeError(
+                'ApiClient has not been injected. '
+                'Ensure the {{clientClassName}} constructor calls set_api_client() '
+                'on HttpAwareAuthenticator before making API requests.'
+            )
+        headers: Dict[str, str] = {'Accept': 'application/json'}
+        # no_redirect also leaves out the transport's default headers, so an
+        # Authorization or API-key header meant for the API never reaches the
+        # identity provider's host.
+        response = self._api_client.send_request(
+            'GET', self._openid_connect_url, headers, None, no_redirect=True
+        )
+        # Guard the HTTP status before parsing: a 500-HTML error page would
+        # otherwise surface as a confusing "invalid JSON" error instead of
+        # the real discovery failure. Discovery is an HTTP call like any
+        # other, so it raises the same typed error an API call would.
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ApiException.from_response(
+                response.status_code,
+                response.headers,
+                response.body,
+                'GET',
+                urlparse(self._openid_connect_url).path,
+            )
+        try:
+            discovery = json.loads(response.body)
+        except ValueError as e:
+            raise SerializationException(
+                f'OIDC discovery document is not valid JSON: {e}', e
+            ) from e
+        if not isinstance(discovery, dict):
+            raise SerializationException('OIDC discovery document is not a JSON object')
+        # Validate the endpoints are present and non-empty before building the
+        # delegate. A missing/blank endpoint would otherwise raise a KeyError
+        # or silently produce a delegate with empty endpoint URLs.
+        authorization_endpoint = discovery.get('authorization_endpoint')
+        if not authorization_endpoint:
+            raise SerializationException(
+                "OIDC discovery document is missing 'authorization_endpoint'"
+            )
+        token_endpoint = discovery.get('token_endpoint')
+        if not token_endpoint:
+            raise SerializationException(
+                "OIDC discovery document is missing 'token_endpoint'"
+            )
+        self._validate_discovery(discovery, authorization_endpoint, token_endpoint)
+        # The session (tokens and the exchanged flag) lives in the token manager,
+        # which outlives discovery: a document that names the same endpoints keeps
+        # the delegate, and one that names new endpoints gets a delegate built
+        # around the previous token manager, so refreshing the discovery cache
+        # never discards the code exchange.
+        endpoints = (authorization_endpoint, token_endpoint)
+        if self._delegate is None:
+            self._delegate = OAuth2AuthorizationCodeAuthenticator(
+                self._host,
+                self._client_id,
+                self._client_secret,
+                authorization_endpoint,
+                token_endpoint,
+                self._redirect_uri,
+                self._scopes,
+            )
+        elif endpoints != self._discovered_endpoints:
+            self._delegate = OAuth2AuthorizationCodeAuthenticator(
+                self._host,
+                self._client_id,
+                self._client_secret,
+                authorization_endpoint,
+                token_endpoint,
+                self._redirect_uri,
+                self._scopes,
+                token_manager=self._delegate.token_manager,
+                pkce_verifier=self._delegate.pkce_verifier,
+            )
+        self._discovered_endpoints = endpoints
+        issuer = discovery.get('issuer')
+        self._discovered_issuer = issuer if isinstance(issuer, str) else None
+        self._delegate.set_api_client(self._api_client)
+        self._discovery_expiry = time.monotonic() + _parse_max_age(
+            getattr(response, 'headers', None)
+        )
+        return self._delegate
+
+    def _validate_discovery(
+        self, discovery: Mapping[str, object], authorization_endpoint: object, token_endpoint: object
+    ) -> None:
+        """Check the discovery document against the URL it was fetched from.
+
+        OpenID Connect Discovery 1.0 section 4.3 and RFC 8414 section 3.3: an
+        issuer the document states must equal the discovery URL minus its
+        well-known suffix. The endpoints must be https, except on a loopback
+        host (RFC 8252 section 8.3), so credentials never cross in clear text.
+
+        Raises:
+            SerializationException: If the issuer does not match or an
+                endpoint is not a secure URL.
+        """
+        issuer = discovery.get('issuer')
+        if isinstance(issuer, str):
+            expected = self._openid_connect_url.removesuffix('/.well-known/openid-configuration')
+            if issuer.rstrip('/') != expected.rstrip('/'):
+                raise SerializationException(
+                    'OIDC discovery issuer does not match the discovery URL'
+                )
+        for field, endpoint in (
+            ('authorization_endpoint', authorization_endpoint),
+            ('token_endpoint', token_endpoint),
+        ):
+            if not _is_secure_endpoint(str(endpoint)):
+                raise SerializationException(f"OIDC discovery '{field}' must use https")
+
+    def build_authorization_url(self, state: Optional[str] = None) -> str:
+        """Build the authorization URL using the discovered authorization endpoint.
+
+        Args:
+            state: CSRF state parameter.
+
+        Returns:
+            The authorization URL.
+        """
+        url = self._get_delegate().build_authorization_url(state)
+        # OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to this
+        # request; the exchange checks it once. 32 random bytes, base64url.
+        nonce = secrets.token_urlsafe(32)
+        self._pending_nonce = nonce
+        return f'{url}&nonce={nonce}'
+
+    def exchange_code(self, code: str) -> None:
+        """Exchange an authorization code for tokens using the discovered token endpoint.
+
+        Args:
+            code: The authorization code from the callback.
+        """
+        delegate = self._get_delegate()
+        nonce, self._pending_nonce = self._pending_nonce, None
+        issuer = self._discovered_issuer
+        delegate._exchange_code(
+            code, lambda id_token: self._validate_id_token(id_token, nonce, issuer)
+        )
+
+    def _validate_id_token(
+        self, id_token: Optional[str], nonce: Optional[str], issuer: Optional[str]
+    ) -> None:
+        """Validate the claims of the id_token of a code exchange.
+
+        OpenID Connect Core 3.1.3.7: the nonce of the authorization URL when
+        one was sent, the discovered issuer, the client id in the audience and
+        the expiry. A response without an id_token is not checked. The payload
+        is decoded without verifying the signature.
+
+        Raises:
+            OAuth2TokenException: If a claim does not hold.
+        """
+        if id_token is None:
+            return
+        claims = _decode_id_token(id_token)
+        if nonce is not None and claims.get('nonce') != nonce:
+            raise OAuth2TokenException(
+                'The id_token nonce does not match the authorization request'
+            )
+        iss = claims.get('iss')
+        if issuer is None or not isinstance(iss, str) or iss != issuer:
+            raise OAuth2TokenException('The id_token issuer does not match the discovered issuer')
+        aud = claims.get('aud')
+        if not (
+            aud == self._client_id
+            or (isinstance(aud, list) and self._client_id in [a for a in aud if isinstance(a, str)])
+        ):
+            raise OAuth2TokenException('The id_token audience does not contain the client id')
+        exp = claims.get('exp')
+        if isinstance(exp, bool) or not isinstance(exp, (int, float)):
+            raise OAuth2TokenException('The id_token is malformed')
+        if time.time() >= exp + _ID_TOKEN_CLOCK_SKEW_SECONDS:
+            raise OAuth2TokenException('The id_token has expired')
+
+    def invalidate_access_token(self) -> None:
+        """Drop the cached access token, keeping the refresh token.
+
+        The next request obtains a new token (a refresh grant first). The SDK
+        calls this itself when the API answers ``401``; callers may use it to
+        force a refresh.
+        """
+        if self._delegate is not None:
+            self._delegate.invalidate_access_token()
+
+    def get_host(self) -> str:
+        """Returns the base URL of the API."""
+        return self._host
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        """Returns the authentication headers from the delegate.
+
+        Returns:
+            Dict with the Authorization header.
+        """
+        return self._get_delegate().get_auth_headers()
+
+    def __repr__(self) -> str:
+        """Redacts the client secret so it never leaks into logs or tracebacks.
+
+        The client secret is shown as the literal ``***`` while non-sensitive
+        fields remain visible to keep the representation useful for debugging.
+        """
+        return (
+            f"{type(self).__name__}(host={self._host!r}, "
+            f"openid_connect_url={self._openid_connect_url!r}, "
+            f"client_id={self._client_id!r}, client_secret='***', "
+            f"redirect_uri={self._redirect_uri!r}, scopes={self._scopes!r})"
+        )

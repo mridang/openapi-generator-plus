@@ -1,0 +1,328 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Paginator do
+  @moduledoc """
+  The items of a paged list, read lazily. The `<operation>_pages` function that returns it sends no
+  request; the first request goes out when you first read an item or a page, and each next request
+  goes out only when you ask for more. Every page is an ordinary call, so the retries, timeouts,
+  redirects, authentication, redaction, headers and per-call options of the function apply to each
+  one.
+
+  A `Paginator` is an `Enumerable` of the items: use `Enum` or `Stream` on it, or `items/1`. `pages/1`
+  returns a `Stream` of `#{inspect({{moduleName}}.Page)}` structs with the items, the next cursor and the result of
+  each page. Each enumeration starts again from the starting position, so two loops read the list
+  twice. Stopping early leaves nothing to close.
+
+  An id list ends when its `has_more` is false. An offset or page list ends on an empty page or when
+  its `has_more` is false, and each next request sends the offset past the items received or the next
+  page number. A next URL list takes the URL in the body of each page and follows it only within the
+  origin of the client.
+
+  A failed page raises its SDK error from the read that needed it, after the items of the earlier
+  pages were delivered, and ends that enumeration; it is never returned as a tuple. A cursor equal
+  to the one just sent raises `#{inspect({{moduleName}}.Errors.PaginationError)}` from the next read, after the items of the page
+  that repeated it.
+  """
+
+  alias {{moduleName}}.Errors.PaginationError
+  alias {{moduleName}}.Page
+
+  # `next` reads the position of the next request from a decoded page, except for a :link list,
+  # where it reads the URL from the whole result (its headers, or the body for a next URL list).
+  @enforce_keys [:kind, :fetch, :items, :path]
+  defstruct [:kind, :start, :fetch, :items, :next, :has_more, :base_url, :path]
+
+  @type t :: %__MODULE__{
+          kind: :cursor | :offset | :page | :link,
+          start: String.t() | integer() | nil,
+          fetch: (term() -> {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}),
+          items: (term() -> [term()] | nil),
+          next: (term() -> String.t() | integer() | nil) | nil,
+          has_more: (term() -> boolean() | nil) | nil,
+          base_url: String.t() | nil,
+          path: String.t()
+        }
+
+  @doc false
+  @spec of_cursor(
+          String.t() | integer() | nil,
+          (String.t() | integer() | nil -> {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}),
+          (term() -> [term()] | nil),
+          (term() -> String.t() | integer() | nil),
+          String.t()
+        ) :: t()
+  def of_cursor(start, fetch, items, next, path) do
+    %__MODULE__{kind: :cursor, start: start, fetch: fetch, items: items, next: next, path: path}
+  end
+
+  @doc false
+  def of_id(start, fetch, items, next, has_more, path) do
+    ends = fn body -> not is_nil(has_more) and has_more.(body) == false end
+
+    %__MODULE__{
+      kind: :cursor,
+      start: start,
+      fetch: fetch,
+      items: items,
+      next: fn body -> if ends.(body), do: nil, else: next.(body) end,
+      path: path
+    }
+  end
+
+  @doc false
+  def of_offset(start, fetch, items, has_more, path) do
+    %__MODULE__{kind: :offset, start: start, fetch: fetch, items: items, has_more: has_more, path: path}
+  end
+
+  @doc false
+  def of_page(start, fetch, items, has_more, path) do
+    %__MODULE__{kind: :page, start: start, fetch: fetch, items: items, has_more: has_more, path: path}
+  end
+
+  @doc false
+  # The next URL is read from the decoded body of each page; a page without a body has none.
+  def of_next_url(base_url, fetch, items, next, path) do
+    %__MODULE__{
+      kind: :link,
+      base_url: base_url,
+      fetch: fetch,
+      items: items,
+      next: fn result -> if is_nil(result.data), do: nil, else: next.(result.data) end,
+      path: path
+    }
+  end
+
+  @doc false
+  def of_link(base_url, fetch, items, path) do
+    %__MODULE__{kind: :link, base_url: base_url, fetch: fetch, items: items, next: &next_link(&1.headers), path: path}
+  end
+
+  @doc """
+  The items of every page, in order, as a lazy `Stream`. `Enum.take/2` stops the requests as soon
+  as it has enough.
+  """
+  @spec items(t()) :: Enumerable.t()
+  def items(%__MODULE__{} = paginator) do
+    paginator |> pages() |> Stream.flat_map(& &1.items)
+  end
+
+  @doc """
+  The pages, each a `#{inspect({{moduleName}}.Page)}` with its items, next cursor and result, as a lazy `Stream`. Every
+  enumeration starts again at the starting position.
+  """
+  @spec pages(t()) :: Enumerable.t()
+  def pages(%__MODULE__{} = paginator) do
+    Stream.resource(
+      fn -> %{position: paginator.start, repeated: nil, done: false} end,
+      fn state -> next_page(paginator, state) end,
+      fn _state -> :ok end
+    )
+  end
+
+  defp next_page(_paginator, %{done: true} = state), do: {:halt, state}
+  defp next_page(_paginator, %{repeated: %PaginationError{} = error}), do: raise(error)
+
+  defp next_page(%__MODULE__{kind: kind} = paginator, state) when kind in [:cursor, :offset, :page] do
+    result = fetch!(paginator, state.position)
+    body = result.data
+    list = items_of(paginator, body)
+    following = following(paginator, state.position, body, list)
+
+    cond do
+      following in [nil, ""] ->
+        {[%Page{items: list, next_cursor: nil, result: result}], %{state | done: true}}
+
+      following == state.position ->
+        # The page itself is good: it is delivered, and the next read raises.
+        repeated =
+          PaginationError.exception(
+            message: "The server returned the cursor that was just sent, so the list cannot advance",
+            request_path: paginator.path
+          )
+
+        {[%Page{items: list, next_cursor: following, result: result}], %{state | repeated: repeated}}
+
+      true ->
+        {[%Page{items: list, next_cursor: following, result: result}], %{state | position: following}}
+    end
+  end
+
+  defp next_page(%__MODULE__{kind: :link} = paginator, state) do
+    result = fetch!(paginator, state.position)
+    list = items_of(paginator, result.data)
+    page = %Page{items: list, next_cursor: nil, result: result}
+
+    case paginator.next.(result) do
+      link when link in [nil, ""] ->
+        {[page], %{state | done: true}}
+
+      link ->
+        # The page itself is good: it is delivered, and the next read raises.
+        case resolve(paginator, state.position, link) do
+          {:ok, target} -> {[page], %{state | position: target}}
+          {:error, message} -> {[page], %{state | repeated: PaginationError.exception(message: message, request_path: paginator.path)}}
+        end
+    end
+  end
+
+  defp fetch!(paginator, position) do
+    case paginator.fetch.(position) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  # The position of the next request, or nil when the list ends. An offset moves past the items
+  # received and a page number moves to the next page; neither can repeat, so only a cursor can.
+  defp following(%__MODULE__{kind: :cursor, next: next}, _position, body, _list) do
+    if is_nil(body), do: nil, else: next.(body)
+  end
+
+  defp following(%__MODULE__{kind: :offset} = paginator, position, body, list) do
+    if advances?(paginator, body, list), do: (position || 0) + length(list)
+  end
+
+  defp following(%__MODULE__{kind: :page} = paginator, position, body, list) do
+    if advances?(paginator, body, list), do: (position || 1) + 1
+  end
+
+  # A page continues when it has items and its has_more flag, if the list declares one, is not false.
+  defp advances?(paginator, body, list) do
+    list != [] and (is_nil(paginator.has_more) or paginator.has_more.(body) != false)
+  end
+
+  defp items_of(_paginator, nil), do: []
+  defp items_of(paginator, body), do: paginator.items.(body) || []
+
+  # ---------------------------------------------------------------------------
+  # The Link header of RFC 8288
+  # ---------------------------------------------------------------------------
+
+  defp next_link(headers) when is_map(headers) do
+    Enum.find_value(headers, fn {name, value} ->
+      if String.downcase(to_string(name)) == "link", do: next_target(to_string(value))
+    end)
+  end
+
+  defp next_link(_headers), do: nil
+
+  @doc false
+  # The URI reference of the first link whose relation type is `next`, exactly as written, or nil.
+  @spec next_target(String.t()) :: String.t() | nil
+  def next_target(header) do
+    header
+    |> String.to_charlist()
+    |> parse_links([])
+    |> Enum.find_value(fn {target, relations} -> if "next" in relations, do: target end)
+  end
+
+  # A value is a comma separated list of links, each an angle-bracketed URI reference followed by
+  # `;` parameters whose values are tokens or quoted strings. A comma or a semicolon inside the
+  # brackets or inside a quoted string splits nothing, and a malformed link is skipped.
+  defp parse_links([], acc), do: Enum.reverse(acc)
+  defp parse_links([char | rest], acc) when char in [?\s, ?\t, ?,], do: parse_links(rest, acc)
+
+  defp parse_links([?< | rest], acc) do
+    case Enum.split_while(rest, &(&1 != ?>)) do
+      {_target, []} ->
+        Enum.reverse(acc)
+
+      {target, [?> | after_target]} ->
+        {relations, remaining} = parse_params(after_target, nil)
+        parse_links(remaining, [{to_string(target), relations} | acc])
+    end
+  end
+
+  defp parse_links(chars, acc), do: parse_links(skip_to_comma(chars, false, false), acc)
+
+  defp parse_params(chars, relations) do
+    case drop_blanks(chars) do
+      [] ->
+        {relations || [], []}
+
+      [?, | _] = remaining ->
+        {relations || [], remaining}
+
+      [?; | rest] ->
+        {name, after_name} = rest |> drop_blanks() |> Enum.split_while(&(&1 not in [?=, ?;, ?,, ?\s, ?\t]))
+        {value, remaining} = parse_value(after_name)
+        named = name |> to_string() |> String.downcase()
+        parse_params(remaining, if(named == "rel" and is_nil(relations), do: split_relations(value), else: relations))
+
+      other ->
+        {relations || [], skip_to_comma(other, false, false)}
+    end
+  end
+
+  defp drop_blanks(chars), do: Enum.drop_while(chars, &(&1 in [?\s, ?\t]))
+
+  defp parse_value([?=, ?" | rest]), do: quoted(rest, [])
+
+  defp parse_value([?= | rest]) do
+    {value, remaining} = Enum.split_while(rest, &(&1 not in [?;, ?,, ?\s, ?\t]))
+    {to_string(value), remaining}
+  end
+
+  defp parse_value(rest), do: {"", rest}
+
+  defp quoted([], acc), do: {acc |> Enum.reverse() |> to_string(), []}
+  defp quoted([?" | rest], acc), do: {acc |> Enum.reverse() |> to_string(), rest}
+  defp quoted([?\\, char | rest], acc), do: quoted(rest, [char | acc])
+  defp quoted([char | rest], acc), do: quoted(rest, [char | acc])
+
+  defp split_relations(value) do
+    value |> String.trim() |> String.split(~r/\s+/, trim: true) |> Enum.map(&String.downcase/1)
+  end
+
+  # Skips to the next comma that is outside brackets and quotes.
+  defp skip_to_comma([], _quoted, _bracketed), do: []
+  defp skip_to_comma([?\\, _char | rest], true, bracketed), do: skip_to_comma(rest, true, bracketed)
+  defp skip_to_comma([?" | rest], true, bracketed), do: skip_to_comma(rest, false, bracketed)
+  defp skip_to_comma([_char | rest], true, bracketed), do: skip_to_comma(rest, true, bracketed)
+  defp skip_to_comma([?" | rest], false, bracketed), do: skip_to_comma(rest, true, bracketed)
+  defp skip_to_comma([?< | rest], false, _bracketed), do: skip_to_comma(rest, false, true)
+  defp skip_to_comma([?> | rest], false, _bracketed), do: skip_to_comma(rest, false, false)
+  defp skip_to_comma([?, | _rest] = chars, false, false), do: chars
+  defp skip_to_comma([_char | rest], false, bracketed), do: skip_to_comma(rest, false, bracketed)
+
+  # Resolves a link against the page just read and refuses a scheme, host or port other than the
+  # client's, and a link back to the page just read.
+  defp resolve(paginator, current, link) do
+    base = URI.parse(paginator.base_url)
+    from = if is_nil(current), do: base, else: URI.parse(current)
+
+    target =
+      try do
+        from |> URI.merge(String.trim(link)) |> URI.to_string()
+      rescue
+        _error in [ArgumentError, URI.Error] -> nil
+      end
+
+    cond do
+      is_nil(target) -> {:error, "The next link is not a valid URI"}
+      not same_origin?(base, URI.parse(target)) -> {:error, "The next link leaves the origin of the request and was not followed"}
+      target == current -> {:error, "The server returned a next link to the page that was just read, so the list cannot advance"}
+      true -> {:ok, target}
+    end
+  end
+
+  defp same_origin?(%URI{host: nil}, _other), do: false
+  defp same_origin?(_base, %URI{host: nil}), do: false
+
+  defp same_origin?(base, other) do
+    scheme = String.downcase(other.scheme || "")
+
+    scheme in ["http", "https"] and scheme == String.downcase(base.scheme || "") and
+      String.downcase(base.host) == String.downcase(other.host) and port(base) == port(other)
+  end
+
+  defp port(%URI{port: port}) when is_integer(port), do: port
+  defp port(%URI{scheme: scheme}), do: if(String.downcase(scheme || "") == "https", do: 443, else: 80)
+end
+
+defimpl Enumerable, for: {{moduleName}}.Paginator do
+  def reduce(paginator, acc, fun), do: Enumerable.reduce({{moduleName}}.Paginator.items(paginator), acc, fun)
+  def count(_paginator), do: {:error, __MODULE__}
+  def member?(_paginator, _element), do: {:error, __MODULE__}
+  def slice(_paginator), do: {:error, __MODULE__}
+end

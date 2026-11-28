@@ -1,0 +1,415 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Errors.ApiError do
+  @moduledoc """
+  Exception raised when an API call fails.
+
+  Represents an error returned by the API, including the HTTP status code,
+  response headers, and response body.
+  """
+
+  alias {{moduleName}}.Errors.BadGatewayError
+  alias {{moduleName}}.Errors.BadRequestError
+  alias {{moduleName}}.Errors.ClientError
+  alias {{moduleName}}.Errors.ConflictError
+  alias {{moduleName}}.Errors.ForbiddenError
+  alias {{moduleName}}.Errors.GatewayTimeoutError
+  alias {{moduleName}}.Errors.GoneError
+  alias {{moduleName}}.Errors.InternalServerError
+  alias {{moduleName}}.Errors.LockedError
+  alias {{moduleName}}.Errors.MethodNotAllowedError
+  alias {{moduleName}}.Errors.NotFoundError
+  alias {{moduleName}}.Errors.NotImplementedError
+  alias {{moduleName}}.Errors.PayloadTooLargeError
+  alias {{moduleName}}.Errors.PaymentRequiredError
+  alias {{moduleName}}.Errors.RequestTimeoutError
+  alias {{moduleName}}.Errors.ServerError
+  alias {{moduleName}}.Errors.ServiceUnavailableError
+  alias {{moduleName}}.Errors.TooManyRequestsError
+  alias {{moduleName}}.Errors.UnauthorizedError
+  alias {{moduleName}}.Errors.UnprocessableEntityError
+  alias {{moduleName}}.Errors.UnsupportedMediaTypeError
+
+  # The statuses with an error of their own; any other 4xx or 5xx is a
+  # ClientError or ServerError.
+  @status_errors %{
+    400 => BadRequestError,
+    401 => UnauthorizedError,
+    403 => ForbiddenError,
+    404 => NotFoundError,
+    409 => ConflictError,
+    422 => UnprocessableEntityError,
+    429 => TooManyRequestsError,
+    402 => PaymentRequiredError,
+    405 => MethodNotAllowedError,
+    408 => RequestTimeoutError,
+    410 => GoneError,
+    413 => PayloadTooLargeError,
+    415 => UnsupportedMediaTypeError,
+    423 => LockedError,
+    501 => NotImplementedError,
+    502 => BadGatewayError,
+    503 => ServiceUnavailableError,
+    504 => GatewayTimeoutError,
+    500 => InternalServerError
+  }
+
+  @type t :: %__MODULE__{
+          message: String.t(),
+          status_code: integer() | nil,
+          response_headers: %{optional(String.t()) => String.t()} | nil,
+          response_body: String.t() | nil,
+          error_body: term() | nil,
+          cause: Exception.t() | nil,
+          request_method: String.t() | nil,
+          request_path: String.t() | nil
+        }
+
+  defexception [
+    :message,
+    :status_code,
+    :response_headers,
+    :response_body,
+    :error_body,
+    :cause,
+    :request_method,
+    :request_path
+  ]
+
+  @impl true
+  def exception(opts) when is_map(opts) do
+    msg = Map.get(opts, :message, "Error message: the server returns an error")
+
+    %__MODULE__{
+      message: msg,
+      status_code: Map.get(opts, :status_code, 0),
+      response_headers: Map.get(opts, :response_headers),
+      response_body: Map.get(opts, :response_body),
+      error_body: Map.get(opts, :error_body),
+      cause: Map.get(opts, :cause),
+      request_method: Map.get(opts, :request_method),
+      request_path: Map.get(opts, :request_path)
+    }
+  end
+
+  def exception(opts) when is_list(opts) do
+    msg = Keyword.get(opts, :message, "Error message: the server returns an error")
+
+    %__MODULE__{
+      message: msg,
+      status_code: Keyword.get(opts, :status_code, 0),
+      response_headers: Keyword.get(opts, :response_headers),
+      response_body: Keyword.get(opts, :response_body),
+      error_body: Keyword.get(opts, :error_body),
+      cause: Keyword.get(opts, :cause),
+      request_method: Keyword.get(opts, :request_method),
+      request_path: Keyword.get(opts, :request_path)
+    }
+  end
+
+  def exception(msg) when is_binary(msg) do
+    %__MODULE__{message: msg, status_code: 0}
+  end
+
+  # Renders the message followed by whatever response context was captured, one
+  # labelled field per line.
+  @impl true
+  def message(%__MODULE__{} = error) do
+    msg =
+      if error.message in [nil, ""],
+        do: "Error message: the server returns an error",
+        else: error.message
+
+    msg =
+      if error.status_code in [nil, 0],
+        do: msg,
+        else: msg <> "\nHTTP status code: #{error.status_code}"
+
+    msg =
+      if is_nil(error.request_method) or is_nil(error.request_path),
+        do: msg,
+        else: msg <> "\nRequest: #{error.request_method} #{error.request_path}"
+
+    msg =
+      if error.response_headers in [nil, %{}],
+        do: msg,
+        else: msg <> "\nResponse headers: #{headers_json(error.response_headers)}"
+
+    msg =
+      if error.response_body in [nil, ""],
+        do: msg,
+        else: msg <> "\nResponse body: #{rendered_body(error.response_body)}"
+
+    msg
+  end
+
+  # The most response-body bytes the message carries; the full body stays on
+  # `response_body`.
+  @max_rendered_body_bytes 1024
+
+  # The body cut at 1 KiB, control characters written as escapes and a suffix
+  # counting the bytes left out, so one error never floods or forges a log line.
+  defp rendered_body(body) do
+    body = to_string(body)
+    excess = byte_size(body) - @max_rendered_body_bytes
+
+    text =
+      if excess > 0,
+        do: body |> binary_part(0, @max_rendered_body_bytes) |> String.replace_invalid(),
+        else: String.replace_invalid(body)
+
+    text =
+      Regex.replace(~r/[\x00-\x1F\x7F]/, text, fn
+        "\n" -> "\\n"
+        "\r" -> "\\r"
+        "\t" -> "\\t"
+        char -> "\\x" <> Base.encode16(char)
+      end)
+
+    if excess > 0, do: "#{text}... (#{excess} more bytes)", else: text
+  end
+
+  # Compact JSON with the keys sorted, one rendering in every SDK. Credential
+  # values (the S15 list plus the cookie and challenge headers a response
+  # carries) are replaced by `***`.
+  defp headers_json(headers) do
+    headers
+    |> {{moduleName}}.TransportOptions.redact_headers()
+    |> Enum.map(fn {name, value} ->
+      if response_secret_header?(name), do: {name, "***"}, else: {name, value}
+    end)
+    |> Enum.sort()
+    |> Jason.OrderedObject.new()
+    |> Jason.encode!()
+  end
+
+  defp response_secret_header?(name),
+    do: String.downcase(to_string(name)) in ["set-cookie", "www-authenticate", "proxy-authenticate"]
+
+  @doc """
+  Map an HTTP response that was not a success to the error for its status.
+
+  400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
+  `{{moduleName}}.Errors.ClientError` specialisations and any other 4xx to
+  `{{moduleName}}.Errors.ClientError`; 500, 501, 502, 503 and 504 map to their named
+  `{{moduleName}}.Errors.ServerError` specialisations and any other 5xx to
+  `{{moduleName}}.Errors.ServerError`; any other status maps to `ApiError`
+  itself. A JSON body is decoded and exposed through `error_body`; a body that
+  is not JSON leaves `error_body` as `nil`.
+
+  This is the one status-to-error mapping in the SDK: every generated operation
+  and the OpenID Connect discovery request build their HTTP errors here.
+
+  ## Parameters
+
+    * `status_code` - The HTTP status code of the response.
+    * `headers` - The HTTP response headers, if available.
+    * `body` - The raw HTTP response body, if available.
+
+  ## Returns
+
+    The error for the status; the caller raises it.
+  """
+  @spec from_response(integer(), %{optional(String.t()) => String.t()} | nil, String.t() | nil) ::
+          Exception.t()
+  def from_response(status_code, headers, body) do
+    exception_module(status_code).exception(%{
+      message: "API returned status code #{status_code}",
+      status_code: status_code,
+      response_body: body,
+      response_headers: headers,
+      error_body: parse_error_body(body)
+    })
+  end
+
+  @doc """
+  Map an HTTP response that was not a success to the error for its status, using the error schemas
+  the operation declares.
+
+  `errors` maps a declared status (`"404"`, a range `"4XX"` or `"5XX"`, or `"default"`) to the error
+  module of its schema. The module for the status is chosen by the exact status first, then the
+  range, then `"default"`, and its `from_error_response/3` builds the error. A body that does not
+  match the schema never hides the real error: the result is then the one `from_response/3` gives,
+  with the raw body and the decoding failure as its `cause`. A status that no entry names, or an empty
+  map, gives the result of `from_response/3`.
+
+  Each operation passes its own map, so the same status can become different errors for different
+  operations.
+  """
+  @spec from_response(
+          integer(),
+          %{optional(String.t()) => String.t()} | nil,
+          String.t() | nil,
+          %{optional(String.t()) => module()}
+        ) :: Exception.t()
+  def from_response(status_code, headers, body, errors) when is_map(errors) do
+    case error_module(errors, status_code) do
+      nil -> from_response(status_code, headers, body)
+      module -> module.from_error_response(status_code, headers, body)
+    end
+  end
+
+  defp error_module(errors, status_code) do
+    Map.get(errors, Integer.to_string(status_code)) ||
+      Map.get(errors, range_key(status_code)) ||
+      Map.get(errors, "default")
+  end
+
+  defp range_key(status_code) when status_code >= 400 and status_code < 500, do: "4XX"
+  defp range_key(status_code) when status_code >= 500 and status_code < 600, do: "5XX"
+  defp range_key(_status_code), do: nil
+
+  @doc """
+  Whether repeating the request can succeed: the status is 408, 409, 429 or a 5xx other than 501,
+  the statuses the client itself retries. It looks at the status only, except
+  that a `ResponseTooLargeError` is never retryable: the same body would come back.
+  """
+  @spec retryable?(term()) :: boolean()
+  def retryable?(%{{moduleName}}.Errors.ResponseTooLargeError{}), do: false
+
+  def retryable?(%{status_code: status}) when is_integer(status),
+    do: {{moduleName}}.Api.BaseApi.retryable_status?(status)
+
+  def retryable?(_error), do: false
+
+  @doc """
+  The request id the server sent in the `x-request-id` response header, or `nil` when the header is
+  absent. The header name is matched in any casing.
+  """
+  @spec request_id(term()) :: String.t() | nil
+  def request_id(%{response_headers: headers}) when is_map(headers) do
+    Enum.find_value(headers, fn {name, value} ->
+      if String.downcase(to_string(name)) == "x-request-id", do: value
+    end)
+  end
+
+  def request_id(_error), do: nil
+
+  @doc """
+  Whether `term` is `module` or an error that specialises it. Elixir exceptions have no inheritance,
+  so the errors generated for a declared error schema name the errors above them and this is the one
+  place that reads that.
+  """
+  @spec specialises?(term(), module()) :: boolean()
+  def specialises?(%module{}, target) do
+    module == target or (Code.ensure_loaded?(module) and function_exported?(module, :__ancestors__, 0) and
+                           target in module.__ancestors__())
+  end
+
+  def specialises?(_term, _target), do: false
+
+  @doc false
+  # Records the request an error answers: the HTTP method (upper case) and the
+  # request path, with the query string and the fragment dropped so a credential
+  # carried in the query never lands in an error message. `message/1` renders
+  # them as a `Request: GET /path` line after the status line. Works on
+  # `ApiError` and on every error that specialises it; an error that already
+  # carries a request is returned unchanged, and a term that is not one of them
+  # is returned as it is. `method` is an atom (`:get`) or a string; `url_or_path`
+  # is the request URL or its path.
+  @spec with_request(term(), atom() | String.t(), String.t()) :: term()
+  def with_request(%{request_method: nil, request_path: nil} = error, method, url_or_path) do
+    %{error | request_method: method |> to_string() |> String.upcase(), request_path: request_path(url_or_path)}
+  end
+
+  def with_request(error, _method, _url_or_path), do: error
+
+  defp request_path(url_or_path) do
+    case URI.parse(url_or_path) do
+      %URI{path: path} when is_binary(path) and path != "" -> path
+      _ -> "/"
+    end
+  end
+
+  defp exception_module(status_code) when is_map_key(@status_errors, status_code),
+    do: Map.fetch!(@status_errors, status_code)
+
+  defp exception_module(status_code) when status_code >= 400 and status_code < 500,
+    do: ClientError
+
+  defp exception_module(status_code) when status_code >= 500 and status_code < 600,
+    do: ServerError
+  defp exception_module(_status_code), do: __MODULE__
+
+  # Route through ObjectSerializer.parse_json so the nesting-depth cap refuses a
+  # deeply-nested error payload before it can recurse through the call stack.
+  defp parse_error_body(body) when is_binary(body) and body != "" do
+    case {{moduleName}}.ObjectSerializer.parse_json(body) do
+      {:ok, data} -> data
+      _ -> nil
+    end
+  end
+
+  defp parse_error_body(_body), do: nil
+
+  # The ApiError family: ApiError and the errors that specialise it. Exceptions
+  # are flat structs, so the typed accessor below checks membership in this list
+  # instead of matching one struct.
+  @family [
+    {{moduleName}}.Errors.ApiError,
+    {{moduleName}}.Errors.ClientError,
+    {{moduleName}}.Errors.BadRequestError,
+    {{moduleName}}.Errors.UnauthorizedError,
+    {{moduleName}}.Errors.ForbiddenError,
+    {{moduleName}}.Errors.NotFoundError,
+    {{moduleName}}.Errors.ConflictError,
+    {{moduleName}}.Errors.UnprocessableEntityError,
+    {{moduleName}}.Errors.TooManyRequestsError,
+    {{moduleName}}.Errors.PaymentRequiredError,
+    {{moduleName}}.Errors.MethodNotAllowedError,
+    {{moduleName}}.Errors.RequestTimeoutError,
+    {{moduleName}}.Errors.GoneError,
+    {{moduleName}}.Errors.PayloadTooLargeError,
+    {{moduleName}}.Errors.UnsupportedMediaTypeError,
+    {{moduleName}}.Errors.LockedError,
+    {{moduleName}}.Errors.NotImplementedError,
+    {{moduleName}}.Errors.BadGatewayError,
+    {{moduleName}}.Errors.ServiceUnavailableError,
+    {{moduleName}}.Errors.GatewayTimeoutError,
+    {{moduleName}}.Errors.ServerError,
+    {{moduleName}}.Errors.InternalServerError,
+    {{moduleName}}.Errors.NetworkError,
+    {{moduleName}}.Errors.NetworkTimeoutError,
+    {{moduleName}}.Errors.StreamError,
+    {{moduleName}}.Errors.ResponseTooLargeError
+  ]
+
+  @doc """
+  Deserialize the raw response body into a typed error object.
+
+  Useful when the API returns a structured error body that you want to access
+  in a strongly-typed way. This is the one accessor for spec-declared error
+  schemas. It accepts an `ApiError` and every error that specialises it, such as
+  the one `from_response/3` returns for a 404 or a 500 (see `api_error?/1`).
+
+  ## Parameters
+
+    * `error` - The ApiError, or an error in its family (see `api_error?/1`).
+    * `type_name` - The target type name to deserialize the error body into.
+
+  ## Returns
+
+    The deserialized error body, or `nil` if the body is empty.
+  """
+  @spec typed_error_body(struct(), String.t()) :: term()
+  def typed_error_body(%{response_body: body} = error, _type_name) when body in [nil, ""] do
+    true = api_error?(error)
+    nil
+  end
+
+  def typed_error_body(%{} = error, type_name) do
+    true = api_error?(error)
+    {{moduleName}}.ObjectSerializer.deserialize(error.response_body, type_name)
+  end
+
+  @doc """
+  Returns `true` if `term` is an `ApiError` or one of the errors that
+  specialise it (the 4xx and 5xx errors, the errors generated for a declared error schema,
+  `NetworkError`, `NetworkTimeoutError`, `StreamError` and `ResponseTooLargeError`), `false` otherwise. Elixir exceptions have no
+  inheritance, so this predicate expresses the hierarchy the other SDKs
+  express with subclasses.
+  """
+  @spec api_error?(term()) :: boolean()
+  def api_error?(%module{} = error), do: module in @family or specialises?(error, __MODULE__)
+  def api_error?(_term), do: false
+end

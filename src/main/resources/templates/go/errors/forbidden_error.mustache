@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// ForbiddenError is the error for HTTP 403 Forbidden.
+type ForbiddenError struct {
+	ClientError
+}

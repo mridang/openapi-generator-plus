@@ -1,0 +1,52 @@
+{{#modelImports}}
+import type { {{.}} } from '../../models/index.js';
+{{/modelImports}}
+{{#hasTemporalImport}}
+import type { Temporal } from 'temporal-polyfill';
+{{/hasTemporalImport}}
+{{#hasBrandImports}}
+import type { {{brandImports}} } from '../../brand.js';
+{{/hasBrandImports}}
+{{#hasModelImports}}
+
+{{/hasModelImports}}
+/**
+ * Options for the {{operationId}} operation.
+ */
+export interface {{className}} {
+{{#params}}
+{{#hasPluralExamples}}
+  /**
+{{#description}}
+   * {{{description}}}
+{{/description}}
+{{#pluralExamples}}
+   * @example {{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/pluralExamples}}
+{{#deprecated}}
+   * @deprecated This parameter is deprecated.
+{{/deprecated}}
+   */
+{{/hasPluralExamples}}
+{{^hasPluralExamples}}
+{{#deprecated}}
+{{#description}}
+  /**
+   * {{{description}}}
+   *
+   * @deprecated This parameter is deprecated.
+   */
+{{/description}}
+{{^description}}
+  /** @deprecated This parameter is deprecated. */
+{{/description}}
+{{/deprecated}}
+{{^deprecated}}
+{{#description}}
+  /** {{{description}}} */
+{{/description}}
+{{/deprecated}}
+{{/hasPluralExamples}}
+  readonly {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
+{{/params}}
+}

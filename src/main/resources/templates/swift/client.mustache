@@ -1,0 +1,263 @@
+{{>api_info}}
+import Foundation
+
+/// Unified entry point for all API services.
+///
+/// Takes an ``Authenticator`` (or, where the API declares security schemes, one
+/// optional credential per scheme, named after the scheme) and optionally
+/// ``TransportOptions``, then exposes each API group as a typed property. If a
+/// credential conforms to ``HttpAwareAuthenticator``, the shared ``ApiClient`` is
+/// injected so that authentication HTTP calls (token exchange, discovery) use the
+/// same transport configuration as regular API calls.
+///
+/// Usage:
+///
+/// ```swift
+/// // Default transport
+/// let client = try {{clientClassName}}(authenticator: authenticator)
+///
+/// // Custom transport (proxy, timeouts, etc.)
+/// let transport = try TransportOptions.builder()
+///     .proxy("http://proxy:3128")
+///     .timeout(5000)
+///     .build()
+/// let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+/// ```
+public final class {{clientClassName}}: {{clientClassName}}Protocol, Sendable {
+    /* The transport this client built; kept so ``close()`` can release it. */
+    private let ownedClient: DefaultApiClient
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// API operations for the {{classname}} group.
+    public let {{clientPropertyName}}: {{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /// Creates a new client with the given authenticator and transport options.
+    ///
+    /// The authenticator is the credential for every operation that is not
+    /// declared without security. If it conforms to ``HttpAwareAuthenticator``,
+    /// the shared ``ApiClient`` is injected so that token exchange and discovery
+    /// requests use the same proxy, TLS, and timeout settings.
+    ///
+    /// - Parameters:
+    ///   - authenticator: Provides host URL and auth headers.
+    ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
+    ///     default transport settings when omitted.
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+    ///   be read or parsed.
+    public convenience init(
+        authenticator: Authenticator, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws {
+        try self.init(
+            baseURL: authenticator.host(), authenticator: authenticator, schemes: [:],
+            transportOptions: transportOptions, callHook: callHook)
+    }
+{{#hasClientSchemes}}
+
+    /// Creates a new client that holds one optional credential per security scheme
+    /// the API declares, each named after its scheme.
+    ///
+    /// An operation uses the credential of the first scheme its spec lists that
+    /// you gave here; a call cannot pick another scheme. An operation none of
+    /// whose schemes has a credential is sent without one. A credential that
+    /// conforms to ``HttpAwareAuthenticator`` gets the shared ``ApiClient``, as the
+    /// authenticator of ``init(authenticator:transportOptions:callHook:)`` does.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL.
+{{#clientSchemes}}
+    ///   - {{{paramName}}}: Credential for the `{{{schemeId}}}` security scheme (typically ``{{{className}}}``), or nil for none.
+{{/clientSchemes}}
+    ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
+    ///     default transport settings when omitted.
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+    ///   be read or parsed.
+    public convenience init(
+        host: String,
+{{#clientSchemes}}
+        {{{argName}}}: Authenticator? = nil,
+{{/clientSchemes}}
+        transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws {
+        var schemes: [String: Authenticator] = [:]
+{{#clientSchemes}}
+        if let credential = {{{argName}}} {
+            schemes["{{{schemeId}}}"] = credential
+        }
+{{/clientSchemes}}
+        try self.init(
+            baseURL: host, authenticator: nil, schemes: schemes, transportOptions: transportOptions,
+            callHook: callHook)
+    }
+{{/hasClientSchemes}}
+
+    private init(
+        baseURL: String,
+        authenticator: Authenticator?,
+        schemes: [String: Authenticator],
+        transportOptions: TransportOptions?,
+        callHook: (any CallHook)?
+    ) throws {
+        let opts = transportOptions ?? TransportOptions.defaults
+        let apiClient = try DefaultApiClient(transportOptions: opts)
+        self.ownedClient = apiClient
+
+        if let httpAware = authenticator as? HttpAwareAuthenticator {
+            httpAware.setApiClient(apiClient)
+        }
+        for credential in schemes.values {
+            if let httpAware = credential as? HttpAwareAuthenticator {
+                httpAware.setApiClient(apiClient)
+            }
+        }
+
+        let config = ConfigurationBuilder()
+            .baseURL(baseURL)
+            .callHook(callHook)
+            .build()
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        self.{{clientPropertyName}} = {{classname}}(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemes)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    /// Closes the client. It is graceful and idempotent: a request already in flight
+    /// finishes, the HTTP stack this client built is released when the last of them
+    /// completes, and a request made afterwards throws
+    /// ``ConfigurationError/invalidState(_:)`` (`ApiClient has been closed and can no
+    /// longer send requests`). A second call does nothing. A `URLSession` supplied
+    /// through ``TransportOptionsBuilder/session(_:)`` belongs to the caller and is
+    /// never invalidated.
+    public func close() {
+        ownedClient.close()
+    }
+
+    /// Creates a client authenticated with a static Bearer token.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL.
+    ///   - accessToken: Bearer token.
+    ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+    ///   be read or parsed.
+    public convenience init(
+        host: String, accessToken: String, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws {
+        try self.init(
+            authenticator: BearerAuthenticator(host: host, token: accessToken),
+            transportOptions: transportOptions, callHook: callHook)
+    }
+
+    /// Creates a client from explicit arguments first and the environment second.
+    ///
+    /// The host is the `host` argument, else the environment variable
+    /// `{{envVarPrefix}}_HOST`; the credential is the `tokenProvider` callback, else the
+    /// `token` argument, else `{{envVarPrefix}}_TOKEN`. The environment is read once, here,
+    /// and an empty value counts as unset. A missing host or credential fails the call
+    /// that builds the client, not a later request. The callback runs before every
+    /// request, so a token refreshed elsewhere is picked up.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL, or nil to read it from the environment.
+    ///   - token: Bearer token, or nil to read it from the environment.
+    ///   - tokenProvider: Returns the current bearer token before each request.
+    ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when no host or no credential
+    ///   is available, or the token is not valid.
+    public static func fromEnvironment(
+        host: String? = nil,
+        token: String? = nil,
+        tokenProvider: (@Sendable () async throws -> String)? = nil,
+        transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws -> {{clientClassName}} {
+        return try fromEnvironment(
+            host: host, token: token, tokenProvider: tokenProvider,
+            transportOptions: transportOptions, callHook: callHook,
+            environment: ProcessInfo.processInfo.environment)
+    }
+
+    /// The same as ``fromEnvironment(host:token:tokenProvider:transportOptions:callHook:)`` over a
+    /// given environment, so the lookup can be exercised without touching the process's own.
+    static func fromEnvironment(
+        host: String?,
+        token: String?,
+        tokenProvider: (@Sendable () async throws -> String)?,
+        transportOptions: TransportOptions?,
+        callHook: (any CallHook)? = nil,
+        environment: [String: String]
+    ) throws -> {{clientClassName}} {
+        func firstSet(_ explicit: String?, _ variable: String) -> String? {
+            if let explicit = explicit, !explicit.isEmpty {
+                return explicit
+            }
+            if let value = environment[variable], !value.isEmpty {
+                return value
+            }
+            return nil
+        }
+        guard let resolvedHost = firstSet(host, "{{envVarPrefix}}_HOST") else {
+            throw ConfigurationError.invalidArgument(
+                "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
+        }
+        if let token = token, token.isEmpty {
+            throw ConfigurationError.invalidArgument(
+                "The token passed is empty: pass a non-empty token, or leave it out to read the {{envVarPrefix}}_TOKEN environment variable")
+        }
+        if let tokenProvider = tokenProvider {
+            return try {{clientClassName}}(
+                authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
+                transportOptions: transportOptions, callHook: callHook)
+        }
+        guard let resolvedToken = firstSet(token, "{{envVarPrefix}}_TOKEN") else {
+            throw ConfigurationError.invalidArgument(
+                "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
+        }
+        return try {{clientClassName}}(
+            authenticator: BearerAuthenticator(host: resolvedHost, token: resolvedToken),
+            transportOptions: transportOptions, callHook: callHook)
+    }
+
+    /// Creates a client authenticated with a static Bearer token. The named
+    /// factory form of ``init(host:accessToken:transportOptions:callHook:)``, the
+    /// counterpart of ``withAuthenticator(_:transportOptions:callHook:)`` and the
+    /// `withToken` factory the other SDKs expose.
+    public static func withToken(
+        host: String, accessToken: String, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws -> {{clientClassName}} {
+        try {{clientClassName}}(
+            host: host, accessToken: accessToken, transportOptions: transportOptions, callHook: callHook)
+    }
+
+    /// Creates a client from any ``Authenticator``, with optional transport options.
+    ///
+    /// This is the generic entry point for bespoke authentication strategies such as
+    /// client credentials, JWT private key, or personal access tokens (PAT). Pass any
+    /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
+    /// customize the underlying transport (proxy, TLS, timeouts).
+    public static func withAuthenticator(
+        _ authenticator: Authenticator, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws -> {{clientClassName}} {
+        try {{clientClassName}}(
+            authenticator: authenticator, transportOptions: transportOptions, callHook: callHook)
+    }
+}

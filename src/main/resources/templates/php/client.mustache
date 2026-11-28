@@ -1,0 +1,293 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+use {{invokerPackage}}\Auth\Authenticator;
+use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\Auth\HttpAwareAuthenticator;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+use {{apiPackage}}\{{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+/**
+ * Unified entry point for all API services.
+ *
+ * Takes an {@see Authenticator} and optionally {@see TransportOptions},
+ * then exposes each API group as a typed property. If the authenticator
+ * implements {@see HttpAwareAuthenticator}, the shared {@see ApiClient}
+ * is injected so that authentication HTTP calls (token exchange, discovery)
+ * use the same transport configuration as regular API calls.
+ *
+ * Usage:
+ *
+ *     // Default transport
+ *     $client = new {{clientClassName}}($authenticator);
+ *
+ *     // Custom transport (proxy, timeouts, etc.)
+ *     $transport = TransportOptions::builder()
+ *         ->proxy('http://proxy:3128')
+ *         ->timeout(5000)
+ *         ->build();
+ *     $client = new {{clientClassName}}($authenticator, $transport);
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+class {{clientClassName}} implements \{{invokerPackage}}\{{clientClassName}}Interface
+{
+    /** @var ApiClient The transport every API group sends through. */
+    private readonly ApiClient $sdkTransport;
+
+    /** @var ClientLifecycle Shared with every API group; closing the client closes it. */
+    private readonly ClientLifecycle $lifecycle;
+
+    /** @var bool Whether the SDK built the transport itself and so releases it on close(). */
+    private readonly bool $sdkOwnsTransport;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** @var {{classname}} API operations for the {{classname}} group. */
+    public readonly {{classname}} ${{clientPropertyName}};
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    /**
+     * Creates a new client with the given authenticator and transport options.
+     *
+     * If the authenticator implements {@see HttpAwareAuthenticator}, the
+     * shared {@see ApiClient} is injected so that token exchange and
+     * discovery requests use the same proxy, TLS, and timeout settings.
+     *
+     * @param Authenticator|null  $authenticator    Provides the host URL and the credential of every secured
+     *                                              operation when no per-scheme credential is given. Null is
+     *                                              allowed only when at least one per-scheme credential is.
+     * @param TransportOptions|null $transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param ApiClient|null      $apiClient        Custom transport. Defaults to {@see DefaultApiClient}
+     *                                              (Symfony HTTP client); supply your own — e.g. a
+     *                                              {@see Psr18ApiClient} wrapping a framework-managed
+     *                                              PSR-18 client — to drive the SDK with a different stack.
+     *                                              When provided, $transportOptions' transport-level settings
+     *                                              (TLS/proxy/timeout) are owned by your client, not applied here.
+{{#schemeCredentials}}
+     * @param Authenticator|null  ${{param}}        The credential of the `{{scheme}}` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
+{{/schemeCredentials}}
+     * @param CallHook|null       $callHook         Hook called once around every operation call; it can edit the
+     *                                              request headers and observe the outcome, and it fires with a
+     *                                              supplied transport too. See {@see CallHook}.
+     * @throws \InvalidArgumentException when neither an authenticator nor a scheme credential is given
+     */
+    public function __construct(
+        ?Authenticator $authenticator = null,
+        ?TransportOptions $transportOptions = null,
+        ?ApiClient $apiClient = null{{#schemeCredentials}},
+        ?Authenticator ${{param}} = null{{/schemeCredentials}},
+        ?CallHook $callHook = null
+    ) {
+        $schemeAuthenticators = [];
+{{#schemeCredentials}}
+        if (${{param}} !== null) {
+            $schemeAuthenticators[{{{schemeLiteral}}}] = ${{param}};
+        }
+{{/schemeCredentials}}
+        $hostAuthenticator = $authenticator ?? (array_values($schemeAuthenticators)[0] ?? null);
+        $transportOptions ??= TransportOptions::builder()->build();
+        $this->lifecycle = new ClientLifecycle();
+        $this->sdkOwnsTransport = $apiClient === null;
+        $apiClient ??= new DefaultApiClient($transportOptions);
+        $this->sdkTransport = $apiClient;
+        if ($hostAuthenticator === null) {
+            $this->close();
+            throw new \InvalidArgumentException(
+                'A client needs an authenticator or the credential of at least one security scheme'
+            );
+        }
+
+        foreach ([$authenticator, ...array_values($schemeAuthenticators)] as $credential) {
+            if ($credential instanceof HttpAwareAuthenticator) {
+                $credential->setApiClient($this->sdkTransport);
+            }
+        }
+
+        if (trim($hostAuthenticator->getHost()) === '') {
+            $this->close();
+            throw new \InvalidArgumentException('A client needs a base URL: the host of the authenticator is empty');
+        }
+
+        $config = Configuration::builder()
+            ->baseUrl($hostAuthenticator->getHost())
+            ->callHook($callHook)
+            ->build();
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        $this->{{clientPropertyName}} = new {{classname}}($this->sdkTransport, $config, $authenticator, $schemeAuthenticators, $this->lifecycle);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** The API operations of the {{classname}} group, the interface form of `${{clientPropertyName}}`. */
+    public function get{{clientAccessorSuffix}}(): {{classname}}
+    {
+        return $this->{{clientPropertyName}};
+    }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    /**
+     * Closes the client gracefully: a request already sent finishes, and every
+     * later request fails with a \LogicException ("client closed"). Only the
+     * HTTP transport the SDK built itself is released; a transport supplied by
+     * the caller is never closed here, the caller owns it and it keeps working
+     * for its other users. Safe to call more than once.
+     */
+    public function close(): void
+    {
+        $this->lifecycle->close();
+        if ($this->sdkOwnsTransport) {
+            $this->sdkTransport->close();
+        }
+    }
+
+    /** Whether close() has been called; a closed client refuses every later request. */
+    public function isClosed(): bool
+    {
+        return $this->lifecycle->isClosed();
+    }
+
+    /**
+     * Releases what the client owns when it is garbage collected.
+     */
+    public function __destruct()
+    {
+        $this->close();
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token.
+     *
+     * @param string $host API base URL.
+     * @param string $accessToken Bearer token.
+     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+     * @param ApiClient|null $apiClient Optional custom transport (e.g. a {@see Psr18ApiClient}).
+     * @param CallHook|null $callHook Optional hook called once around every operation call.
+     * @return self Configured client instance.
+     */
+    public static function withToken(
+        string $host,
+        string $accessToken,
+        ?TransportOptions $transportOptions = null,
+        ?ApiClient $apiClient = null,
+        ?CallHook $callHook = null
+    ): self {
+        return new self(
+            new BearerAuthenticator($host, $accessToken),
+            $transportOptions,
+            $apiClient,
+{{#schemeCredentials}}
+            null,
+{{/schemeCredentials}}
+            $callHook
+        );
+    }
+
+    /**
+     * Creates a client from a ready-made authenticator.
+     *
+     * This is the generic entry point for bespoke authentication strategies
+     * such as OAuth2 client credentials, JWT private-key (service account),
+     * or a personal access token (PAT). Supply any {@see Authenticator}
+     * implementation; if it also implements {@see HttpAwareAuthenticator},
+     * the shared {@see ApiClient} is injected so its HTTP calls reuse the
+     * same transport configuration.
+     *
+     * @param Authenticator $authenticator Provides host URL and auth headers.
+     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+     * @param ApiClient|null $apiClient Optional custom transport (e.g. a {@see Psr18ApiClient}).
+     * @param CallHook|null $callHook Optional hook called once around every operation call.
+     * @return self Configured client instance.
+     */
+    public static function withAuthenticator(
+        Authenticator $authenticator,
+        ?TransportOptions $transportOptions = null,
+        ?ApiClient $apiClient = null,
+        ?CallHook $callHook = null
+    ): self {
+        return new self(
+            $authenticator,
+            $transportOptions,
+            $apiClient,
+{{#schemeCredentials}}
+            null,
+{{/schemeCredentials}}
+            $callHook
+        );
+    }
+
+    /**
+     * Creates a client that sends every request through a caller-supplied PSR-18
+     * HTTP client.
+     *
+     * The SDK keeps its own defaults on top of the supplied client (User-Agent,
+     * default headers, request id, redirect handling and the typed error
+     * mapping) and never closes or otherwise manages the lifecycle of
+     * $httpClient: the caller owns it. PSR-18 carries no transport settings, so
+     * TLS verification, a custom CA bundle and a proxy belong on $httpClient;
+     * supplying any of them in $transportOptions as well is a conflict and is
+     * rejected up front rather than being silently ignored.
+     *
+     * @param Authenticator           $authenticator    Provides host URL and auth headers.
+     * @param ClientInterface         $httpClient       PSR-18 client performing the wire send (redirects disabled).
+     * @param RequestFactoryInterface $requestFactory   PSR-17 factory used to build requests.
+     * @param StreamFactoryInterface  $streamFactory    PSR-17 factory used to build request bodies.
+     * @param TransportOptions|null   $transportOptions Request-level options (default headers, User-Agent, request id).
+     * @param CallHook|null           $callHook         Optional hook called once around every operation call.
+     * @return self Configured client instance.
+     * @throws \InvalidArgumentException when $transportOptions sets a proxy, a CA bundle or disables TLS
+     *                                   verification, which the supplied client owns.
+     */
+    public static function withHttpClient(
+        Authenticator $authenticator,
+        ClientInterface $httpClient,
+        RequestFactoryInterface $requestFactory,
+        StreamFactoryInterface $streamFactory,
+        ?TransportOptions $transportOptions = null,
+        ?CallHook $callHook = null
+    ): self {
+        $transportOptions ??= TransportOptions::builder()->build();
+        $conflicts = $transportOptions->proxy !== null
+            || $transportOptions->caCertPath !== null
+            || !$transportOptions->verifySsl;
+        if ($conflicts) {
+            throw new \InvalidArgumentException(
+                'TransportOptions proxy, caCertPath and verifySsl conflict with a supplied PSR-18 client: '
+                . 'configure proxy and TLS on the client you pass in, not on TransportOptions.'
+            );
+        }
+
+        return new self(
+            $authenticator,
+            $transportOptions,
+            new Psr18ApiClient($httpClient, $requestFactory, $streamFactory, $transportOptions),
+{{#schemeCredentials}}
+            null,
+{{/schemeCredentials}}
+            $callHook
+        );
+    }
+}

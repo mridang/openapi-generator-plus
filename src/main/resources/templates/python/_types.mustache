@@ -1,0 +1,499 @@
+{{>api_info}}
+
+import base64
+import datetime
+import ipaddress
+import math
+import re
+import secrets
+from decimal import Decimal
+from enum import Enum
+from typing import Annotated, Any, Callable, TypeVar
+
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    Field,
+    PlainSerializer,
+    PlainValidator,
+    SecretStr,
+    SerializationInfo,
+    Strict,
+)
+from pydantic_core import core_schema
+
+
+# An absolute RFC 3986 URI: a scheme, then ':', then no whitespace or control
+# characters. Any scheme is valid (http, ftp, mailto, urn); a relative
+# reference, an empty string or text with spaces is not.
+_ABSOLUTE_URI_PATTERN = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1f\x7f]*$')
+
+
+# An RFC 3339 date-time: a full date, 'T' (or 't'), a time with optional
+# fractional seconds, and an explicit offset ('Z' or +hh:mm). Free text and
+# offset-less strings are not valid wire values.
+RFC3339_DATE_TIME_PATTERN = re.compile(
+    r'^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$'
+)
+
+
+# An IPv4 address is four dotted decimal octets, 0 to 255, with no leading zero,
+# no prefix length, no zone id, no brackets and no surrounding whitespace.
+_OCTET = r'(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])'
+_IPV4_PATTERN = re.compile((_OCTET + r'\.') * 3 + _OCTET)
+
+
+# An IPv6 address text holds only hexadecimal digits, colons and the dotted tail
+# of an embedded IPv4 address: a zone id (`%eth0`), a prefix length (`/64`),
+# brackets and whitespace are all outside this set.
+_IPV6_PATTERN = re.compile(r'[0-9A-Fa-f:.]+')
+
+
+_InitT = TypeVar('_InitT', bound=Callable[..., None])
+
+
+class CatchAllEnum(Enum):
+    """The base of every generated enum: a value the SDK does not list decodes to
+    the catch-all member ``UNKNOWN_DEFAULT_OPEN_API``, and that member has no wire
+    value, so writing it raises."""
+
+    @classmethod
+    def _missing_(cls, value: object) -> Any:
+        return cls.__members__.get('UNKNOWN_DEFAULT_OPEN_API')
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source: Any, handler: Any) -> Any:
+        return core_schema.no_info_after_validator_function(
+            lambda member: member,
+            handler(source),
+            serialization=core_schema.plain_serializer_function_ser_schema(cls._wire_value),
+        )
+
+    def _wire_value(self) -> Any:
+        if self.name == 'UNKNOWN_DEFAULT_OPEN_API':
+            raise ValueError('The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written')
+        return self.value
+
+
+def lenient_init(init: _InitT) -> _InitT:
+    """Mark an ``__init__`` as construction only, not as the decoder.
+
+    Pydantic calls a model's own ``__init__`` when it validates a document
+    (``model_validate``, ``TypeAdapter``) unless the function carries the
+    marker its own ``BaseModel.__init__`` carries. A constructor that keeps
+    what it is given must not be that entry point: decoding keeps validating.
+    """
+    setattr(init, '__pydantic_base_init__', True)
+    return init
+
+
+def _given_names(model_class: type[BaseModel]) -> set[str]:
+    """Every key a caller may use for a declared field: its name and its wire alias."""
+    names: set[str] = set()
+    for name, field in model_class.model_fields.items():
+        names.add(name)
+        if field.alias is not None:
+            names.add(field.alias)
+    return names
+
+
+def _require_arguments(model_class: type[BaseModel], data: dict[str, Any]) -> None:
+    """Raise ``TypeError`` for a required field the caller left out, like a missing argument."""
+    for name, field in model_class.model_fields.items():
+        if field.is_required() and name not in data and field.alias not in data:
+            raise TypeError(f"{model_class.__name__}() missing required argument: '{name}'")
+
+
+def _keep_as_given(model: BaseModel, data: dict[str, Any]) -> None:
+    """Fill ``model`` from ``data`` exactly as given, with no validation or coercion."""
+    model_class = type(model)
+    values = dict(data)
+    if 'additional_properties' in model_class.model_fields:
+        known = _given_names(model_class)
+        bucket = values.pop('additional_properties', None)
+        extras: dict[str, Any] = dict(bucket) if isinstance(bucket, dict) else {}
+        for key in [key for key in values if key not in known]:
+            extras[key] = values.pop(key)
+        values['additional_properties'] = extras
+    built = model_class.model_construct(**values)
+    model.__setstate__(built.__getstate__())
+
+
+class ApiModel(BaseModel):
+    """Base of every generated model.
+
+    Constructing a model never raises on a value: nothing is validated there.
+    A value that is valid for its field is coerced as usual (a list given for
+    a set field becomes a set); one that is not, such as a wrong type, an
+    unknown enum string or a number out of range, is kept exactly as given and
+    goes to the server, which owns validation. Only a required field left out
+    raises ``TypeError``, like a missing argument. Validation, and the loud
+    failure on an unknown enum value, happen when a document is decoded
+    (``model_validate`` or the client).
+    """
+
+    @lenient_init
+    def __init__(self, /, **data: Any) -> None:
+        _require_arguments(type(self), data)
+        try:
+            super().__init__(**data)
+        except ValueError:
+            _keep_as_given(self, data)
+
+
+def _freeze(value: Any) -> Any:
+    """A hashable stand-in for a field value, equal for equal values."""
+    if isinstance(value, dict):
+        return frozenset((key, _freeze(item)) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze(item) for item in value)
+    return value
+
+
+def hash_model(model: BaseModel) -> int:
+    """The hash of a frozen model, equal for models that compare equal.
+
+    Pydantic's own frozen hash fails on a list, map or set field; this one
+    freezes those first, so every model is usable as a dict key or set member.
+    """
+    return hash((type(model), _freeze(model.__dict__)))
+
+
+def _coerce_int_to_float(value: Any) -> Any:
+    """Coerce an integral wire value to ``float`` for a strict-float field.
+
+    JSON has a single number type, so a server is free to emit ``5`` (no
+    decimal point) for a field declared ``format: double``/``float``. Bare
+    pydantic ``StrictFloat`` rejects that integral value because the parsed
+    Python type is ``int``, not ``float`` — even though ``5`` is a perfectly
+    valid double on the wire. Widen ONLY the lossless ``int -> float`` case
+    here; every other type (``str``, ``bool``, ...) is passed through
+    untouched so the downstream strict ``float`` validator still rejects it.
+    ``bool`` is an ``int`` subclass, so it is excluded explicitly to keep the
+    StrictFloat guarantee that ``True``/``False`` are not silently accepted
+    as ``1.0``/``0.0``.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return float(value)
+    if isinstance(value, float):
+        return float(value)
+    return value
+
+
+class PreciseFloat(float):
+    """A ``float`` that remembers the JSON text it was parsed from.
+
+    ``json.loads`` is given this class as ``parse_float`` so a ``type: number``
+    field can rebuild its ``Decimal`` from the original digits instead of from
+    the already-rounded binary float. Everywhere else it is an ordinary float.
+    """
+
+    text: str
+
+    def __new__(cls, text: str) -> 'PreciseFloat':
+        instance = super().__new__(cls, text)
+        instance.text = text
+        return instance
+
+
+# Serialization context key that asks a `type: number` field to write its exact
+# decimal text. `ObjectSerializer.serialize` sets it, then swaps the marker
+# strings below for bare JSON numbers. A plain `model_dump_json()` does not set
+# it and keeps writing a float.
+EXACT_NUMBER_CONTEXT: dict[str, Any] = {'exact_numbers': True}
+
+# A per-process random marker, so no payload can collide with it.
+_EXACT_NUMBER_PREFIX = f'~exact-number-{secrets.token_hex(8)}:'
+_EXACT_NUMBER_PATTERN = re.compile(
+    '"' + re.escape(_EXACT_NUMBER_PREFIX) + r'(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"'
+)
+
+
+def resolve_exact_numbers(text: str) -> str:
+    """Replace every exact-number marker in serialized JSON by its bare number."""
+    return _EXACT_NUMBER_PATTERN.sub(r'\1', text)
+
+
+def _validate_json_number(value: Any) -> Any:
+    """Build the ``Decimal`` of a ``type: number`` field without any float rounding.
+
+    A JSON number is accepted (an ``int``, a ``Decimal``, or a float parsed by
+    ``PreciseFloat`` which keeps its source digits). A string or a boolean is
+    rejected: a quoted number is not a JSON number.
+    """
+    if isinstance(value, bool) or isinstance(value, str):
+        raise ValueError(f'a number must be a JSON number, not {type(value).__name__}')
+    if isinstance(value, Decimal):
+        number = value
+    elif isinstance(value, PreciseFloat):
+        number = Decimal(value.text)
+    elif isinstance(value, int):
+        number = Decimal(value)
+    elif isinstance(value, float):
+        number = Decimal(repr(value))
+    else:
+        raise ValueError(f'a number must be a JSON number, not {type(value).__name__}')
+    if not number.is_finite():
+        raise ValueError(f'{value} is not a finite JSON number')
+    return number
+
+
+def _decimal_to_json_number(value: Decimal, info: SerializationInfo) -> Any:
+    """Write a ``Decimal`` as a JSON number.
+
+    With the exact-number context the full decimal text is written, so nothing
+    is rounded. Without it the value is widened to a ``float``. A value that is
+    not finite (or does not fit a double in that second form) is rejected so a
+    non-finite number never reaches the wire.
+    """
+    if not value.is_finite():
+        raise ValueError(f'{value} is not representable as a finite JSON number')
+    context = info.context
+    if isinstance(context, dict) and context.get('exact_numbers') is True:
+        return _EXACT_NUMBER_PREFIX + format(value, 'f')
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f'{value} is not representable as a finite JSON number')
+    return number
+
+
+def format_time_of_day(value: datetime.time) -> str:
+    """Write a ``format: time`` value as an RFC 3339 partial-time.
+
+    Whole seconds are written as ``HH:MM:SS``; a non-zero millisecond part adds
+    ``.SSS`` (truncated, never rounded). It is never a full date-time.
+    """
+    if value.microsecond // 1000:
+        return value.isoformat(timespec='milliseconds')
+    return value.isoformat(timespec='seconds')
+
+
+def _validate_url_preserving(value: Any) -> Any:
+    """Validate an absolute URI without mutating it.
+
+    Any scheme is accepted (``urn:``, ``mailto:`` and ``ftp:`` are valid); a
+    relative reference or a string with whitespace is not. The ORIGINAL string
+    is returned so the wire value round-trips byte-identical, which a
+    normalizing parser such as ``pydantic.HttpUrl`` would break.
+    """
+    if value is None:
+        return value
+    if not isinstance(value, str) or not _ABSOLUTE_URI_PATTERN.match(value):
+        raise ValueError(f'{value!r} is not an absolute URI')
+    return value
+
+
+def _validate_ipv4(value: Any) -> Any:
+    """Accept only the plain dotted-decimal text of an IPv4 address.
+
+    ``ipaddress`` alone is more lenient than the wire rule on some versions, so
+    the shape is checked first and the text, not the parsed object, goes on to
+    pydantic, which builds the ``IPv4Address``.
+    """
+    if isinstance(value, ipaddress.IPv4Address):
+        return value
+    if not isinstance(value, str) or _IPV4_PATTERN.fullmatch(value) is None:
+        raise ValueError(f'{value!r} is not an IPv4 address')
+    return value
+
+
+def _validate_ipv6(value: Any) -> Any:
+    """Accept only the plain text of an IPv6 address: no zone id, prefix or brackets."""
+    if isinstance(value, ipaddress.IPv6Address):
+        return value
+    if not isinstance(value, str) or _IPV6_PATTERN.fullmatch(value) is None:
+        raise ValueError(f'{value!r} is not an IPv6 address')
+    return value
+
+
+def _validate_decimal_string(value: Any) -> Any:
+    """Read a ``type: string`` decimal only from a JSON string, never a JSON number."""
+    if isinstance(value, Decimal):
+        return value
+    if not isinstance(value, str):
+        raise ValueError(f'a decimal string must be a JSON string, not {type(value).__name__}')
+    return value
+
+
+def _decimal_to_plain_string(value: Decimal) -> str:
+    """Write a ``Decimal`` in plain notation with no exponent, keeping its trailing zeros."""
+    return format(value, 'f')
+
+
+def _reject_non_string_date_time(value: Any) -> Any:
+    """Reject a JSON number or boolean offered for a ``date-time`` field.
+
+    Lax ``AwareDatetime`` reads an ``int``/``float`` as epoch seconds (or
+    milliseconds), and ``bool`` is an ``int``, so ``{"timestamp": 1700000000}``
+    would decode to a real instant. The date-time wire form is an RFC 3339
+    string, and the other SDKs refuse any other JSON type, so only ``str`` and
+    ``datetime`` objects reach the downstream validator.
+    """
+    if isinstance(value, (bool, int, float)):
+        raise ValueError(
+            f'a date-time must be an RFC 3339 string, not {type(value).__name__}'
+        )
+    if isinstance(value, str) and not RFC3339_DATE_TIME_PATTERN.match(value):
+        raise ValueError(f'{value!r} is not an RFC 3339 date-time')
+    return value
+
+
+def _decode_base64(value: Any) -> bytes:
+    """Validate a ``format: byte`` field.
+
+    A ``str`` is the wire form: strict base64 (alphabet and padding are
+    checked, so ``'!!!!'`` or an embedded space is rejected rather than
+    silently dropped). ``bytes`` are the in-memory form and pass through
+    untouched: pydantic's own ``Base64Bytes`` would try to base64-DECODE them
+    again on construction and assignment.
+    """
+    if isinstance(value, str):
+        return base64.b64decode(value, validate=True)
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value)
+    raise ValueError(
+        f'expected bytes or a base64 string, got {type(value).__name__}'
+    )
+
+
+def _encode_base64(value: bytes) -> str:
+    return base64.b64encode(value).decode('ascii')
+
+
+def _finite_float_to_json(value: float) -> float:
+    """Write a ``float`` as a JSON number, refusing NaN and the infinities.
+
+    A constructor keeps a value that does not fit its field, so a non-finite
+    float can reach the encoder, where pydantic would write it as ``null``.
+    """
+    if not math.isfinite(value):
+        raise ValueError(f'{value} is not representable as a finite JSON number')
+    return value
+
+
+# `format: float` / `format: double` fields. StrictFloat semantics (reject
+# str/bool, no lax string coercion) are preserved via `Strict()`; the
+# BeforeValidator only widens the legitimate integral-JSON case to float.
+#
+# `allow_inf_nan=False` rejects NaN/Infinity on decode; the serializer refuses
+# one a constructor kept, because
+# pydantic would otherwise write it into a JSON body as `null`.
+LaxFloat = Annotated[
+    float,
+    BeforeValidator(_coerce_int_to_float),
+    Strict(),
+    Field(allow_inf_nan=False),
+    PlainSerializer(_finite_float_to_json, return_type=float, when_used='json'),
+]
+
+
+# `format: uri` fields. A plain `str` carrying an AfterValidator that asserts
+# the value is an absolute RFC 3986 URI (any scheme) but never rewrites it, so the wire
+# value round-trips byte-identical (unlike `pydantic.HttpUrl`, which normalizes).
+UrlStr = Annotated[str, AfterValidator(_validate_url_preserving)]
+
+
+# `format: ipv4` and `format: ipv6` fields: the standard-library address types.
+# The value is written in its canonical text (dotted decimal, or the RFC 5952
+# form for IPv6), so a value is preserved and its text is canonical.
+Ipv4Address = Annotated[
+    ipaddress.IPv4Address,
+    BeforeValidator(_validate_ipv4),
+    PlainSerializer(str, return_type=str, when_used='json'),
+]
+Ipv6Address = Annotated[
+    ipaddress.IPv6Address,
+    BeforeValidator(_validate_ipv6),
+    PlainSerializer(str, return_type=str, when_used='json'),
+]
+
+
+# `type: string` with `format: decimal`: a `Decimal` that travels as a JSON string.
+DecimalStr = Annotated[
+    Decimal,
+    BeforeValidator(_validate_decimal_string),
+    PlainSerializer(_decimal_to_plain_string, return_type=str, when_used='json'),
+]
+
+
+# Bare `type: number` (no `format`) fields. The OpenAPI spec types these as a
+# JSON NUMBER, so they must travel on the wire UNQUOTED (`1.5`, not `"1.5"`).
+# Decode keeps `decimal.Decimal` for arbitrary-precision fidelity (matching
+# BigDecimal in Java/Kotlin and the decimal.js Decimal in Node), but pydantic's
+# default Decimal serializer emits a JSON STRING, which violates `type: number`
+# and diverges from the SDKs that emit a bare number. The validator rebuilds the
+# Decimal from the source digits (no float rounding) and rejects a quoted string;
+# the PlainSerializer writes an unquoted number on the JSON encode path
+# (`when_used='json'`): the exact decimal text when ObjectSerializer asks for it,
+# a float for a plain model_dump_json().
+JsonNumber = Annotated[
+    Decimal,
+    BeforeValidator(_validate_json_number),
+    PlainSerializer(_decimal_to_json_number, return_type=Any, when_used='json'),
+]
+
+
+# `format: time` model fields: a `datetime.time` written as an RFC 3339
+# partial-time (`HH:MM:SS`, plus `.SSS` only when the millisecond part is
+# non-zero) instead of pydantic's microsecond form.
+TimeOfDay = Annotated[
+    datetime.time,
+    PlainSerializer(format_time_of_day, return_type=str, when_used='json'),
+]
+
+
+# `format: date-time` model fields. Bare pydantic `AwareDatetime` serializes via
+# model_dump_json with a trailing `Z` and a variable-width fractional part
+# (e.g. `2024-01-01T12:30:45Z`, `2020-01-02T03:04:05.123000Z`), which diverges
+# from the other SDKs that pin EXACTLY a fixed 3-digit millisecond fraction and
+# a numeric UTC offset, never `Z` (`2024-01-01T12:30:45.000+00:00`).
+# OffsetDateTime keeps AwareDatetime's validator (naive datetimes are still
+# rejected) and adds a JSON-only PlainSerializer that emits
+# `isoformat(timespec='milliseconds')`: an aware UTC datetime renders `+00:00`
+# (never `Z`) with exactly three fractional digits, matching the wire form every
+# other SDK produces. The parameter (`stringify`) and dict
+# (`_sanitize_for_serialization`) paths already pin this `.SSS+00:00` form; this
+# alias closes the one remaining leak on the model_dump_json body path.
+OffsetDateTime = Annotated[
+    AwareDatetime,
+    BeforeValidator(_reject_non_string_date_time),
+    PlainSerializer(
+        lambda value: value.isoformat(timespec='milliseconds'),
+        return_type=str,
+        when_used='json',
+    ),
+]
+
+
+# `format: byte` (and OAS 3.1 `contentEncoding: base64`) fields. The model holds
+# RAW bytes in memory and base64 only exists on the wire, as in the other SDKs:
+# a str is strictly base64-decoded on validation, bytes pass through, and the
+# JSON-only PlainSerializer base64-encodes on encode. Bare pydantic
+# `Base64Bytes` decodes whatever it is given, so constructing or assigning raw
+# bytes failed or silently corrupted them, and it decodes leniently.
+Base64Bytes = Annotated[
+    bytes,
+    PlainValidator(_decode_base64),
+    PlainSerializer(_encode_base64, return_type=str, when_used='json'),
+]
+
+
+# `format: password` model fields. The value stays a pydantic `SecretStr` in
+# memory, so repr/str keep masking it, but bare `SecretStr` serializes via
+# model_dump_json as the literal `"**********"`, which would send the mask
+# instead of the password. This JSON-only PlainSerializer writes the real value,
+# as every other SDK does.
+PasswordStr = Annotated[
+    SecretStr,
+    PlainSerializer(
+        lambda value: value.get_secret_value(),
+        return_type=str,
+        when_used='json',
+    ),
+]

@@ -1,0 +1,752 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.ApiKeyAuthenticator
+import {{invokerPackage}}.auth.ApiKeyLocation
+import {{invokerPackage}}.auth.BearerAuthenticator
+import {{invokerPackage}}.auth.CredentialEnvironment
+import {{invokerPackage}}.errors.ApiException
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.get
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
+import java.nio.file.Path
+
+class ClientTest {
+
+
+    private class TransportProbeAuthenticator : {{invokerPackage}}.auth.HttpAwareAuthenticator {
+        var injected: {{invokerPackage}}.ApiClient? = null
+            private set
+
+        override fun setApiClient(apiClient: {{invokerPackage}}.ApiClient) {
+            injected = apiClient
+        }
+
+        override fun invalidateAccessToken() = Unit
+        override fun getHost(): String = ""
+        override suspend fun getAuthHeaders(): Map<String, String> = emptyMap()
+    }
+    private val authenticator = BearerAuthenticator("{{{basePath}}}", "test-token")
+
+    @Test
+    @DisplayName("bhvLifecycle012 construct with authenticator only")
+    fun constructWithAuthenticatorOnly() {
+        val client = {{clientClassName}}(authenticator)
+
+        assertNotNull(client)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle011 construct with authenticator and transport options")
+    fun constructWithAuthenticatorAndTransportOptions() {
+        val transport = TransportOptions.builder().build()
+
+        val client = {{clientClassName}}(authenticator, transport)
+
+        assertNotNull(client)
+    }
+
+{{#hasClientSchemes}}
+    @Test
+    @DisplayName("bhvLifecycle015 F857: the scheme constructor takes one optional credential per scheme, named after it")
+    fun schemeConstructorTakesOneOptionalCredentialPerScheme() {
+        val client =
+            {{clientClassName}}(
+                "{{{basePath}}}",
+{{#clientSchemes}}
+                {{{argName}}} = null,
+{{/clientSchemes}}
+                transportOptions = TransportOptions.builder().build(),
+            )
+
+        assertNotNull(client)
+        client.close()
+    }
+
+{{/hasClientSchemes}}
+    @Test
+    @DisplayName("bhvLifecycle016 F857: a client given only a host sends no authentication header")
+    fun clientWithNoCredentialSendsNoAuthenticationHeader() {
+        var authorization: String? = "unset"
+        val engine =
+            MockEngine { request ->
+                authorization = request.headers["Authorization"]
+                respond("{}")
+            }
+        val client =
+            {{clientClassName}}(
+                "{{{basePath}}}",
+                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+            )
+
+        runBlocking { client.store.getInventory() }
+
+        assertNull(authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle006 Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun bearerRejectsCrlfAndNonAscii() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "tok\r\nInjected: yes")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "ñoño")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle005 bearer-no-empty-token-guard: Bearer rejects empty/blank token")
+    fun bearerRejectsEmptyOrBlankToken() {
+        // An empty or whitespace-only token would emit a credential-less
+        // "Authorization: Bearer " header (fail-open); reject it up front.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "   ")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("{{{basePath}}}", "\t")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle004 ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun apiKeyHeaderRejectsCrlfAndNonAscii() {
+        // ApiKeyAuthenticator's HEADER location must reject any value
+        // outside printable ASCII + TAB to prevent both header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+        }
+        // Non-header locations accept arbitrary chars.
+        assertNotNull(
+            ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle003 ApiKey query location accepts non-ASCII characters")
+    fun apiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+            mapOf("api_key" to "kéy"),
+            ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin012 missing CA cert surfaces IllegalArgumentException, not raw JDK exception")
+    fun bhvLangkotlin012MissingCaCertThrowsIllegalArgumentException() {
+        // A custom CA cert path that does not exist is a configuration mistake,
+        // not an API failure. Construction must fail fast with
+        // IllegalArgumentException rather than a raw FileNotFoundException.
+        val transport =
+            TransportOptions.builder()
+                .caCertPath("/nonexistent/path/to/ca-cert.pem")
+                .build()
+
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                {{clientClassName}}(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin013 missing CA cert is rejected even when verifySsl is false")
+    fun bhvLangkotlin013MissingCaCertIsRejectedWhenVerifySslIsFalse() {
+        val transport =
+            TransportOptions.builder()
+                .verifySsl(false)
+                .caCertPath("/nonexistent/path/to/ca-cert.pem")
+                .build()
+
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                {{clientClassName}}(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin014 garbage CA cert surfaces IllegalArgumentException, not raw JDK exception")
+    fun bhvLangkotlin014InvalidCaCertThrowsIllegalArgumentException(@TempDir tempDir: Path) {
+        // A readable file whose contents are not a valid PEM certificate must
+        // also surface as IllegalArgumentException (wrapping the underlying
+        // CertificateException), never a raw java.security.cert.CertificateException.
+        val badCert = File(tempDir.toFile(), "bad-ca.pem")
+        badCert.writeText("not a valid certificate")
+
+        val transport =
+            TransportOptions.builder()
+                .caCertPath(badCert.absolutePath)
+                .build()
+
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                {{clientClassName}}(authenticator, transport)
+            }
+        assertTrue(ex.message!!.contains("CA certificate"))
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle008 F824: a closed client rejects further requests")
+    fun closedClientRejectsRequests() {
+        val client = {{clientClassName}}(authenticator)
+        client.close()
+
+        val ex =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { client.pet.getPetById(1L) }
+            }
+        assertTrue(ex.message!!.contains("closed"))
+    }
+
+    @Test
+    @DisplayName("bhvStreaming021 closing the client cancels the open streams, the next read of each raises the closed-client error, and new calls are refused")
+    fun bhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() {
+        DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest.oneChunkThenHold).use { server ->
+            val client = {{clientClassName}}(BearerAuthenticator(server.url(""), "test-token"))
+            runBlocking {
+                val open = client.pet.getPetAvatar(1L)
+                val buffer = ByteArray(4)
+                assertEquals(4, open.read(buffer))
+                assertEquals("tick", String(buffer, Charsets.UTF_8))
+
+                val started = System.nanoTime()
+                client.close()
+                assertTrue(
+                    System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(5),
+                    "closing did not wait for the endless stream",
+                )
+
+                val cancelled = assertThrows(IllegalStateException::class.java) { runBlocking { open.read(buffer) } }
+                assertEquals("ApiClient has been closed and can no longer send requests", cancelled.message)
+                assertThrows(IllegalStateException::class.java) { runBlocking { client.pet.getPetAvatar(1L) } }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle009 F824: closing the client never closes a caller-supplied transport")
+    fun closingTheClientKeepsASuppliedTransportOpen() {
+        val custom = HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(custom).build())
+
+        client.close()
+
+        assertTrue(custom.coroutineContext[Job]!!.isActive)
+        custom.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle043 after the client is closed a new request fails and never reaches the network")
+    fun bhvLifecycle043RequestAfterCloseIsRefused() = bhvLifecycle035ARequestAfterCloseFailsAndNeverReachesTheTransport()
+
+    @Test
+    @DisplayName("bhvLifecycle038 close is on the ApiClient contract: a custom transport without close can be closed")
+    fun customTransportWithoutCloseCanBeClosedTwice() {
+        val transport = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean
+            ): ApiHttpResponse = ApiHttpResponse(200, "{}", emptyMap())
+        }
+
+        transport.close()
+        transport.close()
+
+        assertEquals(200, runBlocking { transport.sendRequest("GET", "http://localhost/", emptyMap(), null).statusCode })
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle028 an explicit host and token win over the environment")
+    fun bhvLifecycle028AnExplicitHostAndTokenWinOverTheEnvironment() {
+        var authorization: String? = null
+        var host = ""
+        val engine = MockEngine { request ->
+            host = request.url.host
+            authorization = request.headers[HttpHeaders.Authorization]
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val client = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "env-token")) {
+            {{clientClassName}}.withToken(
+                "https://arg.example.com",
+                "arg-token",
+                TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+            )
+        }
+
+        assertThrows(ApiException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("arg.example.com", host)
+        assertEquals("Bearer arg-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle032 a token passed to the client is preferred to the one in the environment")
+    fun bhvLifecycle032ATokenPassedToTheClientIsPreferredToTheEnvironment() {
+        var authorization: String? = null
+        val engine = MockEngine { request ->
+            authorization = request.headers[HttpHeaders.Authorization]
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val client = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "env-token")) {
+            {{clientClassName}}.withToken(
+                "https://api.example.com",
+                "arg-token",
+                TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+            )
+        }
+
+        assertThrows(ApiException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("Bearer arg-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle035 a request issued after close fails with the one closed-client error and never reaches the transport")
+    fun bhvLifecycle035ARequestAfterCloseFailsAndNeverReachesTheTransport() {
+        var reached = 0
+        val engine = MockEngine { _ ->
+            reached += 1
+            respond("{}")
+        }
+        val transport = HttpClient(engine) { followRedirects = false }
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(transport).build())
+        client.close()
+
+        val ex = assertThrows(IllegalStateException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("ApiClient has been closed and can no longer send requests", ex.message)
+        assertEquals(0, reached)
+    }
+
+    private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle002 ApiKey header rejects a DEL or NUL character and accepts a tab")
+    fun apiKeyHeaderRejectsDelAndNulAndAcceptsATab() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "a\u007Fb", ApiKeyLocation.HEADER)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "a\u0000b", ApiKeyLocation.HEADER)
+        }
+        assertNotNull(ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "a\tb", ApiKeyLocation.HEADER))
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle007 close leaves a supplied transport usable for a request of its own")
+    fun closeLeavesASuppliedTransportUsable() {
+        val custom = HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(custom).build())
+
+        client.close()
+
+        assertEquals(HttpStatusCode.OK, runBlocking { custom.get("http://localhost/ping").status })
+        custom.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle010 construct with authenticator and nil transport options")
+    fun constructWithAuthenticatorAndNilTransportOptions() {
+        val client = {{clientClassName}}.withAuthenticator(authenticator, null)
+
+        assertNotNull(client)
+        client.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle013 withToken fails when no token is passed and the environment variable is unset")
+    fun withTokenFailsWithoutATokenOrVariable() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(emptyMap()) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle014 withToken reads the token from the environment when none is passed")
+    fun withTokenReadsTheTokenFromTheEnvironment() {
+        var authorization: String? = null
+        val engine = MockEngine { request ->
+            authorization = request.headers[HttpHeaders.Authorization]
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val client = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "env-token")) {
+            {{clientClassName}}.withToken(
+                "https://api.example.com",
+                null,
+                TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+            )
+        }
+
+        assertThrows(ApiException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("Bearer env-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle017 withAuthenticator takes a token provider and asks it on every request")
+    fun providerIsAskedForATokenOnEveryRequest() {
+        var calls = 0
+        val seen = mutableListOf<String?>()
+        val engine = MockEngine { request ->
+            seen.add(request.headers[HttpHeaders.Authorization])
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val auth = withEnvironment(emptyMap()) {
+            BearerAuthenticator("https://api.example.com", tokenProvider = { calls += 1; "tok-$calls" })
+        }
+        val client = {{clientClassName}}.withAuthenticator(
+            auth,
+            TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+        )
+
+        repeat(2) {
+            assertThrows(ApiException::class.java) {
+                runBlocking { client.pet.getPetById(1L) }
+            }
+        }
+        assertEquals(listOf("Bearer tok-1", "Bearer tok-2"), seen)
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin015 the build declares a stable Automatic-Module-Name")
+    fun bhvLangkotlin015BuildDeclaresAStableModuleName() {
+        val build = java.io.File("build.gradle.kts").readText()
+        assertTrue(build.contains("\"Automatic-Module-Name\" to \"{{invokerPackage}}\""))
+    }
+
+    @Test
+    @DisplayName("bhvConfig025 an empty token environment value counts as unset, so withToken fails naming the variable")
+    fun bhvConfig025AnEmptyTokenVariableCountsAsUnset() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) {
+                {{clientClassName}}.withToken("https://api.example.com")
+            }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle039 an empty token is refused at construction and a valid token builds a client")
+    fun bhvLifecycle039AnEmptyTokenIsRefusedAndAValidTokenBuilds() {
+        assertThrows(IllegalArgumentException::class.java) {
+            {{clientClassName}}.withToken("https://api.example.com", "")
+        }
+        val client = {{clientClassName}}.withToken("https://api.example.com", "tok")
+        assertNotNull(client)
+        client.close()
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle040 leaving the use block closes the client, which then refuses requests")
+    fun bhvLifecycle040LeavingTheUseBlockClosesTheClient() {
+        val client = {{clientClassName}}.withToken("https://api.example.com", "tok")
+        client.use { }
+        val ex = assertThrowsExactly(IllegalStateException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+        assertEquals("ApiClient has been closed and can no longer send requests", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth025 a credential that fetches tokens sends its token request through the client's transport")
+    fun bhvAuth025ACredentialFetchesTokensThroughTheClientTransport() {
+        val requested = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            requested.add(request.url.toString())
+            respond("""{"access_token":"tok","expires_in":3600}""", HttpStatusCode.OK)
+        }
+        val credential = com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com",
+            "client-id",
+            "client-secret",
+        )
+        val client = {{clientClassName}}(
+            "https://api.example.com",
+            machineAuth = credential,
+            transportOptions = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+        )
+        assertEquals("Bearer tok", runBlocking { credential.getAuthHeaders()["Authorization"] })
+        assertEquals(listOf("https://auth.example.com/oauth/token"), requested)
+        client.close()
+    }
+
+    @Test
+    @DisplayName("bhvMisc071 a client-level credential that needs the HTTP transport receives the client's own transport")
+    fun bhvMisc071ACredentialThatNeedsHttpReceivesTheClientsOwnTransport() {
+        val probe = TransportProbeAuthenticator()
+
+        {{clientClassName}}(probe, TransportOptions.builder().build())
+
+        assertTrue(probe.injected is {{invokerPackage}}.DefaultApiClient)
+    }
+
+{{#hasClientSchemes}}
+    @Test
+    @DisplayName("bhvMisc073 the client provides a generated wrapper class for every security scheme the spec declares")
+    fun bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+{{#clientSchemes}}
+        assertNotNull({{{authPackage}}}.{{className}}::class.java)
+{{/clientSchemes}}
+    }
+
+{{/hasClientSchemes}}
+    @Test
+    @DisplayName("bhvLifecycle001 API groups are accessible")
+    fun apiGroupsAreAccessible() {
+        val client = {{clientClassName}}(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(client.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test
+    @DisplayName("bhvMocking001 every group has an interface the class implements")
+    fun everyGroupHasAnInterfaceTheClassImplements() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertTrue({{apiPackage}}.{{classname}}Interface::class.java.isAssignableFrom({{apiPackage}}.{{classname}}::class.java))
+        val {{clientPropertyName}}Listed = {{apiPackage}}.{{classname}}Interface::class.java.methods.map { it.name }.toSet()
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        assertTrue("{{vendorExtensions.op.streamMethodName}}" in {{clientPropertyName}}Listed)
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+        assertTrue("{{operationId}}" in {{clientPropertyName}}Listed)
+        assertTrue("{{operationId}}WithHttpInfo" in {{clientPropertyName}}Listed)
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private fun publicMethodNames(methods: Array<java.lang.reflect.Method>): Set<String> =
+        methods
+            .filter { java.lang.reflect.Modifier.isPublic(it.modifiers) && !it.isSynthetic && !it.name.contains('$') }
+            .map { it.name }
+            .toSortedSet()
+
+    @Test
+    @DisplayName("bhvMocking002 the group interface lists exactly the public operations of the class")
+    fun groupInterfaceListsExactlyThePublicOperationsOfTheClass() {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+            publicMethodNames({{apiPackage}}.{{classname}}::class.java.declaredMethods),
+            publicMethodNames({{apiPackage}}.{{classname}}Interface::class.java.methods),
+        )
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    @Test
+    @DisplayName("bhvMocking007 the client interface exposes every group typed as its interface and close")
+    fun clientInterfaceExposesEveryGroupTypedAsItsInterfaceAndClose() {
+        val client = {{clientClassName}}(authenticator)
+        val viaInterface: {{clientClassName}}Interface = client
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertEquals(
+            {{apiPackage}}.{{classname}}Interface::class.java,
+            {{clientClassName}}Interface::class.java.getMethod("get{{clientAccessorSuffix}}").returnType,
+        )
+        assertSame(client.{{clientPropertyName}}, viaInterface.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        viaInterface.close()
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { client.pet.getPetById(1L) }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMocking008 a client built from fakes never connects and closes without error")
+    fun clientBuiltFromFakesNeverConnectsAndClosesWithoutError() {
+        var closed = 0
+        val fake =
+            object : {{clientClassName}}Interface {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+                override val {{clientPropertyName}}: {{apiPackage}}.{{classname}}Interface =
+                    java.lang.reflect.Proxy.newProxyInstance(
+                        {{apiPackage}}.{{classname}}Interface::class.java.classLoader,
+                        arrayOf({{apiPackage}}.{{classname}}Interface::class.java),
+                    ) { _, _, _ -> null } as {{apiPackage}}.{{classname}}Interface
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+                override fun close() {
+                    closed++
+                }
+            }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(fake.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        fake.close()
+        fake.close()
+        assertEquals(2, closed)
+    }
+
+    @Test
+    @DisplayName("bhvHooks010 a hook set on the client still fires when the caller supplied the transport")
+    fun aHookFiresWithASuppliedTransport() {
+        val custom =
+            HttpClient(
+                MockEngine {
+                    respond(
+                        "{\"name\":\"n\",\"photoUrls\":[]}",
+                        HttpStatusCode.OK,
+                        io.ktor.http.headersOf("Content-Type", "application/json"),
+                    )
+                },
+            ) { followRedirects = false }
+        val starts = mutableListOf<CallInfo>()
+        val finishes = mutableListOf<CallOutcome>()
+        val hook = CallHook { info, _ ->
+            starts.add(info)
+            CallObserver { finishes.add(it) }
+        }
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(custom).build(), hook)
+
+        runBlocking { client.pet.getPetById(1L) }
+
+        assertEquals(listOf("getPetById"), starts.map { it.operationId })
+        assertEquals(listOf(200), finishes.map { it.statusCode })
+        client.close()
+        custom.close()
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin016 the factories hand the hook to every API group")
+    fun bhvLangkotlin016TheFactoriesHandOverTheHook() {
+        val starts = mutableListOf<CallInfo>()
+        val hook = CallHook { info, _ ->
+            starts.add(info)
+            null
+        }
+        val custom =
+            HttpClient(
+                MockEngine {
+                    respond("{}", HttpStatusCode.OK, io.ktor.http.headersOf("Content-Type", "application/json"))
+                },
+            ) { followRedirects = false }
+        val transport = TransportOptions.builder().httpClient(custom).build()
+        runCatching { runBlocking { {{clientClassName}}.withToken("{{{basePath}}}", "t", transport, hook).pet.getPetById(1L) } }
+        runCatching { runBlocking { {{clientClassName}}.withAuthenticator(authenticator, transport, hook).pet.getPetById(1L) } }
+        assertEquals(2, starts.size)
+        custom.close()
+    }
+    @Test
+    @DisplayName("bhvMisc204 constructing a client without a required host or token fails at once with a missing-credential error")
+    fun bhvMisc204ClientWithoutHostOrTokenFailsAtOnce() {
+        assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(emptyMap()) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc205 the missing-credential error names the environment variable that should have supplied the token")
+    fun bhvMisc205MissingCredentialErrorNamesTheVariable() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(emptyMap()) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvMisc206 a client built with only a default authenticator is constructed and takes its host from it")
+    fun bhvMisc206ClientWithOnlyAnAuthenticatorTakesItsHost() {
+        var host = ""
+        val engine = MockEngine { request ->
+            host = request.url.host
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val authenticator = BearerAuthenticator("https://api.example.com", "token")
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build())
+        assertThrows(ApiException::class.java) { runBlocking { client.pet.getPetById(1L) } }
+        assertEquals("api.example.com", host)
+    }
+
+    @Test
+    @DisplayName("bhvMisc207 a token not passed to the constructor is read from its environment variable")
+    fun bhvMisc207TokenNotPassedIsReadFromItsEnvironmentVariable() {
+        var authorization: String? = null
+        val engine = MockEngine { request ->
+            authorization = request.headers[HttpHeaders.Authorization]
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val client = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "env-token")) {
+            {{clientClassName}}.withToken(
+                "https://api.example.com",
+                null,
+                TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+            )
+        }
+        assertThrows(ApiException::class.java) { runBlocking { client.pet.getPetById(1L) } }
+        assertEquals("Bearer env-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvMisc208 an empty environment variable for the token counts as unset")
+    fun bhvMisc208EmptyTokenVariableCountsAsUnset() {
+        assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+    }
+
+}

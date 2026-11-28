@@ -1,0 +1,12 @@
+{{>api_info}}
+/// ApiKeyLocation specifies where the API key should be sent.
+enum ApiKeyLocation {
+  /// Sends the API key as a request header.
+  header,
+
+  /// Sends the API key as a query parameter.
+  query,
+
+  /// Sends the API key as a cookie.
+  cookie,
+}

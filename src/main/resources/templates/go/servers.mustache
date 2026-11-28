@@ -1,0 +1,62 @@
+{{>api_info}}
+package {{packageName}}
+
+import "fmt"
+
+// Generated server configurations from the OpenAPI specification.
+//
+// Each variable corresponds to a server entry defined in the spec's
+// servers array. Use these with ConfigurationBuilder.Server to select a server:
+//
+//	builder, err := {{packageName}}.NewConfigurationBuilder().
+//		Server({{packageName}}.Server0, nil)
+//	if err != nil {
+//		return err
+//	}
+//	config := builder.Build()
+//
+// For servers with variables, pass overrides:
+//
+//	builder, err := {{packageName}}.NewConfigurationBuilder().
+//		Server({{packageName}}.Server1, map[string]string{"environment": "staging"})
+var (
+{{#serverConfigs}}
+	/* Server{{serverIndex}} is the server configuration for: {{#goBlockComment}}{{{serverUrl}}}{{/goBlockComment}}{{#serverDescription}}
+	 * {{#goBlockComment}}{{{serverDescription}}}{{/goBlockComment}}{{/serverDescription}} */
+	Server{{serverIndex}} = NewNamedServerConfiguration(
+		"{{#serverName}}{{#goStringLiteral}}{{{serverName}}}{{/goStringLiteral}}{{/serverName}}",
+		"{{#goStringLiteral}}{{{serverUrl}}}{{/goStringLiteral}}",
+		"{{#serverDescription}}{{#goStringLiteral}}{{{serverDescription}}}{{/goStringLiteral}}{{/serverDescription}}",
+		{{#hasVariables}}map[string]ServerVariable{
+{{#serverVariables}}			"{{#goStringLiteral}}{{{varName}}}{{/goStringLiteral}}": NewServerVariable(
+				"{{#goStringLiteral}}{{{varDefault}}}{{/goStringLiteral}}",
+				"{{#varDescription}}{{#goStringLiteral}}{{{varDescription}}}{{/goStringLiteral}}{{/varDescription}}",
+				{{#hasEnumValues}}[]string{ {{#varEnumValues}}"{{#goStringLiteral}}{{{.}}}{{/goStringLiteral}}"{{^-last}}, {{/-last}}{{/varEnumValues}} }{{/hasEnumValues}}{{^hasEnumValues}}nil{{/hasEnumValues}},
+			),
+{{/serverVariables}}		}{{/hasVariables}}{{^hasVariables}}map[string]ServerVariable{}{{/hasVariables}},
+	)
+
+{{/serverConfigs}}
+)
+
+// AllServers contains all server configurations in declaration order.
+var AllServers = []*ServerConfiguration{
+{{#serverConfigs}}	Server{{serverIndex}},
+{{/serverConfigs}}}
+
+// ServerByName returns the server the specification gives the name name
+// (OpenAPI 3.2 name). When no server has that name it returns
+// ErrUnknownServer, and the message lists the known names.
+func ServerByName(name string) (*ServerConfiguration, error) {
+	known := make([]string, 0, len(AllServers))
+	for _, server := range AllServers {
+		if server.name == "" {
+			continue
+		}
+		if server.name == name {
+			return server, nil
+		}
+		known = append(known, server.name)
+	}
+	return nil, fmt.Errorf("%w: unknown server name '%s'. Known names: %s", ErrUnknownServer, name, bracketedList(known))
+}

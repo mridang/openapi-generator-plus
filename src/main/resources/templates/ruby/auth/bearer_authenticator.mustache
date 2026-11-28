@@ -1,0 +1,83 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Auth
+    # Authenticator for HTTP Bearer token authentication.
+    class BearerAuthenticator < BaseAuthenticator
+      attr_reader :host
+
+      # The token comes from the first of: the +token+ given here, the result of
+      # +token_provider+ (called for every request, so a short-lived token can be
+      # renewed) and the environment variable +token_env+ (read once, here; an
+      # empty value counts as unset, and it is read only when neither was passed).
+      # It fails here when there is none.
+      #
+      # @param host [String] API base URL
+      # @param token [String, nil] Bearer token
+      # @param token_provider [#call, nil] returns the token for one request
+      # @param env [#[]] where +token_env+ is read from
+      # @param token_env [String] the name of the environment variable of the token
+      def initialize(host, token = nil, token_provider: nil, env: ENV, token_env: "#{ENV_PREFIX}_TOKEN")
+        super()
+        raise ArgumentError, 'Pass a Bearer token or a token provider, not both' if token && token_provider
+
+        @token_provider = token_provider
+        token = credential_from(token, token_env, env) unless token_provider
+        if token.nil? && token_provider.nil?
+          raise ArgumentError, "Missing Bearer token: pass it or set the environment variable #{token_env}"
+        end
+        validate_token!(token) unless token.nil? && token_provider
+        @host = host
+        @token = token
+      end
+
+      # Redact the token from the default object representation so logging or
+      # inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} token=\"***\">"
+      end
+      alias to_s inspect
+
+      # @return [Hash{String => String}]
+      def auth_headers
+        # Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+        # from env files are commonly stored already-prefixed; emitting
+        # "Bearer Bearer xyz" would otherwise silently break auth.
+        value = @token || fresh_token
+        if value.length >= 7 && value[0, 7].downcase == 'bearer '
+          value = value[7..] || ''
+        end
+        { 'Authorization' => "Bearer #{value}" }
+      end
+
+      private
+
+      # The provider's token for one request, checked like a given one.
+      def fresh_token
+        provided = @token_provider&.call
+        validate_token!(provided)
+        provided.to_s
+      end
+
+      def validate_token!(token)
+        # Reject an empty/blank token: it would otherwise produce a literal
+        # "Authorization: Bearer " header that silently fails auth, mirroring
+        # the api-key authenticator's own empty-value guard.
+        if token.nil? || token.to_s.match?(/\A[ \t\n\r\f\v]*\z/)
+          raise ArgumentError, 'Bearer token must not be empty'
+        end
+
+        # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+        # Reject anything outside printable ASCII + TAB so callers see a
+        # clear error rather than HTTP header injection from CR/LF or
+        # silently-mangled non-ASCII bytes.
+        return unless token.match?(/[^\t\x20-\x7E]/)
+
+        raise ArgumentError,
+              'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+      end
+    end
+  end
+end

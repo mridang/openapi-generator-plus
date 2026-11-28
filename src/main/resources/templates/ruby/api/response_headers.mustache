@@ -1,0 +1,91 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Api
+    module Options
+      # The response headers the {{operationId}} operation declares, read in
+      # their declared types. A header the response does not carry is nil.
+      #
+      # Build one from the raw response headers with +from_headers+, for example
+      # the +headers+ of the ApiResult a +_with_http_info+ call returns.
+{{#headers}}
+      # @!attribute [r] {{varName}}
+      #   @return [{{{dataType}}}, nil] the +{{wireName}}+ header{{#hasDescription}}: {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/hasDescription}}
+{{#hasExample}}
+      #   Example: {{#lambda.rubyComment}}{{{example}}}{{/lambda.rubyComment}}
+{{/hasExample}}
+{{/headers}}
+      class {{className}}
+        # A decimal number: an optional sign, digits with an optional fraction,
+        # and an optional exponent.
+        DECIMAL = /\A[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\z/
+        private_constant :DECIMAL
+
+        attr_reader {{accessorList}}
+
+        def initialize({{initializeSignature}})
+{{#headers}}
+          @{{varName}} = {{varName}}{{#isArray}}&.freeze{{/isArray}}
+{{/headers}}
+          freeze
+        end
+
+        # Reads the declared headers from raw response headers, matching each
+        # name without regard to case.
+        #
+        # @param headers [Hash{String => String}] the raw response headers
+        # @return [{{className}}] the headers in their declared types
+        # @raise [{{moduleName}}::Errors::SerializationError] when a header value
+        #   does not parse as its declared type
+        def self.from_headers(headers)
+          new(
+{{#headers}}
+{{#isArray}}
+            {{varName}}: header_value(headers, '{{wireName}}')&.split(',')&.map { |item| parse_value('{{wireName}}', '{{kind}}', '{{parser}}', item.strip) }{{^-last}},{{/-last}}
+{{/isArray}}
+{{^isArray}}
+            {{varName}}: header_value(headers, '{{wireName}}')&.then { |value| parse_value('{{wireName}}', '{{kind}}', '{{parser}}', value) }{{^-last}},{{/-last}}
+{{/isArray}}
+{{/headers}}
+          )
+        end
+
+        # The value of the header +name+, whatever the casing of its key, or nil.
+        def self.header_value(headers, name)
+          headers.each { |key, value| return value.to_s if key.to_s.casecmp?(name) }
+          nil
+        end
+        private_class_method :header_value
+
+        # One value parsed by +parser+; a value that does not parse raises a
+        # SerializationError naming the header and its +kind+.
+        def self.parse_value(name, kind, parser, value)
+          parsed =
+            case parser
+            when 'integer' then parse_integer(value, 2_147_483_648)
+            when 'long' then parse_integer(value, 9_223_372_036_854_775_808)
+            when 'decimal' then BigDecimal(value) if value.match?(DECIMAL)
+            when 'float' then Float(value) if value.match?(DECIMAL)
+            when 'boolean' then { 'true' => true, 'false' => false }[value]
+            else value
+            end
+          return parsed unless parsed.nil?
+
+          raise ::{{moduleName}}::Errors::SerializationError, "Response header '#{name}' is not a valid #{kind}: '#{value}'"
+        end
+        private_class_method :parse_value
+
+        # A base-10 integer with an optional sign inside [-bound, bound), or nil.
+        def self.parse_integer(value, bound)
+          return nil unless value.match?(/\A[+-]?\d+\z/)
+
+          number = Integer(value, 10)
+          number if number >= -bound && number < bound
+        end
+        private_class_method :parse_integer
+      end
+    end
+  end
+end

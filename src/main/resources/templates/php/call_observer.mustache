@@ -1,0 +1,22 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * Told how one operation call ended. It is called exactly once for every call
+ * whose {@see CallHook::start()} returned it.
+ *
+ * @category Interface
+ * @package  {{invokerPackage}}
+ */
+interface CallObserver
+{
+    /**
+     * Called once when the call ends, on every exit path: success, an error
+     * status, a network error, a timeout, a body that cannot be encoded or a
+     * response that cannot be decoded. An exception thrown here is swallowed, so
+     * the call still returns its result or its own error.
+     *
+     * @param CallOutcome $outcome how the call ended
+     */
+    public function finish(CallOutcome $outcome): void;
+}

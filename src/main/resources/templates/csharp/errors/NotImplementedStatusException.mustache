@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 501 Not Implemented.
+/// </summary>
+public class NotImplementedStatusException : ServerException
+{
+    public NotImplementedStatusException()
+        : this("Not Implemented") { }
+
+    public NotImplementedStatusException(string message)
+        : this(message, null, null, null) { }
+
+    public NotImplementedStatusException(string message, Exception innerException)
+        : base(501, message, innerException) { }
+
+    public NotImplementedStatusException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(501, message, responseHeaders, responseBody, errorBody) { }
+}

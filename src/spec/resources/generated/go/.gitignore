@@ -1,0 +1,13 @@
+# Dependencies
+vendor/
+
+# Build artifacts
+*.exe
+*.test
+
+# Profile output
+*.prof
+
+# Coverage output
+coverage.out
+.out/

@@ -1,0 +1,496 @@
+# Swagger Petstore - OpenAPI 3.0 SDK
+
+Auto-generated Python SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## API information
+
+Pets, owners and orders for integration tests
+
+- **Contact:** Petstore API support
+- **Contact email:** support@example.com
+- **Contact URL:** https://example.com/support
+- **License:** Apache 2.0 (https://spdx.org/licenses/Apache-2.0.html)
+- **Terms of service:** https://example.com/terms
+
+## Requirements
+
+- Python 3.10+
+- `pip`
+
+## Installation
+
+```bash
+pip install petstore-client
+```
+
+## Usage
+
+```python statements
+import os
+
+from petstore_client.client import Client
+
+host = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"]
+token = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"]
+with Client.with_token(host, token) as client:
+    result = await client.store.get_defaults()
+    print(result)
+```
+
+See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
+
+## Configuration
+
+`TransportOptions.builder()` sets `timeout` (milliseconds, one end-to-end budget across redirects and retries; `None` or at least 1), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id`, `max_retries`, `idle_timeout` and `max_response_bytes`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. With `inject_request_id(True)` every request carries an `X-Request-ID` header unless you send one.
+
+`TransportOptions.builder().max_response_bytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`async with`). `read_all()` reads the rest into memory and leaves the stream closed.
+
+```python file
+from pathlib import Path
+
+from pydantic import StrictInt
+from petstore_client.client import Client
+
+async def save_to(client: Client, pet_id: StrictInt, document_id: StrictInt, target: Path) -> None:
+    stream = await client.pet.download_pet_document(pet_id, document_id)
+    async with stream:
+        print(stream.status_code)
+        with target.open('wb') as file:
+            async for chunk in stream:
+                file.write(chunk)
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `None` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `NotImplementedError` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.of_file(path)` or `BodySource.from_factory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>_stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream[T]` of the schema type or an `SseStream[T]` of `ServerSentEvent[T]` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `max_event_bytes` (1 MiB), raise `SerializationException` and end the stream.
+
+```python file
+from petstore_client.client import Client
+
+async def read_feed(client: Client) -> None:
+    feed = await client.store.export_orders_stream()
+    async with feed:
+        async for item in feed:
+            print(item)
+```
+
+```python file
+from petstore_client.client import Client
+
+async def watch_feed(client: Client) -> None:
+    feed = await client.store.watch_notices_stream()
+    async with feed:
+        async for event in feed:
+            print(event.data)
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnect_delay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `max_reconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idle_timeout` and `last_event_id`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>_pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator[T, C]`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Iterate the paginator with `async for` for the items, or call `pages()` for `Page[T, C]` values with `items`, `next_cursor` and `result`, the same `ApiResult` that the `_with_http_info` variant returns, so the status and headers stay reachable. Iterating again starts again from the starting position.
+
+```python file
+from petstore_client.client import Client
+
+async def list_everything(client: Client) -> None:
+    paginator = client.pet.list_pet_catalog_pages()
+    async for item in paginator:
+        print(item)
+    async for page in paginator.pages():
+        print(len(page.items), page.result.status_code)
+```
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `None` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationException`, a direct child of `OpenAPIException`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `break`.
+
+How each style ends and resumes: an id list passes the `last_id` or `next_cursor` of each page as the starting cursor of the next request and ends when a declared `has_more` is false. An offset list starts at the offset you pass, sends the offset past the items it received on each next request, and ends on an empty page or when a declared `has_more` is false. A page-number list sends the page you pass, or none, and then asks for the page after each one, and ends on an empty page or when a declared `has_more` is false. A next URL list takes the URL in the body of each page, follows it only within the origin of the client, and ends when the property is absent, `null` or empty. A cursor, offset or page that does not advance raises `PaginationException` as a token cursor does.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationException` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+A list whose page body carries the next URL in a property (a next URL list) is followed in the same way as a `Link` list: the URL is taken from the body of each response, a next URL that leaves the scheme, host or port of the client is refused with `PaginationException`, nothing is sent to it, and such a method cannot resume from a saved position.
+
+The generator finds a paged operation by its names and shape. The operation must be a GET with one JSON 2xx response, and it must match exactly one of these styles. A token cursor is one query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker`, paired with a next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type. An id cursor is one query parameter among `starting_after`, `after_id` and `after`, paired with a boolean `has_more` and a string `last_id` or `next_cursor` property. A `Link` list has a `Link` header declared on the response. An offset list has an `offset` query parameter with a `limit`, and a page-number list has a `page` query parameter with one of `per_page`, `page_size`, `size` or `limit`. A next URL list has no cursor parameter and a string property with `format: uri` or `uri-reference`, or one named `next_url`, `next_uri`, `nextlink` or `next_link`, that is optional or nullable. An operation that matches more than one style is ambiguous, and one that is streamed is never paged; either keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty, hasMoreProperty}`, where the style is `token`, `link`, `id`, `offset`, `page` or `body`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+### Custom HTTP client
+
+Pass a `urllib3.PoolManager` you built to the client
+(`Client(authenticator, pool_manager=pool)`; `with_token` and
+`with_authenticator` take it too). The SDK defaults (timeout, redirect policy,
+user agent, request id, default headers) are applied on top of it, and the SDK
+never closes it: you own its lifecycle. Combining it with a proxy, a CA bundle
+or `verify_ssl(False)` in `TransportOptions` raises `ValueError`, because those
+settings belong to the pool manager you built.
+
+### Testing your code
+
+Every API group has an interface (`PetApiProtocol`) and the client has one (`ClientProtocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```python file
+from typing import cast
+
+from petstore_client import PetApiProtocol
+
+# Code under test takes the group interface, never the generated class.
+def use(api: PetApiProtocol) -> None:
+    pass
+
+# A fake is any object with the operations your code calls; cast it where the interface is expected.
+class Fake:
+    pass
+
+use(cast(PetApiProtocol, Fake()))
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops type-checking after you regenerate; give the fake only the operations your code calls and cast it, as above, so only the operation you fake is written.
+
+### Automatic retries
+
+A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.
+
+```python file
+from petstore_client.transport_options import TransportOptions
+
+def make_transport() -> TransportOptions:
+    return TransportOptions.builder().max_retries(4).build()
+```
+
+A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported, and a timeout itself is not retried. A single-use `BodySource` or a multipart body is never retried, and every retry is a new request with freshly built authentication headers.
+
+### OAuth2 and OpenID Connect
+
+When the API answers 401 to a call authenticated through an OAuth2 or OpenID Connect authenticator, the SDK drops the cached access token (the refresh token is kept), obtains a new one and sends the call once more; a second 401 raises `UnauthorizedException`. A single-use or multipart body is not sent again. `invalidate_access_token()` on the authenticator does the same by hand.
+
+The authorization-code flow uses PKCE (`S256`): `build_authorization_url()` creates the code verifier, keeps it in the authenticator and puts the `code_challenge` on the URL, and `exchange_code()` sends the `code_verifier`. Build the URL and exchange the code on the same authenticator.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call request_device_authorization() to get the user code and verification URI to show to the user, then poll_for_token() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+A token response whose `token_type` is not `bearer` (any case) raises `OAuth2TokenException`, and an OpenID Connect discovery document whose `issuer` differs from the discovery URL, or whose endpoints are not https (loopback hosts excepted), raises `SerializationException`.
+
+### Response compression
+
+The client sends an `Accept-Encoding` header naming the codecs it can decode (`gzip` and `deflate` always; `br` and `zstd` when the optional extra is installed with `pip install petstore-client[compression]`) and decodes the body for you. A decoded response drops `content-encoding` and `content-length` from `headers`; a body sent with `Content-Encoding: identity` is passed through untouched.
+
+### Raw responses
+
+Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a read-only copy), `raw_body` and the typed `data`.
+An operation whose success response declares headers also has a `<Operation>ResponseHeaders` type; `<Operation>ResponseHeaders.from_headers(result.headers)` reads them in their declared types.
+
+### Cancellation
+
+Cancelling the asyncio task that awaits an operation aborts that request
+itself: its socket is shut down and the connection dropped, instead of the
+call running on in a worker thread. To bound how long a call can take, set the
+request timeout on `TransportOptions`; a call that exceeds it fails with
+`NetworkTimeoutException`.
+
+### Closing the client
+
+`Client.close()` (also `with Client(...)`) is graceful and safe to call again.
+It marks the client closed at once; calls already in flight, retries included,
+run to their end, and the transport the SDK created is released when the last
+of them completes. A call started afterwards raises `RuntimeError`
+(`ApiClient has been closed and can no longer send requests`). Streams that
+are still open are cancelled. A `urllib3.PoolManager` you passed in is never closed.
+
+### Credentials
+
+`Client.with_token(host, access_token)` builds a client with a Bearer token. Each credential is resolved once, when the client is built: the argument you pass wins, then the environment variable (`SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL` for the host, `SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN` for the token); an empty value counts as unset. A host or token that cannot be resolved raises `ValueError` there and then, not on the first request. Pass `token_provider=` (a callable returning the current token, run for every request) instead of a static token when the token rotates. 
+
+The authenticator written for each security scheme in the API does the same for its own credentials: the argument you pass wins, then its environment variable, read once when the authenticator is built (an empty variable counts as unset), and a credential found in neither place raises `ValueError` there and then. A bearer scheme also accepts `token_provider=` in place of `token`. The variables are:
+
+| Scheme | Field | Environment variable |
+|---|---|---|
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `archiveDigest` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` |
+| `archiveDigest` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` |
+| `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
+| `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0` prefix.
+
+### Credentials per security scheme
+
+`Client` takes one optional credential for each security scheme of the API, as a keyword argument named after the scheme: `pet_store_basic`, `admin_basic`, `archive_digest`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `device_auth`, `sso_auth`. Each operation uses the credential of the first scheme its spec lists that you configured; there is no per-call override. A single `authenticator` is the default for an operation none of whose schemes you configured, and a call with no matching credential and no default sends none. The base URL comes from the first credential given, `authenticator` first, and a client built with no credential at all raises `ValueError`.
+
+```python file
+from petstore_client.client import Client
+from petstore_client.auth.pet_store_basic_authenticator import PetStoreBasicAuthenticator
+
+def make_client() -> Client:
+    return Client(pet_store_basic=PetStoreBasicAuthenticator("https://api.example.com"))
+```
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as you give it when every character is a legal RFC 6265 cookie-octet. A value with any other character (a space, comma, semicolon, double quote, backslash or a non-ASCII character) raises `ValueError` before anything is sent, so percent-encode it yourself first.
+
+### Per-call options
+
+Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
+
+```python file
+from petstore_client.api.options import GetDefaultsOptions
+from petstore_client.client import Client
+
+async def call(client: Client) -> object:
+    return await client.store.get_defaults(options=GetDefaultsOptions(timeout=2000, max_retries=0))
+```
+
+A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.
+
+### Errors
+
+An API error (`ApiException` and every subclass) carries `status_code`, `response_headers`, `response_body`, `error_body`, and the request it answers: `request_method` and `request_path` (the path without its query string). `str(error)` shows them on a `Request: METHOD /path` line before the status code.
+
+### Operations with several success responses
+
+When an operation declares more than one 2xx response with different schemas, it returns a union (a generated `<Operation>Response` model with the decoded value in `actual_instance`), and the body is decoded by the status code the server answered with, never by guessing from its shape.
+
+### Constructing and decoding models
+
+Constructing a model never validates and never raises on a value: a value that fits its field is coerced as usual (a list given for a set field becomes a set), and one that does not, such as a wrong type, an unknown enum string or a value outside a constraint, is kept exactly as given and sent to the server. Only a required field you leave out raises `TypeError`. Validation happens when a document is decoded, which raises `SerializationException`, and an unknown enum value decodes there to the catch-all member.
+
+### Models are immutable
+
+Models are frozen pydantic models: assigning a field raises `pydantic.ValidationError`, and they are hashable (a model that holds a list, map or set is hashed by value), so they work as dict keys and set members. Make a changed copy with `model.model_copy(update={"name": "new"})`; the update is not validated, and neither is a constructor, so validate a value that comes from outside with `Model.model_validate(...)`.
+
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `with_http_info` variant alike, and also when you supply your own transport.
+
+```python file
+import time
+
+from petstore_client import CallInfo, CallOutcome, Client
+
+class TimingHook:
+    def start(self, info: CallInfo, headers: dict[str, str]):
+        headers['X-Caller'] = 'billing'
+        started = time.monotonic()
+
+        class Observer:
+            def finish(self, outcome: CallOutcome) -> None:
+                print(info.operation_id, outcome.status_code, time.monotonic() - started)
+
+        return Observer()
+
+client = Client.with_token("https://api.example.com", "your-token", call_hook=TimingHook())
+```
+
+`start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `operation_id` (as written in the spec), `method`, `url_template`, `url` (without query string and fragment) and `server_address`. It returns the observer to call when the call ends, or `None`. `finish(outcome)` runs exactly once on every way the call can end, with `status_code` (`0` when no response arrived), the lower-cased response `headers` (`None` when no response arrived) and the `error` the caller receives (`None` on success). An error raised by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error raised by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `chain(first, second)`: they start in the order given and finish in the reverse order. `start` and `finish` are plain functions called on the event loop, so they must not block.
+
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Install `petstore-client[opentelemetry]` (the SDK itself does not need it), then pass `OpenTelemetryCallHook()` for the global providers or `OpenTelemetryCallHook(tracer_provider, meter_provider)` for your own.
+
+```python statements
+from petstore_client import Client
+from petstore_client.opentelemetry_call_hook import OpenTelemetryCallHook
+
+client = Client.with_token("https://api.example.com", "your-token", call_hook=OpenTelemetryCallHook())
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
+### Logging and tracing
+
+The SDK writes no log lines. To log requests, pass your own `urllib3.PoolManager` or wrap `DefaultApiClient`; every `repr` of a configuration, authenticator or error masks credentials. When `opentelemetry` is installed, the current trace context is sent as `traceparent` and `tracestate` request headers.
+
+### Versioning and supported Python
+
+The package version follows semantic versioning; the clients, Options objects, models and errors are the public API, and a name that starts with an underscore is private. Python is supported from the oldest release that has not reached end of life; the floor moves up when a release does.
+
+### Behaviours to know
+
+- Optional and nullable: an optional property that is absent and one that is `null` both read as `None`, and `None` is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it. A required nullable query parameter is kept the same way: when its value is `None` the key is still sent, with an empty value (`?key=`).
+- Unknown enum values decode to the catch-all member `UNKNOWN_DEFAULT_OPEN_API`, which has no wire value, so writing it raises `SerializationException`; a discriminator value the SDK does not know still raises `SerializationException` and names the value.
+- Repeated response headers are joined into one value with `, ` in `headers` and `response_headers` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
+- `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.
+
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a dependency has a known vulnerability (`pip-audit --skip-editable`, every installed distribution).
+
+## Package
+
+- Name: `petstore-client`
+- Version: `1.0.0`
+- License: Apache-2.0
+
+## OpenAPI type mapping
+
+This SDK leans on pydantic 2's native typed surfaces:
+
+| OAS `type` / `format`              | Python type                       |
+| ---------------------------------- | --------------------------------- |
+| `string`                           | `pydantic.StrictStr`              |
+| `integer`                          | `pydantic.StrictInt`              |
+| `number` (no format)               | `decimal.Decimal` (`JsonNumber`)  |
+| `number`, `format: float` / `double` | `pydantic.StrictFloat`          |
+| `boolean`                          | `pydantic.StrictBool`             |
+| `string`, `format: uri`            | URL-validated `str` (round-trips verbatim) |
+| `string`, `format: uri-reference`  | `pydantic.StrictStr` (may be relative) |
+| `string`, `format: uri-template`   | `pydantic.StrictStr` (RFC 6570)   |
+| `string`, `format: password`       | `pydantic.SecretStr`              |
+| `string`, `format: date-time`      | `pydantic.AwareDatetime` (tz-aware) |
+| `string`, `format: date`           | `datetime.date`                   |
+| `string`, `format: time`           | `datetime.time` (written `HH:MM:SS`, plus `.SSS` only when the millisecond part is non-zero) |
+| `string`, `format: duration`       | `datetime.timedelta`              |
+| `string`, `format: uuid`           | `uuid.UUID`                       |
+| `string`, `format: byte/binary`    | `bytes`                           |
+
+`Strict*` types reject lax coercion (`"1"` → `1`, `1.0` → `1`, etc.),
+matching the strict-type-coercion contract of the other SDKs.
+`AwareDatetime` rejects naive datetimes — RFC 3339 mandates a timezone
+offset.
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+A bare `type: number` (no `format`) maps to `decimal.Decimal`, which
+preserves exact decimal representation in Python — safe for in-process
+arithmetic on monetary values. On the wire it serializes as an UNQUOTED
+JSON number (`1.5`, never the quoted string `"1.5"`) because the spec
+types it as a JSON number; the exact decimal digits are written, never
+rounded through a binary `float`, and the digits of a response number are
+read back exactly. A quoted string is rejected for a `type: number` field. `format: float` and `format: double` map to
+`pydantic.StrictFloat`, i.e. Python's native `float`, which is a 64-bit
+IEEE-754 binary float. Values such fields carry cannot represent every
+decimal fraction exactly: `0.1 + 0.2` in Python is `0.30000000000000004`.
+
+Do not do arithmetic on prices, balances, or other money-typed fields
+that the spec declares as `format: float` / `format: double`. If you need
+exact decimal arithmetic, model the field as a bare `type: number` so it
+deserializes to `decimal.Decimal`, or parse the raw response body yourself
+and feed the string into `decimal.Decimal`.
+
+`format: int64` is unaffected — Python's `int` is arbitrary-precision and
+represents the full 64-bit range (and beyond) without loss.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, which stays
+the authority. This SDK also checks them in the generated models, because
+pydantic does so natively (`Field(...)` constraints): decoding a response that
+violates one raises `SerializationException`, while constructing a model never
+validates and sends the value you gave.
+Request parameters outside a model are not checked client-side. `uniqueItems`
+arrays are sent in the collection's natural order (a Python `set` in iteration
+order), never sorted.
+
+Constraint validation can be turned on with the `validate_constraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Only JSON, form, multipart and binary bodies are generated. `application/xml` request and response bodies and the `xml` schema keywords (`nodeType`, `attribute`, `wrapped`) are not supported.
+
+### Link Objects
+
+Response Link Objects are ignored; follow links in your own code.
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes are not generated. Supply a client certificate through your own `urllib3.PoolManager` (see Custom HTTP client).
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares Apache-2.0, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.
+
+## Development
+
+### Install
+
+```bash
+pip install -e . --group dev
+```
+
+### Format
+
+```bash
+ruff format .
+```
+
+### Lint
+
+```bash
+ruff check .
+```
+
+### Type-check
+
+```bash
+mypy .
+```
+
+### Test
+
+```bash
+pytest
+```

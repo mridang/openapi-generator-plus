@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2024"],
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "experimentalDecorators": true,
+    // emitDecoratorMetadata is intentionally OFF. class-transformer's
+    // @Type(() => X) supplies the target type explicitly, so reflect-metadata's
+    // design:type is unnecessary. Emitting it injects an EAGER
+    // __metadata('design:type', X) reference at class-definition time, which
+    // throws a temporal-dead-zone "Cannot access X before initialization" for
+    // the circular model imports the spec contains (e.g. *NotFilter <->
+    // *SearchFilter).
+    "emitDecoratorMetadata": false,
+    "isolatedModules": true,
+    "rootDir": ".",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "spec"]
+}

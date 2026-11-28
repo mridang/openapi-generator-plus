@@ -1,0 +1,65 @@
+{{>api_info}}
+import 'server_configuration.dart';
+
+/// Generated server configurations from the OpenAPI specification.
+///
+/// Each constant corresponds to a server entry defined in the spec's
+/// `servers` array. Use these constants with [ConfigurationBuilder.server] to
+/// select a server:
+///
+/// ```dart
+/// final config = Configuration.builder()
+///   .server(server0)
+///   .build();
+/// ```
+///
+/// For servers with variables, pass overrides:
+///
+/// ```dart
+/// final config = Configuration.builder()
+///   .server(server1, {'environment': 'staging'})
+///   .build();
+/// ```
+{{#serverConfigs}}
+
+/// Server {{serverIndex}}: `{{{serverUrl}}}`{{#serverDescription}}
+///
+/// {{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/serverDescription}}
+const server{{serverIndex}} = ServerConfiguration(
+  urlTemplate: '{{#lambda.dartString}}{{{serverUrl}}}{{/lambda.dartString}}',
+  description: '{{#serverDescription}}{{#lambda.dartString}}{{{serverDescription}}}{{/lambda.dartString}}{{/serverDescription}}',
+  variables: {{#hasVariables}}{
+{{#serverVariables}}    '{{#lambda.dartString}}{{{varName}}}{{/lambda.dartString}}': ServerVariable(
+      defaultValue: '{{#lambda.dartString}}{{{varDefault}}}{{/lambda.dartString}}',
+      description: '{{#varDescription}}{{#lambda.dartString}}{{{varDescription}}}{{/lambda.dartString}}{{/varDescription}}',
+      enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{#lambda.dartString}}{{{.}}}{{/lambda.dartString}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
+    ),
+{{/serverVariables}}  }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}},
+  name: '{{#serverName}}{{#lambda.dartString}}{{{serverName}}}{{/lambda.dartString}}{{/serverName}}',
+);
+{{/serverConfigs}}
+
+/// All server configurations in declaration order.
+///
+/// The servers and this list are compile-time constants, so none of them can
+/// be modified by a caller.
+const allServers = <ServerConfiguration>[
+{{#serverConfigs}}  server{{serverIndex}},
+{{/serverConfigs}}];
+
+/// The server the specification gives the name [name] (OpenAPI 3.2 `name`).
+///
+/// Throws [ArgumentError] if no server has that name; the message lists the
+/// known names.
+ServerConfiguration serverByName(String name) {
+  for (final server in allServers) {
+    if (server.name.isNotEmpty && server.name == name) {
+      return server;
+    }
+  }
+  final known = [
+    for (final server in allServers)
+      if (server.name.isNotEmpty) server.name,
+  ];
+  throw ArgumentError("Unknown server name '$name'. Known names: $known");
+}

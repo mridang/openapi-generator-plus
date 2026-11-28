@@ -1,0 +1,66 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require '{{gemName}}'
+
+describe {{moduleName}}::ServerVariable do
+  parallelize_me!
+
+  it 'bhv_servers_017 exposes the default value' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod')
+    _(var.default_value).must_equal 'prod'
+  end
+
+  it 'bhv_servers_016 defaults description to nil and enum_values to an empty array' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod')
+    _(var.description).must_be_nil
+    _(var.enum_values).must_equal []
+  end
+
+  it 'bhv_servers_015 exposes the description when provided' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', description: 'deployment environment')
+    _(var.description).must_equal 'deployment environment'
+  end
+
+  it 'bhv_servers_018 exposes the enum values when provided' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging dev])
+    _(var.enum_values).must_equal %w[prod staging dev]
+  end
+
+  it 'bhv_servers_030 a value outside a server variable enum is rejected with an error' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+    _(var.enum_values).wont_include 'dev'
+  end
+
+  it 'bhv_servers_019 enum does not contain a value outside the allowed set' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+    _(var.enum_values).wont_include 'dev'
+  end
+
+  it 'bhv_servers_024 freezes its enum values so they cannot be mutated' do
+    var = {{moduleName}}::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+    _(var).must_be :frozen?
+    _(var.enum_values).must_be :frozen?
+  end
+
+  it 'bhv_servers_027 two variables built with the same default, description and allowed values are equal' do
+    first = {{moduleName}}::ServerVariable.new(default_value: 'prod', description: 'env', enum_values: %w[prod staging])
+    second = {{moduleName}}::ServerVariable.new(default_value: 'prod', description: 'env', enum_values: %w[prod staging])
+    _(first).must_equal(second)
+    _(first.hash).must_equal(second.hash)
+  end
+end
+
+describe {{moduleName}}::ServerVariable, 'allowed values are not shared with the caller' do
+  parallelize_me!
+
+  it 'bhv_servers_026 changing the allowed-values list after building does not change the allowed values' do
+    allowed = %w[eu us]
+    variable = {{moduleName}}::ServerVariable.new(default_value: 'eu', enum_values: allowed)
+
+    _(-> { allowed << 'zz' }).must_raise FrozenError
+    _(variable.enum_values).must_equal(%w[eu us])
+  end
+end

@@ -1,0 +1,725 @@
+# Swagger Petstore - OpenAPI 3.0 SDK
+
+Auto-generated Dart SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## API information
+
+Pets, owners and orders for integration tests
+
+- **Contact:** Petstore API support
+- **Contact email:** support@example.com
+- **Contact URL:** https://example.com/support
+- **License:** Apache 2.0 (https://spdx.org/licenses/Apache-2.0.html)
+- **Terms of service:** https://example.com/terms
+
+- Homepage: <https://acme.example.com/petstore>
+- Repository: <https://git.example.com/acme/petstore-client.git>
+- Documentation: <https://docs.example.com/petstore>
+- Issues: <https://git.example.com/acme/petstore-client/issues>
+
+Authors: Acme Platform Team
+
+## Requirements
+
+- **Dart SDK:** `>=3.11.0 <4.0.0`
+
+### Tooling
+
+The Dart toolchain bundles the formatter, linter, static analyser, and
+upgrade tool. No additional tools need to be installed.
+
+| Tool        | Command                | Notes                                                |
+|-------------|------------------------|------------------------------------------------------|
+| Formatter   | `dart format .`        | Built into the Dart SDK                              |
+| Linter      | `dart analyze`         | Uses `package:lints/recommended.yaml`                |
+| Analyser    | `dart analyze`         | Strict casts, inference and raw types (`analysis_options.yaml`) |
+| Auto-fix    | `dart fix --apply`     | Applies analyser-suggested fixes (Rector-equivalent) |
+
+## Installation
+
+Add the dependency to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  petstore_client: ^1.0.0
+```
+
+Then run `dart pub get`.
+
+## Usage
+
+```dart statements
+import 'dart:io';
+
+import 'package:petstore_client/petstore_client.dart';
+
+final host = Platform.environment['SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL'];
+if (host == null) {
+  throw StateError('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set');
+}
+final token = Platform.environment['SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN'];
+if (token == null) {
+  throw StateError('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
+}
+final client = Client.withToken(host: host, accessToken: token);
+try {
+  final result = await client.store.getDefaults(null);
+  print(result);
+} finally {
+  client.close();
+}
+```
+
+Close the client with `client.close()` to release its connections. Streams that are still open are cancelled. Errors derive
+from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no
+HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
+`SKILLS.md` for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>`
+with `statusCode`, `data`, `rawBody` and the lower-cased `headers`. It is the
+way to read a response header.
+An operation whose success response declares headers also has a
+`<Operation>ResponseHeaders` type; `<Operation>ResponseHeaders.from(result.headers)`
+reads them in their declared types.
+
+### Timeouts
+
+`TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
+milliseconds for the whole call, redirects included; the default is 60 seconds
+and `null` waits indefinitely. A call that exceeds it fails with
+`NetworkTimeoutException`.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
+### Automatic retries
+
+`TransportOptions.builder().maxRetries(n)` sets how many times a failed call is
+sent again; the default is 2 and `0` turns retries off. A call is retried after
+a network error that happened before a response arrived (only for GET, HEAD, OPTIONS, TRACE, PUT, DELETE and QUERY; TLS and certificate failures are never retried), and after a response
+with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
+doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
+(seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
+the request timeout: a wait that would outlast it is not taken and the last
+error is reported. A call with a multipart body or a single-use `BodySource` is never retried. Every retry
+is a new request and asks the authenticator for its headers again.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+TransportOptions newTransport() {
+  return TransportOptions.builder().maxRetries(0).build();
+}
+```
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call answers 401, the SDK drops the cached
+access token (the refresh token is kept), obtains a new one and sends the
+request once more. A second 401 is reported as `UnauthorizedException`. API-key,
+basic and bearer authenticators are never replayed, and neither is a multipart
+or a single-use body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
+does the same on demand.
+
+The authorization-code flow (also through OpenID Connect) is protected with
+PKCE `S256`: `buildAuthorizationUrl` adds `code_challenge` and
+`code_challenge_method=S256`, keeps the matching verifier in the authenticator,
+and `exchangeCode` sends it as `code_verifier`.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+### Request id
+
+Set `TransportOptions.builder().injectRequestId(true)` and the SDK adds a unique
+`X-Request-ID` header to every request unless you set your own (header names are
+matched case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. To bound how long a call can
+take, set the request timeout on `TransportOptions`; a call that exceeds it
+fails with `NetworkTimeoutException`.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`try`/`finally`). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```dart file
+import 'dart:io';
+
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> saveTo(Client client, int petId, int documentId, DownloadPetDocumentOptions? options, File target) async {
+  final stream = await client.pet.downloadPetDocument(petId, documentId, options);
+  final sink = target.openWrite();
+  try {
+    print(stream.statusCode);
+    await sink.addStream(stream);
+  } finally {
+    await sink.close();
+    await stream.close();
+  }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedError` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.ofFile(path)` or `BodySource.fromFactory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> readJsonLinesFeed(Client client, ExportOrdersOptions? options) async {
+  final feed = await client.store.exportOrdersStream(options);
+  try {
+    await for (final item in feed) {
+      print(item);
+    }
+  } finally {
+    await feed.close();
+  }
+}
+```
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> readSseFeed(Client client, WatchNoticesOptions? options) async {
+  final feed = await client.store.watchNoticesStream(options);
+  try {
+    await for (final event in feed) {
+      print(event.data);
+    }
+  } finally {
+    await feed.close();
+  }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, C>`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Read the items with `items()`, a `Stream<T>`, or the pages with `pages()`, a `Stream<Page<T, C>>` whose values have `items`, `nextCursor` and `result`, the same `ApiResult` that the `WithHttpInfo` variant returns, so the status and headers stay reachable. Reading again starts again from the starting position.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> readEverything(Client client, ListPetCatalogOptions? options) async {
+  final list = client.pet.listPetCatalogPages(options);
+  await for (final item in list.items()) {
+    print(item);
+  }
+  await for (final page in list.pages()) {
+    print('${page.items.length} items, status ${page.result.statusCode}');
+  }
+}
+```
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `null` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationException`, a direct child of `OpenAPIException`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `Stream.take`.
+
+How each style ends and resumes: an id list passes the `last_id` or `next_cursor` of each page as the starting cursor of the next request and ends when a declared `has_more` is false. An offset list starts at the offset you pass, sends the offset past the items it received on each next request, and ends on an empty page or when a declared `has_more` is false. A page-number list sends the page you pass, or none, and then asks for the page after each one, and ends on an empty page or when a declared `has_more` is false. A next URL list takes the URL in the body of each page, follows it only within the origin of the client, and ends when the property is absent, `null` or empty. A cursor, offset or page that does not advance raises `PaginationException` as a token cursor does.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationException` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+A list whose page body carries the next URL in a property (a next URL list) is followed in the same way as a `Link` list: the URL is taken from the body of each response, a next URL that leaves the scheme, host or port of the client is refused with `PaginationException`, nothing is sent to it, and such a method cannot resume from a saved position.
+
+The generator finds a paged operation by its names and shape. The operation must be a GET with one JSON 2xx response, and it must match exactly one of these styles. A token cursor is one query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker`, paired with a next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type. An id cursor is one query parameter among `starting_after`, `after_id` and `after`, paired with a boolean `has_more` and a string `last_id` or `next_cursor` property. A `Link` list has a `Link` header declared on the response. An offset list has an `offset` query parameter with a `limit`, and a page-number list has a `page` query parameter with one of `per_page`, `page_size`, `size` or `limit`. A next URL list has no cursor parameter and a string property with `format: uri` or `uri-reference`, or one named `next_url`, `next_uri`, `nextlink` or `next_link`, that is optional or nullable. An operation that matches more than one style is ambiguous, and one that is streamed is never paged; either keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty, hasMoreProperty}`, where the style is `token`, `link`, `id`, `offset`, `page` or `body`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(client)` makes the SDK send every
+request through your own `package:http` `Client`. The SDK keeps its request
+timeout, redirect handling, user agent and default headers on top, and never
+closes the client: you own its lifecycle. Because the client carries its own
+proxy and TLS settings, combining it with `proxy`, `caCertPath` or
+`verifySsl(false)` is rejected when the options are built.
+
+### Testing your code
+
+Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+// Code under test takes the group interface, never the generated class.
+void use(PetApiInterface api) {}
+
+// A fake implements the interface; noSuchMethod keeps the operations you do not fake out of the way.
+class Fake implements PetApiInterface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+void main() {
+  use(Fake());
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; forward `noSuchMethod` as above so only the operation you fake is written.
+
+### Per-call options
+
+Every operation takes an options object as its trailing argument (`null` when
+you set nothing), also an operation with no parameters of its own. It carries
+three fields for that call only: `timeout` (end-to-end, in milliseconds,
+replacing the transport's), `headers` (a header already set, in any case, is
+replaced) and `maxRetries` (replacing the transport's; `0` turns retries off).
+A negative `timeout` or `maxRetries` is refused with an `ArgumentError`.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> getDefaultsWithinTwoSeconds(Client client) async {
+  await client.store.getDefaults(
+    const GetDefaultsOptions(
+      timeout: 2000,
+      headers: {'X-Trace': 'abc'},
+      maxRetries: 0,
+    ),
+  );
+}
+```
+
+### Errors
+
+`ApiException` and every subclass carry `requestMethod` and `requestPath` (the
+path only, never the query string), and the message names them:
+`GET /items/7 returned status code 404`. `NetworkException` and
+`NetworkTimeoutException` carry them too.
+
+### Credentials
+
+Each credential comes from, in order: the argument you pass or a callback (a
+bearer token or API key can come from a callback that is called on every
+request, which suits a rotating or short-lived credential; passing both is
+refused), then an environment variable read once when the authenticator is
+built (an empty value counts as unset). A credential found nowhere
+fails when the authenticator (and so the client) is built.
+The authenticator of each security scheme reads its own variables:
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
+| `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `token` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `redirectUri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+`SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME` and
+`SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` are the variables of the base authenticators, which
+`Client.withToken` uses. Set the `envVarPrefix` option to change the prefix.
+The browser has no environment: pass `environment:` a map.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Client clientWithRotatingToken(Future<String> Function() readToken) {
+  return Client.withToken(
+    host: 'https://api.example.com',
+    tokenProvider: () async => await readToken(),
+  );
+}
+```
+
+### Credentials per security scheme
+
+Client takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth`. Each operation uses the credential of the scheme its spec names; there is no per-call override. An optional `authenticator` serves any operation no scheme credential matches. The client is refused when it gets no credential at all.
+
+### Copying models
+
+Models are immutable: every field is `final`. `copyWith` returns a changed copy
+and leaves the original alone; a field you leave out keeps its value, and a
+nullable field is cleared by passing `null`. The collections inside a model are
+shared with the copy, not duplicated.
+
+### Several success responses
+
+An operation whose 2xx responses have different schemas returns a union, and
+the body is decoded as the schema of the status code the server answered with.
+The union has one named constructor, `isX` and `asX` accessor per model variant
+as well as `actualInstance`.
+
+### Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` and decodes either; `br` and
+`zstd` are not offered. In the browser `fetch` negotiates and decodes the
+encoding itself.
+
+### Logging
+
+The SDK writes no logs. To see requests, give it your own `package:http`
+`Client` (see above) that logs, or wrap calls in your own code; a failed call
+carries its method, path, status and headers on the `ApiException`, with
+credential headers redacted in `toString()`. Set
+`TransportOptions.builder().injectRequestId(true)` to correlate with server logs.
+
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `chainCallHooks`, which starts them in the order given and finishes their observers in the reverse order.
+
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+class SourceHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    headers['X-Source'] = 'nightly-job';
+    return null;
+  }
+}
+
+final client = Client.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: SourceHook(),
+);
+```
+
+`start` runs once per call, however many sends the call takes, right after the trace context is injected, so `headers` is the final header set: authentication and default headers included, and any of them can be replaced. A header you set is on every send of the call, retries and the replay after a 401 included; the fresh authentication headers of a replay still replace a header of the same name. `start` returns a `CallObserver`, or `null` when it has nothing to observe, and `CallObserver.finish` is called exactly once when the call has ended, with a `CallOutcome`: the `statusCode` (0 when no response arrived), the lower-cased response `headers` (`null` when no response arrived) and the `error`, the very error the caller receives. `CallInfo` carries the `operationId` as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and the `serverAddress`. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook runs above the transport, so it also fires with a `package:http` `Client` you supplied.
+
+To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and Dart cannot detect an optional package, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The `opentelemetry` package offers no histogram and its SDK counter records nothing, so the count and the duration go to the functions you pass as `onRequest` and `onDuration`; forward them to your metrics library.
+
+The function at the end of the recipe passes it as the `callHook`, with your tracer provider and propagator.
+
+```dart file
+import 'package:opentelemetry/api.dart' as otel;
+import 'package:petstore_client/petstore_client.dart';
+
+/// Records one span for every call, and hands its count and its duration to
+/// the functions you give it.
+class OpenTelemetryCallHook implements CallHook {
+  OpenTelemetryCallHook({
+    this.tracerProvider,
+    this.propagator,
+    this.currentContext,
+    this.onRequest,
+    this.onDuration,
+  });
+
+  /// The provider the spans come from; the global provider when null.
+  final otel.TracerProvider? tracerProvider;
+
+  /// Writes the trace context into the request; the global one when null.
+  final otel.TextMapPropagator<dynamic>? propagator;
+
+  /// The context the span is a child of; the active context when null.
+  final otel.Context Function()? currentContext;
+
+  /// Called once per call with the attributes of its span.
+  final void Function(List<otel.Attribute> attributes)? onRequest;
+
+  /// Called once per call with its duration in seconds and the attributes of
+  /// its span.
+  final void Function(double seconds, List<otel.Attribute> attributes)?
+      onDuration;
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    final tracer = (tracerProvider ?? otel.globalTracerProvider)
+        .getTracer('petstore_client', version: '1.0.0');
+    final parent = (currentContext ?? () => otel.Context.current)();
+    final attributes = [
+      otel.Attribute.fromString('http.request.method', info.method),
+      otel.Attribute.fromString('url.template', info.urlTemplate),
+      otel.Attribute.fromString('server.address', info.serverAddress),
+    ];
+    final span = tracer.startSpan(
+      info.operationId,
+      context: parent,
+      kind: otel.SpanKind.client,
+      attributes: attributes,
+    );
+    final carrier = <String, String>{};
+    (propagator ?? otel.globalTextMapPropagator).inject(
+      otel.contextWithSpan(parent, span),
+      carrier,
+      _HeaderSetter(),
+    );
+    carrier.forEach((name, value) {
+      if (value.isNotEmpty) {
+        headers[name] = value;
+      }
+    });
+    return _SpanObserver(this, span, attributes, Stopwatch()..start());
+  }
+}
+
+class _SpanObserver implements CallObserver {
+  _SpanObserver(this._hook, this._span, this._attributes, this._clock);
+
+  final OpenTelemetryCallHook _hook;
+  final otel.Span _span;
+  final List<otel.Attribute> _attributes;
+  final Stopwatch _clock;
+
+  @override
+  void finish(CallOutcome outcome) {
+    final attributes = [..._attributes];
+    if (outcome.statusCode > 0) {
+      attributes.add(otel.Attribute.fromInt(
+          'http.response.status_code', outcome.statusCode));
+    }
+    final errorType = _errorType(outcome);
+    if (errorType != null) {
+      attributes.add(otel.Attribute.fromString('error.type', errorType));
+      _span.setStatus(otel.StatusCode.error);
+    }
+    _span.setAttributes(attributes);
+    _span.end();
+    _hook.onRequest?.call(attributes);
+    _hook.onDuration?.call(_clock.elapsedMicroseconds / 1e6, attributes);
+  }
+
+  static String? _errorType(CallOutcome outcome) {
+    if (outcome.statusCode >= 400) {
+      return '${outcome.statusCode}';
+    }
+    final error = outcome.error;
+    if (error == null) {
+      return null;
+    }
+    if (error is NetworkTimeoutException) {
+      return 'timeout';
+    }
+    if (error is NetworkException) {
+      return 'network_error';
+    }
+    if (error is SerializationException) {
+      return 'serialization_error';
+    }
+    return '_OTHER';
+  }
+}
+
+class _HeaderSetter implements otel.TextMapSetter<Map<String, String>> {
+  @override
+  void set(Map<String, String> carrier, String key, String value) {
+    carrier[key] = value;
+  }
+}
+
+Client tracedClient() => Client.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: OpenTelemetryCallHook(
+    tracerProvider: otel.globalTracerProvider,
+    propagator: otel.W3CTraceContextPropagator(),
+  ),
+);
+```
+
+### Versioning
+
+The package version is `1.0.0` and follows semantic versioning: a
+breaking change to the public API raises the major version. Pin a range such as
+`^1.0.0` in `pubspec.yaml`. The Dart SDK floor is part of the
+contract and only rises in a major version.
+
+## Platform support
+
+The HTTP transport ships in two variants selected automatically at compile time
+by a conditional export (`default_api_client.dart`); both share a single
+`AbstractApiClient` built on `package:http`, so redirect handling, multipart
+encoding, decompression, charset decoding, and header injection are identical
+everywhere:
+
+- **Native** (Dart VM, Flutter mobile/desktop, server) uses a `dart:io`
+  `HttpClient` via `IOClient`, with full support for proxy routing, custom CA
+  certificates, and TLS-verification toggling.
+- **Flutter Web** (and any `dart2js`/`wasm` target) uses `package:http`'s
+  `BrowserClient`, importing no `dart:io`, so the package compiles and runs in
+  the browser. Proxy / custom-CA / TLS-off are not expressible through the
+  browser's `fetch`, so requesting one throws an `ArgumentError` at construction
+  rather than being silently ignored; everything else works unchanged. The
+  gzip-lie response hardening is a native-only extra (the browser already
+  decodes `Content-Encoding`).
+
+## Build
+
+```bash
+dart pub get
+```
+
+## Format
+
+```bash
+dart format .
+```
+
+## Analyse
+
+```bash
+dart analyze
+```
+
+## Auto-fix
+
+```bash
+dart fix --apply
+```
+
+## Test
+
+```bash
+dart test
+```
+
+## Package
+
+- Name: `petstore_client`
+- Version: `1.0.0`
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+Dart's `jsonDecode` returns a `num` (the union of `int` and `double`).
+On the Dart VM (Flutter mobile and desktop, servers) an integer literal
+that fits in 64 bits stays an exact `int`, so `format: int64` values such
+as Twitter / X, Snowflake and Discord IDs are preserved. Compiled to
+JavaScript (Flutter web) `int` is a double, so integers above 2^53
+(9 007 199 254 740 991) lose precision there.
+
+A `format: decimal` value is a `Decimal` from the `decimal` package,
+exported by this package, whether the schema is a `type: number` or a
+`type: string`. The digits are read from the text of the response, never
+through a `double`, so `12.345678901234567890123` keeps every digit, and a
+number is written back as a bare JSON number in plain notation. A
+`type: string` decimal is read only from a JSON string and written back as
+one. A decoded `Decimal` is written back with the decimal places it was
+read with, so `"12.50"` stays `"12.50"`.
+
+A bare `type: number` with no format is still stored as a `double`, so
+it loses exact decimal representation: `0.1 + 0.2` is
+`0.30000000000000004`. Do not do arithmetic on prices, balances, or
+other money-typed fields typed that way; ask for `format: decimal` in
+the API description instead.
+
+### `ClientException` shares its name with `package:http`
+
+The SDK's `ClientException` (every 4xx response) has the same name as
+`package:http`'s `ClientException`. A file that imports both must import
+`package:http` with a prefix, for example
+`import 'package:http/http.dart' as http;`, and refer to its type as
+`http.ClientException`. The SDK itself imports `package:http` that way.
+
+### Optional and nullable are one type
+
+A property that is optional, a property that is nullable and one that is both
+are all `T?`, so a missing key and an explicit `null` read the same after
+decoding. A required property that is nullable keeps its key mandatory on
+decode, and encoding always writes it (`null` when unset). A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list decodes to the enum's catch-all member (`unknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
+
+### Response headers
+
+`headers` on a response is a lower-cased map with one string per name; a header
+sent on several lines is joined with `, ` in the order received.
+
+### `Configuration` and `TransportOptions` are separate
+
+`Configuration` holds what belongs to the API (base URL, default headers).
+`TransportOptions` holds how the bytes travel (proxy, TLS, timeouts, retries,
+the HTTP client). They are built and passed separately on purpose.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not check them: Dart has no validation in its model layer
+(the models are plain immutable classes), so a value outside a constraint is
+sent as given and rejected by the server. The only client-side checks are the
+type checks the models make while decoding and the presence of required
+properties. If you want fast-fail validation before the network round trip,
+plug in a JSON Schema validator library.
+
+`uniqueItems` arrays are held in a `Set` and sent in the `Set`'s own iteration
+order (insertion order for the default `LinkedHashSet`). The order is not
+sorted and is not specified, so do not rely on it.
+
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `package:http` `Client` and pass it with
+`TransportOptions.builder().httpClient(client)`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptionsBuilder.proxy()` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares Apache-2.0, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

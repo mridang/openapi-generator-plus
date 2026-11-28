@@ -1,0 +1,50 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import {{invokerPackage}}.ApiClient;
+
+/**
+ * Extension of {@link Authenticator} for authentication schemes that require
+ * making HTTP requests (e.g. OAuth2 token exchange, OpenID Connect discovery).
+ *
+ * <p>Implementations receive a shared {@link ApiClient} instance so that
+ * authentication-related HTTP calls (token endpoints, discovery documents)
+ * use the same transport configuration (proxy, TLS, timeouts) as regular
+ * API calls.
+ *
+ * <p>The {@link ApiClient} is injected by the {@code {{clientClassName}}} class after
+ * construction, via {@link #setApiClient(ApiClient)}. Implementations must
+ * not make HTTP calls before the client is injected.
+ *
+ * <p>Only OAuth2 and OpenID Connect authenticators implement this interface.
+ * Simple authenticators (Basic, Bearer, API Key) do not need HTTP access
+ * and implement {@link Authenticator} directly.
+ */
+public interface HttpAwareAuthenticator extends Authenticator {
+
+    /**
+     * Inject the shared API client for making HTTP requests.
+     *
+     * <p>Called by the {@code {{clientClassName}}} constructor after the {@link ApiClient}
+     * has been created with the user's {@link {{invokerPackage}}.TransportOptions}.
+     * Implementations should store this reference and use it for all
+     * outbound HTTP calls (token exchange, discovery, etc.).
+     *
+     * @param apiClient the shared API client instance
+     */
+    void setApiClient(ApiClient apiClient);
+
+    /**
+     * Drop the cached access token so the next request fetches (or refreshes)
+     * a new one, keeping any refresh token.
+     *
+     * <p>{@code BaseApi} calls this when the API answers {@code 401}, then sends
+     * the request once more with fresh authentication headers. The default does
+     * nothing, so an authenticator without a cached token is never replayed
+     * against.
+     */
+    default void invalidateAccessToken() {
+        /* No cached token to drop by default. */
+    }
+}

@@ -1,0 +1,614 @@
+# {{appNameBase}} SDK
+
+Auto-generated Kotlin SDK client for the {{appName}} API.
+{{#hasInfoBlock}}
+
+## API information
+
+{{#appSummary}}
+{{{appSummary}}}
+
+{{/appSummary}}
+{{#infoContactName}}
+- **Contact:** {{{infoContactName}}}
+{{/infoContactName}}
+{{#infoContactEmail}}
+- **Contact email:** {{{infoContactEmail}}}
+{{/infoContactEmail}}
+{{#infoContactUrl}}
+- **Contact URL:** {{{infoContactUrl}}}
+{{/infoContactUrl}}
+{{#licenseName}}
+- **License:** {{{licenseName}}}{{#licenseUrl}} ({{{licenseUrl}}}){{/licenseUrl}}
+{{/licenseName}}
+{{#infoTermsOfService}}
+- **Terms of service:** {{{infoTermsOfService}}}
+{{/infoTermsOfService}}
+
+{{/hasInfoBlock}}
+
+## Requirements
+
+- **Kotlin** 2.2 (Kotlin Multiplatform — `jvm` target)
+- **JVM** 17 or newer (the build uses whichever JDK is on the `PATH`; static analysis targets 17)
+- **Gradle** 8.x (8.10+) or Gradle 9.x, installed on the `PATH` (the SDK ships no Gradle wrapper)
+
+## Installation
+
+```kts
+implementation("{{groupId}}:{{artifactId}}:{{artifactVersion}}")
+```
+
+## Usage
+
+Create a client from an authenticator and call the operations from a coroutine
+(every operation is a `suspend` function). `SKILLS.md` has the full reference:
+every authentication scheme, transport options, error handling and models.
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+{{#hasExampleOperation}}
+import kotlinx.coroutines.runBlocking
+{{/hasExampleOperation}}
+
+{{>usage_statements}}
+```
+
+## Build
+
+```bash
+gradle build
+```
+
+## Test
+
+```bash
+gradle test
+```
+
+## Lint, format & static analysis
+
+The SDK ships with two configured tools:
+
+- **ktlint** — formatter / style enforcer (`org.jlleitschuh.gradle.ktlint`)
+- **detekt** — linter + static analyser with the `detekt-formatting`
+  and `detekt-rules-libraries` rulesets enabled
+
+Run them together:
+
+```bash
+gradle ktlintCheck detekt
+```
+
+To auto-fix formatting issues:
+
+```bash
+gradle ktlintFormat
+```
+
+## Package
+
+- Group: `{{groupId}}`
+- Artifact: `{{artifactId}}`
+- Version: `{{artifactVersion}}`
+{{#repositoryUrl}}
+- Repository: {{{repositoryUrl}}}
+{{/repositoryUrl}}
+{{#homepageUrl}}
+- Homepage: {{{homepageUrl}}}
+{{/homepageUrl}}
+{{#documentationUrl}}
+- Documentation: {{{documentationUrl}}}
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+- Issues: {{{issueTrackerUrl}}}
+{{/issueTrackerUrl}}
+{{#hasAuthors}}
+- Authors: {{#authorList}}{{{name}}}{{^-last}}, {{/-last}}{{/authorList}}
+{{/hasAuthors}}
+
+## Cancellation
+
+Operations are `suspend` functions, so cancellation is coroutine cancellation:
+cancel the calling coroutine (or use `withTimeout`) and the request is aborted.
+The call then raises `kotlinx.coroutines.CancellationException`, never a
+`NetworkTimeoutException`; that one is only raised when the SDK's own
+`TransportOptions` timeout elapses. The SDK has no cancellation API of its own
+and needs none.
+
+{{#hasExampleOperation}}
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+import kotlinx.coroutines.withTimeout
+
+suspend fun {{#exampleOperation}}{{operationId}}{{/exampleOperation}}WithinTwoSeconds(client: {{clientClassName}}) {
+    withTimeout(2_000) { client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}{{/exampleOperation}}() }
+}
+```
+{{/hasExampleOperation}}
+
+## Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`use { }`). `readAll()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#binaryStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+import java.io.FileOutputStream
+import java.nio.file.Path
+
+suspend fun saveTo(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}, target: Path) {
+    client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}).use { stream ->
+        println(stream.statusCode)
+        FileOutputStream(target.toFile()).use { out ->
+            stream.chunks().collect { chunk -> out.write(chunk) }
+        }
+    }
+}
+```
+{{/binaryStreamOperation}}
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedOperationException` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.ofFile(path)` or `BodySource.fromSupplier(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Collect its `items()` (its `events()` for an `SseStream`), and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+{{#hasJsonLinesStreamOperation}}
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#jsonLinesStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun readJsonLines(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    client.{{#jsonLinesStreamGroup}}{{clientPropertyName}}{{/jsonLinesStreamGroup}}.{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}).use { feed ->
+        feed.items().collect { println(it) }
+    }
+}
+```
+{{/jsonLinesStreamOperation}}
+{{/hasJsonLinesStreamOperation}}
+{{#hasSseStreamOperation}}
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#sseStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun readEvents(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    client.{{#sseStreamGroup}}{{clientPropertyName}}{{/sseStreamGroup}}.{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}).use { feed ->
+        feed.events().collect { println(it.data) }
+    }
+}
+```
+{{/sseStreamOperation}}
+{{/hasSseStreamOperation}}
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
+## Pagination
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, C>`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Collect `items()` for a `Flow<T>` of the items, or `pages()` for a `Flow<Page<T, C>>` of `Page<T, C>` values with `items`, `nextCursor` and `result`, the same `ApiResult` that the `WithHttpInfo` variant returns, so the status and headers stay reachable. Collecting again starts again from the starting position.
+{{#hasPagedOperation}}
+
+```kotlin file
+import {{invokerPackage}}.Page
+import {{invokerPackage}}.Paginator
+import {{invokerPackage}}.{{clientClassName}}
+{{#pagedOperation}}
+{{#vendorExtensions.op.pagination.itemModel}}
+import {{modelPackage}}.{{{.}}}
+{{/vendorExtensions.op.pagination.itemModel}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun listEverything(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    val list: {{{vendorExtensions.op.pagination.kotlinPaginatorType}}} = client.{{#pagedGroup}}{{clientPropertyName}}{{/pagedGroup}}.{{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})
+    list.items().collect { item: {{{vendorExtensions.op.pagination.itemType}}} -> println(item) }
+    list.pages().collect { page: Page<{{{vendorExtensions.op.pagination.itemType}}}, {{#vendorExtensions.op.pagination.isUrlPaged}}Unit{{/vendorExtensions.op.pagination.isUrlPaged}}{{^vendorExtensions.op.pagination.isUrlPaged}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isUrlPaged}}> ->
+        println("${page.items.size} items, status ${page.result.statusCode}")
+    }
+}
+```
+{{/pagedOperation}}
+{{/hasPagedOperation}}
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `null` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationException`, a direct child of `{{errorPrefix}}Exception`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `Flow.take`.
+
+How each style ends and resumes: an id list passes the `last_id` or `next_cursor` of each page as the starting cursor of the next request and ends when a declared `has_more` is false. An offset list starts at the offset you pass, sends the offset past the items it received on each next request, and ends on an empty page or when a declared `has_more` is false. A page-number list sends the page you pass, or none, and then asks for the page after each one, and ends on an empty page or when a declared `has_more` is false. A next URL list takes the URL in the body of each page, follows it only within the origin of the client, and ends when the property is absent, `null` or empty. A cursor, offset or page that does not advance raises `PaginationException` as a token cursor does.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationException` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+A list whose page body carries the next URL in a property (a next URL list) is followed in the same way as a `Link` list: the URL is taken from the body of each response, a next URL that leaves the scheme, host or port of the client is refused with `PaginationException`, nothing is sent to it, and such a method cannot resume from a saved position.
+
+The generator finds a paged operation by its names and shape. The operation must be a GET with one JSON 2xx response, and it must match exactly one of these styles. A token cursor is one query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker`, paired with a next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type. An id cursor is one query parameter among `starting_after`, `after_id` and `after`, paired with a boolean `has_more` and a string `last_id` or `next_cursor` property. A `Link` list has a `Link` header declared on the response. An offset list has an `offset` query parameter with a `limit`, and a page-number list has a `page` query parameter with one of `per_page`, `page_size`, `size` or `limit`. A next URL list has no cursor parameter and a string property with `format: uri` or `uri-reference`, or one named `next_url`, `next_uri`, `nextlink` or `next_link`, that is optional or nullable. An operation that matches more than one style is ambiguous, and one that is streamed is never paged; either keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty, hasMoreProperty}`, where the style is `token`, `link`, `id`, `offset`, `page` or `body`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+## Custom HTTP client
+
+`TransportOptions.builder().httpClient(myKtorClient)` sends every request
+through your own Ktor `HttpClient`, which must be built with `followRedirects = false`
+(`build()` refuses one that follows redirects, since the SDK manages redirects itself). The SDK keeps its timeout, redirect
+policy, user agent and header defaults applied on top of it, and never closes
+it: you own its lifecycle. It cannot be combined with `proxy`, `caCertPath` or
+`verifySsl(false)`; `build()` rejects the combination, so configure proxy and
+TLS on the client you supply.
+
+## Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```kotlin file
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}}Interface
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+import {{invokerPackage}}.{{clientClassName}}Interface
+import java.lang.reflect.Proxy
+
+// Code under test takes the group interface, never the generated class.
+fun use(api: {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) {}
+
+// A fake is any implementation of the interface; this one records every call it receives.
+inline fun <reified T : Any> fake(calls: MutableList<String>): T =
+    Proxy.newProxyInstance(T::class.java.classLoader, arrayOf(T::class.java)) { _, method, _ ->
+        calls.add(method.name)
+        null
+    } as T
+
+fun main() {
+    val calls = mutableListOf<String>()
+    use(fake<{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}>(calls))
+
+    val client =
+        object : {{clientClassName}}Interface {
+{{#apiInfo}}{{#apis}}{{#operations}}            override val {{clientPropertyName}}: {{classname}}Interface = fake(calls)
+{{/operations}}{{/apis}}{{/apiInfo}}
+            override fun close() {}
+        }
+    client.close()
+    println(calls)
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; delegate to a base fake with `by` or use a proxy like this one, so only the operation you fake is written.
+
+## Raw responses, timeouts and request ids
+
+Every operation has a `*WithHttpInfo` variant that returns an `ApiResult`
+holding the status code, the response headers (lower-cased names) and the
+decoded body; use it when you need to read a header. An operation whose success response declares headers also has a `<Operation>ResponseHeaders` type; `<Operation>ResponseHeaders.from(result.headers)` reads them in their declared types.
+
+`TransportOptions.timeout` is in milliseconds (default 60000) and is one
+end-to-end budget for the whole call: connection, every redirect hop and the
+response body. When it elapses the call raises `NetworkTimeoutException`.
+Unless `injectRequestId(false)` is set, the SDK sends a generated
+`X-Request-ID` header on every request, and a header of the same name that you
+supply always wins.
+
+## Retries
+
+A failed request is sent again up to twice (`TransportOptions.maxRetries`,
+default 2; `0` turns retries off). A request is retried after a network error
+that happened before any response arrived, and after a 408, 409, 429 or 5xx
+answer except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds and
+loses up to 25% of its length at random; a `Retry-After` header (seconds or an
+HTTP date) replaces it, capped at 60 seconds. Retries share the one end-to-end
+`timeout`: a wait that does not fit in what is left of it ends the retrying and
+the last answer or error is reported. A timeout is never retried, and
+cancelling the calling coroutine stops the wait. Every retry is a new request:
+its headers are built again (a new `X-Request-ID`), and the body is sent again. A request whose
+body is a single-use `BodySource` is never retried.
+
+```kotlin statements
+import {{invokerPackage}}.TransportOptions
+
+val transport = TransportOptions.builder().maxRetries(0).build()
+```
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
+## Credentials
+
+A credential you pass to an authenticator always wins. When you pass none, the
+authenticator reads an environment variable once, when it is built, and an empty
+value counts as not set. `BearerAuthenticator` reads `{{envVarPrefix}}_TOKEN`,
+`ApiKeyAuthenticator` reads `{{envVarPrefix}}_API_KEY`, and `BasicAuthenticator` reads
+`{{envVarPrefix}}_USERNAME` and `{{envVarPrefix}}_PASSWORD`. A credential that is neither
+passed nor set fails right there with an `IllegalArgumentException` that names the
+variable, before any request is made.
+
+{{#hasSecuritySchemeEnvVars}}
+The authenticator generated for a security scheme reads the variable of its own
+scheme, so two schemes never read each other's secret:
+
+| Variable | Security scheme | Credential |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{envName}}` | `{{schemeId}}` | `{{field}}` |
+{{/securitySchemeEnvVars}}
+
+{{/hasSecuritySchemeEnvVars}}
+A Bearer token or an API key that rotates takes a provider as well: the lambda is
+called on every request and its result is checked like a static value. The order is
+the argument, then the environment variable, then the provider, so a provider is
+used only when neither of the other two is set.
+
+```kotlin file
+import {{invokerPackage}}.auth.BearerAuthenticator
+
+fun rotatingAuthenticator(currentToken: suspend () -> String): BearerAuthenticator =
+    BearerAuthenticator("https://api.example.com", tokenProvider = currentToken)
+```
+
+{{#hasClientSchemes}}
+## Credentials per security scheme
+
+`{{clientClassName}}(host, <scheme> = credential, transportOptions)` takes one optional
+credential for each security scheme of the API, named after the scheme:{{#clientSchemes}} `{{{argName}}}`{{^-last}},{{/-last}}{{/clientSchemes}}.
+Each operation uses the credential of the first scheme its spec lists that you passed.
+There is no per-call override, so an operation's options object carries no authenticator.
+An operation none of whose schemes you passed a credential for uses the authenticator of
+`{{clientClassName}}(authenticator)` when you gave one and is otherwise sent without a
+credential; an operation declared with no security never sends one.
+
+{{/hasClientSchemes}}
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
+{{#hasDigestAuth}}
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+{{/hasDigestAuth}}
+## Closing the client
+
+`close()` is graceful and idempotent: a request already in flight finishes, the transport
+the SDK created is released after the last one, and a request issued afterwards fails with
+`IllegalStateException`. Streams that are still open are cancelled. A Ktor client you supplied is never closed.
+
+## Cookie parameters
+
+A cookie parameter is sent as you give it when every character is a legal RFC 6265
+cookie-octet, and otherwise fails with `IllegalArgumentException` before anything is sent.
+Percent-encode a value that needs it first; the SDK does not encode cookie values.
+
+## Per-call options
+
+Every operation takes an options object, also an operation with no parameters and no
+security. Besides the operation's own parameters it carries `timeout` (milliseconds,
+one end-to-end budget for this call), `headers` (sent with this call only; a header
+of the same name set anywhere else is replaced) and `maxRetries` (`0` turns the
+retries of this call off). Each replaces the client-wide setting for that call
+and leaves it as it was for every other.
+
+{{>per_call_options}}
+
+## Errors
+
+Every `ApiException` has `requestMethod` and `requestPath` (the path of the
+request, without its query string) next to `statusCode`, the headers and the
+body, and its string form shows them on a `Request:` line. They are null for an
+exception you built yourself.
+
+When an operation declares several `2xx` responses with different schemas, its
+result is a union and the body is decoded by the status code the server sent, not
+by guessing from its shape.
+
+## Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` and decodes the answer itself;
+`br` and `zstd` are offered too when `org.brotli:dec` and `com.github.luben:zstd-jni` are on the
+classpath. A body in any other encoding is an error, never returned still encoded.
+After decoding, `Content-Encoding` and `Content-Length` are dropped from the returned
+headers.
+
+## Logging
+
+The SDK writes no logs. To see requests and responses, pass your own Ktor
+`HttpClient` with the `Logging` plugin installed through
+`TransportOptions.builder().httpClient(...)`; headers that carry credentials are
+masked in the string form of an exception.
+
+## Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the send and observe the status or the error afterwards. With no hook set nothing changes, and the hook is the only seam for tracing.
+
+`start` runs once per operation call, however many sends happen inside it (retries, the one replay after a `401`), after the request headers are final and before the body is encoded. It receives the call (`operationId` as written in the spec, `method`, `urlTemplate`, the `url` without its query string and `serverAddress`) and the headers, which it may read and replace; what it sets is on every send of the call. It returns an observer, or nothing. The observer's `finish` runs exactly once, whatever way the call ends, with the `statusCode` (0 when no response arrived), the lower-cased response `headers` (nothing when no response arrived) and the very error the caller receives. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. A hook never changes the result or the error of a call, and it also runs when you supply your own transport. Several hooks are combined with `chain`, which starts them in the order given and finishes them in the reverse order.
+
+```kotlin statements
+import {{invokerPackage}}.CallHook
+import {{invokerPackage}}.CallObserver
+import {{invokerPackage}}.{{clientClassName}}
+
+val hook = CallHook { info, headers ->
+    headers["X-Request-Source"] = "reports"
+    CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
+}
+val client = {{clientClassName}}.withToken("https://api.example.com", "token", callHook = hook)
+```
+
+The hook runs inline on the calling coroutine, so it must not block.
+{{#hasOpenTelemetryAdapter}}
+
+The optional `OpenTelemetryCallHook` records one span, one request count and one duration value per call. It is built on the OpenTelemetry API package only; add `io.opentelemetry:opentelemetry-api` to your project to use it. The span is named with the operation id, has kind client and is a child of the active span; the hook injects `traceparent` itself. Attributes are `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure); the instruments are the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`), whose own count equals the counter. The instrumentation scope is `{{artifactId}}` with the SDK version. Without a configured provider the hook does nothing.
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.OpenTelemetryCallHook
+
+val client = {{clientClassName}}.withToken("https://api.example.com", "token", callHook = OpenTelemetryCallHook.create())
+```
+
+`OpenTelemetryCallHook.create(openTelemetry)` uses the instance you give it instead of the global one.
+{{/hasOpenTelemetryAdapter}}
+
+## Versioning
+
+The version in the build file (`{{artifactVersion}}`) comes from the `artifactVersion`
+generator option; publish releases with semantic versioning so that callers can
+rely on the major number. The generated code needs the JVM 17 or newer, the floor
+the build and the static analysis target.
+
+## Caveats
+
+### Optional and nullable
+
+A property that is optional and a property that is nullable are both a nullable type
+(`T?`), so an absent key and an explicit `null` read the same once decoded. A required
+property that is nullable keeps its key: it is written as `null` when unset, and must be
+present when decoding. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list decodes to the enum's catch-all member (`UNKNOWN_DEFAULT_OPEN_API`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
+
+### Repeated response headers
+
+`ApiResult.headers` and `ApiException.responseHeaders` hold one string per header
+name (lower-cased). A header the server sent more than once is joined with `, `.
+
+### Configuration and transport options
+
+`Configuration` (base URL and default headers of an API class) and `TransportOptions`
+(proxy, TLS, timeout, retries, redirects of the HTTP client) are separate on purpose: the
+first says what is sent, the second how. `{{clientClassName}}` builds the `Configuration` from the
+authenticator's host, and you pass `TransportOptions` next to it.
+
+### Decimal / `format: number` precision
+
+`format: number` / `format: decimal` fields are typed as
+`java.math.BigDecimal` and serialized through a precision-preserving
+serializer that round-trips the JSON number as a string, so exact
+decimal values survive deserialization unchanged — unlike languages
+that decode JSON numbers into a binary `float64`. You can safely do
+arithmetic on prices, balances, and other money-typed fields using
+`BigDecimal`'s exact operators.
+
+The IEEE-754 binary types are a different story: `format: float` and
+`format: double` map to Kotlin's `Float` / `Double`, which **cannot**
+represent every decimal fraction exactly (`0.1 + 0.2` is
+`0.30000000000000004`). Do not use a `double`/`float`-typed field for
+money. If a monetary value is typed as `format: double` in the spec,
+read it from the raw response body and parse it into a `BigDecimal`
+yourself.
+
+`format: int64` is unaffected — Kotlin's `Long` natively represents the
+full 64-bit range without precision loss.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, not by
+this SDK. The generated models are kotlinx.serialization data classes: their
+model layer checks only the JSON type of each field (an integer must be an
+in-range integer, a string must be a string, a required field must be
+present), so a value that breaks one of these constraints is sent as given and
+the server decides. The server is the authoritative validator; if you want a
+fast failure before the network round trip, plug in a JSON Schema validator.
+
+`uniqueItems` arrays are `Set` properties (`LinkedHashSet`). The order of a set
+on the wire is unspecified: elements are written in the set's own iteration
+order, which for a `LinkedHashSet` is insertion order. Do not depend on it.
+
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
+
+## Not supported
+
+### Webhooks and callbacks (#53)
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType` (#70, #88)
+
+Only JSON, form, multipart and binary bodies are generated. An operation
+that offers only `application/xml` has no usable request or response
+body; encode and decode the XML yourself.
+
+### Link Objects (#78)
+
+Response `links` are ignored; build the follow-up call yourself.
+
+### Mutual TLS security schemes (#90)
+
+A `mutualTLS` security scheme is not generated. Configure the client
+certificate on the Ktor `HttpClient` you pass to
+`TransportOptions.builder().httpClient(...)`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### Ambient proxy settings
+
+`TransportOptions.builder().proxy(...)` is the way to configure a proxy, but it is not the
+only source on the JVM: when no proxy is configured, the Ktor CIO engine asks the JVM's
+default `ProxySelector`, so `http.proxyHost` and the system proxy settings apply. The engine
+offers no way to ask for a direct connection, so the SDKs' rule that ambient proxy settings
+are ignored cannot hold here; set a `ProxySelector` of your own if you need to override it.
+
+### SOCKS proxies
+
+`TransportOptions.builder().proxy(...)` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares {{licenseId}}, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

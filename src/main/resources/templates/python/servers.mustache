@@ -1,0 +1,65 @@
+{{>api_info}}
+
+"""Generated server configurations from the OpenAPI specification.
+
+Each constant corresponds to a server entry defined in the spec's
+``servers`` array. Use these constants with
+``Configuration.builder().base_url(...)`` to select a server::
+
+    config = Configuration.builder() \\
+        .base_url(SERVER_0.get_url()) \\
+        .build()
+
+For servers with variables, pass overrides::
+
+    url = SERVER_1.get_url({'environment': 'staging'})
+"""
+
+from typing import Tuple
+
+from {{packageName}}.server_configuration import ServerConfiguration{{#hasAnyServerVariables}}, ServerVariable{{/hasAnyServerVariables}}
+
+
+{{#serverConfigs}}
+SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
+    url_template={{#lambda.quotedLiteral}}{{{serverUrl}}}{{/lambda.quotedLiteral}},
+    {{#serverDescription}}description={{#lambda.quotedLiteral}}{{{serverDescription}}}{{/lambda.quotedLiteral}},{{/serverDescription}}{{^serverDescription}}description=None,{{/serverDescription}}
+    {{#hasVariables}}variables={
+{{#serverVariables}}        '{{varName}}': ServerVariable(
+            default_value={{#lambda.quotedLiteral}}{{{varDefault}}}{{/lambda.quotedLiteral}},
+            {{#varDescription}}description={{#lambda.quotedLiteral}}{{{varDescription}}}{{/lambda.quotedLiteral}},{{/varDescription}}{{^varDescription}}description=None,{{/varDescription}}
+            {{#hasEnumValues}}enum_values=({{#varEnumValues}}{{#lambda.quotedLiteral}}{{{.}}}{{/lambda.quotedLiteral}},{{^-last}} {{/-last}}{{/varEnumValues}}),{{/hasEnumValues}}{{^hasEnumValues}}enum_values=(),{{/hasEnumValues}}
+        ),
+{{/serverVariables}}    },{{/hasVariables}}{{^hasVariables}}variables={},{{/hasVariables}}
+    {{#serverName}}name={{#lambda.quotedLiteral}}{{{serverName}}}{{/lambda.quotedLiteral}},{{/serverName}}{{^serverName}}name=None,{{/serverName}}
+)
+"""Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
+
+{{{serverDescription}}}{{/serverDescription}}
+"""
+
+{{/serverConfigs}}
+
+ALL: Tuple[ServerConfiguration, ...] = (
+{{#serverConfigs}}    SERVER_{{serverIndex}},
+{{/serverConfigs}})
+"""All server configurations in declaration order, as an immutable tuple."""
+
+
+def by_name(name: str) -> ServerConfiguration:
+    """Return the server the specification gives the name ``name`` (OpenAPI 3.2 ``name``).
+
+    Args:
+        name: The server name.
+
+    Returns:
+        The server with that name.
+
+    Raises:
+        ValueError: If no server has that name; the message lists the known names.
+    """
+    known = [server.name for server in ALL if server.name is not None]
+    for server in ALL:
+        if server.name == name:
+            return server
+    raise ValueError(f"Unknown server name '{name}'. Known names: [{', '.join(known)}]")

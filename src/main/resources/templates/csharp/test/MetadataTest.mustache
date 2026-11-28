@@ -1,0 +1,714 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Models;
+using Xunit;
+
+namespace Test;
+
+public class MetadataTest
+{
+    private readonly ObjectSerializer _serializer = new();
+
+    private static object? NoObject() => null;
+
+    [Fact]
+    public void BhvModels008SerializesEmptyMetadata()
+    {
+        var metadata = new Metadata();
+
+        var json = _serializer.Serialize(metadata);
+
+        Assert.NotNull(json);
+    }
+
+    [Fact]
+    public void BhvModels003AnEmptyObjectDeserializesIntoAModelWithNoValues()
+    {
+        var json = "{}";
+
+        var metadata = _serializer.Deserialize<Metadata>(json);
+
+        Assert.NotNull(metadata);
+    }
+
+    [Fact]
+    public void BhvMisc093NumericAdditionalPropertyNamesAreWrittenAsObjectMembers()
+    {
+        var metadata = new Metadata();
+        metadata.AdditionalProperties["404"] = "missing";
+        Assert.Contains("\"404\":\"missing\"", _serializer.Serialize(metadata), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLangcsharp029AdditionalPropertiesIsEmptyAndNeverNullOnNewInstance()
+    {
+        var metadata = new Metadata();
+        Assert.NotNull(metadata.AdditionalProperties);
+        Assert.Empty(metadata.AdditionalProperties);
+    }
+
+    [Fact]
+    public void BhvModels001AdditionalPropertiesIsEmptyWhenNoUnknownKeysArrive()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{}");
+        Assert.NotNull(metadata!.AdditionalProperties);
+        Assert.Empty(metadata.AdditionalProperties);
+    }
+
+    [Fact]
+    public void BhvLangcsharp030SerializesAdditionalPropertyEntryFlat()
+    {
+        var metadata = new Metadata();
+        metadata.AdditionalProperties["customField"] = "hello";
+        var json = _serializer.Serialize(metadata);
+        Assert.Contains("\"customField\":\"hello\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("AdditionalProperties", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvModels004DeserializesAdditionalStringProperties()
+    {
+        var json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
+        var metadata = _serializer.Deserialize<Metadata>(json);
+        Assert.NotNull(metadata);
+        Assert.NotNull(metadata!.AdditionalProperties);
+        Assert.True(metadata.AdditionalProperties!.ContainsKey("customField"));
+    }
+
+    [Fact]
+    public void BhvModels011RoundTripPreservesAdditionalProperties()
+    {
+        var metadata = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, string>
+            {
+                ["customField"] = "hello",
+                ["anotherField"] = "world",
+            },
+        };
+        var json = _serializer.Serialize(metadata);
+        var deserialized = _serializer.Deserialize<Metadata>(json);
+        Assert.NotNull(deserialized);
+        Assert.NotNull(deserialized!.AdditionalProperties);
+        Assert.Equal(2, deserialized.AdditionalProperties!.Count);
+    }
+
+    [Fact]
+    public void BhvModels009AdditionalPropertiesAreAStringKeyedMapOfTheValueType()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{\"key\":\"value\"}");
+
+        Dictionary<string, string> extras = metadata!.AdditionalProperties;
+        Assert.Equal("value", extras["key"]);
+    }
+
+    [Fact]
+    public void BhvModels704PatternPropertiesTypeTheExtraProperties()
+    {
+        var sensors = _serializer.Deserialize<Sensors>("{\"site\":\"north\",\"s1\":3,\"s2\":4}");
+
+        Dictionary<string, int> extras = sensors!.AdditionalProperties;
+        Assert.Equal(3, extras["s1"]);
+        Assert.Equal(4, extras["s2"]);
+        Assert.Throws<{{packageName}}.Errors.SerializationException>(() => _serializer.Deserialize<Sensors>("{\"s1\":\"three\"}"));
+    }
+
+    [Theory]
+    [InlineData("{\"a\":2.5}")]
+    [InlineData("{\"a\":\"2\"}")]
+    [InlineData("{\"a\":3000000000}")]
+    public void BhvModels025AnAdditionalPropertyOfTheWrongJsonTypeFailsTheDecode(string body)
+    {
+        Assert.Throws<{{packageName}}.Errors.SerializationException>(() => _serializer.Deserialize<Counters>(body));
+        Assert.Throws<{{packageName}}.Errors.SerializationException>(() => _serializer.Deserialize<Metadata>("{\"a\":3}"));
+    }
+
+    [Fact]
+    public void BhvModels026AnAdditionalPropertyWhoseValueTypeIsAModelDecodesToThatModel()
+    {
+        var roster = _serializer.Deserialize<Roster>("{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}");
+
+        Category category = roster!.AdditionalProperties["a"];
+        Assert.Equal(1L, category.Id);
+        Assert.Equal("x", category.Name);
+        Assert.Throws<{{packageName}}.Errors.SerializationException>(
+            () => _serializer.Deserialize<Roster>("{\"a\":{\"id\":\"x\"}}"));
+    }
+
+    [Fact]
+    public void BhvModels027ANullAdditionalPropertyIsRejectedUnlessTheValueSchemaIsNullable()
+    {
+        Assert.Throws<{{packageName}}.Errors.SerializationException>(() => _serializer.Deserialize<Counters>("{\"a\":null}"));
+        var sparse = _serializer.Deserialize<Sparse>("{\"a\":null}");
+
+        Assert.True(sparse!.AdditionalProperties.ContainsKey("a"));
+        Assert.Null(sparse.AdditionalProperties["a"]);
+    }
+
+    [Fact]
+    public void BhvModels028ATypedAdditionalPropertyIsWrittenFlatInItsWireForm()
+    {
+        var moments = _serializer.Deserialize<Moments>("{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00Z\"}");
+        var json = _serializer.Serialize(moments);
+
+        Assert.StartsWith("{\"label\":\"l\",\"at\":\"2024-01-01T00:00:00", json, StringComparison.Ordinal);
+        Assert.Equal(moments, _serializer.Deserialize<Moments>(json));
+
+        var blobs = _serializer.Deserialize<Blobs>("{\"b\":\"aGk=\"}");
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes("hi"), blobs!.AdditionalProperties["b"]);
+        Assert.Equal("{\"b\":\"aGk=\"}", _serializer.Serialize(blobs));
+    }
+
+    [Fact]
+    public void BhvModels029AFreeFormAdditionalPropertiesKeepsEveryJsonValueAsItArrives()
+    {
+        var freeform = _serializer.Deserialize<Freeform>("{\"a\":1,\"b\":\"x\",\"c\":[true],\"d\":null}");
+
+        Assert.Equal(4, freeform!.AdditionalProperties.Count);
+        Assert.True(freeform.AdditionalProperties.ContainsKey("d"));
+    }
+
+    [Fact]
+    public void BhvLangcsharp031DeclaredDevDependenciesAreInTheProjectManifest()
+    {
+        // A generated test may reference a package that only the generator knows
+        // about, and every real client keep-lists its own test project file, so
+        // the two silently drift apart and the suite dies at compile time with an
+        // unresolved using. The generator-owned manifest lists what the generated
+        // tests need; this fails first, naming the file.
+        // dotnet test runs the host from the build output directory, so walk up
+        // to the project root rather than assuming the working directory.
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (
+            root is not null
+            && !File.Exists(Path.Combine(root.FullName, ".openapi-generator", "DEV-DEPENDENCIES"))
+        )
+        {
+            root = root.Parent;
+        }
+        Assert.True(
+            root is not null,
+            ".openapi-generator/DEV-DEPENDENCIES must exist at the project root"
+        );
+        var declared = Path.Combine(root!.FullName, ".openapi-generator", "DEV-DEPENDENCIES");
+        var manifest = File.ReadAllText(
+            Path.Combine(root.FullName, "{{packageName}}.Test.csproj")
+        );
+        foreach (var line in File.ReadAllLines(declared))
+        {
+            var entry = line.Trim();
+            if (entry.Length == 0)
+            {
+                continue;
+            }
+            var name = entry.Split(' ')[0];
+            Assert.True(
+                manifest.Contains($"Include=\"{name}\"", StringComparison.Ordinal),
+                $"{{packageName}}.Test.csproj does not declare {name}, which "
+                    + ".openapi-generator/DEV-DEPENDENCIES lists as required by the generated "
+                    + "tests. Add it as a PackageReference; the generator cannot edit a "
+                    + "keep-listed manifest."
+            );
+        }
+    }
+
+    private static DirectoryInfo ProjectRoot()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (
+            root is not null
+            && !File.Exists(Path.Combine(root.FullName, "{{packageName}}.Test.csproj"))
+        )
+        {
+            root = root.Parent;
+        }
+        Assert.True(root is not null, "the project root must be above the test output");
+        return root!;
+    }
+
+    [Fact]
+    public void BhvModels006FileHeaderCarriesTheInfoDescriptionWithoutStringEscapes()
+    {
+        /* The description is escaped for string literals when it is read; a
+           comment must show the prose, so no backslash may sit before a quote. */
+        var model = Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}", "Models", "Metadata.cs");
+
+        var header = string.Join("\n", File.ReadLines(model).Take(2));
+
+        Assert.StartsWith("//", header, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\\"", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvModels002ProjectManifestDeclaresANonEmptyDescription()
+    {
+        /* The package manifest must carry a description, wired from the spec's
+           description with a generated fallback, so the NuGet listing is never blank. */
+        var manifest = File.ReadAllText(
+            Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}", "{{packageName}}.csproj"));
+
+        var match = System.Text.RegularExpressions.Regex.Match(
+            manifest,
+            "<Description>(.*?)</Description>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        Assert.True(match.Success, "the project file must declare a <Description>");
+        var text = match.Groups[1].Value.Replace("<![CDATA[", "", StringComparison.Ordinal)
+            .Replace("]]>", "", StringComparison.Ordinal)
+            .Trim();
+        Assert.NotEmpty(text);
+    }
+
+    [Fact]
+    public void BhvMetadata001ReadmeHasTheApiInformationSection()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains("## API information", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvOptions044ReadmeSocksNoteNamesTheBuilderSetter()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains(
+            "`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.",
+            readme,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("`TransportOptions.Proxy(...)`", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSerializationobject227ModelExternalDocsDescriptionIsDocumentedVerbatim()
+    {
+        var account = File.ReadAllText(
+            Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}", "Models", "Account.cs"));
+
+        Assert.Contains(
+            "<![CDATA[Account <docs> & \"notes\" it's here]]>",
+            account,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLangcsharp032ProjectFileWritesTheDocumentationFileAndPacksTheReadmeAndSymbols()
+    {
+        var projectFolder = Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}");
+        var manifest = File.ReadAllText(Path.Combine(projectFolder, "{{packageName}}.csproj"));
+
+        Assert.Contains("<GenerateDocumentationFile>true</GenerateDocumentationFile>", manifest, StringComparison.Ordinal);
+        Assert.Contains("<PackageReadmeFile>README.md</PackageReadmeFile>", manifest, StringComparison.Ordinal);
+        Assert.Contains("<Deterministic>true</Deterministic>", manifest, StringComparison.Ordinal);
+        Assert.Contains("<IncludeSymbols>true</IncludeSymbols>", manifest, StringComparison.Ordinal);
+        Assert.Contains("<SymbolPackageFormat>snupkg</SymbolPackageFormat>", manifest, StringComparison.Ordinal);
+        Assert.Contains("ContinuousIntegrationBuild", manifest, StringComparison.Ordinal);
+        Assert.True(
+            File.Exists(Path.GetFullPath(Path.Combine(projectFolder, "{{readmeRelativePath}}"))),
+            "the packed README must exist at {{readmeRelativePath}}");
+    }
+
+    [Theory]
+    [InlineData("### Per-call options")]
+    [InlineData("### Error details")]
+    [InlineData("### Immutable models")]
+    [InlineData("### Several success responses")]
+    [InlineData("### Credentials from the environment")]
+    [InlineData("### Response compression")]
+    [InlineData("### Logging")]
+    [InlineData("### Optional versus nullable")]
+    [InlineData("### Unknown enum values and discriminators")]
+    [InlineData("### Response headers")]
+    [InlineData("### Streaming")]
+    [InlineData("### Configuration and transport options")]
+    public void BhvLangcsharp033ReadmeDocumentsTheBehaviourThatSurprisesCallers(string heading)
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains(heading, readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvMocking009TestingYourCodeNamesTheGroupInterfaceAndTheClientInterface()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+        int start = readme.IndexOf("\n### Testing your code\n", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        int end = readme.IndexOf("\n### ", start + 4, StringComparison.Ordinal);
+        string section = end < 0 ? readme[start..] : readme[start..end];
+
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+        Assert.Contains("I{{classname}}", section, StringComparison.Ordinal);
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+        Assert.Contains("I{{clientClassName}}", section, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLangcsharp034ReadmeNamesTheSemanticVersioningPolicy()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains("follows semantic versioning", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLangcsharp035SkillsModelSampleCopiesAModelInsteadOfBuildingOne()
+    {
+        /* The first model has a required property, so a bare constructor call would
+           not compile; the sample copies a model it is given with a with expression. */
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        Assert.Contains("model with {", skills, StringComparison.Ordinal);
+        Assert.DoesNotContain("new Account(", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLangcsharp036MakefileCarriesADependencyAuditTarget()
+    {
+        var makefile = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "Makefile"));
+
+        Assert.Contains("\naudit:\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("dotnet list package --vulnerable --include-transitive", makefile, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvModels007ModelWithoutAnExampleDoesNotDocumentALiteralNull()
+    {
+        /* A property that declares no example leaves the codegen example as the
+           string "null", which is truthy in Mustache; Tag carries no example, so it
+           is the canary for a bogus example element. */
+        var model = Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}", "Models", "Tag.cs");
+
+        var source = File.ReadAllText(model);
+
+        Assert.DoesNotContain("<example>null</example>", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSkills001SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
+    {
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        Assert.Contains("{{errorPrefix}}Exception", skills, StringComparison.Ordinal);
+        Assert.Contains("SerializationException", skills, StringComparison.Ordinal);
+        Assert.Contains("OAuth2ServerException", skills, StringComparison.Ordinal);
+        Assert.Contains("OAuth2TokenException", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSkills002SkillsGuideDocumentsTheRetriesInItsConfigurationSection()
+    {
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        var start = skills.IndexOf("\n## Configuration\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, "SKILLS.md has no Configuration section");
+        var end = skills.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
+        var section = end < 0 ? skills.Substring(start) : skills.Substring(start, end - start);
+
+        Assert.Contains("### Retries", section, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvModels005EqualityIncludesAdditionalProperties()
+    {
+        var plain = new Metadata();
+        var withExtra = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+        var sameExtra = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+        var otherValue = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "world" },
+        };
+
+        Assert.NotEqual(plain, withExtra);
+        Assert.NotEqual(withExtra, otherValue);
+        Assert.Equal(withExtra, sameExtra);
+        Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
+    }
+
+    [Fact]
+    public void BhvEquality001SameValuesAreEqualAndANestedChangeIsNot()
+    {
+        var created = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+        var left = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+        var right = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+        var nestedChange = new Metadata
+        {
+            CreatedAt = created,
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "world" },
+        };
+
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, nestedChange);
+        Assert.False(left.Equals(new Tag()));
+        Assert.False(left.Equals((new object?[1])[0]));
+    }
+
+    [Fact]
+    public void BhvEquality002EqualityReachesNestedModelsListsAndMapsAndNeverThrows()
+    {
+        const string pet = "{\"name\":\"Rex\",\"photoUrls\":[\"a\"],\"category\":{\"id\":1,\"name\":\"Dogs\"},"
+            + "\"tags\":[{\"id\":2,\"name\":\"calm\"}]}";
+        const string roster = "{\"label\":\"l\",\"a\":{\"id\":1,\"name\":\"x\"}}";
+        var first = _serializer.Deserialize<Pet>(pet);
+        var firstRoster = _serializer.Deserialize<Roster>(roster);
+
+        Assert.Equal(first, _serializer.Deserialize<Pet>(pet));
+        Assert.NotEqual(first, _serializer.Deserialize<Pet>(pet.Replace("Dogs", "Cats", StringComparison.Ordinal)));
+        Assert.NotEqual(first, _serializer.Deserialize<Pet>(pet.Replace("calm", "wild", StringComparison.Ordinal)));
+        Assert.Equal(firstRoster, _serializer.Deserialize<Roster>(roster));
+        Assert.NotEqual(
+            firstRoster,
+            _serializer.Deserialize<Roster>(roster.Replace("\"x\"", "\"y\"", StringComparison.Ordinal)));
+        Assert.False(first!.Equals(firstRoster));
+        Assert.False(first.Equals(NoObject()));
+    }
+
+    [Fact]
+    public void BhvModels012ToStringRendersAdditionalPropertiesEntries()
+    {
+        var metadata = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, string> { ["customField"] = "hello" },
+        };
+
+        var text = metadata.ToString();
+
+        Assert.Contains("AdditionalProperties={customField=hello}", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvModels010DeclaredPropertyWinsOverACollidingAdditionalProperty()
+    {
+        var metadata = new Metadata
+        {
+            CreatedAt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero),
+            AdditionalProperties = new Dictionary<string, string> { ["createdAt"] = "x", ["extra"] = "y" },
+        };
+
+        var json = _serializer.Serialize(metadata);
+
+        Assert.Equal("{\"createdAt\":\"2024-01-15T10:30:00.000+00:00\",\"extra\":\"y\"}", json);
+        Assert.Equal(2, metadata.AdditionalProperties!.Count);
+    }
+
+
+    [Fact]
+    public void BhvModels013NewModelAdditionalPropertiesStartEmptyNeverNull()
+    {
+        var metadata = new Metadata();
+
+        Assert.NotNull(metadata.AdditionalProperties);
+        Assert.Empty(metadata.AdditionalProperties);
+    }
+
+    [Fact]
+    public void BhvModels015ChangedCopyKeepsTheAdditionalProperties()
+    {
+        var original = _serializer.Deserialize<Metadata>("{\"k\":\"1\"}")!;
+
+        var copy = original with { CreatedAt = DateTimeOffset.UnixEpoch };
+
+        Assert.Equal(original.AdditionalProperties, copy.AdditionalProperties);
+        Assert.Contains("k", copy.AdditionalProperties.Keys);
+    }
+
+    [Fact]
+    public void BhvModels016ACopyClearsAnOptionalFieldOnlyWhenNullIsPassed()
+    {
+        var original = new Metadata { CreatedAt = DateTimeOffset.UnixEpoch };
+
+        var kept = original with { };
+        var cleared = original with { CreatedAt = null };
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, kept.CreatedAt);
+        Assert.Null(cleared.CreatedAt);
+    }
+
+    [Fact]
+    public void BhvModels017ACopyCanSetOrClearAnOptionalFieldAndTheOriginalKeepsItsValue()
+    {
+        var original = new Metadata { CreatedAt = DateTimeOffset.UnixEpoch };
+        var later = DateTimeOffset.UnixEpoch.AddDays(1);
+
+        var set = original with { CreatedAt = later };
+        var cleared = original with { CreatedAt = null };
+
+        Assert.Equal(later, set.CreatedAt);
+        Assert.Null(cleared.CreatedAt);
+        Assert.Equal(DateTimeOffset.UnixEpoch, original.CreatedAt);
+    }
+
+    [Fact]
+    public void BhvModels022AModelWhoseSchemaAllowsUndeclaredPropertiesReportsIt()
+    {
+        Assert.NotNull(typeof(Metadata).GetProperty(nameof(Metadata.AdditionalProperties)));
+    }
+
+    [Fact]
+    public void BhvModels023KeysNamedLikeSdkMembersAreKeptAsAdditionalProperties()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{\"ToString\":\"1\",\"GetHashCode\":\"2\"}")!;
+
+        Assert.Contains("ToString", metadata.AdditionalProperties.Keys);
+        Assert.Contains("GetHashCode", metadata.AdditionalProperties.Keys);
+    }
+
+    [Fact]
+    public void BhvSerialization052UndeclaredKeysAreKeptOnListElements()
+    {
+        var items = _serializer.Deserialize<List<Metadata>>("[{\"k\":\"1\"}]")!;
+
+        Assert.Contains("k", items[0].AdditionalProperties.Keys);
+    }
+
+    [Fact]
+    public void BhvSerialization053UndeclaredKeysAreWrittenBackWithTheirModel()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{\"k\":\"2\"}");
+
+        Assert.Contains("\"k\":\"2\"", _serializer.Serialize(metadata), StringComparison.Ordinal);
+    }
+{{#generateExamples}}
+
+    private static string Quickstart() =>
+        File.ReadAllText(Path.Combine(ProjectRoot().FullName, "examples", "Quickstart", "Program.cs"));
+
+    private static string ReadRootFile(string name) =>
+        File.ReadAllText(Path.Combine(ProjectRoot().FullName, name));
+
+    /* The info string and the body of every fence tagged csharp, in file order. */
+    private static List<(string Info, string Body)> CSharpFences(string text) =>
+        System.Text.RegularExpressions.Regex.Matches(
+                text,
+                "^```(csharp[^\n]*)\n(.*?)^```$",
+                System.Text.RegularExpressions.RegexOptions.Multiline
+                    | System.Text.RegularExpressions.RegexOptions.Singleline)
+            .Select(match => (match.Groups[1].Value, match.Groups[2].Value))
+            .ToList();
+
+    private static string WithoutWhitespace(string text) =>
+        string.Concat(text.Where(character => !char.IsWhiteSpace(character)));
+
+    [Fact]
+    public void BhvLangcsharp075TheQuickstartBuildsAClientCallsAnOperationAndClosesIt()
+    {
+        var quickstart = Quickstart();
+
+        Assert.Contains("using var client = {{clientClassName}}.WithToken(host, token);", quickstart, StringComparison.Ordinal);
+{{#hasExampleOperation}}
+        Assert.Contains(
+            "await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}{{/exampleOperation}}Async()",
+            quickstart,
+            StringComparison.Ordinal);
+{{/hasExampleOperation}}
+    }
+
+    [Fact]
+    public void BhvLangcsharp076TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment()
+    {
+        var quickstart = Quickstart();
+        var readme = ReadRootFile("README.md");
+
+        foreach (var name in new[] { "{{envVarPrefix}}_HOST", "{{envVarPrefix}}_TOKEN" })
+        {
+            Assert.Contains($"Environment.GetEnvironmentVariable(\"{name}\")", quickstart, StringComparison.Ordinal);
+            Assert.Contains(name, readme, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("your-token", quickstart, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvLangcsharp077TheUsageFenceAndTheQuickstartHoldTheSameStatements()
+    {
+        /* The quickstart is formatted by CSharpier and the README is not, so the
+           statements are compared with the whitespace taken out. */
+        var readme = ReadRootFile("README.md");
+        var start = readme.IndexOf("\n## Usage\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, "README.md has no Usage section");
+        var end = readme.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
+        var usage = end < 0 ? readme[start..] : readme[start..end];
+        var fences = CSharpFences(usage);
+        Assert.NotEmpty(fences);
+        var quickstart = WithoutWhitespace(Quickstart());
+
+        var position = 0;
+        foreach (var line in fences[0].Body.Split('\n'))
+        {
+            var statement = WithoutWhitespace(line);
+            var directive =
+                line.StartsWith("using ", StringComparison.Ordinal)
+                && !line.StartsWith("using var ", StringComparison.Ordinal);
+            if (statement.Length == 0 || directive)
+            {
+                continue;
+            }
+            var found = quickstart.IndexOf(statement, position, StringComparison.Ordinal);
+            Assert.True(found >= 0, $"expected the quickstart to hold, in order: {line}");
+            position = found + statement.Length;
+        }
+    }
+
+    [Fact]
+    public void BhvLangcsharp078EveryCSharpFenceDeclaresItsKind()
+    {
+        foreach (var name in new[] { "README.md", "SKILLS.md" })
+        {
+            foreach (var (info, _) in CSharpFences(ReadRootFile(name)))
+            {
+                Assert.True(info is "csharp file" or "csharp statements", $"{name}: {info}");
+            }
+        }
+    }
+
+    [Fact]
+    public void BhvLangcsharp079NoCSharpFenceHoldsAPlaceholderOrAModelBuiltFromNothing()
+    {
+        foreach (var name in new[] { "README.md", "SKILLS.md" })
+        {
+            foreach (var (_, body) in CSharpFences(ReadRootFile(name)))
+            {
+                foreach (var line in body.Split('\n'))
+                {
+                    var stripped = line.Trim();
+                    Assert.False(stripped == "..." || line.Contains("(...)", StringComparison.Ordinal), $"{name}: {line}");
+                    Assert.False(stripped.StartsWith('<') && stripped.EndsWith('>'), $"{name}: {line}");
+                    Assert.False(line.Contains("default!", StringComparison.Ordinal), $"{name}: {line}");
+                    Assert.False(line.Contains("SomeOperation", StringComparison.Ordinal), $"{name}: {line}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void BhvLangcsharp080TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
+    {
+        var makefile = ReadRootFile("Makefile");
+
+        Assert.Contains("\nexamples:\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("\nexamples-run: examples\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("dotnet build examples/Quickstart/Quickstart.csproj", makefile, StringComparison.Ordinal);
+    }
+{{/generateExamples}}
+}

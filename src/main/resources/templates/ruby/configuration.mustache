@@ -1,0 +1,161 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # API-level configuration for generated client classes.
+  #
+  # Holds the base URL and default headers that are applied to every API
+  # request. Transport-level settings (TLS, proxy, timeouts) belong in
+  # {TransportOptions} and are configured on the {DefaultApiClient}.
+  #
+  # This class is immutable and thread-safe. Use {Configuration.builder} to create instances:
+  #
+  #     config = ::{{moduleName}}::Configuration.builder
+  #       .base_url('https://api.example.com')
+  #       .default_header('Authorization', 'Bearer token')
+  #       .build
+  class Configuration
+    # The base URL for all API requests. Defaults to the first server URL
+    # from the OpenAPI specification.
+    # @return [String]
+    attr_reader :base_url
+
+    # Default headers included in every API request. These headers are
+    # merged after transport-level headers from {TransportOptions} but
+    # before operation-specific headers and authentication headers.
+    # @return [Hash{String => String}]
+    attr_reader :default_headers
+
+    # The hook that runs around every call, or +nil+ when there is none. It is
+    # an object that responds to +start(info, headers)+, see {CallHook}. It
+    # lives here and not on {TransportOptions} because it runs above the
+    # transport and so also when you supply your own.
+    # @return [#start, nil]
+    attr_reader :call_hook
+
+    # Whether every request body is checked against the validation keywords
+    # of its schema (minLength, pattern, minimum, ...) before it is sent. Off
+    # by default; when on, a body that breaks one raises +ArgumentError+ and
+    # nothing is sent.
+    # @return [Boolean]
+    attr_reader :validate_constraints
+
+    # @api private
+    def initialize(base_url:, default_headers:, call_hook: nil, validate_constraints: false)
+      @base_url = base_url
+      @default_headers = default_headers.freeze
+      @call_hook = call_hook
+      @validate_constraints = validate_constraints
+      freeze
+    end
+
+    # A readable form of the configuration that never reveals secrets: the
+    # value of a sensitive default header (Authorization, Proxy-Authorization,
+    # Cookie, or a name containing key, token or secret) prints as +***+.
+    # @return [String]
+    def inspect
+      headers = ::{{moduleName}}::TransportOptions.redact_headers(@default_headers)
+      "#<#{self.class.name} base_url=#{@base_url.inspect} default_headers=#{headers.inspect}>"
+    end
+    alias to_s inspect
+
+    # Create a new builder for constructing {Configuration} instances.
+    # @return [Builder]
+    def self.builder
+      Builder.new
+    end
+
+    # Return a {Configuration} with default values.
+    #
+    # A fresh instance every call: the SDK keeps no process-wide default a
+    # caller could swap out from under another caller.
+    # @return [Configuration]
+    def self.default_configuration
+      builder.build
+    end
+
+    # Builder for creating immutable {Configuration} instances.
+    class Builder
+      def initialize
+        @base_url = '{{{basePath}}}'
+        @default_headers = {} #: Hash[String, String]
+        @call_hook = nil
+        @validate_constraints = false
+      end
+
+      # Set the base URL for all API requests.
+      # @param val [String] the base URL
+      # @return [self]
+      def base_url(val)
+        @base_url = val
+        self
+      end
+
+      # Add a single default header to include in every API request.
+      # @param name [String] header name
+      # @param value [String] header value
+      # @return [self]
+      def default_header(name, value)
+        @default_headers[name] = value
+        self
+      end
+
+      # Add multiple default headers to include in every API request.
+      # @param headers [Hash{String => String}] map of header names to values
+      # @return [self]
+      def default_headers(headers)
+        @default_headers.merge!(headers)
+        self
+      end
+
+      # Set the hook that runs around every call: any object that responds to
+      # +start(info, headers)+, see {CallHook}. +nil+ removes it.
+      # @param hook [#start, nil] the hook
+      # @return [self]
+      # @raise [ArgumentError] if the hook does not respond to +start+
+      def call_hook(hook)
+        raise ArgumentError, 'call_hook must respond to start' unless hook.nil? || hook.respond_to?(:start)
+
+        @call_hook = hook
+        self
+      end
+
+      # Turn the check of every request body against the validation keywords
+      # of its schema on or off. Off by default; when on, a body that breaks
+      # one raises +ArgumentError+ before anything is sent.
+      # @param val [Boolean] whether to check request bodies
+      # @return [self]
+      def validate_constraints(val)
+        @validate_constraints = val
+        self
+      end
+
+      # Set the base URL from a server configuration with optional variable overrides.
+      #
+      # Resolves the server URL template with the given variable values (or
+      # defaults) and uses the result as the base URL for all API requests.
+      # Enum validation is performed by {ServerConfiguration#url}.
+      #
+      # @param server_config [ServerConfiguration] the server configuration to use
+      # @param variables [Hash{String => String}] variable name to value overrides
+      # @return [self]
+      # @raise [ArgumentError] if an override value is not in the variable's enum
+      def server(server_config, variables = {})
+        @base_url = server_config.url(variables)
+        self
+      end
+
+      # Build and return an immutable {Configuration} instance.
+      # @return [Configuration]
+      def build
+        Configuration.new(
+          base_url: @base_url,
+          default_headers: @default_headers.dup,
+          call_hook: @call_hook,
+          validate_constraints: @validate_constraints
+        )
+      end
+    end
+  end
+end

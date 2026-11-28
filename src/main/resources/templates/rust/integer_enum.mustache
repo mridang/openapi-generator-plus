@@ -1,0 +1,55 @@
+use serde_repr::Deserialize_repr;
+
+{{#description}}
+/// {{{description}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is an enumeration of allowed integer values.
+{{/description}}
+///
+/// Integer-backed enums serialize as JSON numbers, which serde's string-only
+/// `rename` cannot express; `serde_repr` derives the numeric decoding from the
+/// explicit discriminants and the numeric encoding is written by hand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize_repr)]
+#[repr(i64)]
+pub enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+    /// Represents the value {{{value}}}.
+{{/enumDescription}}
+    {{#-first}}#[default]
+    {{/-first}}{{name}} = {{{value}}},
+{{/enumVars}}
+{{/allowableValues}}
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other)]
+    UnknownDefaultOpenApi = -9223372036854775808,
+}
+
+impl serde::Serialize for {{classname}} {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if matches!(self, {{classname}}::UnknownDefaultOpenApi) {
+            return Err(serde::ser::Error::custom(
+                "the catch-all enum variant UnknownDefaultOpenApi has no wire value and cannot be written",
+            ));
+        }
+        serializer.serialize_i64(*self as i64)
+    }
+}
+
+impl {{classname}} {
+    /// Returns all allowed values of {{classname}}.
+    pub fn all_values() -> Vec<{{classname}}> {
+        vec![
+{{#allowableValues}}
+{{#enumVars}}
+            {{classname}}::{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+        ]
+    }
+}

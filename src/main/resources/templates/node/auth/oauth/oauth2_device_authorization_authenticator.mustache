@@ -1,0 +1,267 @@
+{{>api_info}}
+
+import type { ApiClient } from '../../api-client{{importFileExtension}}';
+import type { HttpAwareAuthenticator } from '../http-aware-authenticator{{importFileExtension}}';
+import { OAuth2ServerError } from '../../errors/oauth2-server-error{{importFileExtension}}';
+import { OAuth2TokenError } from '../../errors/oauth2-token-error{{importFileExtension}}';
+import { OAuth2TokenManager } from './oauth2-token-manager{{importFileExtension}}';
+
+/** The grant type of a device access token request (RFC 8628 section 3.4). */
+const DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
+
+/** The polling interval, in seconds, when the server does not name one (RFC 8628 section 3.2). */
+const DEFAULT_INTERVAL_SECONDS = 5;
+
+/** The seconds a slow_down answer adds to the polling interval (RFC 8628 section 3.5). */
+const SLOW_DOWN_SECONDS = 5;
+
+/**
+ * The answer of the device authorization endpoint (RFC 8628 section 3.2):
+ * show {@link userCode} and {@link verificationUri} to the user, then pass
+ * the whole value to {@link OAuth2DeviceAuthorizationAuthenticator.pollForToken}.
+ */
+export interface DeviceAuthorization {
+  /** The device verification code, sent back while polling. */
+  readonly deviceCode: string;
+  /** The code the user enters at the verification URI. */
+  readonly userCode: string;
+  /** The page where the user enters the code. */
+  readonly verificationUri: string;
+  /** The verification URI with the user code included, when the server sends one. */
+  readonly verificationUriComplete: string | null;
+  /** The lifetime of the device code and user code, in seconds. */
+  readonly expiresIn: number;
+  /** The seconds to wait between polls (5 when the server names none). */
+  readonly interval: number;
+}
+
+/**
+ * Authenticator for the OAuth2 Device Authorization Grant (RFC 8628), for
+ * devices without a browser or with limited input.
+ *
+ * Implements {@link HttpAwareAuthenticator} so that the device authorization
+ * and token requests use the shared {@link ApiClient} with the same transport
+ * configuration (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call {@link requestDeviceAuthorization} to get the user code and verification URI
+ * 2. Show both to the user
+ * 3. Call {@link pollForToken} to wait for the approval
+ * 4. Use the authenticator normally -- tokens are managed automatically
+ */
+export class OAuth2DeviceAuthorizationAuthenticator implements HttpAwareAuthenticator {
+  private readonly host: string;
+  private readonly clientId: string;
+  private readonly deviceAuthorizationUrl: string;
+  private readonly tokenUrl: string;
+  private readonly refreshUrl: string;
+  private readonly scopes: readonly string[];
+  private readonly tokenManager: OAuth2TokenManager;
+  /* The wait between polls and the monotonic clock, replaced by the tests. */
+  private sleep: (milliseconds: number) => Promise<void> = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds));
+  private now: () => number = () => performance.now();
+
+  /**
+   * Create a new device authorization authenticator.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param deviceAuthorizationUrl device authorization endpoint URL
+   * @param tokenUrl token endpoint URL
+   * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (defaults to tokenUrl if null)
+   */
+  constructor(
+    host: string,
+    clientId: string,
+    deviceAuthorizationUrl: string,
+    tokenUrl: string,
+    scopes: string[],
+    refreshUrl?: string | null
+  ) {
+    this.host = host;
+    this.clientId = clientId;
+    this.deviceAuthorizationUrl = deviceAuthorizationUrl;
+    this.tokenUrl = tokenUrl;
+    this.refreshUrl = refreshUrl ?? tokenUrl;
+    this.scopes = Object.freeze([...scopes]);
+    this.tokenManager = new OAuth2TokenManager();
+  }
+
+  /**
+   * Inject the shared API client for making token requests.
+   *
+   * @param apiClient the shared API client instance
+   */
+  setApiClient(apiClient: ApiClient): void {
+    this.tokenManager.setApiClient(apiClient);
+  }
+
+  /**
+   * Ask the device authorization endpoint for a device code and a user code.
+   *
+   * @returns the codes and the verification URI to show to the user
+   * @throws OAuth2ServerError if the endpoint answers with a non-2xx status
+   * @throws OAuth2TokenError if the endpoint answers 2xx with an unusable body
+   */
+  async requestDeviceAuthorization(): Promise<DeviceAuthorization> {
+    const params: Record<string, string> = { client_id: this.clientId };
+    if (this.scopes.length > 0) {
+      params.scope = this.scopes.join(' ');
+    }
+    const body = await this.tokenManager.postForm(this.deviceAuthorizationUrl, params);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      throw new OAuth2TokenError('Device authorization response is not valid JSON');
+    }
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new OAuth2TokenError('Device authorization response is not a JSON object');
+    }
+    const json = parsed as Record<string, unknown>;
+    const required = (field: string): string => {
+      const value = json[field];
+      if (typeof value !== 'string' || value.length === 0) {
+        throw new OAuth2TokenError(`Device authorization response missing or empty ${field} field`);
+      }
+      return value;
+    };
+    const deviceCode = required('device_code');
+    const userCode = required('user_code');
+    const verificationUri = required('verification_uri');
+    const complete = json.verification_uri_complete;
+    return {
+      deviceCode,
+      userCode,
+      verificationUri,
+      verificationUriComplete: typeof complete === 'string' && complete.length > 0 ? complete : null,
+      expiresIn: OAuth2TokenManager.parseExpiresIn(json.expires_in),
+      interval:
+        json.interval === undefined || json.interval === null
+          ? DEFAULT_INTERVAL_SECONDS
+          : OAuth2TokenManager.parseExpiresIn(json.interval)
+    };
+  }
+
+  /**
+   * Poll the token endpoint until the user approves the device, then replace
+   * the session with the issued token.
+   *
+   * Waits `interval` seconds before each request; `authorization_pending`
+   * keeps polling and `slow_down` adds five seconds to the interval.
+   *
+   * @param authorization the value returned by {@link requestDeviceAuthorization}
+   * @throws OAuth2ServerError if the server refuses the grant (e.g. access_denied, expired_token)
+   * @throws OAuth2TokenError if the device code expires before the user approves it
+   */
+  async pollForToken(authorization: DeviceAuthorization): Promise<void> {
+    const started = this.now();
+    let interval = authorization.interval;
+    for (;;) {
+      const elapsedSeconds = (this.now() - started) / 1000;
+      if (elapsedSeconds + interval > authorization.expiresIn) {
+        throw new OAuth2TokenError('Device authorization expired before the user approved it');
+      }
+      await this.sleep(interval * 1000);
+      try {
+        await this.tokenManager.exchange(this.tokenUrl, {
+          grant_type: DEVICE_CODE_GRANT,
+          client_id: this.clientId,
+          device_code: authorization.deviceCode
+        });
+        return;
+      } catch (error) {
+        if (error instanceof OAuth2ServerError && error.code === 'authorization_pending') {
+          continue;
+        }
+        if (error instanceof OAuth2ServerError && error.code === 'slow_down') {
+          interval += SLOW_DOWN_SECONDS;
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Returns the base URL of the API.
+   *
+   * @returns the host URL
+   */
+  getHost(): string {
+    return this.host;
+  }
+
+  /**
+   * Always throws: a token cannot be fetched synchronously, and returning
+   * empty headers would silently send an unauthenticated request. Use
+   * {@link getAuthHeadersAsync} to obtain a valid Bearer token.
+   *
+   * @throws Error always
+   */
+  getAuthHeaders(): Record<string, string> {
+    throw new Error(
+      'OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.'
+    );
+  }
+
+  /**
+   * Returns the authentication headers with a valid Bearer token.
+   *
+   * Requires {@link pollForToken} to have succeeded first.
+   *
+   * @returns a promise resolving to the authorization headers
+   * @throws Error if pollForToken() has not succeeded
+   */
+  async getAuthHeadersAsync(): Promise<Record<string, string>> {
+    if (!this.tokenManager.isExchanged()) {
+      throw new Error('Must call pollForToken() before making API requests');
+    }
+    const params: Record<string, string> = {
+      grant_type: 'refresh_token',
+      refresh_token: this.tokenManager.getRefreshToken() ?? '',
+      client_id: this.clientId
+    };
+    const token = await this.tokenManager.getAccessToken(this.refreshUrl, params);
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  /**
+   * Drop the cached access token so the next request obtains a fresh one
+   * (through the refresh token when one is held). The refresh token is kept.
+   * The client calls this when the API answers 401.
+   */
+  invalidateAccessToken(): void {
+    this.tokenManager.invalidateAccessToken();
+  }
+
+  /**
+   * Returns query parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  /**
+   * Returns cookie parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getCookieParams(): Record<string, string> {
+    return {};
+  }
+
+  /* A public client holds no secret; the representation still never lists
+   * the session's tokens. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `OAuth2DeviceAuthorizationAuthenticator(host=${this.host}, clientId=${this.clientId})`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, clientId: this.clientId };
+  }
+}

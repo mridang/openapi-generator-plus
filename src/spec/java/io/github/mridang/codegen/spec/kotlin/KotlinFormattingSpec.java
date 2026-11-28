@@ -1,0 +1,78 @@
+package io.github.mridang.codegen.spec.kotlin;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.mridang.codegen.spec.AbstractFormattingSpec;
+import java.nio.file.Path;
+import javax.annotation.Nullable;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+@SuppressWarnings("NewClassNamingConvention")
+@Testcontainers
+@ResourceLock("generated-kotlin")
+public class KotlinFormattingSpec extends AbstractFormattingSpec implements KotlinSpec {
+
+    @Override
+    protected String[] getBuildCommands() {
+        /* Use the project's own ktlint Gradle plugin
+         * (org.jlleitschuh.gradle.ktlint, pinned to ktlint 1.5.0 in
+         * build.gradle.kts with ignoreFailures=false) rather than
+         * curl-downloading the ktlint binary from GitHub releases. The
+         * plugin already lints the same source on every build, and the
+         * separate download was both redundant and a network-flake source. */
+        return new String[] {"gradle ktlintCheck"};
+    }
+
+    @Override
+    protected String getFileExtension() {
+        return ".kt";
+    }
+
+    @Override
+    protected Path getSourceRoot() {
+        return tempOutputDir.resolve("src");
+    }
+
+    @Override
+    @Nullable
+    protected String getInlineCommentPattern() {
+        return null;
+    }
+
+    @Test
+    void generatedCodeShouldBeProperlyFormatted() {
+        ExecResult result = executeInRuntimeContainer(getBuildCommands());
+
+        assertThat(result.isSuccess())
+                .withFailMessage(
+                        "Generated Kotlin code is not properly formatted:\n%s", result.output())
+                .isTrue();
+    }
+
+    @Test
+    void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+        Path petApi =
+                tempOutputDir.resolve("src/main/kotlin/com/example/petstore/api/PetApi.kt");
+        String src = java.nio.file.Files.readString(petApi);
+        assertThat(src)
+                .as("kotlin PetApi.kt should attribute plural examples to their parameter")
+                .contains(
+                        "@param petId ID of pet to return (required)\n"
+                                + "     * Example — Small breed ID: `1`\n"
+                                + "     * Example — Large breed ID: `42`\n");
+    }
+
+    @Test
+    void optionalParameterExamplesShouldBeDocumentedOnTheOptionsClass() throws java.io.IOException {
+        Path options =
+                tempOutputDir.resolve(
+                        "src/main/kotlin/com/example/petstore/api/options/FindPetsByStatusOptions.kt");
+        String src = java.nio.file.Files.readString(options);
+        assertThat(src)
+                .as("kotlin options class should carry the examples of an optional parameter")
+                .contains("* Example — Available only: `available`")
+                .contains("* Example — Sold pets: `sold`");
+    }
+}

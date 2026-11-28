@@ -1,0 +1,339 @@
+{{>api_info}}
+
+import type { ApiClient } from '../../api-client{{importFileExtension}}';
+import type { HttpAwareAuthenticator } from '../http-aware-authenticator{{importFileExtension}}';
+import { OAuth2TokenManager } from './oauth2-token-manager{{importFileExtension}}';
+
+/** SHA-256 round constants (FIPS 180-4, section 4.2.2). */
+const SHA256_K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+]);
+
+/**
+ * SHA-256 of the given bytes, written out here so that the PKCE challenge is
+ * computed synchronously on every runtime without a native module.
+ *
+ * @param message the bytes to hash
+ * @returns the 32-byte digest
+ */
+function sha256(message: Uint8Array): Uint8Array {
+  const bitLength = message.length * 8;
+  const padded = new Uint8Array(((message.length + 9 + 63) >> 6) << 6);
+  padded.set(message);
+  padded[message.length] = 0x80;
+  const view = new DataView(padded.buffer);
+  view.setUint32(padded.length - 8, Math.floor(bitLength / 2 ** 32));
+  view.setUint32(padded.length - 4, bitLength >>> 0);
+  const state = Uint32Array.of(
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+  );
+  const w = new Uint32Array(64);
+  const rotr = (x: number, n: number): number => (x >>> n) | (x << (32 - n));
+  for (let offset = 0; offset < padded.length; offset += 64) {
+    for (let i = 0; i < 16; i++) {
+      w[i] = view.getUint32(offset + i * 4);
+    }
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(w[i - 15]!, 7) ^ rotr(w[i - 15]!, 18) ^ (w[i - 15]! >>> 3);
+      const s1 = rotr(w[i - 2]!, 17) ^ rotr(w[i - 2]!, 19) ^ (w[i - 2]! >>> 10);
+      w[i] = w[i - 16]! + s0 + w[i - 7]! + s1;
+    }
+    let [a, b, c, d, e, f, g, h] = state as unknown as number[];
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h! + (rotr(e!, 6) ^ rotr(e!, 11) ^ rotr(e!, 25)) + ((e! & f!) ^ (~e! & g!)) + SHA256_K[i]! + w[i]!) >>> 0;
+      const t2 = ((rotr(a!, 2) ^ rotr(a!, 13) ^ rotr(a!, 22)) + ((a! & b!) ^ (a! & c!) ^ (b! & c!))) >>> 0;
+      h = g;
+      g = f;
+      f = e;
+      e = (d! + t1) >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (t1 + t2) >>> 0;
+    }
+    const sums = [a, b, c, d, e, f, g, h];
+    for (let i = 0; i < 8; i++) {
+      state[i] = state[i]! + sums[i]!;
+    }
+  }
+  const digest = new Uint8Array(32);
+  const out = new DataView(digest.buffer);
+  for (let i = 0; i < 8; i++) {
+    out.setUint32(i * 4, state[i]!);
+  }
+  return digest;
+}
+
+/**
+ * The PKCE S256 code challenge for a verifier (RFC 7636 section 4.2):
+ * the unpadded base64url of the SHA-256 of its ASCII bytes.
+ *
+ * @param verifier the code verifier
+ * @returns the code challenge
+ */
+function pkceChallenge(verifier: string): string {
+  return Buffer.from(sha256(new TextEncoder().encode(verifier))).toString('base64url');
+}
+
+/**
+ * The PKCE code verifier of one authorization request, shared by an
+ * authenticator and any delegate it builds so that it survives a rebuild.
+ */
+export interface PkceState {
+  /** The verifier of the last authorization URL built, until its code is exchanged. */
+  verifier: string | null;
+}
+
+/**
+ * Authenticator for the OAuth2 Authorization Code flow.
+ *
+ * Implements {@link HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call {@link buildAuthorizationUrl} to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. After the callback, call {@link exchangeCode} with the auth code
+ * 4. Use the authenticator normally -- tokens are managed automatically
+ */
+export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthenticator {
+  private readonly host: string;
+  private readonly clientId: string;
+  private readonly clientSecret: string;
+  private readonly authorizationUrl: string;
+  private readonly tokenUrl: string;
+  private readonly refreshUrl: string;
+  private readonly redirectUri: string;
+  private readonly scopes: readonly string[];
+  private readonly tokenManager: OAuth2TokenManager;
+  private readonly pkce: PkceState;
+
+  /**
+   * Create a new authorization code authenticator.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param authorizationUrl authorization endpoint URL
+   * @param tokenUrl token endpoint URL
+   * @param redirectUri redirect URI registered with the OAuth2 provider
+   * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (defaults to tokenUrl if null)
+   * @param tokenManager the session to use; an OpenID Connect authenticator
+   *   passes the same manager to every delegate it builds so the session
+   *   survives rediscovery (a new manager by default)
+   * @param pkce the PKCE verifier holder; an OpenID Connect authenticator
+   *   passes the same one to every delegate so the verifier survives
+   *   rediscovery (a new one by default)
+   */
+  constructor(
+    host: string,
+    clientId: string,
+    clientSecret: string,
+    authorizationUrl: string,
+    tokenUrl: string,
+    redirectUri: string,
+    scopes: string[],
+    refreshUrl?: string | null,
+    tokenManager?: OAuth2TokenManager,
+    pkce?: PkceState
+  ) {
+    this.host = host;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.authorizationUrl = authorizationUrl;
+    this.tokenUrl = tokenUrl;
+    this.refreshUrl = refreshUrl ?? tokenUrl;
+    this.redirectUri = redirectUri;
+    this.scopes = Object.freeze([...scopes]);
+    this.tokenManager = tokenManager ?? new OAuth2TokenManager();
+    this.pkce = pkce ?? { verifier: null };
+  }
+
+  /**
+   * Inject the shared API client for making token requests.
+   *
+   * @param apiClient the shared API client instance
+   */
+  setApiClient(apiClient: ApiClient): void {
+    this.tokenManager.setApiClient(apiClient);
+  }
+
+  /**
+   * Build the authorization URL to redirect the user to.
+   *
+   * The URL carries a PKCE S256 `code_challenge` (RFC 7636); the matching
+   * verifier is kept and sent by {@link exchangeCode}. Building the URL again
+   * starts a new verifier.
+   *
+   * @param state optional CSRF state parameter
+   * @returns the authorization URL
+   */
+  buildAuthorizationUrl(state?: string): string {
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: this.clientId,
+      redirect_uri: this.redirectUri
+    });
+    if (this.scopes.length > 0) {
+      params.set('scope', this.scopes.join(' '));
+    }
+    if (state) {
+      params.set('state', state);
+    }
+    /* RFC 7636: a 43-character verifier (32 random bytes, base64url) and its
+     * S256 challenge bind the code to this client. */
+    this.pkce.verifier = Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    params.set('code_challenge', pkceChallenge(this.pkce.verifier));
+    params.set('code_challenge_method', 'S256');
+    /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+     * a query component. Use '&' as the separator when one is already
+     * present so existing params are preserved, '?' otherwise. */
+    const separator = this.authorizationUrl.includes('?') ? '&' : '?';
+    /* URLSearchParams encodes a space as '+' and '~' as %7E while keeping '*'
+     * literal; RFC 3986 requires %20 for a space in a query component (a strict
+     * server reads '+' as a literal plus), keeps '~' unreserved, and escapes
+     * '*', so normalise all three to match the other SDKs. */
+    const query = params
+      .toString()
+      .replace(/\+/g, '%20')
+      .replace(/%7E/g, '~')
+      .replace(/\*/g, '%2A');
+    return `${this.authorizationUrl}${separator}${query}`;
+  }
+
+  /**
+   * Exchange an authorization code for an access token.
+   *
+   * Always POSTs the authorization_code grant (never answered from the
+   * cached token) and replaces the session with the response. A failed
+   * exchange leaves the previous session in place.
+   *
+   * @param code the authorization code from the callback
+   */
+  async exchangeCode(code: string): Promise<void> {
+    await this.exchangeCodeCheckingIdToken(code, null);
+  }
+
+  /**
+   * Exchange an authorization code, handing the response's id_token to a
+   * check before the session is replaced. OpenID Connect uses this.
+   *
+   * @internal
+   * @param code the authorization code from the callback
+   * @param idTokenCheck a check of the id_token, or null for none
+   */
+  async exchangeCodeCheckingIdToken(
+    code: string,
+    idTokenCheck: ((idToken: string | null) => void) | null
+  ): Promise<void> {
+    /* An empty/whitespace authorization code is a precondition error:
+     * posting it to the token endpoint can only fail. Reject it up front
+     * so the caller sees the real cause instead of a confusing server error. */
+    if (code.trim().length === 0) {
+      throw new TypeError('Authorization code must not be empty');
+    }
+    const params: Record<string, string> = {
+      grant_type: 'authorization_code',
+      code,
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      redirect_uri: this.redirectUri
+    };
+    if (this.pkce.verifier !== null) {
+      params.code_verifier = this.pkce.verifier;
+    }
+    await this.tokenManager.exchange(this.tokenUrl, params, {}, idTokenCheck);
+    this.pkce.verifier = null;
+  }
+
+  /**
+   * Returns the base URL of the API.
+   *
+   * @returns the host URL
+   */
+  getHost(): string {
+    return this.host;
+  }
+
+  /**
+   * Always throws: a token cannot be fetched synchronously, and returning
+   * empty headers would silently send an unauthenticated request. Use
+   * {@link getAuthHeadersAsync} to obtain a valid Bearer token.
+   *
+   * @throws Error always
+   */
+  getAuthHeaders(): Record<string, string> {
+    throw new Error(
+      'OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.'
+    );
+  }
+
+  /**
+   * Returns the authentication headers with a valid Bearer token.
+   *
+   * Requires {@link exchangeCode} to have been called first.
+   *
+   * @returns a promise resolving to the authorization headers
+   * @throws Error if exchangeCode() has not been called
+   */
+  async getAuthHeadersAsync(): Promise<Record<string, string>> {
+    if (!this.tokenManager.isExchanged()) {
+      throw new Error('Must call exchangeCode() before making API requests');
+    }
+    const params: Record<string, string> = {
+      grant_type: 'refresh_token',
+      refresh_token: this.tokenManager.getRefreshToken() ?? '',
+      client_id: this.clientId,
+      client_secret: this.clientSecret
+    };
+    const token = await this.tokenManager.getAccessToken(this.refreshUrl, params);
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  /**
+   * Drop the cached access token so the next request obtains a fresh one
+   * (through the refresh token when one is held). The refresh token is kept.
+   * The client calls this when the API answers 401.
+   */
+  invalidateAccessToken(): void {
+    this.tokenManager.invalidateAccessToken();
+  }
+
+  /**
+   * Returns query parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  /**
+   * Returns cookie parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getCookieParams(): Record<string, string> {
+    return {};
+  }
+
+  /* Redact the client secret from the default string/inspect representation
+   * so `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
+   * exfiltrate the credential into application logs. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `OAuth2AuthorizationCodeAuthenticator(host=${this.host}, clientId=${this.clientId}, clientSecret=***)`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, clientId: this.clientId, clientSecret: '***' };
+  }
+}

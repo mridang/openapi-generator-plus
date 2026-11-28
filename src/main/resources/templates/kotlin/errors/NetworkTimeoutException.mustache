@@ -1,0 +1,20 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+/**
+ * Exception for a request that timed out before an HTTP response arrived. The
+ * status code is always 0 and the underlying transport exception is kept as
+ * the cause.
+ *
+ * @param message the error message
+ * @param cause the underlying transport exception
+ * @param requestMethod the HTTP method of the request that failed, if known
+ * @param requestPath the path of the request that failed, without its query string, if known
+ */
+class NetworkTimeoutException(
+    message: String,
+    cause: Throwable,
+    requestMethod: String? = null,
+    requestPath: String? = null,
+) : NetworkException(message, cause, requestMethod, requestPath)

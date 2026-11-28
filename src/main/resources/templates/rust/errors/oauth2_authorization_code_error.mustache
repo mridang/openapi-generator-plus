@@ -1,0 +1,45 @@
+{{>api_info}}
+
+use std::fmt;
+
+/// Error returned when the authorization code flow is used out of order:
+/// requesting auth headers before `exchange_code` was called on the
+/// authorization code authenticator, or exchanging an empty code.
+///
+/// Callers can downcast to this type so they can distinguish a usage error
+/// from a network/token-endpoint failure and recover instead of being
+/// terminated by a `panic!`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OAuth2AuthorizationCodeError {
+    /// Auth headers were requested before `exchange_code` was called.
+    CodeNotExchanged,
+    /// `exchange_code` was called with an empty or whitespace-only code.
+    EmptyCode,
+    /// The access token expired and the token response held no refresh token; `exchange_code` must run again.
+    NoRefreshToken,
+    /// Auth headers were requested before `poll_for_token` obtained a token on
+    /// the device authorization authenticator.
+    DeviceTokenNotPolled,
+}
+
+impl fmt::Display for OAuth2AuthorizationCodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CodeNotExchanged => {
+                f.write_str("Must call exchange_code() before making API requests")
+            }
+            Self::EmptyCode => f.write_str("Authorization code must not be empty"),
+            Self::NoRefreshToken => f.write_str(
+                "Access token expired and no refresh token is held; call exchange_code() again"
+            ),
+            Self::DeviceTokenNotPolled => {
+                f.write_str("Must call poll_for_token() before making API requests")
+            }
+        }
+    }
+}
+
+/* A caller mistake, not an API failure: like `ConfigurationError` it is a
+ * plain `std::error::Error` and deliberately not part of the SDK error
+ * hierarchy rooted at `{{errorPrefix}}Error`. */
+impl std::error::Error for OAuth2AuthorizationCodeError {}

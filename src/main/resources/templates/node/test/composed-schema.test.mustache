@@ -1,0 +1,556 @@
+{{>api_info}}
+
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { SerializationError } from '../src/errors/serialization-error{{importFileExtension}}';
+import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, TreatmentRecord, Medication, Surgery, Vehicle, Car, Truck, Shape, Circle } from '../src/models/index{{importFileExtension}}';
+
+describe('Composed Schema', () => {
+  // -- oneOf with discriminator: PetFood --
+
+  test('bhv unions 012 oneOf: PetFood resolves to DryFood', () => {
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeDefined();
+    const instance = result!.getActualInstance();
+    expect(instance).toBeDefined();
+    expect(instance).toBeInstanceOf(DryFood);
+  });
+
+  test('bhv unions 013 oneOf: PetFood resolves to WetFood', () => {
+    const data = { foodType: 'wet', volumeMl: 400 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeDefined();
+    const instance = result!.getActualInstance();
+    expect(instance).toBeDefined();
+    expect(instance).toBeInstanceOf(WetFood);
+  });
+
+  test('bhv misc 045 oneOf: a discriminated variant missing its required field is rejected', () => {
+    const data = { foodType: 'dry' };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
+      /^Failed to deserialize JSON: weightKg is required$/,
+    );
+  });
+
+  test('bhv langnode 050 oneOf: a discriminated variant with a wrong-typed field is rejected', () => {
+    const data = { foodType: 'dry', weightKg: 'heavy' };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
+      /^Failed to deserialize JSON: weightKg must be a number, got string$/,
+    );
+  });
+
+  test('bhv unions 016 oneOf: unknown discriminator throws SerializationError (4.7)', () => {
+    // 4.7 — A discriminator value that is not listed in the schema mapping
+    // used to silently fall through to the base envelope. We now surface
+    // the wire/spec mismatch so callers see the bug instead of an
+    // inexplicable empty object.
+    const data = { foodType: 'raw', calories: 300 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+  });
+
+  test('bhv unions 026 oneOf: unknown discriminator error names the offending value', () => {
+    const data = { foodType: 'raw', calories: 300 };
+    try {
+      ObjectSerializer.deserialize(data, PetFood);
+      fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(SerializationError);
+      expect((e as Error).message).toContain('raw');
+      expect((e as Error).message).toContain('foodType');
+    }
+  });
+
+  test('bhv unions 038 oneOf: discriminator maps to unresolvable class throws SerializationError (4.7)', () => {
+    // Simulate a misconfigured spec where the discriminator mapping names a
+    // class that does not exist in the generated models index. Previously
+    // we returned null and silently fell through; now we throw so
+    // spec/codegen drift is visible at the seam where it matters.
+    const FakePetFood = class {
+      static readonly ONE_OF_SCHEMAS: string[] = ['DryFood', 'WetFood'];
+      static readonly DISCRIMINATOR_PROPERTY = 'foodType';
+      static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
+        dry: 'NonExistentModelClass'
+      };
+      private actualInstance: unknown;
+      constructor(instance: unknown) {
+        this.actualInstance = instance;
+      }
+      getActualInstance(): unknown {
+        return this.actualInstance;
+      }
+    };
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, FakePetFood)).toThrow(SerializationError);
+  });
+
+  test('bhv unions 015 oneOf: missing discriminator throws SerializationError', () => {
+    // A payload omitting the discriminator property entirely cannot route to
+    // any variant; the deserializer throws rather than structurally guessing
+    // a variant. Aligns Node with Python / Swift / PHP / Ruby / Dart / Rust.
+    const data = { weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+  });
+
+  test('bhv serialization 082 oneOf: missing discriminator error names the property', () => {
+    const data = { weightKg: 2.5 };
+    try {
+      ObjectSerializer.deserialize(data, PetFood);
+      fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(SerializationError);
+      expect((e as Error).message).toContain('foodType');
+    }
+  });
+
+  test('bhv unions 024 oneOf: empty discriminator throws SerializationError', () => {
+    // An empty discriminator value is present but not listed in the schema
+    // mapping; it must throw rather than route to a structurally-fitting
+    // variant. Aligns Node with Python / PHP on empty-discriminator rejection.
+    const data = { foodType: '', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+  });
+
+  test('bhv unions 020 oneOf: serializes DryFood back to JSON', () => {
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    const serialized = ObjectSerializer.serialize(result!.getActualInstance());
+    expect(serialized).toBeDefined();
+    expect(serialized).toContain('dry');
+    expect(serialized).toContain('2.5');
+  });
+
+  test('bhv unions 030 a subtype whose discriminator key is absent is filled with the mapping default', () => {
+    const food = ObjectSerializer.deserialize({ weightKg: 2.5 }, DryFood);
+    expect(food).toBeInstanceOf(DryFood);
+    expect(food!.foodType).toBe('dry');
+  });
+
+  test('bhv unions 032 a oneOf wrapper built from a variant holds that variant and serializes it with its discriminator', () => {
+    const food = new PetFood(new DryFood({ weightKg: 2.5 }));
+    expect(food.isDryFood()).toBe(true);
+    const wire = JSON.parse(ObjectSerializer.serialize(food.getActualInstance())) as Record<string, unknown>;
+    expect(wire).toMatchObject({ foodType: 'dry', weightKg: 2.5 });
+  });
+
+  test('bhv unions 033 an unknown, missing or empty discriminator fails with the SDK serialization error', () => {
+    const payloads: Array<Record<string, unknown>> = [
+      { foodType: 'raw', calories: 300 },
+      { weightKg: 2.5 },
+      { foodType: '', weightKg: 2.5 },
+    ];
+    for (const data of payloads) {
+      expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+    }
+  });
+
+  test('bhv unions 035 a discriminator value not listed in the mapping fails to deserialize', () => {
+    const data = { foodType: 'DRY', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+  });
+
+  test('bhv misc 293 anyOf returns every matching variant and skips the candidates that do not match', () => {
+    const both = ObjectSerializer.deserialize(
+      { drugName: 'Amoxicillin', dosage: '250mg', procedureName: 'Spay', durationMinutes: 45 },
+      PetTreatment,
+    );
+    expect(both!.getMatchedInstances()).toHaveLength(2);
+    expect(both!.getMatchedInstances().some((m) => m instanceof Medication)).toBe(true);
+    expect(both!.getMatchedInstances().some((m) => m instanceof Surgery)).toBe(true);
+
+    const medicationOnly = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', dosage: '500mg' }, PetTreatment);
+    expect(medicationOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(medicationOnly!.getMatchedInstances()[0]).toBeInstanceOf(Medication);
+  });
+
+  test('bhv misc 294 a subtype payload that omits its discriminator is decoded as the variant the mapping names', () => {
+    const food = ObjectSerializer.deserialize({ weightKg: 2.5 }, DryFood);
+    expect(food).toBeInstanceOf(DryFood);
+    expect(food!.foodType).toBe('dry');
+  });
+
+  // -- allOf with a discriminator: Vehicle and Shape --
+
+  test('bhv unions 301 allOf: the base decodes to the subtype its explicit mapping names', () => {
+    const data = { vehicleType: 'car', plate: 'AB-12', doorCount: 4 };
+    const result = ObjectSerializer.deserialize(data, Vehicle);
+    expect(result).toBeInstanceOf(Car);
+    expect(result).toBeInstanceOf(Vehicle);
+    expect(result!.plate).toBe('AB-12');
+    expect((result as Car).doorCount).toBe(4);
+    expect(ObjectSerializer.deserialize({ vehicleType: 'truck', plate: 'T-1' }, Vehicle)).toBeInstanceOf(Truck);
+  });
+
+  test('bhv unions 302 allOf: the base decodes to the subtype its implicit schema name names', () => {
+    const result = ObjectSerializer.deserialize({ shapeType: 'Circle', radius: 1.5 }, Shape);
+    expect(result).toBeInstanceOf(Circle);
+    expect((result as Circle).radius).toBe(1.5);
+  });
+
+  test('bhv unions 303 allOf: an unknown discriminator value fails and the error names it', () => {
+    const data = { vehicleType: 'boat', plate: 'B-1' };
+    expect(() => ObjectSerializer.deserialize(data, Vehicle)).toThrow(SerializationError);
+    expect(() => ObjectSerializer.deserialize(data, Vehicle)).toThrow(/boat/);
+  });
+
+  test('bhv unions 304 allOf: a payload without its discriminator fails', () => {
+    expect(() => ObjectSerializer.deserialize({ plate: 'AB-12' }, Vehicle)).toThrow(SerializationError);
+  });
+
+  test('bhv serializationobject 301 allOf: a subtype writes its discriminator value', () => {
+    const car = new Car({ plate: 'AB-12', doorCount: 4 });
+    expect(JSON.parse(ObjectSerializer.serialize(car)).vehicleType).toBe('car');
+  });
+
+  // -- anyOf without discriminator: PetTreatment --
+
+  test('bhv langnode 051 anyOf: PetTreatment is a constructable class', () => {
+    // PetTreatment must be a class (not just a type alias) to support runtime deserialization
+    expect(typeof PetTreatment).toBe('function');
+  });
+
+  test('bhv unions 014 anyOf: PetTreatment deserializes Medication', () => {
+    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    expect(result!.getActualInstance()).toBeDefined();
+    expect(result!.getActualInstance()).toBeInstanceOf(Medication);
+  });
+
+  test('bhv unions 006 anyOf: PetTreatment deserializes Surgery', () => {
+    const data = { procedureName: 'Spay', durationMinutes: 45 };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    expect(result!.getActualInstance()).toBeDefined();
+    expect(result!.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  test('bhv unions 007 anyOf: PetTreatment with no matching variant throws SerializationError', () => {
+    // oneof-nondiscriminator-no-match-silent: a payload matching neither
+    // Medication nor Surgery used to fall through to a generic
+    // plainToInstance that stored the raw bag-of-keys (type confusion).
+    // It must now surface as a SerializationError so callers see the
+    // payload matches no declared variant.
+    const data = { unrelatedKey: 'value', anotherUnknown: 123 };
+    expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(SerializationError);
+  });
+
+  test('bhv langnode 052 anyOf: PetTreatment rejects a type-invalid variant field', () => {
+    // oneof-nondiscriminator-type-invalid-silent: a non-discriminated variant
+    // was matched purely structurally via plainToInstance + a hasValues check,
+    // without re-running the variant model's constructor type-assertions. A
+    // type-wrong field (here durationMinutes carrying a string on a numeric
+    // field) was silently retained. The union loop now routes each candidate
+    // through its own constructor, so a type-invalid candidate is skipped and
+    // resolution falls through to the no-match throw.
+    const data = { procedureName: 'Spay', durationMinutes: 'forty-five' };
+    expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(SerializationError);
+  });
+
+  test('bhv unions 008 anyOf: PetTreatment serialize round-trip', () => {
+    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    const serialized = ObjectSerializer.serialize(result!.getActualInstance());
+    expect(serialized).toBeDefined();
+  });
+
+  test('bhv unions 009 anyOf retains all matching variants (medication and surgery) losslessly', () => {
+    // PetTreatment is a non-discriminated anyOf of Medication (drugName,
+    // dosage) and Surgery (procedureName, durationMinutes), documented as
+    // matching a medication, a surgery, OR BOTH. A payload satisfying BOTH
+    // variants at once must retain every variant's data — a first-match
+    // wrapper would keep only Medication and silently drop the Surgery fields,
+    // losing them on re-encode.
+    const data = {
+      drugName: 'Amoxicillin',
+      dosage: '250mg',
+      procedureName: 'Spay',
+      durationMinutes: 45,
+    };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+
+    // Both variants are retained and accessible, not just the first.
+    const matched = result!.getMatchedInstances();
+    const medication = matched.find((m) => m instanceof Medication) as
+      | Medication
+      | undefined;
+    const surgery = matched.find((m) => m instanceof Surgery) as
+      | Surgery
+      | undefined;
+    expect(medication).toBeInstanceOf(Medication);
+    expect(surgery).toBeInstanceOf(Surgery);
+    expect(medication!.drugName).toBe('Amoxicillin');
+    expect(medication!.dosage).toBe('250mg');
+    expect(surgery!.procedureName).toBe('Spay');
+    expect(surgery!.durationMinutes).toBe(45);
+
+    // Re-serialize: the JSON still contains ALL FOUR fields — the
+    // co-satisfied data round-trips with no silent drop.
+    const serialized = ObjectSerializer.serialize(result!);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+    expect(reparsed.drugName).toBe('Amoxicillin');
+    expect(reparsed.dosage).toBe('250mg');
+    expect(reparsed.procedureName).toBe('Spay');
+    expect(reparsed.durationMinutes).toBe(45);
+  });
+
+  test('bhv unions 010 anyOf shared-property collision keeps the last variant, emitted once', () => {
+    // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+    // When a PetTreatment retains both members with DIFFERENT `notes` values,
+    // the merged encoding must keep the LAST-declared member's value (Surgery)
+    // and emit `notes` exactly once — never a duplicate JSON key.
+    const medication = ObjectSerializer.deserialize(
+      { drugName: 'Amoxicillin', notes: 'from-medication' },
+      PetTreatment,
+    )!
+      .getMatchedInstances()
+      .find((m) => m instanceof Medication) as Medication;
+    const surgery = ObjectSerializer.deserialize(
+      { procedureName: 'Spay', notes: 'from-surgery' },
+      PetTreatment,
+    )!
+      .getMatchedInstances()
+      .find((s) => s instanceof Surgery) as Surgery;
+    const combined = new PetTreatment([medication, surgery]);
+
+    const serialized = ObjectSerializer.serialize(combined);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+
+    // Surgery is the later-declared member, so its `notes` wins the collision.
+    expect(reparsed.notes).toBe('from-surgery');
+    // `notes` appears exactly once — no duplicate key.
+    expect(serialized.split('"notes"').length).toBe(2);
+  });
+
+  test('bhv unions 002 anyOf: TreatmentRecord keeps the later declared variant on a shared property, emitted once', () => {
+    // Surgery is declared first and Medication last, so the Medication `notes`
+    // must win the collision and appear exactly once in the encoding.
+    const record = new TreatmentRecord([
+      new Surgery({ procedureName: 'Spay', notes: 'from-surgery' }),
+      new Medication({ drugName: 'Amoxicillin', notes: 'from-medication' }),
+    ]);
+
+    const serialized = ObjectSerializer.serialize(record);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+
+    expect(reparsed.notes).toBe('from-medication');
+    expect(serialized.split('"notes"').length).toBe(2);
+  });
+
+  test('bhv unions 003 anyOf single-variant payloads still decode correctly', () => {
+    // The both-variants retention must not break the single-variant case: a
+    // medication-only and a surgery-only payload each still decode, exposing
+    // exactly one matched variant.
+    const medicationOnly = ObjectSerializer.deserialize(
+      { drugName: 'Amoxicillin', dosage: '500mg' },
+      PetTreatment,
+    );
+    expect(medicationOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(medicationOnly!.getActualInstance()).toBeInstanceOf(Medication);
+
+    const surgeryOnly = ObjectSerializer.deserialize(
+      { procedureName: 'Spay', durationMinutes: 45 },
+      PetTreatment,
+    );
+    expect(surgeryOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(surgeryOnly!.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  // -- allOf: PetWithOwner --
+
+  test('bhv unions 004 allOf: PetWithOwner deserializes all properties', () => {
+    const data = {
+      name: 'doggie',
+      photoUrls: ['http://example.com/photo.jpg'],
+      ownerName: 'John',
+      ownerEmail: 'john@example.com'
+    };
+    const result = ObjectSerializer.deserialize(data, PetWithOwner);
+    expect(result).toBeDefined();
+    expect(result!.name).toBe('doggie');
+    expect(result!.ownerName).toBe('John');
+    expect(result!.ownerEmail).toBe('john@example.com');
+  });
+
+  test('bhv unions 021 allOf: PetWithOwner serializes to JSON', () => {
+    const data = {
+      name: 'Fido',
+      photoUrls: ['http://example.com/fido.jpg'],
+      ownerName: 'John Doe'
+    };
+    const result = ObjectSerializer.deserialize(data, PetWithOwner);
+    const serialized = ObjectSerializer.serialize(result);
+    expect(serialized).toBeDefined();
+    expect(serialized).toContain('Fido');
+    expect(serialized).toContain('John Doe');
+  });
+
+  test('bhv unions 017 allOf: PetWithOwner round-trip preserves fields', () => {
+    const data = {
+      name: 'Buddy',
+      photoUrls: ['http://example.com/buddy.jpg'],
+      ownerName: 'Jane Smith'
+    };
+    const original = ObjectSerializer.deserialize(data, PetWithOwner);
+    const serialized = ObjectSerializer.serialize(original);
+    const restored = ObjectSerializer.deserialize(JSON.parse(serialized), PetWithOwner);
+    expect(restored!.name).toBe(original!.name);
+    expect(restored!.ownerName).toBe(original!.ownerName);
+  });
+
+  test('bhv unions 005 anyOf: variants are listed and retained in schema declaration order', () => {
+    expect(PetTreatment.ANY_OF_SCHEMAS).toEqual(['Medication', 'Surgery']);
+    expect(TreatmentRecord.ANY_OF_SCHEMAS).toEqual(['Surgery', 'Medication']);
+    const data = { drugName: 'Amoxicillin', procedureName: 'Spay' };
+    const record = ObjectSerializer.deserialize(data, TreatmentRecord);
+    expect(record!.getMatchedInstances().map((m) => m.constructor)).toEqual([Surgery, Medication]);
+    const treatment = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(treatment!.getMatchedInstances().map((m) => m.constructor)).toEqual([Medication, Surgery]);
+  });
+
+  test('bhv unions 011 anyOf: wrappers compare by value', () => {
+    const data = { drugName: 'Amoxicillin', procedureName: 'Spay' };
+    const a = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const b = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const other = ObjectSerializer.deserialize({ drugName: 'Aspirin' }, PetTreatment)!;
+    expect(a).not.toBe(b);
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(other)).toBe(false);
+    expect(a.equals(null)).toBe(false);
+  });
+
+  test('bhv unions 029 oneOf: wrappers compare by value', () => {
+    const a = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+    const b = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+    const other = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 3 }, PetFood)!;
+    expect(a).not.toBe(b);
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(other)).toBe(false);
+  });
+  test('bhv misc 046 oneOf: wrappers with equal content are equal and different content is unequal', () => {
+    const a = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+    const b = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+    const c = ObjectSerializer.deserialize({ foodType: 'wet', volumeMl: 400 }, PetFood)!;
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(c)).toBe(false);
+  });
+  test('bhv unions 034 oneOf: a wrapper typed accessor returns the held variant and nothing for the other', () => {
+    const food = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
+
+    expect(food.isDryFood()).toBe(true);
+    expect(food.isWetFood()).toBe(false);
+    expect(food.asDryFood()).toBe(food.getActualInstance());
+    expect(food.asWetFood()).toBeNull();
+  });
+
+  test('bhv unions 001 oneOf: a wrapper built in code answers only for its own variant', () => {
+    const food = new PetFood(new WetFood({ volumeMl: 400 }));
+
+    expect(food.isWetFood()).toBe(true);
+    expect(food.asWetFood()!.volumeMl).toBe(400);
+    expect(food.isDryFood()).toBe(false);
+    expect(food.asDryFood()).toBeNull();
+  });
+
+  test('bhv unions 037 a union wrapper built from a variant holds that exact value and returns it unchanged', () => {
+    const dry = new DryFood({ weightKg: 2.5 });
+    const food = new PetFood(dry);
+
+    expect(food.getActualInstance()).toBe(dry);
+    expect(Object.getOwnPropertyNames(PetFood.prototype).filter((name) => name.startsWith('set'))).toEqual([]);
+  });
+
+  test('bhv unions 039 building a union wrapper from a value never validates it or throws', () => {
+    expect(() => new PetFood(null as unknown as DryFood)).not.toThrow();
+    expect(() => new PetFood('not a food' as unknown as DryFood)).not.toThrow();
+    expect(() => new PetFood({ foodType: 'fish' } as unknown as DryFood)).not.toThrow();
+  });
+
+  test('bhv unions 040 a union wrapper typed accessor returns the variant it holds and nothing for the other variants', () => {
+    const dry = new DryFood({ weightKg: 2.5 });
+    const food = new PetFood(dry);
+
+    expect(food.isDryFood()).toBe(true);
+    expect(food.asDryFood()).toBe(dry);
+    expect(food.isWetFood()).toBe(false);
+    expect(food.asWetFood()).toBeNull();
+  });
+
+  test('bhv unions 042 a union wrapper built with no variant or a null variant holds no actual instance', () => {
+    for (const variant of [null, undefined]) {
+      const food = new PetFood(variant as unknown as DryFood);
+
+      expect(food.isDryFood()).toBe(false);
+      expect(food.isWetFood()).toBe(false);
+      expect(food.asDryFood()).toBeNull();
+      expect(food.asWetFood()).toBeNull();
+    }
+  });
+
+  test('bhv unions 046 anyOf: a composite tells which variants matched and hands each back', () => {
+    const both = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', procedureName: 'Spay' }, PetTreatment)!;
+    const only = ObjectSerializer.deserialize({ drugName: 'Amoxicillin' }, PetTreatment)!;
+
+    expect(both.isMedication()).toBe(true);
+    expect(both.isSurgery()).toBe(true);
+    expect(both.asSurgery()!.procedureName).toBe('Spay');
+    expect(only.isMedication()).toBe(true);
+    expect(only.asMedication()!.drugName).toBe('Amoxicillin');
+    expect(only.isSurgery()).toBe(false);
+    expect(only.asSurgery()).toBeNull();
+  });
+
+  test('bhv unions 025 anyOf: the declaration order of the variants does not change the accessors', () => {
+    const record = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', procedureName: 'Spay' }, TreatmentRecord)!;
+
+    expect(record.isMedication()).toBe(true);
+    expect(record.isSurgery()).toBe(true);
+  });
+});
+
+
+describe('Composed Schema misc behaviours', () => {
+  test('bhv misc 291 a payload matching several union variants decodes to the first declared variant', () => {
+    const record = ObjectSerializer.deserialize({ drugName: 'a', procedureName: 'b' }, TreatmentRecord) as TreatmentRecord;
+    expect(record.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  test('bhv misc 292 serializing a union wrapper emits the bare variant payload and reads back to the same value', () => {
+    const wrapper = new PetTreatment(new Medication({ drugName: 'Amoxicillin', dosage: '500mg' }));
+    const wire = JSON.parse(ObjectSerializer.serialize(wrapper)) as Record<string, unknown>;
+    expect(wire).toEqual({ drugName: 'Amoxicillin', dosage: '500mg' });
+    const back = ObjectSerializer.deserialize(wire, PetTreatment) as PetTreatment;
+    expect(back.getActualInstance()).toEqual(new Medication({ drugName: 'Amoxicillin', dosage: '500mg' }));
+  });
+
+  test('bhv serialization 076 decoding a union value that matches none of its candidates raises a serialization error', () => {
+    expect(() => ObjectSerializer.deserialize({ unrelated: 1 }, TreatmentRecord)).toThrow(SerializationError);
+  });
+});
+
+describe('Composed Schema union accessors and equality', () => {
+  test('bhv unions 044 each variant of a union has a typed constructor or factory and a typed accessor that identify the variant', () => {
+    const treatment = new PetTreatment(new Medication({ drugName: 'Amoxicillin' }));
+    expect(treatment.isMedication()).toBe(true);
+    expect(treatment.isSurgery()).toBe(false);
+    expect(treatment.getActualInstance()).toBeInstanceOf(Medication);
+    expect((treatment.getActualInstance() as Medication).drugName).toBe('Amoxicillin');
+  });
+
+  test('bhv unions 045 two union values built from the same data compare equal, whether decoded from identical JSON or built by a constructor', () => {
+    const data = { drugName: 'Amoxicillin' };
+    const decoded = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const decodedAgain = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const constructed = new PetTreatment(new Medication(data));
+    expect(decoded.equals(decodedAgain)).toBe(true);
+    expect(decoded.equals(constructed)).toBe(true);
+  });
+
+  test('bhv unions 047 a discriminator value not listed in the mapping, including an empty value, raises an error instead of falling through', () => {
+    for (const foodType of ['triangle', '']) {
+      expect(() => ObjectSerializer.deserialize({ foodType, weightKg: 2.5 }, PetFood)).toThrow(SerializationError);
+    }
+    expect(() => ObjectSerializer.deserialize({ foodType: 'triangle', weightKg: 2.5 }, PetFood)).toThrow(/triangle/);
+  });
+});

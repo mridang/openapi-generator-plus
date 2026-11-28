@@ -1,0 +1,47 @@
+{{>api_info}}
+
+using {{packageName}}.Models;
+{{#optionsImports}}{{#-first}}
+using {{packageName}}.Api.Options;
+{{/-first}}{{/optionsImports}}
+
+namespace {{packageName}}.{{apiPackage}};
+
+{{#operations}}
+/// <summary>
+/// Contract of <see cref="{{classname}}"/>: every operation of the {{baseName}} API group and its
+/// <c>WithHttpInfo</c> variant. Depend on it instead of the class to substitute a hand-written
+/// fake in your own tests.
+/// </summary>
+public interface I{{classname}}
+{
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+    /// <summary>The <c>{{operationId}}</c> operation as a stream of {{#vendorExtensions.op.streamsSse}}server-sent events{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}JSON Lines items{{/vendorExtensions.op.streamsJsonLines}}.</summary>
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
+    Task<{{{returnType}}}> {{operationId}}StreamAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}StreamOptions? streamOptions = null, CancellationToken cancellationToken = default);
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+    /// <summary>The <c>{{operationId}}</c> operation.</summary>
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
+    {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default);
+
+    /// <summary>The <c>{{operationId}}</c> operation with its status code, headers and body.</summary>
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
+    Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default);
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{^-last}}
+
+{{/-last}}
+{{/operation}}
+}
+{{/operations}}

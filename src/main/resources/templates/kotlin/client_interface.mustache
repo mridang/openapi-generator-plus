@@ -1,0 +1,31 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}}Interface
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+/**
+ * {{clientClassName}}Interface is the contract of [{{clientClassName}}]: every API group typed as
+ * its group interface, plus [close]. Depend on it instead of the class to substitute a
+ * hand-written fake client in your own tests; a fake client built from fake groups opens no
+ * connection, and closing it does nothing.
+ */
+interface {{clientClassName}}Interface : AutoCloseable {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** API operations for the {{classname}} group. */
+    val {{clientPropertyName}}: {{classname}}Interface
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    /** Closes the client; a fake client has nothing to release. */
+    override fun close()
+}

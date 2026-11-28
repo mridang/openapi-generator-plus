@@ -1,0 +1,266 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth.oauth;
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.auth.HttpAwareAuthenticator;
+import {{invokerPackage}}.errors.OAuth2ServerException;
+import {{invokerPackage}}.errors.OAuth2TokenException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.function.LongConsumer;
+import java.util.function.LongSupplier;
+import javax.annotation.Nullable;
+
+/**
+ * Authenticator for the OAuth2 Device Authorization flow (RFC 8628).
+ *
+ * <p>Implements {@link HttpAwareAuthenticator} so that the device authorization
+ * and token requests use the shared {@link ApiClient} with the same transport
+ * configuration (proxy, TLS, timeouts) as regular API calls.
+ *
+ * <p>Usage:
+ * <ol>
+ *   <li>Call {@link #requestDeviceAuthorization()} to get the user code and the
+ *       verification URI</li>
+ *   <li>Show both to the user, who approves the request on another device</li>
+ *   <li>Call {@link #pollForToken(DeviceAuthorization)}; it returns once the user
+ *       has approved the request</li>
+ *   <li>Use the authenticator normally — tokens are managed automatically</li>
+ * </ol>
+ */
+public class OAuth2DeviceAuthorizationAuthenticator implements HttpAwareAuthenticator {
+
+    /** The grant type of the device access token request (RFC 8628 section 3.4). */
+    private static final String DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
+    /** The polling interval when the server names none (RFC 8628 section 3.2). */
+    private static final long DEFAULT_INTERVAL_SECONDS = 5L;
+    /** The seconds a slow_down answer adds to the interval (RFC 8628 section 3.5). */
+    private static final long SLOW_DOWN_SECONDS = 5L;
+
+    private final String             host;
+    private final String             clientId;
+    private final String             deviceAuthorizationUrl;
+    private final String             tokenUrl;
+    private final String             refreshUrl;
+    private final List<String>       scopes;
+    private final OAuth2TokenManager tokenManager;
+    private final ObjectMapper       objectMapper = new ObjectMapper();
+    /* Waits the given number of seconds between polls; tests replace it so they do not wait. */
+    LongConsumer sleeper = OAuth2DeviceAuthorizationAuthenticator::sleepSeconds;
+    /* The monotonic clock, in nanoseconds, the expiry of a device code is measured with. */
+    LongSupplier monotonicNanos = System::nanoTime;
+
+    /**
+     * The answer of the device authorization endpoint (RFC 8628 section 3.2).
+     *
+     * @param deviceCode              the device verification code
+     * @param userCode                the code the user enters at the verification URI
+     * @param verificationUri         the URI the user visits to approve the request
+     * @param verificationUriComplete the verification URI with the user code included, if sent
+     * @param expiresIn               the lifetime of the device code, in seconds
+     * @param interval                the seconds to wait between polls (5 when the server sends none)
+     */
+    public record DeviceAuthorization(
+            String deviceCode,
+            String userCode,
+            String verificationUri,
+            @Nullable String verificationUriComplete,
+            long expiresIn,
+            long interval) {
+    }
+
+    /**
+     * Create a new device authorization authenticator.
+     *
+     * @param host                   API base URL
+     * @param clientId               OAuth2 client ID
+     * @param deviceAuthorizationUrl device authorization endpoint URL
+     * @param tokenUrl               token endpoint URL
+     * @param scopes                 requested scopes
+     */
+    public OAuth2DeviceAuthorizationAuthenticator(String host, String clientId,
+            String deviceAuthorizationUrl, String tokenUrl, List<String> scopes) {
+        this(host, clientId, deviceAuthorizationUrl, tokenUrl, scopes, null);
+    }
+
+    /**
+     * Create a new device authorization authenticator with a refresh URL.
+     *
+     * @param host                   API base URL
+     * @param clientId               OAuth2 client ID
+     * @param deviceAuthorizationUrl device authorization endpoint URL
+     * @param tokenUrl               token endpoint URL
+     * @param scopes                 requested scopes
+     * @param refreshUrl             refresh token endpoint URL (falls back to tokenUrl if null)
+     */
+    public OAuth2DeviceAuthorizationAuthenticator(String host, String clientId,
+            String deviceAuthorizationUrl, String tokenUrl, List<String> scopes,
+            @Nullable String refreshUrl) {
+        this.host                   = host;
+        this.clientId               = clientId;
+        this.deviceAuthorizationUrl = deviceAuthorizationUrl;
+        this.tokenUrl               = tokenUrl;
+        this.refreshUrl             = refreshUrl != null ? refreshUrl : tokenUrl;
+        this.scopes                 = List.copyOf(scopes);
+        this.tokenManager           = new OAuth2TokenManager();
+    }
+
+    @Override
+    public void setApiClient(ApiClient apiClient) {
+        tokenManager.setApiClient(apiClient);
+    }
+
+    /**
+     * Ask the device authorization endpoint for a device code and a user code.
+     * Show the user code and the verification URI to the user, then call
+     * {@link #pollForToken(DeviceAuthorization)}.
+     *
+     * @return the device authorization
+     * @throws OAuth2ServerException when the endpoint answers non-2xx
+     * @throws OAuth2TokenException  when the answer is not a usable device authorization
+     */
+    public DeviceAuthorization requestDeviceAuthorization() {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("client_id", clientId);
+        if (!scopes.isEmpty()) {
+            params.put("scope", String.join(" ", scopes));
+        }
+        String body = tokenManager.postDeviceAuthorization(deviceAuthorizationUrl, params);
+        JsonNode json;
+        try {
+            json = objectMapper.readTree(body);
+        } catch (IOException e) {
+            /* The parser's message is not passed on: it quotes the body. */
+            throw new OAuth2TokenException("Device authorization response is not valid JSON");
+        }
+        if (json == null || !json.isObject()) {
+            throw new OAuth2TokenException("Device authorization response is not a JSON object");
+        }
+        String deviceCode = requiredField(json, "device_code");
+        String userCode = requiredField(json, "user_code");
+        String verificationUri = requiredField(json, "verification_uri");
+        JsonNode completeNode = json.get("verification_uri_complete");
+        String verificationUriComplete =
+                completeNode != null && completeNode.isTextual() && !completeNode.asText().isEmpty()
+                        ? completeNode.asText() : null;
+        long expiresIn = OAuth2TokenManager.parseExpiresIn(json.get("expires_in"));
+        JsonNode intervalNode = json.get("interval");
+        long interval = intervalNode == null || intervalNode.isNull()
+                ? DEFAULT_INTERVAL_SECONDS
+                : OAuth2TokenManager.parseExpiresIn(intervalNode);
+        return new DeviceAuthorization(deviceCode, userCode, verificationUri,
+                verificationUriComplete, expiresIn, interval);
+    }
+
+    /**
+     * Poll the token endpoint until the user approves the device authorization.
+     * {@code authorization_pending} keeps polling and {@code slow_down} adds five
+     * seconds to the interval; a success replaces the session.
+     *
+     * @param authorization the device authorization to poll for
+     * @throws OAuth2ServerException when the token endpoint answers with any other error
+     * @throws OAuth2TokenException  when the device code expires before the user approves it
+     */
+    public void pollForToken(DeviceAuthorization authorization) {
+        long interval = authorization.interval();
+        long started = monotonicNanos.getAsLong();
+        while (true) {
+            long elapsed = TimeUnit.NANOSECONDS.toSeconds(monotonicNanos.getAsLong() - started);
+            if (elapsed + interval > authorization.expiresIn()) {
+                throw new OAuth2TokenException("Device authorization expired before the user approved it");
+            }
+            sleeper.accept(interval);
+            Map<String, String> params = new LinkedHashMap<>();
+            params.put("grant_type", DEVICE_CODE_GRANT);
+            params.put("client_id", clientId);
+            params.put("device_code", authorization.deviceCode());
+            try {
+                /* RFC 8628 section 3.5: a success replaces the session like a code exchange. */
+                tokenManager.exchange(tokenUrl, params, Collections.emptyMap());
+                return;
+            } catch (OAuth2ServerException e) {
+                if ("authorization_pending".equals(e.getCode())) {
+                    continue;
+                }
+                if ("slow_down".equals(e.getCode())) {
+                    interval += SLOW_DOWN_SECONDS;
+                    continue;
+                }
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Drop the cached access token so the next request fetches a new one. The
+     * refresh token is kept, so the new token comes from the refresh grant
+     * when the server issued one.
+     */
+    @Override
+    public void invalidateAccessToken() {
+        tokenManager.invalidateAccessToken();
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        if (!tokenManager.isExchanged()) {
+            throw new IllegalStateException("Must call pollForToken() before making API requests");
+        }
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("grant_type", "refresh_token");
+        /* An OP that issued no refresh_token leaves none to send. Put an empty
+         * value rather than null (which would fail to form-encode) so the OP
+         * answers with its typed OAuth2ServerException. */
+        String refreshToken = tokenManager.getRefreshToken();
+        params.put("refresh_token", refreshToken != null ? refreshToken : "");
+        params.put("client_id", clientId);
+        String token = tokenManager.getAccessToken(refreshUrl, params);
+        return Collections.singletonMap("Authorization", "Bearer " + token);
+    }
+
+    private static String requiredField(JsonNode json, String field) {
+        JsonNode node = json.get(field);
+        if (node == null || !node.isTextual() || node.asText().isEmpty()) {
+            throw new OAuth2TokenException(
+                    "Device authorization response missing or empty " + field + " field");
+        }
+        return node.asText();
+    }
+
+    private static void sleepSeconds(long seconds) {
+        try {
+            Thread.sleep(TimeUnit.SECONDS.toMillis(seconds));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new java.util.concurrent.CancellationException("Polling for the device token was interrupted");
+        }
+    }
+
+    /**
+     * Returns a string representation of this authenticator (it holds no
+     * client secret; the tokens are never shown).
+     *
+     * @return a string representation
+     */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(host=" + host
+                + ", clientId=" + clientId
+                + ", deviceAuthorizationUrl=" + deviceAuthorizationUrl
+                + ", tokenUrl=" + tokenUrl
+                + ", refreshUrl=" + refreshUrl
+                + ", scopes=" + scopes + ")";
+    }
+}

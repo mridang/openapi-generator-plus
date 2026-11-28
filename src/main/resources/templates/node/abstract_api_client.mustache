@@ -1,0 +1,2059 @@
+{{>api_info}}
+
+import type { ApiClient, SendRequestOptions, SendStreamingOptions } from './api-client{{importFileExtension}}';
+/* Through the errors barrel, which loads every status-specific error, so
+ * ApiError.fromResponse knows them all. */
+import { ApiError } from './errors/index{{importFileExtension}}';
+import { NetworkError } from './errors/network-error{{importFileExtension}}';
+import { NetworkTimeoutError } from './errors/network-timeout-error{{importFileExtension}}';
+import { ResponseTooLargeError } from './errors/response-too-large-error{{importFileExtension}}';
+import { StreamError } from './errors/stream-error{{importFileExtension}}';
+import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}';
+import { ApiStreamResponse } from './api-stream-response{{importFileExtension}}';
+import { BodySource } from './body-source{{importFileExtension}}';
+import type { OpenedBody } from './body-source{{importFileExtension}}';
+import { ObjectSerializer, isTemporalValue } from './object-serializer{{importFileExtension}}';
+import { TransportOptions } from './transport-options{{importFileExtension}}';
+import { AllowReservedValue, EncodedPart } from './value-serializer{{importFileExtension}}';
+
+/**
+ * Header names that MUST be stripped when following a cross-origin
+ * redirect. Includes the classic credential carriers (`Authorization`,
+ * `Cookie`, `Proxy-Authorization`) plus the apiKey-in-header header
+ * names declared by this spec's security schemes (merged at codegen
+ * time from the spec's apiKey-in-header schemes). Leaving an API-key
+ * header attached would leak the key to attacker-controlled hosts via
+ * a malicious 302/307 from an upstream that supports both bearer and
+ * api-key auth. Deriving the set from the spec keeps the
+ * credential-stripping boundary accurate and uniform across all SDKs.
+ * Match is case-insensitive; entries here MUST be lowercase.
+ */
+export const SENSITIVE_HEADER_NAMES: ReadonlySet<string> = new Set<string>([
+  'authorization',
+  'cookie',
+  'proxy-authorization',
+{{#apiKeyHeaderNames}}
+  '{{nameLower}}',
+{{/apiKeyHeaderNames}}
+]);
+
+/** What one read of a response body settles with: a chunk, or the end of the body. */
+type BodyReadResult = Awaited<ReturnType<ReadableStreamDefaultReader<Uint8Array>['read']>>;
+
+/** The message of the error a closed client raises, for a new call and for a cancelled stream. */
+const CLOSED_MESSAGE = 'ApiClient has been closed and can no longer send requests';
+
+/**
+ * The lifetime of one streaming call as far as the client is concerned: it
+ * counts as a request in flight until it finishes, and closing the client
+ * cancels it while it is open.
+ */
+interface StreamLife {
+  /** Aborts the connection of the stream; the request carries this signal. */
+  readonly controller: AbortController;
+  /** Set when the client was closed under the stream. */
+  closedByClient: boolean;
+  /**
+   * Whether this is the stream the call returned. Until then the life belongs
+   * to an attempt that may still be retried, and its body ending frees nothing.
+   */
+  armed: boolean;
+  /** Ends the stream's life: frees its in-flight slot. Safe to call again. */
+  finish(): void;
+}
+
+/**
+ * The timer of the header phase of a streaming call: it aborts the request
+ * with a `TimeoutError` unless {@link stop} is called first, which the client
+ * does as soon as the response headers are accepted.
+ */
+class HeaderDeadline {
+  readonly signal: AbortSignal | undefined;
+  private readonly timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(timeout: number | null) {
+    if (timeout == null) {
+      this.signal = undefined;
+      return;
+    }
+    const controller = new AbortController();
+    this.signal = controller.signal;
+    this.timer = setTimeout(() => {
+      controller.abort(new DOMException('The operation timed out.', 'TimeoutError'));
+    }, timeout);
+  }
+
+  /** Disarms the timer; the request is never timed out after this. */
+  stop(): void {
+    clearTimeout(this.timer);
+  }
+}
+
+/**
+ * Transport-agnostic base for {@link ApiClient} implementations.
+ *
+ * Owns every piece of HTTP behaviour that must be identical regardless of the
+ * runtime: transport-level default-header merging, User-Agent and X-Request-ID
+ * injection, Accept-Encoding negotiation, multipart encoding, the manual
+ * redirect loop (with cross-origin sensitive-header stripping, HTTPS->HTTP
+ * body-replay refusal, and non-http(s) scheme rejection), response
+ * decompression, and charset decoding -- all expressed with Web-standard APIs
+ * (`fetch`, `crypto`, `DecompressionStream`, `TextDecoder`). Concrete
+ * subclasses supply only the optional dispatcher via {@link prepareDispatcher},
+ * so this security-critical logic lives in exactly one place across both the
+ * Node transport (with undici proxy/TLS support) and the portable Fetch
+ * transport used on Deno, Bun, and edge runtimes.
+ *
+ * Header merge order (lowest to highest priority):
+ * 1. {@link TransportOptions.defaultHeaders} -- transport-level defaults
+ * 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+ * 3. {@link TransportOptions.userAgent} -- injected if not already set
+ * 4. {@link TransportOptions.injectRequestId} -- injected if not already set
+ */
+export abstract class AbstractApiClient implements ApiClient {
+  protected readonly transportOptions: TransportOptions;
+  /* The dispatcher (if any) is resolved once per client and cached. A `null`
+   * resolution means "no special dispatcher; use plain fetch". */
+  private dispatcherPromise?: Promise<unknown>;
+  /* T-D4: once close() has run the client must refuse further use rather than
+   * leaking a foreign exception or silently succeeding against a cleared pool. */
+  protected closed = false;
+  /* F1078: requests that have started and not yet finished. Closing the client
+   * lets them finish; the transport is released when the last one does. */
+  private inFlight = 0;
+  /* Set once the transport the SDK built is being released, so it is released
+   * exactly once. */
+  private released?: Promise<void>;
+  /* Streams whose headers were accepted and that are not finished: closing the
+   * client cancels them. */
+  private readonly openStreams = new Set<StreamLife>();
+
+  /**
+   * Create a client configured from the given {@link TransportOptions}.
+   *
+   * @param transportOptions transport configuration to apply
+   */
+  constructor(transportOptions?: TransportOptions) {
+    this.transportOptions = transportOptions ?? TransportOptions.builder().build();
+  }
+
+  /**
+   * Resolve the transport dispatcher (if any) to attach to every fetch on this
+   * client. The Node transport returns an undici dispatcher carrying proxy /
+   * TLS / CA configuration; the portable Fetch transport returns `undefined`
+   * for plain requests and throws a typed {@link ApiError} when a Node-only
+   * transport feature is requested on a runtime that cannot honour it.
+   *
+   * @returns a dispatcher to set on `fetch` options, or `undefined` for plain fetch
+   */
+  protected abstract prepareDispatcher(): Promise<unknown>;
+
+  /**
+   * The list of content encodings advertised in `Accept-Encoding`. Overridable
+   * so the Node transport can add `zstd` where `node:zlib` supports it; the
+   * portable default is the set every fetch implementation decodes natively.
+   *
+   * @returns a comma-separated `Accept-Encoding` value
+   */
+  protected supportedEncodings(): string {
+    return 'gzip, deflate, br';
+  }
+
+  /**
+   * Classify a failure raised by `fetch` or by the response body read.
+   *
+   * The `AbortSignal.timeout` signal rejects with a `DOMException` named
+   * `TimeoutError`, and undici reports its own connect / headers / body
+   * timeouts as a `TypeError` whose cause carries a `UND_ERR_*_TIMEOUT` code:
+   * both are a {@link NetworkTimeoutError}. Any other `TypeError` means no
+   * HTTP response arrived (connection refused, DNS failure, TLS failure,
+   * connection reset) and is a {@link NetworkError}, except a proxy that
+   * refused the tunnel: that proxy answered, so the error is the one
+   * {@link ApiError.fromResponse} maps its status to (a 407 without proxy
+   * credentials is a `ClientError`). Anything else stays a plain
+   * {@link ApiError} with status 0. The original error is kept as `cause` in
+   * every other case.
+   *
+   * @param error the value `fetch` or the body read rejected with
+   * @param method the HTTP method of the request that failed
+   * @param url the URL of the request that failed; its query string is dropped
+   * @returns the SDK error to throw, carrying the method and the path
+   */
+  protected static transportError(error: unknown, method: string, url: string): ApiError {
+    /* Duck-typed rather than `instanceof`: fetch may reject with an error
+     * from another realm (a test sandbox or a polyfill), whose `TypeError`
+     * is not this realm's `TypeError`. */
+    const field = (value: unknown, key: string): unknown =>
+      value != null && typeof value === 'object' && key in value
+        ? (value as Record<string, unknown>)[key]
+        : undefined;
+    const name = String(field(error, 'name') ?? '');
+    const message = AbstractApiClient.scrubUrlFromMessage(String(field(error, 'message') ?? error), url);
+    const causeCode = String(field(field(error, 'cause'), 'code') ?? '');
+    const request = { requestMethod: method, requestPath: AbstractApiClient.requestPathOf(url) };
+    if (name === 'TimeoutError' || /^UND_ERR_(CONNECT|HEADERS|BODY)_TIMEOUT$/.test(causeCode)) {
+      return new NetworkTimeoutError(message, { cause: error, ...request });
+    }
+    const proxyStatus = AbstractApiClient.proxyRefusalStatus(error);
+    if (proxyStatus !== null) {
+      return ApiError.fromResponse(proxyStatus, null, null, { method, path: request.requestPath });
+    }
+    if (name === 'TypeError') {
+      const networkError = new NetworkError(message, { cause: error, ...request });
+      /* OpenSSL and undici codes for a rejected certificate or failed TLS handshake. */
+      if (/^(ERR_TLS_|ERR_SSL_|ERR_CERT_|CERT_|UNABLE_TO_|SELF_SIGNED_|DEPTH_ZERO_)/.test(causeCode)) {
+        AbstractApiClient.tlsFailures.add(networkError);
+      }
+      return networkError;
+    }
+    return new ApiError(0, message, null, null, null, { cause: error, ...request });
+  }
+
+  /**
+   * Replace the request URL, as fetch quotes it in its own error text, with the
+   * same URL minus its userinfo, query string and fragment. fetch rejects a URL
+   * that carries credentials with a message that repeats the whole URL.
+   *
+   * @param message the error message fetch or the body read produced
+   * @param url the request URL that failed
+   * @returns the message with the URL stripped of its secrets
+   */
+  private static scrubUrlFromMessage(message: string, url: string): string {
+    if (url === '' || !message.includes(url)) {
+      return message;
+    }
+    let safe: string;
+    try {
+      const parsed = new URL(url);
+      safe = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+    } catch {
+      safe = url.split(/[?#]/)[0]!.replace(/\/\/[^/@]*@/, '//');
+    }
+    return message.split(url).join(safe);
+  }
+
+  /**
+   * The path of a request URL without its query string or fragment, the same
+   * value {@link ApiError.requestPath} carries for a status error.
+   *
+   * @param url the request URL, absolute or relative
+   * @returns the path
+   */
+  private static requestPathOf(url: string): string {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url.split(/[?#]/)[0]!;
+    }
+  }
+
+  /**
+   * Whether a failure is the caller's own cancellation: the caller's signal
+   * has fired and the error is not the timeout deadline.
+   *
+   * @param error the value `fetch` or the body read rejected with
+   * @param signal the caller's cancellation signal, if any
+   * @returns true when the error is the caller's cancellation
+   */
+  private static isCallerAbort(error: unknown, signal: AbortSignal | undefined): boolean {
+    if (signal == null || !signal.aborted) {
+      return false;
+    }
+    const name = error != null && typeof error === 'object' ? String((error as { name?: unknown }).name ?? '') : '';
+    return name !== 'TimeoutError';
+  }
+
+  /**
+   * The status a proxy refused the CONNECT tunnel with, found anywhere in the
+   * error's cause chain (undici reports it only in the message), or null.
+   *
+   * @param error the value `fetch` rejected with
+   * @returns the proxy's status code, or null when no proxy refused
+   */
+  private static proxyRefusalStatus(error: unknown): number | null {
+    let current: unknown = error;
+    for (let depth = 0; depth < 4 && current != null && typeof current === 'object'; depth++) {
+      const match = /Proxy response \((\d{3})\) !== 200/.exec(String((current as Record<string, unknown>).message ?? ''));
+      if (match) {
+        return Number(match[1]);
+      }
+      current = (current as Record<string, unknown>).cause;
+    }
+    return null;
+  }
+
+  /**
+   * Whether a body-read failure is the fetch layer failing to decompress
+   * the body (a zlib, brotli or zstd error somewhere in the cause chain)
+   * rather than the connection failing mid-body.
+   *
+   * @param error the value the body read rejected with
+   * @returns true when the body arrived but could not be decoded
+   */
+  protected static isDecodeFailure(error: unknown): boolean {
+    let current: unknown = error;
+    for (let depth = 0; depth < 4 && current != null && typeof current === 'object'; depth++) {
+      const code = String((current as Record<string, unknown>).code ?? '');
+      if (/^Z_|BROTLI|ZSTD/.test(code)) {
+        return true;
+      }
+      current = (current as Record<string, unknown>).cause;
+    }
+    return false;
+  }
+
+  /**
+   * Resolve and cache the dispatcher for this client, so {@link prepareDispatcher}
+   * (and any CA read it performs) runs at most once.
+   *
+   * @returns the cached dispatcher, or `undefined` for plain fetch
+   */
+  private getDispatcher(): Promise<unknown> {
+    this.dispatcherPromise ??= this.prepareDispatcher();
+    return this.dispatcherPromise;
+  }
+
+  /**
+   * Send an HTTP request and return the response.
+   *
+   * Merges transport-level default headers, applies User-Agent and
+   * X-Request-ID injection, follows redirects (stripping sensitive headers on
+   * cross-origin hops and refusing unsafe replays), and decompresses and
+   * charset-decodes the response body.
+   *
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param url fully qualified URL
+   * @param headers HTTP headers from the caller
+   * @param body request body (serialized JSON string, raw Buffer for binary, a
+   *   `Record<string, unknown>` for multipart form data, or a {@link BodySource}, which is sent
+   *   as it is read and never buffered; may be null)
+   * @param options optional per-call flags (e.g. redirect suppression)
+   * @returns ApiHttpResponse containing status code, body, and headers
+   */
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options?: SendRequestOptions
+  ): Promise<ApiHttpResponse> {
+    /* Using a client after close() is a wrong call order: the invalid-state
+     * built-in Error, not an SDK error. A request is counted in before it
+     * starts, so closing the client lets it finish. */
+    if (this.closed) {
+      throw new Error(CLOSED_MESSAGE);
+    }
+    this.inFlight++;
+    try {
+      return await this.sendCounted(method, url, headers, body, options);
+    } finally {
+      this.inFlight--;
+      if (this.closed && this.inFlight === 0) {
+        await this.releaseTransportOnce();
+      }
+    }
+  }
+
+  /**
+   * The request loop of {@link sendRequest}, run while the request is counted
+   * as in flight.
+   */
+  private async sendCounted(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options?: SendRequestOptions
+  ): Promise<ApiHttpResponse> {
+    /* One end-to-end deadline covers every attempt: a retry never extends it. */
+    const timeout = options?.timeout !== undefined ? options.timeout : this.transportOptions.timeout;
+    const deadline = timeout != null ? AbortSignal.timeout(timeout) : undefined;
+    return this.withRetries(
+      method,
+      headers,
+      body,
+      options,
+      timeout,
+      deadline,
+      (attemptHeaders) => this.sendOnce(method, url, attemptHeaders, body, options, deadline)
+    );
+  }
+
+  /**
+   * The retry loop shared by the buffered and the streaming call: it repeats an
+   * attempt after a retryable status or a network failure that happened before
+   * any response, within one budget.
+   *
+   * @param method HTTP method
+   * @param headers the caller's headers; each retry rebuilds them
+   * @param body the request body
+   * @param options the per-call transport options
+   * @param timeout the budget in milliseconds, or null for none
+   * @param deadline the signal of that budget, or undefined for none
+   * @param attempt sends one attempt with the given headers
+   * @param discard releases a response that is retried instead of returned,
+   *   for a response that holds a connection (the streaming call); the
+   *   buffered call has nothing to release and passes none
+   * @returns the response of the last attempt, or throws its failure
+   */
+  private async withRetries<R extends { readonly statusCode: number; readonly headers: Readonly<Record<string, string>> }>(
+    method: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options: SendRequestOptions | undefined,
+    timeout: number | null,
+    deadline: AbortSignal | undefined,
+    attempt: (attemptHeaders: Record<string, string>) => Promise<R>,
+    discard?: (response: R) => Promise<void>
+  ): Promise<R> {
+    const started = performance.now();
+    const callerSignal = options?.signal;
+    const maxRetries = options?.maxRetries ?? this.transportOptions.maxRetries;
+    /* A multipart body (an object of fields, not raw bytes) is never retried:
+     * a repeated upload can write twice, as in the other eleven SDKs. */
+    const multipart =
+      body != null &&
+      typeof body === 'object' &&
+      !ArrayBuffer.isView(body) &&
+      !(body instanceof ArrayBuffer) &&
+      !(body instanceof Blob) &&
+      !(body instanceof BodySource);
+    /* A single-use body has been read by the first attempt and cannot be sent
+     * again: the original answer or failure is what the caller gets. */
+    const spent = body instanceof BodySource && !body.replayable;
+    /* A signal that has already fired cancels the call before any attempt: no request is sent. */
+    if (callerSignal?.aborted) {
+      throw callerSignal.reason;
+    }
+    for (let attemptNumber = 0; ; attemptNumber++) {
+      /* Every retry is a fresh request: the headers are rebuilt from the
+       * caller's, with the authentication headers asked for again. */
+      let attemptHeaders = headers;
+      if (attemptNumber > 0 && options?.refreshAuthHeaders != null) {
+        attemptHeaders = AbstractApiClient.overlayHeaders(headers, await options.refreshAuthHeaders());
+      }
+      let response: R | undefined;
+      let failure: unknown;
+      try {
+        response = await attempt(attemptHeaders);
+      } catch (error) {
+        failure = error;
+      }
+      const finish = (): R => {
+        if (response == null) {
+          throw failure;
+        }
+        return response;
+      };
+      const retryable =
+        response != null
+          ? AbstractApiClient.isRetryableStatus(response.statusCode)
+          : AbstractApiClient.isRetryableFailure(failure, method);
+      if (!retryable || multipart || spent || attemptNumber >= maxRetries) {
+        return finish();
+      }
+      const delay = AbstractApiClient.retryDelayMs(attemptNumber, response?.headers);
+      if (timeout != null && delay >= timeout - (performance.now() - started)) {
+        return finish();
+      }
+      if (response != null && discard != null) {
+        await discard(response);
+        /* The released response can no longer be returned: if the budget ends
+         * during the wait, the call has timed out. */
+        response = undefined;
+        failure = new NetworkTimeoutError('Timed out waiting for the response headers', { requestMethod: method });
+      }
+      await AbstractApiClient.sleep(delay, [deadline, callerSignal]);
+      if (callerSignal?.aborted) {
+        throw callerSignal.reason;
+      }
+      if (deadline?.aborted) {
+        return finish();
+      }
+    }
+  }
+
+  /**
+   * Send an HTTP request and resolve as soon as the response headers are
+   * accepted, with the body unread.
+   *
+   * Everything up to the headers is {@link sendRequest}: the same header merging,
+   * User-Agent and request id, redirects with cross-origin credential stripping,
+   * retries and authentication refresh. The `timeout` covers all of that and
+   * stops at the headers; `idleTimeout` then bounds the gap between two reads of
+   * the body. Nothing is retried after the first body byte. A non-2xx response
+   * is returned like any other, with its body open. The stream counts as a
+   * request in flight until it ends or is closed, and closing the client
+   * cancels it: its next read raises the closed-client error.
+   *
+   * @param method HTTP method
+   * @param url fully qualified URL
+   * @param headers HTTP headers from the caller
+   * @param body request body (serialized JSON string, raw Buffer for binary, a
+   *   `Record<string, unknown>` for multipart form data, or a {@link BodySource}, which is sent
+   *   as it is read and never buffered; may be null)
+   * @param options optional per-call flags and the idle timeout
+   * @returns the status, the lower-cased headers and the open body
+   */
+  async sendStreaming(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options?: SendStreamingOptions
+  ): Promise<ApiStreamResponse> {
+    if (this.closed) {
+      throw new Error(CLOSED_MESSAGE);
+    }
+    this.inFlight++;
+    let finished = false;
+    const life: StreamLife = {
+      controller: new AbortController(),
+      closedByClient: false,
+      armed: false,
+      finish: (): void => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        this.openStreams.delete(life);
+        this.inFlight--;
+        if (this.closed && this.inFlight === 0) {
+          this.releaseTransportOnce().catch(() => undefined);
+        }
+      }
+    };
+    const timeout = options?.timeout !== undefined ? options.timeout : this.transportOptions.timeout;
+    const idleTimeout = options?.idleTimeout !== undefined ? options.idleTimeout : this.transportOptions.idleTimeout;
+    const header = new HeaderDeadline(timeout);
+    let response: ApiStreamResponse;
+    try {
+      response = await this.withRetries(
+        method,
+        headers,
+        body,
+        options,
+        timeout,
+        header.signal,
+        (attemptHeaders) =>
+          this.streamAttempt(method, url, attemptHeaders, body, options, header.signal, life, idleTimeout),
+        (released) => released.close()
+      );
+    } catch (error) {
+      header.stop();
+      life.finish();
+      throw error;
+    }
+    header.stop();
+    /* The client was closed while the headers were awaited: the call was
+     * running, so it was let finish, but a stream is not handed out of a
+     * closed client. */
+    if (this.closed) {
+      await response.close();
+      life.finish();
+      throw new Error(CLOSED_MESSAGE);
+    }
+    life.armed = true;
+    this.openStreams.add(life);
+    return response;
+  }
+
+  /**
+   * One attempt of a streaming call: the header phase, then the body wrapped
+   * with the idle timer, the truncation check and the error mapping.
+   */
+  private async streamAttempt(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options: SendStreamingOptions | undefined,
+    deadline: AbortSignal | undefined,
+    life: StreamLife,
+    idleTimeout: number | null
+  ): Promise<ApiStreamResponse> {
+    const attempt = new AbortController();
+    const signals = [attempt.signal, life.controller.signal];
+    if (deadline != null) {
+      signals.push(deadline);
+    }
+    const response = await this.fetchHeaderPhase(method, url, headers, body, options, signals);
+    const responseHeaders = AbstractApiClient.collectHeaders(response);
+    const contentEncoding = (responseHeaders['content-encoding'] ?? '').trim().toLowerCase();
+    const encoded = contentEncoding !== '' && contentEncoding !== 'identity';
+    const length = Number(responseHeaders['content-length']);
+    /* A body that ends short of its declared length is a truncation, whatever
+     * the transport reports; the length only describes the body as sent, so an
+     * encoded body, which fetch decodes, and one without a body are skipped. */
+    const declaredLength =
+      !encoded &&
+      Number.isInteger(length) &&
+      length >= 0 &&
+      method.toUpperCase() !== 'HEAD' &&
+      response.status !== 204 &&
+      response.status !== 304
+        ? length
+        : null;
+    if (encoded) {
+      /* The body is decoded as it is read, so these no longer describe it. */
+      delete responseHeaders['content-encoding'];
+      delete responseHeaders['content-length'];
+    }
+    return new ApiStreamResponse(
+      response.status,
+      responseHeaders,
+      this.streamBody(response, { method, url, callerSignal: options?.signal, life, attempt, idleTimeout, declaredLength })
+    );
+  }
+
+  /**
+   * The body of a streaming response as the SDK hands it out: read on demand,
+   * with a timer for the gap between two reads, and with every failure mapped
+   * to the SDK's error. Cancelling it aborts the connection.
+   */
+  private streamBody(
+    response: Response,
+    ctx: {
+      readonly method: string;
+      readonly url: string;
+      readonly callerSignal: AbortSignal | undefined;
+      readonly life: StreamLife;
+      readonly attempt: AbortController;
+      readonly idleTimeout: number | null;
+      readonly declaredLength: number | null;
+    }
+  ): ReadableStream<Uint8Array> {
+    const { life, attempt } = ctx;
+    const end = (): void => {
+      if (life.armed) {
+        life.finish();
+      }
+    };
+    const reader = response.body?.getReader();
+    let delivered = 0;
+    return new ReadableStream<Uint8Array>(
+      {
+        pull: async (controller): Promise<void> => {
+          if (life.closedByClient) {
+            throw new Error(CLOSED_MESSAGE);
+          }
+          if (reader == null) {
+            end();
+            controller.close();
+            return;
+          }
+          let idle = false;
+          let result: BodyReadResult;
+          try {
+            result = await AbstractApiClient.readWithIdle(reader, ctx.idleTimeout, () => {
+              idle = true;
+              attempt.abort();
+            });
+          } catch (error) {
+            attempt.abort();
+            end();
+            throw AbstractApiClient.streamFailure(error, idle, response.status, ctx);
+          }
+          if (result.done) {
+            if (ctx.declaredLength != null && delivered < ctx.declaredLength) {
+              attempt.abort();
+              end();
+              throw new StreamError(
+                `The response body ended after ${delivered} of ${ctx.declaredLength} declared bytes`,
+                { requestMethod: ctx.method, requestPath: AbstractApiClient.requestPathOf(ctx.url) }
+              );
+            }
+            end();
+            controller.close();
+            return;
+          }
+          delivered += result.value.byteLength;
+          controller.enqueue(result.value);
+        },
+        cancel: async (): Promise<void> => {
+          /* Aborting drops the connection; draining an endless body never ends. */
+          attempt.abort();
+          await reader?.cancel().catch(() => undefined);
+          end();
+        }
+      },
+      { highWaterMark: 0 }
+    );
+  }
+
+  /**
+   * One read of a body, bounded by the idle timeout: when nothing arrives for
+   * `idleTimeout` milliseconds `onIdle` runs and the read rejects.
+   */
+  private static readWithIdle(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    idleTimeout: number | null,
+    onIdle: () => void
+  ): Promise<BodyReadResult> {
+    if (idleTimeout == null || idleTimeout <= 0) {
+      return reader.read();
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        onIdle();
+        reject(new Error('idle timeout'));
+      }, idleTimeout);
+      reader.read().then(
+        (result) => {
+          clearTimeout(timer);
+          resolve(result);
+        },
+        (error: unknown) => {
+          clearTimeout(timer);
+          reject(error);
+        }
+      );
+    });
+  }
+
+  /**
+   * The error a failed read of a streaming body raises: the closed-client
+   * error when the client was closed under the stream, a network timeout for
+   * an idle stall or a timeout the fetch layer reported, the caller's own
+   * reason for a cancellation, an {@link ApiError} with the real status for a
+   * body that cannot be decoded, and a {@link StreamError} for a reset or a
+   * truncation.
+   */
+  private static streamFailure(
+    error: unknown,
+    idle: boolean,
+    status: number,
+    ctx: {
+      readonly method: string;
+      readonly url: string;
+      readonly callerSignal: AbortSignal | undefined;
+      readonly life: StreamLife;
+      readonly idleTimeout: number | null;
+    }
+  ): unknown {
+    const request = { requestMethod: ctx.method, requestPath: AbstractApiClient.requestPathOf(ctx.url) };
+    if (ctx.life.closedByClient) {
+      return new Error(CLOSED_MESSAGE);
+    }
+    if (idle) {
+      return new NetworkTimeoutError(`No data arrived for ${ctx.idleTimeout} ms while reading the response body`, {
+        cause: error,
+        ...request
+      });
+    }
+    if (AbstractApiClient.isCallerAbort(error, ctx.callerSignal)) {
+      return error;
+    }
+    if (error instanceof ApiError) {
+      return error;
+    }
+    if (AbstractApiClient.isDecodeFailure(error)) {
+      return new ApiError(
+        status,
+        `Failed to decompress the response body: ${error instanceof Error ? error.message : String(error)}`,
+        null,
+        null,
+        null,
+        { cause: error, ...request }
+      );
+    }
+    const mapped = AbstractApiClient.transportError(error, ctx.method, ctx.url);
+    if (mapped instanceof NetworkTimeoutError) {
+      return mapped;
+    }
+    return new StreamError(mapped.message, { cause: error, ...request });
+  }
+
+  /** Errors raised after the response headers arrived: a response did come, so they are never retried. */
+  private static readonly afterResponse = new WeakSet<object>();
+
+  /**
+   * Whether a response status is retried: 408, 409, 429 and every 5xx but 501.
+   *
+   * @param status the response status code
+   * @returns true when the request is worth repeating
+   */
+  private static isRetryableStatus(status: number): boolean {
+    return status === 408 || status === 409 || status === 429 || (status >= 500 && status <= 599 && status !== 501);
+  }
+
+  /** Network errors that are TLS or certificate failures: the same answer comes back on every attempt. */
+  private static readonly tlsFailures = new WeakSet<object>();
+
+  /** Methods that RFC 9110 defines as idempotent (QUERY per the HTTP QUERY draft). */
+  private static readonly idempotentMethods: ReadonlySet<string> = new Set([
+    'GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'
+  ]);
+
+  /**
+   * Whether a failure is a network error that happened before any response,
+   * for a method that may be sent again: not a timeout (the deadline is
+   * spent), not a failure while reading a body, not a TLS or certificate
+   * failure, not any other error, and not a non-idempotent method (a POST
+   * or PATCH whose connection dropped may already have been applied).
+   *
+   * @param failure the value the attempt rejected with
+   * @param method the HTTP method of the request
+   * @returns true when the request is worth repeating
+   */
+  private static isRetryableFailure(failure: unknown, method: string): boolean {
+    return (
+      failure instanceof NetworkError &&
+      !(failure instanceof NetworkTimeoutError) &&
+      !AbstractApiClient.afterResponse.has(failure) &&
+      !AbstractApiClient.tlsFailures.has(failure) &&
+      AbstractApiClient.idempotentMethods.has(method.toUpperCase())
+    );
+  }
+
+  /**
+   * How long to wait before retry number `attempt` (0 for the first retry):
+   * the server's `Retry-After` (seconds or an HTTP date) capped at 60 s, else
+   * 0.5 s doubling to 8 s with up to 25% jitter taken off.
+   *
+   * @param attempt zero-based index of the retry
+   * @param headers the lower-cased headers of the response that failed, if any
+   * @returns the delay in milliseconds
+   */
+  private static retryDelayMs(attempt: number, headers: Readonly<Record<string, string>> | undefined): number {
+    const asked = AbstractApiClient.retryAfterMillis(headers?.['retry-after']);
+    if (asked !== null) {
+      return asked;
+    }
+    return Math.min(500 * 2 ** attempt, 8000) * (1 - 0.25 * Math.random());
+  }
+
+  /**
+   * The wait a `Retry-After` header asks for (seconds or an HTTP date), capped at 60 s.
+   *
+   * @param value the header value, if any
+   * @returns the wait in milliseconds, or null when there is no usable value
+   */
+  static retryAfterMillis(value: string | undefined): number | null {
+    const retryAfter = value?.trim();
+    if (retryAfter == null || retryAfter.length === 0) {
+      return null;
+    }
+    const waitMs = /^\d+(\.\d+)?$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now();
+    return Number.isFinite(waitMs) ? Math.min(Math.max(waitMs, 0), 60_000) : null;
+  }
+
+  /**
+   * Wait for `ms` milliseconds, or less when one of the signals fires.
+   *
+   * @param ms how long to wait
+   * @param signals cancellation signals to stop waiting on; absent ones are skipped
+   */
+  private static sleep(ms: number, signals: ReadonlyArray<AbortSignal | undefined>): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const live = signals.filter((signal): signal is AbortSignal => signal != null);
+      const signal = live.length > 0 ? AbortSignal.any(live) : undefined;
+      if (signal?.aborted) {
+        resolve();
+        return;
+      }
+      const onAbort = (): void => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+
+  /**
+   * Copy `base` with every header of `layer` added, a header of any case in
+   * `base` being replaced by the one in `layer` of the same name.
+   *
+   * @param base the headers to start from
+   * @param layer the headers that win
+   * @returns a new header map
+   */
+  private static overlayHeaders(
+    base: Readonly<Record<string, string>>,
+    layer: Readonly<Record<string, string>>
+  ): Record<string, string> {
+    const names = new Set(Object.keys(layer).map((key) => key.toLowerCase()));
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(base)) {
+      if (!names.has(key.toLowerCase())) out[key] = value;
+    }
+    return Object.assign(out, layer);
+  }
+
+  /**
+   * Send one attempt of a request: header merging, body encoding, the redirect
+   * loop and the response read. {@link sendRequest} repeats it when a retry is due.
+   *
+   * @param method HTTP method
+   * @param url fully qualified URL
+   * @param headers HTTP headers for this attempt
+   * @param body request body
+   * @param options optional per-call flags
+   * @param deadline the single end-to-end timeout signal, or undefined for none
+   * @returns ApiHttpResponse containing status code, body, and headers
+   */
+  private async sendOnce(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options: SendRequestOptions | undefined,
+    deadline: AbortSignal | undefined
+  ): Promise<ApiHttpResponse> {
+    const callerSignal = options?.signal;
+    const response = await this.fetchHeaderPhase(
+      method,
+      url,
+      headers,
+      body,
+      options,
+      deadline != null ? [deadline] : []
+    );
+
+    /* Wrap the post-headers body read in the SDK's transport error type.
+     * A connection reset / read-timeout / truncated-chunked failure that
+     * occurs AFTER response headers are received surfaces as the same
+     * NetworkError (statusCode 0, underlying cause preserved) as a
+     * send-phase failure. A body that arrived but cannot be decompressed is
+     * a response that could not be used: an ApiError carrying the
+     * response's real status. */
+    let responseBytes: Buffer;
+    const contentEncoding = (response.headers.get('content-encoding') ?? '')
+      .trim()
+      .toLowerCase();
+    const maxResponseBytes = this.transportOptions.maxResponseBytes;
+    const tooLarge = (): ResponseTooLargeError =>
+      new ResponseTooLargeError(maxResponseBytes ?? 0, response.status, AbstractApiClient.collectHeaders(response), {
+        requestMethod: method,
+        requestPath: AbstractApiClient.requestPathOf(url)
+      });
+    try {
+      responseBytes =
+        maxResponseBytes == null
+          ? Buffer.from(await response.arrayBuffer())
+          : await AbstractApiClient.readLimited(response, method, maxResponseBytes, tooLarge);
+      /* Gap AL: a server may advertise `Content-Encoding: gzip` (etc.) but
+       * send a body that is not a valid stream for that codec (a truncated
+       * or non-gzip payload). The fetch layer decodes Content-Encoding
+       * transparently and throws on a malformed stream -- that throw is
+       * caught above. But when it did NOT decode (the body still carries
+       * the codec's signature bytes), passing those raw bytes straight
+       * through would silently hand the caller corrupt/undecoded data. Decode
+       * the declared encoding ourselves in that case and surface any failure
+       * as the SDK's own ApiError, so a Content-Encoding lie can never leak
+       * corrupted bytes -- matching java/python/ruby/go/php/rust/elixir which
+       * wrap the decompression failure rather than crashing or passing it on. */
+      responseBytes = await AbstractApiClient.ensureDecoded(
+        responseBytes,
+        contentEncoding,
+        response.status,
+        AbstractApiClient.collectHeaders(response),
+        maxResponseBytes == null ? undefined : { limit: maxResponseBytes, tooLarge }
+      );
+    } catch (error) {
+      if (AbstractApiClient.isCallerAbort(error, callerSignal)) {
+        throw error;
+      }
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      if (AbstractApiClient.isDecodeFailure(error)) {
+        throw new ApiError(
+          response.status,
+          'Failed to decompress '
+            + (response.headers.get('content-encoding') ?? '')
+            + ' response body: '
+            + (error instanceof Error ? error.message : String(error)),
+          AbstractApiClient.collectHeaders(response),
+          null,
+          null,
+          { cause: error }
+        );
+      }
+      const bodyError = AbstractApiClient.transportError(error, method, url);
+      AbstractApiClient.afterResponse.add(bodyError);
+      throw bodyError;
+    }
+    const contentType = response.headers.get('content-type') ?? '';
+    const responseBody = AbstractApiClient.textOrBase64(responseBytes, contentType);
+
+    /**
+     * Gap BE+BF: response header keys are normalised to lowercase so callers
+     * can look them up consistently regardless of the casing the server used
+     * (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+     * HTTP/2 mandates lowercase on the wire). Repeated header lines (for
+     * example multiple Link or Set-Cookie headers) are joined with ", " to
+     * preserve order per RFC 7230 section 3.2.2. The fetch Headers object
+     * already lowercases keys and joins comma-separable fields. Set-Cookie
+     * is exposed via `getSetCookie()`; the joined form is not directly
+     * parseable, so callers that need structured cookie access should
+     * either parse `set-cookie` themselves or use `response.headers.getSetCookie()`.
+     */
+    const responseHeaders = AbstractApiClient.collectHeaders(response);
+    if (contentEncoding !== '' && contentEncoding !== 'identity') {
+      /* The body returned above is decoded, so the encoding and the length
+       * of the encoded bytes no longer describe it; the caller never sees
+       * the encoded form, so neither header is returned. */
+      delete responseHeaders['content-encoding'];
+      delete responseHeaders['content-length'];
+    }
+
+    return {
+      statusCode: response.status,
+      body: responseBody,
+      headers: responseHeaders
+    };
+  }
+
+  /**
+   * The header phase of one attempt, shared by the buffered and the streaming
+   * call: header merging, User-Agent and request id, body encoding and the
+   * redirect loop. It stops when the response headers of the final hop are
+   * accepted, with the body unread.
+   *
+   * @param method HTTP method
+   * @param url fully qualified URL
+   * @param headers HTTP headers for this attempt
+   * @param body request body
+   * @param options optional per-call flags
+   * @param extraSignals signals that abort the request besides the caller's own
+   * @returns the response of the final hop
+   */
+  private async fetchHeaderPhase(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options: SendRequestOptions | undefined,
+    extraSignals: readonly AbortSignal[]
+  ): Promise<Response> {
+    /* Every opening of a request body source is released when the header
+     * phase ends, however it ends; a single-use body never closes the
+     * caller's stream. */
+    const opened: OpenedBody[] = [];
+    try {
+      return await this.fetchHeadersOnce(method, url, headers, body, options, extraSignals, opened);
+    } finally {
+      for (const open of opened) {
+        await open.close();
+      }
+    }
+  }
+
+  /**
+   * The body of {@link fetchHeaderPhase}.
+   *
+   * @param opened collects every opening of a {@link BodySource} body, for the caller to release
+   */
+  private async fetchHeadersOnce(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options: SendRequestOptions | undefined,
+    extraSignals: readonly AbortSignal[],
+    opened: OpenedBody[]
+  ): Promise<Response> {
+    if (body instanceof Blob) {
+      body = Buffer.from(await body.arrayBuffer());
+    }
+
+    /* Binary views and raw buffers are normalised to a Buffer. */
+    if (ArrayBuffer.isView(body) && !Buffer.isBuffer(body)) {
+      const view = body as unknown as ArrayBufferView;
+      body = Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+    } else if (body instanceof ArrayBuffer) {
+      body = Buffer.from(body);
+    }
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header replaces a default of the same name whatever the case, so one
+     * value goes on the wire, never two. */
+    const callerNames = new Set(Object.keys(headers).map((key) => key.toLowerCase()));
+    const mergedHeaders: Record<string, string> = {};
+    const defaultHeaders = options?.noDefaultHeaders === true ? {} : this.transportOptions.defaultHeaders;
+    for (const [key, value] of Object.entries(defaultHeaders)) {
+      if (!callerNames.has(key.toLowerCase())) mergedHeaders[key] = value;
+    }
+    Object.assign(mergedHeaders, headers);
+
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header in any case, even with an empty value, wins and is left exactly
+     * as written; nothing is injected next to it. */
+    const hasHeader = (name: string): boolean => {
+      const wanted = name.toLowerCase();
+      return Object.keys(mergedHeaders).some((key) => key.toLowerCase() === wanted);
+    };
+    if (this.transportOptions.userAgent != null && !hasHeader('User-Agent')) {
+      mergedHeaders['User-Agent'] = this.transportOptions.userAgent;
+    }
+    if (this.transportOptions.injectRequestId && !hasHeader('X-Request-ID')) {
+      mergedHeaders['X-Request-ID'] = globalThis.crypto.randomUUID();
+    }
+
+    if (!hasHeader('Accept-Encoding')) {
+      mergedHeaders['Accept-Encoding'] = this.supportedEncodings();
+    }
+
+    if (typeof body === 'string' && !hasHeader('Content-Type')) {
+      mergedHeaders['Content-Type'] = 'application/json';
+    }
+
+    /* What fetch is given as the body: the bytes or the stream a BodySource
+     * opened, or the request body itself. A streamed body is read as it is
+     * sent, with Content-Length when the length is known and chunked when not. */
+    let wireBody: unknown = body;
+    const openSource = async (
+      source: BodySource,
+      target: Record<string, string>
+    ): Promise<Uint8Array | ReadableStream<Uint8Array>> => {
+      const open = await source.open();
+      opened.push(open);
+      for (const key of Object.keys(target)) {
+        if (key.toLowerCase() === 'content-length') delete target[key];
+      }
+      if (open.length !== null) {
+        target['Content-Length'] = String(open.length);
+      }
+      return open.content;
+    };
+
+    if (body != null && typeof body === 'object' && !Buffer.isBuffer(body) && !(body instanceof BodySource)) {
+      const boundary = globalThis.crypto.randomUUID();
+      /* The declared multipart subtype (form-data, mixed, related, ...) is
+       * kept; only the boundary is the SDK's own. */
+      const declaredType = Object.entries(mergedHeaders).find(([key]) => key.toLowerCase() === 'content-type')?.[1];
+      const subtype = /^multipart\/([\w!#$&.+\-^_]+)\s*(;|$)/i.exec(declaredType ?? '')?.[1] ?? 'form-data';
+      for (const key of Object.keys(mergedHeaders)) {
+        if (key.toLowerCase() === 'content-type') delete mergedHeaders[key];
+      }
+      mergedHeaders['Content-Type'] = `multipart/${subtype}; boundary=${boundary}`;
+      body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
+      wireBody = body;
+    } else if (body instanceof BodySource) {
+      wireBody = await openSource(body, mergedHeaders);
+    } else if (body == null) {
+      for (const key of Object.keys(mergedHeaders)) {
+        if (key.toLowerCase() === 'content-type') delete mergedHeaders[key];
+      }
+      /* Some servers / WAFs treat POST/PUT/PATCH with no body and no
+       * Content-Length as malformed (411 Length Required) or behave
+       * inconsistently. Set Content-Length: 0 explicitly on body-bearing
+       * verbs to match Kotlin's `ByteArray(0)` and the other 11 SDKs. */
+      const upperMethod = method.toUpperCase();
+      if (upperMethod === 'POST' || upperMethod === 'PUT' || upperMethod === 'PATCH') {
+        mergedHeaders['Content-Length'] = '0';
+      }
+    }
+
+    /* Gap BH: automatic redirect following re-sends Authorization / Cookie /
+     * Proxy-Authorization across cross-origin 3xx redirects by default, which
+     * leaks bearer tokens to attacker-controlled hosts via malicious 302. We
+     * disable automatic redirect following (redirect: 'manual') and follow
+     * Location: headers ourselves below, stripping the sensitive headers when
+     * the next URL's origin (scheme + host + port) differs from the original. */
+    const fetchOptions: Record<string, unknown> = {
+      method,
+      headers: mergedHeaders,
+      body: wireBody ?? undefined,
+      redirect: 'manual'
+    };
+    if (wireBody instanceof ReadableStream) {
+      fetchOptions.duplex = 'half';
+    }
+
+    /* Caller-supplied fetch options sit under the SDK's own: the method,
+     * headers, body, redirect policy, timeout and signal set here always win. */
+    const injectedFetch = this.transportOptions.fetch;
+    const doFetch: typeof fetch = injectedFetch ?? fetch;
+    if (this.transportOptions.fetchOptions != null) {
+      Object.assign(fetchOptions, { ...this.transportOptions.fetchOptions, ...fetchOptions });
+    }
+
+    /* The timeout and the caller's cancellation signal are merged: either one
+     * aborts the request. A timeout surfaces as NetworkTimeoutError, a
+     * cancellation as the signal's own reason (an AbortError by default). */
+    const signals: AbortSignal[] = [...extraSignals];
+    const callerSignal = options?.signal;
+    if (callerSignal != null) {
+      signals.push(callerSignal);
+    }
+    if (signals.length > 0) {
+      fetchOptions.signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+    }
+
+    const dispatcher = await this.getDispatcher();
+    if (dispatcher && injectedFetch == null) {
+      fetchOptions.dispatcher = dispatcher;
+    }
+
+    /* A malformed request URL or a header value fetch refuses is a caller
+     * mistake. fetch reports both as a TypeError, the same type it uses for
+     * a failed connection, so check them here and let the TypeError escape
+     * before the transport handler below could mistake it for a
+     * NetworkError. */
+    new URL(url);
+    new Headers(mergedHeaders);
+
+    let response: Response;
+    let currentUrl = url;
+    const originalUrl = url;
+    try {
+      /* A signal already aborted before the request starts is raised as is,
+       * without handing the transport a request that can never settle. */
+      const preAborted = fetchOptions.signal as AbortSignal | undefined;
+      if (preAborted?.aborted) {
+        throw preAborted.reason;
+      }
+      response = await doFetch(url, fetchOptions as Parameters<typeof fetch>[1]);
+      /* A secret can ride in a header the fixed list does not know: one the
+       * SDK attached from an authenticator or from default headers. Those
+       * names are tracked by origin and are never sent to another origin. */
+      const attachedCredentialNames = new Set<string>(
+        [
+          ...Object.keys(this.transportOptions.defaultHeaders),
+          ...(options?.credentialHeaderNames ?? [])
+        ].map((name) => name.toLowerCase())
+      );
+      const noRedirect = options?.noRedirect === true;
+      if (this.transportOptions.followRedirects && !noRedirect) {
+        const maxRedirects = this.transportOptions.maxRedirects ?? 20;
+        let hops = 0;
+        let currentMethod = method;
+        let currentBody: unknown = body;
+        let currentHeaders: Record<string, string> = { ...mergedHeaders };
+        while (
+          hops < maxRedirects &&
+          AbstractApiClient.isRedirectStatus(response.status)
+        ) {
+          const location = response.headers.get('location');
+          if (location == null || location.length === 0) break;
+          /* An unusable Location (one the RFC 3986 resolver rejects, such as
+           * `http://[bad`) is treated exactly like a missing one: stop and
+           * return the 3xx untouched, body included. It is resolved before
+           * the body is cancelled for that reason. */
+          let nextParsed: URL;
+          try {
+            nextParsed = new URL(location, currentUrl);
+          } catch {
+            break;
+          }
+          const nextUrl = nextParsed.toString();
+          /* The 3xx body is never read. Cancel it before anything below can
+           * throw or replace `response`, so undici returns the connection to
+           * the pool instead of holding it until the body is garbage
+           * collected. */
+          AbstractApiClient.discardBody(response);
+          /* T-D3: a Location pointing at a non-HTTP(S) scheme
+           * (file:, javascript:, data:, ...) must be refused loudly,
+           * never silently surfaced as the 3xx response. Throw a typed
+           * ApiError so callers see the offending URL. */
+          if (nextParsed.protocol !== 'http:' && nextParsed.protocol !== 'https:') {
+            throw new ApiError(
+              response.status,
+              `Refusing to follow redirect to non-HTTP(S) URL: ${AbstractApiClient.redactUrl(nextUrl)}`,
+              AbstractApiClient.collectHeaders(response),
+              null,
+              null
+            );
+          }
+          const crossOrigin = !AbstractApiClient.sameOrigin(originalUrl, nextUrl);
+
+          /* Gap T3: pick follow-up method+body per RFC 9110 section 15.4.
+           *   307 + 308: preserve original method and body.
+           *   303:       every method except HEAD becomes GET, body dropped.
+           *   301 + 302: only POST becomes GET (body dropped); every other
+           *              method keeps its method and body. */
+          const statusCode = response.status;
+          let nextMethod: string;
+          let nextBody: unknown;
+          const methodUpper = currentMethod.toUpperCase();
+          if (statusCode === 303) {
+            if (methodUpper === 'HEAD') {
+              nextMethod = currentMethod;
+            } else {
+              nextMethod = 'GET';
+            }
+            nextBody = undefined;
+          } else if ((statusCode === 301 || statusCode === 302) && methodUpper === 'POST') {
+            nextMethod = 'GET';
+            nextBody = undefined;
+          } else {
+            nextMethod = currentMethod;
+            nextBody = currentBody;
+          }
+
+          /* A single-use body was read by the request that was just answered:
+           * it is never buffered to be sent again. */
+          if (nextBody instanceof BodySource && !nextBody.replayable) {
+            throw new ApiError(
+              response.status,
+              'Refusing to replay a streamed request body',
+              AbstractApiClient.collectHeaders(response),
+              null,
+              null
+            );
+          }
+
+          /* Gap 3.3: refuse to replay a request body across a transport
+           * downgrade (HTTPS -> HTTP). Replaying the body in cleartext
+           * after the original request was sent over TLS leaks whatever
+           * the caller trusted to TLS to protect (credentials, PII,
+           * signed tokens). Only 303 leaves the body behind: it coerces the
+           * follow-up to a bodyless GET. 301, 302, 307 and 308 would carry
+           * the body onto the http:// target, so a body on any of them is
+           * refused. The body is checked as sent (currentBody), not as the
+           * follow-up (nextBody), because a POST's body is dropped on 301/302. */
+          const currentProto = new URL(currentUrl).protocol;
+          if (
+            statusCode !== 303 &&
+            currentBody !== undefined &&
+            currentBody !== null &&
+            currentProto === 'https:' &&
+            nextParsed.protocol === 'http:'
+          ) {
+            throw new ApiError(
+              response.status,
+              'Refusing to replay request body across HTTPS->HTTP redirect: '
+                + `${AbstractApiClient.redactUrl(currentUrl)} -> ${AbstractApiClient.redactUrl(nextUrl)}`,
+              AbstractApiClient.collectHeaders(response),
+              null,
+              null
+            );
+          }
+
+          const redirectHeaders: Record<string, string> = {};
+          for (const [k, v] of Object.entries(currentHeaders)) {
+            if (crossOrigin && (SENSITIVE_HEADER_NAMES.has(k.toLowerCase()) || attachedCredentialNames.has(k.toLowerCase()))) {
+              continue;
+            }
+            if (nextBody === undefined
+                && (k.toLowerCase() === 'content-type'
+                    || k.toLowerCase() === 'content-length')) {
+              continue;
+            }
+            redirectHeaders[k] = v;
+          }
+          const nextWire = nextBody instanceof BodySource ? await openSource(nextBody, redirectHeaders) : nextBody;
+          const redirectOptions: Record<string, unknown> = {
+            ...fetchOptions,
+            method: nextMethod,
+            headers: redirectHeaders,
+            body: nextWire
+          };
+          if (nextWire instanceof ReadableStream) {
+            redirectOptions.duplex = 'half';
+          } else {
+            delete redirectOptions.duplex;
+          }
+          currentUrl = nextUrl;
+          currentMethod = nextMethod;
+          currentBody = nextBody;
+          currentHeaders = redirectHeaders;
+          response = await doFetch(nextUrl, redirectOptions as Parameters<typeof fetch>[1]);
+          hops++;
+        }
+        /* T-D1: exhausting the redirect budget must fail loudly. The
+         * other SDKs throw "too many redirects" rather than silently
+         * returning the final 3xx as if it were a normal response. */
+        const exhaustedLocation = response.headers.get('location');
+        if (
+          hops >= maxRedirects &&
+          AbstractApiClient.isRedirectStatus(response.status) &&
+          exhaustedLocation != null &&
+          exhaustedLocation.length > 0
+        ) {
+          AbstractApiClient.discardBody(response);
+          throw new ApiError(
+            response.status,
+            `Too many redirects (exceeded ${maxRedirects})`,
+            AbstractApiClient.collectHeaders(response),
+            null,
+            null
+          );
+        }
+      }
+    } catch (error) {
+      /* A cancellation the caller asked for is raised as is (an AbortError by
+       * default), never as a timeout or a network failure. */
+      if (AbstractApiClient.isCallerAbort(error, callerSignal)) {
+        throw error;
+      }
+      /* ApiError already carries the response's status + message
+       * (e.g. the HTTPS -> HTTP downgrade refusal). Propagate it
+       * unchanged so callers can match on the original cause. */
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw AbstractApiClient.transportError(error, method, url);
+    }
+
+    return response;
+  }
+
+  /**
+   * Read a buffered body with a byte limit (D138). A declared `Content-Length`
+   * over the limit fails before any byte is read; otherwise the body is read
+   * chunk by chunk and the read stops as soon as the running count passes the
+   * limit. The fetch layer decodes a compressed body as it is read, so the
+   * chunks are the decompressed bytes and an inflating body is cut off after
+   * at most one chunk past the limit. On failure the body is cancelled, which
+   * drops the connection instead of draining it.
+   *
+   * @param response the response whose body is read
+   * @param method the HTTP method of the request
+   * @param limit the largest body in bytes
+   * @param tooLarge builds the error raised when the body passes the limit
+   * @returns the body bytes
+   */
+  private static async readLimited(
+    response: Response,
+    method: string,
+    limit: number,
+    tooLarge: () => ResponseTooLargeError
+  ): Promise<Buffer> {
+    const declared = Number(response.headers.get('content-length'));
+    const hasBody = method.toUpperCase() !== 'HEAD' && response.status !== 204 && response.status !== 304;
+    if (hasBody && Number.isInteger(declared) && declared > limit) {
+      AbstractApiClient.discardBody(response);
+      throw tooLarge();
+    }
+    return AbstractApiClient.readStreamLimited(response.body, limit, tooLarge);
+  }
+
+  /**
+   * Collect a byte stream, failing as soon as the running count passes the
+   * limit; the stream is cancelled then, so nothing past the limit is read or
+   * decompressed.
+   *
+   * @param stream the stream to collect, or null for an empty body
+   * @param limit the largest total in bytes
+   * @param tooLarge builds the error raised when the total passes the limit
+   * @returns the collected bytes
+   */
+  private static async readStreamLimited(
+    stream: ReadableStream<Uint8Array> | null,
+    limit: number,
+    tooLarge: () => ResponseTooLargeError
+  ): Promise<Buffer> {
+    if (stream == null) {
+      return Buffer.alloc(0);
+    }
+    const reader = stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      total += value.byteLength;
+      if (total > limit) {
+        reader.cancel().catch(() => undefined);
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks, total);
+  }
+
+  /** The response headers as a lower-cased map, with Set-Cookie joined from getSetCookie(). */
+  static collectHeaders(response: Response): Record<string, string> {
+    const responseHeaders: Record<string, string> = {};
+    const headersWithCookies = response.headers as Headers & {
+      getSetCookie?: () => string[];
+    };
+    response.headers.forEach((value, key) => {
+      responseHeaders[key.toLowerCase()] = value;
+    });
+    if (typeof headersWithCookies.getSetCookie === 'function') {
+      const cookies = headersWithCookies.getSetCookie();
+      if (cookies.length > 0) {
+        responseHeaders['set-cookie'] = cookies.join(', ');
+      }
+    }
+
+    return responseHeaders;
+  }
+
+  /**
+   * Defend against a `Content-Encoding` lie (Gap AL).
+   *
+   * The fetch layer decodes the declared `Content-Encoding` transparently and
+   * throws on a malformed stream, so in the common case `buf` is already the
+   * decoded plaintext and the declared codec's signature bytes are gone. When
+   * the fetch layer did NOT decode -- the bytes still carry the codec signature
+   * (e.g. the gzip magic `0x1F 0x8B`) -- handing them to the caller untouched
+   * would silently surface corrupt, undecoded bytes. In that case we decode the
+   * gzip stream ourselves with the Web-standard `DecompressionStream` (so
+   * the guard runs on every runtime) and surface any failure as an
+   * {@link ApiError}. Bodies whose declared codec was already decoded (no
+   * signature bytes remain) and bodies with no/identity `Content-Encoding` pass
+   * through unchanged.
+   *
+   * @param buf the raw response bytes as read from the body
+   * @param contentEncoding the lower-cased `Content-Encoding` header value
+   * @param statusCode the status of the response the bytes arrived with
+   * @param responseHeaders the lower-cased response headers, for the error
+   * @param cap the `maxResponseBytes` limit on the decoded bytes and the error
+   *   raised when they pass it, or undefined for no limit
+   * @returns the decoded bytes (or `buf` unchanged when no decode is needed)
+   * @throws ApiError carrying `statusCode` when the declared encoding cannot
+   *   be decoded
+   */
+  /**
+   * Decodes one zstd frame. The Node transport installs it from `node:zlib`; the
+   * portable base leaves it null, which also keeps `zstd` out of the supported codings.
+   */
+  static zstdDecoder: ((buf: Buffer, maxOutputLength?: number) => Promise<Buffer>) | null = null;
+
+  static async ensureDecoded(
+    buf: Buffer,
+    contentEncoding: string,
+    statusCode = 0,
+    responseHeaders: Record<string, string> | null = null,
+    cap?: { readonly limit: number; readonly tooLarge: () => ApiError }
+  ): Promise<Buffer> {
+    /* The decoded bytes are capped like the received ones: decompression is
+     * read chunk by chunk and stops as soon as the output passes the limit. */
+    const collect = async (stream: ReadableStream<Uint8Array>): Promise<Buffer> => {
+      if (cap == null) {
+        return Buffer.from(await new Response(stream).arrayBuffer());
+      }
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        total += value.byteLength;
+        if (total > cap.limit) {
+          reader.cancel().catch(() => undefined);
+          throw cap.tooLarge();
+        }
+        chunks.push(value);
+      }
+      return Buffer.concat(chunks, total);
+    };
+    if (
+      contentEncoding === '' ||
+      contentEncoding === 'identity'
+    ) {
+      return buf;
+    }
+    /* Refuse any coding the SDK cannot decode rather than handing the caller
+     * bytes still in that encoding. Every token of a comma list must be one of
+     * the codings the SDK advertises or the identity coding. */
+    const supportedCodings = [
+      'identity',
+      'gzip',
+      'x-gzip',
+      'deflate',
+      'br',
+      ...(AbstractApiClient.zstdDecoder != null ? ['zstd'] : []),
+    ];
+    const unsupported = contentEncoding
+      .split(',')
+      .map(token => token.trim())
+      .some(token => token !== '' && !supportedCodings.includes(token));
+    if (unsupported) {
+      throw new ApiError(
+        statusCode,
+        `Unsupported Content-Encoding '${contentEncoding}'`,
+        responseHeaders,
+        null,
+        null
+      );
+    }
+    /* Only the first declared coding can still be on the wire; a comma list
+     * (e.g. "gzip, br") is decoded outer-first by the fetch layer, so inspect
+     * the last (outermost) token that remains. We only act when the bytes still
+     * carry a codec signature, which means the fetch layer left them encoded. */
+    if (contentEncoding === 'gzip' || contentEncoding === 'x-gzip') {
+      /* gzip magic: 0x1F 0x8B. Absent => already decoded by the fetch layer => leave. */
+      if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+        try {
+          const stream = new Blob([buf])
+            .stream()
+            .pipeThrough(new DecompressionStream('gzip'));
+          return await collect(stream);
+        } catch (error) {
+          if (error instanceof ApiError) {
+            throw error;
+          }
+          throw new ApiError(
+            statusCode,
+            `Failed to decompress ${contentEncoding} response body: `
+              + (error instanceof Error ? error.message : String(error)),
+            responseHeaders,
+            null,
+            null,
+            { cause: error }
+          );
+        }
+      }
+    }
+    /* deflate is a zlib stream: CMF low nibble 8 and CMF*256+FLG divisible by 31. */
+    if (contentEncoding === 'deflate') {
+      if (buf.length >= 2 && (buf[0]! & 0x0f) === 8 && ((buf[0]! << 8) | buf[1]!) % 31 === 0) {
+        try {
+          const stream = new Blob([buf])
+            .stream()
+            .pipeThrough(new DecompressionStream('deflate'));
+          return await collect(stream);
+        } catch (error) {
+          if (error instanceof ApiError) {
+            throw error;
+          }
+          throw new ApiError(
+            statusCode,
+            'Failed to decompress deflate response body: '
+              + (error instanceof Error ? error.message : String(error)),
+            responseHeaders,
+            null,
+            null,
+            { cause: error }
+          );
+        }
+      }
+    }
+    /* zstd frame magic 0x28 0xB5 0x2F 0xFD. Decoded only when the platform decoder is wired. */
+    if (contentEncoding === 'zstd' && AbstractApiClient.zstdDecoder != null) {
+      if (buf.length >= 4 && buf[0] === 0x28 && buf[1] === 0xb5 && buf[2] === 0x2f && buf[3] === 0xfd) {
+        let decoded: Buffer;
+        try {
+          /* One byte past the limit is enough to know it was passed; the
+           * decoder stops there instead of inflating the whole frame. */
+          decoded = await AbstractApiClient.zstdDecoder(buf, cap == null ? undefined : cap.limit + 1);
+        } catch (error) {
+          if (cap != null && (error as { code?: unknown } | null)?.code === 'ERR_BUFFER_TOO_LARGE') {
+            throw cap.tooLarge();
+          }
+          throw new ApiError(
+            statusCode,
+            'Failed to decompress zstd response body: '
+              + (error instanceof Error ? error.message : String(error)),
+            responseHeaders,
+            null,
+            null,
+            { cause: error }
+          );
+        }
+        if (cap != null && decoded.length > cap.limit) {
+          throw cap.tooLarge();
+        }
+        return decoded;
+      }
+    }
+    return buf;
+  }
+
+  /**
+   * Build a multipart/form-data request body from a map of form fields.
+   *
+   * @param formParts the form field names and values
+   * @param boundary the multipart boundary string
+   * @returns the assembled multipart body as a Buffer
+   */
+  private async buildMultipartBody(formParts: Record<string, unknown>, boundary: string): Promise<Buffer> {
+    const parts: Buffer[] = [];
+    for (const [name, field] of Object.entries(formParts)) {
+      /* A part with a declared Content-Type or part headers (D166) arrives
+       * wrapped; a list applies the encoding to each item. */
+      const encoding = field instanceof EncodedPart ? field : null;
+      const rawValue: unknown = EncodedPart.unwrap(field);
+      /* allowReserved has no effect on a multipart body: a wrapped field is
+       * unwrapped and sent unchanged. */
+      const value: unknown = rawValue instanceof AllowReservedValue ? rawValue.value : rawValue;
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          parts.push(await this.multipartPart(name, item, boundary, encoding));
+        }
+      } else {
+        parts.push(await this.multipartPart(name, value, boundary, encoding));
+      }
+    }
+    parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
+    return Buffer.concat(parts);
+  }
+
+  /**
+   * Build a single multipart part.
+   *
+   * @param name the field name
+   * @param value the field value
+   * @param boundary the multipart boundary string
+   * @param encoding the part Content-Type and headers the field's Encoding
+   *   Object declares, or null
+   * @returns the assembled part as a Buffer
+   */
+  private async multipartPart(
+    name: string,
+    value: unknown,
+    boundary: string,
+    encoding: EncodedPart | null = null
+  ): Promise<Buffer> {
+    if (Buffer.isBuffer(value)) {
+      const disposition = AbstractApiClient.buildContentDisposition(name, name);
+      const mimeType = AbstractApiClient.mimeTypeForFilename(name);
+      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\n${AbstractApiClient.partHeaders(mimeType, encoding)}\r\n`;
+      return Buffer.concat([Buffer.from(header, 'utf-8'), value, Buffer.from('\r\n', 'utf-8')]);
+    }
+    if (value instanceof Blob) {
+      const buf = Buffer.from(await value.arrayBuffer());
+      const filename = (value as Blob & { name?: string }).name ?? name;
+      const disposition = AbstractApiClient.buildContentDisposition(name, filename);
+      const mimeType = value.type && value.type.length > 0
+        ? value.type
+        : AbstractApiClient.mimeTypeForFilename(filename);
+      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\n${AbstractApiClient.partHeaders(mimeType, encoding)}\r\n`;
+      return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
+    }
+    /* A date, date-time, time or duration is a primitive in the schema, so
+     * it is a plain text part in its canonical stringify form; only a
+     * model, map or array is a JSON part. */
+    const isScalarObject = value instanceof Date || isTemporalValue(value);
+    if (typeof value === 'object' && value !== null && !isScalarObject) {
+      AbstractApiClient.assertNoControlChars(name, 'multipart field name');
+      const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      /*
+       * Serialize the JSON part through ObjectSerializer rather than raw
+       * JSON.stringify so the custom replacer (Date -> local-offset
+       * date-time, Buffer -> base64, Temporal -> protobuf-JSON,
+       * null-stripping) is applied — matching the JSON body path in
+       * base-api and the other 11 SDKs. Raw JSON.stringify would emit
+       * Date.toJSON() (UTC `...Z`), `{ type: 'Buffer', data: [...] }` for
+       * byte fields and the polyfill's internal object for Temporal types,
+       * all corrupt on the wire.
+       */
+      const json = ObjectSerializer.serialize(value);
+      return Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n${AbstractApiClient.partHeaders('application/json', encoding)}\r\n${json}\r\n`,
+        'utf-8'
+      );
+    }
+    AbstractApiClient.assertNoControlChars(name, 'multipart field name');
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n${AbstractApiClient.partHeaders(null, encoding)}\r\n${ObjectSerializer.stringify(value)}\r\n`,
+      'utf-8'
+    );
+  }
+
+  /**
+   * The header lines of a multipart part after its Content-Disposition, each
+   * ending in CRLF: the Content-Type (the one the Encoding Object declares in
+   * place of the one the SDK chose; none for a plain text part without one),
+   * then each declared part header as `Name: value` in declaration order.
+   *
+   * @param chosenType the Content-Type the SDK chose for the part, or null
+   * @param encoding the field's declared part encoding, or null
+   * @returns the header lines
+   * @throws TypeError when a declared header holds a control character
+   */
+  private static partHeaders(chosenType: string | null, encoding: EncodedPart | null): string {
+    const contentType = encoding?.contentType ?? chosenType;
+    let lines = '';
+    if (contentType != null) {
+      AbstractApiClient.assertNoControlChars(contentType, 'multipart part Content-Type');
+      lines += `Content-Type: ${contentType}\r\n`;
+    }
+    for (const [headerName, headerValue] of encoding?.headers ?? []) {
+      AbstractApiClient.assertNoControlChars(headerName, 'multipart part header name');
+      AbstractApiClient.assertNoControlChars(headerValue, 'multipart part header value');
+      lines += `${headerName}: ${headerValue}\r\n`;
+    }
+    return lines;
+  }
+
+  /**
+   * Decode response bytes using the charset declared in the
+   * `Content-Type` header. Defaults to UTF-8 when no charset is
+   * present, and falls back to UTF-8 if the declared charset is not
+   * recognised by the runtime's `TextDecoder`.
+   *
+   * A bare `utf-16`/`utf16` label (no explicit byte order) is decoded as
+   * big-endian. Node's `TextDecoder` maps the WHATWG `'utf-16'` label to
+   * little-endian, but for an HTTP client resolving the IANA/MIME charset
+   * `UTF-16`, RFC 2781 specifies big-endian as the default when no BOM is
+   * present. A leading BOM is still honoured by `TextDecoder` and overrides
+   * the byte order; explicit `utf-16le`/`utf-16be` labels are left untouched.
+   *
+   * @param buf the raw response bytes
+   * @param contentType the response Content-Type header value
+   * @returns the decoded text
+   */
+  static decodeBody(buf: Buffer, contentType?: string): string {
+    const m = /charset=([^;]+)/i.exec(contentType ?? '');
+    let cs = m ? m[1].trim().toLowerCase().replace(/^["']|["']$/g, '') : 'utf-8';
+    if (cs === 'utf-16' || cs === 'utf16') {
+      /* A BOM decides the byte order; without one the RFC 2781 default is
+       * big-endian. TextDecoder('utf-16be') would not sniff a little-endian
+       * BOM, so it is checked here. */
+      cs = buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe ? 'utf-16le' : 'utf-16be';
+    }
+    try {
+      return new TextDecoder(cs, { fatal: false }).decode(buf);
+    } catch {
+      return buf.toString('utf-8');
+    }
+  }
+
+  /**
+   * Map common file extensions to their canonical MIME types for use
+   * as the per-part `Content-Type` in multipart uploads.
+   * Falls back to `application/octet-stream` when the extension
+   * is unknown.
+   */
+  private static readonly EXTENSION_MIME_TYPES: Record<string, string> = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'bmp': 'image/bmp',
+    'svg': 'image/svg+xml',
+    'tif': 'image/tiff',
+    'tiff': 'image/tiff',
+    'ico': 'image/x-icon',
+    'pdf': 'application/pdf',
+    'json': 'application/json',
+    'xml': 'application/xml',
+    'zip': 'application/zip',
+    'gz': 'application/gzip',
+    'tar': 'application/x-tar',
+    'txt': 'text/plain',
+    'csv': 'text/csv',
+    'html': 'text/html',
+    'htm': 'text/html',
+    'css': 'text/css',
+    'js': 'application/javascript',
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'mov': 'video/quicktime',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  };
+
+  /**
+   * Look up the MIME type for the given filename based on its extension.
+   *
+   * @param filename the filename to inspect
+   * @returns the matching MIME type, or `application/octet-stream`
+   */
+  static mimeTypeForFilename(filename: string): string {
+    const dot = filename.lastIndexOf('.');
+    if (dot < 0 || dot === filename.length - 1) {
+      return 'application/octet-stream';
+    }
+    const ext = filename.substring(dot + 1).toLowerCase();
+    return AbstractApiClient.EXTENSION_MIME_TYPES[ext] ?? 'application/octet-stream';
+  }
+
+  /**
+   * Build a `Content-Disposition` header value for a multipart
+   * file part, sanitising the supplied filename to prevent CRLF header
+   * injection and ensuring non-ASCII filenames are transmitted via the
+   * RFC 5987 `filename*` parameter alongside an ASCII fallback.
+   *
+   * @param name the form field name
+   * @param filename the file name to advertise
+   * @returns the assembled `Content-Disposition` value
+   * @throws TypeError when the filename contains control characters
+   */
+  static buildContentDisposition(name: string, filename: string): string {
+    AbstractApiClient.assertNoControlChars(filename, 'multipart filename');
+    AbstractApiClient.assertNoControlChars(name, 'multipart field name');
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    let isAscii = true;
+    let asciiFallback = '';
+    for (const ch of filename) {
+      const code = ch.codePointAt(0)!;
+      if (code >= 0x20 && code <= 0x7E) {
+        asciiFallback += ch;
+      } else {
+        isAscii = false;
+        asciiFallback += '_';
+      }
+    }
+    const escapedFilename = asciiFallback
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    let header = `form-data; name="${escapedName}"; filename="${escapedFilename}"`;
+    if (!isAscii) {
+      /* RFC 5987 ext-value: percent-encode every UTF-8 byte except the
+       * RFC 3986 unreserved set A-Z a-z 0-9 - . _ ~ (encodeURIComponent also
+       * keeps ! ' ( ) *, and ' is the ext-value delimiter). */
+      const encoded = encodeURIComponent(filename).replace(
+        /[!'()*]/g,
+        (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+      );
+      header += `; filename*=UTF-8''${encoded}`;
+    }
+    return header;
+  }
+
+  /**
+   * Reject strings containing CR, LF, or NUL bytes which could otherwise
+   * split the `Content-Disposition` header and inject arbitrary
+   * additional headers or a forged body.
+   *
+   * @param value the candidate string
+   * @param label human-readable label included in the error message
+   */
+  private static assertNoControlChars(value: string, label: string): void {
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i);
+      if (code === 0x0A || code === 0x0D || code === 0x00) {
+        throw new TypeError(`Invalid ${label}: contains CR, LF, or NUL`);
+      }
+    }
+  }
+
+  /**
+   * The text of a buffered response body: decoded with the charset of its
+   * content type when that is text, else the bytes as Base64 text.
+   *
+   * @param bytes the body bytes
+   * @param contentType the response Content-Type header value
+   * @returns the text carrier of the body
+   */
+  static textOrBase64(bytes: Buffer, contentType: string): string {
+    return AbstractApiClient.isTextContentType(contentType)
+      ? AbstractApiClient.decodeBody(bytes, contentType)
+      : bytes.toString('base64');
+  }
+
+  /**
+   * Determines whether the given content type represents text content
+   * that is safe to decode as a UTF-8 string.
+   *
+   * @param contentType the Content-Type header value
+   * @returns true for text-like content types, false otherwise
+   */
+  private static isTextContentType(contentType: string): boolean {
+    const mediaType = contentType.split(';')[0].trim().toLowerCase();
+    if (!mediaType) {
+      return true;
+    }
+    if (mediaType.startsWith('text/')) {
+      return true;
+    }
+    return (
+      mediaType === 'application/json' ||
+      mediaType === 'application/xml' ||
+      mediaType === 'application/javascript' ||
+      mediaType.endsWith('+json') ||
+      mediaType.endsWith('+xml')
+    );
+  }
+
+  /**
+   * Cancel an unread response body so its connection is released. Best
+   * effort: a body that is already consumed or errored needs no release.
+   */
+  private static discardBody(response: Response): void {
+    /* Cancelled without awaiting: the cancel still releases the connection, and
+     * a redirect hop must not wait on a stream that may never settle. */
+    try {
+      response.body?.cancel().catch(() => undefined);
+    } catch {
+      /* nothing left to release */
+    }
+  }
+
+  /**
+   * The URL with every query value replaced by `***`, for use in messages. A
+   * query-parameter API key must not reach logs or error trackers through an
+   * error message.
+   *
+   * @param url the URL to render
+   * @returns the URL with its query values masked, or the input when it is not parseable
+   */
+  static redactUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      for (const key of [...parsed.searchParams.keys()]) {
+        parsed.searchParams.set(key, '***');
+      }
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  /**
+   * Return true for HTTP 3xx status codes that carry a Location header.
+   */
+  private static isRedirectStatus(code: number): boolean {
+    return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
+  }
+
+  /**
+   * Compare two URLs by scheme + host + effective port.
+   */
+  private static sameOrigin(a: string, b: string): boolean {
+    try {
+      const ua = new URL(a);
+      const ub = new URL(b);
+      if (ua.protocol !== ub.protocol) return false;
+      if (ua.hostname.toLowerCase() !== ub.hostname.toLowerCase()) return false;
+      const portA = ua.port !== '' ? ua.port : (ua.protocol === 'https:' ? '443' : '80');
+      const portB = ub.port !== '' ? ub.port : (ub.protocol === 'https:' ? '443' : '80');
+      return portA === portB;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Closes the client, gracefully and idempotently: it is marked closed at
+   * once, so a request issued afterwards fails with the closed-client error;
+   * a request already running finishes; the streams that are still open are
+   * cancelled; and the transport the SDK built itself is released when the last
+   * running request completes, or here when none is running. Never waits for a
+   * running request, so a call with no timeout cannot make closing hang. A
+   * second call does nothing.
+   */
+  async close(): Promise<void> {
+    this.closed = true;
+    /* A stream may be endless, so closing cancels the open ones: each aborts its
+     * connection and its next read raises the closed-client error. */
+    for (const life of [...this.openStreams]) {
+      life.closedByClient = true;
+      life.controller.abort(new Error(CLOSED_MESSAGE));
+      life.finish();
+    }
+    if (this.inFlight === 0) {
+      await this.releaseTransportOnce();
+    }
+  }
+
+  /**
+   * Releases the transport the SDK built, once. Subclasses override
+   * {@link releaseTransport}; this guard makes sure it runs a single time,
+   * after the last in-flight request.
+   */
+  private releaseTransportOnce(): Promise<void> {
+    this.released ??= this.releaseTransport();
+    return this.released;
+  }
+
+  /**
+   * Releases the resources the SDK created for this client (e.g. an undici
+   * dispatcher pool). Never touches anything the caller supplied. The default
+   * has nothing to release.
+   */
+  protected releaseTransport(): Promise<void> {
+    return Promise.resolve();
+  }
+}

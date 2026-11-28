@@ -1,0 +1,110 @@
+/// A hand-written fake of the {{classname}} group: it implements every operation, records each
+/// call as "operation(path arguments, options)" and fails with the typed not-found error.
+struct Fake{{classname}} {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl Fake{{classname}} {
+    fn new() -> Self {
+        Self { calls: std::sync::Mutex::new(Vec::new()) }
+    }
+
+    fn failure(&self) -> {{packageName}}::Error {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> {{packageName}}::Error {
+        let api_error = {{packageName}}::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
+        let client_error = {{packageName}}::errors::client_error::ClientError::try_from(api_error).expect("a 404 is a client error");
+        {{packageName}}::Error::from({{packageName}}::errors::not_found_error::NotFoundError::try_from(client_error).expect("a 404 is not found"))
+    }
+}
+
+#[allow(unused_variables)]
+impl {{classname}}Trait for Fake{{classname}} {
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.streamMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<{{{returnType}}}, {{packageName}}::Error>> {
+        self.calls.lock().expect("calls lock").push(format!("{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{operationId}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, {{packageName}}::Error>> {
+        self.calls.lock().expect("calls lock").push(format!("{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{operationId}}_with_http_info(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, {{packageName}}::Error>> {
+        self.calls.lock().expect("calls lock").push(format!("{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.pagesMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> {{{vendorExtensions.op.pagination.rustPaginatorType}}} {
+        self.calls.lock().expect("calls lock").push(format!("{{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        Paginator::from_pages(|| futures_util::stream::once(std::future::ready(Err(Fake{{classname}}::fresh_failure()))))
+    }
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+}

@@ -1,0 +1,199 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.ApiException;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Interface for API HTTP transport.
+ *
+ * <p>Implementations handle the actual HTTP request/response cycle.
+ * The default implementation uses {@link java.net.http.HttpClient}.</p>
+ */
+public interface ApiClient extends AutoCloseable {
+
+    /**
+     * Send an HTTP request and return the response.
+     *
+     * @param method  HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param url     Fully qualified URL
+     * @param headers HTTP headers
+     * @param body    Request body (serialized JSON string, byte[] for binary, or
+     *                {@code Map<String, Object>} for multipart form data; may be null)
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    ApiHttpResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable Object body);
+
+    /**
+     * Send an HTTP request, optionally refusing to follow redirects.
+     *
+     * <p>When {@code noRedirect} is true, any 3xx response (including
+     * 307/308) is returned to the caller as-is rather than being replayed
+     * to the {@code Location} target. OAuth2 token/revoke/authorize
+     * endpoint POSTs use this guard so a malicious or misconfigured
+     * server cannot replay the credentialed body to an attacker-controlled
+     * URL (Bucket 3.2).
+     *
+     * <p>The default implementation delegates to
+     * {@link #sendRequest(String, String, Map, Object)} for backwards
+     * compatibility; transport implementations that own the redirect
+     * loop should override this method and honour the flag.
+     *
+     * @param method     HTTP method
+     * @param url        Fully qualified URL
+     * @param headers    HTTP headers
+     * @param body       Request body (may be null)
+     * @param noRedirect when {@code true}, do not follow 3xx responses
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    default ApiHttpResponse sendRequest(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            boolean noRedirect) {
+        return sendRequest(method, url, headers, body);
+    }
+
+    /**
+     * Send an HTTP request that goes to another origin than the API, such as
+     * OpenID Connect discovery, optionally keeping the transport's default
+     * headers off it.
+     *
+     * <p>The default headers can carry the API credentials, which the identity
+     * provider's host must never see. The default implementation delegates to
+     * {@link #sendRequest(String, String, Map, Object, boolean)} and ignores
+     * {@code noDefaultHeaders}; a transport that merges default headers should
+     * override this method and honour the flag.
+     *
+     * @param method           HTTP method
+     * @param url              Fully qualified URL
+     * @param headers          HTTP headers
+     * @param body             Request body (may be null)
+     * @param noRedirect       when {@code true}, do not follow 3xx responses
+     * @param noDefaultHeaders when {@code true}, send only {@code headers}, never the
+     *                         transport's default headers
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    default ApiHttpResponse sendRequest(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            boolean noRedirect,
+            boolean noDefaultHeaders) {
+        return sendRequest(method, url, headers, body, noRedirect);
+    }
+
+    /**
+     * Send an HTTP request with per-call overrides of the timeout and the retry count.
+     *
+     * <p>A {@code null} override keeps the transport's own setting. The default
+     * implementation delegates to {@link #sendRequest(String, String, Map, Object)} and
+     * ignores the overrides; a transport that owns the timeout and the retry loop should
+     * override this method and honour them.
+     *
+     * @param method        HTTP method
+     * @param url           Fully qualified URL
+     * @param headers       HTTP headers
+     * @param body          Request body (may be null)
+     * @param timeoutMillis end-to-end timeout in milliseconds for this call, or {@code null}
+     * @param maxRetries    retry count for this call (0 disables retries), or {@code null}
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    default ApiHttpResponse sendRequest(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries) {
+        return sendRequest(method, url, headers, body);
+    }
+
+    /**
+     * Send an OAuth2 token-endpoint request. It never follows a redirect, so the
+     * credentials in the body are not replayed to another origin, and it is sent
+     * once and never retried. The default implementation delegates to
+     * {@link #sendRequest(String, String, Map, Object, boolean)} with no retry
+     * control; a transport that owns the retry loop should override this method.
+     * @param method  HTTP method
+     * @param url     Fully qualified URL
+     * @param headers HTTP headers
+     * @param body    Request body (may be null)
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    default ApiHttpResponse sendTokenRequest(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body) {
+        return sendRequest(method, url, headers, body, true, true);
+    }
+
+    /**
+     * Send an HTTP request and return as soon as the response headers are accepted, with the body
+     * not read yet.
+     *
+     * <p>The retry, redirect, authentication and header rules are those of
+     * {@link #sendRequest(String, String, Map, Object, Integer, Integer)}, up to the headers; the
+     * {@code timeoutMillis} stops at the headers, and {@code idleTimeoutMillis} bounds the gap
+     * between two reads of the body. A request is never retried after the first body byte has been
+     * handed to the caller. A non-2xx response is returned like any other, with its body open.
+     *
+     * <p>The default implementation throws {@link UnsupportedOperationException}: a transport that
+     * was written before streaming keeps working for every buffered call, and a call that needs
+     * a stream fails clearly instead of falling back to buffering (a buffered fallback would never
+     * end on an endless feed).
+     *
+     * @param method            HTTP method
+     * @param url               Fully qualified URL
+     * @param headers           HTTP headers
+     * @param body              Request body (may be null)
+     * @param timeoutMillis     timeout in milliseconds up to the response headers, or {@code null}
+     * @param maxRetries        retry count for this call (0 disables retries), or {@code null}
+     * @param idleTimeoutMillis the longest silence in the body in milliseconds, {@code 0} to
+     *                          disable it, or {@code null} for the transport's setting
+     * @return the status, the lower-cased headers and the open body
+     * @throws UnsupportedOperationException if this transport cannot stream
+     * @throws ApiException if the request fails
+     */
+    default ApiStreamResponse sendStreaming(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries,
+            @Nullable Integer idleTimeoutMillis) {
+        throw new UnsupportedOperationException(
+                getClass().getName()
+                        + " cannot stream: it does not implement sendStreaming, so an operation"
+                        + " that returns a stream cannot be called through it");
+    }
+
+    /**
+     * Releases any resources held by this client (connection pool, executor
+     * threads, sockets). Default implementation is a no-op; implementations
+     * that own a pooled HTTP client should override and dispose of it. A
+     * transport that hands out streams should cancel the ones still open.
+     *
+     * <p>Use with try-with-resources:
+     * <pre>{@code
+     * try (ApiClient client = new DefaultApiClient()) {
+     *     // ... make requests ...
+     * }
+     * }</pre>
+     */
+    @Override
+    default void close() {
+        /* No-op by default. Implementations override to release resources. */
+    }
+}

@@ -1,0 +1,518 @@
+# Swagger Petstore - OpenAPI 3.0 SDK - AI Agent Reference
+
+## Installation
+
+Add to your `Package.swift`:
+
+```text
+dependencies: [
+    .package(url: "https://github.com/your-org/PetstoreClient", from: "1.0.0")
+]
+```
+
+Then add `PetstoreClient` as a dependency of your target.
+
+## Quick Start
+
+```swift statements
+import Foundation
+import PetstoreClient
+
+let environment = ProcessInfo.processInfo.environment
+guard let host = environment["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"] else {
+    throw ConfigurationError.invalidArgument("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set")
+}
+guard let token = environment["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"] else {
+    throw ConfigurationError.invalidArgument("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set")
+}
+let client = try Client.withToken(host: host, accessToken: token)
+defer { client.close() }
+let result = try await client.store.getDefaults()
+print(result)
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = try BearerAuthenticator(host: "https://api.example.com", token: "your-token")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### Basic Auth
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = try BasicAuthenticator(host: "https://api.example.com", username: "username", password: "password")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### API Key
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = try ApiKeyAuthenticator(
+        host: "https://api.example.com", keyParamName: "key-name", apiKey: "key-value", location: .header)
+    return try Client(authenticator: authenticator)
+}
+```
+
+### OAuth2 Client Credentials
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2ClientCredentialsAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        tokenURL: "https://auth.example.com/token")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### OAuth2 Authorization Code
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2AuthorizationCodeAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        authorizationURL: "https://auth.example.com/authorize",
+        tokenURL: "https://auth.example.com/token",
+        redirectURI: "https://app.example.com/callback")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### OAuth2 Password
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2PasswordAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        tokenURL: "https://auth.example.com/token",
+        username: "username",
+        password: "password")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2ImplicitAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        authorizationURL: "https://auth.example.com/authorize")
+    try authenticator.setAccessToken("your-access-token")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### OpenID Connect
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OpenIdConnectAuthenticator(
+        host: "https://api.example.com",
+        openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        redirectURI: "https://app.example.com/callback")
+    return try Client(authenticator: authenticator)
+}
+```
+
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it shortly before its declared expiry: one safety margin of `min(60 seconds, expires_in / 2)` is taken off the lifetime when the token is stored, so a token with a 60 second lifetime is reused for 30 seconds. The margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. A token response without `expires_in` is cached until the token is invalidated.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.basic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```swift file
+import PetstoreClient
+
+func makeAuthenticator() -> OAuth2ClientCredentialsAuthenticator {
+    OAuth2ClientCredentialsAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        tokenURL: "https://auth.example.com/token",
+        clientAuthMethod: .basic)
+}
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` enum exposes each as a `ServerConfiguration` static property (e.g., `Servers.server0`, `Servers.server1`, ...) plus a `Servers.all` array. A server the spec gives a name is also found by that name with `Servers.byName("name")`, which fails with `ConfigurationError.invalidArgument` when no server has the name. Pass the desired server's URL to the client:
+
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    try Client(host: Servers.server0.url(), accessToken: "your-token")
+}
+```
+
+## Testing
+
+The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```swift file
+import PetstoreClient
+
+struct FakeAuthenticator: Authenticator {
+    func host() -> String { "https://api.example.com" }
+    func authHeaders() async throws -> [String: String] {
+        ["Authorization": "Bearer test-token"]
+    }
+    func queryParams() -> [String: String] { [:] }
+    func cookieParams() -> [String: String] { [:] }
+}
+
+func makeClient() throws -> Client {
+    try Client(authenticator: FakeAuthenticator())
+}
+```
+
+## Error Handling
+
+Every error the SDK raises for a call derives from the root error `OpenAPIError`. The error hierarchy is:
+
+- `OpenAPIError` (root)
+  - `SerializationError` (a request or response body could not be encoded or decoded)
+  - `OAuth2ServerError` (the token endpoint answered with a non-2xx status)
+  - `OAuth2TokenError` (the token endpoint answered 2xx with a body that is not a token response)
+  - `ApiError` (the API answered with an error, or the request could not be sent)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+      - `PaymentRequiredError` (402)
+      - `MethodNotAllowedError` (405)
+      - `RequestTimeoutError` (408)
+      - `GoneError` (410)
+      - `PayloadTooLargeError` (413)
+      - `UnsupportedMediaTypeError` (415)
+      - `LockedError` (423)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+      - `NotImplementedError` (501)
+      - `BadGatewayError` (502)
+      - `ServiceUnavailableError` (503)
+      - `GatewayTimeoutError` (504)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
+
+```swift file
+import PetstoreClient
+
+func addPetOrReport(client: Client, pet: Pet, options: AddPetOptions?) async throws {
+    do {
+        let result = try await client.pet.addPet(pet: pet, options: options)
+        print(result)
+    } catch let error as NotFoundError {
+        print("Not found: \(error)")
+    } catch let error as ClientError {
+        print("Client error \(error.statusCode): \(error)")
+    } catch let error as ServerError {
+        print("Server error: \(error)")
+    } catch let error as ApiError {
+        print("API error: \(error)")
+    } catch let error as SerializationError {
+        print("Body could not be encoded or decoded: \(error)")
+    } catch let error as OAuth2ServerError {
+        print("Token request refused with status \(error.statusCode): \(error)")
+    } catch let error as OAuth2TokenError {
+        print("Unusable token response: \(error)")
+    }
+}
+```
+
+Every `ApiError` has `requestMethod` and `requestPath` (no query string), and its message reads `API returned status code 404 for GET /items/7`.
+
+A mistake in how the SDK is configured or called (a bad proxy URL, a missing required parameter, a closed client) is a `ConfigurationError`, which is not part of this hierarchy.
+
+## Configuration
+
+### Custom Transport Options
+
+```swift file
+import PetstoreClient
+
+func makeClient(authenticator: any Authenticator) throws -> Client {
+    let transport = try TransportOptions.builder()
+        .proxy("http://proxy:3128")
+        .timeout(5000)
+        .build()
+
+    return try Client(authenticator: authenticator, transportOptions: transport)
+}
+```
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`defer`). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```swift file
+import Foundation
+import PetstoreClient
+
+func saveDownload(client: Client, petId: Int64, documentId: Int64, to target: URL) async throws {
+    let stream = try await client.pet.downloadPetDocument(petId: petId, documentId: documentId)
+    defer { stream.close() }
+    print(stream.statusCode)
+    _ = FileManager.default.createFile(atPath: target.path, contents: nil)
+    let handle = try FileHandle(forWritingTo: target)
+    defer { try? handle.close() }
+    for try await chunk in stream {
+        try handle.write(contentsOf: chunk)
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `ConfigurationError.unsupported` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(data)`, `BodySource.ofFile(url)` or `BodySource.fromFactory(factory)` (a factory that opens a fresh sequence each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
+
+```swift file
+import PetstoreClient
+
+func readJsonLinesFeed(client: Client) async throws {
+    let feed = try await client.store.exportOrdersStream()
+    defer { feed.close() }
+    for try await item in feed {
+        print(item)
+    }
+}
+```
+
+```swift file
+import PetstoreClient
+
+func readSseFeed(client: Client) async throws {
+    let feed = try await client.store.watchNoticesStream()
+    defer { feed.close() }
+    for try await event in feed {
+        print(event.data)
+    }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, C>`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Read the items with `for try await item in paginator`, or the pages with `pages()`, an `AsyncSequence` of `Page<T, C>` whose values have `items`, `nextCursor` and `result`, the same `ApiResult` that the `WithHTTPInfo` variant returns, so the status and headers stay reachable. Reading again starts again from the starting position.
+
+```swift file
+import PetstoreClient
+
+func readEverything(client: Client) async throws {
+    let list = client.pet.listPetCatalogPages()
+    for try await item in list {
+        print(item)
+    }
+    for try await page in list.pages() {
+        print("\(page.items.count) items, status \(page.result.statusCode)")
+    }
+}
+```
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `nil` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationError`, a direct child of `OpenAPIError`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `break` or `prefix`.
+
+How each style ends and resumes: an id list passes the `last_id` or `next_cursor` of each page as the starting cursor of the next request and ends when a declared `has_more` is false. An offset list starts at the offset you pass, sends the offset past the items it received on each next request, and ends on an empty page or when a declared `has_more` is false. A page-number list sends the page you pass, or none, and then asks for the page after each one, and ends on an empty page or when a declared `has_more` is false. A next URL list takes the URL in the body of each page, follows it only within the origin of the client, and ends when the property is absent, `null` or empty. A cursor, offset or page that does not advance raises `PaginationError` as a token cursor does.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationError` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+A list whose page body carries the next URL in a property (a next URL list) is followed in the same way as a `Link` list: the URL is taken from the body of each response, a next URL that leaves the scheme, host or port of the client is refused with `PaginationError`, nothing is sent to it, and such a method cannot resume from a saved position.
+
+The generator finds a paged operation by its names and shape. The operation must be a GET with one JSON 2xx response, and it must match exactly one of these styles. A token cursor is one query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker`, paired with a next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type. An id cursor is one query parameter among `starting_after`, `after_id` and `after`, paired with a boolean `has_more` and a string `last_id` or `next_cursor` property. A `Link` list has a `Link` header declared on the response. An offset list has an `offset` query parameter with a `limit`, and a page-number list has a `page` query parameter with one of `per_page`, `page_size`, `size` or `limit`. A next URL list has no cursor parameter and a string property with `format: uri` or `uri-reference`, or one named `next_url`, `next_uri`, `nextlink` or `next_link`, that is optional or nullable. An operation that matches more than one style is ambiguous, and one that is streamed is never paged; either keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty, hasMoreProperty}`, where the style is `token`, `link`, `id`, `offset`, `page` or `body`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+Pagination covers the token cursor, id cursor, offset, page number, `Link` header and next URL in the body styles. The override option and the vendor hints are as described in the readme.
+
+### Custom HTTP client
+
+To send requests through your own `URLSession`, pass it to `TransportOptions.builder().session(mySession)`. The SDK keeps its timeout, user agent and headers on top and never invalidates the session; combining it with `proxy`, `caCertPath`, `verifySsl(false)`, `followRedirects(false)` or `maxRedirects` throws a `ConfigurationError`.
+
+### Retries
+
+Failed calls are retried automatically: `TransportOptions.builder().maxRetries(n)` sets the count (default 2, `0` disables). The SDK retries network errors that happened before a response and statuses 408, 409, 429 and 500 to 599 except 501, waiting 0.5 s doubling to 8 s with 25% jitter or the server's `Retry-After` (seconds or HTTP date, capped at 60 s). The `timeout` stays the one end-to-end budget, a single-use `BodySource` is never retried, and each retry re-applies the authentication headers.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
+
+### Cancellation
+
+Cancel the Swift `Task` that made the call and the call throws `CancellationError`; the SDK has no cancellation API of its own. `NetworkTimeoutError` is only for the SDK's own `TransportOptions` timeout.
+
+### Per-call options
+
+An operation's options struct also takes `timeout` (milliseconds, greater than zero), `maxRetries` (`0` turns retries off) and `headers` for that call alone; a `nil` keeps the transport's setting. Every operation takes an options struct as its last argument, even one with no parameters and no security requirement, so each call can carry them.
+
+### One credential per security scheme
+
+`Client(host:...)` takes one optional ``Authenticator`` per security scheme, named after the scheme: `petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth`. Each operation uses the credential of the first scheme its own spec lists that you gave the client; there is no per-call authenticator, an operation declared with `security: []` carries none, and an operation none of whose schemes has a credential uses the authenticator of `Client(authenticator:)` if the client was built from one and sends none otherwise.
+
+### Closing the client
+
+`close()` is graceful and idempotent: a request in flight finishes (retries included), the `URLSession` the SDK built is released when the last one ends, a request made afterwards throws `ConfigurationError.invalidState` (`ApiClient has been closed and can no longer send requests`), a second call does nothing and a `URLSession` you supplied is never invalidated. Streams that are still open are cancelled.
+
+### Cookie parameters
+
+A cookie parameter goes out exactly as passed when every character is an RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash; `%` is allowed). Any other character throws `ConfigurationError.invalidArgument` before the request is sent: percent-encode it yourself first.
+
+### Credentials from the environment
+
+`Client.fromEnvironment()` reads `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` once, when the client is built (an empty value is unset); the `host`, `token` and `tokenProvider` arguments win, and a missing host or credential throws `ConfigurationError.invalidArgument`.
+
+Each scheme authenticator takes its credentials as optional arguments and reads the variable below when one is left out (an empty value is unset); a credential found in neither place throws `ConfigurationError.invalidArgument` when the authenticator is built.
+
+- `adminBasic` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`
+- `adminBasic` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`
+- `apiKeyHeader` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY`
+- `apiKeyQuery` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY`
+- `archiveDigest` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME`
+- `archiveDigest` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD`
+- `browserAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`
+- `deviceAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID`
+- `internalApiKey` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY`
+- `legacyAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID`
+- `legacyAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`
+- `legacyAuth` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME`
+- `legacyAuth` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD`
+- `machineAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID`
+- `machineAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET`
+- `petStoreBasic` `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME`
+- `petStoreBasic` `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD`
+- `petStoreBearer` `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN`
+- `serviceToken` `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`
+- `sessionCookie` `apiKey`: `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY`
+- `ssoAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID`
+- `ssoAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET`
+- `ssoAuth` `redirectUri`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI`
+- `userAuth` `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID`
+- `userAuth` `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET`
+- `userAuth` `redirectUri`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI`
+
+### Raw responses, timeouts and request ids
+
+Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with the status code, the response headers, the raw body and the decoded data. `TransportOptions.builder().timeout(_:)` is in milliseconds (default 60000) and covers the whole call. Unless `injectRequestID(false)` is set, every request carries a generated `X-Request-ID` header; one you supply always wins.
+
+## Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it with `callHook:` on the client or `.callHook(hook)` on the `ConfigurationBuilder`, and combine several with `CallHooks.chain`.
+
+```swift file
+import PetstoreClient
+
+struct SourceHook: CallHook {
+    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        headers["X-Source"] = "nightly-job"
+        return Watcher()
+    }
+}
+
+struct Watcher: CallObserver {
+    func finish(_ outcome: CallOutcome) throws {
+        print("\(outcome.statusCode) \(String(describing: outcome.error))")
+    }
+}
+
+func hookedClient(authenticator: any Authenticator) throws -> Client {
+    try Client(
+        authenticator: authenticator,
+        callHook: SourceHook()
+    )
+}
+```
+
+`start` runs once per call, after the trace context is injected, with the final header set, and `finish` runs exactly once with the status code (0 when no response arrived), the lower-cased response headers (`nil` when no response arrived) and the error the caller receives. An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed. A header the hook sets is on every send of the call. The README shows a recipe that records a span, a request count and a duration with the OpenTelemetry API.
+
+## API Methods
+
+Each API group is exposed as a typed property on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+All API methods are asynchronous; call them with `try await`.
+
+## Models
+
+Models are generated as Swift structs in the `Models` directory.
+
+```swift file
+import PetstoreClient
+
+func copyOf(_ model: Account) -> Account {
+    model.copy()
+}
+```
+
+Building a model never validates or throws (an unknown enum string builds no enum); a payload is checked when it is decoded, an unknown enum string decodes to the catch-all case `.unknownDefaultOpenApi`, and a missing required property or a `format: uri` that is not an absolute URI throws `SerializationError`. A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.
+
+## Binary / File Uploads
+
+A raw binary request body is a `BodySource` (see Streaming). Multipart file parameters are typed as `Data`. A binary response body is returned as a `ByteStream`, an `AsyncSequence` of `Data` (see Streaming).
+
+## Comment Style
+
+Never place a comment on the same line as code. Use block comments (`/* ... */`); doc comments (`///`) are fine.
+
+```good
+/* This explains the logic */
+let x = 1
+```
+
+```bad
+// This explains the logic
+let x = 1
+```

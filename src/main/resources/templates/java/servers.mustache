@@ -1,0 +1,73 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Generated server configurations from the OpenAPI specification.
+ *
+ * <p>Each constant corresponds to a server entry defined in the spec's
+ * {@code servers} array. Use these constants with
+ * {@link Configuration.Builder#baseUrl(String)} to select a server:
+ * <pre>{@code
+ * Configuration config = Configuration.builder()
+ *     .baseUrl(Servers.SERVER_0.getUrl())
+ *     .build();
+ * }</pre>
+ *
+ * <p>For servers with variables, pass overrides:
+ * <pre>{@code
+ * String url = Servers.SERVER_1.getUrl(Map.of("environment", "staging"));
+ * }</pre>
+ */
+public final class Servers {
+
+{{#serverConfigs}}
+    /**
+     * Server {{serverIndex}}: {@code {{{serverUrl}}}}{{#serverDescription}}
+     *
+     * <p>{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/serverDescription}}
+     */
+    public static final ServerConfiguration SERVER_{{serverIndex}} = new ServerConfiguration(
+            "{{#lambda.javaString}}{{{serverUrl}}}{{/lambda.javaString}}",
+            {{#serverDescription}}"{{#lambda.javaString}}{{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javaString}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+            {{#hasVariables}}Map.of(
+{{#serverVariables}}                    "{{varName}}", new ServerVariable(
+                            "{{#lambda.javaString}}{{{varDefault}}}{{/lambda.javaString}}",
+                            {{#varDescription}}"{{#lambda.javaString}}{{#lambda.unescapeDocComment}}{{{varDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javaString}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                            {{#hasEnumValues}}List.of({{#varEnumValues}}"{{#lambda.javaString}}{{{.}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}List.of(){{/hasEnumValues}}){{^-last}},{{/-last}}
+{{/serverVariables}}            ){{/hasVariables}}{{^hasVariables}}Map.of(){{/hasVariables}},
+            {{#serverName}}"{{#lambda.javaString}}{{{serverName}}}{{/lambda.javaString}}"{{/serverName}}{{^serverName}}null{{/serverName}});
+
+{{/serverConfigs}}
+    /** All server configurations in declaration order. */
+    public static final List<ServerConfiguration> ALL = List.of(
+{{#serverConfigs}}            SERVER_{{serverIndex}}{{^-last}},{{/-last}}
+{{/serverConfigs}}    );
+
+    /**
+     * The server the specification gives the name {@code name} (OpenAPI 3.2 {@code name}).
+     * @param name the server name
+     * @return the server with that name
+     * @throws IllegalArgumentException if no server has that name; the message lists the known names
+     */
+    public static ServerConfiguration byName(String name) {
+        List<String> known = new ArrayList<>();
+        for (ServerConfiguration server : ALL) {
+            String serverName = server.getName();
+            if (serverName != null) {
+                if (serverName.equals(name)) {
+                    return server;
+                }
+                known.add(serverName);
+            }
+        }
+        throw new IllegalArgumentException(
+                "Unknown server name '" + name + "'. Known names: " + known);
+    }
+
+    private Servers() {}
+}

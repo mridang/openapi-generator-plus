@@ -1,0 +1,285 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"os"
+	"strings"
+	"testing"
+)
+
+// readSourceFile returns the contents of the file at path, failing the test when
+// it cannot be read. It is shared by the doc and config tests of this package.
+func readSourceFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", path, err)
+	}
+	return string(data)
+}
+
+func TestBhvOptions044_Readme_SocksNoteNamesTheGoProxySetter(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.") {
+		t.Errorf("expected the SOCKS note to name TransportOptionsBuilder.Proxy(...)")
+	}
+	if strings.Contains(readme, "TransportOptions.proxy()") {
+		t.Errorf("expected the SOCKS note not to name another language's TransportOptions.proxy() accessor")
+	}
+}
+
+func TestBhvLanggo084_Readme_LintNoteNamesOnlyTheLintersTheConfigRuns(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "# Lint (runs errcheck, govet, ineffassign, staticcheck and unused)") {
+		t.Errorf("expected the lint comment to list the default golangci-lint linters")
+	}
+	for _, notRun := range []string{"revive", "gocritic", "gosec", "bodyclose"} {
+		if strings.Contains(readme, notRun) {
+			t.Errorf("expected the README not to claim the %s linter, which .golangci.yml does not enable", notRun)
+		}
+	}
+}
+
+// Every generated file carries the "Code generated" marker, which golangci-lint
+// skips unless the config turns that exclusion off, so the lint command the
+// README documents would otherwise check nothing.
+func TestBhvLanggo085_Readme_LintCommandChecksTheGeneratedSources(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "over the generated sources as well") {
+		t.Errorf("expected the README to say golangci-lint covers the generated sources")
+	}
+	config := readSourceFile(t, "../.golangci.yml")
+	if !strings.Contains(config, "    generated: disable\n") {
+		t.Errorf("expected .golangci.yml to set linters.exclusions.generated: disable, got %q", config)
+	}
+}
+
+func TestBhvLanggo086_Readme_SchemaConstraintsSectionSaysWhatGoValidatesAndThatUniqueItemsAreNotSorted(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	for _, want := range []string{"### Schema constraints", "validated by the server", "uniqueItems", "not sorted"} {
+		if !strings.Contains(readme, want) {
+			t.Errorf("expected the README to contain %q", want)
+		}
+	}
+}
+
+func TestBhvLanggo087_Readme_CancellationSectionDescribesTheContextParameter(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "`ctx context.Context` as its first parameter") {
+		t.Errorf("expected the README to document the ctx parameter")
+	}
+}
+
+func TestBhvLanggo088_Readme_ConfigurationSectionDocumentsTheRetries(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	for _, want := range []string{"## Configuration", "### Retries", "`MaxRetries(0)` disables retries", "`Retry-After`", "408, 409, 429 and 500-599 except 501", "`InvalidateAccessToken`"} {
+		if !strings.Contains(readme, want) {
+			t.Errorf("expected the README to contain %q", want)
+		}
+	}
+}
+
+func TestBhvLanggo089_Readme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	position := -1
+	for _, heading := range []string{
+		"## Installation", "## Usage", "## Configuration", "### Raw responses", "### Timeouts", "### Retries",
+		"### Expired tokens", "### Request id", "### Cancellation", "### Custom HTTP client", "### Testing your code", "## Build", "## Test",
+		"## Caveats", "### Schema constraints", "## Not supported", "### Webhooks and callbacks",
+		"### XML bodies and `nodeType`", "### Link Objects", "### Mutual TLS security schemes",
+	} {
+		next := strings.Index(readme, "\n"+heading+"\n")
+		if next < 0 {
+			t.Errorf("expected the README to contain the heading %q", heading)
+			continue
+		}
+		if next < position {
+			t.Errorf("expected the heading %q to come after the previous one", heading)
+		}
+		position = next
+	}
+	if !strings.Contains(readme, "go get {{packageName}}") {
+		t.Errorf("expected the README to carry the install command")
+	}
+}
+
+func TestBhvMetadata001_Readme_HasTheApiInformationSection(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "\n## API information\n") {
+		t.Errorf("expected the README to carry the API information section")
+	}
+}
+
+func TestBhvLanggo090_Readme_Skills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	position := -1
+	for _, heading := range []string{"### Custom Transport Options", "### Retries", "### Custom HTTP client", "### Cancellation", "### Raw responses, timeouts and the request id"} {
+		next := strings.Index(skills, "\n"+heading+"\n")
+		if next < 0 {
+			t.Errorf("expected SKILLS.md to contain the heading %q", heading)
+			continue
+		}
+		if next < position {
+			t.Errorf("expected the heading %q to come after the previous one", heading)
+		}
+		position = next
+	}
+}
+
+func TestBhvMocking009_Readme_TestingYourCodeNamesTheGroupInterfaceAndTheClient(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	start := strings.Index(readme, "\n### Testing your code\n")
+	if start < 0 {
+		t.Fatalf("expected the README to contain the heading \"### Testing your code\"")
+	}
+	section := readme[start+1:]
+	if end := strings.Index(section[4:], "\n### "); end >= 0 {
+		section = section[:end+4]
+	}
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+	for _, name := range []string{"{{classname}}Interface", "{{clientClassName}}"} {
+		if !strings.Contains(section, name) {
+			t.Errorf("expected the section to name %s", name)
+		}
+	}
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+// goFences returns the body lines of every fence of text whose info string starts with go,
+// together with that info string.
+func goFences(text string) (infos []string, bodies [][]string) {
+	inside := false
+	for _, line := range strings.Split(text, "\n") {
+		switch {
+		case !inside && (line == "```go" || strings.HasPrefix(line, "```go ")):
+			inside = true
+			infos = append(infos, line)
+			bodies = append(bodies, nil)
+		case inside && strings.HasPrefix(line, "```"):
+			inside = false
+		case inside:
+			bodies[len(bodies)-1] = append(bodies[len(bodies)-1], line)
+		}
+	}
+	return infos, bodies
+}
+
+func TestBhvLanggo127_Quickstart_BuildsACallsAnOperationAndClosesTheClient(t *testing.T) {
+	t.Parallel()
+	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
+	for _, want := range []string{"package main", "{{packageName}}.New{{clientClassName}}WithToken(", "defer func() { _ = client.Close() }()"} {
+		if !strings.Contains(quickstart, want) {
+			t.Errorf("expected the quickstart to contain %q", want)
+		}
+	}
+{{#hasExampleOperation}}
+	if !strings.Contains(quickstart, "client.{{exampleOperationApi}}.{{exampleOperation.operationId}}(") {
+		t.Errorf("expected the quickstart to call {{exampleOperation.operationId}}")
+	}
+{{/hasExampleOperation}}
+}
+
+func TestBhvLanggo128_Quickstart_ReadsTheHostAndTheTokenFromTheEnvironment(t *testing.T) {
+	t.Parallel()
+	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
+	readme := readSourceFile(t, "../README.md")
+	for _, name := range []string{"{{envVarPrefix}}_BASE_URL", "{{envVarPrefix}}_TOKEN"} {
+		if !strings.Contains(quickstart, `os.Getenv("`+name+`")`) {
+			t.Errorf("expected the quickstart to read %s", name)
+		}
+		if !strings.Contains(readme, name) {
+			t.Errorf("expected the README to name %s", name)
+		}
+	}
+	if strings.Contains(quickstart, "your-token") {
+		t.Errorf("expected the quickstart to hold no literal credential")
+	}
+}
+
+func TestBhvLanggo129_Readme_UsageFenceAndQuickstartHoldTheSameStatements(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
+	usage := readme[strings.Index(readme, "\n## Usage\n"):]
+	_, bodies := goFences(usage)
+	if len(bodies) == 0 {
+		t.Fatalf("expected the Usage section to hold a go fence")
+	}
+	position := 0
+	inImports := false
+	for _, line := range bodies[0] {
+		trimmed := strings.TrimSpace(line)
+		if inImports {
+			inImports = trimmed != ")"
+			continue
+		}
+		if strings.HasPrefix(trimmed, "import") {
+			inImports = strings.HasSuffix(trimmed, "(")
+			continue
+		}
+		if trimmed == "" {
+			continue
+		}
+		next := strings.Index(quickstart[position:], trimmed)
+		if next < 0 {
+			t.Errorf("expected the quickstart to hold the Usage line %q, in order", trimmed)
+			continue
+		}
+		position += next
+	}
+}
+
+func TestBhvLanggo130_Fences_EveryGoFenceDeclaresItsKind(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"../README.md", "../SKILLS.md"} {
+		infos, _ := goFences(readSourceFile(t, name))
+		for _, info := range infos {
+			if info != "```go file" && info != "```go statements" {
+				t.Errorf("expected %s to declare file or statements on the fence %q", name, info)
+			}
+		}
+	}
+}
+
+func TestBhvLanggo131_Fences_NoGoFenceHoldsAPlaceholderOrAModelBuiltFromNothing(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"../README.md", "../SKILLS.md"} {
+		_, bodies := goFences(readSourceFile(t, name))
+		for _, body := range bodies {
+			for _, line := range body {
+				trimmed := strings.TrimSpace(line)
+				placeholder := trimmed == "..." || strings.HasSuffix(trimmed, "/* ... */") || strings.HasPrefix(trimmed, "<") && strings.HasSuffix(trimmed, ">")
+				fromNothing := strings.Contains(line, "models.") && strings.Contains(line, "{}")
+				if placeholder || fromNothing {
+					t.Errorf("expected %s to hold no placeholder or empty model, found %q", name, line)
+				}
+			}
+		}
+	}
+}
+
+func TestBhvLanggo132_Makefile_HasAnExamplesTargetThatBuildsTheExamplesDirectory(t *testing.T) {
+	t.Parallel()
+	makefile := readSourceFile(t, "../Makefile")
+	for _, want := range []string{"\nexamples:\n", "\nexamples-run:", "./examples/..."} {
+		if !strings.Contains(makefile, want) {
+			t.Errorf("expected the Makefile to contain %q", want)
+		}
+	}
+}

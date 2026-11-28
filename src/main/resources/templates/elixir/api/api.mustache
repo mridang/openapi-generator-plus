@@ -1,0 +1,907 @@
+{{>api_info}}
+
+{{#operations}}
+{{#serverTypeDefs}}
+defmodule {{moduleName}}.Api.{{serverTypeName}} do
+  @moduledoc "Server type for the {{operationId}} operation."
+
+  @callback url(term()) :: String.t()
+end
+
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+defmodule {{moduleName}}.Api.{{serverTypeName}}.{{enumTypeName}} do
+  @moduledoc "Valid values for {{name}} in {{serverTypeName}}."
+{{#enumValues}}
+  def {{nameLowercase}}, do: {{{literal}}}
+{{/enumValues}}
+end
+{{/hasEnumValues}}{{/serverVariables}}
+
+defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
+  {{#hasDescription}}
+  @moduledoc {{#lambda.quotedLiteral}}{{{description}}}{{/lambda.quotedLiteral}}
+  {{/hasDescription}}
+  {{^hasDescription}}
+  @moduledoc "{{variantName}} server variant."
+  {{/hasDescription}}
+
+  @behaviour {{moduleName}}.Api.{{serverTypeName}}
+
+  {{#hasVariables}}
+  defstruct [{{#serverVariables}}:{{snakeName}}{{^-last}}, {{/-last}}{{/serverVariables}}]
+
+  @type t :: %__MODULE__{
+  {{#serverVariables}}
+          {{snakeName}}: String.t(){{^-last}},{{/-last}}
+  {{/serverVariables}}
+        }
+
+  {{/hasVariables}}
+  @impl true
+  def url({{#hasVariables}}%__MODULE__{} = server{{/hasVariables}}{{^hasVariables}}_server{{/hasVariables}}) do
+  {{#hasVariables}}
+  {{#serverVariables}}
+  {{#hasEnumValues}}
+    # Like the global ServerConfiguration, refuse a value outside the variable's
+    # enum: it would otherwise be spliced into the request host unchecked.
+    allowed_{{snakeName}} = [{{#enumValues}}{{{literal}}}{{^-last}}, {{/-last}}{{/enumValues}}]
+
+    if server.{{snakeName}} not in allowed_{{snakeName}} do
+      raise ArgumentError,
+            "Invalid value '#{server.{{snakeName}}}' for server variable '{{name}}'. Allowed values: [#{Enum.join(allowed_{{snakeName}}, ", ")}]"
+    end
+
+  {{/hasEnumValues}}
+  {{/serverVariables}}
+    values = %{
+  {{#serverVariables}}
+      "{{name}}" => to_string(server.{{snakeName}}){{^-last}},{{/-last}}
+  {{/serverVariables}}
+    }
+
+    # One pass over the template: a placeholder that a substituted value
+    # introduces is never expanded again.
+    Regex.replace(~r/\{([^{}]+)\}/, "{{url}}", fn placeholder, name ->
+      Map.get(values, name, placeholder)
+    end)
+  {{/hasVariables}}
+  {{^hasVariables}}
+    "{{url}}"
+  {{/hasVariables}}
+  end
+end
+{{/variants}}
+{{/serverTypeDefs}}
+
+defmodule {{moduleName}}.Api.{{classname}}Behaviour do
+  @moduledoc """
+  The contract of `{{moduleName}}.Api.{{classname}}`: every operation of the {{baseName}} API group
+  with its bang and `_with_http_info` forms, at the full arity (the lower arities come from the
+  default arguments of the real module). Depend on it instead of the module to substitute a
+  hand-written fake module in your own tests.
+  """
+{{#operation}}
+{{^vendorExtensions.op.streamOnly}}
+
+  @callback {{operationId}}({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}} | {:error, Exception.t()}
+
+  @callback {{operationId}}!({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}
+
+  @callback {{operationId}}_with_http_info({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  @callback {{vendorExtensions.op.pagesMethodName}}({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{moduleName}}.Paginator.t()
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+
+  @callback {{operationId}}_stream({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{{returnType}}}} | {:error, Exception.t()}
+
+  @callback {{operationId}}_stream!({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+end
+
+defmodule {{moduleName}}.Api.{{classname}} do
+  @moduledoc ~S"""
+  {{classname}} provides functions for the {{baseName}} API group.
+  {{#tagSummary}}
+
+  {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+  {{/tagSummary}}
+  {{#tagDescription}}
+
+  {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+  {{/tagDescription}}
+  {{#tagParent}}
+
+  {{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}
+  {{/tagParent}}
+  {{#tagExternalDocs}}
+
+  See [{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}]({{{url}}})
+  {{/tagExternalDocs}}
+  """
+
+  @behaviour {{moduleName}}.Api.{{classname}}Behaviour
+
+  @type t :: %__MODULE__{
+          api_client: term(),
+          config: {{moduleName}}.Configuration.t(),
+          authenticator: term(),
+          scheme_authenticators: %{optional(String.t()) => term()}
+        }
+
+  defstruct api_client: nil,
+            config: nil,
+            authenticator: nil,
+            scheme_authenticators: %{}
+
+  @doc """
+  Create a new {{classname}} instance.
+
+  ## Parameters
+
+    * `api_client` - The HTTP transport client (optional, defaults to DefaultApiClient).
+    * `config` - API-level configuration (optional, defaults to Configuration.default()).
+    * `authenticator` - The default credential (optional): used by an operation
+      when none of `scheme_authenticators` matches the schemes it names.
+    * `scheme_authenticators` - The credential of each security scheme, by the
+      scheme's name in the spec (optional).
+
+  """
+  @spec new(term(), {{moduleName}}.Configuration.t(), term(), %{optional(String.t()) => term()}) :: t()
+  def new(api_client \\ nil, config \\ {{moduleName}}.Configuration.default(), authenticator \\ nil, scheme_authenticators \\ %{}) do
+    %__MODULE__{
+      api_client: api_client || {{moduleName}}.DefaultApiClient.new(),
+      config: config,
+      authenticator: authenticator,
+      scheme_authenticators: scheme_authenticators
+    }
+  end
+{{#operation}}
+{{^vendorExtensions.op.streamOnly}}
+
+  @doc """
+  {{{summary}}}
+  {{#notes}}
+
+  {{{.}}}
+  {{/notes}}
+  {{#vendorExtensions.op.responseSummaries}}
+
+  {{#lambda.elixirHeredoc}}{{{.}}}{{/lambda.elixirHeredoc}}
+  {{/vendorExtensions.op.responseSummaries}}
+  {{#isDeprecated}}
+
+  **Deprecated**: This operation is deprecated.
+  {{/isDeprecated}}
+
+  ## Parameters
+  {{#pathParams}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
+  {{#vendorExtensions.pluralExamples}}
+
+  ### `{{paramName}}` example — {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+  {{/vendorExtensions.pluralExamples}}
+  {{/pathParams}}
+  {{#bodyParam}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
+  {{#vendorExtensions.pluralExamples}}
+
+  ### `{{paramName}}` example — {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+  {{/vendorExtensions.pluralExamples}}
+  {{/bodyParam}}
+  {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}.
+  {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
+    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+{{#vendorExtensions.op.hasOperationExamples}}
+
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  {{#lambda.elixirHeredoc}}{{{heading}}}{{/lambda.elixirHeredoc}} example: {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+  {{#hasDescription}}
+
+  {{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}
+  {{/hasDescription}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{^-last}}
+
+{{/-last}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  Extension {{#lambda.elixirHeredoc}}{{{name}}}{{/lambda.elixirHeredoc}}: {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.op.exposedExtensions}}
+
+  ## Returns
+
+    * `{:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}}` on success.
+    * `{:error, exception}` on failure.
+  {{#vendorExtensions.op.hasErrorResponses}}
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `{{moduleName}}.Errors.ClientError`.
+  {{#vendorExtensions.op.errorResponses}}
+
+    * HTTP {{status}}: `{{moduleName}}.Errors.{{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}`{{#hasSchema}}, whose `typed_error_body/1` is a `{{moduleName}}.Models.{{{schemaName}}}`{{/hasSchema}}
+  {{/vendorExtensions.op.errorResponses}}
+  {{/vendorExtensions.op.hasErrorResponses}}
+  {{#externalDocs}}
+
+  ## See also
+
+    * [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
+  {{/externalDocs}}
+
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}} | {:error, Exception.t()}
+  @impl true
+  def {{operationId}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    case {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+{{#returnType}}
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         {{moduleName}}.Errors.ApiError.exception(
+           message: "Expected a response body for {{operationId}} but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+{{/returnType}}
+{{^returnType}}
+      {:ok, result} -> {:ok, result.data}
+{{/returnType}}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Bang version of `{{operationId}}`. Raises on error.
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}!(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}
+  @impl true
+  def {{operationId}}!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    case {{operationId}}(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `{{operationId}}` but returns the full `ApiResult`.
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+    {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, nil)
+  end
+
+  # One page of the list: the first when `page_url` is nil, else the URL the Link header or the body named.
+  defp {{operationId}}_page(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) do
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+
+  defp {{operationId}}_open(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}}{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+{{/vendorExtensions.op.streamOnly}}
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries{{#vendorExtensions.op.streamsAny}}, :idle_timeout{{/vendorExtensions.op.streamsAny}}{{#servers}}{{#-first}}, :server{{/-first}}{{/servers}}{{#consumes.1}}, :content_type{{/consumes.1}}])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = {{moduleName}}.Api.BaseApi.call_settings({{#vendorExtensions.op.optionsArgOptional}}options{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}options{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}nil{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}, opts)
+{{#vendorExtensions.op.streamsAny}}
+
+    # A binary response is returned as a `ByteStream`, read as it arrives: the
+    # call is made as a stream.
+    call = Keyword.put(call, :stream, true)
+{{/vendorExtensions.op.streamsAny}}
+
+{{#vendorExtensions.op.hasSecuritySchemes}}
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+{{#vendorExtensions.op.hasAllOfGroup}}
+    auth = {{moduleName}}.Api.BaseApi.requirement_auth(api, [{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}])
+{{/vendorExtensions.op.hasAllOfGroup}}
+{{^vendorExtensions.op.hasAllOfGroup}}
+    auth = {{moduleName}}.Api.BaseApi.scheme_auth(api, [{{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}])
+{{/vendorExtensions.op.hasAllOfGroup}}
+{{/vendorExtensions.op.hasSecuritySchemes}}
+{{^vendorExtensions.op.hasSecuritySchemes}}
+{{#vendorExtensions.op.securityNone}}
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = {{moduleName}}.Api.BaseApi.no_auth()
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+    # The operation names no scheme the client can hold a credential for; pass
+    # nil so BaseApi falls back to the client-level authenticator.
+    auth = nil
+{{/vendorExtensions.op.securityNone}}
+{{/vendorExtensions.op.hasSecuritySchemes}}
+{{#pathParams}}
+{{#required}}
+    if is_nil({{paramName}}){{#isString}} or {{paramName}} == ""{{/isString}} do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+    if is_nil({{paramName}}) do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+    # required-nested-param-validation: this query param is REQUIRED. A nil
+    # Options struct, a nil value, or an empty string is treated as missing and
+    # raises before any HTTP call rather than silently omitting the parameter.
+    # A required nullable param is the exception: a nil value is sent as an
+    # empty value, so only a nil Options struct or an empty string is refused.
+    if is_nil(options){{^vendorExtensions.param.queryRequiredNullable}} or is_nil(options.{{paramName}}){{/vendorExtensions.param.queryRequiredNullable}} or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/headerParams}}
+{{#cookieParams}}
+{{#required}}
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/cookieParams}}
+{{#formParams}}
+{{#required}}
+    if is_nil(options) or is_nil(options.{{paramName}}) or options.{{paramName}} == "" do
+      raise ArgumentError,
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+    end
+
+{{/required}}
+{{/formParams}}
+    path = "{{{path}}}"
+{{#pathParams}}
+{{=<% %>=}}
+    path = String.replace(path, "{<%baseName%>}", <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string()<%#vendorExtensions.param.pathAllowReserved%> |> <%moduleName%>.ValueSerializer.allow_reserved_in_path()<%/vendorExtensions.param.pathAllowReserved%><%/vendorExtensions.param.queryContent%>)
+<%={{ }}=%>
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+    # Per-operation server override: `:server` carries one of this operation's
+    # typed server variants, each generated as its own module above. Resolve the
+    # URL by dispatching on the passed variant's own `url/1` — a variant with no
+    # variables is passed as its module atom, one with variables as its struct —
+    # so the generated typed modules are actually used rather than
+    # `ServerConfiguration.url/2` (which only matches a `%ServerConfiguration{}`
+    # and so would raise on a typed variant). A bare `%ServerConfiguration{}`
+    # still resolves too, since its module also exposes `url/1`.
+    server = Keyword.get(opts, :server)
+    path = if server do
+      server_module = if is_atom(server), do: server, else: server.__struct__
+      server_url = server_module.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
+{{/-first}}
+{{/servers}}
+    query_params = []
+{{#queryParams}}
+{{#vendorExtensions.param.queryDeepObject}}
+    query_params =
+      if not is_nil(options) and options.{{paramName}} do
+        query_params ++ Enum.sort(Enum.to_list({{moduleName}}.ValueSerializer.serialize_deep_object("{{baseName}}", options.{{paramName}})))
+      else
+        query_params
+      end
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+    query_params =
+      if not is_nil(options) and options.{{paramName}} do
+        query_params ++ [{"{{baseName}}", {{moduleName}}.ObjectSerializer.serialize(options.{{paramName}})}]
+      else
+        query_params
+      end
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+    query_params =
+      if is_nil(options.{{paramName}}) do
+        query_params ++ [{"{{baseName}}", ""}]
+      else
+        query_params ++ [{"{{baseName}}",
+          {{moduleName}}.ValueSerializer.maybe_allow_reserved(
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})}]
+      end
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+    # allowEmptyValue means the server tolerates an empty value IF the caller
+    # chooses to send the key — it does NOT mean the SDK must always emit the
+    # key. An omitted optional param is dropped entirely (bare presence check,
+    # no else-branch) so no spurious "{{baseName}}=" appears on the wire; an
+    # explicit empty string still serialises through to a present empty value.
+    query_params =
+      if not is_nil(options) and not is_nil(options.{{paramName}}) do
+        query_params ++ [{"{{baseName}}",
+          {{moduleName}}.ValueSerializer.maybe_allow_reserved(
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})}]
+      else
+        query_params
+      end
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+    query_params =
+      if not is_nil(options) and not is_nil(options.{{paramName}}){{#isExplode}} and options.{{paramName}} != []{{/isExplode}} do
+        query_params ++ [{"{{baseName}}",
+          {{moduleName}}.ValueSerializer.maybe_allow_reserved(
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})}]
+      else
+        query_params
+      end
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+    header_params = %{}
+{{#headerParams}}
+    header_params =
+      if not is_nil(options) and not is_nil(options.{{paramName}}) do
+        Map.put(header_params, "{{baseName}}", {{#vendorExtensions.param.queryContent}}{{moduleName}}.ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}{{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{#isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#items.isByteArray}}{{moduleName}}.ObjectSerializer.encode_base64_param(options.{{paramName}}){{/items.isByteArray}}{{^items.isByteArray}}{{#isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/isUuid}}{{^isUuid}}{{#items.isUuid}}{{moduleName}}.ObjectSerializer.encode_uuid_param(options.{{paramName}}){{/items.isUuid}}{{^items.isUuid}}options.{{paramName}}{{/items.isUuid}}{{/isUuid}}{{/items.isByteArray}}{{/isByteArray}}, :header, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}) |> to_string(){{/vendorExtensions.param.queryContent}})
+      else
+        header_params
+      end
+{{/headerParams}}
+{{#hasCookieParams}}
+    cookie_parts = []
+{{#cookieParams}}
+{{=<% %>=}}
+<%#vendorExtensions.param.cookieStyle%>
+    # OpenAPI 3.2 style: cookie; cookie_pairs/4 writes the name=value pairs and
+    # applies the RFC 6265 cookie-octet check to every item, key and value.
+    cookie_parts =
+      if not is_nil(options) and not is_nil(options.<%paramName%>) do
+        case <%moduleName%>.ValueSerializer.cookie_pairs("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/items.isUuid%><%^items.isUuid%>options.<%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, <%isExplode%>, "<%& dataType%>") do
+          "" -> cookie_parts
+          pairs -> cookie_parts ++ [pairs]
+        end
+      else
+        cookie_parts
+      end
+<%/vendorExtensions.param.cookieStyle%>
+<%^vendorExtensions.param.cookieStyle%>
+    cookie_parts =
+      if not is_nil(options) and not is_nil(options.<%paramName%>) do
+        # RFC 6265 — operation-level cookie params are interpolated raw into the
+        # Cookie header just like auth-provided cookies in BaseApi, so they must
+        # pass the same cookie-value validation. A CR/LF/control-char value is a
+        # programmer error and would otherwise enable header injection; fail
+        # closed with the identical ArgumentError the auth-cookie path raises.
+        cookie_value =
+          <%#vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.encode_content_cookie(<%moduleName%>.ObjectSerializer.serialize(options.<%paramName%>))<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/items.isUuid%><%^items.isUuid%>options.<%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :cookie, "<%& dataType%>", nil, "<%style%>", <%isExplode%>)<%/vendorExtensions.param.queryContent%>
+          |> to_string()
+
+        unless cookie_value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+          raise ArgumentError,
+                "Cookie value for '<%baseName%>' contains characters forbidden by RFC 6265"
+        end
+
+        cookie_parts ++ ["<%baseName%>=#{cookie_value}"]
+      else
+        cookie_parts
+      end
+<%/vendorExtensions.param.cookieStyle%>
+<%={{ }}=%>
+{{/cookieParams}}
+    header_params = if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
+{{/hasCookieParams}}
+{{#hasFormParams}}
+    request_body = []
+{{#formParams}}
+{{! Binary multipart parts are tagged with the {:raw, ...} marker (each array
+    element individually) so the body builder emits a FILE part — reusing the
+    field name as the filename with an extension-guessed Content-Type — rather
+    than a plain text part. A string is indistinguishable from raw bytes at
+    runtime in Elixir, so binary-ness must be tagged here at generation time.
+    A field whose Encoding Object declares a style is serialized here like a
+    query parameter, and a multipart field with a declared part Content-Type or
+    part headers is wrapped by ValueSerializer.encoded_part/3. }}
+{{#required}}
+    request_body = request_body ++ [{"{{baseName}}", {{#vendorExtensions.param.partEncoded}}{{moduleName}}.ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}{{moduleName}}.ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}{{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{/vendorExtensions.param.formStyled}}{{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}{{#vendorExtensions.param.formStyled}}, :query, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}){{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}"{{#lambda.elixirString}}{{{.}}}{{/lambda.elixirString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}{"{{#lambda.elixirString}}{{{name}}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{value}}}{{/lambda.elixirString}}"}{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}}]
+{{/required}}
+{{^required}}
+    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: request_body ++ [{"{{baseName}}", {{#vendorExtensions.param.partEncoded}}{{moduleName}}.ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}{{moduleName}}.ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}{{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{/vendorExtensions.param.formStyled}}{{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}{{#vendorExtensions.param.formStyled}}, :query, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}){{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}"{{#lambda.elixirString}}{{{.}}}{{/lambda.elixirString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}{"{{#lambda.elixirString}}{{{name}}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{value}}}{{/lambda.elixirString}}"}{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}}], else: request_body
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+{{#isBinary}}
+    # A format:binary body is a BodySource, sent as it is read whichever declared
+    # content-type is selected; the tag keeps it out of the serializer.
+    request_body = {:raw_body, {{moduleName}}.BodySource.validate!({{paramName}})}
+{{/isBinary}}
+{{^isBinary}}
+{{#isModel}}
+    request_body = {{moduleName}}.ObjectSerializer.prepare_body({{paramName}}, {{moduleName}}.Models.{{dataType}})
+{{/isModel}}
+{{^isModel}}
+    request_body = {{paramName}}
+{{/isModel}}
+{{/isBinary}}
+{{/bodyParam}}
+{{^bodyParam}}
+    request_body = nil
+{{/bodyParam}}
+{{/hasFormParams}}
+{{#consumes.1}}
+    # multiple-declared-consumes: this operation declares more than one request
+    # content-type ({{#consumes}}{{mediaType}}{{^-last}}, {{/-last}}{{/consumes}}). The caller MAY select among the declared
+    # types via the optional `:content_type` key in `opts`; when omitted it
+    # defaults to the FIRST declared content-type ("{{vendorExtensions.op.effectiveConsumes}}"), so existing
+    # callers keep sending the first type unchanged. An unrecognised value is
+    # rejected so a typo cannot send an undeclared Content-Type on the wire.
+    declared_content_types = [{{#consumes}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/consumes}}]
+
+    content_type =
+      case Keyword.get(opts, :content_type) do
+        nil ->
+          "{{vendorExtensions.op.effectiveConsumes}}"
+
+        selected ->
+          if selected in declared_content_types do
+            selected
+          else
+            raise ArgumentError,
+                  "Unsupported request content-type '#{selected}' for {{operationId}}; " <>
+                    "declared types are [#{Enum.join(declared_content_types, ", ")}]"
+          end
+      end
+
+{{#hasFormParams}}
+    # octet-stream-vs-multipart dispatch: this operation declares both
+    # multipart/form-data and a non-multipart binary content-type. The
+    # request_body above is always built as a multipart parts map, but that is
+    # only correct when the caller actually selected multipart/form-data — the
+    # transport turns any map body into a multipart envelope. When a non-multipart
+    # type (e.g. application/octet-stream) is selected the wire body must be the
+    # RAW bytes of the single binary part, NOT a multipart envelope. Collapse the
+    # parts map down to the binary file part's raw bytes in that case, mirroring
+    # the single-binary-body operations that pass their bytes straight through.
+    request_body =
+      if content_type == "multipart/form-data" do
+        request_body
+      else
+{{#formParams}}
+{{#isFile}}
+{{^isArray}}
+        options.{{paramName}}
+{{/isArray}}
+{{/isFile}}
+{{/formParams}}
+      end
+
+{{/hasFormParams}}
+{{/consumes.1}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+    {path, query_params} = if page_url, do: {page_url, []}, else: {path, query_params}
+
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+    {{moduleName}}.Api.BaseApi.invoke_api_for_result(
+      api, :{{httpMethod}}, path, query_params, header_params, request_body,
+      [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
+      {{#consumes.1}}content_type{{/consumes.1}}{{^consumes.1}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes.1}},
+      {{#vendorExtensions.op.streamsAny}}nil{{/vendorExtensions.op.streamsAny}}{{^vendorExtensions.op.streamsAny}}{{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}}{{/vendorExtensions.op.streamsAny}},
+      auth,
+      Keyword.put(call, :operation, {"{{#lambda.elixirString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"}),
+      {{#vendorExtensions.op.hasErrorSchemaResponses}}
+      %{
+{{#vendorExtensions.op.errorSchemaResponses}}
+        "{{{status}}}" => {{moduleName}}.Errors.{{{schemaClassName}}}{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+      }
+      {{/vendorExtensions.op.hasErrorSchemaResponses}}
+      {{^vendorExtensions.op.hasErrorSchemaResponses}}
+      %{}
+      {{/vendorExtensions.op.hasErrorSchemaResponses}}
+    )
+  end
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  @doc """
+  {{{summary}}}
+
+  Returns the items as a lazy `{{moduleName}}.Paginator`: no request is sent until you first read an
+  item or a page, and each next page is requested only when you ask for more. Every page is an
+  ordinary call of `{{operationId}}_with_http_info`, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the list starts, and the page after
+  each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the list starts, the page after
+  each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned, and the list ends
+  when its `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false.
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is the offset of the first item, and each
+  page after one is requested at the offset past the items it received. The list ends on an empty page
+  {{#vendorExtensions.op.pagination.hasHasMore}}or when its `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is the page number of the first request, and
+  each page after one is requested with the next page number. The list ends on an empty page
+  {{#vendorExtensions.op.pagination.hasHasMore}}or when its `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isPage}}
+{{#vendorExtensions.op.pagination.isLink}}
+  The page after each one is the `rel="next"` link of its `Link` header, followed only within the
+  origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+  The page after each one is the URL in its `{{vendorExtensions.op.pagination.nextUrlPropertyName}}` property, followed only
+  within the origin of the client.
+{{/vendorExtensions.op.pagination.isBody}}
+
+  Enumerate it for the items, or call `{{moduleName}}.Paginator.pages/1` for the pages with their cursor
+  and result. A failed page raises its error from the read that needed it.
+  {{#isDeprecated}}
+
+  **Deprecated**: This operation is deprecated.
+  {{/isDeprecated}}
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{vendorExtensions.op.pagesMethodName}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{moduleName}}.Paginator.t()
+  @impl true
+  def {{vendorExtensions.op.pagesMethodName}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+    page_options = {{#vendorExtensions.op.optionsParamRequired}}{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}{{paramName}} || %{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}{}{{/vendorExtensions.op.optionsParamRequired}}
+
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.op.pagination.isToken}}
+    {{moduleName}}.Paginator.of_cursor(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.responsePropertyName}} end,
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+    {{moduleName}}.Paginator.of_id(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.responsePropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.hasMorePropertyName}} end,
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+    {{moduleName}}.Paginator.of_offset(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      {{#vendorExtensions.op.pagination.hasHasMore}}fn page -> page.{{vendorExtensions.op.pagination.hasMorePropertyName}} end{{/vendorExtensions.op.pagination.hasHasMore}}{{^vendorExtensions.op.pagination.hasHasMore}}nil{{/vendorExtensions.op.pagination.hasHasMore}},
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+    {{moduleName}}.Paginator.of_page(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      {{#vendorExtensions.op.pagination.hasHasMore}}fn page -> page.{{vendorExtensions.op.pagination.hasMorePropertyName}} end{{/vendorExtensions.op.pagination.hasHasMore}}{{^vendorExtensions.op.pagination.hasHasMore}}nil{{/vendorExtensions.op.pagination.hasHasMore}},
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isPage}}
+{{#vendorExtensions.op.pagination.isLink}}
+    {{moduleName}}.Paginator.of_link(
+      api.config.base_url,
+      fn page_url -> {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}page_options{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) end,
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+      fn page -> page end,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+    {{moduleName}}.Paginator.of_next_url(
+      api.config.base_url,
+      fn page_url -> {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}page_options{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.nextUrlPropertyName}} end,
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isBody}}
+  end
+{{/vendorExtensions.op.hasPagesMethod}}
+
+{{#vendorExtensions.op.streamOnly}}
+  @doc """
+  {{{summary}}}
+  {{#notes}}
+
+  {{{.}}}
+  {{/notes}}
+  {{#vendorExtensions.op.responseSummaries}}
+
+  {{#lambda.elixirHeredoc}}{{{.}}}{{/lambda.elixirHeredoc}}
+  {{/vendorExtensions.op.responseSummaries}}
+  {{#isDeprecated}}
+
+  **Deprecated**: This operation is deprecated.
+  {{/isDeprecated}}
+
+  The success response is {{#vendorExtensions.op.streamsSse}}a server-sent events feed: the result is an `Enumerable` of `{{moduleName}}.ServerSentEvent` structs{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}JSON Lines: the result is an `Enumerable` of the decoded items, one per line{{/vendorExtensions.op.streamsJsonLines}}. The first request is sent by this call and a failure of it is the `{:error, exception}`; a failure while reading raises. Close the stream with `close/1` when you stop early.
+
+  ## Parameters
+  {{#pathParams}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
+  {{/pathParams}}
+  {{#bodyParam}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
+  {{/bodyParam}}
+  {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}.
+  {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
+    * `opts` - Keyword list. The per-call settings `:timeout`, `:headers` and `:max_retries`, and the stream settings `:idle_timeout`{{#vendorExtensions.op.streamsSse}}, `:max_reconnects`, `:reconnect_delay`, `:last_event_id`{{/vendorExtensions.op.streamsSse}}, `:max_event_bytes`.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type`.{{/consumes.1}}
+{{#vendorExtensions.op.hasOperationExamples}}
+
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  {{#lambda.elixirHeredoc}}{{{heading}}}{{/lambda.elixirHeredoc}} example: {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+  {{#hasDescription}}
+
+  {{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}
+  {{/hasDescription}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{^-last}}
+
+{{/-last}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  Extension {{#lambda.elixirHeredoc}}{{{name}}}{{/lambda.elixirHeredoc}}: {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.op.exposedExtensions}}
+
+  ## Returns
+
+    * `{:ok, {{{returnType}}}}` on success.
+    * `{:error, exception}` on failure.
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}_stream(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{{returnType}}}} | {:error, Exception.t()}
+  @impl true
+  def {{operationId}}_stream(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    _ =
+      Keyword.validate!(opts, [:timeout, :headers, :max_retries, :idle_timeout, :max_event_bytes{{#vendorExtensions.op.streamsSse}}, :max_reconnects, :reconnect_delay, :last_event_id{{/vendorExtensions.op.streamsSse}}{{#servers}}{{#-first}}, :server{{/-first}}{{/servers}}{{#consumes.1}}, :content_type{{/consumes.1}}])
+
+{{#vendorExtensions.op.streamsSse}}
+    {{moduleName}}.SseStream.open(
+      fn request_opts -> {{operationId}}_open(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, request_opts) end,
+      opts,
+      decoder: {{#vendorExtensions.op.streamTyped}}fn data -> {{moduleName}}.ObjectSerializer.deserialize(data, "{{{vendorExtensions.op.streamItemDecode}}}") end{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}nil{{/vendorExtensions.op.streamTyped}},
+      terminator: {{#hasSseTerminator}}"{{{sseTerminator}}}"{{/hasSseTerminator}}{{^hasSseTerminator}}nil{{/hasSseTerminator}},
+      has_body: {{#bodyParam}}true{{/bodyParam}}{{^bodyParam}}{{#hasFormParams}}true{{/hasFormParams}}{{^hasFormParams}}false{{/hasFormParams}}{{/bodyParam}},
+      single_use_body: {{#bodyParam}}{{moduleName}}.BodySource.single_use?({{paramName}}){{/bodyParam}}{{^bodyParam}}false{{/bodyParam}}
+    )
+{{/vendorExtensions.op.streamsSse}}
+{{#vendorExtensions.op.streamsJsonLines}}
+    {{moduleName}}.JsonLinesStream.open(
+      fn request_opts -> {{operationId}}_open(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, request_opts) end,
+      opts,
+      decoder: {{#vendorExtensions.op.streamTyped}}fn line -> {{moduleName}}.ObjectSerializer.deserialize(line, "{{{vendorExtensions.op.streamItemDecode}}}") end{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}nil{{/vendorExtensions.op.streamTyped}}
+    )
+{{/vendorExtensions.op.streamsJsonLines}}
+  end
+
+  @doc """
+  Bang version of `{{operationId}}_stream`. Raises on error.
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}_stream!(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{{returnType}}}
+  @impl true
+  def {{operationId}}_stream!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    case {{operationId}}_stream(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+      {:ok, stream} -> stream
+      {:error, error} -> raise error
+    end
+  end
+{{/vendorExtensions.op.streamOnly}}
+
+{{/operation}}
+end
+{{/operations}}

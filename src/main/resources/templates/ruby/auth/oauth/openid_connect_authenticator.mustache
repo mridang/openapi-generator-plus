@@ -1,0 +1,322 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'base64'
+require 'json'
+require 'securerandom'
+require 'uri'
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Authenticator for OpenID Connect.
+      #
+      # Fetches the OIDC discovery document to discover the authorization and
+      # token endpoints, then delegates to an {OAuth2AuthorizationCodeAuthenticator}.
+      #
+      # Each authorization URL carries a fresh +nonce+. The code exchange
+      # validates the claims of the +id_token+ in the token response: the nonce
+      # of the authorization URL, the discovered issuer, the client id in the
+      # audience and an expiry that has not passed (60 seconds of clock skew
+      # are allowed). The signature of the id_token is not verified.
+      #
+      # Includes {HttpAwareAuthenticator} so that both the discovery request
+      # and subsequent token exchange requests use the shared {ApiClient}
+      # with the same transport configuration (proxy, TLS, timeouts) as
+      # regular API calls.
+      class OpenIdConnectAuthenticator < BaseAuthenticator
+        include HttpAwareAuthenticator
+
+        # @return [String]
+        attr_reader :host
+
+        # Create a new OpenID Connect authenticator.
+        #
+        # @param host [String] API base URL
+        # @param openid_connect_url [String] OIDC discovery document URL
+        # @param client_id [String] OAuth2 client ID
+        # @param client_secret [String] OAuth2 client secret
+        # @param redirect_uri [String] redirect URI registered with the provider
+        # @param scopes [Array<String>] requested scopes
+        def initialize(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes)
+          super()
+          @host = host
+          @openid_connect_url = openid_connect_url
+          @client_id = client_id
+          @client_secret = client_secret
+          @redirect_uri = redirect_uri
+          # OpenID Connect Core 3.1.2.1: the scope parameter must contain 'openid'.
+          @scopes = (['openid'] + scopes.reject { |s| s == 'openid' }).freeze
+          @api_client = nil
+          @delegate = nil
+          @discovery_expiry = Time.at(0)
+          @discovery_mutex = Mutex.new
+          # The issuer named by the last discovery document, nil when it named none.
+          @discovered_issuer = nil
+          # The nonce of the last authorization URL built, until the exchange uses it.
+          @pending_nonce = nil
+        end
+
+        # RFC 8414 recommended default max-age for OIDC discovery documents.
+        DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86_400
+
+        # Ceiling (one year, in seconds) for a server-supplied max-age.
+        MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000
+
+        # Clock skew (seconds) allowed when checking the expiry of an id_token.
+        ID_TOKEN_CLOCK_SKEW_SECONDS = 60
+
+        private_constant :DEFAULT_DISCOVERY_MAX_AGE_SECONDS, :MAX_DISCOVERY_MAX_AGE_SECONDS,
+                         :ID_TOKEN_CLOCK_SKEW_SECONDS
+
+        # Inject the shared API client for making discovery and token requests.
+        #
+        # @param value [ApiClient] the shared API client instance
+        # @return [void]
+        attr_writer :api_client
+
+        # Build the authorization URL using the discovered authorization endpoint.
+        #
+        # @param state [String, nil] CSRF state parameter
+        # @return [String] the authorization URL
+        def build_authorization_url(state = nil)
+          url = resolve_delegate.build_authorization_url(state)
+          # OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to
+          # this request; the exchange checks it once. 32 random bytes, base64url.
+          nonce = SecureRandom.urlsafe_base64(32)
+          @pending_nonce = nonce
+          "#{url}&nonce=#{nonce}"
+        end
+
+        # Exchange an authorization code for tokens using the discovered token endpoint.
+        #
+        # @param code [String] the authorization code from the callback
+        # @return [void]
+        def exchange_code(code)
+          delegate = resolve_delegate
+          nonce = @pending_nonce
+          @pending_nonce = nil
+          issuer = @discovered_issuer
+          delegate.exchange_code_checking_id_token(code) { |id_token| validate_id_token(id_token, nonce, issuer) }
+        end
+
+        # @return [Hash{String => String}]
+        def auth_headers
+          resolve_delegate.auth_headers
+        end
+
+        # Drop the cached access token so the next request obtains a new one
+        # (a refresh grant first). The API classes call this when a request
+        # answers 401 before replaying it once. Nothing happens before the
+        # first discovery, as there is no session yet.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @delegate&.invalidate_access_token
+        end
+
+        # Mask the client secret so it never leaks through the default
+        # +inspect+/+p+/string-interpolation, which would otherwise dump
+        # every instance variable verbatim.
+        # @return [String]
+        def inspect
+          "#<#{self.class.name} host=#{@host.inspect} " \
+            "openid_connect_url=#{@openid_connect_url.inspect} " \
+            "client_id=#{@client_id.inspect} client_secret=\"***\">"
+        end
+        alias to_s inspect
+
+        private
+
+        # Lazily resolve the delegate by fetching the OIDC discovery document
+        # using the injected API client. Honors the `Cache-Control: max-age=<seconds>`
+        # header from the discovery response; falls back to the RFC 8414
+        # recommended default of 86400 seconds when absent.
+        #
+        # Rediscovery refreshes the endpoints only: the replacement delegate
+        # is built around the previous delegate's token manager, so the
+        # exchanged session survives it. A failed rediscovery leaves the old
+        # delegate and its expiry in place and raises; the next call retries.
+        # The fetch is single-flight: one discovery request at a time, with
+        # the expiry re-checked once the lock is held.
+        #
+        # @return [OAuth2AuthorizationCodeAuthenticator]
+        # @raise [RuntimeError] if the API client has not been injected
+        # @raise [::{{moduleName}}::Errors::ApiError] if the discovery request fails with a non-2xx status
+        # @raise [::{{moduleName}}::Errors::SerializationError] if the discovery document is unusable
+        def resolve_delegate
+          @discovery_mutex.synchronize { discover_delegate }
+        end
+
+        # The body of {#resolve_delegate}, run under the discovery lock.
+        #
+        # @return [OAuth2AuthorizationCodeAuthenticator]
+        def discover_delegate
+          current = @delegate
+          return current if current && Time.now < @discovery_expiry
+
+          client = @api_client
+          if client.nil?
+            raise 'ApiClient has not been injected. ' \
+                  'Ensure the {{clientClassName}} constructor calls api_client= ' \
+                  'on HttpAwareAuthenticator before making API requests.'
+          end
+
+          headers = { 'Accept' => 'application/json' }
+          response = if client.is_a?(::{{moduleName}}::DefaultApiClient)
+                       # Discovery goes to the identity provider: the transport's
+                       # default headers (meant for the API) stay off it.
+                       client.send_request(:get, @openid_connect_url, headers, nil, no_default_headers: true)
+                     else
+                       client.send_request(:get, @openid_connect_url, headers, nil)
+                     end
+          # Guard the discovery HTTP status before parsing: a 500 returning
+          # an HTML error page would otherwise surface as a confusing
+          # "invalid JSON" error. Surface the real failure instead, as the
+          # same typed error an API call with that status raises.
+          status = response.status_code.to_i
+          if status < 200 || status >= 300
+            raise ::{{moduleName}}::Errors::ApiError.from_response(status, response.headers, response.body,
+                                                                  request_method: 'GET',
+                                                                  request_path: URI.parse(@openid_connect_url).path)
+          end
+
+          discovery = parse_discovery(response.body)
+          authorization_endpoint = discovery['authorization_endpoint']
+          token_endpoint = discovery['token_endpoint']
+          # Guard against a discovery document that omits the required
+          # endpoints: building a delegate with nil/empty endpoint URLs would
+          # otherwise NPE far away at the first authorize/token call.
+          if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
+            raise ::{{moduleName}}::Errors::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'"
+          end
+          if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
+            raise ::{{moduleName}}::Errors::SerializationError, "OIDC discovery document is missing 'token_endpoint'"
+          end
+          validate_discovery!(discovery, authorization_endpoint, token_endpoint)
+          delegate = OAuth2AuthorizationCodeAuthenticator.new(
+            @host, @client_id, @client_secret,
+            authorization_endpoint,
+            token_endpoint,
+            @redirect_uri, @scopes,
+            token_manager: current&.token_manager,
+            pkce_verifier: current&.pkce_verifier
+          )
+          delegate.api_client = client
+          @delegate = delegate
+          issuer = discovery['issuer']
+          @discovered_issuer = issuer.is_a?(String) ? issuer : nil
+          @discovery_expiry = Time.now + parse_max_age(response.headers)
+          delegate
+        end
+
+        # OpenID Connect Discovery 1.0 section 4.3 / RFC 8414 section 3.3: an
+        # issuer the document states must equal the discovery URL minus its
+        # well-known suffix. The endpoints must be https, except on a loopback
+        # host (RFC 8252 section 8.3), so credentials never cross cleartext.
+        #
+        # @raise [::{{moduleName}}::Errors::SerializationError] if the document fails either check
+        def validate_discovery!(discovery, authorization_endpoint, token_endpoint)
+          issuer = discovery['issuer']
+          if issuer.is_a?(String)
+            expected = @openid_connect_url.sub(%r{/\.well-known/openid-configuration\z}, '').chomp('/')
+            if issuer.chomp('/') != expected
+              raise ::{{moduleName}}::Errors::SerializationError, 'OIDC discovery document issuer does not match the discovery URL'
+            end
+          end
+          { 'authorization_endpoint' => authorization_endpoint, 'token_endpoint' => token_endpoint }.each do |name, url|
+            next if secure_endpoint?(url.to_s)
+
+            raise ::{{moduleName}}::Errors::SerializationError, "OIDC discovery #{name} must use https"
+          end
+        end
+
+        # @return [Boolean] true for an https URL, or an http URL on a loopback host
+        def secure_endpoint?(url)
+          uri = URI.parse(url)
+          return true if uri.scheme == 'https'
+
+          uri.scheme == 'http' && ['localhost', '127.0.0.1', '[::1]', '::1'].include?(uri.host.to_s)
+        rescue URI::InvalidURIError
+          false
+        end
+
+        # @return [Hash] the discovery document
+        # @raise [::{{moduleName}}::Errors::SerializationError] if the body is not a JSON object
+        def parse_discovery(body)
+          parsed = JSON.parse(body.to_s)
+          raise ::{{moduleName}}::Errors::SerializationError, 'OIDC discovery document is not a JSON object' unless parsed.is_a?(Hash)
+
+          parsed
+        rescue JSON::ParserError => e
+          raise ::{{moduleName}}::Errors::SerializationError.new("OIDC discovery document is not valid JSON: #{e.message}", e)
+        end
+
+        # Validate the claims of the id_token of a code exchange (OpenID Connect
+        # Core 3.1.3.7): the nonce of the authorization URL when one was sent,
+        # the discovered issuer, the client id in the audience and the expiry.
+        # A response without an id_token is not checked. The payload is decoded
+        # without verifying the signature.
+        #
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if a claim does not hold
+        def validate_id_token(id_token, nonce, issuer)
+          return if id_token.nil?
+
+          claims = decode_id_token(id_token)
+          if nonce && claims['nonce'] != nonce
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token nonce does not match the authorization request'
+          end
+          iss = claims['iss']
+          if issuer.nil? || !iss.is_a?(String) || iss != issuer
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token issuer does not match the discovered issuer'
+          end
+          unless audience_contains?(claims['aud'])
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token audience does not contain the client id'
+          end
+          exp = claims['exp']
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed' unless exp.is_a?(Numeric)
+          return if Time.now.to_f < exp + ID_TOKEN_CLOCK_SKEW_SECONDS
+
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token has expired'
+        end
+
+        # @return [Hash] the claims of a compact JWS: the second segment, base64url-decoded JSON
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the id_token is not a decodable JWT
+        def decode_id_token(id_token)
+          parts = id_token.split('.', -1)
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed' unless parts.length == 3
+
+          payload = parts[1].to_s
+          claims = JSON.parse(Base64.urlsafe_decode64(payload + ('=' * (-payload.length % 4))))
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed' unless claims.is_a?(Hash)
+
+          claims
+        rescue ArgumentError, JSON::ParserError
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The id_token is malformed'
+        end
+
+        # @return [Boolean] true when the aud claim is the client id or a list holding it
+        def audience_contains?(aud)
+          return aud == @client_id if aud.is_a?(String)
+
+          aud.is_a?(Array) && aud.include?(@client_id)
+        end
+
+        # Parse `Cache-Control: max-age=<seconds>` from response headers.
+        #
+        # @param headers [Hash{String => String}] response headers
+        # @return [Integer] the parsed max-age in seconds (at most one year), or 86400 if absent
+        def parse_max_age(headers)
+          return DEFAULT_DISCOVERY_MAX_AGE_SECONDS if headers.nil?
+
+          cache_control = headers.find { |k, _| k.to_s.downcase == 'cache-control' }
+          return DEFAULT_DISCOVERY_MAX_AGE_SECONDS unless cache_control
+
+          match = cache_control[1].match(/max-age=(\d+)/i)
+          match ? [match[1].to_i, MAX_DISCOVERY_MAX_AGE_SECONDS].min : DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+        end
+      end
+    end
+  end
+end

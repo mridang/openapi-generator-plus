@@ -1,0 +1,20 @@
+let environment = ProcessInfo.processInfo.environment
+guard let host = environment["{{envVarPrefix}}_BASE_URL"] else {
+    throw ConfigurationError.invalidArgument("{{envVarPrefix}}_BASE_URL is not set")
+}
+guard let token = environment["{{envVarPrefix}}_TOKEN"] else {
+    throw ConfigurationError.invalidArgument("{{envVarPrefix}}_TOKEN is not set")
+}
+let client = try {{clientClassName}}.withToken(host: host, accessToken: token)
+defer { client.close() }
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+{{#returnType}}
+let result = try await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}()
+print(result)
+{{/returnType}}
+{{^returnType}}
+try await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}()
+{{/returnType}}
+{{/exampleOperation}}
+{{/hasExampleOperation}}

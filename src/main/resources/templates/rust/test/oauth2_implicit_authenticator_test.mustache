@@ -1,0 +1,245 @@
+{{>api_info}}
+
+use {{packageName}}::auth::oauth::{BrowserAuthImplicitAuthenticator, OAuth2ImplicitAuthenticator};
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::ConfigurationError;
+
+fn create_authenticator() -> OAuth2ImplicitAuthenticator {
+    OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "https://auth.example.com/authorize",
+        vec!["read".to_string(), "write".to_string()],
+    )
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_003_builds_authorization_url_with_response_type_token() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.starts_with("https://auth.example.com/authorize?"));
+    assert!(url.contains("response_type=token"));
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_002_builds_authorization_url_with_client_id() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("client_id=my-client-id"));
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_004_builds_authorization_url_with_scopes() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("&scope=read%20write"), "authorization url: {}", url);
+}
+
+/// The authorization URL writes a space as `%20` and encodes every character
+/// outside `-._~` in the scope and the state.
+#[test]
+fn test_bhv_authoauthtwoimplicit_001_authorization_url_encodes_everything_but_the_unreserved_set() {
+    let auth = OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "https://auth.example.com/authorize",
+        vec!["a~b".to_string(), "c*d!e'f(g)".to_string()],
+    );
+
+    let url = auth.build_authorization_url("st~*!'()");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(pairs.contains(&"scope=a~b%20c%2Ad%21e%27f%28g%29"), "{}", url);
+    assert!(pairs.contains(&"state=st~%2A%21%27%28%29"), "{}", url);
+}
+
+/// An empty state is left out of the authorization URL.
+#[test]
+fn test_bhv_authoauthtwoimplicit_009_omits_an_empty_state_from_the_authorization_url() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(!url.contains("state="), "authorization url: {}", url);
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_005_builds_authorization_url_with_state() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("my-state");
+
+    assert!(url.contains("state=my-state"));
+}
+
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_007_get_auth_headers_returns_bearer_after_set_access_token() {
+    let auth = create_authenticator();
+    auth.set_access_token("implicit-tok").unwrap();
+
+    let headers = auth.auth_headers().await;
+
+    assert_eq!("Bearer implicit-tok", headers.get("Authorization").unwrap());
+}
+
+/// A request made before `set_access_token` is a wrong call order:
+/// `try_auth_headers` (which the API client calls) returns
+/// `ConfigurationError::InvalidState`, never a panic, and `auth_headers`
+/// degrades to an empty map.
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_012_throws_when_access_token_not_set() {
+    let auth = create_authenticator();
+    let err = auth.try_auth_headers().await.expect_err("expected an error before set_access_token");
+    match err.downcast_ref::<ConfigurationError>() {
+        Some(ConfigurationError::InvalidState(reason)) => {
+            assert!(reason.contains("Must set the access token before making API requests"), "{}", reason)
+        }
+        other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
+    }
+    assert!(auth.auth_headers().await.is_empty());
+}
+
+/// F-A5-04: a token that would inject a header is rejected with
+/// `ConfigurationError::InvalidArgument`, never a panic, and is not stored.
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_013_set_access_token_rejects_invalid_token() {
+    let auth = create_authenticator();
+    for token in ["tok\r\nInjected: yes", "ñoño", "tok\0"] {
+        assert!(
+            matches!(auth.set_access_token(token), Err(ConfigurationError::InvalidArgument(_))),
+            "expected InvalidArgument for {:?}",
+            token
+        );
+    }
+    assert!(auth.try_auth_headers().await.is_err());
+}
+
+/// RFC 7230 §3.2.6: a token outside printable ASCII is refused with the canonical
+/// message, and the token already set is kept.
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_014_rejects_a_non_ascii_access_token_with_the_rfc_7230_message() {
+    let auth = create_authenticator();
+    auth.set_access_token("kept").unwrap();
+
+    match auth.set_access_token("töken") {
+        Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(
+            "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+            reason
+        ),
+        other => panic!("expected ConfigurationError::InvalidArgument, got {:?}", other),
+    }
+    let headers = auth.auth_headers().await;
+    assert_eq!("Bearer kept", headers.get("Authorization").unwrap());
+}
+
+/// RFC 7230 section 3.2.6 allows a horizontal tab inside a field value, so a token with one is accepted.
+#[tokio::test]
+async fn test_bhv_authoauthtwoimplicit_016_an_access_token_may_contain_a_tab() {
+    let auth = create_authenticator();
+    auth.set_access_token("tok\tkey").expect("a tab is allowed inside a token");
+    let headers = auth.auth_headers().await;
+    assert_eq!("Bearer tok\tkey", headers.get("Authorization").unwrap());
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_008_get_host_returns_configured_host() {
+    let auth = create_authenticator();
+    assert_eq!("https://api.example.com", auth.host());
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_010_redacts_secret() {
+    let auth = create_authenticator();
+    auth.set_access_token("implicit-tok").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("implicit-tok"));
+    assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_bhv_authoauthtwoimplicit_006_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
+    let auth = BrowserAuthImplicitAuthenticator::new("https://api.example.com", Some("id")).unwrap();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.split(['?', '&']).any(|pair| pair == "scope=read"),
+        "authorization url: {}",
+        url
+    );
+}
+
+/// The redacted representation shows every non-secret field and masks the
+/// access token once it is set.
+#[test]
+fn test_bhv_authoauthtwoimplicit_011_redacted_representation_shows_the_non_secret_fields() {
+    let auth = create_authenticator();
+    let before = format!("{:?}", auth);
+    assert!(before.starts_with("OAuth2ImplicitAuthenticator { host: \"https://api.example.com\", "), "{}", before);
+    assert!(before.contains("client_id: \"my-client-id\""), "{}", before);
+    assert!(before.contains("authorization_url: \"https://auth.example.com/authorize\""), "{}", before);
+    assert!(before.contains("scopes: [\"read\", \"write\"]"), "{}", before);
+    assert!(before.contains("access_token: None"), "{}", before);
+
+    auth.set_access_token("implicit-tok").unwrap();
+    let after = format!("{:?}", auth);
+    assert!(after.contains("access_token: Some(\"***\")"), "{}", after);
+}
+
+/// Replacing the access token while other callers read the authentication headers is race-free:
+/// every read gets one complete token that was set.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_001_replacing_the_token_while_headers_are_read_is_race_free() {
+    let auth = std::sync::Arc::new(create_authenticator());
+    auth.set_access_token("token-0").unwrap();
+
+    let mut writers = Vec::new();
+    for i in 1..=200 {
+        let auth = auth.clone();
+        writers.push(tokio::spawn(async move {
+            auth.set_access_token(&format!("token-{i}")).expect("a valid token is accepted");
+        }));
+    }
+    let mut readers = Vec::new();
+    for _ in 0..200 {
+        let auth = auth.clone();
+        readers.push(tokio::spawn(async move {
+            let headers = auth.auth_headers().await;
+            headers.get("Authorization").cloned()
+        }));
+    }
+
+    for writer in writers {
+        writer.await.expect("writer should not panic");
+    }
+    for reader in readers {
+        let header = reader
+            .await
+            .expect("reader should not panic")
+            .expect("the token is set before any read");
+        let token = header.strip_prefix("Bearer ").expect("a Bearer header");
+        let written = token
+            .strip_prefix("token-")
+            .and_then(|n| n.parse::<u32>().ok())
+            .is_some_and(|n| (1..=200).contains(&n));
+        assert!(token == "token-0" || written, "a read observed a token that was never set: {token}");
+    }
+}
+
+/// The implicit flow's authorize URL is exact: response_type token, the client id, and the scopes with a space written as %20.
+#[test]
+fn test_bhv_auth_049_the_implicit_flow_builds_an_exact_authorize_url() {
+    let url = create_authenticator().build_authorization_url("");
+    assert_eq!(
+        url,
+        "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write"
+    );
+}
+

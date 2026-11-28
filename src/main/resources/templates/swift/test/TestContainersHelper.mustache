@@ -1,0 +1,798 @@
+{{>api_info}}
+{{#generateTests}}
+import Foundation
+import TestcontainersCore
+@testable import {{packageName}}
+
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#elseif canImport(Darwin)
+import Darwin
+#endif
+
+nonisolated(unsafe) var proxyUrl: String = ""
+nonisolated(unsafe) var proxyAuthHostPort: String = ""
+nonisolated(unsafe) var chasmUrl: String = ""
+nonisolated(unsafe) var chasmHttpUrl: String = ""
+nonisolated(unsafe) var chasmHttpsUrl: String = ""
+nonisolated(unsafe) var chasmInternalHttpUrl: String = ""
+nonisolated(unsafe) var chasmInternalHttpsUrl: String = ""
+nonisolated(unsafe) var caCertPath: String = ""
+
+nonisolated(unsafe) private var squidContainer: DockerContainer?
+nonisolated(unsafe) private var chasmContainer: DockerContainer?
+nonisolated(unsafe) private var sharedNetwork: Network?
+
+/// Serialization guard so multiple parallel @Suite inits race-free.
+/// First caller runs `_setUpContainers()`; later callers wait, then see globals already set.
+private actor ContainerSetupGuard {
+    static let shared = ContainerSetupGuard()
+    private var ready = false
+
+    func ensureReady() async throws {
+        if ready { return }
+        try await _setUpContainers()
+        ready = true
+    }
+}
+
+func setUpContainers() async throws {
+    try await ContainerSetupGuard.shared.ensureReady()
+}
+
+/// Fails the run when a dependency the generated tests import is missing from
+/// `Package.swift`.
+///
+/// `.openapi-generator/DEV-DEPENDENCIES` is generator-owned; the manifest is
+/// not, because it carries the package's own metadata and every real client
+/// keep-lists it. Reading both here turns a drift between them into a message
+/// naming the file instead of an opaque build failure.
+private func checkDevDependencies() throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    let listing = try String(
+        contentsOf: root.appendingPathComponent(".openapi-generator/DEV-DEPENDENCIES"),
+        encoding: .utf8
+    )
+    let manifest = try String(
+        contentsOf: root.appendingPathComponent("Package.swift"),
+        encoding: .utf8
+    )
+    for line in listing.split(separator: "\n") {
+        let entry = line.trimmingCharacters(in: .whitespaces)
+        if entry.isEmpty || entry.hasPrefix("#") {
+            continue
+        }
+        guard let name = entry.split(separator: " ").first.map(String.init) else {
+            continue
+        }
+        if !manifest.contains(name) {
+            fatalError(
+                "\(name) is required by the generated tests but is not declared in "
+                    + "Package.swift; every entry in .openapi-generator/DEV-DEPENDENCIES "
+                    + "must be declared there"
+            )
+        }
+    }
+}
+
+private func _setUpContainers() async throws {
+    try checkDevDependencies()
+
+    let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Tests/Fixtures")
+
+    /* CHASM_HTTP_URL and PROXY_URL point at instances that are already running. */
+    let environment = ProcessInfo.processInfo.environment
+    if let sharedChasm = environment["CHASM_HTTP_URL"], let sharedProxy = environment["PROXY_URL"] {
+        caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
+        proxyUrl = sharedProxy
+        proxyAuthHostPort = environment["PROXY_AUTH_HOST_PORT"] ?? ""
+        chasmUrl = sharedChasm
+        chasmHttpUrl = sharedChasm
+        chasmHttpsUrl = environment["CHASM_HTTPS_URL"] ?? ""
+        chasmInternalHttpUrl = environment["CHASM_INTERNAL_HTTP_URL"] ?? ""
+        chasmInternalHttpsUrl = environment["CHASM_INTERNAL_HTTPS_URL"] ?? ""
+        setenv("CA_CERT_PATH", caCertPath, 1)
+        return
+    }
+
+    let network = Network()
+    try await network.create()
+    sharedNetwork = network
+
+    caCertPath = fixturesPath.appendingPathComponent("certs/ca.pem").path
+
+    let squidConfPath = fixturesPath.appendingPathComponent("proxy/squid.conf")
+
+    let squid = DockerContainer("ubuntu/squid:6.10-24.10_beta")
+        .withExposedPorts([3128, 3129])
+        .withCopyIntoContainer(
+            .path(squidConfPath),
+            "/etc/squid/squid.conf"
+        )
+        /* ubuntu/squid declares VOLUME /var/log/squid and /var/spool/squid, so
+         * every proxy container would otherwise leave two anonymous volumes
+         * behind. tmpfs mounts satisfy the VOLUME declarations without any
+         * volume being created. mode=1777 is required: a tmpfs inherits the
+         * mode of the directory it covers (0755 here) but is owned by root,
+         * and squid drops to the unprivileged `proxy` user before opening
+         * /var/log/squid/access.log. */
+        .withTmpfsMount("/var/log/squid", size: "rw,mode=1777")
+        .withTmpfsMount("/var/spool/squid", size: "rw,mode=1777")
+        .withNetwork(network)
+
+    try await squid.start()
+    squidContainer = squid
+    try await Task.sleep(for: .seconds(3))
+
+    let squidHost = try await squid.containerHostIp()
+    let squidPort = try await squid.exposedPort(3128)
+    proxyUrl = "http://\(squidHost):\(squidPort)"
+    let squidAuthPort = try await squid.exposedPort(3129)
+    proxyAuthHostPort = "\(squidHost):\(squidAuthPort)"
+
+    let specPath = fixturesPath.appendingPathComponent("openapi.yaml")
+    let chasmCertPath = fixturesPath.appendingPathComponent("certs/server.pem")
+    let chasmKeyPath = fixturesPath.appendingPathComponent("certs/server-key.pem")
+
+    let chasm = DockerContainer("mridang/chasm:1.3.0")
+        .withExposedPorts([4010, 8443])
+        .withCopyIntoContainer(
+            .path(specPath),
+            "/tmp/openapi.yaml"
+        )
+        .withCopyIntoContainer(
+            .path(chasmCertPath),
+            "/certs/cert.pem"
+        )
+        .withCopyIntoContainer(
+            .path(chasmKeyPath),
+            "/certs/key.pem"
+        )
+        .withCommand([
+            "mock", "/tmp/openapi.yaml", "--host", "0.0.0.0",
+            "--tls-cert", "/certs/cert.pem",
+            "--tls-key", "/certs/key.pem",
+            "--tls-port", "8443"
+        ])
+        .withNetwork(network)
+        .withNetworkAliases(["chasm"])
+        .waitingFor(LogMessageWaitStrategy("Listening on"))
+
+    try await chasm.start()
+    chasmContainer = chasm
+
+    let chasmHost = try await chasm.containerHostIp()
+    let chasmPort = try await chasm.exposedPort(4010)
+    let chasmHttpsPort = try await chasm.exposedPort(8443)
+    chasmUrl = "http://\(chasmHost):\(chasmPort)"
+    chasmHttpUrl = "http://\(chasmHost):\(chasmPort)"
+    chasmHttpsUrl = "https://\(chasmHost):\(chasmHttpsPort)"
+    chasmInternalHttpUrl = "http://chasm:4010"
+    chasmInternalHttpsUrl = "https://chasm:8443"
+
+    setenv("API_BASE_URL", chasmUrl, 1)
+    setenv("CA_CERT_PATH", caCertPath, 1)
+    setenv("PROXY_URL", proxyUrl, 1)
+}
+
+func tearDownContainers() async throws {
+    if let chasm = chasmContainer {
+        try await chasm.stop()
+    }
+    if let squid = squidContainer {
+        try await squid.stop()
+    }
+    if let network = sharedNetwork {
+        try await network.remove()
+    }
+}
+
+/// A streamed response as a stub transport hands it out: the status, the
+/// headers with lower-cased names and a body that is already complete.
+///
+/// - Parameter onClose: Runs when the response is closed.
+func stubStreamResponse(
+    status: Int, headers: [String: String], body: Data, onClose: (@Sendable () -> Void)? = nil
+) -> ApiStreamResponse {
+    let (stream, continuation) = AsyncThrowingStream<Data, Error>.makeStream()
+    if !body.isEmpty {
+        continuation.yield(body)
+    }
+    continuation.finish()
+    var lowered: [String: String] = [:]
+    for (name, value) in headers {
+        lowered[name.lowercased()] = value
+    }
+    return ApiStreamResponse(
+        statusCode: status, headers: lowered, body: stream, close: { onClose?() })
+}
+
+/// The bytes a stub transport serves for a canned response body: the text itself
+/// for a text content type, and the decoded Base64 for any other.
+func stubBodyBytes(_ body: String, contentType: String?) -> Data {
+    if DefaultApiClient.isTextContentType(contentType ?? "") {
+        return Data(body.utf8)
+    }
+    return Data(base64Encoded: body) ?? Data(body.utf8)
+}
+
+/// A value that a script on a server thread and the test body both touch.
+final class LockedValue<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    func get() -> Value {
+        lock.withLock { value }
+    }
+
+    func set(_ new: Value) {
+        lock.withLock { value = new }
+    }
+
+    func update(_ change: (inout Value) -> Void) {
+        lock.withLock { change(&value) }
+    }
+}
+
+/// One connection of a ``RawServer``: what a script writes to the client.
+final class RawConnection: @unchecked Sendable {
+    /// What a script read of one request body.
+    struct Upload: Sendable {
+        let bytes: Data
+        let chunked: Bool
+    }
+
+    let descriptor: Int32
+    let server: RawServer
+    /* Bytes that arrived with the request head and belong to the body. */
+    private var pending: Data
+
+    init(descriptor: Int32, server: RawServer, pending: Data = Data()) {
+        self.descriptor = descriptor
+        self.server = server
+        self.pending = pending
+    }
+
+    private func fill() -> Bool {
+        var buffer = [UInt8](repeating: 0, count: 65_536)
+        let count = recv(descriptor, &buffer, buffer.count, 0)
+        if count <= 0 { return false }
+        pending.append(contentsOf: buffer[0..<count])
+        return true
+    }
+
+    private func take(_ count: Int) -> Data? {
+        while pending.count < count {
+            if !fill() { return nil }
+        }
+        let taken = Data(pending.prefix(count))
+        pending.removeFirst(count)
+        return taken
+    }
+
+    private func takeLine() -> String? {
+        let terminator = Data("\r\n".utf8)
+        while true {
+            if let range = pending.range(of: terminator) {
+                let line = String(decoding: pending[pending.startIndex..<range.lowerBound], as: UTF8.self)
+                pending.removeSubrange(pending.startIndex..<range.upperBound)
+                return line
+            }
+            if !fill() { return nil }
+        }
+    }
+
+    /// Reads the body that follows the request head: a chunked one chunk by
+    /// chunk and one with a Content-Length to its end. `onFirst` runs once the
+    /// first bytes are in, while the rest is still to come.
+    func readUpload(head: String, onFirst: () -> Void = {}) -> Upload {
+        let lower = head.lowercased()
+        if lower.contains("transfer-encoding: chunked") {
+            var received = Data()
+            while let line = takeLine(),
+                let size = Int(line.trimmingCharacters(in: .whitespaces), radix: 16)
+            {
+                if size == 0 {
+                    _ = takeLine()
+                    return Upload(bytes: received, chunked: true)
+                }
+                guard let chunk = take(size) else { break }
+                received.append(chunk)
+                _ = take(2)
+                onFirst()
+            }
+            return Upload(bytes: received, chunked: true)
+        }
+        if let range = lower.range(of: "content-length: "),
+            let length = Int(lower[range.upperBound...].prefix(while: { $0.isNumber }))
+        {
+            let body = take(length) ?? Data()
+            onFirst()
+            return Upload(bytes: body, chunked: false)
+        }
+        return Upload(bytes: Data(), chunked: false)
+    }
+
+    /// Answers with a status, the given headers and an empty body.
+    func reply(_ status: Int, _ headers: String...) {
+        var text = "HTTP/1.1 \(status) Test\r\n"
+        for header in headers { text += header + "\r\n" }
+        text += "Content-Length: 0\r\nConnection: close\r\n\r\n"
+        send(text)
+    }
+
+    /// Writes bytes; false when the client is no longer there.
+    @discardableResult
+    func send(_ data: Data) -> Bool {
+        return data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Bool in
+            guard let base = raw.baseAddress else { return true }
+            var sent = 0
+            while sent < raw.count {
+                let written = Foundation.send(descriptor, base + sent, raw.count - sent, 0)
+                if written <= 0 { return false }
+                sent += written
+            }
+            return true
+        }
+    }
+
+    @discardableResult
+    func send(_ text: String) -> Bool {
+        return send(Data(text.utf8))
+    }
+
+    /// Writes the status line and the headers of a response.
+    func head(_ status: Int, _ headers: String...) {
+        var text = "HTTP/1.1 \(status) Test\r\n"
+        for header in headers { text += header + "\r\n" }
+        text += "Connection: close\r\n\r\n"
+        send(text)
+    }
+
+    /// Writes one chunk of a chunked body; false when the client is gone.
+    @discardableResult
+    func chunk(_ text: String) -> Bool {
+        let bytes = Data(text.utf8)
+        return send(Data((String(bytes.count, radix: 16) + "\r\n").utf8) + bytes + Data("\r\n".utf8))
+    }
+
+    /// Writes bytes as one chunk of a chunked body; false when the client is gone.
+    @discardableResult
+    func chunk(_ bytes: Data) -> Bool {
+        return send(Data((String(bytes.count, radix: 16) + "\r\n").utf8) + bytes + Data("\r\n".utf8))
+    }
+
+    /// Ends a chunked body.
+    func end() {
+        send("0\r\n\r\n")
+    }
+
+    /// Makes the close that follows the script reset the connection instead of
+    /// ending it cleanly.
+    func reset() {
+        var option = linger(l_onoff: 1, l_linger: 0)
+        setsockopt(descriptor, SOL_SOCKET, SO_LINGER, &option, socklen_t(MemoryLayout<linger>.size))
+    }
+}
+
+/// An HTTP/1.1 server on a raw loopback socket that runs a script for every
+/// connection, so a test can hold a body half-sent, stall it, cut it short or
+/// reset the connection, which neither the shared mock server nor
+/// ``LoopbackServer`` can do. The script gets the connection, the 1-based hit
+/// number and the request head.
+final class RawServer: @unchecked Sendable {
+    typealias Script = @Sendable (RawConnection, Int, String) -> Void
+
+    private let lock = NSLock()
+    private let releaseSignal = NSCondition()
+    private var headLog: [String] = []
+    private var stopped = false
+    private var released = false
+    private var gone = false
+    private let script: Script
+    private(set) var port: Int = 0
+
+    init(_ script: @escaping Script) throws {
+        self.script = script
+        signal(SIGPIPE, SIG_IGN)
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let fd = socket(AF_INET, stream, 0)
+        guard fd >= 0 else { throw LoopbackServer.LoopbackError.socket }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = 0
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bound == 0, listen(fd, 64) == 0 else {
+            close(fd)
+            throw LoopbackServer.LoopbackError.socket
+        }
+        var assigned = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafeMutablePointer(to: &assigned) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &length) }
+        }
+        port = Int(UInt16(bigEndian: assigned.sin_port))
+        let thread = Thread { [self] in acceptLoop(fd) }
+        thread.start()
+    }
+
+    /// The origin this server answers on.
+    var origin: String { return "http://127.0.0.1:\(port)" }
+
+    func url(_ path: String) -> String { return origin + path }
+
+    /// The number of connections served so far.
+    var hits: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return headLog.count
+    }
+
+    /// The request head of every connection, in arrival order.
+    var heads: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return headLog
+    }
+
+    /// Lets every script that waits in ``awaitRelease(timeout:)`` carry on.
+    func release() {
+        releaseSignal.lock()
+        released = true
+        releaseSignal.broadcast()
+        releaseSignal.unlock()
+    }
+
+    var isReleased: Bool {
+        releaseSignal.lock()
+        defer { releaseSignal.unlock() }
+        return released
+    }
+
+    /// Waits until the test releases the server; true when it did, false on timeout.
+    @discardableResult
+    func awaitRelease(timeout: TimeInterval = 20) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        releaseSignal.lock()
+        defer { releaseSignal.unlock() }
+        while !released {
+            if !releaseSignal.wait(until: deadline) { return released }
+        }
+        return true
+    }
+
+    /// Called by a script whose write failed because the client dropped the connection.
+    func markClientGone() {
+        lock.lock()
+        gone = true
+        lock.unlock()
+    }
+
+    /// Waits for a script to report that the client dropped the connection.
+    func waitForClientGone(timeout: TimeInterval = 10) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let seen = lock.withLock { gone }
+            if seen { return true }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return false
+    }
+
+    /// Stops accepting connections and lets waiting scripts finish.
+    func stop() {
+        release()
+        lock.lock()
+        let wasStopped = stopped
+        stopped = true
+        lock.unlock()
+        if wasStopped { return }
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let wake = socket(AF_INET, stream, 0)
+        if wake < 0 { return }
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        _ = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(wake, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        close(wake)
+    }
+
+    deinit { stop() }
+
+    private func acceptLoop(_ fd: Int32) {
+        defer { close(fd) }
+        while true {
+            let client = accept(fd, nil, nil)
+            lock.lock()
+            let done = stopped
+            lock.unlock()
+            if client < 0 || done {
+                if client >= 0 { close(client) }
+                return
+            }
+            let thread = Thread { [self] in serve(client) }
+            thread.start()
+        }
+    }
+
+    private func serve(_ client: Int32) {
+        defer { close(client) }
+        var head = Data()
+        let terminator = Data("\r\n\r\n".utf8)
+        while head.range(of: terminator) == nil {
+            var chunk = [UInt8](repeating: 0, count: 4096)
+            let count = recv(client, &chunk, chunk.count, 0)
+            if count <= 0 { return }
+            head.append(contentsOf: chunk[0..<count])
+        }
+        /* What came after the head belongs to the body, and is kept for the script to read. */
+        let split = head.range(of: terminator)?.upperBound ?? head.endIndex
+        let headText = String(decoding: head[..<split], as: UTF8.self)
+        lock.lock()
+        headLog.append(headText)
+        let hit = headLog.count
+        lock.unlock()
+        script(
+            RawConnection(descriptor: client, server: self, pending: Data([UInt8](head[split...]))), hit,
+            headText)
+    }
+}
+
+/// One request as a ``LoopbackServer`` read it off the wire.
+struct LoopbackRequest: Sendable {
+    let method: String
+    let target: String
+    let headers: [String: String]
+    let body: Data
+
+    /// A header by name, whatever the case it travelled in.
+    func header(_ name: String) -> String? {
+        return headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+    }
+}
+
+/// What a ``LoopbackServer`` answers a request with.
+struct LoopbackResponse: Sendable {
+    var status: Int
+    var headers: [String: String] = [:]
+    var body: Data = Data()
+    /// Seconds to wait before answering.
+    var delay: TimeInterval = 0
+
+    static func ok(_ text: String = "{}") -> LoopbackResponse {
+        return LoopbackResponse(
+            status: 200, headers: ["Content-Type": "application/json"], body: Data(text.utf8))
+    }
+
+    static func redirect(_ status: Int, to location: String?) -> LoopbackResponse {
+        return LoopbackResponse(status: status, headers: location.map { ["Location": $0] } ?? [:])
+    }
+
+    /// Closes the connection without answering, as a dropped network does.
+    static let dropped = LoopbackResponse(status: 0)
+}
+
+/// A plain-HTTP server on the loopback interface, for the tests that need to
+/// decide what the far end does (an arbitrary Location, a dropped connection,
+/// the second origin of a cross-origin redirect) and to see exactly what
+/// reached it. It speaks only what the transport tests need: one request per
+/// connection, a Content-Length or chunked request body, and a response
+/// carrying Content-Length and `Connection: close`. It is plain sockets, so the
+/// same code serves Linux and the Apple platforms.
+final class LoopbackServer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var requestLog: [LoopbackRequest] = []
+    private var stopped = false
+    private let handler: @Sendable (LoopbackRequest, Int) -> LoopbackResponse
+    private(set) var port: Int = 0
+
+    /// Starts listening on a free loopback port. The handler gets each request
+    /// and its 1-based position in the order the server received them.
+    init(handler: @escaping @Sendable (LoopbackRequest, Int) -> LoopbackResponse) throws {
+        self.handler = handler
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let fd = socket(AF_INET, stream, 0)
+        guard fd >= 0 else { throw LoopbackError.socket }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = 0
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bound == 0, listen(fd, 64) == 0 else {
+            close(fd)
+            throw LoopbackError.socket
+        }
+        var assigned = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafeMutablePointer(to: &assigned) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &length) }
+        }
+        port = Int(UInt16(bigEndian: assigned.sin_port))
+        let thread = Thread { [self] in acceptLoop(fd) }
+        thread.start()
+    }
+
+    enum LoopbackError: Error { case socket }
+
+    /// The origin this server answers on.
+    var origin: String { return "http://127.0.0.1:\(port)" }
+
+    /// The same server under another host name, which is another origin.
+    var alternateOrigin: String { return "http://localhost:\(port)" }
+
+    /// Every request received so far, in arrival order.
+    var requests: [LoopbackRequest] {
+        lock.lock()
+        defer { lock.unlock() }
+        return requestLog
+    }
+
+    /// Stops accepting connections; one already being served finishes.
+    func stop() {
+        lock.lock()
+        let wasStopped = stopped
+        stopped = true
+        lock.unlock()
+        if wasStopped { return }
+        /* A connection to ourselves wakes the accept loop, which closes the
+         * listening socket itself: closing it here could let another socket
+         * take its descriptor number while the loop still accepts on it. */
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let wake = socket(AF_INET, stream, 0)
+        if wake < 0 { return }
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        _ = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(wake, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        close(wake)
+    }
+
+    deinit { stop() }
+
+    private func acceptLoop(_ fd: Int32) {
+        defer { close(fd) }
+        while true {
+            let client = accept(fd, nil, nil)
+            lock.lock()
+            let done = stopped
+            lock.unlock()
+            if client < 0 || done {
+                if client >= 0 { close(client) }
+                return
+            }
+            let thread = Thread { [self] in serve(client) }
+            thread.start()
+        }
+    }
+
+    private func serve(_ client: Int32) {
+        defer { close(client) }
+        guard let request = LoopbackServer.read(client) else { return }
+        lock.lock()
+        requestLog.append(request)
+        let position = requestLog.count
+        lock.unlock()
+        let response = handler(request, position)
+        if response.delay > 0 { Thread.sleep(forTimeInterval: response.delay) }
+        if response.status == 0 { return }
+        var head = "HTTP/1.1 \(response.status) Status\r\n"
+        for (name, value) in response.headers { head += "\(name): \(value)\r\n" }
+        head += "Content-Length: \(response.body.count)\r\n"
+        head += "Connection: close\r\n\r\n"
+        LoopbackServer.write(client, Data(head.utf8) + response.body)
+    }
+
+    private static func write(_ client: Int32, _ data: Data) {
+        data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            guard let base = raw.baseAddress else { return }
+            var sent = 0
+            while sent < raw.count {
+                let n = send(client, base + sent, raw.count - sent, 0)
+                if n <= 0 { return }
+                sent += n
+            }
+        }
+    }
+
+    private static func fill(_ client: Int32, _ buffer: inout Data) -> Bool {
+        var chunk = [UInt8](repeating: 0, count: 8192)
+        let n = recv(client, &chunk, chunk.count, 0)
+        if n <= 0 { return false }
+        buffer.append(contentsOf: chunk[0..<n])
+        return true
+    }
+
+    private static func read(_ client: Int32) -> LoopbackRequest? {
+        var buffer = Data()
+        let terminator = Data("\r\n\r\n".utf8)
+        var split = buffer.range(of: terminator)
+        while split == nil {
+            if !fill(client, &buffer) { return nil }
+            split = buffer.range(of: terminator)
+        }
+        guard let end = split,
+            let head = String(data: buffer[buffer.startIndex..<end.lowerBound], encoding: .utf8)
+        else { return nil }
+        var rest = Data(buffer[end.upperBound...])
+        var lines = head.components(separatedBy: "\r\n")
+        let first = lines.removeFirst().split(separator: " ", omittingEmptySubsequences: true)
+        guard first.count >= 2 else { return nil }
+        var headers: [String: String] = [:]
+        for line in lines {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            headers[String(line[line.startIndex..<colon])] =
+                line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+        }
+        let lookup = { (name: String) -> String? in
+            headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+        }
+        var body = Data()
+        if let length = lookup("Content-Length").flatMap({ Int($0) }) {
+            while rest.count < length { if !fill(client, &rest) { break } }
+            body = rest.prefix(length)
+        } else if lookup("Transfer-Encoding")?.lowercased() == "chunked" {
+            while true {
+                while rest.range(of: Data("\r\n".utf8)) == nil { if !fill(client, &rest) { break } }
+                guard let eol = rest.range(of: Data("\r\n".utf8)),
+                    let size = Int(
+                        String(data: rest[rest.startIndex..<eol.lowerBound], encoding: .utf8) ?? "",
+                        radix: 16)
+                else { break }
+                rest = Data(rest[eol.upperBound...])
+                if size == 0 { break }
+                while rest.count < size + 2 { if !fill(client, &rest) { break } }
+                body.append(rest.prefix(size))
+                rest = Data(rest.dropFirst(size + 2))
+            }
+        }
+        return LoopbackRequest(
+            method: String(first[0]), target: String(first[1]), headers: headers, body: body)
+    }
+}
+{{/generateTests}}

@@ -1,0 +1,140 @@
+{{! The glob is emitted only when a parameter is actually model-typed, so an
+    options struct made entirely of primitives carries no unused import. }}
+{{#hasModelParams}}
+use crate::models::*;
+{{/hasModelParams}}
+use std::collections::HashMap;
+use std::time::Duration;
+
+/// Options for the {{operationId}} operation.
+{{! Structs with at least one required (non-Option) field must NOT derive
+    Default: a derived Default would let the struct default() (and the no-arg
+    new() that delegates to it) silently produce empty/zero required fields
+    (e.g. an empty category string), so a required parameter could be omitted
+    without any error. Instead such structs get a new(required fields)
+    constructor that forces the caller to supply every required field, matching
+    the required-param enforcement the other SDKs provide. Structs with only
+    optional fields keep the cheap Default derive and a no-arg new(). }}
+{{#hasRequiredParams}}
+#[derive(Debug, Clone)]
+{{/hasRequiredParams}}
+{{^hasRequiredParams}}
+#[derive(Debug, Clone, Default)]
+{{/hasRequiredParams}}
+pub struct {{className}} {
+{{#params}}
+{{#description}}
+    /// {{{.}}}
+{{/description}}
+{{#pluralExamples}}
+    /// ## {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/pluralExamples}}
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
+{{#required}}
+{{#requiredNullable}}
+    pub {{name}}: Option<{{{dataType}}}>,
+{{/requiredNullable}}
+{{^requiredNullable}}
+    pub {{name}}: {{{dataType}}},
+{{/requiredNullable}}
+{{/required}}
+{{^required}}
+    pub {{name}}: Option<{{{dataType}}}>,
+{{/required}}
+{{/params}}
+    /// Replaces the client's end-to-end timeout for this call. Zero is refused
+    /// with `ConfigurationError::InvalidTimeout` before anything is sent.
+    pub timeout: Option<Duration>,
+    /// Replaces the client's retry budget for this call; `Some(0)` turns the
+    /// retries off.
+    pub max_retries: Option<u32>,
+    /// Headers added to this call. They win over the client's default headers
+    /// and the operation's header parameters; the authentication headers are
+    /// applied after them.
+    pub headers: HashMap<String, String>,
+}
+
+impl {{className}} {
+{{#hasRequiredParams}}
+    /// Creates a new {{className}}, requiring every required parameter up front.
+    ///
+{{#hasOptionalParams}}
+    /// Required fields are taken as constructor arguments so they cannot be
+    /// silently omitted; optional fields start as `None` and are populated via
+    /// the chained setters below.
+{{/hasOptionalParams}}
+{{^hasOptionalParams}}
+    /// Every field of this struct is required and is taken as a constructor
+    /// argument so it cannot be silently omitted. The per-call timeout, retry
+    /// budget and headers start unset and have chained setters below.
+{{/hasOptionalParams}}
+    pub fn new({{#params}}{{#required}}{{name}}: {{#requiredNullable}}Option<{{/requiredNullable}}{{{dataType}}}{{#requiredNullable}}>{{/requiredNullable}}, {{/required}}{{/params}}) -> Self {
+        Self {
+{{#params}}
+{{#required}}
+            {{name}},
+{{/required}}
+{{^required}}
+            {{name}}: None,
+{{/required}}
+{{/params}}
+            timeout: None,
+            max_retries: None,
+            headers: HashMap::new(),
+        }
+    }
+{{/hasRequiredParams}}
+{{^hasRequiredParams}}
+    /// Creates a new {{className}} with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+{{/hasRequiredParams}}
+{{#params}}
+{{^required}}
+
+    /// Sets the {{name}} field.
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
+    pub fn {{name}}(mut self, {{name}}: {{{dataType}}}) -> Self {
+        self.{{name}} = Some({{name}});
+        self
+    }
+{{/required}}
+{{/params}}
+
+    /// Sets the end-to-end timeout of this call, replacing the client's.
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    /// Sets the retry budget of this call, replacing the client's.
+    pub fn max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
+        self
+    }
+
+    /// Adds one header to this call, replacing an earlier one of the same name.
+    pub fn header(mut self, name: &str, value: &str) -> Self {
+        self.headers.insert(name.to_string(), value.to_string());
+        self
+    }
+
+    /// The per-call settings the transport layer applies.
+    pub(crate) fn call_options(&self) -> crate::api::base_api::CallOptions {
+        crate::api::base_api::CallOptions {
+            timeout: self.timeout,
+            max_retries: self.max_retries,
+            headers: self.headers.clone(),
+            idle_timeout: None,
+        }
+    }
+}

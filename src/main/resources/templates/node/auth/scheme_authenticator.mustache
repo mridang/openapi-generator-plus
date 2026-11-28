@@ -1,0 +1,26 @@
+{{>api_info}}
+
+{{#imports}}
+import { {{{className}}} } from '{{{path}}}{{importFileExtension}}';
+{{/imports}}
+{{#typeImports}}
+import type { {{{className}}} } from '{{{path}}}{{importFileExtension}}';
+{{/typeImports}}
+
+/**
+ * Scheme-specific authenticator for the {{schemeName}} security scheme.
+{{#schemeDeprecated}}
+ *
+ * Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
+ */
+export class {{className}} extends {{baseClass}} {
+{{#hasOAuth2MetadataUrl}}
+  /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
+  static readonly METADATA_URL = {{{oauth2MetadataUrlLiteral}}};
+
+{{/hasOAuth2MetadataUrl}}
+  constructor({{#constructorParams}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
+    super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
+  }
+}

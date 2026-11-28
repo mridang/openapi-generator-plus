@@ -1,0 +1,3403 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use serde::de::DeserializeOwned;
+
+use crate::body_source::BodySource;
+use crate::api_client::{
+    insert_header, remove_header, ApiClient, MultipartValue, RequestBody, RequestOptions,
+};
+use crate::errors::api_error::ApiError;
+use crate::api_http_response::ApiHttpResponse;
+use crate::api_result::ApiResult;
+use crate::api_stream_response::ApiStreamResponse;
+use crate::byte_stream::ByteStream;
+use crate::json_lines_stream::JsonLinesStream;
+use crate::sse_stream::{EventOpener, SseStream};
+use crate::stream_options::StreamOptions;
+use crate::auth::Authenticator;
+use crate::call_hook::{CallInfo, CallScope};
+use crate::configuration::Configuration;
+use crate::errors::configuration_error::ConfigurationError;
+use crate::header_selector::HeaderSelector;
+use crate::trace_context_util;
+use crate::utils::form_url_encode;
+
+/// Sends the credentials of several schemes at once, for a security
+/// requirement that names more than one scheme.
+struct CombinedAuthenticator {
+    parts: Vec<Arc<dyn Authenticator>>,
+}
+
+impl Authenticator for CombinedAuthenticator {
+    fn host(&self) -> &str {
+        self.parts[0].host()
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut merged = HashMap::new();
+            for part in &self.parts {
+                merged.extend(part.auth_headers().await);
+            }
+            merged
+        })
+    }
+
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            let mut merged = HashMap::new();
+            for part in &self.parts {
+                merged.extend(part.try_auth_headers().await?);
+            }
+            Ok(merged)
+        })
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        self.parts.iter().flat_map(|p| p.query_params()).collect()
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        self.parts.iter().flat_map(|p| p.cookie_params()).collect()
+    }
+
+    fn invalidate_access_token<'a>(&'a self) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            let mut any = false;
+            for part in &self.parts {
+                any |= part.invalidate_access_token().await;
+            }
+            any
+        })
+    }
+}
+
+/// Sentinel authenticator that marks an operation as explicitly unauthenticated.
+///
+/// An operation declared with `security: []` in the spec opts out of all
+/// authentication. Its generated method passes this sentinel as the `auth`
+/// argument so that `BaseApi` can distinguish three states that a plain `None`
+/// could not:
+///
+///   - `auth` IS the sentinel  -> the operation is unauthenticated; the
+///     client-level authenticator must NOT be applied (no credential leak);
+///   - `auth` is `None`        -> a secured operation with no per-call override;
+///     fall back to the client-level authenticator;
+///   - `auth` is `Some(real)`  -> a per-call override; use it.
+///
+/// This is a private, identity-comparable singleton; it returns empty
+/// header/query/cookie maps so that even if it were ever applied it would
+/// attach nothing. Callers never see it: the api template passes
+/// `no_auth_sentinel()` for `security: []` operations, and `BaseApi` recognises
+/// it by pointer identity (`is_no_auth`), distinct from any real authenticator
+/// and from `None`.
+struct NoAuth;
+
+impl Authenticator for NoAuth {
+    fn host(&self) -> &str {
+        ""
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async { HashMap::new() })
+    }
+}
+
+/// The single shared no-auth sentinel instance. A `'static` so its address is
+/// stable for the lifetime of the program, which is what `is_no_auth` compares
+/// against.
+static NO_AUTH: NoAuth = NoAuth;
+
+/// Returns the no-auth sentinel as an `Authenticator` trait object. The api
+/// template passes this for operations declared `security: []` so BaseApi can
+/// distinguish "explicitly unauthenticated" from "no per-call override" (`None`).
+pub(crate) fn no_auth_sentinel() -> &'static dyn Authenticator {
+    &NO_AUTH
+}
+
+/// Reports whether `auth` is the no-auth sentinel, by comparing the trait
+/// object's data pointer against the sentinel's address. Identity comparison —
+/// not a value/`PartialEq` check — so it can never be spoofed by a real
+/// authenticator that happens to look empty.
+fn is_no_auth(auth: &dyn Authenticator) -> bool {
+    /* Cast the fat trait-object pointer to a thin data pointer (drops the
+     * vtable) and compare it to the sentinel's address. `std::ptr::eq` over
+     * thin pointers is a pure identity check. */
+    let data_ptr = auth as *const dyn Authenticator as *const ();
+    let sentinel_ptr = &NO_AUTH as *const NoAuth as *const ();
+    std::ptr::eq(data_ptr, sentinel_ptr)
+}
+
+/// The most of an error body a stream call reads before it raises the error.
+const STREAM_ERROR_BODY_LIMIT: usize = 64 * 1024;
+
+/// What the transport handed back for one call: the whole response of a buffered
+/// call, or the response of a stream call with its body not read yet.
+enum Delivered {
+    Buffered(ApiHttpResponse),
+    Streamed(ApiStreamResponse),
+}
+
+impl Delivered {
+    fn status_code(&self) -> u16 {
+        match self {
+            Delivered::Buffered(response) => response.status_code(),
+            Delivered::Streamed(response) => response.status_code(),
+        }
+    }
+
+    fn headers(&self) -> &HashMap<String, String> {
+        match self {
+            Delivered::Buffered(response) => response.headers(),
+            Delivered::Streamed(response) => response.headers(),
+        }
+    }
+
+    /// The status, the headers and the text of the body of a response that is
+    /// not a success. A stream is read up to [`STREAM_ERROR_BODY_LIMIT`] bytes
+    /// and dropped, which closes it.
+    async fn into_error_parts(self) -> (u16, HashMap<String, String>, String) {
+        match self {
+            Delivered::Buffered(response) => (
+                response.status_code(),
+                response.headers().clone(),
+                response.body().to_string(),
+            ),
+            Delivered::Streamed(response) => {
+                let (status, mut headers, raw) = response.read_bounded(STREAM_ERROR_BODY_LIMIT).await;
+                let body = crate::default_api_client::error_body_text(&raw, &mut headers);
+                (status, headers, body)
+            }
+        }
+    }
+}
+
+/// Parameters for the `invoke_api` call.
+pub(crate) struct InvokeApiParams<'a> {
+    /// The `Class.operationId` the call belongs to, named in the errors the call raises.
+    pub operation: &'a str,
+    pub method: &'a str,
+    pub path: &'a str,
+    /// The operation id exactly as written in the specification, handed to the
+    /// call hook.
+    pub operation_id: &'a str,
+    /// The path template of the operation, handed to the call hook.
+    pub url_template: &'a str,
+    /// Query parameters as `(name, value, allow_reserved)` triples. When
+    /// `allow_reserved` is true (OAS `allowReserved: true`), the value's RFC 3986
+    /// reserved characters are left literal on the wire; otherwise the value is
+    /// encoded normally.
+    pub query_params: Vec<(String, String, bool)>,
+    pub header_params: HashMap<String, String>,
+    pub body: Option<Vec<u8>>,
+    /// A raw binary body sent as it is read, never buffered. When set it is the
+    /// body of the request and `body` is ignored. A replayable source is sent
+    /// again for a retry, a replay after a 401 and a 307 or 308 redirect; a
+    /// single-use one is sent once and its call is never retried.
+    pub source: Option<BodySource>,
+    /// Multipart/form-data fields. When set, the request is sent as
+    /// `multipart/form-data` and `body` is ignored. File parts carry their
+    /// bytes via `MultipartValue::Bytes`, repeated fields via
+    /// `MultipartValue::List`, object parts via `MultipartValue::Json` (which
+    /// carries `Content-Type: application/json`), and scalar form fields via
+    /// `MultipartValue::Text`.
+    /// Serialization (boundary, per-part Content-Type from the field-name
+    /// extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
+    /// preservation) is performed by the API client's `serialize_multipart_body`.
+    pub multipart: Option<Vec<(String, MultipartValue)>>,
+    pub accepts: Vec<&'a str>,
+    pub content_type: &'a str,
+    pub return_type: &'a str,
+    pub auth: Option<&'a dyn Authenticator>,
+    /// The per-call timeout, retry budget and extra headers a caller set on the
+    /// operation's options struct.
+    pub call: CallOptions,
+    /// The operation's own error factories by declared status (`"404"`,
+    /// `"4XX"`, `"default"`), see [`ApiError::from_response_with`]. Empty when
+    /// the operation declares no error schema.
+    pub error_schemas: &'static [(&'static str, crate::errors::api_error::ErrorFactory)],
+}
+
+/// The credential of a call, owned so that a reconnect can use it again.
+enum OwnedAuth {
+    /// No per-call credential: the client's own authenticator applies.
+    Inherit,
+    /// The operation is unauthenticated (`security: []`).
+    NoAuth,
+    /// The credential of the scheme the operation requires.
+    Given(Arc<dyn Authenticator>),
+}
+
+/// An owned copy of the parameters of a call, so that an event stream can send
+/// the same request again on every reconnect.
+struct StreamCall {
+    operation: String,
+    method: String,
+    path: String,
+    operation_id: String,
+    url_template: String,
+    query_params: Vec<(String, String, bool)>,
+    header_params: HashMap<String, String>,
+    body: Option<Vec<u8>>,
+    source: Option<BodySource>,
+    multipart: Option<Vec<(String, MultipartValue)>>,
+    accepts: Vec<String>,
+    content_type: String,
+    return_type: String,
+    auth: OwnedAuth,
+    call: CallOptions,
+    error_schemas: &'static [(&'static str, crate::errors::api_error::ErrorFactory)],
+}
+
+impl StreamCall {
+    fn of(params: InvokeApiParams<'_>, credential: Option<Arc<dyn Authenticator>>) -> Self {
+        let auth = match (params.auth, credential) {
+            (None, _) => OwnedAuth::Inherit,
+            (Some(a), _) if is_no_auth(a) => OwnedAuth::NoAuth,
+            (Some(_), Some(credential)) => OwnedAuth::Given(credential),
+            (Some(_), None) => OwnedAuth::Inherit,
+        };
+        Self {
+            operation: params.operation.to_string(),
+            method: params.method.to_string(),
+            path: params.path.to_string(),
+            operation_id: params.operation_id.to_string(),
+            url_template: params.url_template.to_string(),
+            query_params: params.query_params,
+            header_params: params.header_params,
+            body: params.body,
+            source: params.source,
+            multipart: params.multipart,
+            accepts: params.accepts.iter().map(|a| a.to_string()).collect(),
+            content_type: params.content_type.to_string(),
+            return_type: params.return_type.to_string(),
+            auth,
+            call: params.call,
+            error_schemas: params.error_schemas,
+        }
+    }
+
+    /// The parameters of one request of the call, with `Last-Event-ID` when
+    /// `last_event_id` is not empty.
+    fn params(&self, last_event_id: &str) -> InvokeApiParams<'_> {
+        let mut header_params = self.header_params.clone();
+        if !last_event_id.is_empty() {
+            header_params.insert("Last-Event-ID".to_string(), last_event_id.to_string());
+        }
+        InvokeApiParams {
+            operation: &self.operation,
+            method: &self.method,
+            path: &self.path,
+            operation_id: &self.operation_id,
+            url_template: &self.url_template,
+            query_params: self.query_params.clone(),
+            header_params,
+            body: self.body.clone(),
+            source: self.source.clone(),
+            multipart: self.multipart.clone(),
+            accepts: self.accepts.iter().map(String::as_str).collect(),
+            content_type: &self.content_type,
+            return_type: &self.return_type,
+            auth: match &self.auth {
+                OwnedAuth::Inherit => None,
+                OwnedAuth::NoAuth => Some(no_auth_sentinel()),
+                OwnedAuth::Given(credential) => Some(credential.as_ref()),
+            },
+            call: self.call.clone(),
+            error_schemas: self.error_schemas,
+        }
+    }
+}
+
+/// Decodes one JSON Lines line or one `data` field as `T`, or hands the text over
+/// as it is when `raw` is set (then `T` is a `String`).
+fn item_decoder<T>(raw: bool) -> Box<dyn Fn(&str) -> Result<T, crate::errors::serialization_error::SerializationError> + Send + Sync>
+where
+    T: DeserializeOwned,
+{
+    use crate::errors::serialization_error::SerializationError;
+    if raw {
+        return Box::new(|text| {
+            serde_json::from_value(serde_json::Value::String(text.to_string()))
+                .map_err(|e| SerializationError::new(e.to_string(), Some(Box::new(e))))
+        });
+    }
+    Box::new(|text| {
+        crate::object_serializer::deserialize::<T>(text.as_bytes())?
+            .ok_or_else(|| SerializationError::new("The value decoded to nothing".to_string(), None))
+    })
+}
+
+/// Per-call settings that override the client's for one operation: the
+/// end-to-end timeout, the retry budget and extra request headers. Every field
+/// left at its default leaves the client's own setting in force.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CallOptions {
+    /// Replaces the client's end-to-end timeout for this call. Zero is refused
+    /// with `ConfigurationError::InvalidTimeout`.
+    pub timeout: Option<std::time::Duration>,
+    /// Replaces the client's retry budget for this call; `Some(0)` turns the
+    /// retries off.
+    pub max_retries: Option<u32>,
+    /// Headers added to this call after the client's default headers and the
+    /// operation's own header parameters, so they win over both; the
+    /// authentication headers are applied after them.
+    pub headers: HashMap<String, String>,
+    /// Replaces the idle timeout of the stream this call opens; zero disables
+    /// it. Set by a stream method from its `StreamOptions`.
+    pub idle_timeout: Option<std::time::Duration>,
+}
+
+/// Base struct for all API groups. Provides the `invoke_api` method that
+/// handles URL construction, header selection, body serialization, request
+/// dispatch, and response deserialization.
+#[derive(Clone)]
+pub(crate) struct BaseApi {
+    /// API-level configuration (base URL and default headers).
+    config: Configuration,
+
+    /// The HTTP transport client used for sending requests.
+    api_client: Arc<dyn ApiClient>,
+
+    /// Content negotiation logic for Accept and Content-Type headers.
+    header_selector: HeaderSelector,
+
+    /// Default authenticator used when no credential is held for the operation's scheme.
+    authenticator: Option<Arc<dyn Authenticator>>,
+
+    /// One credential per security scheme, by scheme id, when the client was
+    /// built from `Credentials`.
+    scheme_authenticators: HashMap<String, Arc<dyn Authenticator>>,
+}
+
+impl BaseApi {
+    /// The full URL a call's path is sent to: an absolute URL is used as it is,
+    /// and a relative path is joined to the base URL. A trailing slash on the
+    /// base URL is dropped before a path that starts with a slash, so
+    /// `https://x/` + `/y` yields `https://x/y` rather than `https://x//y`.
+    fn request_url_of(&self, path: &str) -> String {
+        if path.starts_with("http://") || path.starts_with("https://") {
+            return path.to_string();
+        }
+        let base = self.config.base_url();
+        let base_trimmed = if path.starts_with('/') {
+            base.trim_end_matches('/')
+        } else {
+            base
+        };
+        format!("{}{}", base_trimmed, path)
+    }
+
+    /// The base URL of the client, which a paged list checks a next link against.
+    pub(crate) fn base_url(&self) -> &str {
+        self.config.base_url()
+    }
+
+    /// Creates an API instance with a custom API client, configuration, and
+    /// default authenticator (used for operations without explicit auth).
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+        Self {
+            config,
+            api_client,
+            header_selector: HeaderSelector::new(),
+            authenticator,
+            scheme_authenticators: HashMap::new(),
+        }
+    }
+
+    /// Gives this API one credential per security scheme, by scheme id.
+    pub(crate) fn with_scheme_authenticators(
+        mut self,
+        authenticators: HashMap<String, Arc<dyn Authenticator>>,
+    ) -> Self {
+        self.scheme_authenticators = authenticators;
+        self
+    }
+
+    /// Sets the call hook of this API.
+    pub(crate) fn with_call_hook(mut self, hook: Arc<dyn crate::call_hook::CallHook>) -> Self {
+        self.config = self.config.with_call_hook(hook);
+        self
+    }
+
+    /// Checks a request body against the validation keywords of its schema when
+    /// the configuration turns `validate_constraints` on; every operation calls
+    /// it before the body is serialized, so a refused body sends nothing and
+    /// never reaches the call hook.
+    pub(crate) fn validate_request_body(
+        &self,
+        body: &dyn std::any::Any,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if self.config.validate_constraints() {
+            crate::constraint_validator::validate_request_body(body)?;
+        }
+        Ok(())
+    }
+
+    /// The credential of the first of `schemes` that the client holds, in the
+    /// order the operation lists them, or `None` when it holds none of them.
+    pub(crate) fn authenticator_for(&self, schemes: &[&str]) -> Option<Arc<dyn Authenticator>> {
+        schemes
+            .iter()
+            .find_map(|scheme| self.scheme_authenticators.get(*scheme).cloned())
+    }
+
+    /// The credential of the first alternative whose schemes the client all
+    /// holds, or `None` when no alternative is fully held. An alternative that
+    /// names several schemes needs all of them: their headers, query
+    /// parameters and cookies are sent together.
+    pub(crate) fn authenticator_for_alternatives(
+        &self,
+        alternatives: &[&[&str]],
+    ) -> Option<Arc<dyn Authenticator>> {
+        for schemes in alternatives {
+            let held: Vec<Arc<dyn Authenticator>> = schemes
+                .iter()
+                .filter_map(|scheme| self.scheme_authenticators.get(*scheme).cloned())
+                .collect();
+            if held.is_empty() || held.len() != schemes.len() {
+                continue;
+            }
+            if held.len() == 1 {
+                return held.into_iter().next();
+            }
+            return Some(Arc::new(CombinedAuthenticator { parts: held }));
+        }
+        None
+    }
+
+    /// Invokes an API operation and returns the raw HTTP response, after
+    /// building the URL, selecting headers, applying authentication, and
+    /// serializing the body. A non-2xx status is returned as an `ApiError`, and
+    /// an error with no response (network failure, timeout) carries the method
+    /// and path of the request, never its query string.
+    pub async fn invoke_api(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scope = CallScope::new();
+        let result = self.invoke_scoped(params, &mut scope).await;
+        scope.finish(&result);
+        result
+    }
+
+    /// The call without the hook's last step: the caller finishes `scope` once
+    /// it has the result it returns, so a decoding failure is observed too.
+    async fn invoke_scoped(
+        &self,
+        params: InvokeApiParams<'_>,
+        scope: &mut CallScope,
+    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        match self.invoke_scoped_for(params, scope, false).await? {
+            Delivered::Buffered(response) => Ok(response),
+            Delivered::Streamed(_) => unreachable!("a buffered call is sent through send_request_with_options"),
+        }
+    }
+
+    /// [`invoke_scoped`](Self::invoke_scoped) for a buffered or a stream call.
+    async fn invoke_scoped_for(
+        &self,
+        params: InvokeApiParams<'_>,
+        scope: &mut CallScope,
+        stream: bool,
+    ) -> Result<Delivered, Box<dyn std::error::Error + Send + Sync>> {
+        let method = params.method;
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        /* Read on the first poll, in the caller's task, before any await. */
+        let trace = trace_context_util::TraceContext::capture();
+        self.invoke_api_inner(params, &request_path, &trace, scope, stream)
+            .await
+            .map_err(|err| crate::errors::api_error::attach_request(err, method, &request_path))
+    }
+
+    async fn invoke_api_inner(
+        &self,
+        params: InvokeApiParams<'_>,
+        request_path: &str,
+        trace: &trace_context_util::TraceContext,
+        scope: &mut CallScope,
+        stream: bool,
+    ) -> Result<Delivered, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(timeout) = params.call.timeout {
+            if timeout.as_millis() == 0 {
+                return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
+            }
+        }
+        /* A header value with a CR or LF would split the request head; refuse it before anything is sent. */
+        for (name, value) in params.header_params.iter().chain(params.call.headers.iter()) {
+            if value.contains(['\r', '\n']) {
+                return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                    "header '{}' must not contain CR or LF characters",
+                    name
+                ))));
+            }
+        }
+        let mut request_url = self.request_url_of(params.path);
+
+        /* Three-state auth resolution. The no-auth sentinel (security: [])
+         * suppresses the client authenticator; None falls back to it (secured
+         * op whose scheme the client holds no credential for); any other
+         * instance is the credential of the scheme the operation requires.
+         * Identity comparison against the sentinel -- never equals. */
+        let mut query_params = params.query_params;
+        let effective_auth: Option<&dyn Authenticator> = match params.auth {
+            Some(a) if is_no_auth(a) => None,
+            Some(a) => Some(a),
+            None => self.authenticator.as_ref().map(|a| a.as_ref()),
+        };
+        if let Some(auth) = effective_auth {
+            /* A per-call authenticator never met the client's constructor, so it
+             * gets this API's transport before it is asked for headers. An
+             * authenticator that already has one keeps it. */
+            auth.inject_api_client(self.api_client.clone());
+            for (k, v) in auth.query_params() {
+                /* The authenticator's value replaces an operation query
+                 * parameter of the same name, so the name is sent once. */
+                query_params.retain(|(name, _, _)| *name != k);
+                query_params.push((k, v, false));
+            }
+        }
+
+        /* The URL the call hook sees never carries the query string. */
+        let url_end = request_url.len();
+
+        /* Build query string */
+        let query_string = build_query_string(&query_params);
+        if !query_string.is_empty() {
+            /* A next URL of a paged list already carries a query, so an
+             * authentication query parameter is joined to it with `&`. */
+            let joiner = if request_url.contains('?') { '&' } else { '?' };
+            request_url = format!("{}{}{}", request_url, joiner, query_string);
+        }
+
+        /* Select headers */
+        let is_multipart = params.content_type == "multipart/form-data";
+        let mut headers = self.header_selector.select_headers(&params.accepts, params.content_type, is_multipart);
+
+        /* Merge config default headers */
+        for (k, v) in self.config.default_headers() {
+            insert_header(&mut headers, k, v);
+        }
+
+        /* Merge operation-specific headers */
+        for (k, v) in &params.header_params {
+            insert_header(&mut headers, k.clone(), v.clone());
+        }
+
+        /* Merge the per-call headers, which win over both */
+        for (k, v) in &params.call.headers {
+            insert_header(&mut headers, k.clone(), v.clone());
+        }
+
+        /* Merge auth headers */
+        if let Some(auth) = effective_auth {
+            /* try_auth_headers, not auth_headers: an authenticator that cannot
+             * produce credentials must fail the call rather than let the
+             * request go out unauthenticated. */
+            for (k, v) in auth.try_auth_headers().await? {
+                insert_header(&mut headers, k, v);
+            }
+            /* A challenge authenticator (HTTP Digest) answers the challenge it
+             * accepted for this method and request target; before any
+             * challenge it adds nothing. */
+            if let Some(answer) = auth.challenge_authorization(params.method, &request_target_of(&request_url)) {
+                insert_header(&mut headers, "Authorization".to_string(), answer);
+            }
+            /* RFC 6265 -- cookie name is a token (RFC 7230 s3.2.6); cookie
+             * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
+             * comma, semicolon, backslash, controls). DO NOT URL-encode here:
+             * most cookie parsers do not URL-decode, so `=` (base64 padding)
+             * would arrive as literal `%3D` and break JWT/session cookies.
+             * Validate and pass through raw instead. Invalid input is a caller
+             * mistake, reported as ConfigurationError::InvalidArgument. */
+            let cookies = auth.cookie_params();
+            if !cookies.is_empty() {
+                /* A map has no order, so the cookies are written sorted by
+                 * name and the header bytes are the same on every run. */
+                let mut ordered: Vec<(&String, &String)> = cookies.iter().collect();
+                ordered.sort();
+                let mut cookie_parts: Vec<String> = Vec::with_capacity(cookies.len());
+                for (k, v) in ordered {
+                    if !is_valid_cookie_name(k) {
+                        return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                            "Cookie name '{}' contains characters forbidden by RFC 6265",
+                            k
+                        ))));
+                    }
+                    if !is_valid_cookie_value(v) {
+                        return Err(Box::new(ConfigurationError::InvalidArgument(format!(
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265",
+                            k
+                        ))));
+                    }
+                    cookie_parts.push(format!("{}={}", k, v));
+                }
+                let cookie_str = cookie_parts.join("; ");
+                if let Some(existing) = headers.get("Cookie").cloned() {
+                    headers.insert(
+                        "Cookie".to_string(),
+                        format!("{}; {}", existing, cookie_str),
+                    );
+                } else {
+                    headers.insert("Cookie".to_string(), cookie_str);
+                }
+            }
+        }
+
+        /* Inject trace context */
+        trace.inject(&mut headers);
+
+        /* The call hook starts once per call, right after the trace context is
+         * injected: the headers are final, so it can read and replace any of
+         * them. A header it sets stays in this map for every send of the call. */
+        scope.begin(self.config.call_hook(), &mut headers, || CallInfo {
+            operation_id: params.operation_id.to_string(),
+            method: params.method.to_ascii_uppercase(),
+            url_template: params.url_template.to_string(),
+            url: strip_query_and_fragment(&request_url[..url_end]).to_string(),
+            server_address: server_address_of(&request_url[..url_end]),
+        });
+        let hooked = scope.is_hooked();
+
+        /* Serialize body. For multipart/form-data we hand the structured
+         * fields to the API client as `RequestBody::Multipart`; the client's
+         * `serialize_multipart_body` generates the boundary, sets the
+         * `Content-Type` header (overriding the placeholder selected above),
+         * derives each file part's Content-Type from its field-name extension,
+         * emits RFC 5987 directives for non-ASCII filenames, and preserves
+         * non-ASCII field names as UTF-8. The placeholder Content-Type chosen
+         * by the header selector lacks the boundary, so we drop it here and let
+         * the client install the boundary-bearing value. */
+        let serialized_body: Option<RequestBody> = if let Some(fields) = params.multipart {
+            remove_header(&mut headers, "Content-Type");
+            /* A declared multipart type other than form-data (multipart/mixed, ...)
+             * is handed on so the client keeps the subtype; it appends the boundary. */
+            if params.content_type != "multipart/form-data"
+                && params.content_type.starts_with("multipart/")
+            {
+                insert_header(&mut headers, "Content-Type".to_string(), params.content_type.to_string());
+            }
+            if fields.is_empty() {
+                None
+            } else {
+                Some(RequestBody::Multipart(fields))
+            }
+        } else if let Some(source) = params.source {
+            /* A raw binary body is sent unchanged as it is read; nothing is serialized. */
+            Some(RequestBody::Source(source))
+        } else {
+            serialize_body(params.body, params.content_type)?.map(RequestBody::Bytes)
+        };
+
+        if serialized_body.is_none() {
+            remove_header(&mut headers, "Content-Type");
+        }
+
+        /* Send the request. A failed call is sent again up to `max_retries`
+         * times (a network failure before a response, for an idempotent method
+         * only; 408, 409, 429, 500-599
+         * except 501), each time as a fresh request with its authentication
+         * headers applied again. The retries share the transport's end-to-end
+         * timeout, so a retry that would not fit in what is left is not made,
+         * and dropping the returned future cancels the wait between attempts.
+         * A multipart body and a single-use body source are never sent twice: the
+         * first error, or the first response, is the one that is reported. */
+        let replayable = match &serialized_body {
+            Some(RequestBody::Multipart(_)) => false,
+            Some(RequestBody::Source(source)) => source.is_replayable(),
+            _ => true,
+        };
+        let max_retries = if replayable {
+            params.call.max_retries.unwrap_or_else(|| self.api_client.max_retries())
+        } else {
+            0
+        };
+        let deadline = params
+            .call
+            .timeout
+            .or_else(|| self.api_client.request_timeout())
+            .map(|budget| std::time::Instant::now() + budget);
+        let send_options = RequestOptions::new()
+            .deadline(deadline)
+            .idle_timeout(params.call.idle_timeout);
+        let mut attempt: u32 = 0;
+        let mut renewed_after_401 = false;
+        let response = loop {
+            /* A stream call is sent through `send_streaming`: the retries, the
+             * replay after a 401 and the error contract below run on the headers
+             * it returns, and a response that is retried or replayed is dropped
+             * unread, which closes it. Nothing is retried once the body has
+             * started, because the caller only ever sees the stream after this
+             * loop has ended. */
+            let sent = if stream {
+                self.api_client
+                    .send_streaming(
+                        params.method,
+                        &request_url,
+                        &headers,
+                        serialized_body.as_ref(),
+                        &send_options,
+                    )
+                    .await
+                    .map(Delivered::Streamed)
+            } else {
+                self.api_client
+                    .send_request_with_options(
+                        params.method,
+                        &request_url,
+                        &headers,
+                        serialized_body.as_ref(),
+                        &send_options,
+                    )
+                    .await
+                    .map(Delivered::Buffered)
+            };
+            let response = match sent {
+                Ok(response) => response,
+                Err(err) => {
+                    if attempt < max_retries && is_idempotent_method(params.method) && is_retryable_error(err.as_ref()) {
+                        let delay = retry_delay(attempt, None);
+                        if fits_budget(deadline, delay)
+                            && refresh_request_headers(effective_auth, &mut headers, trace, hooked, params.method, &request_url).await
+                        {
+                            tokio::time::sleep(delay).await;
+                            attempt += 1;
+                            continue;
+                        }
+                    }
+                    return Err(err);
+                }
+            };
+
+            /* A 401 on a request signed by a token flow means the cached token
+             * was revoked or rotated: drop it, get a new one (a refresh grant
+             * first) and replay the request once. A multipart body is not
+             * replayed, and a failure to re-authenticate leaves the original
+             * 401 to be reported. */
+            if response.status_code() == 401 && !renewed_after_401 && replayable {
+                renewed_after_401 = true;
+                if let Some(auth) = effective_auth {
+                    /* A 401 with a challenge the challenge authenticator (HTTP
+                     * Digest) accepts is answered: the request is replayed once
+                     * with the answer. */
+                    let challenge = response
+                        .headers()
+                        .iter()
+                        .find(|(name, _)| name.eq_ignore_ascii_case("www-authenticate"))
+                        .map(|(_, value)| value.clone());
+                    if let Some(challenge) = challenge {
+                        if auth.accept_challenge(&challenge) {
+                            if let Some(answer) =
+                                auth.challenge_authorization(params.method, &request_target_of(&request_url))
+                            {
+                                insert_header(&mut headers, "Authorization".to_string(), answer);
+                                continue;
+                            }
+                        }
+                    }
+                    if auth.invalidate_access_token().await {
+                        if let Ok(fresh) = auth.try_auth_headers().await {
+                            for (k, v) in fresh {
+                                insert_header(&mut headers, k, v);
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            if attempt < max_retries && is_retryable_status(response.status_code()) {
+                let retry_after = response
+                    .headers()
+                    .iter()
+                    .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
+                    .and_then(|(_, value)| parse_retry_after(value));
+                let delay = retry_delay(attempt, retry_after);
+                if fits_budget(deadline, delay) && refresh_request_headers(effective_auth, &mut headers, trace, hooked, params.method, &request_url).await {
+                    tokio::time::sleep(delay).await;
+                    attempt += 1;
+                    continue;
+                }
+            }
+            break response;
+        };
+
+        scope.record_response(response.status_code(), response.headers());
+
+        /* Check for errors. A stream call reads at most 64 KiB of the body of an
+         * error status and closes it, so the error is the one of a buffered call
+         * and no stream is ever returned for it. */
+        if response.status_code() < 200 || response.status_code() >= 300 {
+            let (status, headers, body) = response.into_error_parts().await;
+            return Err(ApiError::from_response_with(
+                status,
+                &headers,
+                &body,
+                Some(params.method),
+                Some(request_path),
+                params.error_schemas,
+            ));
+        }
+
+        Ok(response)
+    }
+
+    /// Invokes an operation whose success response is binary and returns its
+    /// body as a [`ByteStream`], not read yet. Everything up to the response
+    /// headers is the buffered call: the same retries, redirects, authentication,
+    /// replay after a 401, headers and call hook. A status that is not a success
+    /// raises the same typed error as a buffered call, with its body read up to
+    /// 64 KiB, and no stream is returned. The raw body of the result is empty.
+    pub async fn invoke_api_for_stream(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped_for(params, &mut scope, true).await {
+            Ok(Delivered::Streamed(response)) => {
+                let (status, headers, body) = response.into_parts();
+                let stream = ByteStream::new(status, headers.clone(), body);
+                Ok(ApiResult::new(status, Some(stream), String::new(), headers))
+            }
+            Ok(Delivered::Buffered(_)) => {
+                unreachable!("a stream call is sent through send_streaming")
+            }
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
+    }
+
+    /// Invokes an operation whose success response is JSON Lines and returns its
+    /// items as a stream, not read yet. Everything up to the response headers is
+    /// the buffered call; a status that is not a success raises the typed error and
+    /// no stream is returned. With `raw` each line is handed over as a `String`
+    /// instead of being decoded as JSON.
+    pub async fn invoke_api_for_json_lines<T>(
+        &self,
+        mut params: InvokeApiParams<'_>,
+        options: Option<&StreamOptions>,
+        raw: bool,
+    ) -> Result<JsonLinesStream<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        T: DeserializeOwned,
+    {
+        params.call.idle_timeout = options.and_then(|o| o.get_idle_timeout());
+        let max_line_bytes = options.and_then(|o| o.get_max_event_bytes()).unwrap_or(1024 * 1024);
+        let method = params.method.to_string();
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped_for(params, &mut scope, true).await {
+            Ok(Delivered::Streamed(response)) => Ok(response),
+            Ok(Delivered::Buffered(_)) => unreachable!("a stream call is sent through send_streaming"),
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        let (status, headers, body) = result?.into_parts();
+        Ok(JsonLinesStream::new(
+            ByteStream::new(status, headers, body),
+            item_decoder::<T>(raw),
+            max_line_bytes,
+            &method,
+            &request_path,
+        ))
+    }
+
+    /// Invokes an operation whose success response is server-sent events and
+    /// returns its events as a stream that reconnects. Each connection is a fresh
+    /// call, so the headers and the credential are built again and the call hook
+    /// runs again; the stream adds `Cache-Control: no-cache` and
+    /// `Accept-Encoding: identity` unless the caller set them, and
+    /// `Last-Event-ID` once it has an id. `credential` is the per-call
+    /// authenticator `params.auth` was taken from. With `raw` each `data` field is
+    /// handed over as a `String` instead of being decoded as JSON.
+    pub async fn invoke_api_for_sse<T>(
+        &self,
+        mut params: InvokeApiParams<'_>,
+        credential: Option<Arc<dyn Authenticator>>,
+        options: Option<&StreamOptions>,
+        terminator: Option<&str>,
+        raw: bool,
+    ) -> Result<SseStream<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        T: DeserializeOwned + Send + 'static,
+    {
+        params.call.idle_timeout = options.and_then(|o| o.get_idle_timeout());
+        for (name, value) in [("Cache-Control", "no-cache"), ("Accept-Encoding", "identity")] {
+            let set = params
+                .header_params
+                .keys()
+                .chain(params.call.headers.keys())
+                .chain(self.config.default_headers().keys())
+                .any(|k| k.eq_ignore_ascii_case(name));
+            if !set {
+                params.header_params.insert(name.to_string(), value.to_string());
+            }
+        }
+        let has_body = params.body.is_some() || params.source.is_some() || params.multipart.is_some();
+        let single_use_body = params.source.as_ref().is_some_and(|source| !source.is_replayable());
+        let method = params.method.to_string();
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        let call = StreamCall::of(params, credential);
+        let base = self.clone();
+        let call = Arc::new(call);
+        let opener: EventOpener = Box::new(move |last_event_id: String| {
+            let base = base.clone();
+            let call = call.clone();
+            Box::pin(async move { base.open_event_stream(&call, &last_event_id).await })
+        });
+        SseStream::open(
+            opener,
+            item_decoder::<T>(raw),
+            terminator.map(str::to_string),
+            options,
+            has_body,
+            single_use_body,
+            &method,
+            &request_path,
+        )
+        .await
+    }
+
+    /// Sends one request of an event stream: a whole call of its own, so the call
+    /// hook, the headers and the credential are the ones of a first request, plus
+    /// `Last-Event-ID` when there is an id.
+    async fn open_event_stream(
+        &self,
+        call: &StreamCall,
+        last_event_id: &str,
+    ) -> Result<ApiStreamResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped_for(call.params(last_event_id), &mut scope, true).await {
+            Ok(Delivered::Streamed(response)) => Ok(response),
+            Ok(Delivered::Buffered(_)) => unreachable!("a stream call is sent through send_streaming"),
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
+    }
+
+    /// Invokes an API operation and returns the full result including status
+    /// code, headers, and raw body alongside the deserialized data.
+    pub async fn invoke_api_for_result<T: DeserializeOwned>(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
+        /* Capture the target return type before `params` is consumed by
+         * invoke_api. Binary operations set this to "Vec<u8>" so we can route
+         * non-JSON bodies straight to the raw-bytes path below. */
+        let is_binary_return = params.return_type == "Vec<u8>";
+        let operation = params.operation;
+        let method = params.method;
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped(params, &mut scope).await {
+            Ok(response) => decode_response(&response, is_binary_return, operation)
+                .map_err(|err| attach_response(err, &response, method, &request_path)),
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
+    }
+
+    /// Invokes an operation that declares several 2xx responses with different
+    /// schemas and returns the full result. `decode` is handed the actual
+    /// status code and the raw body and builds the union variant that status
+    /// declares, so a 201 is never read as the schema of the 200. An empty
+    /// body leaves the data `None`.
+    pub async fn invoke_api_for_status_union<T, F>(
+        &self,
+        params: InvokeApiParams<'_>,
+        decode: F,
+    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        F: FnOnce(
+            u16,
+            &[u8],
+        ) -> Result<Option<T>, crate::errors::serialization_error::SerializationError>,
+    {
+        let method = params.method;
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped(params, &mut scope).await {
+            Ok(response) => {
+                let data = if response.body().is_empty() {
+                    Ok(None)
+                } else {
+                    decode(response.status_code(), response.body().as_bytes()).map_err(|err| {
+                        Box::new(
+                            err.with_response(response.status_code(), response.headers(), response.body())
+                                .with_request(method, &request_path),
+                        ) as Box<dyn std::error::Error + Send + Sync>
+                    })
+                };
+                data.map(|data| {
+                    ApiResult::new(
+                        response.status_code(),
+                        data,
+                        response.body().to_string(),
+                        response.headers().clone(),
+                    )
+                })
+            }
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
+    }
+
+    /// Invokes an API operation with no return type and returns the full
+    /// result (status code, headers, and raw body) with unit data.
+    pub async fn invoke_api_for_empty_result(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        let response = self.invoke_api(params).await?;
+        Ok(ApiResult::new(
+            response.status_code(),
+            Some(()),
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+}
+
+/// Gives a decoding failure the response it came from and the request that drew
+/// it; any other error is returned unchanged.
+fn attach_response(
+    err: Box<dyn std::error::Error + Send + Sync>,
+    response: &ApiHttpResponse,
+    method: &str,
+    request_path: &str,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    match err.downcast::<crate::errors::serialization_error::SerializationError>() {
+        Ok(serialization) => Box::new(
+            serialization
+                .with_response(response.status_code(), response.headers(), response.body())
+                .with_request(method, request_path),
+        ),
+        Err(other) => other,
+    }
+}
+
+/// Decodes the body of a successful response as the return type `T`.
+fn decode_response<T: DeserializeOwned>(
+    response: &ApiHttpResponse,
+    is_binary_return: bool,
+    operation: &str,
+) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
+    {
+        /* Check Content-Type before deserializing -- only deserialize JSON responses */
+        let resp_content_type = response.headers().iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+            .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
+
+        let is_json = match &resp_content_type {
+            None => true,
+            Some(ct) => {
+                let selector = HeaderSelector::new();
+                selector.is_json_mime(ct)
+            }
+        };
+
+        let data = if is_binary_return && !response.body().is_empty() {
+            /* Binary return type (T = Vec<u8>). Mock/real servers encode binary
+             * payloads inconsistently: some send a base64-encoded transport body
+             * (non-JSON content-type), others a JSON string of base64, others a
+             * JSON array of byte values. Normalise all three to raw bytes and
+             * present them as a JSON array, which is how serde deserializes
+             * Vec<u8>. from_utf8_lossy is deliberately avoided -- it would
+             * corrupt non-UTF-8 binary. */
+            use base64::Engine as _;
+            let bytes: Vec<u8> = if is_json {
+                match serde_json::from_slice::<serde_json::Value>(response.body().as_bytes()) {
+                    /* Base64 string of the binary payload. */
+                    Ok(serde_json::Value::String(s)) => base64::engine::general_purpose::STANDARD
+                        .decode(s.as_bytes())
+                        .map_err(|e| {
+                            crate::errors::serialization_error::SerializationError::new(
+                                format!("Invalid base64 value for a format: byte response: {e}"),
+                                Some(Box::new(e)),
+                            )
+                        })?,
+                    /* JSON array of byte values -- already the target shape. */
+                    Ok(serde_json::Value::Array(items))
+                        if items.iter().all(|v| v.as_u64().is_some_and(|n| n <= 255)) =>
+                    {
+                        return Ok(ApiResult::new(
+                            response.status_code(),
+                            serde_json::from_value(serde_json::Value::Array(items)).ok(),
+                            response.body().to_string(),
+                            response.headers().clone(),
+                        ));
+                    }
+                    /* Any other JSON document (content negotiation answered the
+                     * binary operation with its application/json variant): the
+                     * caller gets its raw bytes, never an empty body. */
+                    _ => response.body().as_bytes().to_vec(),
+                }
+            } else {
+                /* Non-JSON content-type: transport layer base64-encoded the raw
+                 * bytes; decode them back. */
+                base64::engine::general_purpose::STANDARD
+                    .decode(response.body().as_bytes())
+                    .unwrap_or_default()
+            };
+            let arr = serde_json::Value::Array(
+                bytes.iter().map(|&b| serde_json::Value::from(b)).collect(),
+            );
+            serde_json::from_value(arr).ok()
+        } else if is_json && !response.body().is_empty() {
+            crate::object_serializer::deserialize(response.body().as_bytes())?
+        } else if !is_json && !response.body().is_empty() {
+            /* Non-JSON, non-binary response. The transport keeps text media
+             * types as decoded text and base64-encodes everything else, so only
+             * the latter is decoded back; text is surfaced verbatim. */
+            let text = if resp_content_type.as_deref().is_some_and(is_text_media_type) {
+                response.body().to_string()
+            } else {
+                use base64::Engine as _;
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(response.body().as_bytes())
+                    .map_err(|e| {
+                        crate::errors::serialization_error::SerializationError::new(
+                            format!("Invalid base64 value for a non-JSON response body: {e}"),
+                            Some(Box::new(e)),
+                        )
+                    })?;
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            /* D32: a String return takes the text; any other return type is a
+             * SerializationError naming the Content-Type, never a silent None. */
+            match serde_json::from_value(serde_json::Value::String(text)) {
+                Ok(value) => Some(value),
+                Err(_) => {
+                    return Err(Box::new(
+                        crate::errors::serialization_error::SerializationError::new(
+                            format!(
+                                "Unexpected response Content-Type '{}' for {}",
+                                resp_content_type.as_deref().unwrap_or(""),
+                                operation
+                            ),
+                            None,
+                        ),
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok(ApiResult::new(
+            response.status_code(),
+            data,
+            response.body().to_string(),
+            response.headers().clone(),
+        ))
+    }
+}
+
+/* Retry policy (F823). The numbers follow the other SDKs: 0.5 s doubling to
+ * 8 s, 25% jitter, a Retry-After honoured up to 60 s. */
+const RETRY_BASE_DELAY_MS: u64 = 500;
+const RETRY_MAX_DELAY_MS: u64 = 8_000;
+const RETRY_AFTER_CAP_MS: u64 = 60_000;
+
+/// Whether a response status is worth sending the request again for.
+pub(crate) fn is_retryable_status(status: u16) -> bool {
+    crate::errors::api_error::is_retryable_status(status)
+}
+
+/// Whether a transport error happened before a response and may be retried: a
+/// [`NetworkError`](crate::errors::NetworkError) whose cause is not a failure
+/// to read a body that had already started to arrive. A timeout has used up
+/// the end-to-end budget and is never retried.
+pub(crate) fn is_retryable_error(err: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    if err.downcast_ref::<crate::errors::NetworkError>().is_none() {
+        return false;
+    }
+    let mut cause = err.source();
+    while let Some(c) = cause {
+        if is_tls_failure_message(&c.to_string()) {
+            return false;
+        }
+        if let Some(e) = c.downcast_ref::<reqwest::Error>() {
+            if e.is_body() || e.is_decode() {
+                return false;
+            }
+        }
+        cause = c.source();
+    }
+    true
+}
+
+/// Whether an error message names a TLS or certificate failure. Such a failure
+/// is about the peer's identity, so it is reported at once and never retried.
+fn is_tls_failure_message(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    ["certificate", "tls", "ssl", "rustls", "native-tls", "native_tls"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+}
+
+/// Whether a method is idempotent (RFC 9110 section 9.2.2, plus QUERY), so a
+/// request that never got a response can be sent again without repeating a change.
+pub(crate) fn is_idempotent_method(method: &str) -> bool {
+    matches!(
+        method.to_ascii_uppercase().as_str(),
+        "GET" | "HEAD" | "OPTIONS" | "TRACE" | "PUT" | "DELETE" | "QUERY"
+    )
+}
+
+/// Parses a `Retry-After` value: whole seconds or an HTTP date. A date in the
+/// past is a zero wait; anything else unparseable is `None`.
+pub(crate) fn parse_retry_after(value: &str) -> Option<std::time::Duration> {
+    let value = value.trim();
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(std::time::Duration::from_secs(seconds));
+    }
+    let date = chrono::DateTime::parse_from_rfc2822(value).ok()?;
+    let wait = date.with_timezone(&chrono::Utc) - chrono::Utc::now();
+    Some(wait.to_std().unwrap_or_default())
+}
+
+/// The wait before retry number `attempt + 1` (`attempt` counts from 0): the
+/// `Retry-After` value capped at 60 s when the server sent one, otherwise 0.5 s
+/// doubled per attempt up to 8 s and reduced by up to 25% jitter.
+pub(crate) fn retry_delay(attempt: u32, retry_after: Option<std::time::Duration>) -> std::time::Duration {
+    match retry_after {
+        Some(wait) => wait.min(std::time::Duration::from_millis(RETRY_AFTER_CAP_MS)),
+        None => {
+            let base = RETRY_BASE_DELAY_MS
+                .saturating_mul(1u64 << attempt.min(16))
+                .min(RETRY_MAX_DELAY_MS);
+            let random = f64::from(uuid::Uuid::new_v4().as_u128() as u32) / f64::from(u32::MAX);
+            std::time::Duration::from_millis((base as f64 * (1.0 - 0.25 * random)) as u64)
+        }
+    }
+}
+
+/// Whether a wait of `delay` leaves time in the end-to-end budget for another
+/// request. Without a deadline there is no budget to protect.
+fn fits_budget(deadline: Option<std::time::Instant>, delay: std::time::Duration) -> bool {
+    match deadline {
+        Some(deadline) => std::time::Instant::now() + delay < deadline,
+        None => true,
+    }
+}
+
+/// Prepares the headers of a retry: the authentication headers are asked for
+/// again (a token may have been renewed since the first attempt) and the trace
+/// context is injected again. `false` when the authenticator cannot produce
+/// credentials, in which case the call is not retried.
+async fn refresh_request_headers(
+    auth: Option<&dyn Authenticator>,
+    headers: &mut HashMap<String, String>,
+    trace: &trace_context_util::TraceContext,
+    hooked: bool,
+    method: &str,
+    request_url: &str,
+) -> bool {
+    if let Some(auth) = auth {
+        match auth.try_auth_headers().await {
+            Ok(fresh) => {
+                for (k, v) in fresh {
+                    insert_header(headers, k, v);
+                }
+            }
+            Err(_) => return false,
+        }
+        /* A Digest answer carries a nonce count, so a retry answers again. */
+        if let Some(answer) = auth.challenge_authorization(method, &request_target_of(request_url)) {
+            insert_header(headers, "Authorization".to_string(), answer);
+        }
+    }
+    /* With a call hook the headers already carry the trace context as the hook
+     * left it (an adapter writes the client span there), so it is not
+     * injected over it again. */
+    if !hooked {
+        trace.inject(headers);
+    }
+    true
+}
+
+/// The path and query of a request URL, the request target a challenge answer
+/// covers.
+fn request_target_of(url: &str) -> String {
+    match reqwest::Url::parse(url) {
+        Ok(parsed) => match parsed.query() {
+            Some(query) => format!("{}?{}", parsed.path(), query),
+            None => parsed.path().to_string(),
+        },
+        Err(_) => url.to_string(),
+    }
+}
+
+/// The URL without its query string and fragment.
+fn strip_query_and_fragment(url: &str) -> &str {
+    let end = url.find(['?', '#']).unwrap_or(url.len());
+    &url[..end]
+}
+
+/// The lower-case host of the URL, without port and without the brackets of an
+/// IPv6 literal; empty when the URL has no host.
+fn server_address_of(url: &str) -> String {
+    match reqwest::Url::parse(strip_query_and_fragment(url)) {
+        Ok(parsed) => parsed
+            .host_str()
+            .map(|host| host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase())
+            .unwrap_or_default(),
+        Err(_) => String::new(),
+    }
+}
+
+/// Reports whether the transport hands a response with this media type back as
+/// decoded text (rather than base64), mirroring the text/binary split in
+/// `DefaultApiClient`. JSON media types are routed separately by the caller.
+fn is_text_media_type(media_type: &str) -> bool {
+    let media_type = media_type.to_ascii_lowercase();
+    media_type.is_empty()
+        || media_type.starts_with("text/")
+        || media_type == "application/xml"
+        || media_type == "application/javascript"
+        || media_type.ends_with("+xml")
+}
+
+fn build_query_string(query_params: &[(String, String, bool)]) -> String {
+    if query_params.is_empty() {
+        return String::new();
+    }
+
+    let parts: Vec<String> = query_params
+        .iter()
+        .map(|(k, v, allow_reserved)| {
+            /* OAS allowReserved: a flagged value keeps RFC 3986 reserved
+             * characters literal instead of percent-encoding them; the key is
+             * always encoded normally. */
+            let encoded_value = if *allow_reserved {
+                crate::value_serializer::encode_query_allowing_reserved(v)
+            } else {
+                urlencoding::encode(v).into_owned()
+            };
+            format!(
+                "{}={}",
+                urlencoding::encode(k),
+                encoded_value
+            )
+        })
+        .collect();
+
+    parts.join("&")
+}
+
+/* multipart/form-data serialization (boundary, per-part Content-Type from the
+ * field-name extension, RFC 5987 filename handling, non-ASCII field-name UTF-8
+ * preservation, repeated-field expansion, field-name validation/escaping) lives
+ * in `default_api_client::serialize_multipart_body`. `invoke_api` hands the
+ * structured `Vec<(String, MultipartValue)>` to the client as
+ * `RequestBody::Multipart`; the client owns the wire format so the same bytes
+ * and boundary can be replayed across 307/308 redirects. */
+
+pub(crate) fn serialize_body(
+    body: Option<Vec<u8>>,
+    content_type: &str,
+) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    let body = match body {
+        Some(b) => b,
+        None => return Ok(None),
+    };
+
+    if content_type == "multipart/form-data" {
+        /* Multipart is handled separately by the API client */
+        return Ok(None);
+    }
+
+    if content_type.starts_with("image/") || content_type == "application/octet-stream" {
+        return Ok(Some(body));
+    }
+
+    if content_type == "text/plain" {
+        /* Ensure the body is valid UTF-8 text */
+        let text = String::from_utf8(body)?;
+        return Ok(Some(text.into_bytes()));
+    }
+
+    if content_type == "application/x-www-form-urlencoded" {
+        /* Canonical form serialization (identical across every SDK). The body
+         * arrives as a JSON array of `[key, value]` pairs in
+         * spec-declaration order (built by the operation template). Each value
+         * is one of:
+         *   - a JSON array  → emitted as REPEATED keys (`tags=a&tags=b`), the
+         *                     exploded form (never `tags=a,b` or `tags[]=`);
+         *   - JSON null     → OMITTED entirely (an absent optional field must
+         *                     not appear as an empty `note=` pair);
+         *   - any scalar    → stringified and emitted as a single pair.
+         * Encoding uses the shared `form_url_encode` helper so the byte-level
+         * escape set matches the OAuth2 token-endpoint helper exactly: a space
+         * becomes `+` (the application/x-www-form-urlencoded convention), not
+         * `%20`, and every other non-unreserved byte becomes `%XX`.
+         * A pair may carry a third element, `true` when the field's Encoding
+         * Object sets allowReserved: its value (each element of an array) is
+         * then encoded with the query allow-reserved encoder, which keeps
+         * `: / ? @ ! $ & ' ( ) * + , ; =` literal and writes a space as `%20`.
+         * The key is encoded as usual. */
+        let pairs: Vec<FormPair> = serde_json::from_slice(&body)?;
+        let mut encoded: Vec<String> = Vec::new();
+        for pair in pairs {
+            let (key, value, allow_reserved) = match pair {
+                FormPair::Flagged(key, value, allow_reserved) => (key, value, allow_reserved),
+                FormPair::Plain(key, value) => (key, value, false),
+            };
+            let encode_value = |text: &str| {
+                if allow_reserved {
+                    crate::value_serializer::encode_query_allowing_reserved(text)
+                } else {
+                    form_url_encode(text)
+                }
+            };
+            match value {
+                serde_json::Value::Null => {}
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        if item.is_null() {
+                            continue;
+                        }
+                        encoded.push(format!(
+                            "{}={}",
+                            form_url_encode(&key),
+                            encode_value(&form_scalar_to_string(&key, &item)?)
+                        ));
+                    }
+                }
+                scalar => {
+                    encoded.push(format!(
+                        "{}={}",
+                        form_url_encode(&key),
+                        encode_value(&form_scalar_to_string(&key, &scalar)?)
+                    ));
+                }
+            }
+        }
+        return Ok(Some(encoded.join("&").into_bytes()));
+    }
+
+    /* Default: JSON -- body is already serialized by the caller */
+    Ok(Some(body))
+}
+
+/// One entry of a form-urlencoded body as the operation template writes it:
+/// `[key, value]`, or `[key, value, allow_reserved]` where the flag marks a
+/// field whose Encoding Object sets `allowReserved`.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum FormPair {
+    Flagged(String, serde_json::Value, bool),
+    Plain(String, serde_json::Value),
+}
+
+/// Renders a single JSON scalar as the string form used on the wire for a
+/// form-urlencoded value. Mirrors `object_serializer::stringify`: strings pass
+/// through unquoted, numbers/booleans use their natural rendering and null
+/// becomes empty. An object or nested array has no defined form encoding (the
+/// generator does not emit an OAS `encoding` style), so it is rejected with a
+/// `SerializationError` rather than guessed at.
+fn form_scalar_to_string(
+    key: &str,
+    value: &serde_json::Value,
+) -> Result<String, crate::errors::serialization_error::SerializationError> {
+    match value {
+        serde_json::Value::String(s) => Ok(s.clone()),
+        serde_json::Value::Bool(b) => Ok(b.to_string()),
+        serde_json::Value::Number(n) => Ok(n.to_string()),
+        serde_json::Value::Null => Ok(String::new()),
+        _ => Err(crate::errors::serialization_error::SerializationError::new(
+            format!("form-urlencoded field {} must be a scalar or array of scalars", key),
+            None,
+        )),
+    }
+}
+
+/// RFC 6265 cookie-name validation (RFC 7230 token).
+fn is_valid_cookie_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    name.chars().all(|c| {
+        c.is_ascii_alphanumeric() || "!#$%&'*+-.^_`|~".contains(c)
+    })
+}
+
+/// RFC 6265 cookie-value validation (cookie-octet*).
+fn is_valid_cookie_value(value: &str) -> bool {
+    value.chars().all(|c| {
+        let v = c as u32;
+        v == 0x21
+            || (0x23..=0x2B).contains(&v)
+            || (0x2D..=0x3A).contains(&v)
+            || (0x3C..=0x5B).contains(&v)
+            || (0x5D..=0x7E).contains(&v)
+    })
+}
+
+/* These `serialize_body` unit tests live in-crate (rather than under tests/)
+ * because `serialize_body` and `BaseApi` are crate-private (internal transport
+ * helpers, not part of the public API). The behavioural integration tests that
+ * drive the public API surface remain in `tests/base_api_test.rs`. */
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_bhv_retries_029_an_unusable_retry_after_falls_back_to_the_backoff() {
+        /* The first retry waits 0.5 s less up to 25% jitter when Retry-After is not understood. */
+        for header in ["", "soon", "-5", "nan", "inf"] {
+            let parsed = parse_retry_after(header);
+            assert!(parsed.is_none(), "{:?} must not parse", header);
+            let delay = retry_delay(0, parsed);
+            assert!(delay >= std::time::Duration::from_millis(375), "{:?}: {:?}", header, delay);
+            assert!(delay <= std::time::Duration::from_millis(500), "{:?}: {:?}", header, delay);
+        }
+    }
+
+    use super::{
+        build_query_string, fits_budget, is_retryable_error, is_retryable_status,
+        parse_retry_after, retry_delay, serialize_body, BaseApi, CallOptions, InvokeApiParams,
+    };
+    use crate::api_client::{ApiClient, RequestBody};
+    use crate::api_http_response::ApiHttpResponse;
+    use crate::ConfigurationBuilder;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    /* F823: the retry policy. */
+    #[test]
+    fn test_bhv_retries_021_retryable_statuses_are_408_409_429_and_5xx_except_501() {
+        for status in [408, 409, 429, 500, 502, 503, 504, 599] {
+            assert!(is_retryable_status(status), "status {}", status);
+        }
+        for status in [200, 301, 400, 401, 403, 404, 422, 501] {
+            assert!(!is_retryable_status(status), "status {}", status);
+        }
+    }
+
+
+    #[test]
+    fn test_bhv_retries_022_retry_after_parses_seconds_and_http_dates() {
+        use std::time::Duration;
+        assert_eq!(Some(Duration::from_secs(7)), parse_retry_after(" 7 "));
+        assert_eq!(Some(Duration::ZERO), parse_retry_after("Sun, 06 Nov 1994 08:49:37 GMT"));
+        let later = chrono::Utc::now() + chrono::Duration::seconds(30);
+        let wait = parse_retry_after(&later.format("%a, %d %b %Y %H:%M:%S GMT").to_string())
+            .expect("an HTTP date");
+        assert!(wait <= Duration::from_secs(30) && wait >= Duration::from_secs(28), "{:?}", wait);
+        assert_eq!(None, parse_retry_after("soon"));
+        assert_eq!(None, parse_retry_after("-3"));
+    }
+
+    #[test]
+    fn test_bhv_misc_169_the_pause_between_retries_starts_at_half_a_second_doubles_and_is_capped() {
+        for attempt in 0u32..6 {
+            let base_ms = (500u64 << attempt).min(8_000) as f64;
+            let delay_ms = retry_delay(attempt, None).as_millis() as f64;
+            assert!(delay_ms >= base_ms * 0.75 && delay_ms <= base_ms * 1.25, "attempt {attempt}: {delay_ms} ms");
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_027_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
+        use std::time::Duration;
+        for (attempt, base_ms) in [(0u32, 500u64), (1, 1_000), (2, 2_000), (3, 4_000), (4, 8_000), (9, 8_000)] {
+            for _ in 0..20 {
+                let delay = retry_delay(attempt, None);
+                assert!(delay <= Duration::from_millis(base_ms), "attempt {}: {:?}", attempt, delay);
+                assert!(delay >= Duration::from_millis(base_ms * 3 / 4), "attempt {}: {:?}", attempt, delay);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_030_retry_backoff_jitter_takes_at_most_a_quarter_off_the_delay() {
+        use std::time::Duration;
+        for attempt in 0..5u32 {
+            let base_ms = 500u64 * (1u64 << attempt);
+            for _ in 0..50 {
+                let delay = retry_delay(attempt, None);
+                assert!(delay >= Duration::from_millis(base_ms * 3 / 4), "attempt {}: {:?}", attempt, delay);
+                assert!(delay <= Duration::from_millis(base_ms), "attempt {}: {:?}", attempt, delay);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_041_backoff_starts_at_half_a_second_and_is_capped_at_eight_seconds() {
+        use std::time::Duration;
+        for _ in 0..50 {
+            let first = retry_delay(0, None);
+            assert!(first <= Duration::from_millis(500), "{:?}", first);
+            assert!(first >= Duration::from_millis(375), "{:?}", first);
+            for attempt in 4..=12u32 {
+                let delay = retry_delay(attempt, None);
+                assert!(delay <= Duration::from_millis(8_000), "attempt {}: {:?}", attempt, delay);
+                assert!(delay >= Duration::from_millis(6_000), "attempt {}: {:?}", attempt, delay);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_023_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
+        use std::time::Duration;
+        assert_eq!(Duration::from_secs(3), retry_delay(0, Some(Duration::from_secs(3))));
+        assert_eq!(Duration::from_secs(60), retry_delay(0, Some(Duration::from_secs(3_600))));
+    }
+
+    #[test]
+    fn test_bhv_misc_164_a_wait_must_fit_the_remaining_budget() {
+        use std::time::{Duration, Instant};
+        assert!(fits_budget(None, Duration::from_secs(600)));
+        let deadline = Instant::now() + Duration::from_secs(10);
+        assert!(fits_budget(Some(deadline), Duration::from_secs(1)));
+        assert!(!fits_budget(Some(deadline), Duration::from_secs(20)));
+    }
+
+    /// Answers every request with a fixed body and Content-Type.
+    struct FixedResponseClient {
+        body: String,
+        content_type: String,
+    }
+
+    impl ApiClient for FixedResponseClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let mut headers = HashMap::new();
+            headers.insert("Content-Type".to_string(), self.content_type.clone());
+            let response = ApiHttpResponse::new(200, self.body.clone(), headers);
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// Records the `Accept` header of the one request it receives.
+    struct AcceptCapturingClient {
+        accept: std::sync::Mutex<Option<String>>,
+    }
+
+    impl ApiClient for AcceptCapturingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.accept.lock().unwrap() = headers.get("Accept").cloned();
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /* F1121: an explicit `Accept` header parameter beats both the configured
+     * default (`text/plain`) and the negotiated value (`application/json`). */
+    #[tokio::test]
+    async fn test_bhv_operations_008_header_param_accept_wins_over_the_default_and_the_negotiated_accept() {
+        let client = Arc::new(AcceptCapturingClient { accept: std::sync::Mutex::new(None) });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("Accept", "text/plain")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let mut header_params = HashMap::new();
+        header_params.insert("Accept".to_string(), "application/xml".to_string());
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/items",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: Vec::new(),
+            header_params,
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions::default(),
+            error_schemas: &[],
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(Some("application/xml".to_string()), *client.accept.lock().unwrap());
+    }
+
+    /// Records every `Accept` entry of the one request it receives, whatever the case of its name.
+    struct AcceptEntriesClient {
+        entries: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    impl ApiClient for AcceptEntriesClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.entries.lock().unwrap() = headers
+                .iter()
+                .filter(|(name, _)| name.eq_ignore_ascii_case("accept"))
+                .map(|(name, value)| (name.clone(), value.clone()))
+                .collect();
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// Accepts every connection, reads its request and never answers, counting the connections.
+    fn start_counting_silent_server() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let addr = listener.local_addr().expect("local address");
+        let accepted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = accepted.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                std::thread::spawn(move || {
+                    let mut buf = [0u8; 4096];
+                    let _ = std::io::Read::read(&mut stream, &mut buf);
+                    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(10)));
+                    let _ = std::io::Read::read(&mut stream, &mut buf);
+                });
+            }
+        });
+        (format!("http://{}", addr), accepted)
+    }
+
+    /* retries042: a request that times out is sent once, even with a retry budget. */
+    #[tokio::test]
+    async fn test_bhv_retries_042_a_timeout_is_not_retried() {
+        let (base_url, accepted) = start_counting_silent_server();
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .timeout(Some(200))
+            .build()
+            .expect("valid transport options");
+        let client = Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = BaseApi::new(client, config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/slow",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+            error_schemas: &[],
+        };
+
+        let err = api.invoke_api(params).await.expect_err("a request past the timeout must fail");
+
+        assert!(
+            err.downcast_ref::<crate::errors::NetworkTimeoutError>().is_some(),
+            "expected a NetworkTimeoutError, got: {err}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        assert_eq!(1, accepted.load(std::sync::atomic::Ordering::SeqCst), "the timed-out request must be sent once");
+    }
+
+    /* Answers the first `failures` connections with 503 and every later one with 200,
+     * recording the X-Request-ID header of each request in arrival order. */
+    fn start_flaky_request_id_server(failures: usize) -> (String, Arc<std::sync::Mutex<Vec<String>>>) {
+        let captured = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded = captured.clone();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let base_url = format!("http://{}", listener.local_addr().expect("local address"));
+        std::thread::spawn(move || {
+            for (i, stream) in listener.incoming().enumerate() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buf = [0u8; 8192];
+                let n = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+                let text = String::from_utf8_lossy(&buf[..n]).to_string();
+                if let Some(line) = text.lines().find(|l| l.to_ascii_lowercase().starts_with("x-request-id:")) {
+                    let value = line.split_once(':').map(|(_, v)| v.trim().to_string()).unwrap_or_default();
+                    recorded.lock().unwrap().push(value);
+                }
+                let response = if i < failures {
+                    "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                } else {
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+                };
+                let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            }
+        });
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        (base_url, captured)
+    }
+
+    /* retries044: every retry carries a request id that differs from the attempts before it. */
+    #[tokio::test]
+    async fn test_bhv_retries_044_every_retry_carries_a_request_id_that_differs_from_the_attempts_before() {
+        let (base_url, captured) = start_flaky_request_id_server(2);
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .inject_request_id(true)
+            .build()
+            .expect("valid transport options");
+        let client = Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport)));
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = BaseApi::new(client, config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/probe",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions { max_retries: Some(2), ..CallOptions::default() },
+            error_schemas: &[],
+        };
+
+        let _ = api.invoke_api(params).await;
+
+        let ids = captured.lock().unwrap().clone();
+        assert_eq!(3, ids.len(), "two retries after two 503 responses: {:?}", ids);
+        assert!(ids.iter().all(|id| !id.is_empty()), "every attempt carries an id: {:?}", ids);
+        let mut unique = ids.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), ids.len(), "each attempt must carry a new id: {:?}", ids);
+    }
+
+    /* headers030: a default header in another case replaces the negotiated Accept
+     * instead of being sent beside it. */
+    #[tokio::test]
+    async fn test_bhv_headers_030_a_default_header_in_another_case_replaces_the_negotiated_accept() {
+        let client = Arc::new(AcceptEntriesClient { entries: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("accept", "application/vnd.x+json")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/test/echo",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions::default(),
+            error_schemas: &[],
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(
+            vec![("accept".to_string(), "application/vnd.x+json".to_string())],
+            *client.entries.lock().unwrap()
+        );
+    }
+
+    /// Answers every request with a fixed status, or with a network failure, and
+    /// records what it was sent.
+    struct ScriptedClient {
+        status: u16,
+        network_failure: bool,
+        client_retries: u32,
+        calls: std::sync::atomic::AtomicUsize,
+        last_headers: std::sync::Mutex<HashMap<String, String>>,
+        last_deadline: std::sync::Mutex<Option<std::time::Instant>>,
+    }
+
+    impl ScriptedClient {
+        fn new(status: u16) -> Arc<Self> {
+            Self::custom(status, false, 0)
+        }
+
+        fn custom(status: u16, network_failure: bool, client_retries: u32) -> Arc<Self> {
+            Arc::new(Self {
+                status,
+                network_failure,
+                client_retries,
+                calls: std::sync::atomic::AtomicUsize::new(0),
+                last_headers: std::sync::Mutex::new(HashMap::new()),
+                last_deadline: std::sync::Mutex::new(None),
+            })
+        }
+
+        fn calls(&self) -> usize {
+            self.calls.load(std::sync::atomic::Ordering::SeqCst)
+        }
+
+        fn answer(
+            &self,
+            headers: &HashMap<String, String>,
+            deadline: Option<std::time::Instant>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            *self.last_headers.lock().unwrap() = headers.clone();
+            *self.last_deadline.lock().unwrap() = deadline;
+            let outcome: Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> =
+                if self.network_failure {
+                    Err(Box::new(
+                        crate::errors::NetworkError::try_from(crate::errors::ApiError::new(
+                            0,
+                            "refused".to_string(),
+                            None,
+                            None,
+                        ))
+                        .expect("status 0"),
+                    ))
+                } else {
+                    Ok(ApiHttpResponse::new(self.status, "{}".to_string(), HashMap::new()))
+                };
+            Box::pin(async move { outcome })
+        }
+    }
+
+    impl ApiClient for ScriptedClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.answer(headers, None)
+        }
+
+        fn send_request_with_options(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+            options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.answer(headers, options.deadline)
+        }
+
+        fn max_retries(&self) -> u32 {
+            self.client_retries
+        }
+    }
+
+    fn call_params(call: CallOptions) -> InvokeApiParams<'static> {
+        let mut header_params = HashMap::new();
+        header_params.insert("X-Call".to_string(), "from-parameter".to_string());
+        InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/items/7",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: vec![("token".to_string(), "secret".to_string(), false)],
+            header_params,
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call,
+            error_schemas: &[],
+        }
+    }
+
+    fn api_for(client: Arc<ScriptedClient>) -> BaseApi {
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("X-Call", "from-default")
+            .build();
+        BaseApi::new(client, config, None)
+    }
+
+    /* F830: an error names the method and path of the request, never its query. */
+    #[tokio::test]
+    async fn test_bhv_errors_036_an_error_response_names_the_request_without_its_query_string() {
+        let api = api_for(ScriptedClient::new(404));
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a 404 must fail");
+
+        let text = err.to_string();
+        assert!(
+            text.starts_with("API returned status code 404 for GET /items/7\nHTTP status code: 404"),
+            "{text}"
+        );
+        assert!(!text.contains("secret"), "{text}");
+    }
+
+    /// Answers every request with one fixed response.
+    struct FixedClient {
+        status: u16,
+        body: &'static str,
+        headers: HashMap<String, String>,
+    }
+
+    impl ApiClient for FixedClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let response = ApiHttpResponse::new(self.status, self.body.to_string(), self.headers.clone());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// A decode target for the response-decoding tests.
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct Shape {
+        count: i64,
+    }
+
+    /* Catalogue 205: a response body that cannot be decoded raises an error
+     * that carries the response (status, headers, raw body) and the request
+     * (method and path without the query). */
+    #[tokio::test]
+    async fn test_bhv_errors_205_a_decode_failure_carries_the_response_and_the_request() {
+        let mut headers = HashMap::new();
+        headers.insert("content-type".to_string(), "application/json".to_string());
+        headers.insert("x-trace".to_string(), "t1".to_string());
+        let client = Arc::new(FixedClient { status: 200, body: r#"{"count":"many"}"#, headers });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let api = BaseApi::new(client, config, None);
+
+        let err = api
+            .invoke_api_for_result::<Shape>(call_params(CallOptions::default()))
+            .await
+            .expect_err("a body that does not match the type must fail");
+
+        let decode = err
+            .downcast_ref::<crate::errors::SerializationError>()
+            .expect("the failure is a SerializationError");
+        assert_eq!(decode.status_code(), Some(200));
+        assert_eq!(decode.response_body(), Some(r#"{"count":"many"}"#));
+        let headers = decode.response_headers().expect("the headers are kept");
+        assert_eq!(headers.get("x-trace").map(String::as_str), Some("t1"));
+        assert_eq!(decode.request_method(), Some("GET"));
+        assert_eq!(decode.request_path(), Some("/items/7"));
+    }
+
+    /// Records the URL of the one request it receives.
+    struct UrlCapturingClient {
+        url: std::sync::Mutex<Option<String>>,
+    }
+
+    impl ApiClient for UrlCapturingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.url.lock().unwrap() = Some(url.to_string());
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /* Catalogue 027: an absolute URL in the path is the request target, so a
+     * per-operation server reaches its own host and the client base URL is
+     * never prepended. */
+    #[tokio::test]
+    async fn test_bhv_errors_027_an_absolute_path_bypasses_the_client_base_url() {
+        let client = Arc::new(UrlCapturingClient { url: std::sync::Mutex::new(None) });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            path: "https://items.example.org/v2/items/7",
+            query_params: Vec::new(),
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 succeeds");
+
+        assert_eq!(
+            Some("https://items.example.org/v2/items/7".to_string()),
+            *client.url.lock().unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_errors_057_a_network_failure_carries_the_method_and_path_of_the_request() {
+        let api = api_for(ScriptedClient::custom(200, true, 0));
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a refused connection must fail");
+
+        let network = err
+            .downcast_ref::<crate::errors::NetworkError>()
+            .expect("the failure stays a NetworkError");
+        assert_eq!(network.api_error().request_method(), Some("GET"));
+        assert_eq!(network.api_error().request_path(), Some("/items/7"));
+    }
+
+    /* F827: the per-call timeout, retry budget and headers replace the client's. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_003_a_per_call_header_wins_over_the_default_and_the_parameter() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let mut headers = HashMap::new();
+        headers.insert("X-Call".to_string(), "from-call".to_string());
+
+        api.invoke_api(call_params(CallOptions { headers, ..CallOptions::default() }))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("from-call".to_string()),
+            client.last_headers.lock().unwrap().get("X-Call").cloned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_014_a_per_call_retry_budget_of_zero_turns_the_client_retries_off() {
+        let client = ScriptedClient::custom(500, false, 2);
+        let api = api_for(client.clone());
+
+        let result = api
+            .invoke_api(call_params(CallOptions { max_retries: Some(0), ..CallOptions::default() }))
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(1, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_229_a_per_call_retry_budget_replaces_a_client_that_never_retries() {
+        let client = ScriptedClient::new(500);
+        let api = api_for(client.clone());
+
+        let result = api
+            .invoke_api(call_params(CallOptions { max_retries: Some(1), ..CallOptions::default() }))
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(2, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_171_a_per_call_retry_count_above_the_client_limit_allows_more_attempts() {
+        let client = ScriptedClient::custom(500, false, 1);
+        let api = api_for(client.clone());
+
+        let result = api
+            .invoke_api(call_params(CallOptions { max_retries: Some(3), ..CallOptions::default() }))
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(4, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_033_the_last_network_error_is_reported_once_the_retries_are_spent() {
+        let client = ScriptedClient::custom(200, true, 2);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("every attempt fails");
+
+        assert!(err.downcast_ref::<crate::errors::NetworkError>().is_some(), "{err}");
+        assert_eq!(3, client.calls());
+    }
+
+    #[derive(Debug)]
+    struct TlsCause;
+
+    impl std::fmt::Display for TlsCause {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "invalid peer certificate: UnknownIssuer")
+        }
+    }
+
+    impl std::error::Error for TlsCause {}
+
+    /* misc161: a request that never got a response is sent again only for an idempotent method. */
+    #[tokio::test]
+    async fn test_bhv_misc_161_a_dropped_connection_is_retried_only_for_idempotent_methods() {
+        for method in ["GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY"] {
+            let client = ScriptedClient::custom(200, true, 2);
+            let api = api_for(client.clone());
+            let params = InvokeApiParams { method, ..call_params(CallOptions::default()) };
+
+            let _ = api.invoke_api(params).await;
+
+            assert_eq!(3, client.calls(), "{method} is idempotent and must be retried");
+        }
+        for method in ["POST", "PATCH"] {
+            let client = ScriptedClient::custom(200, true, 2);
+            let api = api_for(client.clone());
+            let params = InvokeApiParams { method, ..call_params(CallOptions::default()) };
+
+            let err = api.invoke_api(params).await.expect_err("a dropped request fails the call");
+
+            assert!(err.downcast_ref::<crate::errors::NetworkError>().is_some(), "{err}");
+            assert_eq!(1, client.calls(), "{method} must be sent exactly once");
+        }
+    }
+
+    /* misc170: a TLS or certificate failure is a network error that is never retried. */
+    #[test]
+    fn test_bhv_misc_170_a_tls_failure_is_never_retried() {
+        let tls = crate::errors::NetworkError::try_from(crate::errors::ApiError::transport(
+            crate::errors::api_error::TransportFailure::Network,
+            "error sending request".to_string(),
+            Arc::new(TlsCause),
+        ))
+        .expect("status 0");
+        let refused = crate::errors::NetworkError::try_from(crate::errors::ApiError::new(
+            0,
+            "refused".to_string(),
+            None,
+            None,
+        ))
+        .expect("status 0");
+
+        assert!(!is_retryable_error(&tls));
+        assert!(is_retryable_error(&refused));
+    }
+
+    /// Answers 503 with `Retry-After: 0` twice, then 200, and records the body of every request.
+    struct BodyRecordingClient {
+        bodies: std::sync::Mutex<Vec<Option<Vec<u8>>>>,
+    }
+
+    impl BodyRecordingClient {
+        fn answer(
+            &self,
+            body: Option<&RequestBody>,
+        ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+            let mut bodies = self.bodies.lock().unwrap();
+            bodies.push(match body {
+                Some(RequestBody::Bytes(bytes)) => Some(bytes.clone()),
+                _ => None,
+            });
+            let mut headers = HashMap::new();
+            let status = if bodies.len() < 3 {
+                headers.insert("retry-after".to_string(), "0".to_string());
+                503
+            } else {
+                200
+            };
+            Ok(ApiHttpResponse::new(status, "{}".to_string(), headers))
+        }
+    }
+
+    impl ApiClient for BodyRecordingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = self.answer(body);
+            Box::pin(async move { outcome })
+        }
+
+        fn send_request_with_options(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            body: Option<&RequestBody>,
+            _options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = self.answer(body);
+            Box::pin(async move { outcome })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_034_a_string_body_is_sent_again_unchanged_on_every_retry() {
+        let client = Arc::new(BodyRecordingClient { bodies: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            body: Some(b"plain text body".to_vec()),
+            content_type: "text/plain",
+            ..call_params(CallOptions { max_retries: Some(2), ..CallOptions::default() })
+        };
+
+        api.invoke_api(params).await.expect("the third attempt succeeds");
+
+        let bodies = client.bodies.lock().unwrap();
+        assert_eq!(3, bodies.len());
+        for sent in bodies.iter() {
+            assert_eq!(Some(b"plain text body".to_vec()), *sent);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_transport_002_a_per_call_timeout_sets_the_deadline_the_transport_receives() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let before = std::time::Instant::now();
+
+        api.invoke_api(call_params(CallOptions {
+            timeout: Some(std::time::Duration::from_secs(30)),
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
+        assert!(deadline >= before + std::time::Duration::from_secs(30));
+        assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_043_an_unauthorized_response_is_not_replayed_without_a_fresh_credential() {
+        let client = ScriptedClient::new(401);
+        let api = api_for(client.clone());
+
+        let result = api.invoke_api(call_params(CallOptions::default())).await;
+
+        assert!(result.is_err(), "the 401 must reach the caller");
+        assert_eq!(1, client.calls(), "no authenticator can refresh the credential, so it is not replayed");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_headers_031_a_header_value_with_a_line_break_is_refused_before_sending() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let mut params = call_params(CallOptions::default());
+        params.header_params.insert("X-Bad".to_string(), "a\r\nInjected: yes".to_string());
+
+        let result = api.invoke_api(params).await;
+
+        assert!(result.is_err(), "a CR or LF in a header value must be refused");
+        assert_eq!(0, client.calls(), "nothing may be sent");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_transport_070_a_per_call_timeout_bounds_the_deadline_the_transport_receives() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+        let before = std::time::Instant::now();
+
+        api.invoke_api(call_params(CallOptions {
+            timeout: Some(std::time::Duration::from_secs(30)),
+            ..CallOptions::default()
+        }))
+        .await
+        .expect("a 200 response must succeed");
+
+        let deadline = client.last_deadline.lock().unwrap().expect("a deadline");
+        assert!(deadline >= before + std::time::Duration::from_secs(30) - std::time::Duration::from_millis(50));
+        assert!(deadline <= std::time::Instant::now() + std::time::Duration::from_secs(30));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_options_057_a_sub_millisecond_per_call_timeout_is_refused_before_anything_is_sent() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions {
+                timeout: Some(std::time::Duration::from_micros(500)),
+                ..CallOptions::default()
+            }))
+            .await
+            .expect_err("a timeout under one millisecond must be refused");
+
+        assert!(err.to_string().contains("Invalid timeout"), "{err}");
+        assert_eq!(0, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_009_a_zero_per_call_timeout_is_refused_before_anything_is_sent() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions {
+                timeout: Some(std::time::Duration::ZERO),
+                ..CallOptions::default()
+            }))
+            .await
+            .expect_err("a zero timeout must be refused");
+
+        assert!(
+            err.to_string().contains("Invalid timeout: must be a positive number of milliseconds (got 0)"),
+            "{err}"
+        );
+        assert_eq!(0, client.calls());
+    }
+
+    /// Runs a String-returning operation against a response with the given
+    /// body and Content-Type and returns the decoded value.
+    async fn string_result(body: &str, content_type: &str) -> Option<String> {
+        let client = FixedResponseClient {
+            body: body.to_string(),
+            content_type: content_type.to_string(),
+        };
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let api = BaseApi::new(Arc::new(client), config, None);
+        let params = InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/text",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["text/plain"],
+            content_type: "application/json",
+            return_type: "String",
+            auth: None,
+            call: CallOptions::default(),
+            error_schemas: &[],
+        };
+        let result = api
+            .invoke_api_for_result::<String>(params)
+            .await
+            .expect("a 200 response must succeed");
+        result.data().cloned()
+    }
+
+    #[tokio::test]
+    async fn test_bhv_operations_017_string_result_text_plain_is_returned_verbatim() {
+        assert_eq!(
+            string_result("hello world", "text/plain").await.as_deref(),
+            Some("hello world")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_operations_161_string_result_text_plain_that_looks_like_base64_is_not_decoded() {
+        assert_eq!(
+            string_result("abcd", "text/plain; charset=utf-8").await.as_deref(),
+            Some("abcd")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_serialization_128_string_result_xml_is_returned_verbatim() {
+        assert_eq!(
+            string_result("<item id=\"1\"/>", "application/xml").await.as_deref(),
+            Some("<item id=\"1\"/>")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_081_string_result_base64_transport_body_is_decoded() {
+        assert_eq!(
+            string_result("aGVsbG8=", "application/pdf").await.as_deref(),
+            Some("hello")
+        );
+    }
+
+    /// Encodes a list of form pairs the way the operation template does: a JSON
+    /// array of `[key, value]` tuples preserving declaration order.
+    fn encode_form_pairs(pairs: &[(&str, serde_json::Value)]) -> Vec<u8> {
+        let owned: Vec<(String, serde_json::Value)> = pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect();
+        serde_json::to_vec(&owned).unwrap()
+    }
+
+    #[test]
+    fn test_bhv_serializationwire_021_serializes_form_urlencoded_body() {
+        let json_bytes = encode_form_pairs(&[("name", serde_json::json!("alice"))]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        ).unwrap();
+        assert!(result.is_some());
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "name=alice", "expected URL-encoded form data, got: {}", body_str);
+    }
+
+    /* A space in an application/x-www-form-urlencoded value MUST be encoded
+     * as `+`, not `%20`. */
+    #[test]
+    fn test_bhv_serializationwire_012_serialize_body_form_urlencoded_space_as_plus() {
+        let json_bytes =
+            encode_form_pairs(&[("full name", serde_json::json!("Ada Lovelace"))]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        ).unwrap();
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "full+name=Ada+Lovelace");
+        assert!(!body_str.contains("%20"), "space must encode as +, not %20: {}", body_str);
+    }
+
+    /* An array form field MUST serialize as repeated keys (`tags=a&tags=b`),
+     * never a bracketed/joined `tags=[a, b]` or `tags=a,b`. */
+    #[test]
+    fn test_bhv_serializationwire_053_serialize_body_form_urlencoded_array_repeated_keys() {
+        let json_bytes = encode_form_pairs(&[
+            ("nickname", serde_json::json!("Rex")),
+            ("tags", serde_json::json!(["fluffy", "good boy"])),
+        ]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        )
+        .unwrap()
+        .unwrap();
+        let body_str = String::from_utf8(result).unwrap();
+        assert_eq!(body_str, "nickname=Rex&tags=fluffy&tags=good+boy");
+        /* No bracketed / comma-joined collapse. */
+        assert!(!body_str.contains('['), "must not bracket the array: {}", body_str);
+        assert!(!body_str.contains("tags=fluffy%2Cgood"), "must not comma-join: {}", body_str);
+        assert!(!body_str.contains("tags=fluffy,good"), "must not comma-join: {}", body_str);
+    }
+
+    /* An optional field whose value is null/absent MUST be omitted entirely,
+     * with no empty `note=` pair on the wire. */
+    #[test]
+    fn test_bhv_serializationwire_011_serialize_body_form_urlencoded_null_field_omitted() {
+        let json_bytes = encode_form_pairs(&[
+            ("nickname", serde_json::json!("Rex")),
+            ("note", serde_json::Value::Null),
+        ]);
+        let result = serialize_body(
+            Some(json_bytes),
+            "application/x-www-form-urlencoded",
+        )
+        .unwrap()
+        .unwrap();
+        let body_str = String::from_utf8(result).unwrap();
+        assert_eq!(body_str, "nickname=Rex");
+        assert!(!body_str.contains("note"), "null field must be omitted: {}", body_str);
+    }
+
+    /* A nested object has no defined form encoding: it is rejected with a
+     * SerializationError instead of being written as compact JSON text. */
+    #[test]
+    fn test_bhv_serializationwire_014_serialize_body_form_urlencoded_rejects_nested_object() {
+        let json_bytes = encode_form_pairs(&[("location", serde_json::json!({"lat": 1.5}))]);
+        let err = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .expect_err("a nested object must be rejected");
+        let ser = err
+            .downcast_ref::<crate::errors::serialization_error::SerializationError>()
+            .expect("error must be a SerializationError");
+        assert_eq!(
+            ser.message(),
+            "form-urlencoded field location must be a scalar or array of scalars"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serializationwire_024_serializes_text_plain_body() {
+        let body = b"hello world".to_vec();
+        let result = serialize_body(
+            Some(body),
+            "text/plain",
+        ).unwrap();
+        assert!(result.is_some());
+        let body_str = String::from_utf8(result.unwrap()).unwrap();
+        assert_eq!(body_str, "hello world");
+    }
+
+    #[test]
+    fn test_bhv_serializationwire_006_serialize_body_binary() {
+        let body = vec![0x01, 0x02, 0x03];
+        let result = serialize_body(
+            Some(body.clone()),
+            "application/octet-stream",
+        ).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), body);
+    }
+
+    #[test]
+    fn test_bhv_langrust_001_serialize_body_json_passthrough() {
+        let body = b"{\"key\":\"value\"}".to_vec();
+        let result = serialize_body(
+            Some(body.clone()),
+            "application/json",
+        ).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), body);
+    }
+
+    #[test]
+    fn test_bhv_operations_016_serialize_body_none() {
+        let result = serialize_body(
+            None,
+            "application/json",
+        ).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_060_build_query_string_encodes_reserved_unless_allowed() {
+        let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), false)]);
+        assert_eq!(query, "q=a%3Ab%2Fc");
+        let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), true)]);
+        assert_eq!(query, "q=a:b/c");
+    }
+
+    #[test]
+    fn test_bhv_serializationparam_107_query_value_keeps_only_the_unreserved_set_literal() {
+        /* The unreserved set (ALPHA, DIGIT, '-', '.', '_', '~') stays literal; every
+         * other sub-delimiter, including * ! ' ( ), is percent-encoded. */
+        let query = build_query_string(&[("q".to_string(), "a*b!c'd(e)f~g-h.i_j".to_string(), false)]);
+        assert_eq!(query, "q=a%2Ab%21c%27d%28e%29f~g-h.i_j");
+    }
+
+    /* Authenticators that name themselves, so a test can tell which one a call used. */
+    struct NamedAuthenticator(&'static str);
+
+    impl crate::auth::Authenticator for NamedAuthenticator {
+        fn host(&self) -> &str {
+            self.0
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+            let name = self.0;
+            Box::pin(async move {
+                let mut headers = HashMap::new();
+                headers.insert("X-Client-Auth".to_string(), name.to_string());
+                headers
+            })
+        }
+    }
+
+    static PER_CALL: NamedAuthenticator = NamedAuthenticator("per-call");
+
+    /* Its token can be dropped, but the new one it asks for is never given. */
+    struct RenewalFailsAuthenticator {
+        token_requests: std::sync::atomic::AtomicUsize,
+    }
+
+    impl crate::auth::Authenticator for RenewalFailsAuthenticator {
+        fn host(&self) -> &str {
+            "https://api.example.com"
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+            Box::pin(async move { HashMap::new() })
+        }
+
+        fn try_auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + 'a,
+            >,
+        > {
+            let first = self.token_requests.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0;
+            Box::pin(async move {
+                if first {
+                    Ok(HashMap::new())
+                } else {
+                    Err(Box::new(crate::errors::ConfigurationError::InvalidState(
+                        "no token can be obtained".to_string(),
+                    )) as Box<dyn std::error::Error + Send + Sync>)
+                }
+            })
+        }
+
+        fn invalidate_access_token<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+            Box::pin(async { true })
+        }
+    }
+
+    /* A failed re-authentication leaves the 401 as the error of the call. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_001_a_failed_reauthentication_leaves_the_401_as_it_is() {
+        let client = ScriptedClient::new(401);
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let auth: Arc<dyn crate::auth::Authenticator> = Arc::new(RenewalFailsAuthenticator {
+            token_requests: std::sync::atomic::AtomicUsize::new(0),
+        });
+        let api = BaseApi::new(client.clone(), config, Some(auth));
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("a 401 that cannot be renewed is an error");
+
+        assert!(
+            err.downcast_ref::<crate::errors::UnauthorizedError>().is_some(),
+            "the 401 must be the error of the call, got: {}",
+            err
+        );
+    }
+
+    /* A per-call authenticator handed to invoke_api replaces the client-level one. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_013_a_per_call_authenticator_overrides_the_client_level_one() {
+        let client = ScriptedClient::new(200);
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let client_level: Arc<dyn crate::auth::Authenticator> = Arc::new(NamedAuthenticator("client"));
+        let api = BaseApi::new(client.clone(), config, Some(client_level));
+        let per_call: &dyn crate::auth::Authenticator = &PER_CALL;
+        let mut params = call_params(CallOptions::default());
+        params.auth = Some(per_call);
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("per-call".to_string()),
+            client.last_headers.lock().unwrap().get("X-Client-Auth").cloned()
+        );
+    }
+
+    /* F857: with no credential for the operation's scheme, the call falls back to
+     * the client-level authenticator. */
+    #[tokio::test]
+    async fn test_bhv_authintegration_008_a_call_with_no_scheme_credential_falls_back_to_the_client_authenticator() {
+        let client = ScriptedClient::new(200);
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let client_level: Arc<dyn crate::auth::Authenticator> = Arc::new(NamedAuthenticator("client"));
+        let api = BaseApi::new(client.clone(), config, Some(client_level));
+
+        api.invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("client".to_string()),
+            client.last_headers.lock().unwrap().get("X-Client-Auth").cloned()
+        );
+    }
+
+    /* Each operation resolves the credential of the scheme it names, and the schemes do not cross. */
+    #[test]
+    fn test_bhv_authintegration_007_each_operation_sends_the_credential_of_its_own_scheme() {
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let mut schemes: HashMap<String, Arc<dyn crate::auth::Authenticator>> = HashMap::new();
+        schemes.insert("bearer".to_string(), Arc::new(NamedAuthenticator("bearer")));
+        schemes.insert("api_key".to_string(), Arc::new(NamedAuthenticator("api_key")));
+        let api = BaseApi::new(ScriptedClient::new(200), config, None).with_scheme_authenticators(schemes);
+
+        let host_for = |scheme: &str| api.authenticator_for(&[scheme]).map(|a| a.host().to_string());
+
+        assert_eq!(Some("bearer".to_string()), host_for("bearer"));
+        assert_eq!(Some("api_key".to_string()), host_for("api_key"));
+        assert_eq!(None, host_for("oauth2"));
+    }
+
+    /* The first listed scheme the client holds supplies the credential. */
+    #[test]
+    fn test_bhv_authintegration_014_resolves_the_credential_of_the_first_listed_scheme_the_client_holds() {
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let mut schemes: HashMap<String, Arc<dyn crate::auth::Authenticator>> = HashMap::new();
+        schemes.insert("b".to_string(), Arc::new(NamedAuthenticator("b")));
+        schemes.insert("c".to_string(), Arc::new(NamedAuthenticator("c")));
+        let api = BaseApi::new(ScriptedClient::new(200), config, None).with_scheme_authenticators(schemes);
+
+        let host_for = |schemes: &[&str]| api.authenticator_for(schemes).map(|a| a.host().to_string());
+
+        assert_eq!(Some("b".to_string()), host_for(&["a", "b", "c"]));
+        assert_eq!(Some("c".to_string()), host_for(&["a", "c", "b"]));
+    }
+
+    #[test]
+    fn test_bhv_serialization_006_query_names_and_values_encode_reserved_and_space_characters() {
+        let query = super::build_query_string(&[("a&b=c".to_string(), "x&y z".to_string(), false)]);
+        assert_eq!(query, "a%26b%3Dc=x%26y%20z");
+    }
+
+    #[test]
+    fn test_bhv_serialization_007_a_plus_sign_is_sent_as_percent_2b_and_non_ascii_as_utf8_bytes() {
+        let query = super::build_query_string(&[("q".to_string(), "1+2 \u{e9}".to_string(), false)]);
+        assert_eq!(query, "q=1%2B2%20%C3%A9");
+    }
+    /* The call hook, recorded: what start saw, what it set and how the call ended. */
+    use crate::call_hook::{CallHook, CallInfo, CallObserver, CallOutcome};
+
+    #[derive(Default)]
+    struct Seen {
+        infos: Vec<CallInfo>,
+        headers: Vec<HashMap<String, String>>,
+        finished: Vec<(u16, Option<HashMap<String, String>>, String)>,
+    }
+
+    struct LogHook {
+        seen: Arc<std::sync::Mutex<Seen>>,
+        set: Vec<(&'static str, &'static str)>,
+        panic_in_start: bool,
+        panic_in_finish: bool,
+    }
+
+    struct LogObserver {
+        seen: Arc<std::sync::Mutex<Seen>>,
+        panic_in_finish: bool,
+    }
+
+    impl LogHook {
+        fn new() -> (Arc<Self>, Arc<std::sync::Mutex<Seen>>) {
+            Self::with(Vec::new(), false, false)
+        }
+
+        fn with(
+            set: Vec<(&'static str, &'static str)>,
+            panic_in_start: bool,
+            panic_in_finish: bool,
+        ) -> (Arc<Self>, Arc<std::sync::Mutex<Seen>>) {
+            let seen = Arc::new(std::sync::Mutex::new(Seen::default()));
+            (
+                Arc::new(Self { seen: seen.clone(), set, panic_in_start, panic_in_finish }),
+                seen,
+            )
+        }
+    }
+
+    impl CallHook for LogHook {
+        fn start(
+            &self,
+            info: &CallInfo,
+            headers: &mut HashMap<String, String>,
+        ) -> Option<Box<dyn CallObserver>> {
+            if self.panic_in_start {
+                panic!("start refused the call");
+            }
+            {
+                let mut seen = self.seen.lock().unwrap();
+                seen.infos.push(info.clone());
+                seen.headers.push(headers.clone());
+            }
+            for (name, value) in &self.set {
+                headers.insert(name.to_string(), value.to_string());
+            }
+            Some(Box::new(LogObserver {
+                seen: self.seen.clone(),
+                panic_in_finish: self.panic_in_finish,
+            }))
+        }
+    }
+
+    impl CallObserver for LogObserver {
+        fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {
+            self.seen.lock().unwrap().finished.push((
+                outcome.status_code,
+                outcome.headers.cloned(),
+                outcome.error.map(|e| e.to_string()).unwrap_or_default(),
+            ));
+            if self.panic_in_finish {
+                panic!("finish failed");
+            }
+        }
+    }
+
+    fn hooked_api(
+        client: Arc<ScriptedClient>,
+        base_url: &str,
+        hook: Arc<dyn CallHook>,
+    ) -> BaseApi {
+        let config = ConfigurationBuilder::new()
+            .base_url(base_url)
+            .default_header("X-Call", "from-default")
+            .call_hook(hook)
+            .build();
+        BaseApi::new(client, config, None)
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_001_without_a_hook_a_call_sends_the_same_headers_and_returns_the_same_result() {
+        let client = ScriptedClient::new(200);
+        let api = api_for(client.clone());
+
+        let response = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(200, response.status_code());
+        assert_eq!(1, client.calls());
+        assert!(ConfigurationBuilder::new().build().call_hook().is_none());
+        let sent = client.last_headers.lock().unwrap().clone();
+        assert_eq!(Some("from-parameter"), sent.get("X-Call").map(String::as_str));
+        assert!(!sent.keys().any(|name| name.starts_with("X-Hook")));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_002_start_gets_the_spec_operation_id_method_template_and_url_without_query() {
+        let (hook, seen) = LogHook::new();
+        let api = hooked_api(ScriptedClient::new(200), "http://localhost", hook);
+
+        api.invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(1, seen.infos.len());
+        let info = &seen.infos[0];
+        assert_eq!("echo_operation", info.operation_id);
+        assert_eq!("GET", info.method);
+        assert_eq!("/items/{id}", info.url_template);
+        assert_eq!("http://localhost/items/7", info.url);
+        assert_eq!("localhost", info.server_address);
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_003_the_server_address_is_the_host_without_port_and_ipv6_brackets() {
+        for (base, address) in [
+            ("http://[::1]:8080", "::1"),
+            ("HTTP://Example.COM:81", "example.com"),
+            ("https://api.example.com", "api.example.com"),
+        ] {
+            let (hook, seen) = LogHook::new();
+            let api = hooked_api(ScriptedClient::new(200), base, hook);
+
+            api.invoke_api(call_params(CallOptions::default()))
+                .await
+                .expect("a 200 response must succeed");
+
+            assert_eq!(address, seen.lock().unwrap().infos[0].server_address, "{base}");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_021_the_url_never_carries_the_query_string_or_the_fragment() {
+        let (hook, seen) = LogHook::new();
+        let api = hooked_api(ScriptedClient::new(200), "http://localhost", hook);
+        let params = InvokeApiParams {
+            path: "https://items.example.org/v2/items/7?a=1#frag",
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!("https://items.example.org/v2/items/7", seen.infos[0].url);
+        assert_eq!("items.example.org", seen.infos[0].server_address);
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_004_a_header_the_hook_sets_reaches_the_server() {
+        let client = ScriptedClient::new(200);
+        let (hook, _) = LogHook::with(vec![("X-Hook", "set")], false, false);
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+
+        api.invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect("a 200 response must succeed");
+
+        assert_eq!(
+            Some("set".to_string()),
+            client.last_headers.lock().unwrap().get("X-Hook").cloned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_005_start_sees_the_final_headers_and_can_replace_one() {
+        let client = ScriptedClient::new(200);
+        let (hook, seen) = LogHook::with(vec![("X-Call", "from-hook")], false, false);
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+        let params = InvokeApiParams {
+            auth: Some(&NamedAuthenticator("named")),
+            ..call_params(CallOptions::default())
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(Some("from-parameter"), seen.headers[0].get("X-Call").map(String::as_str));
+        assert!(seen.headers[0].contains_key("X-Client-Auth"), "{:?}", seen.headers[0]);
+        assert_eq!(
+            Some("from-hook".to_string()),
+            client.last_headers.lock().unwrap().get("X-Call").cloned()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_hooks_017_finish_is_called_when_the_body_cannot_be_encoded_and_nothing_is_sent() {
+        let client = ScriptedClient::new(200);
+        let (hook, seen) = LogHook::new();
+        let api = hooked_api(client.clone(), "http://localhost", hook);
+        let params = InvokeApiParams {
+            method: "POST",
+            body: Some(br#"[["nested",{"a":1}]]"#.to_vec()),
+            content_type: "application/x-www-form-urlencoded",
+            ..call_params(CallOptions::default())
+        };
+
+        let err = api.invoke_api(params).await.expect_err("a nested object cannot be form-encoded");
+
+        let seen = seen.lock().unwrap();
+        assert_eq!(0, client.calls());
+        assert_eq!(1, seen.finished.len());
+        assert_eq!(0, seen.finished[0].0);
+        assert!(seen.finished[0].1.is_none());
+        assert_eq!(err.to_string(), seen.finished[0].2);
+        assert!(err.downcast_ref::<crate::errors::SerializationError>().is_some());
+    }
+
+    /* -- form-urlencoded keys and values (chunk 15) -- */
+
+    #[test]
+    fn test_bhv_serialization_122_a_form_body_repeats_the_key_per_array_element_in_order() {
+        let json_bytes = encode_form_pairs(&[
+            ("tags", serde_json::json!(["a", "b"])),
+            ("n", serde_json::json!("1")),
+        ]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap().unwrap();
+        assert_eq!(String::from_utf8(result).unwrap(), "tags=a&tags=b&n=1");
+    }
+
+    #[test]
+    fn test_bhv_serialization_125_form_values_percent_encode_reserved_characters_and_plus_as_2b() {
+        let json_bytes = encode_form_pairs(&[("q", serde_json::json!("a+b&c"))]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap().unwrap();
+        assert_eq!(String::from_utf8(result).unwrap(), "q=a%2Bb%26c");
+    }
+
+    /* The retries run inside `invoke_api`, so the retry tests drive a `BaseApi` over a
+     * `DefaultApiClient` against a scripted loopback server. */
+    fn bind_local_server() -> (std::net::TcpListener, String) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let url = format!("http://{}", listener.local_addr().expect("local address"));
+        (listener, url)
+    }
+
+    /* Serves one connection per scripted response, recording each request head. */
+    fn serve_scripted(
+        listener: std::net::TcpListener,
+        responses: Vec<String>,
+        log: Arc<std::sync::Mutex<Vec<String>>>,
+    ) {
+        std::thread::spawn(move || {
+            for response in responses {
+                let Ok((mut stream, _)) = listener.accept() else { return };
+                let mut buf = [0u8; 4096];
+                let n_read = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+                log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n_read]).to_string());
+                let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            }
+        });
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    fn empty_ok_response() -> String {
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string()
+    }
+
+    fn service_unavailable_response(retry_after: &str) -> String {
+        let retry = if retry_after.is_empty() { String::new() } else { format!("Retry-After: {}\r\n", retry_after) };
+        format!("HTTP/1.1 503 Service Unavailable\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n", retry)
+    }
+
+    /* The status code of the `ApiError` found in the source chain of `err`. */
+    fn status_of(err: &(dyn std::error::Error + Send + Sync + 'static)) -> u16 {
+        std::iter::successors(Some(err as &(dyn std::error::Error + 'static)), |e| e.source())
+            .find_map(|e| e.downcast_ref::<crate::errors::api_error::ApiError>())
+            .expect("an ApiError in the chain")
+            .status_code()
+    }
+
+    /* A `BaseApi` sending through a `DefaultApiClient` built from `transport`, against `base_url`. */
+    fn api_with_transport(base_url: &str, transport: crate::transport_options::TransportOptions) -> BaseApi {
+        let config = ConfigurationBuilder::new().base_url(base_url).build();
+        BaseApi::new(Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport))), config, None)
+    }
+
+    fn get_params() -> InvokeApiParams<'static> {
+        InvokeApiParams { path: "/items/1", ..call_params(CallOptions::default()) }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_166_a_call_that_disables_its_deadline_is_not_cut_short_while_it_waits_to_retry() {
+        let (origin, origin_url) = bind_local_server();
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        serve_scripted(origin, vec![service_unavailable_response("1"), empty_ok_response()], log.clone());
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .timeout(None)
+            .build()
+            .expect("valid transport options");
+        let api = api_with_transport(&origin_url, transport);
+
+        let response = api.invoke_api(get_params()).await.expect("unexpected error");
+
+        assert_eq!(200, response.status_code());
+        assert_eq!(2, log.lock().unwrap().len());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_167_a_retryable_status_is_attempted_up_to_the_limit_then_returned() {
+        let (origin, origin_url) = bind_local_server();
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        serve_scripted(origin, vec![
+            service_unavailable_response("0"),
+            service_unavailable_response("0"),
+            service_unavailable_response("0"),
+        ], log.clone());
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .max_retries(2)
+            .build()
+            .expect("valid transport options");
+        let api = api_with_transport(&origin_url, transport);
+
+        let Err(err) = api.invoke_api(get_params()).await else {
+            panic!("a 503 that outlives the retries must surface as an error");
+        };
+
+        assert_eq!(503, status_of(err.as_ref()));
+        assert_eq!(3, log.lock().unwrap().len(), "one send plus two retries");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three_times_with_pauses() {
+        let (origin, origin_url) = bind_local_server();
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        serve_scripted(origin, vec![
+            service_unavailable_response(""),
+            service_unavailable_response(""),
+            service_unavailable_response(""),
+        ], log.clone());
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .build()
+            .expect("valid transport options");
+        let api = api_with_transport(&origin_url, transport);
+        let started = std::time::Instant::now();
+
+        let Err(err) = api.invoke_api(get_params()).await else {
+            panic!("a 503 that outlives the retries must surface as an error");
+        };
+
+        assert_eq!(503, status_of(err.as_ref()));
+        assert_eq!(3, log.lock().unwrap().len());
+        assert!(started.elapsed() >= std::time::Duration::from_millis(1100), "{:?}", started.elapsed());
+    }
+
+    /* The headers each connection of an event stream was sent, and a token that is new on every request. */
+    struct EventClient {
+        sent: std::sync::Mutex<Vec<HashMap<String, String>>>,
+    }
+
+    impl ApiClient for EventClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async { Ok(ApiHttpResponse::new(200, String::new(), HashMap::new())) })
+        }
+
+        fn send_streaming(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+            _options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            crate::api_stream_response::ApiStreamResponse,
+                            Box<dyn std::error::Error + Send + Sync>,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let first = {
+                let mut sent = self.sent.lock().unwrap();
+                sent.push(headers.clone());
+                sent.len() == 1
+            };
+            let response = if first {
+                crate::api_stream_response::ApiStreamResponse::new(
+                    200,
+                    HashMap::from([("content-type".to_string(), "text/event-stream".to_string())]),
+                    futures_util::stream::iter(vec![Ok(bytes::Bytes::from("data: a\n\n"))]),
+                )
+            } else {
+                crate::api_stream_response::ApiStreamResponse::new(
+                    204,
+                    HashMap::new(),
+                    futures_util::stream::iter(Vec::new()),
+                )
+            };
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    struct RotatingAuthenticator {
+        issued: std::sync::atomic::AtomicUsize,
+    }
+
+    impl crate::auth::Authenticator for RotatingAuthenticator {
+        fn host(&self) -> &str {
+            "http://localhost"
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+            Box::pin(async move {
+                let issued = self.issued.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                HashMap::from([("Authorization".to_string(), format!("Bearer t{issued}"))])
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_013_an_sse_reconnect_rebuilds_the_headers_so_a_refreshed_token_is_the_one_sent() {
+        use futures_util::StreamExt as _;
+        let client = Arc::new(EventClient { sent: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let rotating = Arc::new(RotatingAuthenticator { issued: std::sync::atomic::AtomicUsize::new(0) });
+        let api = BaseApi::new(client.clone(), config, Some(rotating));
+        let options = crate::stream_options::StreamOptions::new().reconnect_delay(std::time::Duration::from_millis(1));
+
+        let mut stream = api
+            .invoke_api_for_sse::<String>(call_params(CallOptions::default()), None, Some(&options), None, true)
+            .await
+            .expect("the first connection opens");
+        while let Some(event) = stream.next().await {
+            event.expect("an event");
+        }
+
+        let sent = client.sent.lock().unwrap();
+        assert_eq!(2, sent.len(), "the stream asked again after the feed ended");
+        assert_eq!(Some(&"Bearer t1".to_string()), sent[0].get("Authorization"));
+        assert_eq!(Some(&"Bearer t2".to_string()), sent[1].get("Authorization"));
+    }
+}

@@ -1,0 +1,1529 @@
+{{>api_info}}
+import Foundation
+
+/// Sentinel authenticator that marks an operation as explicitly unauthenticated.
+///
+/// An operation declared with `security: []` in the spec opts out of all
+/// authentication. Its generated method passes this sentinel as the `auth`
+/// argument so that `BaseApi.invokeAPI` can distinguish three states that a
+/// plain `nil` could not:
+///
+/// - `auth` is the sentinel: the operation is unauthenticated; the
+///   client-level authenticator must NOT be applied (no credential leak);
+/// - `auth == nil`: a secured operation for which the client holds no
+///   credential of the scheme it names; fall back to the client-level
+///   authenticator, and send no credential when there is none;
+/// - `auth` is any other instance: the credential the client holds for the
+///   first scheme the operation accepts (see `schemeAuthenticator(_:)`); use it.
+///
+/// This is an internal, identity-comparable (`===`) reference type; it returns
+/// empty header/query/cookie maps so that even if it were ever applied it
+/// would attach nothing. Callers never see it.
+final class NoAuth: Authenticator, @unchecked Sendable {
+    func host() -> String { return "" }
+    func authHeaders() async throws -> [String: String] { return [:] }
+    func queryParams() -> [String: String] { return [:] }
+    func cookieParams() -> [String: String] { return [:] }
+}
+
+/// Base class for all API classes. Provides the `invokeAPI` method that
+/// handles URL construction, header selection, body serialization, request
+/// dispatch, and response deserialization.
+public class BaseApi: @unchecked Sendable {
+    /// The HTTP transport client used for sending requests.
+    let apiClient: ApiClient
+
+    /// API-level configuration (base URL and default headers).
+    let config: Configuration
+
+    /// Content negotiation logic for Accept and Content-Type headers.
+    let headerSelector: HeaderSelector
+
+    /// Default authenticator used when the client holds no credential for the
+    /// security scheme an operation names.
+    let authenticator: Authenticator?
+
+    /// The credential the client holds for each security scheme, by the
+    /// scheme's name in the spec.
+    let schemeAuthenticators: [String: Authenticator]
+
+    /// The single shared no-auth sentinel instance. Identity-comparable.
+    /// Generated api methods for `security: []` operations pass this value as
+    /// the `auth` argument; `invokeAPI` recognizes it and suppresses all
+    /// authentication (it does not fall back to the client authenticator).
+    static let noAuthSentinel: Authenticator = NoAuth()
+
+    /// Create an API instance with a custom API client, configuration, and
+    /// authenticator. Every argument is optional: the default transport and
+    /// configuration are used when omitted. Internal: consumers construct the
+    /// concrete `*API` subclasses, which expose their own public initializer.
+    ///
+    /// - Parameters:
+    ///   - apiClient: The HTTP transport client.
+    ///   - config: API-level configuration (base URL and default headers).
+    ///   - authenticator: Default authenticator for an operation whose scheme has no credential.
+    ///   - schemeAuthenticators: The credential for each security scheme, by the scheme's name.
+    init(
+        apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+        schemeAuthenticators: [String: Authenticator] = [:]
+    ) {
+        {{! DefaultApiClient() (no transport options) configures no custom CA certificate, so its non-throwing convenience initializer is used here. }}
+        self.apiClient = apiClient ?? DefaultApiClient()
+        self.config = config ?? Configuration.default()
+        self.headerSelector = HeaderSelector()
+        self.authenticator = authenticator
+        self.schemeAuthenticators = schemeAuthenticators
+    }
+
+    /// Returns the credential the client holds for the first of the given
+    /// scheme names that has one, or nil when it holds none of them. An
+    /// operation passes the schemes its spec accepts, in the order the spec
+    /// lists them, so it always uses a scheme the spec names and a caller
+    /// cannot pick another one per call. A nil leaves the call to the
+    /// client-level authenticator, and to no credential when there is none.
+    ///
+    /// - Parameter schemeIds: The names of the security schemes the operation accepts.
+    func schemeAuthenticator(_ schemeIds: [String]) -> Authenticator? {
+        for schemeId in schemeIds {
+            if let found = schemeAuthenticators[schemeId] {
+                return found
+            }
+        }
+        return nil
+    }
+
+    /// Returns the credential for an operation whose security block lists
+    /// alternative requirements. Each group is one requirement: a group that
+    /// names several schemes needs the credentials of all of them and a request
+    /// carries every one. The first group the client holds every credential of
+    /// wins, else the first group it holds at least one credential of; nil when
+    /// it holds none, which leaves the call to the client-level authenticator.
+    ///
+    /// - Parameter groups: The requirements in the spec's order, each the scheme names it needs together.
+    func requirementAuthenticator(_ groups: [[String]]) -> Authenticator? {
+        var partial: [Authenticator]?
+        for group in groups {
+            let held = group.compactMap { schemeAuthenticators[$0] }
+            if held.isEmpty {
+                continue
+            }
+            if held.count == group.count {
+                return held.count == 1 ? held[0] : AllOfAuthenticator.of(held)
+            }
+            if partial == nil {
+                partial = held
+            }
+        }
+        guard let rest = partial else {
+            return nil
+        }
+        return rest.count == 1 ? rest[0] : AllOfAuthenticator.of(rest)
+    }
+
+    /// Parameters for an API invocation: HTTP method, URL path (with path
+    /// params already substituted), query parameters, custom header parameters,
+    /// request body (model object or nil), acceptable response content types,
+    /// request content type, return type name, and optional authenticator for
+    /// operation-specific auth.
+    struct InvokeAPIParams {
+        let method: String
+        let path: String
+        let queryParams: OrderedParams<Any?>
+        var headerParams: [String: String]
+        let body: Any?
+        let accepts: [String]
+        let contentType: String
+        let returnType: String
+        let auth: Authenticator?
+        /// `Class.operationId` of the calling operation, named in errors.
+        var operation: String = ""
+        /// The operation id as written in the spec, handed to the ``CallHook``.
+        var operationId: String = ""
+        /// The spec path template of the operation, handed to the ``CallHook``.
+        var urlTemplate: String = ""
+        /// True when the operation's body parameter is `format: binary`: the
+        /// caller's bytes are sent unchanged under whichever declared
+        /// Content-Type was selected, never re-encoded as JSON.
+        var rawBody: Bool = false
+        /// Per-call timeout in milliseconds, from the operation's options; nil
+        /// keeps the transport's own.
+        var timeout: Int? = nil
+        /// Per-call request headers, from the operation's options; applied
+        /// last, so they replace a header of the same name from any other layer.
+        var requestHeaders: [String: String]? = nil
+        /// Per-call retry limit, from the operation's options; nil keeps the
+        /// transport's own and 0 turns retries off.
+        var maxRetries: Int? = nil
+        /// The error factories of the error schemas the operation declares, by
+        /// declared status (`404`, `4XX`, `default`); nil for an operation that
+        /// declares none, which then gets the plain status error.
+        var errorSchemas: [String: ErrorFactory]? = nil
+        /// The longest silence in a streamed body, in milliseconds, from the
+        /// ``StreamOptions`` of a JSON Lines or server-sent events call; nil
+        /// keeps the transport's.
+        var idleTimeout: Int? = nil
+        /// True for a JSON Lines call: the request leaves `Accept-Encoding` to
+        /// URLSession, so a compressed body is decoded as it arrives.
+        var acceptCompression: Bool = false
+    }
+
+    /// The state of one operation call as far as the ``CallHook`` is
+    /// concerned: the observer ``CallHook/start(info:headers:)`` returned. A
+    /// header the hook sets stays in the header set the send loop reuses for
+    /// every send of the call, so no copy of its edits is kept.
+    private final class CallRun {
+        let hook: (any CallHook)?
+        private var observer: (any CallObserver)?
+
+        init(hook: (any CallHook)?) {
+            self.hook = hook
+        }
+
+        /// Calls ``CallHook/start(info:headers:)`` once, with the final header
+        /// set. An error it throws reaches the caller unchanged.
+        func begin(
+            params: InvokeAPIParams, target: String, headers: inout [String: String]
+        ) throws {
+            guard let hook = hook else { return }
+            let info = CallInfo(
+                operationId: params.operationId, method: params.method,
+                urlTemplate: params.urlTemplate, target: target)
+            observer = try hook.start(info: info, headers: &headers)
+        }
+
+        /// Runs `body` and tells the observer how it ended: `describe` gives the
+        /// status and the headers of a result, and an error thrown by `body` is
+        /// reported and rethrown as it is.
+        func observe<R>(
+            _ body: () async throws -> R, describe: (R) -> (Int, [String: String])
+        ) async throws -> R {
+            if hook == nil {
+                return try await body()
+            }
+            let result: R
+            do {
+                result = try await body()
+            } catch {
+                finish(CallRun.outcome(of: error))
+                throw error
+            }
+            let (status, headers) = describe(result)
+            finish(CallOutcome(statusCode: status, headers: CallRun.lowerCased(headers), error: nil))
+            return result
+        }
+
+        /// Tells the observer, if there is one, that the call has ended. An
+        /// error of the observer is swallowed: it never replaces the result.
+        private func finish(_ outcome: CallOutcome) {
+            guard let observer = observer else { return }
+            self.observer = nil
+            try? observer.finish(outcome)
+        }
+
+        private static func outcome(of error: any Error) -> CallOutcome {
+            if let apiError = error as? ApiError {
+                return CallOutcome(
+                    statusCode: apiError.statusCode,
+                    headers: apiError.responseHeaders.map(lowerCased), error: error)
+            }
+            if let failure = error as? SerializationError {
+                return CallOutcome(
+                    statusCode: failure.statusCode ?? 0,
+                    headers: failure.responseHeaders.map(lowerCased), error: error)
+            }
+            return CallOutcome(statusCode: 0, headers: nil, error: error)
+        }
+
+        private static func lowerCased(_ headers: [String: String]) -> [String: String] {
+            var result: [String: String] = [:]
+            for (name, value) in headers {
+                result[name.lowercased()] = value
+            }
+            return result
+        }
+    }
+
+    /// Sends one prepared request through the client. The SDK's own transport
+    /// also retries it and re-applies the authentication headers; a transport
+    /// supplied by the caller sees exactly one call.
+    private func send(
+        method: String, url: String, headers: [String: String], body: Any?,
+        refresh: (@Sendable () async throws -> [String: String])?,
+        timeout: Int? = nil, maxRetries: Int? = nil
+    ) async throws -> ApiHttpResponse {
+        do {
+            if let client = apiClient as? DefaultApiClient {
+                return try await client.sendRequest(
+                    method: method, url: url, headers: headers, body: body, noRedirect: false,
+                    refreshHeaders: refresh, timeout: timeout, maxRetries: maxRetries)
+            }
+            return try await apiClient.sendRequest(method: method, url: url, headers: headers, body: body)
+        } catch let error as ApiError {
+            /* A failure that arrived without a response carries the request too. */
+            error.attachRequest(method: method, path: ApiError.pathOfRequestURL(url))
+            throw error
+        }
+    }
+
+    /// Checks the per-call options before any request is built.
+    private static func validatePerCall(timeout: Int?, maxRetries: Int?) throws {
+        if let timeout = timeout, timeout <= 0 {
+            throw ConfigurationError.invalidTimeout(timeout)
+        }
+        if let maxRetries = maxRetries, maxRetries < 0 {
+            throw ConfigurationError.invalidArgument("maxRetries must not be negative: \(maxRetries)")
+        }
+    }
+
+    /// Invoke an API operation and return the raw response, handling URL
+    /// construction, header selection, body serialization and request dispatch.
+    ///
+    /// - Parameter params: The invocation parameters.
+    /// - Returns: The raw HTTP response.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiHttpResponse {
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await invokeAPIWithPath(params, run: run).response },
+            describe: { ($0.statusCode, $0.headers) })
+    }
+
+    /// As ``invokeAPI(_:)``, and also returns the path of the request that was
+    /// sent (query string left out), so a failure to decode the response can
+    /// name the request it answered.
+    ///
+    /// - Parameter params: The invocation parameters.
+    /// - Returns: The raw HTTP response and the request path.
+    /// - Throws: ``ApiError`` if the API call fails.
+    private func invokeAPIWithPath(_ params: InvokeAPIParams, run: CallRun) async throws -> (
+        response: ApiHttpResponse, requestPath: String
+    ) {
+        try Self.validatePerCall(timeout: params.timeout, maxRetries: params.maxRetries)
+        let call = try await prepareCall(params, run: run)
+        var headers = call.headers
+        let requestURL = call.url
+        let effectiveAuth = call.effectiveAuth
+        let serializedBody = call.body
+        let refresh = call.refresh
+        /* Send request. The SDK transport retries transient failures; each retry
+         * asks the authenticator for its headers again, so a token that expired
+         * while waiting is replaced. */
+        var response = try await send(
+            method: params.method, url: requestURL, headers: headers, body: serializedBody,
+            refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
+
+        /* A 401 with a challenge the challenge authenticator (HTTP Digest)
+         * accepts is answered: the request is replayed once with the answer. */
+        if response.statusCode == 401, call.isReplayable,
+            let answer = Self.answerChallenge(effectiveAuth, response.headers, method: params.method, url: requestURL)
+        {
+            headers = Self.mergeHeaders(headers, overriding: ["Authorization": answer])
+            response = try await send(
+                method: params.method, url: requestURL, headers: headers, body: serializedBody,
+                refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
+        }
+
+        /* A revoked or rotated token keeps failing while it is cached. On a 401
+         * from a request that carried a token this SDK fetched, drop the token,
+         * obtain a new one (a refresh grant first) and replay the request once.
+         * A failed re-authentication leaves the 401 as it is. */
+        if response.statusCode == 401, let invalidating = effectiveAuth as? AccessTokenInvalidating {
+            invalidating.invalidateAccessToken()
+            /* A multipart body is never sent twice: the token is still dropped,
+             * so the next call fetches a new one, but the 401 is surfaced. A
+             * failed re-authentication returns no headers, and then the request
+             * is not replayed with the token the server just refused. */
+            if call.isReplayable, let fresh = try? await invalidating.authHeaders(), !fresh.isEmpty {
+                headers = Self.mergeHeaders(headers, overriding: fresh)
+                response = try await send(
+                    method: params.method, url: requestURL, headers: headers, body: serializedBody,
+                    refresh: refresh, timeout: params.timeout, maxRetries: params.maxRetries)
+            }
+        }
+
+        /* Check for errors */
+        if response.statusCode < 200 || response.statusCode >= 300 {
+            throw ApiError.fromResponse(
+                statusCode: response.statusCode,
+                headers: response.headers,
+                body: response.body,
+                requestMethod: params.method,
+                requestPath: ApiError.pathOfRequestURL(requestURL),
+                errorSchemas: params.errorSchemas
+            )
+        }
+
+        return (response, ApiError.pathOfRequestURL(requestURL))
+    }
+
+    /// The answer of a challenge authenticator (HTTP Digest) for a request, or
+    /// nil for any other authenticator and before any challenge was accepted.
+    private static func challengeAnswer(_ auth: Authenticator, method: String, url: String) -> String? {
+        guard let challenger = auth as? ChallengeAuthenticating else { return nil }
+        return challenger.authorization(method: method, requestTarget: requestTarget(of: url))
+    }
+
+    /// Hands the `WWW-Authenticate` value of a 401 to a challenge authenticator
+    /// and returns its answer when it accepted the challenge, else nil.
+    private static func answerChallenge(
+        _ auth: Authenticator?, _ responseHeaders: [String: String], method: String, url: String
+    ) -> String? {
+        guard let challenger = auth as? ChallengeAuthenticating,
+            let challenge = responseHeaders.first(where: {
+                $0.key.caseInsensitiveCompare("WWW-Authenticate") == .orderedSame
+            })?.value,
+            challenger.acceptChallenge(challenge)
+        else { return nil }
+        return challenger.authorization(method: method, requestTarget: requestTarget(of: url))
+    }
+
+    /// The path and query of a request URL, the request target a challenge
+    /// answer covers.
+    private static func requestTarget(of url: String) -> String {
+        guard let components = URLComponents(string: url) else { return url }
+        let path = components.percentEncodedPath.isEmpty ? "/" : components.percentEncodedPath
+        if let query = components.percentEncodedQuery {
+            return path + "?" + query
+        }
+        return path
+    }
+
+    /// The absolute URL of a call path: the path itself when it is absolute, else
+    /// the base URL followed by the path.
+    private func resolveURL(_ path: String) -> String {
+        if path.hasPrefix("http://") || path.hasPrefix("https://") {
+            return path
+        }
+        /* Strip trailing slash from baseUrl when path starts with `/` so
+         * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+         * 'https://x//y' which most servers route to 404. */
+        var base = config.baseURL
+        if path.hasPrefix("/") {
+            while base.hasSuffix("/") {
+                base.removeLast()
+            }
+        }
+        return base + path
+    }
+
+    /// One prepared call: the request as it will be sent, and what the send
+    /// needs to authenticate again and to raise an error.
+    private struct PreparedCall {
+        var method: String
+        var url: String
+        var headers: [String: String]
+        var body: Any?
+        var refresh: (@Sendable () async throws -> [String: String])?
+        var effectiveAuth: Authenticator?
+        var isMultipart: Bool
+
+        /// Whether the request can be sent a second time: a multipart body is
+        /// never sent twice, and neither is a single-use ``BodySource``.
+        var isReplayable: Bool {
+            return !isMultipart && DefaultApiClient.isReplayable(body)
+        }
+    }
+
+    /// Resolves the URL, the authentication, the headers and the body of a call,
+    /// runs the hook's `start` and returns the request, ready to send. Shared by
+    /// the buffered and the stream calls, so both send the same request.
+    private func prepareCall(_ params: InvokeAPIParams, run: CallRun) async throws -> PreparedCall {
+        /* With validateConstraints on, the body is checked before anything
+         * else: before it is serialized, before the hook and before any send. */
+        if config.validateConstraints, let body = params.body {
+            try ConstraintValidator.validateRequestBody(body)
+        }
+        var requestURL = resolveURL(params.path)
+
+        /* Resolve authentication into three distinct states (the sentinel
+         * disambiguates an explicitly-unauthenticated op from a secured op
+         * whose scheme the client holds no credential for):
+         *   - auth IS the no-auth sentinel -> NO auth (security: [] op);
+         *     do NOT fall back to the client authenticator.
+         *   - auth is nil                  -> no scheme credential matched;
+         *     fall back to the client-level authenticator.
+         *   - auth is a real authenticator -> the credential of the first
+         *     accepted scheme the client holds; use it. */
+        var queryParams = params.queryParams
+        let effectiveAuth: Authenticator?
+        if let suppliedAuth = params.auth {
+            /* `Authenticator` is a Sendable protocol, not AnyObject-constrained,
+             * so identity-compare through `as AnyObject` (both the sentinel and
+             * every concrete authenticator are reference types). */
+            if (suppliedAuth as AnyObject) === (BaseApi.noAuthSentinel as AnyObject) {
+                effectiveAuth = nil
+            } else {
+                effectiveAuth = suppliedAuth
+                /* The client hands its transport to every credential it is
+                 * given; an API built directly gets the same here, so an OAuth2
+                 * or OIDC authenticator never fails its first token request
+                 * with no transport. */
+                if let httpAware = suppliedAuth as? HttpAwareAuthenticator {
+                    httpAware.setApiClient(apiClient)
+                }
+            }
+        } else {
+            effectiveAuth = self.authenticator
+        }
+        if let auth = effectiveAuth {
+            for (k, v) in auth.queryParams() {
+                queryParams[k] = v
+            }
+        }
+
+        /* An object-valued parameter that holds a nested field cannot be sent. */
+        for (_, value) in queryParams {
+            if let object = value as? ValueSerializer.ObjectParameter, let failure = object.failure {
+                throw failure
+            }
+        }
+
+        /* Build query string */
+        let queryString = Self.buildQueryString(queryParams)
+        if !queryString.isEmpty {
+            requestURL = requestURL + "?" + queryString
+        }
+
+        /* Select headers */
+        let isMultipart = params.contentType.lowercased().hasPrefix("multipart/")
+        var headers = headerSelector.selectHeaders(accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
+
+        /* Merge config default headers, then operation-specific headers, then
+         * auth headers. Names are case-insensitive (RFC 9110 section 5.1), so
+         * a later layer replaces an earlier spelling of the same header. */
+        headers = Self.mergeHeaders(headers, overriding: config.defaultHeaders)
+        headers = Self.mergeHeaders(headers, overriding: params.headerParams)
+
+        /* Merge auth headers */
+        if let auth = effectiveAuth {
+            headers = Self.mergeHeaders(headers, overriding: try await auth.authHeaders())
+            /* A challenge authenticator (HTTP Digest) answers the challenge it
+             * accepted for this method and request target; before any
+             * challenge it adds nothing. */
+            if let answer = Self.challengeAnswer(auth, method: params.method, url: requestURL) {
+                headers = Self.mergeHeaders(headers, overriding: ["Authorization": answer])
+            }
+            /* Handle cookie params. RFC 6265 — don't URL-encode; most cookie
+             * parsers don't URL-decode, so `=` (base64 padding) would arrive
+             * as literal `%3D` and break JWT/session cookies. Validate and
+             * pass through raw instead. */
+            let cookies = auth.cookieParams()
+            if !cookies.isEmpty {
+                let cookieStr = try Self.cookieHeaderValue(cookies)
+                if let existing = headers["Cookie"] {
+                    headers["Cookie"] = existing + "; " + cookieStr
+                } else {
+                    headers["Cookie"] = cookieStr
+                }
+            }
+        }
+
+        /* Per-call headers go on last: they replace a header of the same name
+         * from every other layer, whatever its casing. */
+        if let perCall = params.requestHeaders {
+            headers = Self.mergeHeaders(headers, overriding: perCall)
+        }
+
+        /* Inject trace context */
+        TraceContextUtil.injectTraceContext(headers: &headers)
+        try run.begin(params: params, target: requestURL, headers: &headers)
+
+        /* Serialize body -- multipart/form-data is handled separately so that
+         * the boundary can be injected into the Content-Type header. */
+        let serializedBody: Any?
+        if let source = params.body as? BodySource {
+            /* A body source is sent as it is read, never serialized or buffered. */
+            serializedBody = source
+        } else if params.contentType.lowercased().hasPrefix("multipart/"),
+            let formFields = Self.formFields(params.body)
+        {
+            let boundary = UUID().uuidString
+            /* The declared subtype (form-data, related, mixed) is kept; only the boundary is added. */
+            headers["Content-Type"] = "\(params.contentType); boundary=\(boundary)"
+            serializedBody = try Self.buildMultipartBody(ordered: formFields, boundary: boundary)
+        } else {
+            serializedBody = try Self.serializeBody(
+                params.body, contentType: params.contentType, rawBody: params.rawBody)
+        }
+
+        if serializedBody == nil {
+            headers.removeValue(forKey: "Content-Type")
+        }
+
+        var refresh: (@Sendable () async throws -> [String: String])? = nil
+        if let auth = effectiveAuth {
+            /* A Digest answer carries a nonce count, so a retry answers again. */
+            let method = params.method
+            let url = requestURL
+            refresh = {
+                var fresh = try await auth.authHeaders()
+                if let answer = Self.challengeAnswer(auth, method: method, url: url) {
+                    fresh["Authorization"] = answer
+                }
+                return fresh
+            }
+        }
+        return PreparedCall(
+            method: params.method, url: requestURL, headers: headers, body: serializedBody,
+            refresh: refresh, effectiveAuth: effectiveAuth, isMultipart: isMultipart)
+    }
+
+
+    /// The most of an error body a stream call reads before it raises the error.
+    private static let streamErrorBodyLimit = 64 * 1024
+
+    /// Invoke an operation whose success response is binary and return its body
+    /// as a stream, unread. Everything up to the response headers is the
+    /// buffered call (the same retries, redirects, authentication, 401 replay,
+    /// headers and call hook); a status that is not 2xx throws the same typed
+    /// error as a buffered call, its body read up to 64 KiB, and no stream is
+    /// returned.
+    ///
+    /// - Parameter params: The invocation parameters.
+    /// - Returns: ``ApiResult`` whose data is the open ``ByteStream``; its raw body is empty.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPIForStream(_ params: InvokeAPIParams) async throws -> ApiResult<ByteStream> {
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await openStream(params, run: run) },
+            describe: { ($0.statusCode, $0.headers) })
+    }
+
+    private func openStream(_ params: InvokeAPIParams, run: CallRun) async throws -> ApiResult<ByteStream> {
+        try Self.validatePerCall(timeout: params.timeout, maxRetries: params.maxRetries)
+        let call = try await prepareCall(params, run: run)
+        var headers = call.headers
+        var response = try await sendStream(call, headers: headers, params: params)
+
+        /* The Digest answer of a buffered call: the refused response is closed
+         * unread and the request is sent once more with the answer. */
+        if response.statusCode == 401, call.isReplayable,
+            let answer = Self.answerChallenge(call.effectiveAuth, response.headers, method: call.method, url: call.url)
+        {
+            response.close()
+            headers = Self.mergeHeaders(headers, overriding: ["Authorization": answer])
+            response = try await sendStream(call, headers: headers, params: params)
+        }
+
+        /* The 401 replay of a buffered call: the refused response is closed
+         * unread, the token is dropped and the request is sent once more. */
+        if response.statusCode == 401, let invalidating = call.effectiveAuth as? AccessTokenInvalidating {
+            invalidating.invalidateAccessToken()
+            if call.isReplayable, let fresh = try? await invalidating.authHeaders(), !fresh.isEmpty {
+                response.close()
+                headers = Self.mergeHeaders(headers, overriding: fresh)
+                response = try await sendStream(call, headers: headers, params: params)
+            }
+        }
+
+        if response.statusCode < 200 || response.statusCode >= 300 {
+            let failed = await response.readBounded(maxBytes: Self.streamErrorBodyLimit)
+            throw ApiError.fromResponse(
+                statusCode: failed.statusCode,
+                headers: failed.headers,
+                body: failed.body,
+                requestMethod: params.method,
+                requestPath: ApiError.pathOfRequestURL(call.url),
+                errorSchemas: params.errorSchemas
+            )
+        }
+        return ApiResult(
+            statusCode: response.statusCode, data: ByteStream(response: response), rawBody: "",
+            headers: response.headers)
+    }
+
+    /// Sends one prepared request for a stream result, through the SDK's own
+    /// transport (which retries and re-applies the authentication headers) or
+    /// through the one the caller supplied, which sees exactly one call.
+    private func sendStream(
+        _ call: PreparedCall, headers: [String: String], params: InvokeAPIParams
+    ) async throws -> ApiStreamResponse {
+        do {
+            if let client = apiClient as? DefaultApiClient {
+                return try await client.openStreaming(
+                    method: call.method, url: call.url, headers: headers, body: call.body,
+                    timeout: params.timeout, maxRetries: params.maxRetries,
+                    idleTimeout: params.idleTimeout, refreshHeaders: call.refresh,
+                    acceptCompression: params.acceptCompression)
+            }
+            return try await apiClient.sendStreaming(
+                method: call.method, url: call.url, headers: headers, body: call.body,
+                timeout: params.timeout, maxRetries: params.maxRetries,
+                idleTimeout: params.idleTimeout)
+        } catch let error as ApiError {
+            /* A failure that arrived without a response carries the request too. */
+            error.attachRequest(method: call.method, path: ApiError.pathOfRequestURL(call.url))
+            throw error
+        }
+    }
+
+    /// The longest a JSON Lines line or an event may be unless the call says otherwise.
+    private static let defaultMaxEventBytes = 1_048_576
+
+    /// Checks the settings of a stream call before any request is built.
+    private static func validate(_ options: StreamOptions?) throws {
+        guard let options = options else { return }
+        if let idle = options.idleTimeout, idle < 0 {
+            throw ConfigurationError.invalidArgument("idleTimeout must not be negative: \(idle)")
+        }
+        if let reconnects = options.maxReconnects, reconnects < -1 {
+            throw ConfigurationError.invalidArgument(
+                "maxReconnects must be -1 (unlimited) or more: \(reconnects)")
+        }
+        if let delay = options.reconnectDelay, delay < 0 {
+            throw ConfigurationError.invalidArgument("reconnectDelay must not be negative: \(delay)")
+        }
+        if let limit = options.maxEventBytes, limit <= 0 {
+            throw ConfigurationError.invalidArgument("maxEventBytes must be positive: \(limit)")
+        }
+    }
+
+    /// Decodes the text of one JSON Lines line or one event payload as the
+    /// schema type `T`; an empty or malformed text is a ``SerializationError``.
+    static func decodeStreamItem<T: Decodable>(_ text: String, as type: T.Type) throws -> T {
+        guard let value = try ObjectSerializer.deserialize(text, as: type) else {
+            throw SerializationError(message: "The item is empty")
+        }
+        return value
+    }
+
+    private func openedStream(_ params: InvokeAPIParams) async throws -> ByteStream {
+        guard let stream = try await invokeAPIForStream(params).data else {
+            throw ApiError(message: "A stream call returned no stream for \(params.operation)")
+        }
+        return stream
+    }
+
+    /// Invoke an operation whose success response is JSON Lines and return the
+    /// items as a stream. Everything up to the response headers is the stream
+    /// call of ``invokeAPIForStream(_:)``; the body is decoded line by line as
+    /// it arrives, a compressed body as it is decompressed.
+    ///
+    /// - Parameters:
+    ///   - params: The invocation parameters.
+    ///   - streamOptions: The stream settings, or nil for the defaults.
+    ///   - decode: Decodes one non-blank line.
+    /// - Returns: The open ``JsonLinesStream``.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPIForJsonLines<T: Sendable>(
+        _ params: InvokeAPIParams, streamOptions: StreamOptions?,
+        decode: @escaping @Sendable (String) throws -> T
+    ) async throws -> JsonLinesStream<T> {
+        try Self.validate(streamOptions)
+        var call = params
+        call.idleTimeout = streamOptions?.idleTimeout
+        call.acceptCompression = true
+        let stream = try await openedStream(call)
+        return JsonLinesStream(
+            source: stream, decode: decode,
+            maxLineBytes: streamOptions?.maxEventBytes ?? Self.defaultMaxEventBytes,
+            method: params.method, path: ApiError.pathOfRequestURL(resolveURL(params.path)))
+    }
+
+    /// Whether a header of this name is set by any layer a stream call merges.
+    private func hasHeader(_ name: String, in params: InvokeAPIParams) -> Bool {
+        let layers: [[String: String]] = [
+            config.defaultHeaders, params.headerParams, params.requestHeaders ?? [:],
+        ]
+        return layers.contains { layer in
+            layer.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+        }
+    }
+
+    /// Invoke an operation whose success response is server-sent events and
+    /// return the events as a stream that reconnects. The request asks for
+    /// `text/event-stream`, `Cache-Control: no-cache` and an uncompressed body
+    /// unless the caller or the configuration set those headers; each
+    /// connection, the first and every reconnect, runs the whole call of
+    /// ``invokeAPIForStream(_:)`` again, so the hook, the headers and the
+    /// credential are rebuilt, and carries `Last-Event-ID` when there is one.
+    ///
+    /// - Parameters:
+    ///   - params: The invocation parameters.
+    ///   - streamOptions: The stream settings, or nil for the defaults.
+    ///   - terminator: A `data` value that ends the stream and is not delivered.
+    ///   - decode: Decodes the `data` field, or nil to hand it over as a string.
+    /// - Returns: The open ``SseStream``.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPIForSse<T: Sendable>(
+        _ params: InvokeAPIParams, streamOptions: StreamOptions?, terminator: String? = nil,
+        decode: (@Sendable (String) throws -> T)?
+    ) async throws -> SseStream<T> {
+        try Self.validate(streamOptions)
+        var base = params
+        base.idleTimeout = streamOptions?.idleTimeout
+        if !hasHeader("Cache-Control", in: params) {
+            base.headerParams["Cache-Control"] = "no-cache"
+        }
+        if !hasHeader("Accept-Encoding", in: params) {
+            base.headerParams["Accept-Encoding"] = "identity"
+        }
+        let template = base
+        let opener: SseStream<T>.Opener = { [self] lastEventId in
+            var call = template
+            if !lastEventId.isEmpty {
+                call.requestHeaders = Self.mergeHeaders(
+                    template.requestHeaders ?? [:], overriding: ["Last-Event-ID": lastEventId])
+            }
+            return try await openedStream(call)
+        }
+        return try await SseStream<T>.open(
+            opener: opener, decode: decode, terminator: terminator, options: streamOptions,
+            hasBody: params.body != nil,
+            singleUseBody: (params.body as? BodySource).map { !$0.isReplayable } ?? false,
+            method: params.method,
+            path: ApiError.pathOfRequestURL(resolveURL(params.path)))
+    }
+
+    /// Invoke an API operation and return the full result including status code,
+    /// headers, and raw body alongside the deserialized data.
+    ///
+    /// Binary endpoints (return type `Data`) get the raw response bytes; JSON endpoints
+    /// run through `ObjectSerializer.deserialize`.
+    ///
+    /// - Parameters:
+    ///   - params: The invocation parameters.
+    ///   - type: The return type for deserialization.
+    /// - Returns: ``ApiResult`` containing deserialized data, status code, raw body, and headers.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await decodeResult(params, run: run, as: type) },
+            describe: { ($0.statusCode, $0.headers) })
+    }
+
+    private func decodeResult<T: Decodable>(
+        _ params: InvokeAPIParams, run: CallRun, as type: T.Type
+    ) async throws -> ApiResult<T> {
+        let (response, requestPath) = try await invokeAPIWithPath(params, run: run)
+        let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
+        let isJsonResponse = responseContentType.isEmpty || headerSelector.isJsonMime(responseContentType)
+        var data: T? = nil
+        do {
+            if type == Data.self && !isJsonResponse {
+                /* Binary transport (`format: binary`, e.g. image/jpeg, octet-stream):
+                   the transport base64-encodes binary response bodies into the
+                   String `response.body`, so decode it back to the original bytes
+                   here (mirroring the other SDKs). Fall back to the raw utf8 bytes
+                   if the body isn't valid base64 (e.g. a server that wrote raw
+                   bytes), so we never lose the payload.
+
+                   A `format: byte` response carried as `application/json` is NOT
+                   handled here — it is a JSON string literal (`"dGVzdC1pbWFnZQ=="`)
+                   and must be JSON-parsed before base64-decoding. That case falls
+                   through to the JSON branch below, where Foundation's JSONDecoder
+                   decodes the quoted base64 string into `Data` automatically. */
+                data = (Data(base64Encoded: response.body) ?? response.body.data(using: .utf8) ?? Data()) as? T
+            } else if type == Data.self,
+                let first = response.body.drop(while: { $0.isWhitespace }).first,
+                first == "{" || first == "["
+            {
+                /* A binary operation answered with a JSON document (content
+                   negotiation): the caller gets its raw bytes, never a decode error. */
+                data = Data(response.body.utf8) as? T
+            } else if !response.body.isEmpty {
+                /* Default to JSON when Content-Type is missing — matches the other
+                   11 SDKs which all assume JSON for empty/missing Content-Type. Some
+                   servers strip Content-Type from JSON responses. */
+                if isJsonResponse {
+                    data = try ObjectSerializer.deserialize(response.body, as: type)
+                } else if type == String.self {
+                    /* A string result under a binary content type is the decoded
+                       body: the transport's base64 text is an internal carrier. */
+                    if BaseApi.isTextContentType(responseContentType),
+                        !responseContentType.isEmpty
+                    {
+                        data = response.body as? T
+                    } else if let raw = Data(base64Encoded: response.body),
+                        let text = String(data: raw, encoding: .utf8)
+                    {
+                        data = text as? T
+                    } else {
+                        data = response.body as? T
+                    }
+                } else {
+                    let mediaType = responseContentType.split(separator: ";").first
+                        .map { $0.trimmingCharacters(in: .whitespaces) } ?? responseContentType
+                    throw SerializationError(
+                        message: "Unexpected response Content-Type '\(mediaType)' for "
+                            + "\(params.operation): expected a JSON body")
+                }
+            }
+        } catch let error as SerializationError {
+            throw error.withResponse(
+                statusCode: response.statusCode, headers: response.headers, body: response.body,
+                requestMethod: params.method, requestPath: requestPath)
+        }
+        return ApiResult<T>(
+            statusCode: response.statusCode,
+            data: data,
+            rawBody: response.body,
+            headers: response.headers
+        )
+    }
+
+    /// Invoke an operation that declares several 2xx responses with different
+    /// schemas and decode the body as the schema of the status that arrived.
+    ///
+    /// - Parameters:
+    ///   - params: The invocation parameters.
+    ///   - decode: Reads the body as the type of `response.statusCode` and wraps
+    ///     it in the operation's union; called only for a non-empty body.
+    /// - Returns: ``ApiResult`` with the decoded union, status code, raw body, and headers.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPIForResult<T: Sendable>(
+        _ params: InvokeAPIParams, decodingByStatus decode: (ApiHttpResponse) throws -> T?
+    ) async throws -> ApiResult<T> {
+        let run = CallRun(hook: config.callHook)
+        return try await run.observe(
+            { try await decodeResult(params, run: run, decodingByStatus: decode) },
+            describe: { ($0.statusCode, $0.headers) })
+    }
+
+    private func decodeResult<T: Sendable>(
+        _ params: InvokeAPIParams, run: CallRun, decodingByStatus decode: (ApiHttpResponse) throws -> T?
+    ) async throws -> ApiResult<T> {
+        let (response, requestPath) = try await invokeAPIWithPath(params, run: run)
+        let data: T?
+        do {
+            data = response.body.isEmpty ? nil : try decode(response)
+        } catch let error as SerializationError {
+            throw error.withResponse(
+                statusCode: response.statusCode, headers: response.headers, body: response.body,
+                requestMethod: params.method, requestPath: requestPath)
+        }
+        return ApiResult<T>(
+            statusCode: response.statusCode,
+            data: data,
+            rawBody: response.body,
+            headers: response.headers
+        )
+    }
+
+    /// Whether a response Content-Type is text-class: `text/*`,
+    /// `application/xml`, `application/javascript` or any `+xml` type.
+    static func isTextContentType(_ contentType: String) -> Bool {
+        let mediaType = (contentType.split(separator: ";").first.map(String.init) ?? contentType)
+            .trimmingCharacters(in: .whitespaces).lowercased()
+        return mediaType.hasPrefix("text/") || mediaType == "application/xml"
+            || mediaType == "application/javascript" || mediaType.hasSuffix("+xml")
+    }
+
+    /// Invoke an API operation with no return type and return the full result
+    /// (status code, headers and raw body) with no deserialized data.
+    ///
+    /// - Parameter params: The invocation parameters.
+    /// - Returns: ``ApiResult`` with `nil` data, status code, raw body, and headers.
+    /// - Throws: ``ApiError`` if the API call fails.
+    func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
+        let response = try await invokeAPI(params)
+        return ApiResult<Void>(
+            statusCode: response.statusCode,
+            data: nil,
+            rawBody: response.body,
+            headers: response.headers
+        )
+    }
+
+    /// RFC 3986 query component encoding. Foundation's .urlQueryAllowed
+    /// includes `&`, `=`, `+`, and other reserved chars used as delimiters
+    /// inside the query string, so a value like `Foo&Bar` would arrive at
+    /// the server as a literal `&` and split the key=value pair (param
+    /// pollution / wrong endpoint). Build a tighter set: the RFC 3986
+    /// unreserved set (ALPHA / DIGIT / `-._~`) is always safe; everything
+    /// else gets percent-encoded.
+    private static let queryComponentAllowed: CharacterSet = {
+        var allowed = CharacterSet()
+        allowed.insert(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        return allowed
+    }()
+
+    /// Query-value encoding for parameters declared `allowReserved: true` (OAS
+    /// 3.0). The RFC 3986 query-legal reserved set — `: / ? @ ! $ & ' ( ) * + , ; =`
+    /// — is added to the unreserved set so those characters stay literal on the
+    /// wire. `#`, `[` and `]` are always percent-encoded: Foundation's `URL`
+    /// rewrites `[` and `]` itself and `#` would start the fragment, so the
+    /// bytes encoded here are exactly the bytes sent. Everything outside both
+    /// sets (space, control chars, non-ASCII) is percent-encoded too, so a
+    /// space becomes `%20`.
+    private static let queryComponentAllowedReserved: CharacterSet = {
+        var allowed = queryComponentAllowed
+        allowed.insert(charactersIn: ":/?@!$&'()*+,;=")
+        return allowed
+    }()
+
+    /// Build a query string from query parameters.
+    ///
+    /// - Parameter queryParams: The query parameters.
+    /// - Returns: Encoded query string, or an empty string when there are none.
+    static func buildQueryString(_ queryParams: OrderedParams<Any?>) -> String {
+        guard !queryParams.isEmpty else { return "" }
+
+        var parts: [String] = []
+        for (k, v) in queryParams {
+            /* An allowEmptyValue parameter keeps its empty string as `key=`. */
+            let allowsEmpty = v is ValueSerializer.AllowEmptyValue
+            guard let v = (v as? ValueSerializer.AllowEmptyValue)?.value ?? v else { continue }
+            /* Any other empty value is no value: its key is left out, as for an unset one. */
+            if !allowsEmpty, let text = v as? String, text.isEmpty { continue }
+            /* An exploded object-valued parameter is one `field=value` pair per
+             * field, under the field's own name rather than the parameter's. */
+            if let object = v as? ValueSerializer.ObjectParameter {
+                for field in object.fields {
+                    let name = field.name.addingPercentEncoding(
+                        withAllowedCharacters: BaseApi.queryComponentAllowed) ?? field.name
+                    let value = field.value.addingPercentEncoding(
+                        withAllowedCharacters: BaseApi.queryComponentAllowed) ?? field.value
+                    parts.append("\(name)=\(value)")
+                }
+                continue
+            }
+            let encodedKey = k.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? k
+
+            /* Unwrap an allowReserved marker: a wrapped value keeps RFC 3986
+             * reserved characters literal, an unwrapped value uses the default
+             * unreserved-only set (byte-identical to allowReserved: false). */
+            let allowedForValue: CharacterSet
+            let rawValue: Any
+            if let reserved = v as? ValueSerializer.AllowReservedValue {
+                allowedForValue = BaseApi.queryComponentAllowedReserved
+                rawValue = reserved.value
+            } else {
+                allowedForValue = BaseApi.queryComponentAllowed
+                rawValue = v
+            }
+
+            if let items = rawValue as? [String] {
+                for item in items {
+                    let encodedValue = item.addingPercentEncoding(withAllowedCharacters: allowedForValue) ?? item
+                    parts.append("\(encodedKey)=\(encodedValue)")
+                }
+            } else {
+                let strVal = ObjectSerializer.stringify(rawValue)
+                let encodedValue = strVal.addingPercentEncoding(withAllowedCharacters: allowedForValue) ?? strVal
+                parts.append("\(encodedKey)=\(encodedValue)")
+            }
+        }
+
+        return parts.joined(separator: "&")
+    }
+
+    /// Serialize a request body according to its content type.
+    ///
+    /// - Parameters:
+    ///   - body: The request body (model object or nil).
+    ///   - contentType: The request content type.
+    ///   - rawBody: True for a `format: binary` body parameter, whose bytes
+    ///     are sent verbatim whatever the selected content type (including
+    ///     `application/json`).
+    /// - Returns: The encoded body bytes, or nil when there is no body to send.
+    static func serializeBody(_ body: Any?, contentType: String, rawBody: Bool = false) throws -> Data? {
+        guard let body = body else { return nil }
+
+        if rawBody {
+            if let data = body as? Data {
+                return data
+            }
+            if let str = body as? String {
+                return Data(str.utf8)
+            }
+        }
+
+        if contentType.lowercased().hasPrefix("multipart/") {
+            return nil
+        }
+
+        if contentType.hasPrefix("image/") || contentType == "application/octet-stream" {
+            if let data = body as? Data {
+                return data
+            }
+            if let str = body as? String {
+                return str.data(using: .utf8)
+            }
+        }
+
+        if contentType == "text/plain" {
+            return "\(body)".data(using: .utf8)
+        }
+
+        if contentType == "application/x-www-form-urlencoded" {
+            if let params = formFields(body) {
+                /* application/x-www-form-urlencoded is defined by the WHATWG
+                 * URL / HTML form-encoding standard, which encodes a space as
+                 * `+` (not `%20`). Percent-encode with the unreserved set —
+                 * which turns a literal `+` in the value into `%2B` — then map
+                 * the remaining `%20` (space) to `+` so the wire bytes match
+                 * the other SDKs. */
+                let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+                func formEncode(_ s: String) -> String {
+                    let pct = s.addingPercentEncoding(withAllowedCharacters: formSafe) ?? s
+                    return pct.replacingOccurrences(of: "%20", with: "+")
+                }
+                /* A model, map or array of objects has no defined encoding in a
+                 * form body (the generator does not surface the OAS encoding
+                 * style/explode), so it is rejected instead of emitting the
+                 * value's Swift description. */
+                func isFormScalar(_ value: Any) -> Bool {
+                    let mirror = Mirror(reflecting: value)
+                    if mirror.displayStyle == .optional {
+                        /* A nil element is skipped by the encoder below. */
+                        guard let wrapped = mirror.children.first?.value else { return true }
+                        return isFormScalar(wrapped)
+                    }
+                    return value is String || isMultipartPrimitive(value) || value is Decimal
+                }
+                /* A field whose Encoding Object sets `allowReserved: true` arrives
+                 * wrapped; its values keep the RFC 3986 reserved characters literal
+                 * through the query allow-reserved encoder, which writes a space as
+                 * `%20`. The key is encoded as for every other field. */
+                func reservedEncode(_ s: String) -> String {
+                    return s.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowedReserved) ?? s
+                }
+                var parts: [String] = []
+                for (rawKey, field) in params {
+                    /* A part encoding has no effect on a form-urlencoded field. A
+                     * field whose Encoding Object sets style or explode arrives
+                     * already styled: a joined string, or a list that repeats the key. */
+                    let unwrapped = ValueSerializer.unwrapFormField(field)
+                    let rawValue = unwrapped.value
+                    let encodeValue: (String) -> String = unwrapped.allowReserved ? reservedEncode : formEncode
+                    let elements: [Any] = (rawValue as? [Any]) ?? [rawValue]
+                    if !elements.allSatisfy({ isFormScalar($0) }) {
+                        throw SerializationError(
+                            message: "form-urlencoded field \(rawKey) must be a scalar or array of scalars"
+                        )
+                    }
+                    let key = formEncode(rawKey)
+                    /* Array values are emitted as repeated keys
+                     * (`tags=a&tags=b`), never bracketed or joined, matching
+                     * the canonical cross-SDK behaviour. A nil array element is
+                     * skipped rather than sent as an empty value. */
+                    if let items = ObjectSerializer.toStringList(rawValue) {
+                        for item in items {
+                            parts.append("\(key)=\(encodeValue(item))")
+                        }
+                    } else {
+                        parts.append("\(key)=\(encodeValue(ObjectSerializer.stringify(rawValue)))")
+                    }
+                }
+                return parts.joined(separator: "&").data(using: .utf8)
+            }
+        }
+
+        let jsonString = try ObjectSerializer.serialize(body)
+        return jsonString.data(using: .utf8)
+    }
+
+    /// Build a multipart/form-data request body from a dictionary of form fields.
+    ///
+    /// Each entry value may be `Data`, `URL` (file), `[Any]` (repeated field), or
+    /// any other value which is converted to its string representation.
+    ///
+    /// - Parameters:
+    ///   - formFields: dictionary mapping field names to values
+    ///   - boundary: the multipart boundary string
+    /// - Returns: the assembled multipart body as `Data`
+    static func buildMultipartBody(_ formFields: [String: Any], boundary: String) throws -> Data {
+        return try buildMultipartBody(ordered: OrderedParams<Any>(sorting: formFields), boundary: boundary)
+    }
+
+    /// Reads the form fields of a request body as an ordered map.
+    ///
+    /// Lays `layer` over `base` and treats header names as case-insensitive:
+    /// a name in `layer` replaces every spelling of it already in `base`, so
+    /// two spellings of one header are never both sent. Within one layer the
+    /// names are applied in sorted order, so the winner of two spellings in
+    /// the same layer is the same on every run.
+    static func mergeHeaders(_ base: [String: String], overriding layer: [String: String]) -> [String: String] {
+        var result = base
+        for (name, value) in layer.sorted(by: { $0.key < $1.key }) {
+            for existing in result.keys where existing.caseInsensitiveCompare(name) == .orderedSame {
+                result.removeValue(forKey: existing)
+            }
+            result[name] = value
+        }
+        return result
+    }
+
+    /// A generated operation builds an ``OrderedParams`` in the spec's
+    /// declaration order; a plain dictionary (hand-written callers) is read in
+    /// key order so its output is still deterministic.
+    static func formFields(_ body: Any?) -> OrderedParams<Any>? {
+        if let ordered = body as? OrderedParams<Any> {
+            return ordered
+        }
+        if let dictionary = body as? [String: Any] {
+            return OrderedParams<Any>(sorting: dictionary)
+        }
+        return nil
+    }
+
+    /// Build a multipart/form-data request body from form fields kept in the
+    /// spec's declaration order: the parts are written in that order.
+    static func buildMultipartBody(ordered formFields: OrderedParams<Any>, boundary: String) throws -> Data {
+        var body = Data()
+
+        for (name, field) in formFields {
+            /* allowReserved has no effect on a multipart part: the value is sent
+             * unchanged. A declared part encoding applies to every item of a list. */
+            let unwrapped = ValueSerializer.unwrapFormField(field)
+            let value = unwrapped.value
+            if let list = value as? [Any] {
+                for item in list {
+                    try appendMultipartField(&body, boundary: boundary, name: name, value: item, part: unwrapped.part)
+                }
+            } else {
+                try appendMultipartField(&body, boundary: boundary, name: name, value: value, part: unwrapped.part)
+            }
+        }
+        body.append(Data("--\(boundary)--\r\n".utf8))
+        return body
+    }
+
+    private static func appendMultipartField(
+        _ body: inout Data, boundary: String, name: String, value: Any, part: ValueSerializer.EncodedPart? = nil
+    ) throws {
+        let safeName = try sanitizeQuotedHeaderValue(name)
+        /* The part headers after Content-Disposition: a declared Content-Type
+         * replaces the one chosen here (a part with none gets it), then each
+         * declared header follows in declaration order. */
+        func partHeaders(_ chosen: String?) -> String {
+            var lines = ""
+            if let contentType = part?.contentType ?? chosen {
+                lines += "\r\nContent-Type: \(contentType)"
+            }
+            for header in part?.headers ?? [] {
+                lines += "\r\n\(header.name): \(header.value)"
+            }
+            return lines
+        }
+
+        if let fileURL = value as? URL {
+            let fileName = fileURL.lastPathComponent
+            /* A file that cannot be read fails the call: an empty payload is never sent in its place. */
+            let fileData: Data
+            do {
+                fileData = try Data(contentsOf: fileURL)
+            } catch {
+                throw ConfigurationError.invalidArgument(
+                    "multipart part '\(name)' cannot be read from \(fileURL.lastPathComponent): \(error.localizedDescription)")
+            }
+            let mimeType = mimeTypeForFilename(fileName)
+            let disposition = try buildContentDisposition(name: safeName, filename: fileName)
+            body.append(Data("--\(boundary)\r\n\(disposition)\(partHeaders(mimeType))\r\n\r\n".utf8))
+            body.append(fileData)
+            body.append(Data("\r\n".utf8))
+        } else if let stream = value as? InputStream {
+            /* The caller owns the stream: it is read into the body and never closed here. */
+            var data = Data()
+            let wasOpen = stream.streamStatus != .notOpen
+            if !wasOpen { stream.open() }
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while stream.hasBytesAvailable {
+                let read = stream.read(&buffer, maxLength: buffer.count)
+                if read < 0 {
+                    throw ConfigurationError.invalidArgument("multipart part '\(name)' cannot be read from its stream")
+                }
+                if read == 0 { break }
+                data.append(buffer, count: read)
+            }
+            let disposition = try buildContentDisposition(name: safeName, filename: name)
+            body.append(Data("--\(boundary)\r\n\(disposition)\(partHeaders(mimeTypeForFilename(name)))\r\n\r\n".utf8))
+            body.append(data)
+            body.append(Data("\r\n".utf8))
+        } else if let data = value as? Data {
+            let mimeType = mimeTypeForFilename(name)
+            let disposition = try buildContentDisposition(name: safeName, filename: name)
+            body.append(Data("--\(boundary)\r\n\(disposition)\(partHeaders(mimeType))\r\n\r\n".utf8))
+            body.append(data)
+            body.append(Data("\r\n".utf8))
+        } else if value is String || isMultipartPrimitive(value) {
+            /* Every primitive (string, boolean, any integer or floating-point
+               width, date-time, duration, uuid, enum) is a plain text part with no part
+               Content-Type, its body the canonical stringify form; only models
+               and maps become application/json parts. */
+            let text = ObjectSerializer.stringify(value)
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\(partHeaders(nil))\r\n\r\n\(text)\r\n".utf8))
+        } else {
+            /* Model objects -- serialize to JSON */
+            if let jsonString = try? ObjectSerializer.serialize(value) {
+                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\(partHeaders("application/json"))\r\n\r\n\(jsonString)\r\n".utf8))
+            } else {
+                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\(partHeaders(nil))\r\n\r\n\(value)\r\n".utf8))
+            }
+        }
+    }
+
+    /// Whether a non-string multipart value is a primitive that is written as
+    /// a plain text part: a boolean, any integer or floating-point width, a
+    /// date-time, a uuid, or an enum.
+    static func isMultipartPrimitive(_ value: Any) -> Bool {
+        return value is Bool || value is any BinaryInteger || value is any BinaryFloatingPoint
+            || value is Date || value is UUID || value is Duration || value is any RawRepresentable
+    }
+
+    /// Validates and escapes a value destined for a quoted multipart header.
+    ///
+    /// Throws ``ConfigurationError/invalidArgument(_:)`` if the value contains CR, LF, or NUL (header
+    /// injection risk); otherwise backslash-escapes `\` and `"`.
+    static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
+        for scalar in value.unicodeScalars {
+            if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
+                throw ConfigurationError.invalidArgument("value contains CR, LF, or NUL characters")
+            }
+        }
+        var escaped = ""
+        escaped.reserveCapacity(value.count)
+        for ch in value {
+            if ch == "\\" || ch == "\"" {
+                escaped.append("\\")
+            }
+            escaped.append(ch)
+        }
+        return escaped
+    }
+
+    /// Builds a `Content-Disposition` header value for a file part.
+    ///
+    /// Emits an ASCII-safe `filename="..."` (with non-ASCII chars replaced by `_`)
+    /// and, when the original filename contains non-ASCII codepoints, an additional
+    /// RFC 5987 `filename*=UTF-8''<percent-encoded>` parameter.
+    static func buildContentDisposition(name: String, filename: String) throws -> String {
+        let safeFilename = try sanitizeQuotedHeaderValue(filename)
+        let isAscii = filename.unicodeScalars.allSatisfy { $0.isASCII }
+        if isAscii {
+            return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeFilename)\""
+        }
+        var asciiFallback = ""
+        for scalar in filename.unicodeScalars {
+            if scalar.isASCII {
+                asciiFallback.unicodeScalars.append(scalar)
+            } else {
+                asciiFallback.append("_")
+            }
+        }
+        let asciiSafe = try sanitizeQuotedHeaderValue(asciiFallback)
+        /* RFC 3986 unreserved only: `CharacterSet.alphanumerics` also holds
+         * non-ASCII letters, so the set is spelled out explicitly. */
+        let allowed = CharacterSet(
+            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
+        return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
+    }
+
+    /// Returns a MIME type for the file based on its extension, or
+    /// `application/octet-stream` if no mapping is known.
+    static func mimeTypeForFilename(_ filename: String) -> String {
+        guard let dotIndex = filename.lastIndex(of: ".") else {
+            return "application/octet-stream"
+        }
+        let ext = String(filename[filename.index(after: dotIndex)...]).lowercased()
+        switch ext {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "svg": return "image/svg+xml"
+        case "bmp": return "image/bmp"
+        case "tiff", "tif": return "image/tiff"
+        case "ico": return "image/x-icon"
+        case "pdf": return "application/pdf"
+        case "json": return "application/json"
+        case "xml": return "application/xml"
+        case "zip": return "application/zip"
+        case "gz", "gzip": return "application/gzip"
+        case "tar": return "application/x-tar"
+        case "txt": return "text/plain"
+        case "csv": return "text/csv"
+        case "html", "htm": return "text/html"
+        case "css": return "text/css"
+        case "js": return "application/javascript"
+        case "mp4": return "video/mp4"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "ogg": return "audio/ogg"
+        case "webm": return "video/webm"
+        default: return "application/octet-stream"
+        }
+    }
+
+    /// Joins authenticator cookies into one `Cookie` header value, sorted by
+    /// name so the order is the same on every run.
+    static func cookieHeaderValue(_ cookies: [String: String]) throws -> String {
+        return try cookies.sorted { $0.key < $1.key }.map { (k, v) -> String in
+            if !BaseApi.isValidCookieName(k) {
+                throw ConfigurationError.invalidArgument(
+                    "Cookie name '\(k)' contains characters forbidden by RFC 6265"
+                )
+            }
+            if !BaseApi.isValidCookieValue(v) {
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '\(k)' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                )
+            }
+            return "\(k)=\(v)"
+        }.joined(separator: "; ")
+    }
+
+    /// Returns true if the value is a valid RFC 6265 cookie name (token).
+    /// Allowed chars: ALPHA / DIGIT / "!#$%&'*+-.^_`|~".
+    static func isValidCookieName(_ name: String) -> Bool {
+        if name.isEmpty { return false }
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~")
+        return name.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    /// Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*).
+    /// Allowed: %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+    /// Excludes whitespace, DQUOTE, comma, semicolon, backslash, controls.
+    /// Empty value is allowed.
+    static func isValidCookieValue(_ value: String) -> Bool {
+        return value.unicodeScalars.allSatisfy { s in
+            let v = s.value
+            return v == 0x21
+                || (0x23...0x2B).contains(v)
+                || (0x2D...0x3A).contains(v)
+                || (0x3C...0x5B).contains(v)
+                || (0x5D...0x7E).contains(v)
+        }
+    }
+}
+
+/// A string-keyed map that remembers the order its keys were first set in.
+///
+/// Query parameters, form fields and multipart parts are written in the order
+/// the spec declares them, so the same call produces the same bytes on every
+/// run; a plain `Dictionary` iterates in a per-process random order. It reads
+/// and iterates like a dictionary and is built from a dictionary literal
+/// (whose order it keeps).
+struct OrderedParams<Value>: ExpressibleByDictionaryLiteral, Sequence {
+    private var orderedKeys: [String] = []
+    private var storage: [String: Value] = [:]
+
+    init() {}
+
+    init(dictionaryLiteral elements: (String, Value)...) {
+        for (key, value) in elements {
+            self[key] = value
+        }
+    }
+
+    /// Builds a map from a dictionary, in key order.
+    init(sorting dictionary: [String: Value]) {
+        for key in dictionary.keys.sorted() {
+            self[key] = dictionary[key]
+        }
+    }
+
+    var isEmpty: Bool { return orderedKeys.isEmpty }
+
+    var keys: [String] { return orderedKeys }
+
+    /// The value for `key`. Setting an existing key keeps its position;
+    /// setting nil removes it.
+    subscript(key: String) -> Value? {
+        get { return storage[key] }
+        set {
+            if let value = newValue {
+                if storage[key] == nil {
+                    orderedKeys.append(key)
+                }
+                storage[key] = value
+            } else if storage.removeValue(forKey: key) != nil {
+                orderedKeys.removeAll { $0 == key }
+            }
+        }
+    }
+
+    func makeIterator() -> AnyIterator<(key: String, value: Value)> {
+        var remaining = orderedKeys[...]
+        let values = storage
+        return AnyIterator {
+            guard let key = remaining.popFirst(), let value = values[key] else { return nil }
+            return (key: key, value: value)
+        }
+    }
+}
+
+/// The credentials of every scheme one security requirement names together:
+/// the headers, query parameters and cookies of all of them are sent.
+class AllOfAuthenticator: Authenticator, @unchecked Sendable {
+    fileprivate let parts: [Authenticator]
+
+    fileprivate init(_ parts: [Authenticator]) {
+        self.parts = parts
+    }
+
+    /// The composite of `parts`; one holding a token authenticator also hands
+    /// the transport to it and drops its cached token on a 401.
+    static func of(_ parts: [Authenticator]) -> Authenticator {
+        if parts.contains(where: { $0 is AccessTokenInvalidating }) {
+            return AllOfInvalidatingAuthenticator(parts)
+        }
+        if parts.contains(where: { $0 is HttpAwareAuthenticator }) {
+            return AllOfHttpAwareAuthenticator(parts)
+        }
+        return AllOfAuthenticator(parts)
+    }
+
+    func host() -> String {
+        return parts[0].host()
+    }
+
+    func authHeaders() async throws -> [String: String] {
+        var merged: [String: String] = [:]
+        for part in parts {
+            merged.merge(try await part.authHeaders()) { _, new in new }
+        }
+        return merged
+    }
+
+    func queryParams() -> [String: String] {
+        var merged: [String: String] = [:]
+        for part in parts {
+            merged.merge(part.queryParams()) { _, new in new }
+        }
+        return merged
+    }
+
+    func cookieParams() -> [String: String] {
+        var merged: [String: String] = [:]
+        for part in parts {
+            merged.merge(part.cookieParams()) { _, new in new }
+        }
+        return merged
+    }
+}
+
+final class AllOfHttpAwareAuthenticator: AllOfAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+    fileprivate override init(_ parts: [Authenticator]) {
+        super.init(parts)
+    }
+
+    func setApiClient(_ client: ApiClient) {
+        for part in parts {
+            (part as? HttpAwareAuthenticator)?.setApiClient(client)
+        }
+    }
+}
+
+final class AllOfInvalidatingAuthenticator: AllOfAuthenticator, HttpAwareAuthenticator, AccessTokenInvalidating,
+    @unchecked Sendable
+{
+    fileprivate override init(_ parts: [Authenticator]) {
+        super.init(parts)
+    }
+
+    func setApiClient(_ client: ApiClient) {
+        for part in parts {
+            (part as? HttpAwareAuthenticator)?.setApiClient(client)
+        }
+    }
+
+    func invalidateAccessToken() {
+        for part in parts {
+            (part as? AccessTokenInvalidating)?.invalidateAccessToken()
+        }
+    }
+}

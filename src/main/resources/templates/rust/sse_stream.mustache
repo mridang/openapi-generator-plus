@@ -1,0 +1,754 @@
+{{>api_info}}
+
+use std::collections::{HashMap, VecDeque};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
+use std::time::Duration;
+
+use futures_core::Stream;
+use futures_util::StreamExt as _;
+
+use crate::api_stream_response::{ApiStreamResponse, BodyStream};
+use crate::errors::api_error::{ApiError, TransportFailure};
+use crate::errors::network_error::NetworkError;
+use crate::errors::network_timeout_error::NetworkTimeoutError;
+use crate::errors::serialization_error::SerializationError;
+use crate::errors::stream_error::StreamError;
+use crate::errors::api_error_of;
+use crate::event_stream::{RawEvent, SseParser};
+use crate::server_sent_event::ServerSentEvent;
+use crate::stream_options::StreamOptions;
+
+type Failure = Box<dyn std::error::Error + Send + Sync>;
+
+/// Sends the request of an event stream once, given the last event id (empty
+/// for none), and returns the response with its body not read yet or the error
+/// of a failed status. The operation builds it so that every connection is a new
+/// call: the headers and the credential are built again.
+pub(crate) type EventOpener =
+    Box<dyn FnMut(String) -> Pin<Box<dyn Future<Output = Result<ApiStreamResponse, Failure>> + Send>> + Send>;
+
+/// Decodes the `data` field of an event.
+pub(crate) type DataDecoder<T> = Box<dyn Fn(&str) -> Result<T, SerializationError> + Send + Sync>;
+
+const MAX_RECONNECT_DELAY: Duration = Duration::from_secs(30);
+
+/// What the stream shows from outside while the engine runs inside it.
+struct Info {
+    status_code: u16,
+    headers: HashMap<String, String>,
+    delivered: u64,
+    last_event_id: String,
+}
+
+/// The events of a server-sent events response, parsed as they arrive (WHATWG
+/// HTML, "Server-sent events"), with automatic reconnecting.
+///
+/// It is a [`Stream`] of `Result<ServerSentEvent<T>, Box<dyn Error + Send + Sync>>`:
+/// iterate it with `StreamExt::next`. [`close`](Self::close) is idempotent and
+/// aborts the connection; dropping the stream does the same, so stopping early
+/// never leaves a connection busy.
+///
+/// When the connection ends, fails or stays silent for the idle timeout, the
+/// stream asks again with a fresh request (headers rebuilt, so a refreshed token
+/// is the one sent) that carries the last event id in `Last-Event-ID`. It waits
+/// the server's `retry` value, else the `reconnect_delay` doubling to 30 seconds
+/// with jitter, and gives up after `max_reconnects` consecutive failures without
+/// an event by raising the last failure. It never reconnects after a `204`, a
+/// status other than 408, 429 and 5xx, a response that is not
+/// `text/event-stream`, a cancellation or the closing of the client. An event
+/// named `error` is an `ApiError` with the response status and the data as its
+/// body. A failure is the last item. The `Debug` and `Display` forms show the
+/// status code, the events delivered and the last event id, never the data.
+pub struct SseStream<T> {
+    inner: Pin<Box<dyn Stream<Item = Result<ServerSentEvent<T>, Failure>> + Send>>,
+    info: Arc<Mutex<Info>>,
+    ended: bool,
+}
+
+enum Delivered<T> {
+    Item(ServerSentEvent<T>),
+    End,
+    Failed(Failure),
+}
+
+/// The connection state and the reconnect rules of one event stream.
+struct Engine<T> {
+    opener: EventOpener,
+    decoder: DataDecoder<T>,
+    terminator: Option<String>,
+    max_reconnects: i32,
+    reconnect_delay: Duration,
+    max_event_bytes: usize,
+    method: String,
+    path: String,
+    body: Option<BodyStream>,
+    status_code: u16,
+    headers: HashMap<String, String>,
+    parser: SseParser,
+    pending: VecDeque<RawEvent>,
+    too_long: Option<String>,
+    last_event_id: String,
+    server_retry: Option<u64>,
+    consecutive: i32,
+    done: bool,
+    info: Arc<Mutex<Info>>,
+}
+
+impl<T: Send + 'static> SseStream<T> {
+    /// Opens the first connection of an event stream; a failure of that request
+    /// is returned here. `terminator` is a `data` value that ends the stream and
+    /// is not delivered. A request with a body does not reconnect unless the
+    /// options say how many times. A single-use body, which the first request
+    /// read to its end, never reconnects, whatever the options say.
+    pub(crate) async fn open(
+        opener: EventOpener,
+        decoder: DataDecoder<T>,
+        terminator: Option<String>,
+        options: Option<&StreamOptions>,
+        has_body: bool,
+        single_use_body: bool,
+        method: &str,
+        path: &str,
+    ) -> Result<Self, Failure> {
+        let given = options.cloned().unwrap_or_default();
+        let last_event_id = given.get_last_event_id().unwrap_or("").to_string();
+        let max_event_bytes = given.get_max_event_bytes().unwrap_or(1024 * 1024);
+        let info = Arc::new(Mutex::new(Info {
+            status_code: 0,
+            headers: HashMap::new(),
+            delivered: 0,
+            last_event_id: last_event_id.clone(),
+        }));
+        let mut engine = Engine {
+            opener,
+            decoder,
+            terminator,
+            /* A single use body has been read to its end, so a reconnect has nothing to send. */
+            max_reconnects: if single_use_body {
+                0
+            } else {
+                given.get_max_reconnects().unwrap_or(if has_body { 0 } else { 5 })
+            },
+            reconnect_delay: given.get_reconnect_delay().unwrap_or(Duration::from_secs(1)),
+            max_event_bytes,
+            method: method.to_string(),
+            path: path.to_string(),
+            body: None,
+            status_code: 0,
+            headers: HashMap::new(),
+            parser: SseParser::new(max_event_bytes, &last_event_id),
+            pending: VecDeque::new(),
+            too_long: None,
+            last_event_id,
+            server_retry: None,
+            consecutive: 0,
+            done: false,
+            info: info.clone(),
+        };
+        engine.connect().await?;
+        let inner = futures_util::stream::unfold(engine, |mut engine| async move {
+            let item = engine.next_item().await?;
+            Some((item, engine))
+        });
+        Ok(Self {
+            inner: Box::pin(inner),
+            info,
+            ended: false,
+        })
+    }
+}
+
+impl<T: Send + 'static> SseStream<T> {
+    /// Returns the HTTP status code of the current connection.
+    pub fn status_code(&self) -> u16 {
+        self.info.lock().map(|info| info.status_code).unwrap_or(0)
+    }
+
+    /// Returns the lower-cased headers of the current connection.
+    pub fn headers(&self) -> HashMap<String, String> {
+        self.info.lock().map(|info| info.headers.clone()).unwrap_or_default()
+    }
+
+    /// The last event id the stream has seen; empty when it has none.
+    pub fn last_event_id(&self) -> String {
+        self.info.lock().map(|info| info.last_event_id.clone()).unwrap_or_default()
+    }
+
+    /// Aborts the connection and ends the stream; the next read finds it ended.
+    /// Closing again does nothing.
+    pub fn close(&mut self) {
+        self.ended = true;
+        self.inner = Box::pin(futures_util::stream::empty());
+    }
+}
+
+impl<T: Send + 'static> Stream for SseStream<T> {
+    type Item = Result<ServerSentEvent<T>, Failure>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.ended {
+            return Poll::Ready(None);
+        }
+        match self.inner.as_mut().poll_next(cx) {
+            Poll::Ready(None) => {
+                self.close();
+                Poll::Ready(None)
+            }
+            other => other,
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for SseStream<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.info.lock() {
+            Ok(info) => write!(
+                f,
+                "SseStream(status={}, events_delivered={}, last_event_id={})",
+                info.status_code, info.delivered, info.last_event_id
+            ),
+            Err(_) => write!(f, "SseStream"),
+        }
+    }
+}
+
+impl<T> std::fmt::Display for SseStream<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+
+impl<T> Engine<T> {
+    /// Sends the request with the last event id and checks that the answer is an
+    /// event stream. A 204 answer is kept with no body, which ends the stream.
+    async fn connect(&mut self) -> Result<(), Failure> {
+        let response = (self.opener)(self.last_event_id.clone()).await?;
+        let (status, headers, body) = response.into_parts();
+        if status != 204 {
+            let content_type = headers.get("content-type").map(String::as_str).unwrap_or("");
+            if !content_type.to_ascii_lowercase().starts_with("text/event-stream") {
+                drop(body);
+                let bare = content_type.split(';').next().unwrap_or("").trim().to_string();
+                return Err(Box::new(
+                    SerializationError::new(
+                        format!(
+                            "Unexpected response Content-Type '{}' for {}: expected text/event-stream",
+                            bare, self.path
+                        ),
+                        None,
+                    )
+                    .with_response(status, &headers, "")
+                    .with_request(&self.method, &self.path),
+                ));
+            }
+        }
+        if let Ok(mut info) = self.info.lock() {
+            info.status_code = status;
+            info.headers = headers.clone();
+        }
+        self.status_code = status;
+        self.headers = headers;
+        self.body = if status == 204 { None } else { Some(body) };
+        self.parser = SseParser::new(self.max_event_bytes, &self.last_event_id);
+        self.pending.clear();
+        self.too_long = None;
+        Ok(())
+    }
+
+    fn finish(&mut self) {
+        self.done = true;
+        self.body = None;
+        self.pending.clear();
+    }
+
+    /// The next event, or the failure that ends the stream, or `None` at its end.
+    async fn next_item(&mut self) -> Option<Result<ServerSentEvent<T>, Failure>> {
+        loop {
+            if self.done {
+                return None;
+            }
+            if let Some(raw) = self.pending.pop_front() {
+                self.consecutive = 0;
+                return match self.deliver(raw) {
+                    Delivered::Item(event) => Some(Ok(event)),
+                    Delivered::End => {
+                        self.finish();
+                        None
+                    }
+                    Delivered::Failed(failure) => {
+                        self.finish();
+                        Some(Err(failure))
+                    }
+                };
+            }
+            if let Some(message) = self.too_long.take() {
+                self.finish();
+                return Some(Err(Box::new(
+                    SerializationError::new(format!("An event of the stream is too long: {}", message), None)
+                        .with_response(self.status_code, &self.headers, "")
+                        .with_request(&self.method, &self.path),
+                )));
+            }
+            let Some(body) = self.body.as_mut() else {
+                self.finish();
+                return None;
+            };
+            let lost: Option<Failure> = match body.next().await {
+                Some(Ok(chunk)) => {
+                    let mut events = Vec::new();
+                    let parsed = self.parser.push(&chunk, &mut events);
+                    self.last_event_id = self.parser.last_event_id().to_string();
+                    self.server_retry = self.parser.retry();
+                    if let Ok(mut info) = self.info.lock() {
+                        info.last_event_id = self.last_event_id.clone();
+                    }
+                    self.pending.extend(events);
+                    if let Err(too_long) = parsed {
+                        self.too_long = Some(too_long.to_string());
+                    }
+                    continue;
+                }
+                Some(Err(failure)) => {
+                    if is_connection_failure(failure.as_ref()) {
+                        Some(failure)
+                    } else {
+                        self.finish();
+                        return Some(Err(failure));
+                    }
+                }
+                None => None,
+            };
+            match self.reconnect(lost).await {
+                Ok(true) => continue,
+                Ok(false) => {
+                    self.finish();
+                    return None;
+                }
+                Err(failure) => {
+                    self.finish();
+                    return Some(Err(failure));
+                }
+            }
+        }
+    }
+
+    fn deliver(&mut self, raw: RawEvent) -> Delivered<T> {
+        if raw.event == "error" {
+            return Delivered::Failed(Box::new(
+                ApiError::new(
+                    self.status_code,
+                    "The server sent an error event".to_string(),
+                    Some(self.headers.clone()),
+                    Some(raw.data),
+                )
+                .with_request(&self.method, &self.path),
+            ));
+        }
+        if self.terminator.as_deref() == Some(raw.data.as_str()) {
+            return Delivered::End;
+        }
+        let data = match (self.decoder)(&raw.data) {
+            Ok(data) => data,
+            Err(failure) => {
+                return Delivered::Failed(Box::new(
+                    SerializationError::new(
+                        format!("The data of an event does not decode: {}", failure),
+                        Some(Box::new(failure)),
+                    )
+                    .with_response(self.status_code, &self.headers, "")
+                    .with_request(&self.method, &self.path),
+                ));
+            }
+        };
+        if let Ok(mut info) = self.info.lock() {
+            info.delivered += 1;
+        }
+        Delivered::Item(ServerSentEvent::new(raw.id, raw.event, data, raw.retry, raw.data))
+    }
+
+    /// Re-establishes the connection after it was lost. `failure` is why it was
+    /// lost, or `None` when it ended cleanly. `Ok(true)` when a new connection is
+    /// open, `Ok(false)` when the stream ends.
+    async fn reconnect(&mut self, failure: Option<Failure>) -> Result<bool, Failure> {
+        let mut cause = failure;
+        loop {
+            self.body = None;
+            if self.max_reconnects == 0 {
+                return match cause {
+                    Some(failure) => Err(failure),
+                    None => Ok(false),
+                };
+            }
+            if self.max_reconnects > 0 && self.consecutive >= self.max_reconnects {
+                return Err(match cause {
+                    Some(failure) => failure,
+                    None => self.ended_failure(),
+                });
+            }
+            self.consecutive += 1;
+            let wait = reconnect_wait(
+                self.consecutive as u32,
+                self.reconnect_delay,
+                self.server_retry,
+                retry_after_of(cause.as_deref()),
+                jitter_sample(),
+            );
+            if !wait.is_zero() {
+                tokio::time::sleep(wait).await;
+            }
+            match self.connect().await {
+                Ok(()) => return Ok(self.body.is_some()),
+                Err(failure) => {
+                    if is_connection_failure(failure.as_ref()) || is_retryable_status(failure.as_ref()) {
+                        cause = Some(failure);
+                    } else {
+                        return Err(failure);
+                    }
+                }
+            }
+        }
+    }
+
+    fn ended_failure(&self) -> Failure {
+        let cause = std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "end of stream");
+        let api_error = ApiError::transport(
+            TransportFailure::Network,
+            format!(
+                "The event stream ended and was not re-established after {} reconnects",
+                self.max_reconnects
+            ),
+            Arc::new(cause),
+        );
+        match NetworkError::try_from(api_error) {
+            Ok(network) => Box::new(StreamError::from(network).with_request(&self.method, &self.path)),
+            Err(other) => Box::new(other),
+        }
+    }
+}
+
+/// Whether an error is a lost connection: a failure of the transport, a failure
+/// of the body or a stall past the idle timeout.
+fn is_connection_failure(failure: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    failure.is::<NetworkError>() || failure.is::<StreamError>() || failure.is::<NetworkTimeoutError>()
+}
+
+/// Whether an error is a status a reconnect may get over: 408, 429 or 5xx.
+fn is_retryable_status(failure: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    match api_error_of(failure) {
+        Some(api_error) => {
+            let status = api_error.status_code();
+            status == 408 || status == 429 || (500..=599).contains(&status)
+        }
+        None => false,
+    }
+}
+
+/// The `Retry-After` of a 429, 502, 503 or 504 failure, if it sent one.
+fn retry_after_of(failure: Option<&(dyn std::error::Error + Send + Sync + 'static)>) -> Option<Duration> {
+    let api_error = api_error_of(failure?)?;
+    if !matches!(api_error.status_code(), 429 | 502 | 503 | 504) {
+        return None;
+    }
+    let value = api_error
+        .response_headers()?
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("retry-after"))
+        .map(|(_, value)| value)?;
+    crate::api::base_api::parse_retry_after(value)
+}
+
+/// A uniform random value in [0, 1).
+fn jitter_sample() -> f64 {
+    f64::from(uuid::Uuid::new_v4().as_u128() as u32) / (f64::from(u32::MAX) + 1.0)
+}
+
+/// How long to wait before reconnect number `attempt` (1 for the first): the
+/// server's `retry` value, else `Retry-After`, else `base` doubling to 30 seconds,
+/// reduced by up to 25% of jitter. `jitter_sample` is a uniform random value in
+/// [0, 1).
+pub(crate) fn reconnect_wait(
+    attempt: u32,
+    base: Duration,
+    server_retry: Option<u64>,
+    retry_after: Option<Duration>,
+    jitter_sample: f64,
+) -> Duration {
+    if let Some(millis) = server_retry {
+        return Duration::from_millis(millis);
+    }
+    if let Some(wait) = retry_after {
+        return wait;
+    }
+    let doubled = base
+        .saturating_mul(1u32 << attempt.saturating_sub(1).min(20))
+        .min(MAX_RECONNECT_DELAY);
+    doubled.mul_f64(1.0 - 0.25 * jitter_sample)
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+
+    use super::*;
+    use crate::byte_stream::ByteStream;
+    use crate::json_lines_stream::JsonLinesStream;
+
+    #[derive(Clone)]
+    enum Connection {
+        Text(&'static str),
+        NoContent,
+        Other(u16, &'static str),
+        Failure(fn() -> Failure),
+    }
+
+    fn lost() -> Failure {
+        let cause = std::io::Error::new(std::io::ErrorKind::ConnectionReset, "reset");
+        let api_error = ApiError::transport(TransportFailure::Network, "reset".to_string(), Arc::new(cause));
+        Box::new(StreamError::from(NetworkError::try_from(api_error).expect("a network error")))
+    }
+
+    fn missing() -> Failure {
+        Box::new(ApiError::new(404, "missing".to_string(), None, Some("{}".to_string())))
+    }
+
+    /* Opens an event stream whose n-th connection (from 1) is the n-th entry; the
+     * last entry repeats. The last event ids the stream sent are recorded. */
+    fn script(connections: Vec<Connection>) -> (EventOpener, Arc<Mutex<Vec<String>>>) {
+        let ids = Arc::new(Mutex::new(Vec::new()));
+        let recorded = ids.clone();
+        let opener: EventOpener = Box::new(move |last_event_id| {
+            let index = {
+                let mut seen = recorded.lock().expect("ids");
+                seen.push(last_event_id);
+                seen.len().min(connections.len()) - 1
+            };
+            let next = connections[index].clone();
+            Box::pin(async move {
+                let stream_headers = || HashMap::from([("content-type".to_string(), "text/event-stream".to_string())]);
+                match next {
+                    Connection::Text(text) => Ok(ApiStreamResponse::new(
+                        200,
+                        stream_headers(),
+                        futures_util::stream::iter(vec![Ok(Bytes::from(text))]),
+                    )),
+                    Connection::NoContent => Ok(ApiStreamResponse::new(
+                        204,
+                        HashMap::new(),
+                        futures_util::stream::iter(Vec::new()),
+                    )),
+                    Connection::Other(status, content_type) => Ok(ApiStreamResponse::new(
+                        status,
+                        HashMap::from([("content-type".to_string(), content_type.to_string())]),
+                        futures_util::stream::iter(Vec::new()),
+                    )),
+                    Connection::Failure(make) => Err(make()),
+                }
+            })
+        });
+        (opener, ids)
+    }
+
+    fn fast() -> StreamOptions {
+        StreamOptions::new().reconnect_delay(Duration::from_millis(1))
+    }
+
+    fn text_decoder() -> DataDecoder<String> {
+        Box::new(|data| Ok(data.to_string()))
+    }
+
+    async fn sse(opener: EventOpener, options: StreamOptions) -> SseStream<String> {
+        SseStream::open(opener, text_decoder(), None, Some(&options), false, false, "GET", "/events")
+            .await
+            .expect("the first connection opens")
+    }
+
+    async fn data_of(mut stream: SseStream<String>) -> Result<Vec<String>, Failure> {
+        let mut data = Vec::new();
+        while let Some(event) = stream.next().await {
+            data.push(event?.data);
+        }
+        Ok(data)
+    }
+
+    #[tokio::test]
+    async fn test_bhv_streaming_005_a_line_or_event_longer_than_the_limit_raises_a_serialization_error_and_ends_the_stream() {
+        let source = ByteStream::new(
+            200,
+            HashMap::new(),
+            Box::pin(futures_util::stream::iter(vec![Ok(Bytes::from(format!("ok\n{}\nlater\n", "x".repeat(50))))])),
+        );
+        let mut lines = JsonLinesStream::new(source, Box::new(|line| Ok(line.to_string())), 10, "GET", "/items");
+        assert_eq!("ok", lines.next().await.expect("item").expect("decoded"));
+        let failure = lines.next().await.expect("the failure").expect_err("line 2 is too long");
+        assert!(failure.is::<SerializationError>());
+        assert!(lines.next().await.is_none());
+
+        let (opener, _) = script(vec![Connection::Text("data: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\n\n")]);
+        let options = StreamOptions::new().max_event_bytes(10);
+        let mut events = sse(opener, options).await;
+        let failure = events.next().await.expect("the failure").expect_err("the event is too long");
+        assert!(failure.is::<SerializationError>());
+        assert!(events.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_005_an_sse_data_payload_is_decoded_and_a_payload_that_does_not_decode_raises_a_serialization_error_and_ends_the_stream() {
+        let (opener, _) = script(vec![Connection::Text("data: 1\n\ndata: oops\n\ndata: 3\n\n")]);
+        let decoder: DataDecoder<i64> = Box::new(|data| {
+            data.parse::<i64>()
+                .map_err(|e| SerializationError::new("not a number".to_string(), Some(Box::new(e))))
+        });
+        let mut stream = SseStream::open(opener, decoder, None, Some(&fast()), false, false, "GET", "/events")
+            .await
+            .expect("opens");
+        assert_eq!(1, stream.next().await.expect("event").expect("decoded").data);
+        let failure = stream.next().await.expect("the failure").expect_err("oops does not decode");
+        assert!(failure.is::<SerializationError>());
+        assert!(stream.next().await.is_none());
+    }
+
+    #[test]
+    fn test_bhv_sse_008_an_sse_reconnect_waits_the_server_retry_value_else_the_reconnect_delay_doubling_to_a_cap() {
+        let second = Duration::from_secs(1);
+        assert_eq!(Duration::from_millis(250), reconnect_wait(3, second, Some(250), None, 0.0));
+        assert_eq!(Duration::from_millis(1000), reconnect_wait(1, second, None, None, 0.0));
+        assert_eq!(Duration::from_millis(2000), reconnect_wait(2, second, None, None, 0.0));
+        assert_eq!(Duration::from_millis(4000), reconnect_wait(3, second, None, None, 0.0));
+        assert_eq!(Duration::from_millis(30_000), reconnect_wait(10, second, None, None, 0.0));
+        assert_eq!(
+            Duration::from_millis(750),
+            reconnect_wait(1, second, None, None, 1.0),
+            "jitter takes up to 25%"
+        );
+        assert_eq!(
+            Duration::from_secs(5),
+            reconnect_wait(1, second, None, Some(Duration::from_secs(5)), 0.0),
+            "Retry-After replaces it"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_009_an_sse_get_stream_stops_after_five_failed_reconnects_by_default_and_raises_the_last_failure() {
+        let (opener, ids) = script(vec![Connection::Text("")]);
+        let failure = data_of(sse(opener, fast()).await).await.expect_err("the feed never comes back");
+        assert!(failure.is::<StreamError>());
+        assert_eq!(6, ids.lock().expect("ids").len(), "one request and five reconnects");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_010_an_sse_reconnect_counter_resets_after_an_event_is_received() {
+        let (opener, _) = script(vec![
+            Connection::Text("data: a\n\n"),
+            Connection::Text("data: b\n\n"),
+            Connection::Text("data: c\n\n"),
+            Connection::Text(""),
+        ]);
+        let mut stream = sse(opener, fast().max_reconnects(1)).await;
+        let mut seen = Vec::new();
+        let failure = loop {
+            match stream.next().await.expect("an item or the failure") {
+                Ok(event) => seen.push(event.data),
+                Err(failure) => break failure,
+            }
+        };
+        assert!(failure.is::<StreamError>());
+        assert_eq!(vec!["a", "b", "c"], seen, "three events survived a limit of one reconnect");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_011_an_sse_stream_does_not_reconnect_after_a_204_a_4xx_status_or_a_response_that_is_not_an_event_stream() {
+        let (none, ids) = script(vec![Connection::NoContent]);
+        assert_eq!(Vec::<String>::new(), data_of(sse(none, fast()).await).await.expect("ends"));
+        assert_eq!(1, ids.lock().expect("ids").len());
+
+        let (refused, _) = script(vec![Connection::Text("data: a\n\n"), Connection::Failure(missing)]);
+        let failure = data_of(sse(refused, fast()).await).await.expect_err("a 404 is raised");
+        assert_eq!(Some(404), api_error_of(failure.as_ref()).map(|e| e.status_code()));
+
+        let (wrong, ids) = script(vec![Connection::Text("data: a\n\n"), Connection::Other(200, "text/html")]);
+        let failure = data_of(sse(wrong, fast()).await).await.expect_err("html is refused");
+        assert!(failure.is::<SerializationError>());
+        assert_eq!(2, ids.lock().expect("ids").len(), "asked once more, then refused the answer");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_016_an_sse_request_with_a_body_is_not_reconnected_unless_the_caller_turns_reconnect_on() {
+        let (off, ids) = script(vec![Connection::Text("data: a\n\n"), Connection::Text("data: b\n\n")]);
+        let stream = SseStream::open(off, text_decoder(), None, Some(&fast()), true, false, "POST", "/events")
+            .await
+            .expect("opens");
+        assert_eq!(vec!["a"], data_of(stream).await.expect("ends"));
+        assert_eq!(1, ids.lock().expect("ids").len());
+
+        let (on, _) = script(vec![
+            Connection::Text("data: a\n\n"),
+            Connection::Text("data: b\n\n"),
+            Connection::NoContent,
+        ]);
+        let options = fast().max_reconnects(2);
+        let stream = SseStream::open(on, text_decoder(), None, Some(&options), true, false, "POST", "/events")
+            .await
+            .expect("opens");
+        assert_eq!(vec!["a", "b"], data_of(stream).await.expect("ends"));
+
+        let (single, ids) = script(vec![
+            Connection::Text("data: a\n\n"),
+            Connection::Text("data: b\n\n"),
+            Connection::NoContent,
+        ]);
+        let options = fast().max_reconnects(2);
+        let stream = SseStream::open(single, text_decoder(), None, Some(&options), true, true, "POST", "/events")
+            .await
+            .expect("opens");
+        assert_eq!(vec!["a"], data_of(stream).await.expect("ends"));
+        assert_eq!(1, ids.lock().expect("ids").len(), "a single use body is never reconnected");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_017_an_sse_event_with_an_id_and_no_data_is_not_dispatched_but_updates_the_last_event_id_and_a_reconnect_resumes_from_it() {
+        let (opener, ids) = script(vec![
+            Connection::Text("data: a\nid: 1\n\nid: 2\n\n"),
+            Connection::Text("data: b\nid: 3\n\n"),
+            Connection::NoContent,
+        ]);
+        assert_eq!(vec!["a", "b"], data_of(sse(opener, fast()).await).await.expect("ends"));
+        assert_eq!(vec!["".to_string(), "2".to_string()], ids.lock().expect("ids")[..2]);
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_021_the_configured_sse_terminator_ends_the_stream_and_is_not_delivered() {
+        let (opener, _) = script(vec![Connection::Text("data: a\n\ndata: [DONE]\n\ndata: b\n\n")]);
+        let stream = SseStream::open(
+            opener,
+            text_decoder(),
+            Some("[DONE]".to_string()),
+            Some(&fast()),
+            false,
+            false,
+            "GET",
+            "/events",
+        )
+        .await
+        .expect("opens");
+        assert_eq!(vec!["a"], data_of(stream).await.expect("ends"));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_022_an_sse_event_named_error_raises_the_api_error_with_the_status_and_data_and_any_other_name_is_an_item() {
+        let (opener, ids) = script(vec![
+            Connection::Text("event: update\ndata: fine\n\nevent: error\ndata: {\"why\":\"bad\"}\n\n"),
+            Connection::Text("data: again\n\n"),
+        ]);
+        let mut stream = sse(opener, fast()).await;
+        assert_eq!("update", stream.next().await.expect("event").expect("an item").event);
+        let failure = stream.next().await.expect("the failure").expect_err("the error event");
+        let api_error = failure.downcast_ref::<ApiError>().expect("an api error");
+        assert_eq!(200, api_error.status_code());
+        assert_eq!(Some("{\"why\":\"bad\"}"), api_error.response_body());
+        assert_eq!(1, ids.lock().expect("ids").len(), "an error event is not reconnected");
+        assert!(stream.next().await.is_none());
+    }
+}

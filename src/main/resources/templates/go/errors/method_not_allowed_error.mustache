@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// MethodNotAllowedError is the error for HTTP 405 Method Not Allowed.
+type MethodNotAllowedError struct {
+	ClientError
+}

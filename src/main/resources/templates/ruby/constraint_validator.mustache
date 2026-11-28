@@ -1,0 +1,176 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+# :nodoc:
+module {{moduleName}}
+  # Checks a request body against the validation keywords of its schema
+  # (minLength, maxLength, pattern, minimum, maximum, exclusiveMinimum,
+  # exclusiveMaximum, multipleOf, minItems, maxItems, minProperties and
+  # maxProperties) and of the models it holds, before the request is sent.
+  # {Api::BaseApi} runs it only when {Configuration#validate_constraints} is on.
+  #
+  # @api private
+  module ConstraintValidator
+{{#hasConstraintModels}}
+    # Compiles a schema pattern, or returns +nil+ when Ruby's engine cannot
+    # compile it, in which case the pattern is not enforced.
+    # @param source [String] the pattern as the schema spells it
+    # @return [Regexp, nil]
+    def self.compile(source)
+      Regexp.new(source)
+    rescue RegexpError
+      nil
+    end
+{{#constraintModels}}
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isPattern}}
+    {{#lambda.uppercase}}{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}_{{name}}{{/lambda.uppercase}}_PATTERN = compile('{{#lambda.rubyQuoted}}{{{pattern}}}{{/lambda.rubyQuoted}}')
+{{/isPattern}}
+{{/checks}}
+{{/vendorExtensions.constraintProps}}
+{{/constraintModels}}
+
+    # Checks a request body. A list body is checked item by item; any other
+    # value that is not a model with constraints passes.
+    # @param body [Object] the request body
+    # @return [void]
+    # @raise [ArgumentError] naming the path and the rule of the first violation
+    def self.validate(body)
+      if body.is_a?(Array)
+        body.each_with_index { |item, index| validate_value(item, "[#{index}].") }
+      else
+        validate_value(body, '')
+      end
+    end
+
+    # Checks one value whose path starts with +prefix+. The class is matched
+    # exactly, so a model that extends another is checked by its own rules.
+    # @param value [Object] the value
+    # @param prefix [String] the path of the value, ending in a dot when not empty
+    # @return [void]
+    def self.validate_value(value, prefix)
+{{#constraintModels}}
+      return check_{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}(value, prefix) if value.instance_of?(::{{moduleName}}::Models::{{classname}})
+{{/constraintModels}}
+      nil
+    end
+{{#constraintModels}}
+
+    # Checks the properties of a {Models::{{classname}}} in declaration order.
+    # @param value [Models::{{classname}}] the model
+    # @param prefix [String] the path of the model, ending in a dot when not empty
+    # @return [void]
+    def self.check_{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}(value, prefix)
+{{#vendorExtensions.constraintProps}}
+      field = value.{{name}}
+      unless field.nil?
+        path = "#{prefix}{{baseName}}"
+{{#checks}}
+{{#isMinLength}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if below?(field.length, {{limit}})
+{{/isMinLength}}
+{{#isMaxLength}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if above?(field.length, {{limit}})
+{{/isMaxLength}}
+{{#isPattern}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if mismatch?({{#lambda.uppercase}}{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}_{{name}}{{/lambda.uppercase}}_PATTERN, field)
+{{/isPattern}}
+{{#isMinimum}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if below?(field, {{limit}})
+{{/isMinimum}}
+{{#isMaximum}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if above?(field, {{limit}})
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') unless above?(field, {{limit}})
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') unless below?(field, {{limit}})
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') unless multiple_of?(field, {{limitDouble}})
+{{/isMultipleOf}}
+{{#isMinItems}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if below?(field.size, {{limit}})
+{{/isMinItems}}
+{{#isMaxItems}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if above?(field.size, {{limit}})
+{{/isMaxItems}}
+{{#isMinProperties}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if below?(field.size, {{limit}})
+{{/isMinProperties}}
+{{#isMaxProperties}}
+        fail_at(path, '{{#lambda.rubyQuoted}}{{{message}}}{{/lambda.rubyQuoted}}') if above?(field.size, {{limit}})
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+        validate_value(field, "#{path}.")
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        field.each_with_index { |item, index| validate_value(item, "#{path}[#{index}].") }
+{{/hasNestedItemsModel}}
+      end
+{{/vendorExtensions.constraintProps}}
+      nil
+    end
+{{/constraintModels}}
+
+    # Whether a compiled pattern finds no match in the text; a pattern that
+    # did not compile never fails.
+    # @param pattern [Regexp, nil] the compiled pattern
+    # @param text [String] the value
+    # @return [Boolean]
+    def self.mismatch?(pattern, text)
+      return false if pattern.nil?
+
+      !pattern.match?(text)
+    end
+
+    # Whether +value+ is less than +limit+.
+    # @param value [Numeric] the value, a length or a size
+    # @param limit [Numeric] the bound
+    # @return [Boolean]
+    def self.below?(value, limit)
+      value < limit
+    end
+
+    # Whether +value+ is greater than +limit+.
+    # @param value [Numeric] the value, a length or a size
+    # @param limit [Numeric] the bound
+    # @return [Boolean]
+    def self.above?(value, limit)
+      value > limit
+    end
+
+    # Whether +value+ divided by +limit+ is a whole number, within 1e-9.
+    # @param value [Numeric] the value
+    # @param limit [Float] the divisor
+    # @return [Boolean]
+    def self.multiple_of?(value, limit)
+      quotient = value.to_f / limit
+      (quotient - quotient.round).abs < 1e-9
+    end
+
+    # Raises the argument error for a violation.
+    # @param path [String] the wire path of the value
+    # @param message [String] the rule the value breaks
+    # @raise [ArgumentError] always
+    def self.fail_at(path, message)
+      raise ArgumentError, "Invalid request body: #{path} #{message}"
+    end
+    private_class_method :compile, :validate_value, :mismatch?, :below?, :above?, :multiple_of?, :fail_at{{#constraintModels}},
+                         :check_{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}{{/constraintModels}}
+{{/hasConstraintModels}}
+{{^hasConstraintModels}}
+    # Checks a request body. The specification declares no validation
+    # keywords on any model, so every body passes.
+    # @param _body [Object] the request body
+    # @return [void]
+    def self.validate(_body)
+      nil
+    end
+{{/hasConstraintModels}}
+  end
+end

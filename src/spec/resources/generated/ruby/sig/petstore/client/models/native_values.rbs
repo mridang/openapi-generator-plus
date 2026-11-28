@@ -1,0 +1,24 @@
+module Petstore::Client::Models
+  class NativeValues < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> NativeValues
+    attr_reader address4: IPAddr?
+    attr_reader address6: IPAddr?
+    attr_reader addresses: Array[IPAddr]?
+    attr_reader homepage: String?
+    attr_reader amount: BigDecimal?
+    attr_reader amounts: Array[BigDecimal]?
+    attr_reader ledger: BigDecimal?
+    attr_reader wait: ISO8601::Duration?
+    attr_reader since: Date?
+    attr_reader host: String?
+    attr_reader contact: String?
+  end
+end

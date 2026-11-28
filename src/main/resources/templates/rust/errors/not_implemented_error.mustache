@@ -1,0 +1,44 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::errors::server_error::ServerError;
+
+/// Error for HTTP 501 Not Implemented.
+#[derive(Debug, Clone)]
+pub struct NotImplementedError {
+    server_error: ServerError,
+}
+
+impl NotImplementedError {
+    /// Returns the underlying [`ServerError`].
+    pub fn server_error(&self) -> &ServerError {
+        &self.server_error
+    }
+}
+
+impl fmt::Display for NotImplementedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.server_error.api_error(), f)
+    }
+}
+
+impl std::error::Error for NotImplementedError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.server_error)
+    }
+}
+
+/// Wraps a [`ServerError`] whose status is 501. Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ServerError> for NotImplementedError {
+    type Error = ServerError;
+
+    fn try_from(server_error: ServerError) -> Result<Self, Self::Error> {
+        if server_error.api_error().status_code() == 501 {
+            Ok(Self { server_error })
+        } else {
+            Err(server_error)
+        }
+    }
+}

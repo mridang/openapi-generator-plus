@@ -1,0 +1,622 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::time::Instant;
+
+use opentelemetry::global::BoxedTracer;
+use opentelemetry::metrics::{Counter, Histogram, Meter, MeterProvider};
+use opentelemetry::trace::{SpanKind, Status, TraceContextExt, Tracer, TracerProvider};
+use opentelemetry::{global, Context, InstrumentationScope, KeyValue};
+
+use crate::api_client::{insert_header, remove_header};
+use crate::call_hook::{CallCancelled, CallHook, CallInfo, CallObserver, CallOutcome};
+use crate::errors::{NetworkError, NetworkTimeoutError, SerializationError};
+
+/// A [`CallHook`] that records one span, one request count and one duration
+/// histogram per call with the OpenTelemetry API.
+///
+/// The span is named with the operation id and has kind client. It carries
+/// `http.request.method`, `url.template`, `server.address`,
+/// `http.response.status_code` (only when a response arrived) and `error.type`
+/// (only on failure: the status code for a status of 400 or more, otherwise
+/// `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`).
+/// The counter `http.client.request.count` (unit `{request}`) and the histogram
+/// `http.client.request.duration` (unit `s`) carry the same attributes. The
+/// instrumentation scope is the package name and its version. The hook writes
+/// `traceparent` (and `tracestate`) itself, so the request names the client span
+/// as its parent. Nothing records a query string, a header value or a
+/// credential.
+///
+/// It needs the `opentelemetry` feature, and only the OpenTelemetry API: the
+/// application installs the SDK. Create the hook after the global providers are
+/// installed, or pass your own with [`OpenTelemetryCallHook::with_providers`].
+///
+/// ```rust,ignore
+/// let hook = {{packageName}}::OpenTelemetryCallHook::new();
+/// let config = {{packageName}}::Configuration::builder()
+///     .call_hook(std::sync::Arc::new(hook))
+///     .build();
+/// ```
+pub struct OpenTelemetryCallHook {
+    tracer: BoxedTracer,
+    counter: Counter<u64>,
+    duration: Histogram<f64>,
+}
+
+impl OpenTelemetryCallHook {
+    /// Creates a hook on the global tracer and meter providers. Without a
+    /// provider installed it records nothing and leaves the call unchanged.
+    pub fn new() -> Self {
+        Self::build(global::tracer_with_scope(scope()), global::meter_with_scope(scope()))
+    }
+
+    /// Creates a hook on the given providers instead of the global ones.
+    pub fn with_providers<T, M>(tracer_provider: &T, meter_provider: &M) -> Self
+    where
+        T: TracerProvider,
+        T::Tracer: Send + Sync + 'static,
+        <T::Tracer as Tracer>::Span: Send + Sync + 'static,
+        M: MeterProvider,
+    {
+        let tracer = BoxedTracer::new(Box::new(tracer_provider.tracer_with_scope(scope())));
+        Self::build(tracer, meter_provider.meter_with_scope(scope()))
+    }
+
+    fn build(tracer: BoxedTracer, meter: Meter) -> Self {
+        Self {
+            tracer,
+            counter: meter
+                .u64_counter("http.client.request.count")
+                .with_unit("{request}")
+                .build(),
+            duration: meter
+                .f64_histogram("http.client.request.duration")
+                .with_unit("s")
+                .build(),
+        }
+    }
+}
+
+impl Default for OpenTelemetryCallHook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The instrumentation scope: the package name and its version.
+fn scope() -> InstrumentationScope {
+    InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
+        .with_version(env!("CARGO_PKG_VERSION"))
+        .build()
+}
+
+impl CallHook for OpenTelemetryCallHook {
+    fn start(
+        &self,
+        info: &CallInfo,
+        headers: &mut HashMap<String, String>,
+    ) -> Option<Box<dyn CallObserver>> {
+        let attributes = vec![
+            KeyValue::new("http.request.method", info.method.clone()),
+            KeyValue::new("url.template", info.url_template.clone()),
+            KeyValue::new("server.address", info.server_address.clone()),
+        ];
+        let parent = Context::current();
+        let span = self.tracer.build_with_context(
+            self.tracer
+                .span_builder(info.operation_id.clone())
+                .with_kind(SpanKind::Client)
+                .with_attributes(attributes.clone()),
+            &parent,
+        );
+        let cx = parent.with_span(span);
+
+        /* The adapter writes the W3C headers itself, after the propagated
+         * context of the caller's span, so the request names the client span as
+         * its parent. A span that is not recording a valid context (no provider)
+         * leaves the headers alone. */
+        let span_context = cx.span().span_context().clone();
+        if span_context.is_valid() {
+            insert_header(
+                headers,
+                "traceparent".to_string(),
+                format!(
+                    "00-{}-{}-{:02x}",
+                    span_context.trace_id(),
+                    span_context.span_id(),
+                    span_context.trace_flags().to_u8()
+                ),
+            );
+            let state = span_context.trace_state().header();
+            if state.is_empty() {
+                remove_header(headers, "tracestate");
+            } else {
+                insert_header(headers, "tracestate".to_string(), state);
+            }
+        }
+
+        Some(Box::new(Observer {
+            cx,
+            attributes,
+            counter: self.counter.clone(),
+            duration: self.duration.clone(),
+            started: Instant::now(),
+        }))
+    }
+}
+
+struct Observer {
+    cx: Context,
+    attributes: Vec<KeyValue>,
+    counter: Counter<u64>,
+    duration: Histogram<f64>,
+    started: Instant,
+}
+
+impl CallObserver for Observer {
+    fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {
+        let elapsed = self.started.elapsed().as_secs_f64();
+        let mut attributes = self.attributes.clone();
+        if outcome.status_code != 0 {
+            attributes.push(KeyValue::new(
+                "http.response.status_code",
+                i64::from(outcome.status_code),
+            ));
+        }
+        let error_type = error_type_of(outcome);
+        if let Some(error_type) = &error_type {
+            attributes.push(KeyValue::new("error.type", error_type.clone()));
+        }
+
+        let span = self.cx.span();
+        if outcome.status_code != 0 {
+            span.set_attribute(KeyValue::new(
+                "http.response.status_code",
+                i64::from(outcome.status_code),
+            ));
+        }
+        if let Some(error_type) = error_type {
+            span.set_attribute(KeyValue::new("error.type", error_type.clone()));
+            span.set_status(Status::error(error_type));
+        }
+        span.end();
+
+        self.counter.add(1, &attributes);
+        self.duration.record(elapsed, &attributes);
+    }
+}
+
+/// The `error.type` of an outcome: the status for a status of 400 or more,
+/// otherwise a token for the kind of error, and `None` on success.
+fn error_type_of(outcome: &CallOutcome<'_>) -> Option<String> {
+    if outcome.status_code >= 400 {
+        return Some(outcome.status_code.to_string());
+    }
+    let error = outcome.error?;
+    let token = if error.downcast_ref::<NetworkTimeoutError>().is_some() {
+        "timeout"
+    } else if error.downcast_ref::<NetworkError>().is_some() {
+        "network_error"
+    } else if error.downcast_ref::<SerializationError>().is_some() {
+        "serialization_error"
+    } else if error.downcast_ref::<CallCancelled>().is_some() {
+        "cancelled"
+    } else {
+        "_OTHER"
+    };
+    Some(token.to_string())
+}
+
+/* These tests live in-crate (rather than under tests/) because the adapter is
+ * a feature-gated module of the crate; they install the OpenTelemetry SDK with
+ * in-memory exporters, so run the suite with `--all-features`. */
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::base_api::{BaseApi, CallOptions, InvokeApiParams};
+    use crate::api_client::{ApiClient, RequestBody};
+    use crate::api_http_response::ApiHttpResponse;
+    use crate::call_hook::CallScope;
+    use crate::errors::ApiError;
+    use crate::ConfigurationBuilder;
+    use opentelemetry::trace::Span as _;
+    use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
+    use opentelemetry_sdk::metrics::{InMemoryMetricExporter, PeriodicReader, SdkMeterProvider};
+    use opentelemetry_sdk::trace::{InMemorySpanExporter, SdkTracerProvider, SpanData};
+    use std::sync::{Arc, Mutex};
+
+    struct Harness {
+        spans: InMemorySpanExporter,
+        metrics: InMemoryMetricExporter,
+        traces: SdkTracerProvider,
+        meters: SdkMeterProvider,
+        hook: Arc<OpenTelemetryCallHook>,
+    }
+
+    fn harness() -> Harness {
+        let spans = InMemorySpanExporter::default();
+        let traces = SdkTracerProvider::builder().with_simple_exporter(spans.clone()).build();
+        let metrics = InMemoryMetricExporter::default();
+        let meters = SdkMeterProvider::builder()
+            .with_reader(PeriodicReader::builder(metrics.clone()).build())
+            .build();
+        let hook = Arc::new(OpenTelemetryCallHook::with_providers(&traces, &meters));
+        Harness { spans, metrics, traces, meters, hook }
+    }
+
+    fn info() -> CallInfo {
+        CallInfo {
+            operation_id: "echo_operation".to_string(),
+            method: "GET".to_string(),
+            url_template: "/items/{id}".to_string(),
+            url: "http://localhost/items/7".to_string(),
+            server_address: "localhost".to_string(),
+        }
+    }
+
+    /// Starts and finishes one call by hand and returns the request headers.
+    fn run(h: &Harness, status_code: u16, error: Option<&(dyn std::error::Error + 'static)>) -> HashMap<String, String> {
+        let mut headers = HashMap::new();
+        let observer = h.hook.start(&info(), &mut headers).expect("an observer");
+        let response_headers = HashMap::new();
+        observer.finish(&CallOutcome {
+            status_code,
+            headers: if status_code == 0 { None } else { Some(&response_headers) },
+            error,
+        });
+        headers
+    }
+
+    fn finished(h: &Harness) -> Vec<SpanData> {
+        h.spans.get_finished_spans().unwrap()
+    }
+
+    fn attributes(span: &SpanData) -> HashMap<String, String> {
+        span.attributes.iter().map(|kv| (kv.key.to_string(), kv.value.to_string())).collect()
+    }
+
+    struct Point {
+        name: String,
+        unit: String,
+        scope_name: String,
+        scope_version: String,
+        attributes: HashMap<String, String>,
+        count: u64,
+        sum: f64,
+    }
+
+    fn points(h: &Harness) -> Vec<Point> {
+        h.meters.force_flush().unwrap();
+        let mut out = Vec::new();
+        for resource in h.metrics.get_finished_metrics().unwrap() {
+            for scope in resource.scope_metrics() {
+                for metric in scope.metrics() {
+                    let named = |attributes: HashMap<String, String>, count: u64, sum: f64| Point {
+                        name: metric.name().to_string(),
+                        unit: metric.unit().to_string(),
+                        scope_name: scope.scope().name().to_string(),
+                        scope_version: scope.scope().version().unwrap_or_default().to_string(),
+                        attributes,
+                        count,
+                        sum,
+                    };
+                    let map = |attrs: &mut dyn Iterator<Item = &KeyValue>| -> HashMap<String, String> {
+                        attrs.map(|kv| (kv.key.to_string(), kv.value.to_string())).collect()
+                    };
+                    match metric.data() {
+                        AggregatedMetrics::U64(MetricData::Sum(sum)) => {
+                            for point in sum.data_points() {
+                                out.push(named(map(&mut point.attributes()), point.value(), 0.0));
+                            }
+                        }
+                        AggregatedMetrics::F64(MetricData::Histogram(histogram)) => {
+                            for point in histogram.data_points() {
+                                out.push(named(map(&mut point.attributes()), point.count(), point.sum()));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    fn network_error() -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(NetworkError::try_from(ApiError::new(0, "refused".to_string(), None, None)).expect("status 0"))
+    }
+
+    /* A transport that answers the statuses in order. */
+    struct Scripted {
+        statuses: Mutex<Vec<u16>>,
+        fail: bool,
+    }
+
+    impl ApiClient for Scripted {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = if self.fail {
+                Err(network_error())
+            } else {
+                let status = self.statuses.lock().unwrap().remove(0);
+                let mut headers = HashMap::new();
+                headers.insert("Retry-After".to_string(), "0".to_string());
+                Ok(ApiHttpResponse::new(status, "{}".to_string(), headers))
+            };
+            Box::pin(async move { outcome })
+        }
+
+        fn max_retries(&self) -> u32 {
+            2
+        }
+    }
+
+    fn params() -> InvokeApiParams<'static> {
+        InvokeApiParams {
+            operation: "TestApi.test",
+            method: "GET",
+            path: "/items/7",
+            operation_id: "echo_operation",
+            url_template: "/items/{id}",
+            query_params: vec![("token".to_string(), "secret".to_string(), false)],
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            source: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+            call: CallOptions::default(),
+            error_schemas: &[],
+        }
+    }
+
+    fn api(h: &Harness, statuses: Vec<u16>, fail: bool) -> BaseApi {
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("Authorization", "Bearer topsecret")
+            .call_hook(h.hook.clone())
+            .build();
+        BaseApi::new(Arc::new(Scripted { statuses: Mutex::new(statuses), fail }), config, None)
+    }
+
+    #[test]
+    fn test_bhv_telemetry_001_the_span_is_named_with_the_operation_id_and_has_kind_client() {
+        let h = harness();
+        run(&h, 200, None);
+
+        let spans = finished(&h);
+        assert_eq!(1, spans.len());
+        assert_eq!("echo_operation", spans[0].name);
+        assert_eq!(opentelemetry::trace::SpanKind::Client, spans[0].span_kind);
+    }
+
+    #[test]
+    fn test_bhv_telemetry_002_a_2xx_sets_the_request_and_response_attributes_and_leaves_the_status_unset() {
+        let h = harness();
+        run(&h, 200, None);
+
+        let span = &finished(&h)[0];
+        let mut expected = HashMap::new();
+        expected.insert("http.request.method".to_string(), "GET".to_string());
+        expected.insert("url.template".to_string(), "/items/{id}".to_string());
+        expected.insert("server.address".to_string(), "localhost".to_string());
+        expected.insert("http.response.status_code".to_string(), "200".to_string());
+        assert_eq!(expected, attributes(span));
+        assert_eq!(opentelemetry::trace::Status::Unset, span.status);
+    }
+
+    #[test]
+    fn test_bhv_telemetry_003_a_4xx_or_5xx_sets_the_status_as_error_type_and_marks_the_span_an_error() {
+        for status in [404u16, 503] {
+            let h = harness();
+            let failure = ApiError::new(status, "failed".to_string(), None, None);
+            run(&h, status, Some(&failure));
+
+            let span = &finished(&h)[0];
+            assert_eq!(Some(&status.to_string()), attributes(span).get("error.type"));
+            assert!(matches!(span.status, opentelemetry::trace::Status::Error { .. }), "{status}");
+        }
+    }
+
+    #[test]
+    fn test_bhv_telemetry_004_error_type_names_the_kind_of_error() {
+        let timeout = NetworkTimeoutError::from(
+            NetworkError::try_from(ApiError::new(0, "timed out".to_string(), None, None)).expect("status 0"),
+        );
+        let network = NetworkError::try_from(ApiError::new(0, "refused".to_string(), None, None)).expect("status 0");
+        let decode = SerializationError::new("bad body".to_string(), None);
+        let other = std::io::Error::other("something else");
+        let cases: Vec<(&str, &(dyn std::error::Error + 'static))> = vec![
+            ("timeout", &timeout),
+            ("network_error", &network),
+            ("serialization_error", &decode),
+            ("cancelled", &CallCancelled),
+            ("_OTHER", &other),
+        ];
+        for (token, error) in cases {
+            let h = harness();
+            run(&h, 0, Some(error));
+
+            let span = &finished(&h)[0];
+            assert_eq!(Some(&token.to_string()), attributes(span).get("error.type"), "{token}");
+            assert!(matches!(span.status, opentelemetry::trace::Status::Error { .. }), "{token}");
+        }
+    }
+
+    #[test]
+    fn test_bhv_telemetry_005_a_call_with_no_response_sets_no_status_code() {
+        let h = harness();
+        let failure = network_error();
+        run(&h, 0, Some(&*failure));
+
+        assert!(!attributes(&finished(&h)[0]).contains_key("http.response.status_code"));
+    }
+
+    #[test]
+    fn test_bhv_telemetry_006_the_span_is_a_child_of_the_active_span_and_the_traceparent_names_it() {
+        let h = harness();
+        let parent = h.traces.tracer("parent").start("caller");
+        let parent_context = parent.span_context().clone();
+        let cx = opentelemetry::Context::new().with_span(parent);
+        let mut headers = HashMap::new();
+        headers.insert("traceparent".to_string(), "00-stale".to_string());
+        {
+            let _active = cx.clone().attach();
+            let observer = h.hook.start(&info(), &mut headers).expect("an observer");
+            observer.finish(&CallOutcome { status_code: 200, headers: None, error: None });
+        }
+
+        let child = &finished(&h)[0];
+        assert_eq!(parent_context.span_id(), child.parent_span_id);
+        assert_eq!(parent_context.trace_id(), child.span_context.trace_id());
+        let names: Vec<_> = headers.keys().filter(|k| k.eq_ignore_ascii_case("traceparent")).collect();
+        assert_eq!(1, names.len());
+        assert_eq!(
+            format!(
+                "00-{}-{}-{:02x}",
+                child.span_context.trace_id(),
+                child.span_context.span_id(),
+                child.span_context.trace_flags().to_u8()
+            ),
+            headers["traceparent"]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_telemetry_007_a_call_retried_by_the_transport_records_one_span_and_one_count() {
+        let h = harness();
+
+        api(&h, vec![503, 200], false)
+            .invoke_api(params())
+            .await
+            .expect("the retry succeeds");
+
+        assert_eq!(1, finished(&h).len());
+        let counts: Vec<_> = points(&h).into_iter().filter(|p| p.name == "http.client.request.count").collect();
+        assert_eq!(1, counts.len());
+        assert_eq!(1, counts[0].count);
+    }
+
+    #[test]
+    fn test_bhv_telemetry_008_the_request_count_is_incremented_once_with_the_span_attributes() {
+        let h = harness();
+        run(&h, 200, None);
+
+        let counts: Vec<_> = points(&h).into_iter().filter(|p| p.name == "http.client.request.count").collect();
+        assert_eq!(1, counts.len());
+        assert_eq!(1, counts[0].count);
+        assert_eq!("{request}", counts[0].unit);
+        assert_eq!(attributes(&finished(&h)[0]), counts[0].attributes);
+    }
+
+    #[test]
+    fn test_bhv_telemetry_009_the_duration_histogram_records_one_value_in_seconds_with_the_span_attributes() {
+        let h = harness();
+        run(&h, 200, None);
+
+        let durations: Vec<_> =
+            points(&h).into_iter().filter(|p| p.name == "http.client.request.duration").collect();
+        assert_eq!(1, durations.len());
+        assert_eq!(1, durations[0].count);
+        assert_eq!("s", durations[0].unit);
+        assert!(durations[0].sum >= 0.0 && durations[0].sum < 60.0, "{}", durations[0].sum);
+        assert_eq!(attributes(&finished(&h)[0]), durations[0].attributes);
+    }
+
+    #[test]
+    fn test_bhv_telemetry_010_the_instrumentation_scope_is_the_package_name_and_version() {
+        let h = harness();
+        run(&h, 200, None);
+
+        let span = &finished(&h)[0];
+        assert_eq!(env!("CARGO_PKG_NAME"), span.instrumentation_scope.name());
+        assert_eq!(Some(env!("CARGO_PKG_VERSION")), span.instrumentation_scope.version());
+        for point in points(&h) {
+            assert_eq!(env!("CARGO_PKG_NAME"), point.scope_name);
+            assert_eq!(env!("CARGO_PKG_VERSION"), point.scope_version);
+        }
+    }
+
+    #[test]
+    fn test_bhv_telemetry_011_a_provider_handed_to_the_hook_is_used_instead_of_the_global_one() {
+        let h = harness();
+        let global = OpenTelemetryCallHook::new();
+
+        let mut headers = HashMap::new();
+        global
+            .start(&info(), &mut headers)
+            .expect("an observer")
+            .finish(&CallOutcome { status_code: 200, headers: None, error: None });
+        assert!(finished(&h).is_empty(), "the global hook never reaches this provider");
+        assert!(headers.is_empty());
+
+        run(&h, 200, None);
+        assert_eq!(1, finished(&h).len());
+        assert!(!points(&h).is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_telemetry_012_with_no_provider_the_hook_does_nothing_and_the_call_is_unchanged() {
+        let h = harness();
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .call_hook(Arc::new(OpenTelemetryCallHook::new()))
+            .build();
+        let client = Arc::new(Scripted { statuses: Mutex::new(vec![200]), fail: false });
+        let base = BaseApi::new(client, config, None);
+
+        let response = base.invoke_api(params()).await.expect("the call succeeds");
+
+        assert_eq!(200, response.status_code());
+        assert!(finished(&h).is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_telemetry_013_the_span_ends_exactly_once_also_when_the_call_fails_or_is_dropped() {
+        let h = harness();
+        api(&h, vec![200], false).invoke_api(params()).await.expect("success");
+        assert_eq!(1, finished(&h).len());
+
+        let failed = harness();
+        api(&failed, Vec::new(), true).invoke_api(params()).await.expect_err("network failure");
+        assert_eq!(1, finished(&failed).len());
+        assert_eq!(Some(&"network_error".to_string()), attributes(&finished(&failed)[0]).get("error.type"));
+
+        let dropped = harness();
+        let hook: Arc<dyn CallHook> = dropped.hook.clone();
+        let mut scope = CallScope::new();
+        scope.begin(Some(&hook), &mut HashMap::new(), info);
+        drop(scope);
+        assert_eq!(1, finished(&dropped).len());
+        assert_eq!(Some(&"cancelled".to_string()), attributes(&finished(&dropped)[0]).get("error.type"));
+    }
+
+    #[tokio::test]
+    async fn test_bhv_telemetry_014_no_attribute_carries_a_query_string_a_header_value_or_a_credential() {
+        let h = harness();
+        api(&h, vec![200], false).invoke_api(params()).await.expect("success");
+
+        let mut values: Vec<String> = attributes(&finished(&h)[0]).into_values().collect();
+        for point in points(&h) {
+            values.extend(point.attributes.into_values());
+        }
+        assert!(!values.is_empty());
+        for value in values {
+            assert!(!value.contains("secret") && !value.contains("Bearer") && !value.contains('?'), "{value}");
+        }
+    }
+}

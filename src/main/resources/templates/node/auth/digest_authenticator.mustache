@@ -1,0 +1,248 @@
+{{>api_info}}
+
+import { createHash, randomBytes } from 'node:crypto';
+import type { Authenticator } from './authenticator{{importFileExtension}}';
+import { BaseAuthenticator } from './base-authenticator{{importFileExtension}}';
+import { resolveCredential } from './credentials{{importFileExtension}}';
+
+/** The environment variables read when no user name or password is passed. */
+const USERNAME_VARIABLE = '{{envVarPrefix}}_USERNAME';
+const PASSWORD_VARIABLE = '{{envVarPrefix}}_PASSWORD';
+
+/** The algorithms a challenge may name, in lower case; MD5 when it names none. */
+const ALGORITHMS = new Set(['md5', 'md5-sess', 'sha-256', 'sha-256-sess']);
+
+/**
+ * An authenticator that answers the server's 401 challenge. The base API asks
+ * it for the `Authorization` header of a request, which needs the method and
+ * the request target, and hands it the `WWW-Authenticate` value of a 401.
+ * Internal to the SDK.
+ */
+export interface ChallengeAuthenticator extends Authenticator {
+  /**
+   * The `Authorization` header that answers the remembered challenge, or
+   * `null` before any challenge was accepted.
+   *
+   * @param method the upper-case HTTP method
+   * @param requestTarget the path and query of the request URL
+   */
+  authorization(method: string, requestTarget: string): string | null;
+
+  /**
+   * Remembers the first challenge of a `WWW-Authenticate` value this
+   * authenticator can answer.
+   *
+   * @param wwwAuthenticate the header value, every challenge of every line
+   * @returns whether a challenge was accepted
+   */
+  acceptChallenge(wwwAuthenticate: string): boolean;
+}
+
+/**
+ * Whether an authenticator answers challenges (see {@link ChallengeAuthenticator}).
+ *
+ * @param auth the authenticator to check
+ */
+export function isChallengeAuthenticator(auth: Authenticator | null | undefined): auth is ChallengeAuthenticator {
+  return (
+    auth != null &&
+    typeof (auth as ChallengeAuthenticator).authorization === 'function' &&
+    typeof (auth as ChallengeAuthenticator).acceptChallenge === 'function'
+  );
+}
+
+/** A remembered challenge. */
+interface DigestChallenge {
+  readonly realm: string;
+  readonly nonce: string;
+  readonly opaque: string | undefined;
+  readonly algorithm: string | undefined;
+  readonly qop: boolean;
+}
+
+/**
+ * Authenticator for HTTP Digest authentication (RFC 7616).
+ *
+ * Nothing is sent with the first request. When the server answers 401 with a
+ * `WWW-Authenticate: Digest` challenge, the SDK asks this authenticator to
+ * answer it and replays the request once; later requests answer the
+ * remembered challenge up front with the nonce count incremented. MD5,
+ * MD5-sess, SHA-256 and SHA-256-sess are answered, with `qop=auth` or without
+ * a qop.
+ *
+ * Each of the user name and the password is the explicit argument, or else
+ * the environment variable `{{envVarPrefix}}_USERNAME` or
+ * `{{envVarPrefix}}_PASSWORD`, read once here (an empty variable counts as unset).
+ * A missing value fails here, when the authenticator is built.
+ */
+export class DigestAuthenticator extends BaseAuthenticator implements ChallengeAuthenticator {
+  private readonly host: string;
+  private readonly username: string;
+  private readonly password: string;
+  private challenge: DigestChallenge | null = null;
+  private nonceCount = 0;
+  /** The client nonce of each answer: 16 random bytes as hex. Replaced in tests. */
+  private cnonceSource: () => string = () => randomBytes(16).toString('hex');
+
+  /**
+   * @param host API base URL
+   * @param username the user name, or `undefined` to read it from the environment
+   * @param password the password, or `undefined` to read it from the environment
+   * @throws TypeError if a value is missing or malformed
+   */
+  constructor(host: string, username: string | undefined, password: string | undefined) {
+    super();
+    const resolvedUsername = resolveCredential(username, USERNAME_VARIABLE, 'Digest username');
+    const resolvedPassword = resolveCredential(password, PASSWORD_VARIABLE, 'Digest password');
+    if (resolvedUsername === '') {
+      throw new TypeError('Digest username must not be empty');
+    }
+    if (/[\r\n\0]/.test(resolvedUsername) || /[\r\n\0]/.test(resolvedPassword)) {
+      throw new TypeError('Digest credentials must not contain a line break or NUL');
+    }
+    if (resolvedUsername.includes('"')) {
+      throw new TypeError('Digest username must not contain a double quote');
+    }
+    this.host = host;
+    this.username = resolvedUsername;
+    this.password = resolvedPassword;
+  }
+
+  getHost(): string {
+    return this.host;
+  }
+
+  /** Nothing up front: the header depends on the request and the challenge. */
+  getAuthHeaders(): Record<string, string> {
+    return {};
+  }
+
+  authorization(method: string, requestTarget: string): string | null {
+    const challenge = this.challenge;
+    if (challenge === null) {
+      return null;
+    }
+    const algorithm = (challenge.algorithm ?? 'MD5').toLowerCase();
+    const hashName = algorithm.startsWith('sha-256') ? 'sha256' : 'md5';
+    const hash = (value: string): string => createHash(hashName).update(value, 'utf8').digest('hex');
+    this.nonceCount += 1;
+    const nc = this.nonceCount.toString(16).padStart(8, '0');
+    const cnonce = this.cnonceSource();
+    let ha1 = hash(`${this.username}:${challenge.realm}:${this.password}`);
+    if (algorithm.endsWith('-sess')) {
+      ha1 = hash(`${ha1}:${challenge.nonce}:${cnonce}`);
+    }
+    const ha2 = hash(`${method}:${requestTarget}`);
+    const response = challenge.qop
+      ? hash(`${ha1}:${challenge.nonce}:${nc}:${cnonce}:auth:${ha2}`)
+      : hash(`${ha1}:${challenge.nonce}:${ha2}`);
+    const parts = [
+      `username=${DigestAuthenticator.quote(this.username)}`,
+      `realm=${DigestAuthenticator.quote(challenge.realm)}`,
+      `nonce=${DigestAuthenticator.quote(challenge.nonce)}`,
+      `uri=${DigestAuthenticator.quote(requestTarget)}`
+    ];
+    if (challenge.algorithm !== undefined) {
+      parts.push(`algorithm=${challenge.algorithm}`);
+    }
+    parts.push(`response="${response}"`);
+    if (challenge.qop) {
+      parts.push('qop=auth', `nc=${nc}`, `cnonce=${DigestAuthenticator.quote(cnonce)}`);
+    }
+    if (challenge.opaque !== undefined) {
+      parts.push(`opaque=${DigestAuthenticator.quote(challenge.opaque)}`);
+    }
+    return `Digest ${parts.join(', ')}`;
+  }
+
+  acceptChallenge(wwwAuthenticate: string): boolean {
+    for (const [scheme, params] of DigestAuthenticator.parseChallenges(wwwAuthenticate)) {
+      if (scheme.toLowerCase() !== 'digest') {
+        continue;
+      }
+      const qop = params.get('qop');
+      if (qop !== undefined && !qop.split(',').some((option) => option.trim().toLowerCase() === 'auth')) {
+        continue;
+      }
+      const algorithm = params.get('algorithm');
+      if (algorithm !== undefined && !ALGORITHMS.has(algorithm.toLowerCase())) {
+        continue;
+      }
+      this.challenge = {
+        realm: params.get('realm') ?? '',
+        nonce: params.get('nonce') ?? '',
+        opaque: params.get('opaque'),
+        algorithm,
+        qop: qop !== undefined
+      };
+      this.nonceCount = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /** A quoted string, with the backslash and the double quote escaped. */
+  private static quote(value: string): string {
+    return `"${value.replace(/[\\"]/g, (c) => `\\${c}`)}"`;
+  }
+
+  /**
+   * Every challenge of a `WWW-Authenticate` value, as its scheme and its
+   * parameters (names in lower case). A parameter is `name=token` or
+   * `name="quoted"` with backslash escapes.
+   */
+  private static parseChallenges(header: string): Array<[string, Map<string, string>]> {
+    const challenges: Array<[string, Map<string, string>]> = [];
+    let current: Map<string, string> | null = null;
+    let i = 0;
+    const isSpace = (c: string | undefined): boolean => c === ' ' || c === '\t' || c === '\r' || c === '\n';
+    while (i < header.length) {
+      while (i < header.length && (isSpace(header[i]) || header[i] === ',')) i++;
+      const start = i;
+      while (i < header.length && !isSpace(header[i]) && header[i] !== ',' && header[i] !== '=') i++;
+      const token = header.slice(start, i);
+      if (token === '') {
+        /* A stray '=' with no name before it. */
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j < header.length && isSpace(header[j])) j++;
+      if (header[j] !== '=') {
+        current = new Map();
+        challenges.push([token, current]);
+        continue;
+      }
+      i = j + 1;
+      while (i < header.length && isSpace(header[i])) i++;
+      let value = '';
+      if (header[i] === '"') {
+        i++;
+        while (i < header.length && header[i] !== '"') {
+          if (header[i] === '\\' && i + 1 < header.length) i++;
+          value += header[i];
+          i++;
+        }
+        i++;
+      } else {
+        const valueStart = i;
+        while (i < header.length && !isSpace(header[i]) && header[i] !== ',') i++;
+        value = header.slice(valueStart, i);
+      }
+      if (current !== null && !current.has(token.toLowerCase())) {
+        current.set(token.toLowerCase(), value);
+      }
+    }
+    return challenges;
+  }
+
+  /* Redact the password from the default string/inspect representation so
+   * logging or inspecting the authenticator never leaks the credential. */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `${this.constructor.name}(host=${this.host}, username=${this.username}, password=***)`;
+  }
+
+  toJSON(): Record<string, string> {
+    return { host: this.host, username: this.username, password: '***' };
+  }
+}

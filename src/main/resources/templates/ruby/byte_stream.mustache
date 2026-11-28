@@ -1,0 +1,195 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # The body of a binary response, read as it arrives. An operation whose
+  # success response is binary returns one instead of buffering the bytes, so a
+  # large download never has to fit in memory.
+  #
+  # Read it with {#read}, walk it with {#each}, or take every byte with
+  # {#read_all}. It also carries the {#status_code} and the lower-cased
+  # {#headers}.
+  #
+  # {#close} is idempotent and aborts the connection instead of draining the
+  # rest of the body, so close the stream (+ensure stream.close+) when you stop
+  # early. A failure after the headers surfaces from a read as an
+  # {Errors::StreamError}; a stall longer than the transport's +idle_timeout+
+  # is an {Errors::NetworkTimeoutError}. Closing the client cancels the streams
+  # still open: their next read raises the closed-client +RuntimeError+.
+  #
+  # {#to_s} and {#inspect} show the status code and the number of bytes
+  # delivered, never the headers, the URL or the content.
+  class ByteStream
+    # The size of the chunks {#each} yields and {#read_all} reads.
+    CHUNK_SIZE = 16_384
+
+    # @return [Integer] the HTTP status code of the response
+    attr_reader :status_code
+
+    # @return [Hash{String => String}] the response headers, with lower-cased
+    #   names and repeated values joined by +", "+
+    attr_reader :headers
+
+    # @return [Integer] how many bytes have been handed to the caller so far
+    attr_reader :bytes_delivered
+
+    # Wraps an open response body.
+    #
+    # @param status_code [Integer] the HTTP status code
+    # @param headers [Hash{String => String}] the response headers, lower-cased
+    # @param source [#read, #close] the open body; this stream closes it.
+    #   +read(length)+ returns up to +length+ bytes, at least one, and +nil+
+    #   at the end.
+    def initialize(status_code:, headers:, source:)
+      @status_code = status_code
+      @headers = headers.dup.freeze
+      @source = source
+      @buffer = ''.b
+      @bytes_delivered = 0
+      @closed = false
+      @ended = false
+    end
+
+    # Reads from the body like +IO#read+: with a +length+ it returns that many
+    # bytes (fewer at the end of the body, +nil+ when none are left); without
+    # one it returns every remaining byte, an empty string at the end.
+    #
+    # @param length [Integer, nil] how many bytes to read, or +nil+ for the rest
+    # @param outbuf [String, nil] a string to put the bytes in
+    # @return [String, nil] the bytes read
+    # @raise [IOError] if the stream was closed
+    # @raise [Errors::StreamError] if the connection fails after the headers
+    # @raise [Errors::NetworkTimeoutError] if the body stays silent for +idle_timeout+
+    def read(length = nil, outbuf = nil)
+      ensure_open
+      return finish_read(take_all, outbuf) if length.nil?
+
+      raise ArgumentError, "negative length #{length} given" if length.negative?
+      return finish_read(''.b, outbuf) if length.zero?
+
+      data = take(length)
+      finish_read(data.empty? ? nil : data, outbuf)
+    end
+
+    # Reads what has arrived: between one and +max+ bytes, waiting only until
+    # there is at least one, or +nil+ at the end of the body. Unlike {#read} it
+    # never waits for +max+ bytes, so it is the call for a feed that delivers a
+    # little at a time.
+    #
+    # @param max [Integer] the most bytes to return
+    # @return [String, nil] the bytes, or nil at the end of the body
+    # @raise [IOError] if the stream was closed
+    def read_partial(max = CHUNK_SIZE)
+      ensure_open
+      data = @buffer.slice!(0, max)
+      if data.nil? || data.empty?
+        return nil if @ended
+
+        chunk = @source.read(max)
+        if chunk.nil?
+          @ended = true
+          return nil
+        end
+        data = chunk.b
+        @buffer = data.slice!(max..) || ''.b if data.bytesize > max
+      end
+      @bytes_delivered += data.bytesize
+      data
+    end
+
+    # Yields the body in chunks as it arrives, until its end.
+    #
+    # @param chunk_size [Integer] the largest chunk to yield
+    # @yieldparam chunk [String] the next bytes of the body
+    # @return [Enumerator, self] an enumerator without a block, else the stream
+    def each(chunk_size = CHUNK_SIZE)
+      return enum_for(:each, chunk_size) unless block_given?
+
+      loop do
+        chunk = read_partial(chunk_size)
+        break if chunk.nil?
+
+        yield chunk
+      end
+      self
+    end
+
+    # Reads every remaining byte and closes the stream, so the call leaves
+    # nothing open.
+    #
+    # @return [String] the remaining bytes, in order
+    # @raise [IOError] if the stream was closed before
+    def read_all
+      read || ''.b
+    ensure
+      close
+    end
+
+    # Closes the stream and aborts the connection; later calls do nothing.
+    #
+    # @return [void]
+    def close
+      return if @closed
+
+      @closed = true
+      begin
+        @source.close
+      rescue StandardError
+        nil
+      end
+    end
+
+    # @return [Boolean] whether the stream was closed
+    def closed?
+      @closed
+    end
+
+    # Describes the stream by its status code and the bytes delivered so far.
+    #
+    # @return [String] the redacted description
+    def inspect
+      "#<#{self.class.name} status_code=#{@status_code} bytes_delivered=#{@bytes_delivered}>"
+    end
+    alias to_s inspect
+
+    private
+
+    def ensure_open
+      raise IOError, 'closed stream' if @closed
+    end
+
+    # Up to +length+ bytes, reading the source until it has them or ends.
+    def take(length)
+      fill(length)
+      @buffer.slice!(0, length) || ''.b
+    end
+
+    def take_all
+      fill(nil)
+      all = @buffer
+      @buffer = ''.b
+      all
+    end
+
+    def fill(wanted)
+      until @ended || (wanted && @buffer.bytesize >= wanted)
+        chunk = @source.read(wanted ? [wanted - @buffer.bytesize, CHUNK_SIZE].max : CHUNK_SIZE)
+        if chunk.nil?
+          @ended = true
+        else
+          @buffer << chunk.b
+        end
+      end
+    end
+
+    def finish_read(data, outbuf)
+      return nil if data.nil?
+
+      @bytes_delivered += data.bytesize
+      return data unless outbuf
+
+      outbuf.replace(data)
+    end
+  end
+end

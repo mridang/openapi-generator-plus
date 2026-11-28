@@ -1,0 +1,63 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+{{#hasModelRequires}}
+{{#modelRequires}}
+{{{.}}}
+{{/modelRequires}}
+
+{{/hasModelRequires}}
+module {{moduleName}}
+  module Api
+    module Options
+      # Options for the {{operationId}} operation.
+      #
+      # The optional +timeout+ (milliseconds), +headers+ and +max_retries+
+      # members apply to this call alone: a +timeout+ replaces the client's
+      # end-to-end timeout, +headers+ are sent in addition to (and win over) the
+      # client's default headers, and +max_retries+ replaces the client's retry
+      # count. When nil, the client's own value is used.
+{{#params}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#pluralExamples}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+{{/pluralExamples}}
+{{#isDeprecated}}
+      # @deprecated This parameter is deprecated.
+{{/isDeprecated}}
+{{/params}}
+      class {{className}}
+        attr_reader {{accessorList}}
+
+        def initialize({{initializeSignature}})
+{{#params}}
+          @{{paramName}} = {{paramName}}
+{{/params}}
+          @timeout = timeout
+          @headers = headers&.dup&.freeze
+          @max_retries = max_retries
+          freeze
+        end
+{{#hasCopy}}
+
+        # Returns a copy of these options with the given members replaced: the
+        # same value for every other parameter, the same timeout, retry count and
+        # headers. A paged list uses it to send each page with its own cursor.
+        #
+        # @param changes [Hash{Symbol => Object}] the members to replace
+        # @return [{{className}}] the copy
+        def copy_with(**changes)
+          members = {
+{{#params}}
+            {{paramName}}: @{{paramName}},
+{{/params}}
+            timeout: @timeout, headers: @headers, max_retries: @max_retries
+          }
+          self.class.new(**members, **changes)
+        end
+{{/hasCopy}}
+      end
+    end
+  end
+end

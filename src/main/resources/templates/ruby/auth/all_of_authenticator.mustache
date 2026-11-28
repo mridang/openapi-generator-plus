@@ -1,0 +1,56 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Auth
+    # The credentials of every scheme one security requirement names together:
+    # the headers, query parameters and cookies of all of them are sent.
+    class AllOfAuthenticator < Authenticator
+      # The composite of +parts+; one holding a token authenticator can drop a
+      # cached token on a 401.
+      #
+      # @param parts [Array<Authenticator>] the credentials, in the order the requirement names them
+      # @return [Authenticator]
+      def self.of(parts)
+        parts.any?(HttpAwareAuthenticator) ? AllOfHttpAwareAuthenticator.new(parts) : new(parts)
+      end
+
+      # @param parts [Array<Authenticator>]
+      def initialize(parts)
+        super()
+        @parts = parts
+      end
+
+      # @return [String]
+      def host
+        @parts.first.host
+      end
+
+      # @return [Hash{String => String}]
+      def auth_headers
+        merged = {} # @type var merged: Hash[String, String]
+        @parts.each { |part| merged.merge!(part.auth_headers) }
+        merged
+      end
+
+      # @return [Hash{String => String}]
+      def query_params
+        merged = {} # @type var merged: Hash[String, String]
+        @parts.each { |part| merged.merge!(part.query_params) }
+        merged
+      end
+
+      # @return [Hash{String => String}]
+      def cookie_params
+        merged = {} # @type var merged: Hash[String, String]
+        @parts.each { |part| merged.merge!(part.cookie_params) }
+        merged
+      end
+
+      protected
+
+      attr_reader :parts
+    end
+  end
+end

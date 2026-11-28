@@ -1,0 +1,85 @@
+{{>api_info}}
+
+use std::time::Duration;
+
+/// Settings of one JSON Lines or server-sent events call, passed last to its
+/// `<operation>_stream` method. A setting left unset keeps its default. They live
+/// here and not in the per-operation options, which carry only `timeout`,
+/// `max_retries` and `headers`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StreamOptions {
+    idle_timeout: Option<Duration>,
+    max_reconnects: Option<i32>,
+    reconnect_delay: Option<Duration>,
+    last_event_id: Option<String>,
+    max_event_bytes: Option<usize>,
+}
+
+impl StreamOptions {
+    /// Creates options that keep every default.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The longest the body may stay silent for this call; `Duration::ZERO`
+    /// disables it. The default is the transport's `idle_timeout`.
+    pub fn idle_timeout(mut self, idle_timeout: Duration) -> Self {
+        self.idle_timeout = Some(idle_timeout);
+        self
+    }
+
+    /// How many times a lost server-sent events connection is re-established
+    /// without an event in between; `-1` is unlimited and `0` turns
+    /// reconnecting off. The default is 5 for a request without a body and 0 for
+    /// a request that has a body.
+    pub fn max_reconnects(mut self, max_reconnects: i32) -> Self {
+        self.max_reconnects = Some(max_reconnects);
+        self
+    }
+
+    /// The first wait before a reconnect; it doubles up to 30 seconds and is
+    /// reduced by up to 25% of jitter. A `retry` value from the server replaces
+    /// it. The default is 1 second.
+    pub fn reconnect_delay(mut self, reconnect_delay: Duration) -> Self {
+        self.reconnect_delay = Some(reconnect_delay);
+        self
+    }
+
+    /// The event id the first request sends in `Last-Event-ID`.
+    pub fn last_event_id(mut self, last_event_id: impl Into<String>) -> Self {
+        self.last_event_id = Some(last_event_id.into());
+        self
+    }
+
+    /// The most bytes one line or event may have before the stream fails with a
+    /// serialization error. The default is 1 MiB.
+    pub fn max_event_bytes(mut self, max_event_bytes: usize) -> Self {
+        self.max_event_bytes = Some(max_event_bytes);
+        self
+    }
+
+    /// The idle timeout of this call, or `None` for the transport's.
+    pub fn get_idle_timeout(&self) -> Option<Duration> {
+        self.idle_timeout
+    }
+
+    /// The reconnect limit of this call, or `None` for the default.
+    pub fn get_max_reconnects(&self) -> Option<i32> {
+        self.max_reconnects
+    }
+
+    /// The first reconnect wait of this call, or `None` for the default.
+    pub fn get_reconnect_delay(&self) -> Option<Duration> {
+        self.reconnect_delay
+    }
+
+    /// The event id the first request sends, or `None` for none.
+    pub fn get_last_event_id(&self) -> Option<&str> {
+        self.last_event_id.as_deref()
+    }
+
+    /// The limit for one line or event, or `None` for the default.
+    pub fn get_max_event_bytes(&self) -> Option<usize> {
+        self.max_event_bytes
+    }
+}

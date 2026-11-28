@@ -1,0 +1,113 @@
+      # {{#lambda.rubyDocComment}}{{{summary}}}{{/lambda.rubyDocComment}}
+      #
+      # Returns the items as a lazy {Paginator}: no request is sent until you first read an
+      # item or a page, and each next page is requested only when you ask for more. Every page is an
+      # ordinary call of +{{operationId}}_with_http_info+, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+      # The value of the +{{vendorExtensions.op.pagination.requestParamName}}+ option is where the
+      # list starts, and the page after each one is requested with the +{{vendorExtensions.op.pagination.responsePropertyName}}+
+      # it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+      # The value of the +{{vendorExtensions.op.pagination.requestParamName}}+ option is where the
+      # list starts, and the page after each one is requested with the +{{vendorExtensions.op.pagination.responsePropertyName}}+
+      # it returned; the list ends when its +{{vendorExtensions.op.pagination.hasMorePropertyName}}+ flag is false.
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+      # The value of the +{{vendorExtensions.op.pagination.requestParamName}}+ option is the offset of
+      # the first item, and the offset of each next page is the offset sent plus the items received; the list
+      # ends on an empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when the +{{vendorExtensions.op.pagination.hasMorePropertyName}}+ flag is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+      # The value of the +{{vendorExtensions.op.pagination.requestParamName}}+ option is the page number
+      # of the first page, and each next page asks for the page after the one it asked for; the list ends on an
+      # empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when the +{{vendorExtensions.op.pagination.hasMorePropertyName}}+ flag is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isPage}}
+{{#vendorExtensions.op.pagination.isLink}}
+      # The page after each one is the +rel="next"+ link of its +Link+ header, followed
+      # only within the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+      # The page after each one is the URL in the +{{vendorExtensions.op.pagination.nextUrlPropertyName}}+
+      # property of its body, followed only within the origin of the client.
+{{/vendorExtensions.op.pagination.isBody}}
+{{>api/operation_doc_args}}
+      # @return [Paginator] the paginator over the items
+{{#isDeprecated}}
+      # @deprecated This operation is deprecated.
+{{/isDeprecated}}
+      def {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}})
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+        paged_options = {{#nullable}}options || Options::{{{dataType}}}.new{{/nullable}}{{^nullable}}options{{/nullable}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.op.pagination.isToken}}
+        ::{{moduleName}}::Paginator.of_cursor(
+          start: paged_options.{{vendorExtensions.op.pagination.requestParamName}},
+          fetch: ->(page_cursor) { {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}paged_options.copy_with({{vendorExtensions.op.pagination.requestParamName}}: page_cursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}) },
+          items: :{{vendorExtensions.op.pagination.itemsPropertyName}}.to_proc,
+          next_cursor: :{{vendorExtensions.op.pagination.responsePropertyName}}.to_proc,
+          request_path: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}'
+        )
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+        ::{{moduleName}}::Paginator.of_cursor(
+          start: paged_options.{{vendorExtensions.op.pagination.requestParamName}},
+          fetch: ->(page_cursor) { {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}paged_options.copy_with({{vendorExtensions.op.pagination.requestParamName}}: page_cursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}) },
+          items: :{{vendorExtensions.op.pagination.itemsPropertyName}}.to_proc,
+          next_cursor: :{{vendorExtensions.op.pagination.responsePropertyName}}.to_proc,
+          has_more: :{{vendorExtensions.op.pagination.hasMorePropertyName}}.to_proc,
+          request_path: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}'
+        )
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+        ::{{moduleName}}::Paginator.of_offset(
+          start: paged_options.{{vendorExtensions.op.pagination.requestParamName}},
+          fetch: ->(page_cursor) { {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}paged_options.copy_with({{vendorExtensions.op.pagination.requestParamName}}: page_cursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}) },
+          items: :{{vendorExtensions.op.pagination.itemsPropertyName}}.to_proc,
+{{#vendorExtensions.op.pagination.hasHasMore}}
+          has_more: :{{vendorExtensions.op.pagination.hasMorePropertyName}}.to_proc,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+          request_path: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}'
+        )
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+        ::{{moduleName}}::Paginator.of_page(
+          start: paged_options.{{vendorExtensions.op.pagination.requestParamName}},
+          fetch: ->(page_cursor) { {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}paged_options.copy_with({{vendorExtensions.op.pagination.requestParamName}}: page_cursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}) },
+          items: :{{vendorExtensions.op.pagination.itemsPropertyName}}.to_proc,
+{{#vendorExtensions.op.pagination.hasHasMore}}
+          has_more: :{{vendorExtensions.op.pagination.hasMorePropertyName}}.to_proc,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+          request_path: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}'
+        )
+{{/vendorExtensions.op.pagination.isPage}}
+{{#vendorExtensions.op.pagination.isLink}}
+        ::{{moduleName}}::Paginator.of_link(
+          base_url: config.base_url,
+          fetch: ->(page_url) { {{operationId}}_page({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}paged_options{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}, page_url: page_url) },
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+          items: ->(page) { page },
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+          items: :{{vendorExtensions.op.pagination.itemsPropertyName}}.to_proc,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+          request_path: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}'
+        )
+{{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+        ::{{moduleName}}::Paginator.of_next_url(
+          base_url: config.base_url,
+          fetch: ->(page_url) { {{operationId}}_page({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isOptions}}paged_options{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}, page_url: page_url) },
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+          items: ->(page) { page },
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+          items: :{{vendorExtensions.op.pagination.itemsPropertyName}}.to_proc,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+          next_url: :{{vendorExtensions.op.pagination.nextUrlPropertyName}}.to_proc,
+          request_path: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}'
+        )
+{{/vendorExtensions.op.pagination.isBody}}
+      end

@@ -1,0 +1,44 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// Error for HTTP 403 Forbidden.
+#[derive(Debug, Clone)]
+pub struct ForbiddenError {
+    client_error: ClientError,
+}
+
+impl ForbiddenError {
+    /// Returns the underlying [`ClientError`].
+    pub fn client_error(&self) -> &ClientError {
+        &self.client_error
+    }
+}
+
+impl fmt::Display for ForbiddenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.client_error.api_error(), f)
+    }
+}
+
+impl std::error::Error for ForbiddenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+/// Wraps a [`ClientError`] whose status is 403. Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ClientError> for ForbiddenError {
+    type Error = ClientError;
+
+    fn try_from(client_error: ClientError) -> Result<Self, Self::Error> {
+        if client_error.api_error().status_code() == 403 {
+            Ok(Self { client_error })
+        } else {
+            Err(client_error)
+        }
+    }
+}

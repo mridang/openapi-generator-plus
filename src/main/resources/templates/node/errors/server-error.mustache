@@ -1,0 +1,28 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 5xx server errors.
+ */
+export class ServerError<T = unknown> extends ApiError<T> {
+  constructor(
+    statusCode: number,
+    message: string,
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(statusCode, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'ServerError';
+  }
+}
+
+ApiError.registerStatusError(
+  5,
+  (statusCode, message, headers, body, errorBody, options) =>
+    new ServerError(statusCode, message, headers, body, errorBody, options),
+  true
+);

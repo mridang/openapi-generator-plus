@@ -1,0 +1,88 @@
+{{>api_info}}
+import Foundation
+
+/// Watches one call from its start to its end.
+///
+/// Returned by ``CallHook/start(info:headers:)``; ``finish(_:)`` is called
+/// exactly once when the call has ended, however it ended.
+public protocol CallObserver: Sendable {
+    /// Called once when the call has ended, with its `outcome`.
+    ///
+    /// An error thrown here is swallowed: the call still returns its result or
+    /// its own error.
+    func finish(_ outcome: CallOutcome) throws
+}
+
+/// One small hook around every call of the SDK.
+///
+/// A hook can edit the request headers before the request is sent and observe
+/// the status or the error afterwards. It does nothing when none is set. Set
+/// one with ``ConfigurationBuilder/callHook(_:)`` or on the client.
+///
+/// ``start(info:headers:)`` runs once per operation call, right after the trace
+/// context is injected, so `headers` is the final header set (defaults,
+/// operation headers, per-call headers, authentication and cookies): read any
+/// header and replace it with the spelling it already has. A header you set is
+/// on every send of the call, retries and the replay after a 401 included; the
+/// fresh authentication headers of a replay still replace a header of the same
+/// name. An error thrown by ``start(info:headers:)`` reaches the caller
+/// unchanged, nothing is sent and ``CallObserver/finish(_:)`` is not called.
+public protocol CallHook: Sendable {
+    /// Called once before the call is sent.
+    ///
+    /// Returns the ``CallObserver`` that is told how the call ended, or nil
+    /// when the hook has nothing to observe.
+    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)?
+}
+
+/// Combines hooks.
+public enum CallHooks {
+    /// Returns a hook that starts `hooks` in the order given and finishes their
+    /// observers in the reverse order. A hook that returns no observer is
+    /// skipped.
+    public static func chain(_ hooks: [any CallHook]) -> any CallHook {
+        return ChainedCallHook(hooks: hooks)
+    }
+
+    /// Returns a hook that starts `hooks` in the order given and finishes their
+    /// observers in the reverse order. A hook that returns no observer is
+    /// skipped.
+    public static func chain(_ hooks: any CallHook...) -> any CallHook {
+        return ChainedCallHook(hooks: hooks)
+    }
+}
+
+private struct ChainedCallHook: CallHook {
+    let hooks: [any CallHook]
+
+    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        var observers: [any CallObserver] = []
+        for hook in hooks {
+            if let observer = try hook.start(info: info, headers: &headers) {
+                observers.append(observer)
+            }
+        }
+        if observers.isEmpty {
+            return nil
+        }
+        return ChainedCallObserver(observers: Array(observers.reversed()))
+    }
+}
+
+private struct ChainedCallObserver: CallObserver {
+    let observers: [any CallObserver]
+
+    func finish(_ outcome: CallOutcome) throws {
+        var failure: (any Error)?
+        for observer in observers {
+            do {
+                try observer.finish(outcome)
+            } catch {
+                failure = failure ?? error
+            }
+        }
+        if let failure {
+            throw failure
+        }
+    }
+}

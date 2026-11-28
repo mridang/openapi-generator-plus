@@ -1,0 +1,593 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"math"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"cloud.google.com/go/civil"
+	jsonv2 "github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
+	"github.com/shopspring/decimal"
+	errors_pkg "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/internal/exactdecimal"
+	"{{packageName}}/pkg/internal/protoduration"
+	"{{packageName}}/pkg/models"
+)
+
+// stringifyDate formats a `format: date` value as YYYY-MM-DD, the text form of
+// civil.Date. Used for path parameters so the wire value is the date alone,
+// never a date-time with a time and an offset.
+func stringifyDate(value civil.Date) string {
+	return value.String()
+}
+
+// newSerializationError constructs a SerializationError with fixed state.
+func newSerializationError(message string, cause error) *SerializationError {
+	return errors_pkg.NewSerializationError(message, cause)
+}
+
+// oneOfUnwrapper is implemented by oneOf/anyOf wrapper types.
+type oneOfUnwrapper interface {
+	GetActualInstance() any
+}
+
+// serialize serializes an object to a JSON byte slice.
+//
+// Unwraps oneOf/anyOf wrapper types before serialization. Returns a
+// *SerializationError if serialization fails.
+func serialize(object any) ([]byte, error) {
+	if wrapper, ok := object.(oneOfUnwrapper); ok {
+		object = wrapper.GetActualInstance()
+	}
+	// encoding/json escapes '<', '>' and '&' as </>/& by
+	// default (an HTML-safety measure for `<script>` embedding). The other
+	// SDKs emit those bytes literally, so disable HTML escaping to keep the
+	// wire bytes identical across languages. json.Encoder.Encode appends a
+	// trailing newline, which is trimmed to match json.Marshal's output.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(withProtoDurations(object)); err != nil {
+		return nil, newSerializationError(
+			fmt.Sprintf("failed to serialize object to JSON: %v", err),
+			err,
+		)
+	}
+	return unescapeLineSeparators(bytes.TrimRight(buf.Bytes(), "\n")), nil
+}
+
+// durationType is the reflect type of a time.Duration.
+var durationType = reflect.TypeOf(time.Duration(0))
+
+// withProtoDurations returns value with every time.Duration it holds outside a
+// model (on its own, behind a pointer, or inside a slice, array, map or any)
+// replaced by its protobuf-JSON string, because encoding/json writes a
+// time.Duration as nanoseconds. A model, or any other value with its own JSON
+// or text form, is kept as it is: a model rewrites its own duration fields. A
+// value that holds no duration is returned unchanged, without a copy.
+func withProtoDurations(value any) any {
+	converted, changed := convertDurations(reflect.ValueOf(value))
+	if !changed {
+		return value
+	}
+	return converted
+}
+
+var (
+	jsonMarshalerType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+	textMarshalerType = reflect.TypeOf((*interface{ MarshalText() ([]byte, error) })(nil)).Elem()
+)
+
+func convertDurations(rv reflect.Value) (any, bool) {
+	if !rv.IsValid() {
+		return nil, false
+	}
+	if rv.Type() == durationType {
+		return protoduration.Format(time.Duration(rv.Int())), true
+	}
+	if rv.Type().Implements(jsonMarshalerType) || rv.Type().Implements(textMarshalerType) {
+		return nil, false
+	}
+	switch rv.Kind() {
+	case reflect.Interface, reflect.Pointer:
+		if rv.IsNil() {
+			return nil, false
+		}
+		return convertDurations(rv.Elem())
+	case reflect.Slice, reflect.Array:
+		if rv.Kind() == reflect.Slice && (rv.IsNil() || rv.Type().Elem().Kind() == reflect.Uint8) {
+			return nil, false
+		}
+		items := make([]any, rv.Len())
+		changed := false
+		for i := range items {
+			item, itemChanged := convertDurations(rv.Index(i))
+			if itemChanged {
+				changed = true
+			} else {
+				item = rv.Index(i).Interface()
+			}
+			items[i] = item
+		}
+		return items, changed
+	case reflect.Map:
+		if rv.IsNil() || rv.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		entries := make(map[string]any, rv.Len())
+		changed := false
+		iter := rv.MapRange()
+		for iter.Next() {
+			item, itemChanged := convertDurations(iter.Value())
+			if itemChanged {
+				changed = true
+			} else {
+				item = iter.Value().Interface()
+			}
+			entries[iter.Key().String()] = item
+		}
+		return entries, changed
+	default:
+		return nil, false
+	}
+}
+
+// unescapeLineSeparators turns the \u2028 and \u2029 escapes that
+// encoding/json always writes (SetEscapeHTML(false) does not turn them off)
+// back into the literal characters, so the wire bytes match the other SDKs.
+// Outside a string JSON has no backslash, and inside one every backslash
+// starts an escape, so walking escape by escape never mistakes an escaped
+// backslash followed by "u2028" for the escape itself.
+func unescapeLineSeparators(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`\u202`)) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	for i := 0; i < len(data); i++ {
+		if data[i] != '\\' || i+1 >= len(data) {
+			out = append(out, data[i])
+			continue
+		}
+		if i+5 < len(data) && data[i+1] == 'u' {
+			switch string(data[i+2 : i+6]) {
+			case "2028":
+				out = append(out, "\u2028"...)
+				i += 5
+				continue
+			case "2029":
+				out = append(out, "\u2029"...)
+				i += 5
+				continue
+			}
+		}
+		out = append(out, data[i], data[i+1])
+		i++
+	}
+	return out
+}
+
+// isJSONNull reports whether data is exactly the JSON literal null, ignoring
+// surrounding whitespace and a leading UTF-8 byte order mark.
+// looksLikeJSONDocument reports whether body is a JSON object or array. A binary
+// operation that also declares application/json can be answered with one; it is
+// returned as raw bytes instead of failing to decode into a byte slice.
+func looksLikeJSONDocument(body string) bool {
+	trimmed := strings.TrimLeft(body, " \t\r\n")
+	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
+}
+
+func isJSONNull(data []byte) bool {
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+	return string(bytes.TrimSpace(data)) == "null"
+}
+
+// maxJSONDepth caps how deeply a response JSON document can be nested.
+// The JSON v2 decoder stops at 10000 levels and the models decode recursively
+// through the host call stack, so a deeply nested `{"a":{"a":...}}` payload is
+// refused before any decoding. The 1000-deep cap is uniform across all 12 SDKs
+// (java/kotlin Jackson, python, csharp, rust with serde's own limit disabled,
+// etc.).
+const maxJSONDepth = 1000
+
+// deserialize parses a JSON byte slice into the target value.
+//
+// An empty slice leaves the target untouched. Returns a *SerializationError if
+// the nesting depth limit is exceeded or parsing fails.
+func deserialize(data []byte, target any) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+	// Windows-generated payloads often include one and the JSON decoder
+	// rejects it. Strip silently for parity with Java Jackson / C#
+	// System.Text.Json which strip transparently.
+	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+		data = data[3:]
+	}
+
+	if depth := jsonMaxDepth(data); depth > maxJSONDepth {
+		return newSerializationError(
+			fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, maxJSONDepth),
+			nil,
+		)
+	}
+
+	if err := checkNullElements(data, reflect.TypeOf(target)); err != nil {
+		return err
+	}
+
+	if err := jsonv2.Unmarshal(data, target, decodeOptions); err != nil {
+		detail := err.Error()
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			/* The canonical wording for a document that stops early. */
+			detail = "unexpected end of JSON input"
+		}
+		return newSerializationError(
+			fmt.Sprintf("failed to deserialize JSON: %s", detail),
+			err,
+		)
+	}
+	return nil
+}
+
+// decodeOptions are the JSON v2 options a response body is decoded with, the
+// same ones the models use: a key that appears twice keeps its last value,
+// invalid UTF-8 inside a string is replaced rather than refused, and a
+// time.Duration (on its own or in a list or map) is read from its
+// protobuf-JSON string in the same pass. A model decodes itself in one pass
+// through its UnmarshalJSONFrom.
+var decodeOptions = jsonv2.JoinOptions(
+	jsontext.AllowDuplicateNames(true),
+	jsontext.AllowInvalidUTF8(true),
+	jsonv2.WithUnmarshalers(jsonv2.UnmarshalFunc(protoduration.DecodeValue)),
+)
+
+/* checkNullElements fails with a *SerializationError when the target is a slice,
+ * array or map whose element type cannot hold nil and the JSON carries a null
+ * for one of its elements. encoding/json decodes such a null as the element's
+ * zero value without an error, which the other SDKs reject. A null container
+ * itself is accepted, and pointer and interface elements can hold nil. */
+func checkNullElements(data []byte, t reflect.Type) error {
+	trimmed := bytes.TrimSpace(data)
+	if t == nil || len(trimmed) == 0 || string(trimmed) == "null" {
+		return nil
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		var items []json.RawMessage
+		if json.Unmarshal(trimmed, &items) != nil {
+			return nil
+		}
+		for i, item := range items {
+			if err := checkNullElement(item, t.Elem(), fmt.Sprintf("at index %d", i)); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		var entries map[string]json.RawMessage
+		if json.Unmarshal(trimmed, &entries) != nil {
+			return nil
+		}
+		keys := make([]string, 0, len(entries))
+		for key := range entries {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			if err := checkNullElement(entries[key], t.Elem(), fmt.Sprintf("for key %q", key)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+/* checkNullElement checks one element of a container against its element type:
+ * a null is refused unless the element type can hold nil, and any other value is
+ * checked in turn for the containers it holds. */
+func checkNullElement(item json.RawMessage, elem reflect.Type, where string) error {
+	if string(bytes.TrimSpace(item)) == "null" {
+		switch elem.Kind() {
+		case reflect.Pointer, reflect.Interface:
+			return nil
+		}
+		return newSerializationError(
+			fmt.Sprintf("failed to deserialize JSON: null element %s", where),
+			nil,
+		)
+	}
+	return checkNullElements(item, elem)
+}
+
+// jsonMaxDepth returns the maximum nesting depth of `{`/`[` containers in
+// the JSON byte slice, skipping characters inside strings. Cheap pre-flight
+// check run before the decoder is invoked.
+func jsonMaxDepth(data []byte) int {
+	depth := 0
+	max := 0
+	inString := false
+	escaped := false
+	for _, b := range data {
+		if inString {
+			if escaped {
+				escaped = false
+			} else if b == '\\' {
+				escaped = true
+			} else if b == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch b {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+			if depth > max {
+				max = depth
+			}
+		case '}', ']':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return max
+}
+
+// formatFloat formats a float64 such that whole-number values keep their
+// trailing ".0" (e.g. 1.0 → "1.0" rather than "1"). Other values use the
+// shortest decimal representation. Whole values match the "1.0" form the
+// Java, Kotlin, C#, Python, Ruby, Swift, Dart, Rust and Elixir SDKs send; large
+// magnitudes (e.g. 1e+20) keep Go's exponent spelling, which differs per SDK.
+func formatFloat(v float64) string {
+	if math.IsInf(v, 0) || math.IsNaN(v) {
+		return strconv.FormatFloat(v, 'g', -1, 64)
+	}
+	s := strconv.FormatFloat(v, 'g', -1, 64)
+	if !strings.ContainsAny(s, ".eE") {
+		s += ".0"
+	}
+	return s
+}
+
+// stringify converts a single scalar value to its string representation.
+//
+// This is the canonical scalar-to-string conversion used by all parameter
+// encoding methods. Handles nil, booleans and times, and falls back to the
+// value's own string form for everything else. Returns an empty string for nil.
+func stringify(value any) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case time.Duration:
+		return protoduration.Format(v)
+	case *time.Duration:
+		if v == nil {
+			return ""
+		}
+		return protoduration.Format(*v)
+	case decimal.Decimal:
+		/* Plain notation with every digit, trailing zeros included (never 1.2E+3). */
+		return exactdecimal.Text(v)
+	case *decimal.Decimal:
+		if v == nil {
+			return ""
+		}
+		return exactdecimal.Text(*v)
+	case models.DateTime:
+		return v.String()
+	case *models.DateTime:
+		if v == nil {
+			return ""
+		}
+		return v.String()
+	case time.Time:
+		return models.DateTime(v).String()
+	case *time.Time:
+		if v == nil {
+			return ""
+		}
+		return models.DateTime(*v).String()
+	case string:
+		return v
+	case *string:
+		if v == nil {
+			return ""
+		}
+		return *v
+	case []byte:
+		/* A format:byte value is standard-alphabet, padded RFC 4648 base64 on
+		 * the wire, the same text its JSON body form carries. */
+		return base64.StdEncoding.EncodeToString(v)
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return formatFloat(float64(v))
+	case float64:
+		return formatFloat(v)
+	case fmt.Stringer:
+		return v.String()
+	default:
+		/* Optional scalars arrive as pointers (*int64, *bool, *float64). %v
+		   would print the pointer address, so dereference and re-enter. */
+		if rv := reflect.ValueOf(v); rv.Kind() == reflect.Pointer {
+			if rv.IsNil() {
+				return ""
+			}
+			return stringify(rv.Elem().Interface())
+		}
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// isTemporalScalar reports whether a struct value is a date-time (time.Time or
+// a type defined on it, such as DateTime), a calendar date (civil.Date) or a
+// decimal (decimal.Decimal). All are written as scalars.
+func isTemporalScalar(rv reflect.Value) bool {
+	if rv.Kind() != reflect.Struct {
+		return false
+	}
+	return rv.Type().ConvertibleTo(reflect.TypeOf(time.Time{})) ||
+		rv.Type() == reflect.TypeOf(civil.Date{}) ||
+		rv.Type() == reflect.TypeOf(decimal.Decimal{})
+}
+
+// toPathValue converts a value to a string suitable for use as a URL path parameter.
+//
+// Returns the string representation, or an empty string if nil.
+func toPathValue(value any) string {
+	return stringify(value)
+}
+
+// toQueryValue converts a value to a representation suitable for use as a query parameter.
+// For collections, joins using the specified collection format delimiter.
+//
+// The collectionFormat is one of csv, ssv, tsv, pipes, or multi. Returns the query value,
+// or nil if the value is nil.
+func toQueryValue(value any, collectionFormat string) any {
+	if value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []string:
+		return joinCollection(v, collectionFormat)
+	case []any:
+		items := make([]string, len(v))
+		for i, item := range v {
+			items[i] = stringify(item)
+		}
+		return joinCollection(items, collectionFormat)
+	default:
+		return stringify(value)
+	}
+}
+
+// toHeaderValue converts a value to a string suitable for use as an HTTP header value.
+//
+// Returns the string representation, or an empty string if nil.
+func toHeaderValue(value any) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case []string:
+		return strings.Join(v, ",")
+	case []any:
+		items := make([]string, len(v))
+		for i, item := range v {
+			items[i] = stringify(item)
+		}
+		return strings.Join(items, ",")
+	default:
+		return stringify(value)
+	}
+}
+
+// toCookieValue converts a value to a string suitable for use as an HTTP cookie value.
+// Cookie values follow the same encoding rules as header values.
+//
+// Returns the string representation, or an empty string if nil.
+func toCookieValue(value any) string {
+	return toHeaderValue(value)
+}
+
+// encodeContentCookieValue percent-encodes the serialised JSON of a content
+// cookie parameter as UTF-8, keeping only A-Z a-z 0-9 - _ ~ literal. Everything
+// else, including the dot, the colon, * ! ' ( ) and every non-ASCII byte, becomes
+// %XX, so a JSON model is fully encoded and always satisfies the RFC 6265
+// cookie-octet check.
+func encodeContentCookieValue(raw []byte) string {
+	const hexDigits = "0123456789ABCDEF"
+	var sb strings.Builder
+	for _, c := range raw {
+		switch {
+		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9',
+			c == '-', c == '_', c == '~':
+			sb.WriteByte(c)
+		default:
+			sb.WriteByte('%')
+			sb.WriteByte(hexDigits[c>>4])
+			sb.WriteByte(hexDigits[c&0x0F])
+		}
+	}
+	return sb.String()
+}
+
+// toFormValue converts a value to a representation suitable for use as a form parameter.
+//
+// Returns the string representation, or an empty string if nil.
+func toFormValue(value any) string {
+	return stringify(value)
+}
+
+// resolveOneOf resolves a oneOf schema by trying each candidate deserializer in order.
+//
+// Each candidate receives parsed JSON (map/slice/primitive) and returns a deserialized
+// value or an error. Returns the first successful result, or a *SerializationError if no
+// candidate matches the JSON — a payload satisfying none of the declared variants is a
+// contract violation and must fail loudly rather than be silently dropped to nil.
+func resolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
+	for _, candidate := range candidates {
+		result, err := candidate(data)
+		if err == nil {
+			return result, nil
+		}
+	}
+	return nil, newSerializationError("No oneOf/anyOf variant matched the JSON", nil)
+}
+
+// resolveAnyOf resolves an anyOf schema by trying each candidate deserializer in order.
+// Delegates to resolveOneOf.
+//
+// Returns the first successful result, or a *SerializationError if no candidate matches
+// the JSON.
+func resolveAnyOf(data any, candidates []func(any) (any, error)) (any, error) {
+	return resolveOneOf(data, candidates)
+}
+
+// joinCollection joins already-stringified collection items using the delimiter of
+// the given collection format (csv, ssv, tsv, pipes, or multi). The multi format
+// returns the items unjoined so each becomes its own repeated parameter.
+func joinCollection(items []string, collectionFormat string) any {
+	switch collectionFormat {
+	case "ssv":
+		return strings.Join(items, " ")
+	case "tsv":
+		return strings.Join(items, "\t")
+	case "pipes":
+		return strings.Join(items, "|")
+	case "multi":
+		return items
+	default:
+		return strings.Join(items, ",")
+	}
+}

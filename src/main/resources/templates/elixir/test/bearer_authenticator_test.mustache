@@ -1,0 +1,374 @@
+{{#generateTests}}
+defmodule {{moduleName}}.Auth.BearerAuthenticatorTest do
+  use ExUnit.Case, async: true
+
+  alias {{moduleName}}.Auth.BearerAuthenticator
+
+  describe "BearerAuthenticator" do
+    test "bhv misc 194 a token returned by a token provider gets the same Bearer prefix rule as a static token" do
+      for {provider, expected} <- [{fn -> "xyz" end, "Bearer xyz"}, {fn -> "Bearer xyz" end, "Bearer xyz"}] do
+        auth = BearerAuthenticator.new("https://api.example.com", provider)
+        assert BearerAuthenticator.auth_headers(auth)["Authorization"] == expected
+      end
+    end
+
+    test "bhv misc 195 a whitespace-only token returned by a token provider is rejected when the request is made" do
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> "   " end)
+
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "bhv misc 196 a scheme wrapper with no token from its argument or environment fails with an error" do
+      System.delete_env("{{envVarPrefix}}_TOKEN")
+
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv misc 205 the missing-credential error names the variable that should have supplied the token" do
+      System.delete_env("{{envVarPrefix}}_TOKEN")
+
+      assert_raise ArgumentError, ~r/{{envVarPrefix}}_TOKEN/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv misc 208 an environment variable set to an empty value is treated as unset" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/Missing the credential/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv misc 174 a token refused for a line break or NUL byte is never repeated in the error" do
+      for bad <- ["secret-token\r\nX-Injected: yes", "secret-token\0"] do
+        error =
+          assert_raise ArgumentError, fn ->
+            BearerAuthenticator.new("https://api.example.com", bad)
+          end
+
+        refute Exception.message(error) =~ "secret-token"
+      end
+    end
+
+    test "bhv misc 187 a bearer token not passed is read from the environment variable" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-env"
+    end
+
+    test "bhv authbearer 009 raw token is prefixed with Bearer" do
+      auth = BearerAuthenticator.new("https://api.example.com", "xyz")
+      headers = BearerAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Bearer xyz"
+    end
+
+    test "bhv authbearer 003 already-prefixed token is not doubled" do
+      auth = BearerAuthenticator.new("https://api.example.com", "Bearer xyz")
+      headers = BearerAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Bearer xyz"
+    end
+
+    test "bhv authbearer 007 lowercase bearer prefix is stripped" do
+      auth = BearerAuthenticator.new("https://api.example.com", "bearer xyz")
+      headers = BearerAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Bearer xyz"
+    end
+
+    test "bhv authbearer 008 mixed-case bearer prefix is stripped" do
+      auth = BearerAuthenticator.new("https://api.example.com", "BeArEr xyz")
+      headers = BearerAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Bearer xyz"
+    end
+
+    # bearer-no-empty-token-guard: an empty/whitespace token would emit a
+    # bare "Authorization: Bearer " header, sending the request
+    # unauthenticated, so new/2 must reject it.
+    test "bhv authbearer 005 rejects an empty token at construction" do
+      assert_raise ArgumentError, ~r/Bearer token must not be empty/, fn ->
+        BearerAuthenticator.new("https://api.example.com", "")
+      end
+    end
+
+    test "bhv authbearer 017 rejects a whitespace-only token at construction" do
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", "   ")
+      end
+    end
+
+    # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. Reject
+    # CR/LF (header injection) and non-ASCII (silent UTF-8 mangling).
+    test "bhv authbearer 012 rejects CR/LF and non-ASCII tokens at construction" do
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", "tok\r\nInjected: yes")
+      end
+
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", "ñoño")
+      end
+    end
+
+    test "bhv authbearer 028 a bearer token containing CRLF is rejected at construction" do
+      assert_raise ArgumentError, ~r/printable ASCII/, fn ->
+        BearerAuthenticator.new("https://api.example.com", "abc\r\ndef")
+      end
+    end
+
+    test "bhv authbearer 016 a token of Unicode spaces is not blank: the printable ASCII rule rejects it" do
+      error =
+        assert_raise ArgumentError, fn ->
+          BearerAuthenticator.new("https://api.example.com", "\u00A0\u2003")
+        end
+
+      assert error.message ==
+               "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
+    test "bhv authbearer 015 a token that merely begins with the word bearer is kept whole" do
+      auth = BearerAuthenticator.new("https://api.example.com", "bearerxyz")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer bearerxyz"
+    end
+
+    test "bhv authbearer 004 a doubled bearer prefix is stripped only once" do
+      auth = BearerAuthenticator.new("https://api.example.com", "Bearer Bearer xyz")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer Bearer xyz"
+    end
+
+    test "bhv authbearer 010 a nil token is read once from the environment and a passed token wins" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-env"
+
+      System.put_env(name, "changed")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-env"
+
+      explicit = BearerAuthenticator.new("https://api.example.com", "xyz")
+      assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer xyz"
+    end
+
+    test "bhv auth 038 a token provider takes precedence over the same token in the environment" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> "from-provider" end)
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer from-provider"
+    end
+
+    test "bhv authbearer 018 an explicit token wins over the environment" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "env-token")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", "explicit-token")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer explicit-token"
+    end
+
+    test "bhv authscheme 011 an empty environment variable for the service token scheme credential is treated as unset and fails naming the variable" do
+      name = "{{envVarPrefix}}_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
+
+      System.put_env(name, "")
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv lifecycle 013 an empty or absent environment variable fails when no token is passed" do
+      name = "{{envVarPrefix}}_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      message = "Missing the credential 'token': pass it, or set the environment variable #{name}"
+
+      System.put_env(name, "")
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+
+      System.delete_env(name)
+
+      assert_raise ArgumentError, message, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv lifecycle 014 reads the token from the environment when none is passed" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "env-token")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer env-token"
+    end
+
+    test "bhv lifecycle 016 a token provider that fails stops the request before it is sent" do
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> raise "token provider failed" end)
+
+      assert_raise RuntimeError, "token provider failed", fn ->
+        BearerAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "bhv authbearer 014 a zero-argument function supplies the token for every request" do
+      {:ok, counter} = Agent.start_link(fn -> 0 end)
+
+      provider = fn -> "t" <> Integer.to_string(Agent.get_and_update(counter, fn n -> {n + 1, n + 1} end)) end
+      auth = BearerAuthenticator.new("https://api.example.com", provider)
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer t1"
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer t2"
+      refute inspect(auth) =~ "#Function"
+    end
+
+    test "bhv authbearer 002 a token the function returns is checked like a passed one" do
+      auth = BearerAuthenticator.new("https://api.example.com", fn -> "" end)
+
+      assert_raise ArgumentError, ~r/Bearer token must not be empty/, fn ->
+        BearerAuthenticator.auth_headers(auth)
+      end
+    end
+
+    # authenticator-secret-in-default-string-repr: the token must never
+    # appear in the authenticator's default Inspect representation.
+    test "bhv authbearer 013 the redacted representation shows the host and masks the token" do
+      auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      assert inspect(auth) =~ ~s(host: "https://api.example.com")
+      refute inspect(auth) =~ "super-secret-token"
+    end
+
+    test "bhv authbearer 001 the redacted representation names the authenticator and masks the token" do
+      auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      assert inspect(auth) =~ "{{moduleName}}.Auth.BearerAuthenticator"
+      refute inspect(auth) =~ "super-secret-token"
+    end
+
+    test "bhv authbearer 006 a generated scheme wrapper emits a bearer header and masks the token" do
+      wrapper = {{moduleName}}.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "xyz")
+
+      assert BearerAuthenticator.auth_headers(wrapper) == %{"Authorization" => "Bearer xyz"}
+      refute inspect(wrapper) =~ "xyz"
+      assert_raise ArgumentError, fn -> {{moduleName}}.Auth.PetStoreBearerAuthenticator.new("https://api.example.com", "") end
+    end
+
+    test "bhv authbearer 019 an empty environment variable counts as unset and fails construction naming it" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/#{name}/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv authbearer 022 a non-ASCII token is rejected at construction with the exact message" do
+      error =
+        assert_raise ArgumentError, fn ->
+          BearerAuthenticator.new("https://api.example.com", "ñoño")
+        end
+
+      assert error.message ==
+               "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
+    test "bhv authbearer 025 the environment variable is read once, at construction" do
+      name = "{{envVarPrefix}}_TOKEN"
+      System.put_env(name, "first")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      System.put_env(name, "second")
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer first"
+    end
+
+    test "bhv authbearer 011 default inspect/1 redacts the token but keeps the host" do
+      auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      refute inspect(auth) =~ "super-secret-token"
+      assert inspect(auth) =~ "api.example.com"
+      assert inspect(auth) =~ ~s(token: "***")
+    end
+
+    test "bhv auth 003 an empty environment variable counts as no value, so the passed token is used and none fails" do
+      name = "{{envVarPrefix}}_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      auth = BearerAuthenticator.new("https://api.example.com", "explicit-token")
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer explicit-token"
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'token': pass it, or set the environment variable #{name}",
+                   fn -> BearerAuthenticator.new("https://api.example.com", nil) end
+    end
+
+    test "bhv auth 007 a generic bearer authenticator built without a token reads only its own variable and fails" do
+      own = "{{envVarPrefix}}_TOKEN"
+      other = "{{envVarPrefix}}_UNRELATED_AUTH007"
+      System.delete_env(own)
+      System.put_env(other, "not-a-token")
+      on_exit(fn -> System.delete_env(other) end)
+
+      assert_raise ArgumentError, ~r/Missing the credential 'token'/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv auth 018 a rejected secret never appears in the error message or the formatted stack trace" do
+      secret = "abc\r\nsecret-token-018"
+
+      try do
+        BearerAuthenticator.new("https://api.example.com", secret)
+      rescue
+        error in ArgumentError ->
+          refute Exception.message(error) =~ "secret-token-018"
+          refute Exception.format(:error, error, __STACKTRACE__) =~ "secret-token-018"
+      else
+        _ -> flunk("a token with a CR/LF must be rejected at construction")
+      end
+    end
+
+    test "bhv auth 022 an explicit argument is used before the environment variable and a function in its place is called" do
+      name = "{{envVarPrefix}}_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "from-env")
+
+      explicit = BearerAuthenticator.new("https://api.example.com", "explicit")
+      assert BearerAuthenticator.auth_headers(explicit)["Authorization"] == "Bearer explicit"
+
+      from_env = BearerAuthenticator.new("https://api.example.com", nil)
+      assert BearerAuthenticator.auth_headers(from_env)["Authorization"] == "Bearer from-env"
+
+      provider = BearerAuthenticator.new("https://api.example.com", fn -> "from-provider" end)
+      assert BearerAuthenticator.auth_headers(provider)["Authorization"] == "Bearer from-provider"
+    end
+
+    test "bhv config 025 an empty token environment value is treated as unset so construction fails naming the variable" do
+      name = "{{envVarPrefix}}_TOKEN"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'token': pass it, or set the environment variable #{name}",
+                   fn -> BearerAuthenticator.new("https://api.example.com", nil) end
+    end
+  end
+end
+{{/generateTests}}

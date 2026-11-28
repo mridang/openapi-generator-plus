@@ -1,0 +1,212 @@
+{{>api_info}}
+
+import hashlib
+import secrets
+import threading
+from typing import Callable, Dict, List, Optional, Protocol, Tuple, runtime_checkable
+
+from .base_authenticator import BaseAuthenticator
+
+# The algorithms a challenge may name, in lower case; MD5 when it names none.
+_ALGORITHMS = frozenset({'md5', 'md5-sess', 'sha-256', 'sha-256-sess'})
+_SPACE = ' \t\r\n'
+
+
+@runtime_checkable
+class ChallengeAuthenticator(Protocol):
+    """An authenticator that answers the server's 401 challenge. Internal to the SDK.
+
+    The base API asks it for the ``Authorization`` header of a request, which
+    needs the method and the request target, and hands it the
+    ``WWW-Authenticate`` value of a 401.
+    """
+
+    def authorization(self, method: str, request_target: str) -> Optional[str]:
+        """The header that answers the remembered challenge, or ``None`` before any."""
+
+    def accept_challenge(self, www_authenticate: str) -> bool:
+        """Remembers the first challenge of the header value this authenticator can answer."""
+
+
+class DigestAuthenticator(BaseAuthenticator):
+    """Authenticator for HTTP Digest authentication (RFC 7616).
+
+    Nothing is sent with the first request. When the server answers 401 with a
+    ``WWW-Authenticate: Digest`` challenge, the SDK asks this authenticator to
+    answer it and replays the request once; later requests answer the
+    remembered challenge up front with the nonce count incremented. MD5,
+    MD5-sess, SHA-256 and SHA-256-sess are answered, with ``qop=auth`` or
+    without a qop.
+
+    Raises:
+        ValueError: If the username is empty, either value holds a line break
+            or NUL, or the username holds a double quote.
+    """
+
+    def __init__(self, host: str, username: str, password: str) -> None:
+        if username == '':
+            raise ValueError('Digest username must not be empty')
+        if any(c in ('\r', '\n', '\x00') for c in username + password):
+            raise ValueError('Digest credentials must not contain a line break or NUL')
+        if '"' in username:
+            raise ValueError('Digest username must not contain a double quote')
+        self.host = host
+        self.username = username
+        self._password = password
+        self._lock = threading.Lock()
+        self._challenge: Optional[Dict[str, Optional[str]]] = None
+        self._qop = False
+        self._nonce_count = 0
+        # The client nonce of each answer: 16 random bytes as hex. Replaced in tests.
+        self._cnonce_source: Callable[[], str] = lambda: secrets.token_hex(16)
+
+    def get_host(self) -> str:
+        return self.host
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        """Nothing up front: the header depends on the request and the challenge."""
+        return {}
+
+    def authorization(self, method: str, request_target: str) -> Optional[str]:
+        """The ``Authorization`` header that answers the remembered challenge.
+
+        Args:
+            method: The upper-case HTTP method.
+            request_target: The path and query of the request URL.
+
+        Returns:
+            The header value, or ``None`` before any challenge was accepted.
+        """
+        with self._lock:
+            challenge = self._challenge
+            if challenge is None:
+                return None
+            self._nonce_count += 1
+            nc = f'{self._nonce_count:08x}'
+            qop = self._qop
+        realm = challenge['realm'] or ''
+        nonce = challenge['nonce'] or ''
+        algorithm = challenge['algorithm']
+        name = (algorithm or 'MD5').lower()
+        digest = hashlib.sha256 if name.startswith('sha-256') else hashlib.md5
+
+        def h(value: str) -> str:
+            return digest(value.encode('utf-8')).hexdigest()
+
+        cnonce = self._cnonce_source()
+        ha1 = h(f'{self.username}:{realm}:{self._password}')
+        if name.endswith('-sess'):
+            ha1 = h(f'{ha1}:{nonce}:{cnonce}')
+        ha2 = h(f'{method}:{request_target}')
+        if qop:
+            response = h(f'{ha1}:{nonce}:{nc}:{cnonce}:auth:{ha2}')
+        else:
+            response = h(f'{ha1}:{nonce}:{ha2}')
+        parts = [
+            f'username={_quote(self.username)}',
+            f'realm={_quote(realm)}',
+            f'nonce={_quote(nonce)}',
+            f'uri={_quote(request_target)}',
+        ]
+        if algorithm is not None:
+            parts.append(f'algorithm={algorithm}')
+        parts.append(f'response="{response}"')
+        if qop:
+            parts.extend(['qop=auth', f'nc={nc}', f'cnonce={_quote(cnonce)}'])
+        opaque = challenge['opaque']
+        if opaque is not None:
+            parts.append(f'opaque={_quote(opaque)}')
+        return 'Digest ' + ', '.join(parts)
+
+    def accept_challenge(self, www_authenticate: str) -> bool:
+        """Remembers the first challenge of the header value this authenticator can answer.
+
+        Args:
+            www_authenticate: The ``WWW-Authenticate`` value, every challenge of every line.
+
+        Returns:
+            Whether a challenge was accepted.
+        """
+        for scheme, params in _parse_challenges(www_authenticate):
+            if scheme.lower() != 'digest':
+                continue
+            qop = params.get('qop')
+            if qop is not None and 'auth' not in [o.strip().lower() for o in qop.split(',')]:
+                continue
+            algorithm = params.get('algorithm')
+            if algorithm is not None and algorithm.lower() not in _ALGORITHMS:
+                continue
+            with self._lock:
+                self._challenge = {
+                    'realm': params.get('realm'),
+                    'nonce': params.get('nonce'),
+                    'opaque': params.get('opaque'),
+                    'algorithm': algorithm,
+                }
+                self._qop = qop is not None
+                self._nonce_count = 0
+            return True
+        return False
+
+    def __repr__(self) -> str:
+        """Redacts the password so it never leaks into logs or tracebacks."""
+        return (
+            f"{type(self).__name__}(host={self.host!r}, "
+            f"username={self.username!r}, password='***')"
+        )
+
+
+def _quote(value: str) -> str:
+    """A quoted string, with the backslash and the double quote escaped."""
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def _parse_challenges(header: str) -> List[Tuple[str, Dict[str, str]]]:
+    """Every challenge of a ``WWW-Authenticate`` value, as its scheme and parameters.
+
+    Parameter names are in lower case; a value is a token or a quoted string
+    with backslash escapes.
+    """
+    challenges: List[Tuple[str, Dict[str, str]]] = []
+    current: Optional[Dict[str, str]] = None
+    i = 0
+    n = len(header)
+    while i < n:
+        while i < n and (header[i] in _SPACE or header[i] == ','):
+            i += 1
+        start = i
+        while i < n and header[i] not in _SPACE and header[i] not in ',=':
+            i += 1
+        token = header[start:i]
+        if token == '':
+            # A stray '=' with no name before it.
+            i += 1
+            continue
+        j = i
+        while j < n and header[j] in _SPACE:
+            j += 1
+        if j >= n or header[j] != '=':
+            current = {}
+            challenges.append((token, current))
+            continue
+        i = j + 1
+        while i < n and header[i] in _SPACE:
+            i += 1
+        if i < n and header[i] == '"':
+            i += 1
+            chars: List[str] = []
+            while i < n and header[i] != '"':
+                if header[i] == '\\' and i + 1 < n:
+                    i += 1
+                chars.append(header[i])
+                i += 1
+            i += 1
+            value = ''.join(chars)
+        else:
+            value_start = i
+            while i < n and header[i] not in _SPACE and header[i] != ',':
+                i += 1
+            value = header[value_start:i]
+        if current is not None and token.lower() not in current:
+            current[token.lower()] = value
+    return challenges

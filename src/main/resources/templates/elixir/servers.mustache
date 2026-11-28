@@ -1,0 +1,72 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Servers do
+  @moduledoc """
+  Generated server configurations from the OpenAPI specification.
+
+  Each function corresponds to a server entry defined in the spec's `servers`
+  array. Use these with `#{inspect({{moduleName}}.Configuration)}` to select a server:
+
+      config = {{moduleName}}.Configuration.new(
+        base_url: {{moduleName}}.Servers.server_0() |> {{moduleName}}.ServerConfiguration.url()
+      )
+
+  For servers with variables, pass overrides:
+
+      url = {{moduleName}}.Servers.server_1() |> {{moduleName}}.ServerConfiguration.url(%{"environment" => "staging"})
+  """
+
+{{#serverConfigs}}
+  @doc ~S"""
+  Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
+
+  {{{serverDescription}}}{{/serverDescription}}
+  """
+  @spec server_{{serverIndex}}() :: {{moduleName}}.ServerConfiguration.t()
+  def server_{{serverIndex}} do
+    %{{moduleName}}.ServerConfiguration{
+      url_template: {{#lambda.quotedLiteral}}{{{serverUrl}}}{{/lambda.quotedLiteral}},
+      description: {{#serverDescription}}{{#lambda.quotedLiteral}}{{{serverDescription}}}{{/lambda.quotedLiteral}}{{/serverDescription}}{{^serverDescription}}nil{{/serverDescription}},
+      variables: {{#hasVariables}}%{
+{{#serverVariables}}        "{{{varName}}}" => %{{moduleName}}.ServerVariable{
+          default_value: {{#lambda.quotedLiteral}}{{{varDefault}}}{{/lambda.quotedLiteral}},
+          description: {{#varDescription}}{{#lambda.quotedLiteral}}{{{varDescription}}}{{/lambda.quotedLiteral}}{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
+          enum_values: {{#hasEnumValues}}[{{#varEnumValues}}{{#lambda.quotedLiteral}}{{{.}}}{{/lambda.quotedLiteral}}{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
+        }{{^-last}},{{/-last}}
+{{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}%{}{{/hasVariables}},
+      name: {{#serverName}}{{#lambda.quotedLiteral}}{{{serverName}}}{{/lambda.quotedLiteral}}{{/serverName}}{{^serverName}}nil{{/serverName}}
+    }
+  end
+
+{{/serverConfigs}}
+  @doc """
+  All server configurations in declaration order.
+  """
+  @spec all() :: [{{moduleName}}.ServerConfiguration.t()]
+  def all do
+    [
+{{#serverConfigs}}      server_{{serverIndex}}(){{^-last}},{{/-last}}
+{{/serverConfigs}}    ]
+  end
+
+  @doc """
+  The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+
+  ## Raises
+
+    `ArgumentError` if no server has that name; the message lists the known names.
+  """
+  @spec by_name(String.t()) :: {{moduleName}}.ServerConfiguration.t()
+  def by_name(name) when is_binary(name) do
+    case Enum.find(all(), &(&1.name == name)) do
+      nil ->
+        known = all() |> Enum.map(& &1.name) |> Enum.reject(&is_nil/1)
+
+        raise ArgumentError,
+              "Unknown server name '#{name}'. Known names: [#{Enum.join(known, ", ")}]"
+
+      server ->
+        server
+    end
+  end
+end

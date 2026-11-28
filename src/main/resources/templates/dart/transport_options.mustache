@@ -1,0 +1,407 @@
+{{>api_info}}
+import 'package:http/http.dart' as http;
+
+/// Immutable HTTP transport configuration for [DefaultApiClient].
+///
+/// Controls low-level HTTP behavior such as TLS verification, proxy routing,
+/// timeouts, redirect handling, and automatic header injection. These settings
+/// are independent of API-level concerns (base URL, authentication headers)
+/// which belong in [Configuration].
+///
+/// This class is immutable. Use [TransportOptions.builder] to create instances:
+///
+/// ```dart
+/// final transport = TransportOptions.builder()
+///   .verifySsl(false)
+///   .proxy('http://proxy.example.com:8080')
+///   .timeout(5000)
+///   .userAgent('MyApp/1.0')
+///   .build();
+/// ```
+class TransportOptions {
+  /// Whether TLS certificate verification is enabled.
+  ///
+  /// When true (the default), the client verifies server certificates. Set to
+  /// false to accept any certificate (not recommended for production).
+  final bool verifySsl;
+
+  /// Path to a custom CA certificate bundle for TLS verification.
+  ///
+  /// When set together with `verifySsl: true`, the client trusts only
+  /// certificates signed by this CA; the system trust store is not consulted.
+  final String? caCertPath;
+
+  /// HTTP or HTTPS proxy URL for all outbound requests.
+  ///
+  /// Example: `http://proxy.corp.example.com:3128`. Null means direct
+  /// connections (no proxy).
+  final Uri? proxy;
+
+  /// End-to-end request timeout in milliseconds.
+  ///
+  /// Covers the entire request lifecycle: connection, TLS handshake, sending
+  /// the request body, and reading the response. Defaults to 60 seconds. Set
+  /// to null to disable the timeout (wait indefinitely).
+  final int? timeout;
+
+  /// Whether the client follows HTTP 3xx redirects automatically.
+  ///
+  /// When true (the default), redirects are followed. Set to false to return
+  /// the redirect response as-is.
+  final bool followRedirects;
+
+  /// Maximum number of consecutive redirects to follow.
+  ///
+  /// Only meaningful when [followRedirects] is true. Null uses the HTTP
+  /// client's built-in default.
+  final int? maxRedirects;
+
+  /// Custom `User-Agent` header value.
+  ///
+  /// When set, this value is sent as the `User-Agent` header on every request
+  /// unless the caller explicitly provides one. Null means no custom user
+  /// agent is injected.
+  final String? userAgent;
+
+  /// Transport-level default headers included in every request.
+  ///
+  /// These headers have the lowest priority: API-level headers from
+  /// [Configuration.defaultHeaders], operation-specific headers, and
+  /// authentication headers all take precedence.
+  final Map<String, String> _defaultHeaders;
+
+  /// Whether to auto-inject an `X-Request-ID` header with a unique UUID on
+  /// every request.
+  ///
+  /// Useful for distributed tracing and log correlation. The header is only
+  /// injected if the caller has not already set one.
+  final bool injectRequestId;
+
+  /// Caller-supplied [http.Client] that carries every request instead of the
+  /// SDK's own client, or null to let the SDK create one.
+  ///
+  /// The SDK keeps applying its own timeout, redirect policy, user agent,
+  /// default headers and request id on top of it. The caller owns the client's
+  /// lifecycle: [DefaultApiClient.close] never closes it. It cannot be combined
+  /// with [proxy], [caCertPath] or `verifySsl: false`, because those settings
+  /// configure the SDK's own client; [TransportOptionsBuilder.build] rejects
+  /// the combination.
+  final http.Client? httpClient;
+
+  /// How many times a failed request is sent again, besides the first send.
+  ///
+  /// Defaults to 2; 0 disables retries. A request is retried after a network
+  /// error that happened before a response arrived, and after a response with
+  /// status 408, 409, 429 or 500-599 (not 501), waiting 0.5 s doubling to
+  /// 8 s with 25% jitter, or as long as a `Retry-After` header says (seconds
+  /// or an HTTP date, at most 60 s). Retries never extend [timeout] and a
+  /// request with a multipart body is never retried.
+  final int maxRetries;
+
+  /// The longest a streamed response body may stay silent, in milliseconds, or
+  /// null when it is disabled.
+  ///
+  /// Applies only to a call that returns a stream (a binary operation): the
+  /// [timeout] stops at the response headers, and this value bounds the gap
+  /// between two reads of the body. A stalled body raises
+  /// `NetworkTimeoutException`. A buffered call is unaffected. Defaults to
+  /// 60 seconds; 0 or null disables it.
+  final int? idleTimeout;
+
+  /// The largest buffered response body the client reads, in bytes, or null
+  /// (the default) for no limit.
+  ///
+  /// Counts both the bytes received and the bytes after decompression, so a
+  /// small compressed body that inflates past the limit fails too, and
+  /// decompression stops as soon as the limit is passed. A body that passes it
+  /// raises `ResponseTooLargeException` with the real status. A streamed body
+  /// is not counted: the caller reads it piece by piece.
+  final int? maxResponseBytes;
+
+  TransportOptions._({
+    required this.verifySsl,
+    required this.caCertPath,
+    required this.proxy,
+    required this.timeout,
+    required this.followRedirects,
+    required this.maxRedirects,
+    required this.userAgent,
+    required Map<String, String> defaultHeaders,
+    required this.injectRequestId,
+    required this.httpClient,
+    required this.maxRetries,
+    required this.idleTimeout,
+    required this.maxResponseBytes,
+  }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
+
+  /// Transport-level default headers included in every request.
+  ///
+  /// Returns a copy of the headers, so modifying it does not affect these
+  /// options.
+  Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
+
+  /// Shows every setting, with the proxy password and credential headers masked.
+  @override
+  String toString() {
+    final shownHeaders = _defaultHeaders.map(
+      (name, value) => MapEntry(name, _isSecretHeader(name) ? '***' : value),
+    );
+    return 'TransportOptions(verifySsl: $verifySsl, caCertPath: $caCertPath, '
+        'proxy: ${_redactedProxy()}, timeout: $timeout, '
+        'followRedirects: $followRedirects, maxRedirects: $maxRedirects, '
+        'userAgent: $userAgent, defaultHeaders: $shownHeaders, '
+        'injectRequestId: $injectRequestId, maxRetries: $maxRetries, '
+        'idleTimeout: $idleTimeout, maxResponseBytes: $maxResponseBytes)';
+  }
+
+  String? _redactedProxy() {
+    final url = proxy;
+    if (url == null || url.userInfo.isEmpty) return url?.toString();
+    final user = url.userInfo.split(':').first;
+    return url.replace(userInfo: '$user:***').toString();
+  }
+
+  static bool _isSecretHeader(String name) {
+    final lower = name.toLowerCase();
+    return lower == 'authorization' ||
+        lower == 'proxy-authorization' ||
+        lower == 'cookie' ||
+        lower.contains('key') ||
+        lower.contains('token') ||
+        lower.contains('secret');
+  }
+
+  /// Create a new builder for constructing [TransportOptions] instances.
+  static TransportOptionsBuilder builder() => TransportOptionsBuilder();
+}
+
+/// Builder for creating immutable [TransportOptions] instances.
+///
+/// All fields have sensible defaults:
+///
+/// - `verifySsl` -- true
+/// - `followRedirects` -- true
+/// - `injectRequestId` -- false
+/// - `maxRetries` -- 2
+/// - `timeout` -- 60000 (60 seconds)
+/// - `idleTimeout` -- 60000 (60 seconds)
+/// - `maxResponseBytes` -- null (no limit)
+/// - `userAgent` -- a package-specific default string
+/// - All other fields -- null or empty
+///
+/// Example:
+///
+/// ```dart
+/// final transport = TransportOptions.builder()
+///   .verifySsl(false)
+///   .proxy('http://proxy:3128')
+///   .timeout(5000)
+///   .build();
+/// ```
+class TransportOptionsBuilder {
+  bool _verifySsl = true;
+  String? _caCertPath;
+  String? _proxy;
+  {{! Default to 60 seconds end-to-end timeout. Override via [timeout]. }}
+  int? _timeout = 60000;
+  bool _followRedirects = true;
+  int? _maxRedirects;
+  String? _userAgent = '{{userAgentDefault}}';
+  final Map<String, String> _defaultHeaders = {};
+  bool _injectRequestId = false;
+  http.Client? _httpClient;
+  int _maxRetries = 2;
+  int? _idleTimeout = 60000;
+  int? _maxResponseBytes;
+
+  /// Enable or disable TLS certificate verification.
+  ///
+  /// Pass true to verify (default), false to skip.
+  TransportOptionsBuilder verifySsl(bool val) {
+    _verifySsl = val;
+    return this;
+  }
+
+  /// Set the path to a custom CA certificate bundle.
+  ///
+  /// Pass the file path to a PEM-encoded CA certificate, or null.
+  TransportOptionsBuilder caCertPath(String? val) {
+    _caCertPath = val;
+    return this;
+  }
+
+  /// Set the HTTP/HTTPS proxy URL.
+  ///
+  /// Pass a proxy URL (e.g. `http://proxy:3128`), or null (or an empty
+  /// string) for no proxy. Only HTTP and HTTPS proxy URLs are supported.
+  ///
+  /// The URL is validated by [build], which throws [ArgumentError] if it is not
+  /// a valid HTTP or HTTPS URL. The error never carries the URL, which may
+  /// embed `user:password` credentials.
+  TransportOptionsBuilder proxy(String? val) {
+    _proxy = val == null || val.isEmpty ? null : val;
+    return this;
+  }
+
+  /// Set the end-to-end request timeout in milliseconds.
+  ///
+  /// Pass the timeout in milliseconds, or null for no timeout.
+  TransportOptionsBuilder timeout(int? val) {
+    if (val != null && val <= 0) {
+      throw ArgumentError(
+          'Invalid timeout: must be a positive number of milliseconds (got $val)');
+    }
+    _timeout = val;
+    return this;
+  }
+
+  /// Set the longest a streamed response body may stay silent, in
+  /// milliseconds.
+  ///
+  /// Pass the gap in milliseconds (positive), or 0 or null to disable it; the
+  /// default is 60000. Throws [ArgumentError] for a negative value. See
+  /// [TransportOptions.idleTimeout].
+  TransportOptionsBuilder idleTimeout(int? val) {
+    if (val != null && val < 0) {
+      throw ArgumentError(
+          'Invalid idleTimeout: must not be negative (got $val)');
+    }
+    _idleTimeout = val == null || val == 0 ? null : val;
+    return this;
+  }
+
+  /// Enable or disable automatic redirect following.
+  ///
+  /// Pass true to follow (default), false to stop.
+  TransportOptionsBuilder followRedirects(bool val) {
+    _followRedirects = val;
+    return this;
+  }
+
+  /// Set the maximum number of redirects to follow.
+  ///
+  /// Pass the maximum redirect hops, or null for the client default. A value
+  /// of 0 means zero redirects. Throws [ArgumentError] if the value is negative.
+  TransportOptionsBuilder maxRedirects(int? val) {
+    if (val != null && val < 0) {
+      throw ArgumentError(
+          'Invalid maxRedirects: must not be negative (got $val)');
+    }
+    _maxRedirects = val;
+    return this;
+  }
+
+  /// Set a custom User-Agent header value.
+  ///
+  /// Pass the user agent string, or null to omit.
+  TransportOptionsBuilder userAgent(String? val) {
+    _userAgent = val;
+    return this;
+  }
+
+  /// Add a single transport-level default header.
+  TransportOptionsBuilder defaultHeader(String name, String value) {
+    _defaultHeaders[name] = value;
+    return this;
+  }
+
+  /// Add multiple transport-level default headers.
+  TransportOptionsBuilder defaultHeaders(Map<String, String> headers) {
+    _defaultHeaders.addAll(headers);
+    return this;
+  }
+
+  /// Enable or disable automatic `X-Request-ID` header injection.
+  ///
+  /// Pass true to inject, false to skip (default).
+  TransportOptionsBuilder injectRequestId(bool val) {
+    _injectRequestId = val;
+    return this;
+  }
+
+  /// Supply the [http.Client] that carries every request.
+  ///
+  /// Pass a client (for example one shared with the rest of the application, or
+  /// a `MockClient` in tests), or null to use the SDK's own. The caller owns
+  /// the client: the SDK never closes it. [build] throws [ArgumentError] when
+  /// it is combined with a proxy, a custom CA certificate or disabled TLS
+  /// verification.
+  TransportOptionsBuilder httpClient(http.Client? val) {
+    _httpClient = val;
+    return this;
+  }
+
+  /// Set how many times a failed request is sent again.
+  ///
+  /// Pass 0 to disable retries; the default is 2. Throws [ArgumentError] for
+  /// a negative value. See [TransportOptions.maxRetries] for what is retried.
+  TransportOptionsBuilder maxRetries(int val) {
+    if (val < 0) {
+      throw ArgumentError(
+          'Invalid maxRetries: must be zero or a positive number (got $val)');
+    }
+    _maxRetries = val;
+    return this;
+  }
+
+  /// Set the largest buffered response body the client reads, in bytes,
+  /// counted as received and after decompression.
+  ///
+  /// Pass a positive number of bytes, or null for no limit (the default).
+  /// Throws [ArgumentError] for zero or a negative value. A body that passes
+  /// it raises `ResponseTooLargeException`. See
+  /// [TransportOptions.maxResponseBytes].
+  TransportOptionsBuilder maxResponseBytes(int? val) {
+    if (val != null && val <= 0) {
+      throw ArgumentError(
+          'Invalid maxResponseBytes: must be a positive number of bytes (got $val)');
+    }
+    _maxResponseBytes = val;
+    return this;
+  }
+
+  /// Build and return an immutable [TransportOptions] instance.
+  ///
+  /// Throws [ArgumentError] if the proxy URL is invalid, or if a custom
+  /// [httpClient] is combined with a proxy, a custom CA certificate or
+  /// disabled TLS verification.
+  TransportOptions build() {
+    if (_httpClient != null &&
+        ((_proxy != null) || _caCertPath != null || !_verifySsl)) {
+      throw ArgumentError(
+        'A custom httpClient cannot be combined with proxy, caCertPath or '
+        'verifySsl(false): configure those on the supplied client instead.',
+      );
+    }
+    Uri? proxy;
+    final rawProxy = _proxy;
+    if (rawProxy != null) {
+      final parsed = Uri.tryParse(rawProxy);
+      if (parsed == null || parsed.scheme.isEmpty) {
+        throw ArgumentError('Invalid proxy URL');
+      }
+      if (parsed.scheme != 'http' && parsed.scheme != 'https') {
+        throw ArgumentError('Invalid proxy URL (must use http or https scheme)');
+      }
+      if (parsed.host.isEmpty) {
+        throw ArgumentError('Invalid proxy URL (missing host)');
+      }
+      proxy = parsed;
+    }
+    return TransportOptions._(
+      verifySsl: _verifySsl,
+      caCertPath: _caCertPath,
+      proxy: proxy,
+      timeout: _timeout,
+      followRedirects: _followRedirects,
+      maxRedirects: _maxRedirects,
+      userAgent: _userAgent,
+      defaultHeaders: Map<String, String>.from(_defaultHeaders),
+      injectRequestId: _injectRequestId,
+      httpClient: _httpClient,
+      maxRetries: _maxRetries,
+      idleTimeout: _idleTimeout,
+      maxResponseBytes: _maxResponseBytes,
+    );
+  }
+}

@@ -1,0 +1,188 @@
+# Kotlin
+
+The Kotlin generator (`kotlin-plus`, class `BetterKotlinCodegen`) produces a Gradle project that uses the Kotlin Multiplatform plugin with a single `jvm()` target. It sends requests with Ktor and serializes with kotlinx.serialization. This page lists the supported versions, the type mapping, the dependencies, the generator options and the idioms. The shared pipeline is in [how-it-works.md](../how-it-works.md) and the cross-language type table is in [types.md](../types.md).
+
+## Supported versions
+
+| What | Version | Where it comes from |
+|---|---|---|
+| Kotlin | 2.2.0 | `kotlin("multiplatform") version "2.2.0"` in `build.gradle.kts` |
+| JVM | 17 or newer | the generated README; detekt's `jvmTarget` is `17` |
+| Gradle | 8.10 or newer, or 9.x | the generated README; the SDK ships no Gradle wrapper |
+| Ktor | 3.5.0 | `build.gradle.kts` |
+
+The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, and only the static analysis targets 17. The floors are written once, in the manifest above. The support policy is the oldest non-EOL runtime, but the JVM 17 floor is an open owner decision: the generator's notes record that JDK 17 is not the oldest supported JDK, and that lowering it would change the toolchain and the pinned plugins, so nothing has been changed.
+
+## Type mapping
+
+| OpenAPI | Kotlin type | Notes |
+|---|---|---|
+| `string`, `format: date` | `java.time.LocalDate` | JVM only |
+| `string`, `format: date-time` | `java.time.OffsetDateTime` | keeps the offset |
+| `string`, `format: time` | `java.time.LocalTime` | |
+| `string`, `format: duration` | `java.time.Duration` | sent and read as a protobuf-JSON duration string such as `3600s` |
+| `string`, `format: uuid` | `kotlin.uuid.Uuid` | experimental in Kotlin 2.2, so generated files opt in with `ExperimentalUuidApi` |
+| `string`, `format: byte` | `ByteArray` | base64 on the wire |
+| `string`, `format: binary` | `BodySource` for a raw request body; `ByteStream` for a response | the response body is read as you consume it and the request body is sent as it is read, see Streaming |
+| `string`, `format: uri` | `java.net.URI` | Keeps the text it was built from, so a value is written back byte for byte; it rejects a square bracket in a path, as RFC 3986 does; `uri-reference` and `uri-template` stay `String` |
+| `string`, `format: email`, `hostname`, and plain `string` | `String` | no dedicated type |
+| `string`, `format: ipv4`, `ipv6` | `String` | the JVM has no address parser that accepts only a literal before Java 22, so the text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D146) |
+| `integer`, `format: int32` | `Int` | |
+| `integer`, `format: int64` | `Long` | |
+| `integer`, no format | `Long` | 64 bits, the same as `int64` |
+| `number`, `format: float` | `Float` | |
+| `number`, `format: double` | `Double` | binary floating point, so not for money |
+| `number`, no format, or `format: decimal` | `java.math.BigDecimal` | exact; serialized through a precision-preserving serializer |
+| `boolean` | `Boolean` | |
+| `array` | `List` | |
+| `array` with `uniqueItems` | `Set` | built as a `LinkedHashSet`; the order on the wire is the set's iteration order and should not be relied on |
+| `object` with `additionalProperties` | `Map` | `T` is the declared value type; a free-form bucket keeps the any-type |
+| free-form `object` | `@Contextual Any?` | |
+| nullable or optional property | `T?` | an absent key and an explicit `null` read the same; a required and nullable property keeps its key and is written as `null` when unset |
+| `enum` | `enum class` | an unknown value decodes to `UNKNOWN_DEFAULT_OPEN_API` (D117), which cannot be written; a `$ref` to an enum with a `default` next to it starts at that member, whether the model is built or decoded without the key |
+| `oneOf`, `anyOf` | a wrapper class | see Idioms |
+| file upload and download | `BodySource` upload (a multipart file part stays `ByteArray`), `ByteStream` download | same as `binary` |
+
+A schema named `Error` is generated as `ModelError`.
+
+## Dependencies
+
+| Dependency | Why |
+|---|---|
+| `ktor-client-core`, `ktor-http` 3.5.0 | the HTTP client API and the `Url` type |
+| `ktor-client-cio` 3.5.0 (JVM source set) | the default HTTP engine |
+| `kotlinx-serialization-json` 1.11.0 | JSON encoding and decoding |
+| `kotlinx-coroutines-core` 1.11.0 | every operation is a `suspend` function |
+| `kotlinx-datetime` 0.7.0 | declared in the manifest but not imported by any generated source file today |
+| `opentelemetry-api` 1.62.0 (compile only) | W3C trace context when OpenTelemetry is on the class path, and the `OpenTelemetryCallHook` adapter in the JVM source set |
+| `org.brotli:dec` and `zstd-jni` (optional at run time) | decoding `br` and `zstd` responses; they are not declared in the main dependencies, so add them yourself to enable those encodings |
+
+The generated project also configures ktlint, detekt, Kover and Dokka, and tests run on `kotlin-test-junit5` with Ktor's mock engine; none of those are runtime dependencies.
+
+## Generator options
+
+| Option | Default | Effect |
+|---|---|---|
+| `invokerPackage` | `org.openapitools` | root Kotlin package |
+| `sourceFolder` | `src/main/kotlin` | source directory |
+| `groupId` | the invoker package | Gradle group |
+| `artifactId` | last segment of the invoker package plus `-client` | project and artifact name |
+| `artifactVersion` | `1.0.0` | project version; not derived from the spec |
+| `repositoryUrl` | none | written to the POM `scm` and the README |
+| `homepageUrl` | the repository URL | project home page |
+| `authors` | none | comma-separated names, written to the POM developers |
+| `documentationUrl` | none | linked from the README |
+| `issueTrackerUrl` | none | POM `issueManagement` and the README |
+| `clientClassName` | `Client` | name of the client facade |
+| `errorPrefix` | `OpenAPI` | prefix of the root error type |
+| `envVarPrefix` | the API title in upper snake case without a trailing `SDK`, else `API` | prefix of the credential environment variables, see Authentication |
+| `generateTests` | `true` | emit the full test suite |
+| `generateUnitTests` | `false` | emit only the spec-independent unit tests |
+
+## Idioms
+
+- **Errors.** Failures derive from the root exception and, for HTTP failures, from `ApiException` with `statusCode`, the headers, the body, `requestMethod` and `requestPath` (without the query string). `NetworkException` and `NetworkTimeoutException` mean no response arrived. Caller mistakes raise `IllegalArgumentException`.
+- **Retries.** Up to two retries by default (`TransportOptions.maxRetries`, `0` turns them off), after a network error before any response and after 408, 409, 429 and 5xx except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds, loses up to 25% to jitter and is replaced by `Retry-After` (at most 60 seconds). Retries share the end-to-end timeout, which defaults to 10 000 ms, and a timeout itself is never retried.
+- **Response size.** `TransportOptions` takes `maxResponseBytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeException` (D138).
+- **Cancellation.** Every operation is a `suspend` function, so cancelling the coroutine (or using `withTimeout`) aborts the request and raises `kotlinx.coroutines.CancellationException`, never `NetworkTimeoutException`.
+- **Authentication.** Basic, bearer and API key authenticators, plus OAuth 2 and OpenID Connect. Every credential is the first of three: the argument you pass, then an environment variable read once when the authenticator is built (an empty value counts as unset), then, for a bearer token or an API key, a `tokenProvider` or `apiKeyProvider` lambda that is called on every request. A credential found in none of them fails with `IllegalArgumentException` naming the variable, where the authenticator is built. `BearerAuthenticator`, `ApiKeyAuthenticator` and `BasicAuthenticator` read `{PREFIX}_TOKEN`, `{PREFIX}_API_KEY`, and `{PREFIX}_USERNAME` with `{PREFIX}_PASSWORD`. The authenticator generated for each security scheme reads the variable of its own scheme, `{PREFIX}_{FIELD}`, or `{PREFIX}_{SCHEME}_{FIELD}` when two schemes have a field of the same name, for every field including an OAuth 2 client id and secret; the generated README lists them. `{PREFIX}` is the `envVarPrefix` option. `Client.withToken(host, accessToken = null)` reads `{PREFIX}_TOKEN`. **Credentials per scheme.** `Client(host, <scheme> = ..., transportOptions)` takes one optional credential per distinct security scheme, named after the scheme in camel case (a Kotlin keyword is back-quoted) and typed as that scheme's authenticator. Each operation uses the credential of the first scheme its spec lists that you passed, and an operation none of whose schemes you passed falls back to the authenticator of `Client(authenticator)` when there is one and is otherwise sent without a credential; an operation declared `security: []` never sends one. There is no per-call scheme override, so the `<Operation>Options` classes carry no `auth`.
+- **Security scheme metadata (D190).** A security scheme marked `deprecated: true` gets a sentence saying so in its generated authenticator's doc comment (no deprecation attribute), and a scheme that declares `oauth2MetadataUrl` exposes that URL on its authenticator as the companion `const val METADATA_URL`; it is not fetched.
+- **Device authorization (D191).** A scheme with a `deviceAuthorization` flow gets an `OAuth2DeviceAuthorizationAuthenticator`: the suspending `requestDeviceAuthorization()` returns the nested data class `OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization` with the user code and verification URI to show, and the suspending `pollForToken(authorization)` delays the interval between polls until the user approves it.
+- **HTTP Digest (D192).** A `type: http, scheme: digest` scheme gets a `DigestAuthenticator(host, username, password)`, reading `{PREFIX}_USERNAME` and `{PREFIX}_PASSWORD` like `BasicAuthenticator` (the per-scheme class reads its scheme's variables); a bad credential fails with `IllegalArgumentException`. The first request goes without credentials, `BaseApi` answers the 401 `WWW-Authenticate: Digest` challenge (through the `internal` `authorization` and `acceptChallenge` members) and replays the request once (buffered and streaming), and later requests carry the answer up front with the nonce count incremented. MD5 and SHA-256 come from the JDK's `MessageDigest`; no dependency was added. Negotiate is not supported.
+- **Immutability.** Models are `data class`es with `val` properties; copy them with `copy(...)`.
+- **Unions.** A `oneOf` or `anyOf` model is a wrapper class holding the decoded variant in `actualInstance`, with a hand-written serializer that dispatches on the discriminator when there is one. Equality compares the held variants. Each variant has a `from<Variant>(value)` factory on the companion object, an `is<Variant>` property and an `as<Variant>()` function that returns the variant or `null` (a variant that is a generic type, such as `List<String>`, has only the factory, because the type is erased at run time). An operation with several `2xx` responses returns a union decoded by the status that arrived.
+- **Optional arguments.** Optional parameters use Kotlin default arguments. Every operation takes an options object, also one with no parameters and no security, and per-call `timeout`, `headers` and `maxRetries` go in it; an operation with nothing of its own gets an options object that holds only those three. The per-call timeout, like the transport one (default 60 seconds), is one end-to-end deadline that covers connecting, every redirect hop and the whole body read of a buffered call (D137).
+- **Typed response headers.** An operation whose success response declares headers also gets a `<Operation>ResponseHeaders` class next to its `<Operation>Options` class, with one nullable property per declared header, and `<Operation>ResponseHeaders.from(result.headers)` reads them from an `ApiResult` in their declared types, raising `SerializationException` for a value that does not parse (D168).
+- **Raw responses.** Every operation has a `*WithHttpInfo` variant returning an `ApiResult`.
+- **Constraint validation (D189).** `Configuration.builder().validateConstraints(true)` (default off, read as the `validateConstraints` property) checks every request body that is a model or a list of models, and the models it holds, against `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` before anything is sent, and throws `IllegalArgumentException` with `Invalid request body: <path> <rule>` (for example `tier.level must be greater than or equal to 0`). Lengths count code points, a pattern is searched with `Regex` (the JVM engine) and skipped when it does not compile; the checks live in the `internal object ConstraintValidator`.
+- **Call hook.** `CallHook` (a `fun interface` with `start(info, headers): CallObserver?`), `CallObserver` (`finish(outcome)`), `CallInfo` and `CallOutcome` (data classes) and `CallHook.chain(...)` are in the common source set; set the hook with `Configuration.builder().callHook(hook)` or the `callHook` argument of the `Client` constructors and factories. Both functions are plain, not `suspend`, and run inline on the calling coroutine, so they must not block. The optional `OpenTelemetryCallHook.create()` and `create(openTelemetry)` live in the JVM source set and need `opentelemetry-api` on the class path; the SDK core imports no OpenTelemetry type except in `TraceContextUtil`.
+- **Streaming.** An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns `ByteStream` from the one `suspend` operation method (there is no second method), and `...WithHttpInfo` returns `ApiResult<ByteStream>` with an empty `rawBody`. A `ByteStream` has `statusCode`, the lower-cased `headers`, `suspend fun read(buffer)`, a cold `chunks(): Flow<ByteArray>` that closes the stream when the collection ends, `suspend fun readAll()` that reads the rest and leaves the stream closed, an idempotent `close()` that aborts the connection instead of draining it, and a `toString()` that shows only the status and the bytes delivered. The transport gets `suspend fun ApiClient.sendStreaming(method, url, headers, body)`, which returns an `ApiStreamResponse` (status, headers, open `ApiStreamBody`); the per-call `timeout` and `maxRetries` reach it through the same coroutine context as `sendRequest`, and its default implementation throws `UnsupportedOperationException` naming the transport, so an injected `ApiClient` that only implements `sendRequest` keeps working for buffered calls. `DefaultApiClient` runs the buffered call's header phase (retries, redirects, the end-to-end `timeout`, the header rules) and stops there: the `timeout` ends at the response headers, `TransportOptions.builder().idleTimeout(millis)` (default 60 seconds, `0` or `null` disables) bounds the gap between two reads of the body and raises `NetworkTimeoutException`, and nothing is retried after the first body byte. A non-2xx status raises the usual typed error with its body read up to 64 KiB. A reset, or a body shorter than its `Content-Length`, raises `StreamException` (a `NetworkException`, status 0). Cancelling the calling coroutine aborts the stream and raises `CancellationException`. `client.close()` cancels the streams still open; their next read raises `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). Uploads are unchanged.
+- **JSON Lines and server-sent events.** An operation whose success response is `application/x-ndjson`, `application/jsonl`, `application/jsonlines` or `text/event-stream` has no buffered method and no `WithHttpInfo` variant. It has a `suspend fun <operation>Stream(...args, options, streamOptions: StreamOptions? = null)` returning `JsonLinesStream<T>` or `SseStream<T>`, each a class with `statusCode`, `headers`, a cold `items()` (`events()` for `SseStream`) that is a `Flow`, `suspend fun next()` that returns `null` at the end, an idempotent `close()` and a redacted `toString()`; the flow closes the stream when its collection ends. `ServerSentEvent<T>` is a data class (`id`, `event` defaulting to `message`, `data`, `retry`, `raw`). `StreamOptions` is a class with nullable named arguments (`idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId`, `maxEventBytes`; milliseconds and bytes). The parser follows the WHATWG grammar (`EventStream.kt`), a decode failure is a `SerializationException` naming the 1-based line (JSON Lines), and the generator option `sseTerminator` ends a feed on a named data value. An event stream reconnects after a clean end, a network error or an idle timeout with fresh headers and `Last-Event-ID`, up to `maxReconnects` times in a row (5; 0 for a request with a body; `-1` unlimited), waiting the server's `retry` value, else `Retry-After` on 429, 502, 503 and 504, else `reconnectDelay` doubling to 30 seconds with jitter (a coroutine `delay`, so cancelling the collector ends the wait); an event named `error` raises `ApiException`, and a 204, a 4xx, a response that is not `text/event-stream`, a cancellation or `client.close()` never reconnects. The per-call `idleTimeout` reaches `sendStreaming` through the `CallSettings` coroutine context, like `timeout` and `maxRetries`.
+- **Uploads.** An operation whose request body is raw binary takes a `BodySource` (a class in the SDK package) in every signature (the operation, `...WithHttpInfo`, the `...ApiInterface` and the client): `BodySource.of(bytes)`, `BodySource.ofFile(path)`, `BodySource.fromSupplier(length) { stream }` and `BodySource.fromFlow(length) { flow }` are replayable (the `length` is optional), `BodySource.once(stream)`, `BodySource.once(channel)` (a Ktor `ByteReadChannel`) and `BodySource.once(flow)` (a `Flow<ByteArray>`) are single use, each with an optional `length`. The transport sends the body as a Ktor `WriteChannelContent` that is written as it is read, so a known length is `Content-Length` and an unknown length is chunked, and nothing is buffered. A replayable body is read again for a retry (a network error is retried only for an idempotent method, as for a buffered body) and for a 307 or 308 redirect; a single-use body is never retried and a 307 or 308 raises `ApiException` with `Refusing to replay a streamed request body`. The SDK never closes a stream or a channel you pass to `once` and closes what it opened itself from a file or a factory. `BodySource.chunks()` is the cold `Flow<ByteArray>` a custom `ApiClient` reads the body with. Multipart bodies stay buffered. `toString()` shows the kind and the length, never the content or the path.
+- **Pagination.** A GET list that the shared detector finds paged (a token cursor or id cursor query parameter, an offset or page-number query parameter, a `Link` header declared on the response, or a next URL in the body; D123, D124) has `fun <operation>Pages(...args, options)` beside its plain method, in the class and in the `...ApiInterface`. It is a plain function, not `suspend`, and returns `Paginator<T, C>` (`T` the item type, `C` the cursor type, `Unit` for a list followed by a URL), a class that is not a `Flow` (a `Flow` is not stable for inheritance) with two cold flows: `items(): Flow<T>` and `pages(): Flow<Page<T, C>>`. `Page<T, C>` has `items`, `nextCursor` (null on the last page, always null for `Link`) and `result` (the `ApiResult` of the page). The cursor is an optional query parameter, so it lives in the `<Operation>Options` class, whose internal `copy(...)` (generated for a paged operation only) gives each page its own cursor and leaves the caller's options untouched. The function sends nothing; every collection builds its own state, so a second collection starts again, a page is an ordinary `...WithHttpInfo` call, and a failed page raises from the collection after the earlier items were delivered. An id list ends when a declared `has_more` is false, an offset list advances the offset by the items received and a page-number list counts pages, and both end on an empty page or a false `has_more`; a next URL list takes the URL in the body of each page and follows it only within the origin of the client, as a `Link` list does. A cursor equal to the one just sent, or a `Link` that points back at the page just read or leaves the origin of the client, delivers the page it came with and raises `PaginationException` (a direct child of the root exception, not an `ApiException`). A `Link` page is requested through a private `<operation>Page(...args, pageUrl)` that replaces the path with the absolute URL, so authentication, retries and the call hook apply; `LinkHeader` (internal) parses RFC 8288. Cancelling the collector (`take`, `first`, a cancelled coroutine) aborts the page request in flight and is never reported as a timeout.
+- **Closing.** `Client.close()` is graceful and idempotent: a request already in flight finishes, the transport the SDK created is released after the last one, a later request fails with `IllegalStateException` ("ApiClient has been closed and can no longer send requests"), and a Ktor client you supplied is never closed.
+- **Construction and decoding.** A model constructor never validates or raises, whatever the value (an out-of-range number, an out-of-pattern string, an empty collection). A payload is checked only when it is decoded: a required property that arrives as `null` or is missing, and an enum string outside the declared set, fail with `SerializationException`.
+- **Cookie parameters.** A cookie value is sent as given when every character is a legal RFC 6265 cookie-octet, and otherwise the call fails with `IllegalArgumentException` before anything is sent. The message says to percent-encode the value first, which is yours to do: `%` is a legal cookie-octet, so a value you encoded goes out unchanged. A cookie carried as `content` is serialised by the SDK and percent-encoded, since you pass an object rather than text.
+- **Custom transport.** `TransportOptions.builder().httpClient(myKtorClient)` sends requests through your own Ktor `HttpClient`; combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
+- Testing your code: `<Group>ApiInterface` (`...Interface.kt` per group) and `ClientInterface : AutoCloseable` with `val` per group; `Client` keeps the concrete type through a covariant `override val`. The default values of the parameters live on the interface, so the class overrides drop `= null`, and the forms without the server live on the interface as methods with bodies, not on the class. The tests rely on Kotlin 2.2 compiling interface bodies as JVM default methods so a `Proxy` can run them.
+- With `generateExamples` on, the project ships `src/examples/kotlin/<package>/examples/Quickstart.kt`, a `main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation inside `runBlocking` and closes the client with `use`. `build.gradle.kts` adds `src/examples/kotlin` as a `jvmTest` source root and to the detekt sources, so `make examples` (`gradle compileTestKotlinJvm`) builds it, ktlint and detekt check it, and it never ships in the jar; `make examples-run` runs it with the `runQuickstart` task.
+- `OAuth2TokenManager.stop()` ends the manager: a later token request throws `OAuth2TokenException` with the message "The token manager has been stopped." and sends nothing. Stopping twice does nothing.
+
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```kotlin
+val hook = CallHook { info, headers ->
+    headers["X-Request-Source"] = "reports"
+    CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
+}
+val client = Client.withToken("https://api.example.com", "token", callHook = hook)
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```kotlin
+val eu = Client.withToken("https://eu.api.example.com", "eu-token")
+val us = Client.withToken("https://us.api.example.com", "us-token")
+```
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `models/Animal.kt`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A binary response is the one live body, a `ByteStream` (see Streaming); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```kotlin
+val result = client.pet.addPetWithHttpInfo(pet)
+val status = result.statusCode
+val etag = result.headers["etag"]
+val raw = result.rawBody
+
+try {
+    client.pet.addPet(pet)
+} catch (e: ApiException) {
+    println("${e.statusCode} ${e.responseHeaders} ${e.responseBody}")
+}
+```
+
+## Known limits
+
+- A JSON, text, form or multipart request body and a JSON, text or form response body are held in memory. A raw binary request body (`BodySource`), a binary response (`ByteStream`), JSON Lines and server-sent events are streamed.
+- Date, time and decimal types are `java.time` and `java.math` types, so the generated code compiles only for the JVM target even though the project uses the Multiplatform plugin.
+- When no proxy is configured, the Ktor CIO engine asks the JVM's default `ProxySelector`, so `http.proxyHost` and the system proxy settings apply. Set your own `ProxySelector` to override this.
+- Schema constraints are not checked on the client by default; the model layer checks only JSON types and required fields. `Configuration.builder().validateConstraints(true)` turns on the opt-in check of request bodies (D189).
+- `dependentRequired` and `dependentSchemas` are not enforced.
+- Webhooks and callbacks, XML bodies, Link Objects and `mutualTLS` security schemes are not generated.
+- Only `http://` and `https://` proxies are accepted; SOCKS is rejected.
+- `verifySsl(false)` does not skip the host name check on the Ktor CIO engine: a certificate whose host name does not match the address is still refused, because the engine checks it in its own TLS code and no trust manager can turn that off.
+- A header sent on several lines is joined with `, `.
+- The SDK writes no logs; install the Ktor `Logging` plugin on your own `HttpClient`.
+- No `LICENSE` file is generated.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `suspend` functions, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
+- The OpenID Connect authenticator sends a fresh nonce with each authorization URL and checks the `id_token` claims (nonce, issuer, audience, expiry with 60 seconds of clock skew) on the code exchange, but it does not verify the token's signature, by decision D140. Signature checking can be added later without changing the public API, because the discovery document already names the provider's `jwks_uri`.
+
+## Under review
+
+These are proposals from a review of the type mapping against current Kotlin. None of them is decided, and none changes what the generator produces today.
+
+- Decide between staying JVM-only and becoming multiplatform. Today `kotlinx-datetime` is declared but unused while the code uses `java.time`. Staying JVM-only would mean dropping the dependency; going multiplatform would mean `kotlinx.datetime` types, `kotlin.time.Instant` and `kotlin.time.Duration`.
+- Map `format: duration` to `kotlin.time.Duration`, keeping the protobuf-JSON string form.
+- Map free-form objects to `kotlinx.serialization.json.JsonElement` instead of `@Contextual Any?`.
+- Emit a sealed interface with data class variants for unions that have no discriminator, instead of the `actualInstance` wrapper.
+- Raise the Kotlin floor from 2.2.0 to 2.4.0, which the review says would make `kotlin.uuid.Uuid` stable and remove the opt-in. This is not required, and it is the owner's decision.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. Reads the thread-local `Context.current()`; across a coroutine thread change the caller must install the span with a `ThreadContextElement` (`Context.asContextElement()`); the base-api test defines its own element, so no dependency is added.

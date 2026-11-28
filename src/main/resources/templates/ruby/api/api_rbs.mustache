@@ -1,0 +1,63 @@
+module {{moduleName}}
+  module Api
+{{#operations}}
+{{#serverTypeDefs}}
+    class {{serverTypeName}}
+      def url: () -> String
+    end
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+    module {{serverTypeName}}{{enumTypeName}}
+{{#enumValues}}
+      {{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}: String
+{{/enumValues}}
+    end
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+    class {{serverTypeName}}{{variantName}} < {{serverTypeName}}
+{{#hasVariables}}
+{{#serverVariables}}
+      attr_reader {{snakeName}}: String
+{{/serverVariables}}
+      def initialize: ({{#serverVariables}}{{snakeName}}: String{{^-last}}, {{/-last}}{{/serverVariables}}) -> void
+{{/hasVariables}}
+      def url: () -> String
+    end
+{{/variants}}
+{{/serverTypeDefs}}
+    interface _{{classname}}Interface
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+      def {{vendorExtensions.op.streamMethodName}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, ?::{{moduleName}}::StreamOptions? stream_options{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> ::{{moduleName}}::{{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+      def {{operationId}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> {{#vendorExtensions.op.streamsBinary}}::{{moduleName}}::ByteStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#isResponseFile}}::StringIO{{/isResponseFile}}{{^isResponseFile}}{{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}void{{/returnType}}{{/isResponseFile}}{{/vendorExtensions.op.streamsBinary}}
+      def {{operationId}}_with_http_info: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> ::{{moduleName}}::ApiResult[{{#vendorExtensions.op.streamsBinary}}::{{moduleName}}::ByteStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#isResponseFile}}::StringIO{{/isResponseFile}}{{^isResponseFile}}{{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}{{/vendorExtensions.op.streamsBinary}}]
+      {{#vendorExtensions.op.hasPagesMethod}}
+      def {{vendorExtensions.op.pagesMethodName}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> ::{{moduleName}}::Paginator[{{#lambda.rbsApiType}}{{{vendorExtensions.op.pagination.itemType}}}{{/lambda.rbsApiType}}, {{#vendorExtensions.op.pagination.isToken}}{{#lambda.rbsApiType}}{{{vendorExtensions.op.pagination.cursorType}}}{{/lambda.rbsApiType}}{{/vendorExtensions.op.pagination.isToken}}{{#vendorExtensions.op.pagination.isId}}{{#lambda.rbsApiType}}{{{vendorExtensions.op.pagination.cursorType}}}{{/lambda.rbsApiType}}{{/vendorExtensions.op.pagination.isId}}{{#vendorExtensions.op.pagination.isOffset}}Integer{{/vendorExtensions.op.pagination.isOffset}}{{#vendorExtensions.op.pagination.isPage}}Integer{{/vendorExtensions.op.pagination.isPage}}{{#vendorExtensions.op.pagination.isUrlPaged}}nil{{/vendorExtensions.op.pagination.isUrlPaged}}]
+      {{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+    end
+    class {{classname}} < BaseApi
+      def initialize: (?::{{moduleName}}::ApiClient? api_client, ?::{{moduleName}}::Configuration config, ?::{{moduleName}}::Auth::Authenticator? authenticator, ?Hash[String, ::{{moduleName}}::Auth::Authenticator] scheme_authenticators) -> void
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+      def {{vendorExtensions.op.streamMethodName}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, ?::{{moduleName}}::StreamOptions? stream_options{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> ::{{moduleName}}::{{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+      def {{operationId}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> {{#vendorExtensions.op.streamsBinary}}::{{moduleName}}::ByteStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#isResponseFile}}::StringIO{{/isResponseFile}}{{^isResponseFile}}{{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}void{{/returnType}}{{/isResponseFile}}{{/vendorExtensions.op.streamsBinary}}
+      def {{operationId}}_with_http_info: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> ::{{moduleName}}::ApiResult[{{#vendorExtensions.op.streamsBinary}}::{{moduleName}}::ByteStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#isResponseFile}}::StringIO{{/isResponseFile}}{{^isResponseFile}}{{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}{{/vendorExtensions.op.streamsBinary}}]
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+      def {{operationId}}_page: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}, ?page_url: String?) -> ::{{moduleName}}::ApiResult[{{#vendorExtensions.op.streamsBinary}}::{{moduleName}}::ByteStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#isResponseFile}}::StringIO{{/isResponseFile}}{{^isResponseFile}}{{#returnType}}{{#lambda.rbsApiType}}{{{returnType}}}{{/lambda.rbsApiType}}{{/returnType}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}{{/vendorExtensions.op.streamsBinary}}]
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+      {{#vendorExtensions.op.hasPagesMethod}}
+      def {{vendorExtensions.op.pagesMethodName}}: ({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{#isPath}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}} {{paramName}}{{/isPath}}{{#isBody}}{{#lambda.rbsApiType}}{{{dataType}}}{{/lambda.rbsApiType}}{{#nullable}}?{{/nullable}} {{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?Options::{{{dataType}}}? options{{/nullable}}{{^nullable}}Options::{{{dataType}}} options{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, ?request_content_type: String?{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, ?server: {{vendorExtensions.op.serverClassName}}?{{/-first}}{{/servers}}) -> ::{{moduleName}}::Paginator[{{#lambda.rbsApiType}}{{{vendorExtensions.op.pagination.itemType}}}{{/lambda.rbsApiType}}, {{#vendorExtensions.op.pagination.isToken}}{{#lambda.rbsApiType}}{{{vendorExtensions.op.pagination.cursorType}}}{{/lambda.rbsApiType}}{{/vendorExtensions.op.pagination.isToken}}{{#vendorExtensions.op.pagination.isId}}{{#lambda.rbsApiType}}{{{vendorExtensions.op.pagination.cursorType}}}{{/lambda.rbsApiType}}{{/vendorExtensions.op.pagination.isId}}{{#vendorExtensions.op.pagination.isOffset}}Integer{{/vendorExtensions.op.pagination.isOffset}}{{#vendorExtensions.op.pagination.isPage}}Integer{{/vendorExtensions.op.pagination.isPage}}{{#vendorExtensions.op.pagination.isUrlPaged}}nil{{/vendorExtensions.op.pagination.isUrlPaged}}]
+      {{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+    end
+{{/operations}}
+  end
+end

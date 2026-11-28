@@ -1,0 +1,554 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use crate::api_client::{ApiClient, RequestOptions};
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
+use crate::auth::Authenticator;
+use crate::errors::configuration_error::ConfigurationError;
+use crate::errors::oauth2_token_error::OAuth2TokenError;
+use crate::errors::serialization_error::SerializationError;
+
+/// Authenticator for OpenID Connect.
+///
+/// Fetches the OIDC discovery document to discover the authorization and
+/// token endpoints, then delegates to an [`OAuth2AuthorizationCodeAuthenticator`].
+///
+/// Each authorization URL carries a fresh `nonce`. The code exchange validates
+/// the claims of the `id_token` in the token response: the nonce of the
+/// authorization URL, the discovered issuer, the client id in the audience and
+/// an expiry that has not passed (60 seconds of clock skew are allowed). The
+/// signature of the id_token is not verified.
+///
+/// Implements [`HttpAwareAuthenticator`] so that both the discovery request and
+/// subsequent token exchange requests use the shared [`ApiClient`] with the
+/// same transport configuration (proxy, TLS, timeouts) as regular API calls.
+pub struct OpenIdConnectAuthenticator {
+    host: String,
+    openid_connect_url: String,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+    scopes: Vec<String>,
+    api_client: Mutex<Option<Arc<dyn ApiClient>>>,
+    /* Shared, never moved out of the lock: concurrent and cancelled calls
+     * all see the one delegate that holds the exchanged tokens. */
+    delegate: Mutex<Option<Arc<OAuth2AuthorizationCodeAuthenticator>>>,
+    discovery_expiry: Mutex<Option<Instant>>,
+    /* Held across the discovery fetch so concurrent callers share one GET
+     * (single-flight); the expiry is re-checked once it is acquired. */
+    discovery_lock: tokio::sync::Mutex<()>,
+    /* The issuer named by the last discovery document, None when it named none. */
+    discovered_issuer: Mutex<Option<String>>,
+    /* The nonce of the last authorization URL built, until the code exchange
+     * uses it. */
+    pending_nonce: Mutex<Option<String>>,
+}
+
+/// Clock skew allowed when checking the expiry of an id_token, in seconds.
+const ID_TOKEN_CLOCK_SKEW_SECONDS: f64 = 60.0;
+
+const DEFAULT_DISCOVERY_MAX_AGE_SECONDS: u64 = 86400;
+
+/// Ceiling applied to a server-supplied `max-age`, in seconds (one year), so an
+/// absurd lifetime cannot overflow the expiry arithmetic.
+const MAX_DISCOVERY_MAX_AGE_SECONDS: u64 = 31_536_000;
+
+/// Parse `Cache-Control: max-age=<seconds>` from response headers.
+///
+/// Returns 86400 (RFC 8414 default) if the header is absent or does not
+/// contain a `max-age` directive. A larger value is clamped to one year.
+fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
+    for (key, value) in headers {
+        if key.eq_ignore_ascii_case("cache-control") {
+            if let Some(idx) = value.to_ascii_lowercase().find("max-age=") {
+                let rest = &value[idx + "max-age=".len()..];
+                let digits: String = rest
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect();
+                if let Ok(seconds) = digits.parse::<u64>() {
+                    return seconds.min(MAX_DISCOVERY_MAX_AGE_SECONDS);
+                }
+            }
+            return DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+        }
+    }
+    DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+}
+
+impl OpenIdConnectAuthenticator {
+    /// Creates a new OpenID Connect authenticator.
+    ///
+    /// `host` is the API base URL, `openid_connect_url` the OIDC discovery
+    /// document URL, `client_id` and `client_secret` the OAuth2 client
+    /// credentials, `redirect_uri` the redirect URI registered with the
+    /// provider and `scopes` the requested scopes.
+    pub fn new(
+        host: &str,
+        openid_connect_url: &str,
+        client_id: &str,
+        client_secret: &str,
+        redirect_uri: &str,
+        scopes: Vec<String>,
+    ) -> Self {
+        Self {
+            host: host.to_string(),
+            openid_connect_url: openid_connect_url.to_string(),
+            client_id: client_id.to_string(),
+            client_secret: client_secret.to_string(),
+            redirect_uri: redirect_uri.to_string(),
+            /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
+            scopes: std::iter::once("openid".to_string())
+                .chain(scopes.into_iter().filter(|s| s != "openid"))
+                .collect(),
+            api_client: Mutex::new(None),
+            delegate: Mutex::new(None),
+            discovery_expiry: Mutex::new(None),
+            discovery_lock: tokio::sync::Mutex::new(()),
+            discovered_issuer: Mutex::new(None),
+            pending_nonce: Mutex::new(None),
+        }
+    }
+
+    /// Builds the authorization URL using the discovered authorization endpoint.
+    ///
+    /// `state` is the CSRF state parameter.
+    pub async fn build_authorization_url(
+        &self,
+        state: &str,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.resolve_delegate().await?;
+        let delegate = self.current_delegate()?;
+        let url = delegate.build_authorization_url(state);
+        /* OpenID Connect Core 3.1.2.1: a fresh nonce binds the id_token to
+         * this request; the exchange checks it once. */
+        let nonce = new_nonce();
+        *self.pending_nonce.lock().unwrap() = Some(nonce.clone());
+        Ok(format!("{}&nonce={}", url, nonce))
+    }
+
+    /// Exchanges an authorization code for tokens using the discovered token
+    /// endpoint.
+    ///
+    /// `code` is the authorization code from the callback.
+    pub async fn exchange_code(
+        &self,
+        code: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.resolve_delegate().await?;
+        /* The delegate's exchange_code is async; clone the shared handle so
+         * the mutex is not held across the await. */
+        let delegate = self.current_delegate()?;
+        let nonce = self.pending_nonce.lock().unwrap().take();
+        let issuer = self.discovered_issuer.lock().unwrap().clone();
+        let client_id = self.client_id.clone();
+        let check = move |id_token: Option<&str>| {
+            validate_id_token(id_token, nonce.as_deref(), issuer.as_deref(), &client_id)
+        };
+        delegate.exchange_code_checked(code, Some(&check)).await
+    }
+
+    /// Returns a shared handle to the resolved delegate. The delegate stays in
+    /// its mutex, so a concurrent call or a cancelled await never loses it.
+    fn current_delegate(
+        &self,
+    ) -> Result<Arc<OAuth2AuthorizationCodeAuthenticator>, Box<dyn std::error::Error + Send + Sync>> {
+        self.delegate.lock().unwrap().clone().ok_or_else(|| {
+            Box::new(ConfigurationError::InvalidState(
+                "OIDC delegate has not been resolved".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })
+    }
+
+    /// Returns `true` while a resolved delegate is present and its discovery
+    /// document has not expired.
+    fn delegate_is_fresh(&self) -> bool {
+        let delegate_guard = self.delegate.lock().unwrap();
+        let expiry_guard = self.discovery_expiry.lock().unwrap();
+        delegate_guard.is_some() && expiry_guard.is_none_or(|e| Instant::now() < e)
+    }
+
+    /// Lazily resolves the delegate by fetching the OIDC discovery document
+    /// using the injected API client. Stores the injected delegate in the
+    /// mutex for reuse. Honors the `Cache-Control: max-age=<seconds>` header
+    /// from the discovery response; falls back to the RFC 8414 recommended
+    /// default of 86400 seconds when absent.
+    ///
+    /// Rediscovery refreshes the endpoints only: the replacement delegate is
+    /// built around the previous delegate's token manager, so the exchanged
+    /// session survives. A failed rediscovery leaves the previous delegate and
+    /// its expiry untouched and returns the error; the next call retries.
+    async fn resolve_delegate(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if self.delegate_is_fresh() {
+            return Ok(());
+        }
+        let _discovery = self.discovery_lock.lock().await;
+        /* Another caller may have finished discovery while this one waited. */
+        if self.delegate_is_fresh() {
+            return Ok(());
+        }
+        self.discover().await
+    }
+
+    /// Fetches the discovery document and installs a delegate for it. The
+    /// caller holds `discovery_lock`.
+    async fn discover(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = {
+            let client_guard = self.api_client.lock().unwrap();
+            client_guard
+                .as_ref()
+                .ok_or_else(|| {
+                    Box::new(ConfigurationError::InvalidState(
+                        "ApiClient has not been injected. \
+                         Ensure the {{clientClassName}} constructor calls set_api_client \
+                         on HttpAwareAuthenticator before making API requests"
+                            .to_string(),
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })?
+                .clone()
+        };
+
+        let mut headers = HashMap::new();
+        headers.insert("Accept".to_string(), "application/json".to_string());
+
+        /* Discovery is an HTTP call like any other: a transport failure is
+         * already a NetworkError or NetworkTimeoutError and passes through. It
+         * is sent without following redirects, which also leaves the
+         * transport's default headers out, so an `Authorization` or API-key
+         * header meant for the API never reaches the identity provider, and a
+         * 307 or 308 from the discovery URL is an error rather than a hop. */
+        let response = client
+            .send_request_with_options(
+                "GET",
+                &self.openid_connect_url,
+                &headers,
+                None,
+                &RequestOptions::new().no_redirect(true),
+            )
+            .await?;
+
+        /* oauth-oidc-discovery-no-status-check: reject a non-2xx discovery
+         * response BEFORE attempting to JSON-parse it, as the typed error for
+         * its status. Otherwise a 500-HTML or 404 error page surfaces to the
+         * caller as a misleading "invalid JSON" error. */
+        if response.status_code() < 200 || response.status_code() >= 300 {
+            return Err(crate::errors::ApiError::from_response(
+                response.status_code(),
+                response.headers(),
+                response.body(),
+                Some("GET"),
+                Some(&self.openid_connect_url),
+            ));
+        }
+
+        /* An unparseable or incomplete document is a SerializationError. */
+        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
+            Box::new(SerializationError::new(
+                "OIDC discovery document is not valid JSON".to_string(),
+                Some(Box::new(e)),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+
+        if !parsed.is_object() {
+            return Err(Box::new(SerializationError::new(
+                "OIDC discovery document is not a JSON object".to_string(),
+                None,
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
+
+        let endpoint = |name: &str| -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+            parsed
+                .get(name)
+                .and_then(|v| v.as_str())
+                .filter(|v| !v.trim().is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    Box::new(SerializationError::new(
+                        format!("OIDC discovery document is missing '{}'", name),
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })
+        };
+        let authorization_endpoint = endpoint("authorization_endpoint")?;
+        let token_endpoint = endpoint("token_endpoint")?;
+
+        /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the URL
+         * the document was fetched from (minus the well-known suffix), the
+         * defence against a document served for another issuer. A document that
+         * carries no issuer is not rejected here. */
+        const WELL_KNOWN: &str = "/.well-known/openid-configuration";
+        if let (Some(issuer), Some(prefix)) = (
+            parsed.get("issuer").and_then(|v| v.as_str()),
+            self.openid_connect_url.strip_suffix(WELL_KNOWN),
+        ) {
+            if issuer.trim_end_matches('/') != prefix.trim_end_matches('/') {
+                return Err(Box::new(SerializationError::new(
+                    format!(
+                        "OIDC discovery issuer '{}' does not match '{}'",
+                        issuer,
+                        prefix.trim_end_matches('/')
+                    ),
+                    None,
+                )));
+            }
+        }
+        /* The authorization code and the client secret travel to these
+         * endpoints: refuse clear text unless the host is a loopback address
+         * (RFC 8252 section 8.3). */
+        for (name, value) in [
+            ("authorization_endpoint", &authorization_endpoint),
+            ("token_endpoint", &token_endpoint),
+        ] {
+            if !is_secure_endpoint(value) {
+                return Err(Box::new(SerializationError::new(
+                    format!("OIDC discovery {} '{}' must use https", name, value),
+                    None,
+                )));
+            }
+        }
+
+        let previous = self.delegate.lock().unwrap().clone();
+        let mut delegate = match previous {
+            Some(previous) => OAuth2AuthorizationCodeAuthenticator::with_token_manager(
+                &self.host,
+                &self.client_id,
+                &self.client_secret,
+                &authorization_endpoint,
+                &token_endpoint,
+                &self.redirect_uri,
+                self.scopes.clone(),
+                "",
+                previous.token_manager(),
+            ),
+            None => OAuth2AuthorizationCodeAuthenticator::new(
+                &self.host,
+                &self.client_id,
+                &self.client_secret,
+                &authorization_endpoint,
+                &token_endpoint,
+                &self.redirect_uri,
+                self.scopes.clone(),
+                "",
+            ),
+        };
+
+        /* Inject the API client into the delegate's token manager. */
+        delegate.set_api_client(client);
+
+        let max_age = parse_max_age(response.headers());
+        let new_expiry = Instant::now() + Duration::from_secs(max_age);
+
+        let mut delegate_guard = self.delegate.lock().unwrap();
+        let mut expiry_guard = self.discovery_expiry.lock().unwrap();
+        *delegate_guard = Some(Arc::new(delegate));
+        *expiry_guard = Some(new_expiry);
+        *self.discovered_issuer.lock().unwrap() =
+            parsed.get("issuer").and_then(|v| v.as_str()).map(str::to_string);
+        Ok(())
+    }
+}
+
+/// A fresh nonce: 32 random bytes as unpadded base64url, 43 characters.
+fn new_nonce() -> String {
+    use base64::Engine as _;
+    let mut random = Vec::with_capacity(32);
+    random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+    random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&random[..32])
+}
+
+fn id_token_error(message: &str) -> Box<dyn std::error::Error + Send + Sync> {
+    Box::new(OAuth2TokenError::new(message.to_string()))
+}
+
+/// Validates the claims of the id_token of a code exchange (OpenID Connect
+/// Core 3.1.3.7): the nonce of the authorization URL when one was sent, the
+/// discovered issuer, the client id in the audience and the expiry. A response
+/// without an id_token is not checked. The payload is decoded without
+/// verifying the signature.
+fn validate_id_token(
+    id_token: Option<&str>,
+    nonce: Option<&str>,
+    issuer: Option<&str>,
+    client_id: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let Some(id_token) = id_token else {
+        return Ok(());
+    };
+    let claims = decode_id_token(id_token)?;
+    if let Some(nonce) = nonce {
+        if claims.get("nonce").and_then(|v| v.as_str()) != Some(nonce) {
+            return Err(id_token_error(
+                "The id_token nonce does not match the authorization request",
+            ));
+        }
+    }
+    let iss = claims.get("iss").and_then(|v| v.as_str());
+    if issuer.is_none() || iss != issuer {
+        return Err(id_token_error(
+            "The id_token issuer does not match the discovered issuer",
+        ));
+    }
+    let audience_matches = match claims.get("aud") {
+        Some(serde_json::Value::String(aud)) => aud == client_id,
+        Some(serde_json::Value::Array(entries)) => {
+            entries.iter().any(|entry| entry.as_str() == Some(client_id))
+        }
+        _ => false,
+    };
+    if !audience_matches {
+        return Err(id_token_error(
+            "The id_token audience does not contain the client id",
+        ));
+    }
+    let Some(exp) = claims.get("exp").and_then(|v| v.as_f64()) else {
+        return Err(id_token_error("The id_token is malformed"));
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs_f64())
+        .unwrap_or(0.0);
+    if now >= exp + ID_TOKEN_CLOCK_SKEW_SECONDS {
+        return Err(id_token_error("The id_token has expired"));
+    }
+    Ok(())
+}
+
+/// The claims of a compact JWS: the second segment, base64url-decoded JSON.
+fn decode_id_token(
+    id_token: &str,
+) -> Result<serde_json::Map<String, serde_json::Value>, Box<dyn std::error::Error + Send + Sync>> {
+    use base64::Engine as _;
+    let parts: Vec<&str> = id_token.split('.').collect();
+    if parts.len() != 3 {
+        return Err(id_token_error("The id_token is malformed"));
+    }
+    base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(parts[1].trim_end_matches('='))
+        .ok()
+        .and_then(|payload| serde_json::from_slice::<serde_json::Value>(&payload).ok())
+        .and_then(|claims| match claims {
+            serde_json::Value::Object(map) => Some(map),
+            _ => None,
+        })
+        .ok_or_else(|| id_token_error("The id_token is malformed"))
+}
+
+/// Renders a representation that redacts the client secret so credentials never
+/// leak into logs or stack traces (`{:?}` formatting). The non-secret
+/// configuration fields are shown normally; the client secret is masked as
+/// `***`.
+impl std::fmt::Debug for OpenIdConnectAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenIdConnectAuthenticator")
+            .field("host", &self.host)
+            .field("openid_connect_url", &self.openid_connect_url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"***")
+            .field("redirect_uri", &self.redirect_uri)
+            .field("scopes", &self.scopes)
+            .finish()
+    }
+}
+
+impl Authenticator for OpenIdConnectAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the Bearer authentication header, or an empty map when
+    /// discovery or the token request fails. The API client does not call
+    /// this method: it calls [`try_auth_headers`](Self::try_auth_headers),
+    /// which reports the failure instead of sending the request
+    /// unauthenticated.
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
+        })
+    }
+
+    /// Returns the Bearer authentication header from the discovered
+    /// authorization-code delegate, or propagates the discovery or token
+    /// error (including `OAuth2AuthorizationCodeError::CodeNotExchanged`).
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            self.resolve_delegate().await?;
+
+            /* The delegate's try_auth_headers is async; clone the shared
+             * handle so the mutex is not held across the await. */
+            let delegate = self.current_delegate()?;
+            delegate.try_auth_headers().await
+        })
+    }
+
+    fn inject_api_client(&self, client: Arc<dyn ApiClient>) {
+        let mut guard = self.api_client.lock().unwrap();
+        if guard.is_none() {
+            *guard = Some(client);
+        }
+    }
+
+    fn invalidate_access_token<'a>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            let delegate = self.delegate.lock().unwrap().clone();
+            match delegate {
+                Some(delegate) => delegate.invalidate_access_token().await,
+                None => false,
+            }
+        })
+    }
+
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        Some(self)
+    }
+}
+
+impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
+        let mut guard = self.api_client.lock().unwrap();
+        *guard = Some(client);
+    }
+}
+
+/// Reports whether a discovered endpoint may carry credentials: an `https` URL,
+/// or an `http` URL whose host is a loopback address.
+fn is_secure_endpoint(endpoint: &str) -> bool {
+    let url = match reqwest::Url::parse(endpoint) {
+        Ok(url) => url,
+        Err(_) => return false,
+    };
+    match url.scheme() {
+        "https" => true,
+        "http" => match url.host_str() {
+            Some(host) => {
+                host == "localhost"
+                    || host.ends_with(".localhost")
+                    || host == "127.0.0.1"
+                    || host == "[::1]"
+            }
+            None => false,
+        },
+        _ => false,
+    }
+}

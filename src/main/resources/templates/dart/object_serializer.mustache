@@ -1,0 +1,1043 @@
+{{>api_info}}
+import 'dart:convert';
+import 'dart:math' show Random;
+import 'dart:typed_data';
+
+import 'package:decimal/decimal.dart';
+
+import 'errors/serialization_exception.dart';
+import 'iso8601_duration.dart';
+/* SerializationException is declared in the errors directory with every other
+ * SDK error; re-exported here so the models that raise it keep importing one
+ * file. */
+export 'errors/serialization_exception.dart';
+/* `format: decimal` is the exact Decimal of package:decimal; re-exported so the
+ * models and the package barrel name it without a second import. */
+export 'package:decimal/decimal.dart' show Decimal;
+export 'iso8601_duration.dart'
+    show
+        formatProtobufDuration,
+        parseProtobufDuration,
+        validatePartialTime;
+
+/// Reads [value], a decoded JSON number, as a finite [double].
+///
+/// A literal beyond the double range (`1e400`) decodes to infinity, which the
+/// SDK never hands to a caller: it raises a [SerializationException] instead.
+double readDouble(Object? value) {
+  final number = (value as num).toDouble();
+  if (!number.isFinite) {
+    throw SerializationException('Number is outside the range of a double');
+  }
+  return number;
+}
+
+/// As [readDouble], with `null` staying `null`.
+double? readDoubleOrNull(Object? value) =>
+    value == null ? null : readDouble(value);
+
+/// Reads [value], a decoded JSON number, as an `int32`.
+///
+/// Only an integer inside the 32-bit range passes: a fractional, quoted or
+/// out-of-range value raises a [SerializationException].
+int readInt32(Object? value) {
+  if (value is! int) {
+    throw SerializationException(
+      'Expected an integer, got ${value.runtimeType}',
+    );
+  }
+  if (value < -2147483648 || value > 2147483647) {
+    throw SerializationException('Integer is outside the range of an int32');
+  }
+  return value;
+}
+
+/// Reads [value], a decoded JSON number, as an `int64`: it must be an integer.
+int readInt64(Object? value) {
+  if (value is! int) {
+    throw SerializationException(
+      'Expected an integer, got ${value.runtimeType}',
+    );
+  }
+  return value;
+}
+
+/// As [readInt32], with `null` staying `null`.
+int? readInt32OrNull(Object? value) => value == null ? null : readInt32(value);
+
+/// As [readInt64], with `null` staying `null`.
+int? readInt64OrNull(Object? value) => value == null ? null : readInt64(value);
+
+/// Reads the `format: decimal` number under [key] of [json] as an exact
+/// [Decimal].
+///
+/// The digits come from the source text of the JSON number, recorded by
+/// [parseJson], so they never pass through a binary double: every digit of
+/// `12.345678901234567890123` is kept. A quoted string, a boolean or any other
+/// non-number raises a [SerializationException].
+Decimal readDecimal(Map<String, dynamic> json, String key) =>
+    _decimalFromNumber(json[key], _numberSources[json]?[key], key);
+
+/// As [readDecimal], with a missing or `null` value staying `null`.
+Decimal? readDecimalOrNull(Map<String, dynamic> json, String key) =>
+    json[key] == null ? null : readDecimal(json, key);
+
+/// Reads [value], one element of a container of `format: decimal` numbers, as
+/// an exact [Decimal]. The source text is the one [deserializeArray] or
+/// [deserializeMap] recorded for the element being read.
+Decimal readDecimalValue(Object? value) =>
+    _decimalFromNumber(value, _pendingNumberSource, null);
+
+/// Reads [data], a response body that is one `format: decimal` JSON number, as
+/// an exact [Decimal]. The body's own text is the number's source text, so
+/// every digit is kept; a quoted string, `null` or any other non-number raises
+/// a [SerializationException].
+Decimal readDecimalBody(String data) {
+  final decoded = deserializeRaw(data);
+  return _decimalFromNumber(
+    decoded,
+    decoded is num ? _stripBom(data).trim() : null,
+    null,
+  );
+}
+
+Decimal _decimalFromNumber(Object? value, String? source, String? key) {
+  if (value is! num) {
+    final field = key == null ? '' : " for '$key'";
+    throw SerializationException(
+      'Expected a JSON number$field, got ${value.runtimeType}',
+    );
+  }
+  if (!value.isFinite) {
+    throw SerializationException('Number is outside the range of a double');
+  }
+  return _scaledDecimal(source ?? value.toString());
+}
+
+/// The number of decimal places each decoded [Decimal] was written with, so
+/// `12.50` is written back as `12.50`. A [Decimal] is a rational number and
+/// keeps no scale of its own; a value built in code has no entry and is
+/// written with the places it needs.
+final Expando<int> _writtenScale = Expando<int>('decimalScale');
+
+/// Parses [text], a JSON number or a plain decimal string, and records the
+/// decimal places it was written with when it is in plain notation.
+Decimal _scaledDecimal(String text) {
+  final value = Decimal.parse(text);
+  if (!text.contains(RegExp('[eE]'))) {
+    final point = text.indexOf('.');
+    _writtenScale[value] = point < 0 ? 0 : text.length - point - 1;
+  }
+  return value;
+}
+
+/// The wire text of [value]: plain notation with every digit, and the decimal
+/// places it was decoded with.
+String decimalText(Decimal value) {
+  final scale = _writtenScale[value];
+  if (scale == null || scale <= value.scale) return value.toString();
+  return value.toStringAsFixed(scale);
+}
+
+/// The text a `type: string` decimal may hold: an optional minus sign, digits
+/// and an optional fraction. No exponent, sign, blank or locale separator.
+final RegExp _decimalText = RegExp(r'^-?[0-9]+(\.[0-9]+)?$');
+
+/// Reads [value], a `type: string` value with `format: decimal`, as an exact
+/// [Decimal].
+///
+/// Only a JSON string is accepted: a bare JSON number is refused, as is text
+/// that is not a plain decimal number. Both raise a [SerializationException].
+Decimal parseDecimalString(Object? value) {
+  if (value is! String) {
+    throw SerializationException(
+      'Expected a decimal as a JSON string, got ${value.runtimeType}',
+    );
+  }
+  if (!_decimalText.hasMatch(value)) {
+    throw SerializationException('Not a decimal number: $value');
+  }
+  return _scaledDecimal(value);
+}
+
+/// As [parseDecimalString], with `null` staying `null`.
+Decimal? parseDecimalStringOrNull(Object? value) =>
+    value == null ? null : parseDecimalString(value);
+
+/// The source text of the JSON numbers whose text a Dart `num` does not
+/// reproduce (`12.345678901234567890123`, `1.50`, a forty-digit integer),
+/// keyed by the map or list that holds them and then by key or index.
+final Expando<Map<Object, String>> _numberSources =
+    Expando<Map<Object, String>>('numberSources');
+
+/// The source text of the container element being read, set by
+/// [deserializeArray] and [deserializeMap] around each element so that
+/// [readDecimalValue] can read it. Decoding is synchronous, so the value
+/// belongs to exactly one element at a time.
+String? _pendingNumberSource;
+
+/// Cheap pre-check: only a document with a fraction, an exponent or a long run
+/// of digits can hold a number whose text a `num` does not reproduce.
+final RegExp _inexactNumberHint = RegExp(r'[0-9][.eE]|[0-9]{16}');
+
+/// Records, for [decoded] (the result of `jsonDecode(text)`), the source text
+/// of every number that its decoded `num` does not reproduce.
+void _recordNumberSources(String text, Object? decoded) {
+  if (!_inexactNumberHint.hasMatch(text)) return;
+  _NumberSourceWalker(text).value(decoded);
+}
+
+/// Walks JSON text that `jsonDecode` already accepted, in step with the value
+/// it decoded to, and records number source texts in [_numberSources].
+class _NumberSourceWalker {
+  _NumberSourceWalker(this._text);
+
+  final String _text;
+  int _at = 0;
+
+  /// Walks one value. Returns the text of a scalar token (a number or a
+  /// literal), or null for a string, an object or an array.
+  String? value(Object? decoded) {
+    _skipWhitespace();
+    final c = _text.codeUnitAt(_at);
+    if (c == 0x7B) {
+      _object(decoded is Map ? decoded : null);
+      return null;
+    }
+    if (c == 0x5B) {
+      _array(decoded is List ? decoded : null);
+      return null;
+    }
+    if (c == 0x22) {
+      _string();
+      return null;
+    }
+    final start = _at;
+    while (_at < _text.length && !_endsToken(_text.codeUnitAt(_at))) {
+      _at++;
+    }
+    return _text.substring(start, _at);
+  }
+
+  void _object(Map<dynamic, dynamic>? holder) {
+    _at++;
+    _skipWhitespace();
+    if (_text.codeUnitAt(_at) == 0x7D) {
+      _at++;
+      return;
+    }
+    while (true) {
+      _skipWhitespace();
+      final key = _string();
+      _skipWhitespace();
+      _at++;
+      final child = holder?[key];
+      final token = value(child);
+      if (holder != null) _record(holder, key, token, child);
+      _skipWhitespace();
+      if (_text.codeUnitAt(_at++) == 0x7D) return;
+    }
+  }
+
+  void _array(List<dynamic>? holder) {
+    _at++;
+    _skipWhitespace();
+    if (_text.codeUnitAt(_at) == 0x5D) {
+      _at++;
+      return;
+    }
+    var index = 0;
+    while (true) {
+      final child =
+          holder != null && index < holder.length ? holder[index] : null;
+      final token = value(child);
+      if (holder != null) _record(holder, index, token, child);
+      index++;
+      _skipWhitespace();
+      if (_text.codeUnitAt(_at++) == 0x5D) return;
+    }
+  }
+
+  /// Reads a string token and returns its decoded text.
+  String _string() {
+    final start = _at;
+    var escaped = false;
+    _at++;
+    while (true) {
+      final c = _text.codeUnitAt(_at++);
+      if (c == 0x5C) {
+        escaped = true;
+        _at++;
+      } else if (c == 0x22) {
+        break;
+      }
+    }
+    final raw = _text.substring(start, _at);
+    return escaped
+        ? jsonDecode(raw) as String
+        : raw.substring(1, raw.length - 1);
+  }
+
+  void _record(Object holder, Object key, String? token, Object? decoded) {
+    if (token == null || decoded is! num || token == decoded.toString()) {
+      return;
+    }
+    (_numberSources[holder] ??= <Object, String>{})[key] = token;
+  }
+
+  void _skipWhitespace() {
+    while (_at < _text.length) {
+      final c = _text.codeUnitAt(_at);
+      if (c != 0x20 && c != 0x09 && c != 0x0A && c != 0x0D) return;
+      _at++;
+    }
+  }
+
+  static bool _endsToken(int c) =>
+      c == 0x2C ||
+      c == 0x7D ||
+      c == 0x5D ||
+      c == 0x20 ||
+      c == 0x09 ||
+      c == 0x0A ||
+      c == 0x0D;
+}
+
+/// Marker type of [copyUnset].
+class _CopyUnset {
+  const _CopyUnset();
+}
+
+/// The default of a nullable `copyWith` argument: an argument that is not
+/// passed keeps the current value, while an explicit `null` clears it.
+const Object copyUnset = _CopyUnset();
+
+/// The value a nullable model field takes in `copyWith`: [current] when
+/// [passed] is [copyUnset], else [passed] (which may be `null`).
+T? copyField<T>(Object? passed, T? current) =>
+    identical(passed, copyUnset) ? current : passed as T?;
+
+/// Canonical RFC 4122 UUID shape. Case-insensitive; matches all variants
+/// (`format: uuid` is intentionally permissive about which variant is on the
+/// wire), but rejects anything that is not the 8-4-4-4-12 hex form.
+final RegExp _uuidPattern = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
+/// A validated RFC 4122 UUID value.
+///
+/// OpenAPI `format: uuid` values are surfaced as [UuidValue] rather than a
+/// raw `String`, so the public API is typed and construction validates the
+/// wire shape. The canonical 8-4-4-4-12 hex form is enforced in
+/// [UuidValue.fromString], which throws [ArgumentError] on malformed input
+/// — matching how the other SDKs validate UUID strings before letting them
+/// into the typed surface.
+///
+/// This intentionally shadows `package:uuid`'s `UuidValue`, whose
+/// `fromString` performs no validation; generated models import this type so
+/// the validating constructor is the only one reachable from the typed API.
+class UuidValue {
+  /// The canonical lowercase 36-character UUID string.
+  final String uuid;
+
+  const UuidValue._(this.uuid);
+
+  /// Parses [source] into a [UuidValue], validating the canonical RFC 4122
+  /// 8-4-4-4-12 hex form. Throws [ArgumentError] on malformed input.
+  factory UuidValue.fromString(String source) {
+    if (!_uuidPattern.hasMatch(source)) {
+      throw ArgumentError.value(source, 'source', 'not a valid RFC 4122 UUID');
+    }
+    return UuidValue._(source.toLowerCase());
+  }
+
+  @override
+  String toString() => uuid;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is UuidValue && other.uuid == uuid);
+
+  @override
+  int get hashCode => uuid.hashCode;
+}
+
+/// Serialize an object to a JSON string.
+///
+/// Throws [SerializationException] if serialization fails.
+///
+/// A [Decimal] is written as a bare JSON number in plain notation with every
+/// digit it holds. `jsonEncode` can only write a double for a number, so each
+/// [Decimal] is first written as a string carrying a random per-call marker and
+/// the quotes around it are then removed. The marker is random, so a caller's
+/// own string cannot be mistaken for it.
+String serialize(Object? object) {
+  try {
+    String? marker;
+    final text = jsonEncode(
+      _withSortedMapKeys(object),
+      toEncodable: (Object? value) {
+        if (value is Decimal) {
+          marker ??= _decimalMarker();
+          return '$marker${decimalText(value)}';
+        }
+        return _encodeNonJsonValue(value);
+      },
+    );
+    final used = marker;
+    if (used == null) return text;
+    return text.replaceAllMapped(
+      RegExp('"${RegExp.escape(used)}(-?[0-9]+(?:\\.[0-9]+)?)"'),
+      (match) => match[1]!,
+    );
+  } catch (e) {
+    throw SerializationException('Failed to serialize object to JSON: $e', e);
+  }
+}
+
+/// A fresh marker for [serialize]: a prefix and 24 random hex digits.
+String _decimalMarker() {
+  final random = Random.secure();
+  final digits = List.generate(24, (_) => random.nextInt(16).toRadixString(16));
+  return 'decimal-${digits.join()}:';
+}
+
+/// Returns [value] with every plain map rebuilt in ascending key order, so a map
+/// serialises the same way whatever order it was built in. Models are left as
+/// they are: their `toJson()` keeps the declared property order.
+Object? _withSortedMapKeys(Object? value) {
+  if (value is Uint8List) return base64Encode(value);
+  if (value is Map<Object?, Object?>) {
+    final entries = value.entries.toList()
+      ..sort((a, b) => '${a.key}'.compareTo('${b.key}'));
+    return <Object?, Object?>{
+      for (final e in entries) e.key: _withSortedMapKeys(e.value),
+    };
+  }
+  if (value is Iterable<Object?>) {
+    return [for (final item in value) _withSortedMapKeys(item)];
+  }
+  return value;
+}
+
+/// Converts the Dart values `jsonEncode` cannot write on its own: a [DateTime]
+/// takes the canonical date-time wire form, binary data is base64, and a model
+/// is written through its own `toJson()`. Supplying a `toEncodable` hook
+/// replaces `jsonEncode`'s default `toJson()` dispatch, so the hook must do it.
+/// A value with no `toJson()` is refused: `jsonEncode` wraps the failure in a
+/// [JsonUnsupportedObjectError], which the caller sees as a
+/// [SerializationException].
+Object _encodeNonJsonValue(Object? value) {
+  if (value is DateTime) return formatDateTimeOffset(value);
+  if (value is Uint8List) return base64Encode(value);
+  return (value as dynamic).toJson() as Object;
+}
+
+/// Strips a leading UTF-8 BOM (U+FEFF) from a JSON string.
+///
+/// RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+/// Windows-generated payloads often include one and jsonDecode rejects it.
+/// Strip silently for parity with Java Jackson / C# System.Text.Json which
+/// strip transparently.
+String _stripBom(String data) => data.startsWith('﻿') ? data.substring(1) : data;
+
+/// Maximum allowed JSON nesting depth. Dart's jsonDecode has no built-in cap
+/// and recurses through the Dart VM call stack, so a malicious 100k-deep
+/// `{"a":{"a":...}}` payload would crash the runtime. All twelve SDKs use the
+/// same cap.
+const int _kMaxJsonDepth = 1000;
+
+/// Returns the maximum nesting depth of `{`/`[` containers.
+///
+/// Characters inside string literals are ignored. A cheap pre-flight scan
+/// used to refuse a deeply-nested payload before invoking `jsonDecode`.
+int _jsonMaxDepth(String s) {
+  int depth = 0;
+  int max = 0;
+  bool inString = false;
+  bool escaped = false;
+  final units = s.codeUnits;
+  for (var i = 0; i < units.length; i++) {
+    final c = units[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (c == 0x5C /* \ */) {
+        escaped = true;
+      } else if (c == 0x22 /* " */) {
+        inString = false;
+      }
+      continue;
+    }
+    if (c == 0x22) {
+      inString = true;
+    } else if (c == 0x7B /* { */ || c == 0x5B /* [ */) {
+      depth++;
+      if (depth > max) max = depth;
+    } else if (c == 0x7D /* } */ || c == 0x5D /* ] */) {
+      if (depth > 0) depth--;
+    }
+  }
+  return max;
+}
+
+/// Parse JSON text into a plain Dart value.
+///
+/// Payloads that exceed the [_kMaxJsonDepth] nesting cap are refused (DoS
+/// guard for malicious deeply-nested payloads).
+///
+/// Throws [SerializationException] if the depth limit is exceeded or parsing
+/// fails.
+dynamic parseJson(String data) {
+  data = _stripBom(data);
+  final depth = _jsonMaxDepth(data);
+  if (depth > _kMaxJsonDepth) {
+    throw SerializationException(
+      'JSON nesting depth $depth exceeds limit $_kMaxJsonDepth',
+    );
+  }
+  try {
+    final decoded = jsonDecode(data);
+    _recordNumberSources(data, decoded);
+    return decoded;
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Deserialize a JSON string to an object of the specified type.
+///
+/// Returns null if [data] is empty. Throws [SerializationException] if
+/// deserialization fails.
+T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+  data = _stripBom(data);
+  if (data.isEmpty) {
+    return null;
+  }
+
+  try {
+    final decoded = parseJson(data);
+    if (decoded == null) {
+      return null;
+    }
+    if (decoded is Map<String, dynamic>) {
+      return fromJson(decoded);
+    }
+    throw SerializationException('Expected JSON object, got ${decoded.runtimeType}');
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Deserialize a JSON string to a list of objects of the specified type.
+///
+/// Returns null if [data] is empty. Throws [SerializationException] if
+/// deserialization fails.
+List<T>? deserializeList<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+  data = _stripBom(data);
+  if (data.isEmpty) {
+    return null;
+  }
+
+  try {
+    final decoded = parseJson(data);
+    if (decoded is List) {
+      return decoded
+          .map((item) => fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    throw SerializationException('Expected JSON array, got ${decoded.runtimeType}');
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Deserialize an already-decoded JSON array into a typed `List<T>`,
+/// applying [deserializeElement] to each element.
+///
+/// Unlike [deserializeList], which parses a raw JSON string at the response
+/// boundary, this operates on a value that has already been decoded one
+/// container level up. It is the building block for nested generic containers
+/// — the per-element deserializer may itself re-enter [deserializeArray] /
+/// [deserializeMap], so the innermost models of a type like
+/// `List<Map<String, Category>>` are decoded into typed instances rather than
+/// left as raw maps.
+List<T> deserializeArray<T>(Object? json, T Function(dynamic) deserializeElement) {
+  if (json is! List) {
+    throw SerializationException(
+      'Expected JSON array, got ${json.runtimeType}',
+    );
+  }
+  final sources = _numberSources[json];
+  return [
+    for (var i = 0; i < json.length; i++)
+      _deserializeElement(json[i], deserializeElement, sources?[i]),
+  ];
+}
+
+/// Applies [deserializeElement] to one element of a container. A cast or type
+/// failure inside it becomes a [SerializationException], as at the top level.
+/// [source] is the element's number source text, if one was recorded.
+T _deserializeElement<T>(
+  Object? item,
+  T Function(dynamic) deserializeElement, [
+  String? source,
+]) {
+  final saved = _pendingNumberSource;
+  _pendingNumberSource = source;
+  try {
+    return deserializeElement(item);
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize element: $e', e);
+  } finally {
+    _pendingNumberSource = saved;
+  }
+}
+
+/// Projects a model's array field to its JSON list.
+///
+/// A `Set` (a `uniqueItems` array) is written in a defined sorted order: code
+/// point order for strings and numeric order for numbers. Any other array keeps
+/// its own order.
+List<E> wireList<E>(Iterable<Object?> source, Iterable<E> encoded) {
+  final list = encoded.toList();
+  if (source is Set) list.sort(_compareWireValues);
+  return list;
+}
+
+/// Orders two wire values of a `Set`: numbers numerically, strings by code
+/// point. Other values compare equal, so their order is kept.
+int _compareWireValues(Object? a, Object? b) {
+  if (a is num && b is num) return a.compareTo(b);
+  if (a is Decimal && b is Decimal) return a.compareTo(b);
+  if (a is String && b is String) return _compareCodePoints(a, b);
+  return 0;
+}
+
+int _compareCodePoints(String a, String b) {
+  final x = a.runes.iterator;
+  final y = b.runes.iterator;
+  while (true) {
+    final hasX = x.moveNext();
+    final hasY = y.moveNext();
+    if (!hasX || !hasY) return (hasX ? 1 : 0) - (hasY ? 1 : 0);
+    final c = x.current.compareTo(y.current);
+    if (c != 0) return c;
+  }
+}
+
+/// The nullable counterpart of [wireList] for an optional array field.
+List<E>? wireListOrNull<E>(Iterable<Object?>? source, Iterable<E>? encoded) {
+  if (source == null || encoded == null) return null;
+  return wireList(source, encoded);
+}
+
+
+/// Deserialize an already-decoded JSON object into a typed `Map<String, T>`,
+/// applying [deserializeValue] to each value.
+///
+/// The value deserializer may itself re-enter [deserializeArray] /
+/// [deserializeMap], so the leaves of a nested generic container become typed
+/// instances instead of raw maps.
+Map<String, T> deserializeMap<T>(Object? json, T Function(dynamic) deserializeValue) {
+  if (json is! Map) {
+    throw SerializationException(
+      'Expected JSON object, got ${json.runtimeType}',
+    );
+  }
+  final sources = _numberSources[json];
+  return json.map(
+    (k, v) => MapEntry(
+      k as String,
+      _deserializeElement(v, deserializeValue, sources?[k]),
+    ),
+  );
+}
+
+/// Applies [deserializeValue] to [json], or returns null when [json] is null:
+/// the decoder of a value whose schema is nullable.
+T? deserializeNullable<T>(Object? json, T Function(dynamic) deserializeValue) =>
+    json == null ? null : deserializeValue(json);
+
+/// Parses a JSON string into a typed `Map<String, T>` at the response
+/// boundary, then applies [deserializeValue] to each value via
+/// [deserializeMap]. The String-input counterpart of [deserializeMap], used
+/// when a nested map container is the operation's top-level return type.
+/// Returns null if data is empty.
+Map<String, T>? deserializeMapFromJson<T>(
+  String data,
+  T Function(dynamic) deserializeValue,
+) {
+  data = _stripBom(data);
+  if (data.isEmpty) {
+    return null;
+  }
+  try {
+    return deserializeMap(parseJson(data), deserializeValue);
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Parses a JSON string into a typed `List<T>` at the response boundary, then
+/// applies [deserializeElement] to each element via [deserializeArray]. The
+/// String-input counterpart of [deserializeArray], used when a nested array
+/// container (e.g. `List<List<int>>` or `List<Map<String, Foo>>`) is the
+/// operation's top-level return type. Unlike [deserializeList] it does NOT
+/// assume each element is a `Map<String, dynamic>`, so array- and
+/// primitive-valued elements no longer crash the hard cast. Returns null if
+/// data is empty.
+List<T>? deserializeArrayFromJson<T>(
+  String data,
+  T Function(dynamic) deserializeElement,
+) {
+  data = _stripBom(data);
+  if (data.isEmpty) {
+    return null;
+  }
+  try {
+    return deserializeArray(parseJson(data), deserializeElement);
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Deserialize a JSON string into a raw dynamic value.
+///
+/// Returns null if [data] is empty.
+dynamic deserializeRaw(String data) {
+  data = _stripBom(data);
+  if (data.isEmpty) return null;
+  try {
+    return parseJson(data);
+  } catch (e) {
+    if (e is SerializationException) rethrow;
+    throw SerializationException('Failed to deserialize JSON: $e', e);
+  }
+}
+
+final RegExp _rfc3339DateTime = RegExp(
+    r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|([+-])(\d{2}):(\d{2}))$');
+
+/// Decodes a `format: date-time` value.
+///
+/// Only an RFC 3339 date-time is accepted: `YYYY-MM-DDTHH:MM:SS`, an optional
+/// fraction of any length, then `Z` or a `+HH:MM`/`-HH:MM` offset. Every field
+/// must be in range (no month 13, no 31 February, no hour 24), because
+/// [DateTime.parse] silently rolls an out-of-range field over. An offset-less,
+/// date-only or free-text value would otherwise be read in the host's time zone
+/// by [DateTime.parse], so it raises a [SerializationException] instead. The
+/// result never depends on the host clock or zone.
+DateTime parseDateTime(String text) {
+  final match = _rfc3339DateTime.firstMatch(text);
+  if (match == null || !_dateTimeFieldsInRange(match)) {
+    throw SerializationException('Invalid RFC 3339 date-time: $text');
+  }
+  return DateTime.parse(text);
+}
+
+bool _dateTimeFieldsInRange(RegExpMatch match) {
+  final year = int.parse(match[1]!);
+  final month = int.parse(match[2]!);
+  final day = int.parse(match[3]!);
+  final hour = int.parse(match[4]!);
+  final minute = int.parse(match[5]!);
+  final second = int.parse(match[6]!);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59) {
+    return false;
+  }
+  final lastDay = DateTime.utc(year, month + 1, 0).day;
+  if (day < 1 || day > lastDay) return false;
+  final offset = match[9];
+  if (offset == null) return true;
+  return int.parse(match[10]!) <= 23 && int.parse(match[11]!) <= 59;
+}
+
+final RegExp _base64Standard =
+    RegExp(r'^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$');
+
+/// Decodes a `format: byte` value.
+///
+/// Only RFC 4648 section 4 base64 is accepted: the standard alphabet, a length
+/// that is a multiple of 4 with `=` padding, and no whitespace, newline or
+/// URL-safe (`-`, `_`) characters. Anything else raises a
+/// [SerializationException].
+Uint8List decodeBase64(String text) {
+  if (!_base64Standard.hasMatch(text)) {
+    throw SerializationException('Invalid base64 (RFC 4648 standard alphabet): $text');
+  }
+  return base64Decode(text);
+}
+
+final RegExp _absoluteUri = RegExp(r'^[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1F\x7F]*$');
+
+/// Validates a `format: uri` value.
+///
+/// Any absolute RFC 3986 URI is accepted (a scheme, `:`, then no whitespace
+/// or control characters), whatever its scheme (`https:`, `ftp:`, `mailto:`,
+/// `urn:`), and returned exactly as given. A relative reference, an empty
+/// string or a value containing whitespace raises a [SerializationException].
+String parseUri(String text) {
+  if (!_absoluteUri.hasMatch(text)) {
+    throw SerializationException('Invalid absolute URI: $text');
+  }
+  return text;
+}
+
+final RegExp _ipv4Address = RegExp(
+    r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$');
+
+final RegExp _ipv6Characters = RegExp(r'^[0-9A-Fa-f:.]+$');
+
+/// Validates a `format: ipv4` value.
+///
+/// The value stays the text as given, because `InternetAddress` lives in
+/// `dart:io`, which the models cannot import when the SDK builds for the web.
+/// Anything but four dotted decimal parts from 0 to 255 with no leading zero
+/// raises a [SerializationException].
+String parseIpv4Address(String text) {
+  if (!_ipv4Address.hasMatch(text)) {
+    throw SerializationException('Invalid IPv4 address: $text');
+  }
+  return text;
+}
+
+/// Validates a `format: ipv6` value.
+///
+/// The value stays the text as given. It must be an IPv6 address in an RFC
+/// 4291 text form: hexadecimal groups of up to four digits, at most one `::`
+/// and an optional trailing dotted IPv4 part. A zone id, brackets, a prefix
+/// length or whitespace raises a [SerializationException].
+String parseIpv6Address(String text) {
+  if (!_isIpv6Address(text)) {
+    throw SerializationException('Invalid IPv6 address: $text');
+  }
+  return text;
+}
+
+bool _isIpv6Address(String text) {
+  if (!_ipv6Characters.hasMatch(text)) {
+    return false;
+  }
+  final gap = text.indexOf('::');
+  if (gap >= 0 && text.indexOf('::', gap + 1) >= 0) {
+    return false;
+  }
+  final halves = gap >= 0 ? [text.substring(0, gap), text.substring(gap + 2)] : [text];
+  var groups = 0;
+  for (var half = 0; half < halves.length; half++) {
+    if (halves[half].isEmpty) {
+      continue;
+    }
+    final parts = halves[half].split(':');
+    for (var index = 0; index < parts.length; index++) {
+      final part = parts[index];
+      final last = half == halves.length - 1 && index == parts.length - 1;
+      if (part.contains('.')) {
+        if (!last || !_ipv4Address.hasMatch(part)) {
+          return false;
+        }
+        groups += 2;
+      } else if (part.isEmpty || part.length > 4) {
+        return false;
+      } else {
+        groups += 1;
+      }
+    }
+  }
+  return gap >= 0 ? groups <= 7 : groups == 8;
+}
+
+/// Convert a scalar value to its canonical string representation.
+///
+/// This is the canonical type-conversion method used by all parameter encoding
+/// helpers ([toPathValue], [toQueryValue], etc.) and by ValueSerializer for
+/// transport formatting.
+///
+/// Booleans produce lowercase `true`/`false`. A [DateTime] is formatted with
+/// [formatDateTimeOffset] and a [Duration] with the protobuf-JSON duration
+/// form. A [Decimal] is written in plain notation with every digit. A
+/// [Uint8List] (`format: byte`) is standard-alphabet RFC 4648 base64 with
+/// padding. Null returns the empty string. All other values use
+/// `toString()`.
+String stringify(Object? value) {
+  if (value == null) return '';
+
+  if (value is Uint8List) return base64Encode(value);
+  if (value is bool) return value ? 'true' : 'false';
+  if (value is DateTime) return formatDateTimeOffset(value);
+  if (value is Duration) return formatProtobufDuration(value);
+  if (value is String) return value;
+  if (value is int) return value.toString();
+  if (value is double) return value.toString();
+  if (value is Decimal) return decimalText(value);
+
+  return value.toString();
+}
+
+/// Convert a value to a string suitable for use as a URL path parameter.
+///
+/// Returns the string representation, or the empty string if [value] is null.
+String toPathValue(Object? value) {
+  return stringify(value);
+}
+
+/// Convert a value to a representation suitable for use as a query parameter.
+/// For collections, joins using the specified collection format delimiter.
+///
+/// [collectionFormat] is one of csv, ssv, tsv, pipes, or multi. Returns the
+/// query value string, or a list for the multi format, or null if [value] is
+/// null.
+Object? toQueryValue(Object? value, String collectionFormat) {
+  if (value == null) return null;
+
+  if (value is Uint8List) return stringify(value);
+
+  if (value is List<String>) {
+    return _joinCollection(value, collectionFormat);
+  }
+
+  if (value is List) {
+    final items = value.map((item) => stringify(item)).toList();
+    return _joinCollection(items, collectionFormat);
+  }
+
+  return stringify(value);
+}
+
+/// Convert a value to a string suitable for use as an HTTP header value.
+///
+/// Returns the string representation, or the empty string if [value] is null.
+String toHeaderValue(Object? value) {
+  if (value == null) return '';
+
+  if (value is List<String>) {
+    return value.join(',');
+  }
+
+  if (value is List) {
+    return value.map((item) => stringify(item)).join(',');
+  }
+
+  return stringify(value);
+}
+
+/// Convert a value to a string suitable for use as an HTTP cookie value.
+/// Cookie values follow the same encoding rules as header values.
+///
+/// Returns the string representation, or the empty string if [value] is null.
+String toCookieValue(Object? value) {
+  return toHeaderValue(value);
+}
+
+/// Percent-encode [value] for a `content:` cookie parameter.
+///
+/// Only A-Z a-z 0-9 - _ ~ stays literal (the dot is encoded too); every other
+/// character, including * . ! ' ( ) and every non-ASCII character, is
+/// percent-encoded as UTF-8 with upper-case hex digits, so the bytes are the
+/// same in every SDK and always satisfy the RFC 6265 cookie-value grammar.
+String encodeContentCookie(String value) {
+  final out = StringBuffer();
+  for (final b in utf8.encode(value)) {
+    final unreserved = (b >= 0x41 && b <= 0x5A) ||
+        (b >= 0x61 && b <= 0x7A) ||
+        (b >= 0x30 && b <= 0x39) ||
+        b == 0x2D ||
+        b == 0x5F ||
+        b == 0x7E;
+    if (unreserved) {
+      out.writeCharCode(b);
+    } else {
+      out.write('%');
+      out.write(b.toRadixString(16).toUpperCase().padLeft(2, '0'));
+    }
+  }
+  return out.toString();
+}
+
+/// Convert a value to a representation suitable for use as a form parameter.
+///
+/// Returns the string representation, or the empty string if [value] is null.
+String toFormValue(Object? value) {
+  return stringify(value);
+}
+
+/// Resolve a oneOf schema by trying each candidate deserializer in order.
+///
+/// Each entry in [fromJsonCandidates] is a factory function that attempts to
+/// deserialize the given map. Returns the first successful result.
+///
+/// Throws [SerializationException] if no candidate matches the JSON — a
+/// payload satisfying none of the declared variants is a contract violation
+/// and must fail loudly rather than be silently dropped to null.
+T resolveOneOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+  for (final fromJson in fromJsonCandidates) {
+    try {
+      return fromJson(data);
+    } catch (_) {
+      continue;
+    }
+  }
+  throw SerializationException('No oneOf/anyOf variant matched the JSON');
+}
+
+/// Resolve an anyOf schema by trying each candidate deserializer in order.
+///
+/// Delegates to [resolveOneOf].
+///
+/// Returns the first successful result. Throws [SerializationException] if no
+/// candidate matches the JSON.
+T resolveAnyOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+  return resolveOneOf(data, fromJsonCandidates);
+}
+
+/// Formats a [DateTime] as the canonical wire form for `format: date-time`
+/// values: a fixed three-digit millisecond fraction and a numeric offset
+/// (rendering a zero offset as `+00:00`, never the `Z` designator), e.g.
+/// `2024-01-01T12:30:45.000+00:00`. All twelve SDKs emit this exact shape so a
+/// value serialises to identical bytes in every language.
+///
+/// The original timezone offset is preserved rather than converting to UTC.
+/// Three digits — not a variable fraction — because millisecond precision is
+/// the cross-SDK common denominator (PHP's and Ruby's date types cannot carry
+/// more), so any microsecond component is truncated on encode.
+///
+/// Public so model `toJson` bodies can share the exact same wire format as
+/// parameter serialization — a date-time value must serialize identically
+/// whether it travels in a path/query/header or in a request body.
+String formatDateTimeOffset(DateTime date) {
+  final y = date.year.toString().padLeft(4, '0');
+  final mo = date.month.toString().padLeft(2, '0');
+  final d = date.day.toString().padLeft(2, '0');
+  final h = date.hour.toString().padLeft(2, '0');
+  final mi = date.minute.toString().padLeft(2, '0');
+  final s = date.second.toString().padLeft(2, '0');
+  final ms = date.millisecond.toString().padLeft(3, '0');
+  final offset = date.timeZoneOffset;
+  final sign = offset.isNegative ? '-' : '+';
+  final hh = offset.inHours.abs().toString().padLeft(2, '0');
+  final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+  return '$y-$mo-${d}T$h:$mi:$s.$ms$sign$hh:$mm';
+}
+
+Object? _joinCollection(List<String> items, String collectionFormat) {
+  switch (collectionFormat) {
+    case 'ssv':
+      return items.join(' ');
+    case 'tsv':
+      return items.join('\t');
+    case 'pipes':
+      return items.join('|');
+    case 'multi':
+      return items;
+    default:
+      return items.join(',');
+  }
+}

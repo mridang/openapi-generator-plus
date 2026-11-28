@@ -1,0 +1,35 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import javax.annotation.Nullable;
+
+/**
+ * The challenge contract of an authenticator that answers a server's {@code 401} challenge
+ * (HTTP Digest, RFC 7616). The SDK's dispatch hands it the method and the request target of
+ * every request, which the plain {@link Authenticator} contract does not carry.
+ *
+ * <p>This is an internal contract of the SDK: it is public only because the dispatch lives in
+ * another package. Use {@link DigestAuthenticator}.
+ */
+public interface ChallengeAuthenticator extends Authenticator {
+
+    /**
+     * Returns the {@code Authorization} header value that answers the remembered challenge.
+     *
+     * @param method the HTTP method of the request
+     * @param requestTarget the path and query of the request URL
+     * @return the header value, or {@code null} before any challenge was accepted
+     */
+    @Nullable
+    String authorization(String method, String requestTarget);
+
+    /**
+     * Reads a {@code WWW-Authenticate} header value and remembers the first challenge this
+     * authenticator can answer.
+     *
+     * @param wwwAuthenticate the header value, possibly holding several challenges
+     * @return whether a challenge was accepted
+     */
+    boolean acceptChallenge(String wwwAuthenticate);
+}

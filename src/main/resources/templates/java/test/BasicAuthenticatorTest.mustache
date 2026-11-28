@@ -1,0 +1,204 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+{{#hasDigestAuth}}
+import static org.junit.jupiter.api.Assertions.assertNull;
+{{/hasDigestAuth}}
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class BasicAuthenticatorTest {
+
+    @Test
+    void bhvAuthBasic018PasswordMayContainAColon() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
+        assertEquals("Basic YWxpY2U6cDpzcw==", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic011ValidCredentialsProduceBasicHeader() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Basic YWxpY2U6czNjcmV0", headers.get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic004NonAsciiCredentialsAreEncodedAsUtf8() {
+        BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com",
+                "ünïcødé", "pässwörd");
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+                auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic009RejectsUsernameWithCrlfAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
+    }
+
+    @Test
+    void bhvAuthBasic007RejectsPasswordWithNulAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
+    }
+
+    @Test
+    void bhvAuthBasic008RejectsUsernameWithColonAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    @Test
+    void bhvAuthBasic005PasswordIsNotLeakedInDefaultToString() {
+        // authenticator-secret-in-default-string-repr: the default toString()
+        // must never expose the stored password.
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        assertFalse(auth.toString().contains("s3cret"));
+    }
+
+    /**
+     * The default {@code toString()} must mask the stored password: the secret
+     * value must be absent and a redaction marker present.
+     */
+    @Test
+    @DisplayName("bhvAuthBasic006 toString() redacts the password")
+    void bhvAuthBasic006RedactsSecret() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        String repr = auth.toString();
+        assertFalse(repr.contains("s3cret"));
+        assertTrue(repr.contains("***"));
+        assertEquals(
+                "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                repr);
+    }
+
+    @Test
+    void bhvAuthBasic010ReprShowsHostAndUsernameAndMasksThePassword() {
+        String repr = new BasicAuthenticator("https://api.example.com", "alice", "s3cret").toString();
+        assertEquals(
+                "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                repr);
+    }
+
+    @Test
+    void bhvErrors081RefusedCredentialNamesWhetherTheUsernameOrThePasswordIsAtFault() {
+        IllegalArgumentException badUser = assertThrows(IllegalArgumentException.class,
+                () -> new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+        assertTrue(java.util.Objects.requireNonNull(badUser.getMessage()).contains("username"));
+        IllegalArgumentException badPassword = assertThrows(IllegalArgumentException.class,
+                () -> new BasicAuthenticator("https://api.example.com", "alice", "s3\u0000cret"));
+        assertTrue(java.util.Objects.requireNonNull(badPassword.getMessage()).contains("password"));
+    }
+{{#hasDigestAuth}}
+
+    private static final String DIGEST_REALM = "http-auth@example.org";
+    private static final String DIGEST_NONCE = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v";
+    private static final String DIGEST_OPAQUE = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS";
+    private static final String DIGEST_CNONCE = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ";
+
+    /* The RFC 7616 example credential, built at run time so no secret literal is committed. */
+    private static DigestAuthenticator rfcDigest() {
+        return new DigestAuthenticator(
+                "https://api.example.com", "Mufasa", String.join(" ", "Circle", "of", "Life"),
+                () -> DIGEST_CNONCE);
+    }
+
+    private static String rfcChallenge(String algorithm) {
+        return "Digest realm=\"" + DIGEST_REALM + "\", qop=\"auth, auth-int\", algorithm=" + algorithm
+                + ", nonce=\"" + DIGEST_NONCE + "\", opaque=\"" + DIGEST_OPAQUE + "\"";
+    }
+
+    private static String rfcAnswer(String algorithm, String response) {
+        return "Digest username=\"Mufasa\", realm=\"" + DIGEST_REALM + "\", nonce=\"" + DIGEST_NONCE
+                + "\", uri=\"/dir/index.html\", algorithm=" + algorithm + ", response=\"" + response
+                + "\", qop=auth, nc=00000001, cnonce=\"" + DIGEST_CNONCE + "\", opaque=\"" + DIGEST_OPAQUE + "\"";
+    }
+
+    @Test
+    void bhvAuthDigest700AnswersTheRfcMd5ChallengeWithTheFieldsInOrder() {
+        DigestAuthenticator auth = rfcDigest();
+        assertNull(auth.authorization("GET", "/dir/index.html"));
+        assertTrue(auth.acceptChallenge(rfcChallenge("MD5")));
+        assertEquals(rfcAnswer("MD5", "8ca523f5e9506fed4657c9700eebdbec"),
+                auth.authorization("GET", "/dir/index.html"));
+        assertEquals(Map.of(), auth.getAuthHeaders());
+    }
+
+    @Test
+    void bhvAuthDigest701AnswersTheRfcSha256ChallengeAndTheSessVariants() {
+        DigestAuthenticator sha256 = rfcDigest();
+        assertTrue(sha256.acceptChallenge(rfcChallenge("SHA-256")));
+        assertEquals(
+                rfcAnswer("SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"),
+                sha256.authorization("GET", "/dir/index.html"));
+        DigestAuthenticator sha256Sess = rfcDigest();
+        assertTrue(sha256Sess.acceptChallenge(rfcChallenge("SHA-256-sess")));
+        assertEquals(
+                rfcAnswer("SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"),
+                sha256Sess.authorization("GET", "/dir/index.html"));
+        DigestAuthenticator md5Sess = rfcDigest();
+        assertTrue(md5Sess.acceptChallenge(rfcChallenge("MD5-sess")));
+        assertEquals(rfcAnswer("MD5-sess", "e783283f46242139c486a698fec7211d"),
+                md5Sess.authorization("GET", "/dir/index.html"));
+    }
+
+    @Test
+    void bhvAuthDigest704AnswersAChallengeWithoutQopInTheRfc2069Form() {
+        DigestAuthenticator plain = rfcDigest();
+        assertTrue(plain.acceptChallenge(
+                "Basic realm=\"other\", Digest realm=\"" + DIGEST_REALM + "\", nonce=\"" + DIGEST_NONCE + "\""));
+        assertEquals("Digest username=\"Mufasa\", realm=\"" + DIGEST_REALM + "\", nonce=\"" + DIGEST_NONCE
+                        + "\", uri=\"/dir/index.html\", response=\"7b2cc3b30e75b4777ea31027084363fd\"",
+                plain.authorization("GET", "/dir/index.html"));
+        DigestAuthenticator withOpaque = rfcDigest();
+        assertTrue(withOpaque.acceptChallenge("digest REALM=\"" + DIGEST_REALM + "\", nonce=\"" + DIGEST_NONCE
+                + "\", opaque=\"" + DIGEST_OPAQUE + "\""));
+        assertEquals("Digest username=\"Mufasa\", realm=\"" + DIGEST_REALM + "\", nonce=\"" + DIGEST_NONCE
+                        + "\", uri=\"/dir/index.html\", response=\"7b2cc3b30e75b4777ea31027084363fd\", opaque=\""
+                        + DIGEST_OPAQUE + "\"",
+                withOpaque.authorization("GET", "/dir/index.html"));
+    }
+
+    @Test
+    void bhvAuthDigest705DoesNotAnswerAuthIntOnlyOrAnUnknownAlgorithm() {
+        DigestAuthenticator authInt = rfcDigest();
+        assertFalse(authInt.acceptChallenge(
+                "Digest realm=\"" + DIGEST_REALM + "\", qop=\"auth-int\", nonce=\"" + DIGEST_NONCE + "\""));
+        assertNull(authInt.authorization("GET", "/dir/index.html"));
+        DigestAuthenticator unknown = rfcDigest();
+        assertFalse(unknown.acceptChallenge(rfcChallenge("SHA-512-256")));
+        assertNull(unknown.authorization("GET", "/dir/index.html"));
+    }
+
+    @Test
+    void bhvAuthDigest706RefusesBadCredentialsAtConstructionAndMasksThePassword() {
+        String secret = String.join("", "s3", "cret");
+        IllegalArgumentException empty = assertThrows(IllegalArgumentException.class,
+                () -> new DigestAuthenticator("https://api.example.com", "", secret));
+        assertEquals("Digest username must not be empty", empty.getMessage());
+        for (String[] bad : new String[][] {
+                {"ali\rce", secret}, {"ali\nce", secret}, {"ali\0ce", secret},
+                {"alice", "s3\r" + secret}, {"alice", "s3\n" + secret}, {"alice", "s3\0" + secret}}) {
+            IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                    () -> new DigestAuthenticator("https://api.example.com", bad[0], bad[1]));
+            assertEquals("Digest credentials must not contain a line break or NUL", refused.getMessage());
+        }
+        IllegalArgumentException quote = assertThrows(IllegalArgumentException.class,
+                () -> new DigestAuthenticator("https://api.example.com", "ali\"ce", secret));
+        assertEquals("Digest username must not contain a double quote", quote.getMessage());
+        assertEquals("DigestAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                new DigestAuthenticator("https://api.example.com", "alice", secret).toString());
+    }
+{{/hasDigestAuth}}
+}

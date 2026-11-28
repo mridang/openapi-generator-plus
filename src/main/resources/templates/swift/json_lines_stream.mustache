@@ -1,0 +1,145 @@
+{{>api_info}}
+import Foundation
+
+/// The items of a JSON Lines response, decoded one per line as they arrive.
+/// Blank lines are skipped, and a last line without a newline counts. A line
+/// that does not decode raises a ``SerializationError`` that names its 1-based
+/// line number and ends the stream, as does a line over `maxEventBytes`.
+///
+/// It is an `AsyncSequence` of `T`: iterate it with `for try await`, and call
+/// ``close()`` (`defer { stream.close() }`) when you stop early. ``close()`` is
+/// idempotent and aborts the connection instead of draining it; a closed stream
+/// ends, so a read that is waiting returns `nil`. It can be read once, by one
+/// task at a time. Closing the client cancels the streams still open: their
+/// next read throws the closed-client error, `ConfigurationError.invalidState`.
+/// ``description`` shows the status code and the lines read, never the content.
+public final class JsonLinesStream<T: Sendable>: AsyncSequence, @unchecked Sendable {
+    public typealias Element = T
+
+    private let source: ByteStream
+    private let lines: LineReader
+    private let decode: @Sendable (String) throws -> T
+    private let method: String
+    private let path: String
+    private let lock = NSLock()
+    private var lineNumber = 0
+    private var finished = false
+
+    /// Wraps an open response body. This stream owns `source` and closes it.
+    ///
+    /// - Parameters:
+    ///   - source: The open body.
+    ///   - decode: Decodes one non-blank line.
+    ///   - maxLineBytes: The longest a line may be, in bytes.
+    ///   - method: The method of the request, named in errors.
+    ///   - path: The path of the request, named in errors.
+    init(
+        source: ByteStream, decode: @escaping @Sendable (String) throws -> T, maxLineBytes: Int,
+        method: String, path: String
+    ) {
+        self.source = source
+        self.lines = LineReader(source: source, maxBytes: maxLineBytes)
+        self.decode = decode
+        self.method = method
+        self.path = path
+    }
+
+    /// The HTTP status code of the response.
+    public var statusCode: Int { source.statusCode }
+
+    /// The response headers, with lower-cased names.
+    public var headers: [String: String] { source.headers }
+
+    public struct AsyncIterator: AsyncIteratorProtocol {
+        fileprivate let owner: JsonLinesStream<T>
+
+        public mutating func next() async throws -> T? {
+            return try await owner.nextItem()
+        }
+    }
+
+    public func makeAsyncIterator() -> AsyncIterator {
+        return AsyncIterator(owner: self)
+    }
+
+    private var isFinished: Bool { lock.withLock { finished } }
+
+    private func finish() {
+        lock.withLock { finished = true }
+        source.close()
+    }
+
+    private func failure(_ message: String, cause: Error?) -> SerializationError {
+        return SerializationError(
+            message: message, cause: cause, statusCode: source.statusCode,
+            responseHeaders: source.headers, responseBody: "", requestMethod: method,
+            requestPath: path)
+    }
+
+    fileprivate func nextItem() async throws -> T? {
+        if isFinished {
+            return nil
+        }
+        do {
+            while true {
+                let line: String?
+                do {
+                    line = try await lines.readLine()
+                } catch let tooLong as OverLimit {
+                    let number = lock.withLock { lineNumber + 1 }
+                    throw failure(
+                        "Line \(number) of the JSON Lines response is too long: \(tooLong.message)",
+                        cause: nil)
+                }
+                if isFinished {
+                    return nil
+                }
+                guard let text = line else {
+                    finish()
+                    return nil
+                }
+                let number = lock.withLock { () -> Int in
+                    lineNumber += 1
+                    return lineNumber
+                }
+                if text.allSatisfy({ $0.isWhitespace }) {
+                    continue
+                }
+                do {
+                    return try decode(text)
+                } catch let broken as SerializationError {
+                    throw failure(
+                        "Line \(number) of the JSON Lines response does not decode: \(broken.message)",
+                        cause: broken)
+                } catch {
+                    throw failure(
+                        "Line \(number) of the JSON Lines response does not decode: \(error.localizedDescription)",
+                        cause: error)
+                }
+            }
+        } catch {
+            finish()
+            throw error
+        }
+    }
+
+    /// Closes the stream and aborts the connection; later calls do nothing. A
+    /// read that is waiting returns `nil`.
+    public func close() {
+        finish()
+    }
+}
+
+extension JsonLinesStream: CustomStringConvertible, CustomDebugStringConvertible {
+    /// The stream by its status code and the lines read; the headers and the
+    /// content are never shown.
+    public var description: String {
+        let count = lock.withLock { lineNumber }
+        return "JsonLinesStream(statusCode: \(source.statusCode), linesRead: \(count))"
+    }
+
+    /// The same text as ``description``.
+    public var debugDescription: String {
+        description
+    }
+}

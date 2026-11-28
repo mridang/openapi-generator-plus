@@ -1,20 +1,345 @@
 package io.github.mridang.codegen.generators.php;
 
-import io.github.mridang.codegen.generators.AbstractBetterCodegenTest;
-import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Test;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 
-class BetterPHPCodegenTest extends AbstractBetterCodegenTest {
+/**
+ * Validates the string-literal rendering that the PHP authenticator wrappers use
+ * for an apiKey parameter name, token URL and scope names, so a legal header or
+ * query name never breaks the generated source.
+ */
+class BetterPHPCodegenTest {
 
     @Test
-    public void testGeneratedAuthClassesJersey() {
-        super.doGenerate("php-plus",
-            newTempFolder(),
-            Map.of(
-                CodegenConstants.MODEL_PACKAGE, "xyz.abcdef.models",
-                CodegenConstants.API_PACKAGE, "xyz.abcdef.api"
-            ));
+    void quoteInNameIsEscaped() {
+        assertEquals("'X-Api\\'Key'", BetterPHPCodegen.toPhpStringLiteral("X-Api'Key"));
+    }
+
+    @Test
+    void backslashInNameIsEscaped() {
+        assertEquals("'a\\\\b'", BetterPHPCodegen.toPhpStringLiteral("a\\b"));
+    }
+
+    @Test
+    void dollarSignStaysLiteralInSingleQuotes() {
+        assertEquals("'$apiKey'", BetterPHPCodegen.toPhpStringLiteral("$apiKey"));
+    }
+
+    @Test
+    void controlCharacterUsesDoubleQuotedEscape() {
+        assertEquals("\"a\\tb\\$c\"", BetterPHPCodegen.toPhpStringLiteral("a\tb$c"));
+    }
+
+    @Test
+    void placesTheServerBeforeAnOptionalOptionsObject() {
+        final Map<String, Object> path = Map.of("paramName", "petId");
+        final Map<String, Object> options =
+                Map.of("paramName", "options", "isOptions", true, "nullable", true);
+        final Map<String, Object> server = Map.of("paramName", "server", "isServer", true);
+
+        assertEquals(
+                List.of(path, server, options),
+                BetterPHPCodegen.serverBeforeOptions(List.of(path, options, server)));
+    }
+
+    @Test
+    void keepsARequiredOptionsObjectBeforeTheServer() {
+        final Map<String, Object> path = Map.of("paramName", "petId");
+        final Map<String, Object> options = Map.of("paramName", "options", "isOptions", true);
+        final Map<String, Object> server = Map.of("paramName", "server", "isServer", true);
+
+        assertEquals(
+                List.of(path, options, server),
+                BetterPHPCodegen.serverBeforeOptions(List.of(path, options, server)));
+    }
+
+    @Test
+    void keepsASignatureWithoutAServerUnchanged() {
+        final Map<String, Object> path = Map.of("paramName", "petId");
+        final Map<String, Object> options =
+                Map.of("paramName", "options", "isOptions", true, "nullable", true);
+
+        assertEquals(
+                List.of(path, options), BetterPHPCodegen.serverBeforeOptions(List.of(path, options)));
+    }
+
+    @Test
+    void prefixesAModelNamedLikeAForbiddenClassName() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+
+        assertEquals("ModelString", codegen.toModelName("String"));
+        assertEquals("ModelObject", codegen.toModelName("Object"));
+        assertEquals("ModelInt", codegen.toModelName("Int"));
+        assertEquals("ModelMixed", codegen.toModelName("Mixed"));
+    }
+
+    @Test
+    void keepsAModelNamedLikeAnSdkOrBuiltInTypeThatPhpAllows() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+
+        assertEquals("Error", codegen.toModelName("Error"));
+        assertEquals("Result", codegen.toModelName("Result"));
+        assertEquals("Pet", codegen.toModelName("Pet"));
+    }
+
+    @Test
+    void suffixesAParameterNamedLikeAnInjectedArgument() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+
+        assertEquals("optionsParam", codegen.toParamName("options"));
+        assertEquals("serverParam", codegen.toParamName("server"));
+        assertEquals("requestContentTypeParam", codegen.toParamName("requestContentType"));
+        assertEquals("petId", codegen.toParamName("pet_id"));
+    }
+
+    @Test
+    void rendersTheNamedExamplesOfAParameterAsDocblockLines() {
+        final CodegenParameter parameter = new CodegenParameter();
+        parameter.vendorExtensions = new HashMap<>();
+        parameter.vendorExtensions.put(
+                "pluralExamples",
+                List.of(
+                        Map.of("value", "available", "summary", "Only free items"),
+                        Map.of("value", "a*/b", "summary", "Bad */ text")));
+
+        assertEquals(
+                List.of("available Only free items", "a*_/b Bad *_/ text"),
+                BetterPHPCodegen.exampleDocLines(parameter));
+    }
+
+    @Test
+    void rendersNoExampleLinesForAParameterWithoutExamples() {
+        final CodegenParameter parameter = new CodegenParameter();
+
+        assertEquals(List.of(), BetterPHPCodegen.exampleDocLines(parameter));
+    }
+
+    @Test
+    void rendersTheOasExamplesMapOfAnOptionalParameterBeforeTheSharedPassRuns() {
+        final CodegenParameter parameter = new CodegenParameter();
+        parameter.examples = new java.util.LinkedHashMap<>();
+        final io.swagger.v3.oas.models.examples.Example example =
+                new io.swagger.v3.oas.models.examples.Example();
+        example.setSummary("Sold pets");
+        example.setValue("sold");
+        parameter.examples.put("sold_pets", example);
+
+        assertEquals(List.of("sold Sold pets"), BetterPHPCodegen.exampleDocLines(parameter));
+    }
+
+    @Test
+    void mintsAnOptionsObjectForEveryOperation() {
+        assertTrue(new BetterPHPCodegen().mintsOptionsForEveryOperation());
+    }
+
+    @Test
+    void readsTheCredentialsOfBearerAndOAuth2SchemesFromTheEnvironmentButNotOpenIdConnect() {
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put(
+                "envVars",
+                List.of(
+                        envVar("host", "ACME_HOST"),
+                        envVar("token", "ACME_TOKEN"),
+                        envVar("clientId", "ACME_CLIENT_ID"),
+                        envVar("redirectUri", "ACME_REDIRECT_URI")));
+
+        assertEquals(
+                List.of(envVar("token", "ACME_TOKEN")),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("BearerAuthenticator", "token"), ctx));
+        assertEquals(
+                List.of(envVar("clientId", "ACME_CLIENT_ID")),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("OAuth2ImplicitAuthenticator", "clientId"), ctx));
+        assertEquals(
+                List.of(
+                        envVar("clientId", "ACME_CLIENT_ID"),
+                        envVar("redirectUri", "ACME_REDIRECT_URI")),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("OAuth2AuthorizationCodeAuthenticator", "clientId", "redirectUri"),
+                        ctx));
+        assertEquals(
+                List.of(),
+                BetterPHPCodegen.schemeCredentialEnvVars(
+                        scheme("OpenIdConnectAuthenticator", "clientId", "redirectUri"), ctx));
+    }
+
+    @Test
+    void readsTheUsernameAndPasswordOfABasicSchemeFromTheEnvironment() {
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put(
+                "envVars",
+                List.of(envVar("username", "ACME_USERNAME"), envVar("password", "ACME_PASSWORD")));
+
+        assertEquals(
+                List.of(envVar("username", "ACME_USERNAME"), envVar("password", "ACME_PASSWORD")),
+                BetterPHPCodegen.schemeCredentialEnvVars(scheme("BasicAuthenticator", "username", "password"), ctx));
+    }
+
+    @Test
+    void startsAReferencedEnumPropertyAtTheDefaultNextToTheReference() {
+        final CodegenProperty property = siblingDefault("on-hold", true);
+        property.dataType = "\\Acme\\Models\\Availability";
+        property.vendorExtensions.put("siblingDefaultEnumVar", "ON_HOLD");
+
+        assertEquals("\\Acme\\Models\\Availability::ON_HOLD", BetterPHPCodegen.siblingDefaultLiteral(property));
+    }
+
+    @Test
+    void startsAReferencedScalarPropertyAtTheDefaultNextToTheReference() {
+        final CodegenProperty text = siblingDefault("it's", false);
+        text.dataType = "string";
+        final CodegenProperty count = siblingDefault("3", false);
+        count.dataType = "int";
+        final CodegenProperty ratio = siblingDefault("0.5", false);
+        ratio.dataType = "float";
+        final CodegenProperty flag = siblingDefault("true", false);
+        flag.dataType = "bool";
+
+        assertEquals("'it\\'s'", BetterPHPCodegen.siblingDefaultLiteral(text));
+        assertEquals("3", BetterPHPCodegen.siblingDefaultLiteral(count));
+        assertEquals("0.5", BetterPHPCodegen.siblingDefaultLiteral(ratio));
+        assertEquals("true", BetterPHPCodegen.siblingDefaultLiteral(flag));
+    }
+
+    @Test
+    void leavesAPropertyWithoutAConstantFormOfItsSiblingDefaultAlone() {
+        final CodegenProperty model = siblingDefault("{}", false);
+        model.dataType = "\\Acme\\Models\\Address";
+        final CodegenProperty count = siblingDefault("many", false);
+        count.dataType = "int";
+        final CodegenProperty plain = new CodegenProperty();
+        plain.vendorExtensions = new HashMap<>();
+        plain.dataType = "string";
+
+        assertNull(BetterPHPCodegen.siblingDefaultLiteral(model));
+        assertNull(BetterPHPCodegen.siblingDefaultLiteral(count));
+        assertNull(BetterPHPCodegen.siblingDefaultLiteral(plain));
+    }
+
+    @Test
+    void writesTheSecurityRequirementOfAnOperationAsAlternativesOfSchemeIds() {
+        final SecurityRequirement either = new SecurityRequirement();
+        either.addList("apiKey");
+        final SecurityRequirement both = new SecurityRequirement();
+        both.addList("bearer");
+        both.addList("it's");
+
+        assertEquals(
+                "[['apiKey'], ['bearer', 'it\\'s']]",
+                BetterPHPCodegen.securityRequirementsLiteral(List.of(either, both)));
+    }
+
+    @Test
+    void writesNoSecurityRequirementForAnOperationWithoutOne() {
+        assertEquals("[]", BetterPHPCodegen.securityRequirementsLiteral(null));
+        assertEquals("[]", BetterPHPCodegen.securityRequirementsLiteral(List.of()));
+        assertEquals(
+                "[]", BetterPHPCodegen.securityRequirementsLiteral(List.of(new SecurityRequirement())));
+    }
+
+    @Test
+    void givesNoOperationAPerCallAuthenticatorField() {
+        final Map<String, Object> context = new HashMap<>();
+        final org.openapitools.codegen.CodegenOperation operation =
+                new org.openapitools.codegen.CodegenOperation();
+        operation.hasAuthMethods = true;
+
+        new BetterPHPCodegen().injectAuthFieldContext(operation, context);
+
+        assertEquals(false, context.get("hasAuthField"));
+    }
+
+    private static Map<String, Object> envVar(String field, String envName) {
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("field", field);
+        entry.put("envName", envName);
+        return entry;
+    }
+
+    private static AbstractBetterCodegen.SchemeAuthSpec scheme(String baseClass, String... params) {
+        final List<String> paramNames = new ArrayList<>(List.of("host"));
+        paramNames.addAll(List.of(params));
+        return new AbstractBetterCodegen.SchemeAuthSpec(
+                "scheme", "Scheme", "", baseClass, false, paramNames,
+                null, null, null, null, null, null, null);
+    }
+
+    private static CodegenProperty siblingDefault(String wire, boolean isEnum) {
+        final CodegenProperty property = new CodegenProperty();
+        property.vendorExtensions = new HashMap<>();
+        property.vendorExtensions.put("siblingDefault", wire);
+        property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
+        return property;
+    }
+
+    @Test
+    void writesThePackageMetadataOptionsIntoTheComposerManifest() {
+        final Map<String, Object> options = new HashMap<>();
+        options.put("homepageUrl", "https://example.com");
+        options.put("repositoryUrl", "https://github.com/acme/sdk");
+        options.put("documentationUrl", "https://docs.example.com");
+        options.put("issueTrackerUrl", "https://github.com/acme/sdk/issues");
+        options.put("authors", "Ada Lovelace <ada@example.com>; Bob \"B\" Smith");
+
+        assertEquals(
+                "    \"homepage\": \"https://example.com\",\n"
+                        + "    \"authors\": [{\"name\": \"Ada Lovelace\", \"email\": \"ada@example.com\"},"
+                        + " {\"name\": \"Bob \\\"B\\\" Smith\"}],\n"
+                        + "    \"support\": {\"source\": \"https://github.com/acme/sdk\","
+                        + " \"docs\": \"https://docs.example.com\","
+                        + " \"issues\": \"https://github.com/acme/sdk/issues\"},\n",
+                BetterPHPCodegen.composerExtras(options));
+    }
+
+    @Test
+    void writesNoPackageMetadataWhenNoOptionIsSet() {
+        assertEquals("", BetterPHPCodegen.composerExtras(new HashMap<>()));
+    }
+
+    @Test
+    void readsTheAuthorsOptionAsAListOrAString() {
+        assertEquals(List.of("A", "B"), BetterPHPCodegen.authorList("A, B,"));
+        assertEquals(List.of("A", "B"), BetterPHPCodegen.authorList(List.of(" A ", "B", " ")));
+        assertEquals(List.of(), BetterPHPCodegen.authorList(null));
+    }
+
+    @Test
+    void anErrorSchemaIsNamedByItsBareModelClassNotItsQualifiedName() {
+        final BetterPHPCodegen codegen = new BetterPHPCodegen();
+        assertEquals("ProjectNotFound", codegen.errorSchemaModelName("\\Pkg\\Models\\ProjectNotFound"));
+        assertEquals("ProjectNotFound", codegen.errorSchemaModelName("ProjectNotFound"));
+    }
+
+    @Test
+    void aPatternIsDelimitedWithItsSlashesEscaped() {
+        assertEquals("/^\\d+\\/[a-z]+$/u", BetterPHPCodegen.phpRegex("^\\d+/[a-z]+$"));
+        assertEquals("/a\\/b/u", BetterPHPCodegen.phpRegex("a\\/b"));
+        assertEquals("/a\\\\\\/b/u", BetterPHPCodegen.phpRegex("a\\\\/b"));
+    }
+
+    @Test
+    void aPropertyIsNullableByTheRuleOfItsDeclaredType() {
+        final CodegenProperty optional = new CodegenProperty();
+        assertTrue(BetterPHPCodegen.isPhpNullable(optional));
+        final CodegenProperty required = new CodegenProperty();
+        required.required = true;
+        assertEquals(false, BetterPHPCodegen.isPhpNullable(required));
+        required.isNullable = true;
+        assertTrue(BetterPHPCodegen.isPhpNullable(required));
+        final CodegenProperty defaulted = new CodegenProperty();
+        defaulted.defaultValue = "3";
+        assertEquals(false, BetterPHPCodegen.isPhpNullable(defaulted));
     }
 }

@@ -1,0 +1,503 @@
+{{>api_info}}
+
+using System.Globalization;
+using System.Text;
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception thrown when an API call fails.
+/// </summary>
+public class ApiException : {{errorPrefix}}Exception
+{
+    public int StatusCode { get; }
+    public string? ResponseBody { get; private set; }
+    public Dictionary<string, string>? ResponseHeaders { get; private set; }
+
+    private object? errorBody;
+
+    /// <summary>
+    /// The decoded error body. A status exception holds the parsed JSON; the
+    /// exception of a declared error schema overrides this with its model type.
+    /// </summary>
+    public virtual object? ErrorBody => errorBody;
+
+    /// <summary>
+    /// The HTTP method of the request that failed, for example <c>GET</c>, or
+    /// null when the error did not come from a request the SDK built.
+    /// </summary>
+    public string? RequestMethod { get; private set; }
+
+    /// <summary>
+    /// The path of the request that failed, without its query string, for
+    /// example <c>/items/7</c>, or null when the error did not come from a
+    /// request the SDK built.
+    /// </summary>
+    public string? RequestPath { get; private set; }
+
+    public ApiException() { }
+
+    public ApiException(string message)
+        : base(message) { }
+
+    public ApiException(string message, Exception innerException)
+        : base(message, innerException) { }
+
+    /// <summary>
+    /// Creates an exception for a response that arrived but could not be used,
+    /// such as a body whose Content-Encoding cannot be decoded. The status code
+    /// is the real status of the response that arrived, and the underlying
+    /// failure is kept as the inner exception.
+    /// </summary>
+    public ApiException(int statusCode, string message, Exception innerException)
+        : base(message, innerException)
+    {
+        StatusCode = statusCode;
+    }
+
+    /// <summary>
+    /// Creates an exception for a response that arrived but could not be used, keeping
+    /// its real headers as well as the underlying failure. Internal: only the transport
+    /// builds it, so it is not part of the public surface the other SDKs share.
+    /// </summary>
+    internal static ApiException ForUnusableResponse(
+        int statusCode,
+        string message,
+        Exception innerException,
+        Dictionary<string, string>? responseHeaders
+    )
+    {
+        return new ApiException(statusCode, message, innerException)
+        {
+            ResponseHeaders = responseHeaders,
+        };
+    }
+
+    public ApiException(
+        int statusCode,
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(message)
+    {
+        StatusCode = statusCode;
+        ResponseHeaders = responseHeaders;
+        ResponseBody = responseBody;
+        this.errorBody = errorBody;
+    }
+
+    /// <summary>
+    /// Whether repeating the request can succeed: the status is 408, 409, 429 or a
+    /// 5xx other than 501, the statuses the client itself retries.
+    /// </summary>
+    public virtual bool IsRetryable =>
+        StatusCode is 408 or 409 or 429 || (StatusCode is >= 500 and < 600 and not 501);
+
+    /// <summary>
+    /// The request id the server sent in the <c>x-request-id</c> response header, or
+    /// null when the header is absent.
+    /// </summary>
+    public string? RequestId
+    {
+        get
+        {
+            if (ResponseHeaders is null)
+            {
+                return null;
+            }
+            foreach (KeyValuePair<string, string> header in ResponseHeaders)
+            {
+                if (string.Equals(header.Key, "x-request-id", StringComparison.OrdinalIgnoreCase))
+                {
+                    return header.Value;
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Maps an HTTP response that was not a success to the exception for its
+    /// status: 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map to their named
+    /// <see cref="ClientException"/> subclasses and any other 4xx to
+    /// <see cref="ClientException"/>; 500, 501, 502, 503 and 504
+    /// map to their named <see cref="ServerException"/> subclasses and any other 5xx to
+    /// <see cref="ServerException"/>; any other status maps to
+    /// <see cref="ApiException"/> itself. A JSON body is parsed into
+    /// <see cref="ErrorBody"/>; a body that is not JSON leaves it null.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code of the response.</param>
+    /// <param name="responseHeaders">The HTTP response headers, if available.</param>
+    /// <param name="responseBody">The raw HTTP response body, if available.</param>
+    /// <param name="requestMethod">The HTTP method of the request, named in the message when given with the path.</param>
+    /// <param name="requestPath">The path of the request without its query string.</param>
+    /// <returns>The exception for the status; the caller throws it.</returns>
+    public static ApiException FromResponse(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod = null,
+        string? requestPath = null
+    )
+    {
+        return Build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, null);
+    }
+
+    /// <summary>
+    /// Maps an HTTP response that was not a success to the exception for its
+    /// status, using the error schemas the operation declares.
+    ///
+    /// When <paramref name="errorSchemas"/> has a factory for the status (an exact
+    /// status first, then a <c>4XX</c> or <c>5XX</c> range, then <c>default</c>),
+    /// the factory builds the exception of that error schema. A body that does not
+    /// match the schema never hides the real error: the factory then returns the
+    /// status exception with the raw body and the decoding failure as its inner
+    /// exception. Without a factory the result is the one of the overload without
+    /// a factory map.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code of the response.</param>
+    /// <param name="responseHeaders">The HTTP response headers, if available.</param>
+    /// <param name="responseBody">The raw HTTP response body, if available.</param>
+    /// <param name="requestMethod">The HTTP method of the request.</param>
+    /// <param name="requestPath">The path of the request without its query string.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <returns>The exception for the status; the caller throws it.</returns>
+    public static ApiException FromResponse(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod,
+        string? requestPath,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas
+    )
+    {
+        if (errorSchemas is not null)
+        {
+            ErrorFactory? factory = null;
+            if (!errorSchemas.TryGetValue(statusCode.ToString(CultureInfo.InvariantCulture), out factory))
+            {
+                if (statusCode is >= 400 and < 500)
+                {
+                    errorSchemas.TryGetValue("4XX", out factory);
+                }
+                else if (statusCode is >= 500 and < 600)
+                {
+                    errorSchemas.TryGetValue("5XX", out factory);
+                }
+                if (factory is null)
+                {
+                    errorSchemas.TryGetValue("default", out factory);
+                }
+            }
+            if (factory is not null)
+            {
+                return factory(
+                    requestMethod ?? string.Empty,
+                    requestPath ?? string.Empty,
+                    statusCode,
+                    responseHeaders,
+                    responseBody
+                );
+            }
+        }
+        return Build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, null);
+    }
+
+    /// <summary>
+    /// Decodes a response body as the schema an operation declares for an error status.
+    /// </summary>
+    /// <typeparam name="T">The model type of the declared schema.</typeparam>
+    /// <param name="body">The raw response body.</param>
+    /// <returns>The decoded body.</returns>
+    /// <exception cref="SerializationException">The body does not match the schema.</exception>
+    internal static T DecodeErrorBody<T>(string body)
+        where T : class
+    {
+        return new ObjectSerializer().Deserialize<T>(body)
+            ?? throw new SerializationException("Error body is empty");
+    }
+
+    /// <summary>
+    /// The status exception for a response whose body did not match its declared
+    /// schema: the same exception the plain <c>FromResponse</c> gives, with the
+    /// decoding failure as its inner exception.
+    /// </summary>
+    internal static ApiException StatusFallback(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod,
+        string? requestPath,
+        Exception cause
+    )
+    {
+        return Build(statusCode, responseHeaders, responseBody, requestMethod, requestPath, cause);
+    }
+
+    /// <summary>Records the request a built exception answers, once.</summary>
+    internal ApiException WithRequest(string? requestMethod, string? requestPath)
+    {
+        RequestMethod = string.IsNullOrEmpty(requestMethod) ? null : requestMethod;
+        RequestPath = string.IsNullOrEmpty(requestPath) ? null : StripQuery(requestPath);
+        return this;
+    }
+
+    private static ApiException Build(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody,
+        string? requestMethod,
+        string? requestPath,
+        Exception? cause
+    )
+    {
+        string message = $"API returned status code {statusCode}";
+        if (!string.IsNullOrEmpty(requestMethod) && !string.IsNullOrEmpty(requestPath))
+        {
+            message += $" for {requestMethod} {StripQuery(requestPath)}";
+        }
+        Dictionary<string, string>? headers =
+            responseHeaders is null ? null : new Dictionary<string, string>(responseHeaders);
+        object? errorBody = null;
+        if (!string.IsNullOrEmpty(responseBody))
+        {
+            try
+            {
+                /* A leading BOM is stripped first, as on the success path.
+                 * Cap the nesting depth so a deeply-nested error payload is
+                 * refused before it can recurse through the call stack. */
+                string jsonBody = responseBody[0] == '\uFEFF' ? responseBody[1..] : responseBody;
+                using var document = System.Text.Json.JsonDocument.Parse(
+                    jsonBody,
+                    new System.Text.Json.JsonDocumentOptions
+                    {
+                        MaxDepth = ObjectSerializer.MaxJsonDepth,
+                    }
+                );
+                errorBody = document.RootElement.Clone();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                /* non-JSON or over-deep body, errorBody stays null */
+            }
+        }
+
+        ApiException built;
+        if (cause is null)
+        {
+            built = statusCode switch
+            {
+                400 => new BadRequestException(message, headers, responseBody, errorBody),
+                401 => new UnauthorizedException(message, headers, responseBody, errorBody),
+                403 => new ForbiddenException(message, headers, responseBody, errorBody),
+                404 => new NotFoundException(message, headers, responseBody, errorBody),
+                409 => new ConflictException(message, headers, responseBody, errorBody),
+                422 => new UnprocessableEntityException(message, headers, responseBody, errorBody),
+                429 => new TooManyRequestsException(message, headers, responseBody, errorBody),
+                402 => new PaymentRequiredException(message, headers, responseBody, errorBody),
+                405 => new MethodNotAllowedException(message, headers, responseBody, errorBody),
+                408 => new RequestTimeoutException(message, headers, responseBody, errorBody),
+                410 => new GoneException(message, headers, responseBody, errorBody),
+                413 => new PayloadTooLargeException(message, headers, responseBody, errorBody),
+                415 => new UnsupportedMediaTypeException(message, headers, responseBody, errorBody),
+                423 => new LockedException(message, headers, responseBody, errorBody),
+                >= 400 and < 500 => new ClientException(statusCode, message, headers, responseBody, errorBody),
+                500 => new InternalServerErrorException(message, headers, responseBody, errorBody),
+                501 => new NotImplementedStatusException(message, headers, responseBody, errorBody),
+                502 => new BadGatewayException(message, headers, responseBody, errorBody),
+                503 => new ServiceUnavailableException(message, headers, responseBody, errorBody),
+                504 => new GatewayTimeoutException(message, headers, responseBody, errorBody),
+                >= 500 and < 600 => new ServerException(statusCode, message, headers, responseBody, errorBody),
+                _ => new ApiException(statusCode, message, headers, responseBody, errorBody),
+            };
+        }
+        else
+        {
+            /* The constructors that take a cause carry no headers or body, so the
+             * response is attached to the built exception afterwards. */
+            built = statusCode switch
+            {
+                400 => new BadRequestException(message, cause),
+                401 => new UnauthorizedException(message, cause),
+                403 => new ForbiddenException(message, cause),
+                404 => new NotFoundException(message, cause),
+                409 => new ConflictException(message, cause),
+                422 => new UnprocessableEntityException(message, cause),
+                429 => new TooManyRequestsException(message, cause),
+                402 => new PaymentRequiredException(message, cause),
+                405 => new MethodNotAllowedException(message, cause),
+                408 => new RequestTimeoutException(message, cause),
+                410 => new GoneException(message, cause),
+                413 => new PayloadTooLargeException(message, cause),
+                415 => new UnsupportedMediaTypeException(message, cause),
+                423 => new LockedException(message, cause),
+                >= 400 and < 500 => new ClientException(statusCode, message, cause),
+                500 => new InternalServerErrorException(message, cause),
+                501 => new NotImplementedStatusException(message, cause),
+                502 => new BadGatewayException(message, cause),
+                503 => new ServiceUnavailableException(message, cause),
+                504 => new GatewayTimeoutException(message, cause),
+                >= 500 and < 600 => new ServerException(statusCode, message, cause),
+                _ => new ApiException(statusCode, message, cause),
+            };
+            built.ResponseHeaders = headers;
+            built.ResponseBody = responseBody;
+            built.errorBody = errorBody;
+        }
+        return built.WithRequest(requestMethod, requestPath);
+    }
+
+    private static readonly char[] QueryDelimiters = ['?', '#'];
+
+    /// <summary>The path without its query string or fragment.</summary>
+    private static string StripQuery(string path)
+    {
+        int cut = path.IndexOfAny(QueryDelimiters);
+        return cut < 0 ? path : path[..cut];
+    }
+
+    /// <summary>
+    /// Records the request a transport failure came from. The transport raises its
+    /// error without the request, so the call that sent it names the method and path.
+    /// </summary>
+    internal void RecordRequest(string requestMethod, string requestPath)
+    {
+        if (RequestMethod is not null && RequestPath is not null)
+        {
+            return;
+        }
+        if (string.IsNullOrEmpty(requestMethod) || string.IsNullOrEmpty(requestPath))
+        {
+            return;
+        }
+        RequestMethod = requestMethod;
+        RequestPath = StripQuery(requestPath);
+    }
+
+    /// <summary>
+    /// Deserialize the raw response body into the given type.
+    ///
+    /// Useful when the API returns a structured error body that you want to
+    /// access in a strongly-typed way.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the error body into.</typeparam>
+    /// <returns>The deserialized error body, or null if the body is empty.</returns>
+    public T? GetTypedErrorBody<T>()
+        where T : class
+    {
+        if (string.IsNullOrEmpty(ResponseBody))
+        {
+            return null;
+        }
+        return new ObjectSerializer().Deserialize<T>(ResponseBody);
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions HeaderRenderingOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    /// <summary>
+    /// Render the error as the message followed by whatever response context
+    /// was captured, one labelled field per line.
+    ///
+    /// <see cref="Exception.Message"/> is deliberately left alone: it keeps
+    /// returning the detail message the exception was constructed with.
+    /// </summary>
+    public override string ToString()
+    {
+        StringBuilder rendered =
+            new(
+                string.IsNullOrEmpty(Message)
+                    ? "Error message: the server returns an error"
+                    : Message
+            );
+        if (StatusCode != 0)
+        {
+            rendered
+                .Append("\nHTTP status code: ")
+                .Append(StatusCode.ToString(CultureInfo.InvariantCulture));
+        }
+        if (ResponseHeaders is { Count: > 0 })
+        {
+            /* D17: compact JSON, keys sorted, '/' unescaped. A header that can
+             * carry a credential is shown as *** (F1080). */
+            SortedDictionary<string, string> shown = new(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, string> header in ResponseHeaders)
+            {
+                shown[header.Key] = IsSensitiveHeader(header.Key) ? "***" : header.Value;
+            }
+            rendered
+                .Append("\nResponse headers: ")
+                .Append(System.Text.Json.JsonSerializer.Serialize(shown, HeaderRenderingOptions));
+        }
+        if (!string.IsNullOrEmpty(ResponseBody))
+        {
+            rendered.Append("\nResponse body: ").Append(RenderBody(ResponseBody));
+        }
+        return rendered.ToString();
+    }
+
+    /// <summary>The longest response body, in characters (1 KiB), that the string form shows.</summary>
+    internal const int MaxRenderedBodyLength = 1024;
+
+    private static bool IsSensitiveHeader(string name)
+    {
+        return name.Equals("authorization", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("proxy-authorization", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("www-authenticate", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("proxy-authenticate", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("cookie", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("set-cookie", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("key", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("secret", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /* A body is capped and its control characters are escaped, so a gateway
+     * error page cannot flood a log and a hostile server cannot forge log lines
+     * (F1080). The full body stays on ResponseBody. */
+    private static string RenderBody(string body)
+    {
+        int cut = Math.Min(body.Length, MaxRenderedBodyLength);
+        /* A cut between the two halves of a surrogate pair would leave a lone surrogate. */
+        if (cut < body.Length && char.IsHighSurrogate(body[cut - 1]))
+        {
+            cut--;
+        }
+        string head = body[..cut];
+        StringBuilder escaped = new(head.Length);
+        foreach (char c in head)
+        {
+            if (c == '\n')
+            {
+                escaped.Append("\\n");
+            }
+            else if (c == '\r')
+            {
+                escaped.Append("\\r");
+            }
+            else if (char.IsControl(c))
+            {
+                escaped.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                escaped.Append(c);
+            }
+        }
+        if (body.Length > MaxRenderedBodyLength)
+        {
+            escaped
+                .Append("... (")
+                .Append(
+                    (Encoding.UTF8.GetByteCount(body) - Encoding.UTF8.GetByteCount(head))
+                        .ToString(CultureInfo.InvariantCulture)
+                )
+                .Append(" more bytes)");
+        }
+        return escaped.ToString();
+    }
+}

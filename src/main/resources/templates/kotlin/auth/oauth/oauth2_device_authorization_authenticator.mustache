@@ -1,0 +1,225 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.auth.HttpAwareAuthenticator
+import {{invokerPackage}}.errors.OAuth2ServerException
+import {{invokerPackage}}.errors.OAuth2TokenException
+import kotlinx.coroutines.delay
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
+/**
+ * Authenticator for the OAuth2 Device Authorization flow (RFC 8628).
+ *
+ * Implements [HttpAwareAuthenticator] so that the device authorization and token
+ * requests use the shared [ApiClient] with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call [requestDeviceAuthorization] to get the user code and the verification URI
+ * 2. Show both to the user, who approves the request on another device
+ * 3. Call [pollForToken]; it returns once the user has approved the request
+ * 4. Use the authenticator normally — tokens are managed automatically
+ *
+ * @param host API base URL
+ * @param clientId OAuth2 client ID
+ * @param deviceAuthorizationUrl device authorization endpoint URL
+ * @param tokenUrl token endpoint URL
+ * @param scopes requested scopes
+ * @param refreshUrl refresh token endpoint URL (falls back to [tokenUrl] if null)
+ */
+open class OAuth2DeviceAuthorizationAuthenticator(
+    private val host: String,
+    private val clientId: String,
+    private val deviceAuthorizationUrl: String,
+    private val tokenUrl: String,
+    private val scopes: List<String>,
+    private val refreshUrl: String? = null,
+) : HttpAwareAuthenticator {
+
+    /**
+     * The answer of the device authorization endpoint (RFC 8628 section 3.2).
+     *
+     * @property deviceCode the device verification code
+     * @property userCode the code the user enters at the verification URI
+     * @property verificationUri the URI the user visits to approve the request
+     * @property verificationUriComplete the verification URI with the user code included, if sent
+     * @property expiresIn the lifetime of the device code, in seconds
+     * @property interval the seconds to wait between polls (5 when the server sends none)
+     */
+    data class DeviceAuthorization(
+        val deviceCode: String,
+        val userCode: String,
+        val verificationUri: String,
+        val verificationUriComplete: String?,
+        val expiresIn: Long,
+        val interval: Long,
+    )
+
+    internal val tokenManager: OAuth2TokenManager = OAuth2TokenManager()
+
+    private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
+
+    /* Waits the given number of seconds between polls; tests replace it so they do not wait. */
+    internal var sleeper: suspend (Long) -> Unit = { seconds -> delay(seconds * MILLIS_PER_SECOND) }
+
+    /* The monotonic clock, in nanoseconds, the expiry of a device code is measured with. */
+    internal var monotonicNanos: () -> Long = System::nanoTime
+
+    /**
+     * Inject the shared API client used for the device authorization and token requests.
+     *
+     * @param apiClient the shared API client instance
+     */
+    override fun setApiClient(apiClient: ApiClient) {
+        tokenManager.apiClient = apiClient
+    }
+
+    override fun invalidateAccessToken() {
+        tokenManager.invalidateAccessToken()
+    }
+
+    /**
+     * Ask the device authorization endpoint for a device code and a user code. Show the
+     * user code and the verification URI to the user, then call [pollForToken].
+     *
+     * @return the device authorization
+     * @throws OAuth2ServerException when the endpoint answers non-2xx
+     * @throws OAuth2TokenException when the answer is not a usable device authorization
+     */
+    suspend fun requestDeviceAuthorization(): DeviceAuthorization {
+        val params = mutableMapOf("client_id" to clientId)
+        if (scopes.isNotEmpty()) {
+            params["scope"] = scopes.joinToString(" ")
+        }
+        val body = tokenManager.postDeviceAuthorization(deviceAuthorizationUrl, params)
+        val element = try {
+            JSON.parseToJsonElement(body)
+        } catch (_: IllegalArgumentException) {
+            /* The parser's message is not kept: it quotes the body. */
+            throw OAuth2TokenException("Device authorization response is not valid JSON")
+        }
+        if (element is JsonPrimitive && !element.isString && !isJsonLiteral(element.content)) {
+            /* A bare top-level word is read as an unquoted literal instead of being rejected. */
+            throw OAuth2TokenException("Device authorization response is not valid JSON")
+        }
+        val json = element as? JsonObject
+            ?: throw OAuth2TokenException("Device authorization response is not a JSON object")
+        val deviceCode = requiredField(json, "device_code")
+        val userCode = requiredField(json, "user_code")
+        val verificationUri = requiredField(json, "verification_uri")
+        val complete = json["verification_uri_complete"] as? JsonPrimitive
+        val verificationUriComplete =
+            if (complete != null && complete.isString && complete.content.isNotEmpty()) complete.content else null
+        val intervalElement: JsonElement? = json["interval"]
+        val interval =
+            if (intervalElement == null || intervalElement is JsonNull) {
+                DEFAULT_INTERVAL_SECONDS
+            } else {
+                tokenManager.parseLifetime(intervalElement)
+            }
+        return DeviceAuthorization(
+            deviceCode,
+            userCode,
+            verificationUri,
+            verificationUriComplete,
+            tokenManager.parseLifetime(json["expires_in"]),
+            interval,
+        )
+    }
+
+    /**
+     * Poll the token endpoint until the user approves the device authorization.
+     * `authorization_pending` keeps polling and `slow_down` adds five seconds to the
+     * interval; a success replaces the session.
+     *
+     * @param authorization the device authorization to poll for
+     * @throws OAuth2ServerException when the token endpoint answers with any other error
+     * @throws OAuth2TokenException when the device code expires before the user approves it
+     */
+    suspend fun pollForToken(authorization: DeviceAuthorization) {
+        var interval = authorization.interval
+        val started = monotonicNanos()
+        while (true) {
+            val elapsed = (monotonicNanos() - started) / NANOS_PER_SECOND
+            if (elapsed + interval > authorization.expiresIn) {
+                throw OAuth2TokenException("Device authorization expired before the user approved it")
+            }
+            sleeper(interval)
+            val params = mapOf(
+                "grant_type" to DEVICE_CODE_GRANT,
+                "client_id" to clientId,
+                "device_code" to authorization.deviceCode,
+            )
+            try {
+                /* RFC 8628 section 3.5: a success replaces the session like a code exchange. */
+                tokenManager.exchange(tokenUrl, params)
+                tokenManager.markExchanged()
+                return
+            } catch (e: OAuth2ServerException) {
+                when (e.code) {
+                    "authorization_pending" -> continue
+                    "slow_down" -> interval += SLOW_DOWN_SECONDS
+                    else -> throw e
+                }
+            }
+        }
+    }
+
+    override fun getHost(): String = host
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        check(tokenManager.isExchanged()) { "Must call pollForToken() before making API requests" }
+        val params = mutableMapOf(
+            "grant_type" to "refresh_token",
+            "refresh_token" to (tokenManager.getRefreshToken() ?: ""),
+            "client_id" to clientId,
+        )
+        val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
+        return mapOf("Authorization" to "Bearer $token")
+    }
+
+    private companion object {
+        /** The grant type of the device access token request (RFC 8628 section 3.4). */
+        const val DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
+
+        /** The polling interval when the server names none (RFC 8628 section 3.2). */
+        const val DEFAULT_INTERVAL_SECONDS = 5L
+
+        /** The seconds a slow_down answer adds to the interval (RFC 8628 section 3.5). */
+        const val SLOW_DOWN_SECONDS = 5L
+
+        const val MILLIS_PER_SECOND = 1_000L
+
+        const val NANOS_PER_SECOND = 1_000_000_000L
+
+        val JSON = Json { ignoreUnknownKeys = true }
+
+        fun isJsonLiteral(content: String): Boolean =
+            content == "true" || content == "false" || content == "null" || content.toDoubleOrNull() != null
+
+        fun requiredField(json: JsonObject, field: String): String {
+            val value = json[field] as? JsonPrimitive
+            if (value == null || !value.isString || value.content.isEmpty()) {
+                throw OAuth2TokenException("Device authorization response missing or empty $field field")
+            }
+            return value.content
+        }
+    }
+
+    /**
+     * Returns a string representation of this authenticator (it holds no client
+     * secret; the tokens are never shown).
+     *
+     * @return a string representation
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, clientId=$clientId, " +
+            "deviceAuthorizationUrl=$deviceAuthorizationUrl, tokenUrl=$tokenUrl, " +
+            "refreshUrl=$effectiveRefreshUrl, scopes=$scopes)"
+}

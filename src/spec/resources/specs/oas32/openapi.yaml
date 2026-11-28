@@ -1,0 +1,199 @@
+openapi: 3.2.0
+
+# The OpenAPI 3.2 fixture. The petstore must stay a 3.1 document because the
+# mock server reads it, so the 3.2 constructs the generators realise live
+# here instead. OpenApi32ParserExtensionTest generates every SDK from this
+# document and checks that each construct reaches the output:
+#
+#   - $self moves the base URI into shared/, so the relative reference
+#     "common.yaml" resolves to shared/common.yaml (#51)
+#   - jsonSchemaDialect names the OpenAPI dialect, which is accepted (#52)
+#   - each server has a name (#55)
+#   - a response refers to a reusable Media Type Object (#57)
+#   - a path item has a summary and a description (#58)
+#   - a parameter reference overrides the description it refers to (#81)
+#   - tags nest through parent and carry a summary and a kind (#80)
+#   - examples use dataValue and serializedValue (#79)
+#   - a JSON Lines response declares its item through itemSchema (D120)
+#   - a path item declares a QUERY operation with a request body (#60)
+#   - a path item declares a custom LINK method in additionalOperations (#61)
+#   - a querystring parameter carries the whole query as form pairs (#63)
+#   - a cookie parameter uses style: cookie (#65)
+#   - a path parameter allows reserved characters (#66)
+#   - examples of a parameter and a request body, one external, and an exposed extension (#64, #93)
+$self: shared/openapi.yaml
+jsonSchemaDialect: https://spec.openapis.org/oas/3.2/dialect/2025-09-17
+info:
+  title: Ledger Fixture
+  version: 1.0.0
+servers:
+  - url: https://ledger.example.com/v1
+    name: main-region
+    description: The primary region
+  - url: https://ledger-backup.example.com/v1
+    name: spare-region
+tags:
+  - name: accounts
+    summary: Account books
+    description: Everything about account books
+    kind: nav
+  - name: audits
+    summary: Account audits
+    parent: accounts
+    kind: nav
+paths:
+  /ledgers/{code}:
+    summary: One ledger book
+    description: A single ledger book, addressed by its code.
+    parameters:
+      - $ref: '#/components/parameters/LedgerCode'
+        description: The code of the ledger book to read
+    get:
+      tags:
+        - accounts
+      operationId: readLedger
+      responses:
+        '200':
+          description: The ledger book
+          content:
+            application/json:
+              $ref: '#/components/mediaTypes/LedgerJson'
+  /ledgers:
+    post:
+      tags:
+        - audits
+      operationId: auditLedger
+      x-audience: ledger-team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'common.yaml#/components/schemas/Ledger'
+            examples:
+              opening:
+                summary: An opening balance
+                dataValue:
+                  code: OPEN-1
+                  balance: 125
+              closing:
+                serializedValue: '{"code":"CLOSE-9","balance":0}'
+              archived:
+                summary: An archived ledger book
+                externalValue: https://example.com/ledgers/archived.json
+      responses:
+        '204':
+          description: Audited
+  /ledgers/stream:
+    get:
+      tags:
+        - accounts
+      operationId: streamLedgers
+      parameters:
+        - name: prefix
+          in: query
+          description: Only the ledger books whose code starts with this text
+          schema:
+            type: string
+          examples:
+            opening:
+              summary: Opening books
+              dataValue: OPEN-
+      responses:
+        '200':
+          description: Every ledger book, one per line
+          content:
+            application/jsonl:
+              itemSchema:
+                $ref: 'common.yaml#/components/schemas/Ledger'
+  /ledgers/search:
+    summary: Ledger search
+    query:
+      tags:
+        - accounts
+      operationId: searchLedgers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'common.yaml#/components/schemas/Ledger'
+      responses:
+        '200':
+          description: The ledger books that match
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'common.yaml#/components/schemas/Ledger'
+    additionalOperations:
+      LINK:
+        tags:
+          - accounts
+        operationId: linkLedgers
+        responses:
+          '204':
+            description: Linked
+  /ledgers/filter:
+    get:
+      tags:
+        - accounts
+      operationId: filterLedgers
+      parameters:
+        - name: filter
+          in: querystring
+          required: true
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                $ref: '#/components/schemas/LedgerFilter'
+      responses:
+        '204':
+          description: Filtered
+  /ledgers/files/{filePath}:
+    get:
+      tags:
+        - accounts
+      operationId: readLedgerFile
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          allowReserved: true
+          example: books/2024.csv
+          schema:
+            type: string
+        - name: region
+          in: cookie
+          style: cookie
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '204':
+          description: Read
+components:
+  schemas:
+    LedgerFilter:
+      type: object
+      properties:
+        prefix:
+          type: string
+        minimum:
+          type: integer
+          format: int64
+  parameters:
+    LedgerCode:
+      name: code
+      in: path
+      required: true
+      description: A ledger code
+      schema:
+        type: string
+  mediaTypes:
+    LedgerJson:
+      schema:
+        $ref: 'common.yaml#/components/schemas/Ledger'

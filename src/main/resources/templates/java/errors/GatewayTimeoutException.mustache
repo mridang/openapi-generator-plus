@@ -1,0 +1,86 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/**
+ * Exception for HTTP 504 Gateway Timeout.
+ */
+public class GatewayTimeoutException extends ServerException {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a new exception with an empty message and no response context.
+     */
+    public GatewayTimeoutException() {
+        this("", null, null, null);
+    }
+
+    /**
+     * Creates a new exception with no response context.
+     *
+     * @param message the error message
+     */
+    public GatewayTimeoutException(String message) {
+        this(message, null, null, null);
+    }
+
+    /**
+     * Creates a new exception.
+     *
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     */
+    public GatewayTimeoutException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody) {
+        super(504, message, responseHeaders, responseBody, errorBody);
+    }
+
+    /**
+     * Creates a new exception that keeps the underlying failure as its cause.
+     *
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     * @param cause the underlying failure, if any
+     */
+    public GatewayTimeoutException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody,
+            @Nullable Throwable cause) {
+        super(504, message, responseHeaders, responseBody, errorBody, cause);
+    }
+
+    /**
+     * Creates a new exception that keeps the underlying failure and the request that drew it.
+     *
+     * @param message the error message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     * @param cause the underlying failure, if any
+     * @param requestMethod the HTTP method of the request, if known
+     * @param requestPath the path of the request, if known; a query string is stripped
+     */
+    public GatewayTimeoutException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody,
+            @Nullable Throwable cause,
+            @Nullable String requestMethod,
+            @Nullable String requestPath) {
+        super(504, message, responseHeaders, responseBody, errorBody, cause, requestMethod, requestPath);
+    }
+}

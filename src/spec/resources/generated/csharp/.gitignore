@@ -1,0 +1,13 @@
+# Build output
+bin/
+obj/
+
+# IDE files
+*.user
+.vs/
+
+# Coverage and docs output
+.out/
+
+# DocFX generated API metadata (intermediate YAML)
+/api/

@@ -1,0 +1,1613 @@
+{{>api_info}}
+import Foundation
+import Testing
+@testable import {{packageName}}
+
+@Suite final class OAuth2TokenManagerTests {
+
+    // MARK: - Mock ApiClient
+
+    private final class MockApiClient: ApiClient, @unchecked Sendable {
+        var responses: [ApiHttpResponse] = []
+        var lastMethod: String = ""
+        var lastURL: String = ""
+        var lastHeaders: [String: String] = [:]
+        var lastBody: Data? = nil
+        var lastNoRedirect: Bool = false
+        /// Every request received, in order, as its URL and raw form body.
+        var requests: [(url: String, body: String)] = []
+        /// When set, every request fails with this error instead of answering.
+        var failure: Error? = nil
+
+        /// Satisfies the ApiClient requirement that carries no request options.
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            try await sendRequest(
+                method: method, url: url, headers: headers, body: body, noRedirect: false)
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+            lastMethod = method
+            lastURL = url
+            lastHeaders = headers
+            lastBody = body as? Data
+            lastNoRedirect = noRedirect
+            requests.append((url, (body as? Data).flatMap { String(data: $0, encoding: .utf8) } ?? ""))
+            if let failure = failure {
+                throw failure
+            }
+            return responses.removeFirst()
+        }
+    }
+
+    /// Mock client that counts requests and serves the same response, optionally
+    /// stalling briefly so concurrent callers all queue up against the same
+    /// in-flight refresh task.
+    private final class CountingMockApiClient: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var _callCount = 0
+        private let responseBody: String
+        private let delayNanos: UInt64
+
+        var callCount: Int {
+            lock.withLock { _callCount }
+        }
+
+        init(responseBody: String, delayNanos: UInt64 = 50_000_000) {
+            self.responseBody = responseBody
+            self.delayNanos = delayNanos
+        }
+
+        /// Satisfies the ApiClient requirement that carries no request options.
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            try await sendRequest(
+                method: method, url: url, headers: headers, body: body, noRedirect: false)
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+            lock.withLock { _callCount += 1 }
+            if delayNanos > 0 {
+                try? await Task.sleep(nanoseconds: delayNanos)
+            }
+            return ApiHttpResponse(statusCode: 200, body: responseBody, headers: [:])
+        }
+    }
+
+    private func makeResponse(body: String, statusCode: Int = 200) -> ApiHttpResponse {
+        return ApiHttpResponse(statusCode: statusCode, body: body, headers: [:])
+    }
+
+    // MARK: - Tests
+
+    @Test func testBhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok123\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "client_credentials"]
+        )
+
+        #expect(token == "tok123")
+    }
+
+    @Test func testBhvMisc185StoppingTwiceIsANoOpAndALaterTokenRequestFailsWithAFixedMessage() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        manager.stop()
+        manager.stop()
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+        }
+
+        #expect(error == .stopped)
+        #expect(error?.localizedDescription == "The token manager has been stopped.")
+        #expect(client.requests.isEmpty)
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr028TheRefreshTokenFromTheTokenResponseIsStored() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "authorization_code"]
+        )
+
+        #expect(manager.refreshToken == "ref1")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr025ReturnsCachedTokenWhenNotExpired() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "tok1")
+        #expect(second == "tok1")
+    }
+
+    /* The token request is a form post that asks for JSON, and it is never
+       replayed across a redirect. */
+    @Test func testBhvAuthoauthtwotokenmgr035TokenRequestIsAFormPostAskingForJson() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: ["grant_type": "client_credentials"])
+
+        #expect(client.lastMethod == "POST")
+        #expect(client.lastHeaders["Content-Type"] == "application/x-www-form-urlencoded")
+        #expect(client.lastHeaders["Accept"] == "application/json")
+        #expect(client.lastNoRedirect)
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr021RefetchesTokenWhenExpired() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "tok1")
+        #expect(second == "tok2")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr026SetAccessTokenBypassesEndpoint() async throws {
+        let manager = OAuth2TokenManager()
+        manager.setAccessToken("manual-token")
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: [:]
+        )
+
+        #expect(token == "manual-token")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr018InvalidateAccessTokenForcesRefetch() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        manager.invalidateAccessToken()
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "tok1")
+        #expect(second == "tok2")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr030ThrowsWhenNoApiClientInjected() async {
+        let manager = OAuth2TokenManager()
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected error when no ApiClient injected")
+        } catch ConfigurationError.invalidState {
+            /* A token requested before the ApiClient is injected is a wrong
+               call order, not an API failure. */
+        } catch {
+            Issue.record("expected ConfigurationError.invalidState, got \(error)")
+        }
+    }
+
+    /* Token endpoint: a 2xx body that is not JSON is an OAuth2TokenError, a
+     * non-2xx answer an OAuth2ServerError, and a transport failure passes
+     * through as the NetworkError / NetworkTimeoutError it already is. */
+    @Test func testBhvAuthoauthtwotokenmgr037TokenEndpointFailuresAreTyped() async {
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let notJson = MockApiClient()
+        notJson.responses = [ApiHttpResponse(statusCode: 200, body: "<html>ok</html>", headers: [:])]
+        var manager = OAuth2TokenManager()
+        manager.setApiClient(notJson)
+        await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+
+        let unavailable = MockApiClient()
+        unavailable.responses = [ApiHttpResponse(statusCode: 503, body: "down", headers: [:])]
+        manager = OAuth2TokenManager()
+        manager.setApiClient(unavailable)
+        let serverError = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+        #expect(serverError?.statusCode == 503)
+
+        let refused = MockApiClient()
+        refused.failure = NetworkError(statusCode: 0, message: "connection refused")
+        manager = OAuth2TokenManager()
+        manager.setApiClient(refused)
+        await #expect(throws: NetworkError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+
+        let timedOut = MockApiClient()
+        timedOut.failure = NetworkTimeoutError(statusCode: 0, message: "timed out")
+        manager = OAuth2TokenManager()
+        manager.setApiClient(timedOut)
+        await #expect(throws: NetworkTimeoutError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        }
+    }
+
+    // MARK: - Concurrent refresh coalescing (single-flight)
+
+    @Test func testBhvAuthoauthtwotokenmgr027ConcurrentCallersCoalesceIntoSingleRefresh() async throws {
+        /* 10 concurrent callers on a freshly invalidated manager must result in
+         * exactly one HTTP call to the token endpoint -- not 10. */
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"shared-tok\",\"expires_in\":3600}",
+            delayNanos: 100_000_000
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let tokens = await withTaskGroup(of: String?.self) { group -> [String] in
+            for _ in 0..<10 {
+                group.addTask {
+                    return try? await manager.getAccessToken(tokenURL: tokenURL, params: params)
+                }
+            }
+            var collected: [String] = []
+            for await value in group {
+                if let v = value { collected.append(v) }
+            }
+            return collected
+        }
+
+        #expect(tokens.count == 10, "all 10 concurrent callers should receive a token")
+        #expect(tokens.allSatisfy { $0 == "shared-tok" }, "all callers should get the same token")
+        #expect(client.callCount == 1, "expected exactly 1 token-endpoint call for 10 concurrent callers, got \(client.callCount)")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr013ExpiresInShortLivedTokenDoesNotStorm() async throws {
+        /* A token that is stale the moment it arrives (expires_in 0) must
+         * still produce exactly ONE network call from a single
+         * getAccessToken call. */
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"short\",\"expires_in\":0}",
+            delayNanos: 0
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "client_credentials"]
+        )
+
+        #expect(token == "short")
+        #expect(client.callCount == 1)
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr039NoExpiresInCachesTokenIndefinitely() async throws {
+        /* Regression: when the token response omits expires_in, the token must
+         * be cached indefinitely. The previous .distantPast expiry sentinel
+         * made the cache check always false, so a no-expiry token was refetched
+         * on EVERY call. A second getAccessToken within the same manager must
+         * serve from cache, hitting the endpoint exactly ONCE. This matches the
+         * other SDKs (Java: null expiry => never expires; Go: zero Date => same). */
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"no-expiry-tok\"}",
+            delayNanos: 0
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "no-expiry-tok")
+        #expect(second == "no-expiry-tok")
+        #expect(client.callCount == 1,
+            "token without expires_in must be cached indefinitely (1 endpoint hit), got \(client.callCount)")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr010ExpiresInLongLivedTokenAppliesFullBuffer() async throws {
+        /* A long-lived token is cached; the second call is served from the cache. */
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"long\",\"expires_in\":3600}",
+            delayNanos: 0
+        )
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "long")
+        #expect(second == "long")
+        #expect(client.callCount == 1)
+    }
+
+    /* One margin of min(60 s, expires_in / 2) is taken off the lifetime when
+     * the token is stored and none when it is read, so a 60 s token is reused
+     * for 30 s and a 3600 s token for 3540 s. */
+    @Test(arguments: [(1, 0.5), (30, 15.0), (60, 30.0), (90, 45.0), (120, 60.0), (3600, 3540.0)])
+    func testBhvAuthoauthtwotokenmgr007ExpiryTakesOneMarginOfAtMostSixtySeconds(expiresIn: Int, reusableFor: Double) {
+        let now: TimeInterval = 1_000_000
+        let expiry = OAuth2TokenManager.expiry(for: expiresIn, now: now)
+        #expect(expiry - now == reusableFor)
+    }
+
+    /* F1054: expiry is read off a clock that a wall-clock change does not
+     * move: it never runs backwards and it ticks in real time. */
+    @Test func testBhvLangswift051ExpiryClockIsMonotonic() async throws {
+        let first = MonotonicClock.now()
+        try await Task.sleep(nanoseconds: 20_000_000)
+        let second = MonotonicClock.now()
+        #expect(second > first)
+        #expect(second - first < 5)
+    }
+
+    @Test func testBhvLangswift052NonPositiveExpiresInIsStaleImmediately() {
+        let now: TimeInterval = 1_000_000
+        #expect(OAuth2TokenManager.expiry(for: 0, now: now) == now)
+        #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr004NinetySecondTokenIsReusedWithoutAnotherRequest() async throws {
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"edge\",\"expires_in\":90}",
+            delayNanos: 0
+        )
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(client.callCount == 1, "a 90 s token must be reused, got \(client.callCount) token requests")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr012ExpiresInZeroIsRefetchedOnTheNextCall() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"edge1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"edge2\",\"expires_in\":0}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "edge1")
+        #expect(second == "edge2")
+    }
+
+    /* A refresh response without expires_in clears the lapsed expiry, so the
+     * refreshed token is cached and the following call sends no request. */
+    @Test func testBhvAuthoauthtwotokenmgr003RefreshResponseWithoutExpiresInClearsTheExpiry() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"refresh_token\":\"ref2\"}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let refreshed = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let cached = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(refreshed == "tok2")
+        #expect(cached == "tok2")
+        #expect(client.requests.count == 2, "the third call must be served from the cache")
+    }
+
+    /// Splits an application/x-www-form-urlencoded body into its decoded fields.
+    private func formFields(_ body: String) -> [String: String] {
+        var fields: [String: String] = [:]
+        for pair in body.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            let decode = { (s: Substring) -> String in
+                s.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? String(s)
+            }
+            fields[decode(parts[0])] = decode(parts.count > 1 ? parts[1] : "")
+        }
+        return fields
+    }
+
+    private let authorizationCodeGrant = [
+        "grant_type": "authorization_code",
+        "code": "auth-code",
+        "client_id": "my-client",
+        "client_secret": "my-secret",
+    ]
+
+    /* The refresh grant sends the cached refresh token and carries over only
+     * the client credentials: the authorization code is single-use and must
+     * not travel with it. */
+    @Test func testBhvAuthoauthtwotokenmgr022RefreshGrantCarriesRefreshTokenAndClientCredentialsOnly() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let refreshed = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(refreshed == "tok2")
+        #expect(client.requests.count == 2)
+        #expect(formFields(client.requests[0].body) == authorizationCodeGrant)
+        #expect(
+            formFields(client.requests[1].body) == [
+                "grant_type": "refresh_token",
+                "refresh_token": "ref1",
+                "client_id": "my-client",
+                "client_secret": "my-secret",
+            ])
+    }
+
+    /* A refresh the server rejects is not fatal: the original grant is run
+     * again, and the call only fails if that fails too. */
+    @Test func testBhvAuthoauthtwotokenmgr016RejectedRefreshFallsBackToTheOriginalGrant() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok3")
+        #expect(client.requests.count == 3)
+        #expect(formFields(client.requests[1].body)["grant_type"] == "refresh_token")
+        #expect(formFields(client.requests[2].body) == authorizationCodeGrant)
+    }
+
+    @Test func testBhvAuth057MalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "<html>gateway</html>"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok3")
+        #expect(formFields(client.requests[2].body)["grant_type"] == "authorization_code")
+    }
+
+    @Test func testBhvAuth026FailedRefreshAndFailedOriginalGrantSurfacesTheOriginalGrantError() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        }
+        #expect(error?.statusCode == 401)
+        #expect(error?.code == "invalid_client")
+    }
+
+    /* Both the field names and the values are percent-encoded: only
+     * letters, digits and - . _ ~ stay literal, a space becomes +, and the
+     * characters * ! ' ( ) are encoded too. */
+    @Test func testBhvAuth017TokenRequestBodyPercentEncodesReservedCharacters() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: [
+                "client_secret": "a~b-c.d_e*f!g'h(i)j k+l&m=n/o%p",
+                "scope": "read write",
+            ])
+
+        let fields = client.requests[0].body.split(separator: "&").map(String.init).sorted()
+        #expect(
+            fields == [
+                "client_secret=a~b-c.d_e%2Af%21g%27h%28i%29j+k%2Bl%26m%3Dn%2Fo%25p",
+                "scope=read+write",
+            ])
+    }
+
+    @Test func testBhvLangswift053TokenRequestBodyEncodesNonAsciiAsUtf8() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: ["password": "p\u{00E4}ss"])
+
+        #expect(client.requests[0].body == "password=p%C3%A4ss")
+    }
+
+    /* The three forms of the token-endpoint failure message. */
+    @Test func testBhvErrors046TokenEndpointFailureMessageHasThreeForms() async {
+        let cases: [(body: String, message: String)] = [
+            ("upstream down", "Token request failed with status 400: upstream down"),
+            (
+                "{\"error\":\"invalid_grant\"}",
+                "Token request failed with status 400: invalid_grant"
+            ),
+            (
+                "{\"error\":\"invalid_grant\",\"error_description\":\"code expired\"}",
+                "Token request failed with status 400: invalid_grant -- code expired"
+            ),
+        ]
+        for testCase in cases {
+            let client = MockApiClient()
+            client.responses.append(makeResponse(body: testCase.body, statusCode: 400))
+            let manager = OAuth2TokenManager()
+            manager.setApiClient(client)
+            let error = await #expect(throws: OAuth2ServerError.self) {
+                _ = try await manager.getAccessToken(
+                    tokenURL: "https://auth.example.com/token", params: ["grant_type": "client_credentials"])
+            }
+            #expect(error?.errorDescription == testCase.message)
+        }
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr024RefreshTokenEmptyStringPreservesExisting() async throws {
+        // Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
+        // MUST NOT clobber the cached refresh_token.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":\"\"}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "authorization_code"]
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+
+        // Second call: access token near-expiry triggers refresh via "old_refresh".
+        // Server replies with empty refresh_token which must not overwrite cache.
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh",
+                "empty refresh_token in refresh response must not overwrite cached refresh_token")
+    }
+
+    /* A refresh_token that is not a JSON string is ignored, so the stored one is kept. */
+    @Test func testBhvAuthoauthtwotokenmgr017NonStringRefreshTokenIsIgnored() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"new_access\",\"expires_in\":3600,\"refresh_token\":12345}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "authorization_code"]
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+    }
+
+    /* A refresh_token of any non-string JSON type (boolean, array) is ignored, so the stored one is kept. */
+    @Test func testBhvAuthoauthtwotokenmgr020NonStringRefreshTokenOfOtherJsonTypesIsIgnored() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"old_access\",\"refresh_token\":\"old_refresh\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"new_access\",\"expires_in\":0,\"refresh_token\":true}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"newer_access\",\"expires_in\":3600,\"refresh_token\":[\"x\"]}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "authorization_code"]
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(manager.refreshToken == "old_refresh")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr009ExpiresInAsJsonStringIsAccepted() async throws {
+        // D1: RFC 6749 §5.1 — providers like Salesforce send expires_in as a
+        // quoted string. The manager must accept it and cache the token; a
+        // second call within the buffer window must serve from cache.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"str-tok\",\"expires_in\":\"3600\"}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "str-tok")
+        #expect(second == "str-tok")
+    }
+
+    /* A padded decimal expires_in is a lifetime: the trailing newline is trimmed and the token is cached. */
+    @Test func testBhvAuthoauthtwotokenmgr045PaddedDecimalExpiresInIsAcceptedAndCached() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"pad1\",\"expires_in\":\"3600\\n\"}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"pad2\",\"expires_in\":\"3600\"}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+        let params = ["grant_type": "client_credentials"]
+
+        #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1")
+        #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1",
+                "a padded decimal lifetime is accepted, so the token is cached")
+    }
+
+    /* A quoted expires_in is read as plain decimal digits, so a hex string is
+       not a lifetime (0x1000 would otherwise be 4096 seconds and cached) and
+       trailing newlines are trimmed like any other whitespace. */
+    @Test func testBhvAuthoauthtwotokenmgr046ExpiresInStringUsesPlainDecimalGrammar() async throws {
+        let hex = MockApiClient()
+        hex.responses.append(makeResponse(body: "{\"access_token\":\"hex1\",\"expires_in\":\"0x1000\"}"))
+        hex.responses.append(makeResponse(body: "{\"access_token\":\"hex2\",\"expires_in\":\"0x1000\"}"))
+        let hexManager = OAuth2TokenManager()
+        hexManager.setApiClient(hex)
+        let tokenURL = "https://auth.example.com/token"
+        let params = ["grant_type": "client_credentials"]
+        #expect(try await hexManager.getAccessToken(tokenURL: tokenURL, params: params) == "hex1")
+        #expect(try await hexManager.getAccessToken(tokenURL: tokenURL, params: params) == "hex2",
+                "a hex expires_in is not a lifetime, so the token must not be cached")
+
+        let padded = MockApiClient()
+        padded.responses.append(makeResponse(body: "{\"access_token\":\"pad1\",\"expires_in\":\"3600\\n\"}"))
+        padded.responses.append(makeResponse(body: "{\"access_token\":\"pad2\",\"expires_in\":\"3600\"}"))
+        let paddedManager = OAuth2TokenManager()
+        paddedManager.setApiClient(padded)
+        #expect(try await paddedManager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1")
+        #expect(try await paddedManager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1",
+                "a trailing newline is trimmed, so the token is cached")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr008ExpiresInAsFloatIsFloored() async throws {
+        // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
+        // The manager must floor it and cache the token.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"flt-tok\",\"expires_in\":3600.5}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "flt-tok")
+        #expect(second == "flt-tok")
+    }
+
+    /* A huge expires_in, as a number or a digit string, is clamped to one
+       year: it used to trap the Int conversion and crash the process. */
+    @Test(arguments: [
+        ("1e20", 31_536_000),
+        ("\"1e20\"", 0),
+        ("\"100000000000000000000\"", 31_536_000),
+        ("\"\(String(repeating: "9", count: 400))\"", 31_536_000),
+        ("9223372036854775807", 31_536_000),
+        ("31536000", 31_536_000),
+        ("31535999.9", 31_535_999),
+        ("\"Infinity\"", 0),
+        ("3600", 3600),
+    ])
+    func testBhvAuthoauthtwotokenmgr005ExpiresInIsClampedToOneYear(literal: String, seconds: Int) throws {
+        let json = try JSONSerialization.jsonObject(with: Data("{\"expires_in\":\(literal)}".utf8)) as? [String: Any]
+        #expect(OAuth2TokenManager.parseExpiresIn(json?["expires_in"]) == seconds)
+    }
+
+    @Test func testBhvLangswift054HugeExpiresInCachesTheToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"huge1\",\"expires_in\":1e20}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"huge2\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "huge1")
+        #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "huge1")
+        #expect(client.requests.count == 1)
+    }
+
+    /* A token whose lifetime is not a finite number, including one that overflows, is not cached. */
+    @Test(arguments: ["Infinity", "-Infinity", "NaN", "1e400"])
+    func testBhvMisc059ANonFiniteLifetimeIsNotCached(raw: String) async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"first\",\"expires_in\":\"\(raw)\"}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"second\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+        #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "first")
+        #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "second")
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr011ExpiresInNegativeSkipsCaching() async throws {
+        // D1: a negative expires_in (e.g. -1) must mark the token as
+        // immediately stale so the very next call refetches.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"neg1\",\"expires_in\":-1}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"neg2\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+
+        #expect(first == "neg1")
+        #expect(second == "neg2")
+    }
+
+    /// Gap 3.2: the token POST MUST be marked noRedirect so the
+    /// transport refuses to silently replay the credential-bearing
+    /// body to a 307/308 Location target. The mock asserts that the
+    /// flag arrives at the ApiClient.
+    @Test func testBhvAuthoauthtwotokenmgr034TokenRequestSetsNoRedirect() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok-no-redir\",\"expires_in\":3600}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "client_credentials"]
+        )
+
+        #expect(client.lastNoRedirect == true,
+            "OAuth2TokenManager must request noRedirect=true on the token POST")
+    }
+
+    /// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
+    /// manager must refuse the whole 300-399 range (302 and 307 both exercised
+    /// here, plus 301/303/308) rather than replaying the credential-bearing
+    /// POST to the redirect target. Like any non-2xx answer, the refusal is an
+    /// OAuth2ServerError carrying that status.
+    @Test(arguments: [301, 302, 303, 307, 308])
+    func testBhvAuthoauthtwotokenmgr033TokenEndpointRedirectIsRejected(status: Int) async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "", statusCode: status))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials", "client_secret": "topsecret"]
+            )
+        }
+        #expect(error?.statusCode == status)
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr031ThrowsWhenTokenRequestFails() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected error when token request fails")
+        } catch {
+            _ = error
+        }
+    }
+
+    /// A 2xx response whose body omits access_token must surface as the typed
+    /// OAuth2TokenError.missingAccessToken, not silently cache an empty token.
+    @Test func testBhvAuthoauthtwotokenmgr036TokenResponseMissingAccessTokenThrowsTypedError() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"refresh_token\":\"x\"}"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2TokenError when access_token is missing")
+        } catch let error as OAuth2TokenError {
+            switch error {
+            case .missingAccessToken(let message):
+                #expect(message == "Token response missing or empty access_token field")
+            default:
+                Issue.record("expected .missingAccessToken, got \(error)")
+            }
+        } catch {
+            Issue.record("expected OAuth2TokenError, got \(error)")
+        }
+    }
+
+    /* A token response whose access token is empty or not a string, or whose body is not a
+     * JSON object, is refused with an error that names the problem. */
+    @Test(arguments: [
+        ("{\"access_token\":\"\"}", "access_token"),
+        ("{\"access_token\":5}", "access_token"),
+        ("[1,2]", "JSON object"),
+    ])
+    func testBhvMisc069AnUnusableTokenResponseIsRefusedWithAProblem(body: String, names: String) async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: body))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2TokenError for \(body)")
+        } catch {
+            #expect(String(describing: error).contains(names))
+        }
+    }
+
+    /// A 2xx response whose body is not a token JSON object must surface as
+    /// OAuth2TokenError.invalidResponse, not a foreign DecodingError.
+    @Test func testBhvAuthoauthtwotokenmgr001TokenResponseThatIsNotJsonThrowsTypedError() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "<html>not json</html>"))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2TokenError for a non-JSON token response")
+        } catch let error as OAuth2TokenError {
+            switch error {
+            case .invalidResponse(let message):
+                #expect(message == "Token response is not valid JSON")
+            default:
+                Issue.record("expected .invalidResponse, got \(error)")
+            }
+        } catch {
+            Issue.record("expected OAuth2TokenError, got \(error)")
+        }
+    }
+
+    /* A 2xx token body that is not JSON is not echoed into the error message. */
+    @Test func testBhvAuthoauthtwotokenmgr041NonJsonTokenBodyIsNotEchoedIntoTheError() async {
+        let secret = ["sec", "ret-token-41"].joined()
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "access_token=\(secret)&token_type=bearer"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"])
+        }
+        #expect(error?.errorDescription == "Token response is not valid JSON")
+        let description = error?.errorDescription ?? ""
+        #expect(!description.contains(secret))
+    }
+
+    /* D07: the three token failures have one canonical text each, with no
+       parser detail. */
+    @Test(arguments: [
+        ("[1,2]", "Token response is not a JSON object"),
+        ("\"text\"", "Token response is not a JSON object"),
+        ("", "Token response is not valid JSON"),
+        ("{\"access_token\":\"\"}", "Token response missing or empty access_token field"),
+        ("{\"access_token\":42}", "Token response missing or empty access_token field"),
+        ("{}", "Token response missing or empty access_token field"),
+    ])
+    func testBhvAuthoauthtwotokenmgr040TokenFailuresCarryTheCanonicalMessage(body: String, message: String) async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: body))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"])
+        }
+        #expect(error?.errorDescription == message)
+    }
+
+    /* F1053: a cancelled caller stops waiting for a shared refresh at once;
+       the refresh goes on for the others and its token is cached. */
+    @Test func testBhvAuth013CancelledCallerDoesNotWaitForTheTokenEndpoint() async throws {
+        let client = CountingMockApiClient(
+            responseBody: "{\"access_token\":\"slow\",\"expires_in\":3600}",
+            delayNanos: 5_000_000_000)
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let params = ["grant_type": "client_credentials"]
+
+        let started = Date()
+        let waiter = Task {
+            try await manager.getAccessToken(tokenURL: "https://auth.example.com/token", params: params)
+        }
+        try await Task.sleep(nanoseconds: 100_000_000)
+        waiter.cancel()
+        let outcome = await waiter.result
+        #expect(throws: CancellationError.self) { try outcome.get() }
+        #expect(Date().timeIntervalSince(started) < 2.0)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: params)
+        #expect(token == "slow")
+        #expect(client.callCount == 1)
+    }
+
+    /* A refresh the transport cancels is rethrown to the caller, and the original grant is not run as a fallback. */
+    @Test func testBhvAuth027CancelledRefreshIsRethrownWithoutTheFallbackGrant() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        client.failure = CancellationError()
+        await #expect(throws: CancellationError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        }
+
+        #expect(client.requests.count == 2)
+        #expect(formFields(client.requests[1].body)["grant_type"] == "refresh_token")
+    }
+
+    /* A malformed optional field is dropped, a valid error code is kept, and a non-string error is not taken as a code. */
+    @Test func testBhvErrors082MalformedOptionalFieldsAreDroppedAndANonStringCodeIsIgnored() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(
+            body: "{\"error\":\"invalid_grant\",\"error_description\":7,\"error_uri\":\"not a uri\"}",
+            statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"error\":[\"invalid_grant\"]}", statusCode: 400))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        let kept = try #require(await serverError(manager, tokenURL: tokenURL))
+        #expect(kept.code == "invalid_grant")
+        #expect(kept.description == nil)
+        #expect(kept.uri == nil)
+
+        let unkept = try #require(await serverError(manager, tokenURL: tokenURL))
+        #expect(unkept.code == nil)
+    }
+
+    private func serverError(_ manager: OAuth2TokenManager, tokenURL: String) async -> OAuth2ServerError? {
+        do {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+            return nil
+        } catch let error as OAuth2ServerError {
+            return error
+        } catch {
+            return nil
+        }
+    }
+
+    /* F863: a token_type other than Bearer (any case) is refused; an absent or
+       null one is accepted. */
+    @Test(arguments: ["DPoP", "mac", "N_A", "\"\"", "7"])
+    func testBhvAuthoauthtwotokenmgr038TokenTypeOtherThanBearerIsRejected(tokenType: String) async {
+        let client = MockApiClient()
+        let quoted = tokenType.hasPrefix("\"") || Int(tokenType) != nil ? tokenType : "\"\(tokenType)\""
+        client.responses.append(makeResponse(body: "{\"access_token\":\"t\",\"token_type\":\(quoted)}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2TokenError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"])
+        }
+        #expect(error?.errorDescription == "Unsupported token_type in token response")
+    }
+
+    @Test(arguments: ["\"token_type\":\"bearer\"", "\"token_type\":\"BEARER\"", "\"token_type\":null", "\"x\":1"])
+    func testBhvAuthoauthtwotokenmgr002BearerOrAbsentTokenTypeIsAccepted(field: String) async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"t\",\(field)}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let token = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: ["grant_type": "client_credentials"])
+        #expect(token == "t")
+    }
+
+    /// RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
+    /// typed OAuth2ServerError carrying code/description/uri.
+    @Test func testBhvAuthoauthtwotokenmgr042ServerErrorMessageNamesTheStatusCodeAndDescription() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(
+            body: "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\"}",
+            statusCode: 400
+        ))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2ServerError when token request fails")
+        } catch {
+            #expect(error.localizedDescription
+                == "Token request failed with status 400: invalid_grant -- refresh token expired")
+        }
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr032TokenEndpointErrorResponseParsedToTypedError() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(
+            body: "{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\","
+                + "\"error_uri\":\"https://docs.example.com/errors/invalid_grant\"}",
+            statusCode: 400
+        ))
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2ServerError when token request fails")
+        } catch let error as OAuth2ServerError {
+            #expect(error.statusCode == 400)
+            #expect(error.code == "invalid_grant")
+            #expect(error.description == "refresh token expired")
+            #expect(error.uri == "https://docs.example.com/errors/invalid_grant")
+        } catch {
+            Issue.record("expected OAuth2ServerError, got \(error)")
+        }
+    }
+
+    /* A non-2xx answer with no OAuth2 error code carries the raw body. */
+    @Test func testBhvAuthoauthtwotokenmgr047WithoutAnErrorCodeTheServerErrorCarriesTheRawBody() async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "<html>bad gateway</html>", statusCode: 502))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2ServerError when token request fails")
+        } catch let error as OAuth2ServerError {
+            #expect(error.statusCode == 502)
+            #expect(error.code == nil)
+            #expect(error.rawBody == "<html>bad gateway</html>")
+            #expect(error.errorDescription == "Token request failed with status 502: <html>bad gateway</html>")
+        } catch {
+            Issue.record("expected OAuth2ServerError, got \(error)")
+        }
+    }
+
+    /// Counts requests and hands out tok1, tok2, ... so the single-flight
+    /// refetch test can assert how many round-trips actually occurred.
+    private final class NumberingMockApiClient: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var _callCount = 0
+        private let delayNanos: UInt64
+
+        var callCount: Int {
+            lock.withLock { _callCount }
+        }
+
+        init(delayNanos: UInt64 = 50_000_000) {
+            self.delayNanos = delayNanos
+        }
+
+        /// Satisfies the ApiClient requirement that carries no request options.
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            try await sendRequest(
+                method: method, url: url, headers: headers, body: body, noRedirect: false)
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+            let n = lock.withLock { () -> Int in
+                _callCount += 1
+                return _callCount
+            }
+            if delayNanos > 0 {
+                try? await Task.sleep(nanoseconds: delayNanos)
+            }
+            return ApiHttpResponse(statusCode: 200, body: "{\"access_token\":\"tok\(n)\",\"expires_in\":3600}", headers: [:])
+        }
+    }
+
+    @Test func testBhvAuthoauthtwotokenmgr019InvalidateTriggersSingleRefetchUnderConcurrency() async throws {
+        /* After invalidation, 10 concurrent callers must coalesce into exactly
+         * ONE additional token-endpoint call, all observing the refreshed
+         * token. */
+        let client = NumberingMockApiClient(delayNanos: 100_000_000)
+
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        let params = ["grant_type": "client_credentials"]
+        let tokenURL = "https://auth.example.com/token"
+
+        let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
+        #expect(first == "tok1")
+        #expect(client.callCount == 1)
+
+        manager.invalidateAccessToken()
+
+        let tokens = await withTaskGroup(of: String?.self) { group -> [String] in
+            for _ in 0..<10 {
+                group.addTask {
+                    return try? await manager.getAccessToken(tokenURL: tokenURL, params: params)
+                }
+            }
+            var collected: [String] = []
+            for await value in group {
+                if let v = value { collected.append(v) }
+            }
+            return collected
+        }
+
+        #expect(tokens.count == 10, "all 10 concurrent callers should receive a token")
+        #expect(tokens.allSatisfy { $0 == "tok2" }, "all callers should observe the refreshed token")
+        #expect(client.callCount == 2, "invalidate + concurrent callers must produce one refetch, got \(client.callCount)")
+    }
+
+    /* A stored refresh token is redeemed at refreshURL; the fallback grant
+     * goes to tokenURL. */
+    @Test func testBhvAuthoauthtwotokenmgr029RefreshGoesToRefreshUrlAndFallbackToTokenUrl() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+        let refreshURL = "https://auth.example.com/refresh"
+
+        _ = try await manager.getAccessToken(
+            tokenURL: tokenURL, params: authorizationCodeGrant, refreshURL: refreshURL)
+        let token = try await manager.getAccessToken(
+            tokenURL: tokenURL, params: authorizationCodeGrant, refreshURL: refreshURL)
+
+        #expect(token == "tok3")
+        #expect(client.requests.map { $0.url } == [tokenURL, refreshURL, tokenURL])
+    }
+
+    /* Params that already are a refresh grant are posted exactly once: no
+     * internal refresh attempt and no duplicate fallback. */
+    @Test func testBhvAuthoauthtwotokenmgr023RefreshGrantParamsArePostedExactlyOnce() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"unexpected\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: tokenURL, params: ["grant_type": "refresh_token", "refresh_token": "ref1"])
+        }
+
+        #expect(client.requests.count == 2)
+        #expect(client.requests[1].body == "grant_type=refresh_token&refresh_token=ref1")
+    }
+
+    /* The token body is emitted in the fixed cross-SDK key order, then any
+     * other key sorted. */
+    @Test func testBhvAuthoauthtwotokenmgr043TokenBodyUsesFixedKeyOrder() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: [
+                "zeta": "z", "scope": "s", "redirect_uri": "r", "client_secret": "cs", "client_id": "ci",
+                "password": "p", "username": "u", "refresh_token": "rt", "code": "c", "alpha": "a",
+                "grant_type": "g",
+            ])
+
+        #expect(
+            client.requests[0].body
+                == "grant_type=g&code=c&refresh_token=rt&username=u&password=p&client_id=ci&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z"
+        )
+    }
+
+    /* exchange posts its params even while a cached token is still valid. */
+    @Test func testBhvAuthoauthtwotokenmgr006ExchangeBypassesTheCachedToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok2")
+        #expect(client.requests.count == 2)
+        #expect(manager.exchanged)
+    }
+
+    /* exchange never redeems the stored refresh token. */
+    @Test func testBhvAuth053ExchangeBypassesTheRefreshToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(formFields(client.requests[1].body) == authorizationCodeGrant)
+        #expect(manager.refreshToken == "")
+    }
+
+    /* A failed exchange restores the previous session and rethrows. */
+    @Test func testBhvAuthoauthtwotokenmgr015FailedExchangeRestoresThePreviousSession() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        await #expect(throws: OAuth2ServerError.self) {
+            try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        }
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok1")
+        #expect(manager.refreshToken == "ref1")
+        #expect(client.requests.count == 2)
+    }
+    // MARK: - Behaviour catalogue: invalidation before any exchange
+
+    /* Invalidating the access token before any exchange raises nothing and sends no request. */
+    @Test func testBhvAuth002InvalidatingBeforeAnyExchangeSendsNothing() {
+        let client = MockApiClient()
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        manager.invalidateAccessToken()
+        #expect(client.requests.isEmpty)
+    }
+
+
+    /* A token error whose body is not JSON keeps the status and the raw body, with no error code. */
+    @Test func testBhvMisc018ANonJsonTokenErrorKeepsTheRawBody() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "plain text failure", statusCode: 400))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token", params: authorizationCodeGrant)
+        }
+        #expect(error?.statusCode == 400)
+        #expect(error?.code == nil)
+        #expect(error?.errorDescription?.contains("plain text failure") == true)
+    }
+{{#hasOAuth2DeviceAuthorization}}
+
+    // MARK: - Device authorization (RFC 8628)
+
+    /// A clock the device authenticator's sleep moves forward, recording every wait.
+    private final class FakeDeviceClock: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _now: TimeInterval = 1_000
+        private var _waits: [Int] = []
+
+        var waits: [Int] {
+            lock.withLock { _waits }
+        }
+
+        func now() -> TimeInterval {
+            lock.withLock { _now }
+        }
+
+        func sleep(_ seconds: Int) {
+            lock.withLock {
+                _waits.append(seconds)
+                _now += TimeInterval(seconds)
+            }
+        }
+    }
+
+    /// A device authorization authenticator against the mock client, waiting on the fake clock.
+    private func makeDeviceAuthenticator(
+        client: MockApiClient, clock: FakeDeviceClock = FakeDeviceClock(), scopes: [String] = []
+    ) -> OAuth2DeviceAuthorizationAuthenticator {
+        let auth = OAuth2DeviceAuthorizationAuthenticator(
+            host: "https://api.example.com",
+            clientID: "device-client",
+            deviceAuthorizationURL: "https://auth.example.com/device",
+            tokenURL: "https://auth.example.com/token",
+            scopes: scopes
+        )
+        auth.setApiClient(client)
+        auth.sleep = { seconds in clock.sleep(seconds) }
+        auth.now = { clock.now() }
+        return auth
+    }
+
+    /* The device authorization request is a form POST of the client id and the scopes in declared order, and the answer is read into DeviceAuthorization, with an interval of 5 seconds when the server sends none. */
+    @Test func testBhvAuthoauthtwodevice700DeviceAuthorizationRequestAndResponse() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"device_code\":\"dev-1\",\"user_code\":\"ABCD-EFGH\",\"verification_uri\":\"https://auth.example.com/activate\",\"verification_uri_complete\":\"https://auth.example.com/activate?user_code=ABCD-EFGH\",\"expires_in\":1800,\"interval\":7}"))
+        client.responses.append(makeResponse(body: "{\"device_code\":\"dev-2\",\"user_code\":\"WXYZ\",\"verification_uri\":\"https://auth.example.com/activate\",\"expires_in\":\"600\"}"))
+        let auth = makeDeviceAuthenticator(client: client, scopes: ["read", "write"])
+
+        let first = try await auth.requestDeviceAuthorization()
+        #expect(first == DeviceAuthorization(
+            deviceCode: "dev-1",
+            userCode: "ABCD-EFGH",
+            verificationURI: "https://auth.example.com/activate",
+            verificationURIComplete: "https://auth.example.com/activate?user_code=ABCD-EFGH",
+            expiresIn: 1800,
+            interval: 7))
+        let second = try await auth.requestDeviceAuthorization()
+        #expect(second.interval == 5)
+        #expect(second.expiresIn == 600)
+        #expect(second.verificationURIComplete == nil)
+        #expect(client.requests[0].url == "https://auth.example.com/device")
+        #expect(client.requests[0].body == "client_id=device-client&scope=read+write")
+        #expect(client.lastMethod == "POST")
+        #expect(client.lastHeaders["Content-Type"] == "application/x-www-form-urlencoded")
+
+        let unscoped = MockApiClient()
+        unscoped.responses.append(makeResponse(body: "{\"device_code\":\"d\",\"user_code\":\"u\",\"verification_uri\":\"v\",\"expires_in\":60}"))
+        _ = try await makeDeviceAuthenticator(client: unscoped).requestDeviceAuthorization()
+        #expect(unscoped.requests[0].body == "client_id=device-client")
+    }
+
+    /* An unusable device authorization answer is an OAuth2TokenError with a fixed message, and a non-2xx answer is an OAuth2ServerError. */
+    @Test func testBhvAuthoauthtwodevice701UnusableDeviceAuthorizationResponsesAreTyped() async throws {
+        let cases: [(String, String)] = [
+            ("<html>ok</html>", "Device authorization response is not valid JSON"),
+            ("[\"a\"]", "Device authorization response is not a JSON object"),
+            ("{\"user_code\":\"u\",\"verification_uri\":\"v\"}", "Device authorization response missing or empty device_code field"),
+            ("{\"device_code\":\"\",\"user_code\":\"u\",\"verification_uri\":\"v\"}", "Device authorization response missing or empty device_code field"),
+            ("{\"device_code\":7,\"user_code\":\"u\",\"verification_uri\":\"v\"}", "Device authorization response missing or empty device_code field"),
+            ("{\"device_code\":\"d\",\"verification_uri\":\"v\"}", "Device authorization response missing or empty user_code field"),
+            ("{\"device_code\":\"d\",\"user_code\":\"u\"}", "Device authorization response missing or empty verification_uri field"),
+        ]
+        for (body, message) in cases {
+            let client = MockApiClient()
+            client.responses.append(makeResponse(body: body))
+            let auth = makeDeviceAuthenticator(client: client)
+            let error = await #expect(throws: OAuth2TokenError.self) {
+                _ = try await auth.requestDeviceAuthorization()
+            }
+            #expect(error == .invalidResponse(message), "\(body)")
+            #expect(error?.localizedDescription == message)
+        }
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+        let auth = makeDeviceAuthenticator(client: client)
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await auth.requestDeviceAuthorization()
+        }
+        #expect(error?.statusCode == 401)
+        #expect(error?.code == "invalid_client")
+    }
+
+    /* Polling posts the device code grant to the token URL and keeps polling while the server answers authorization_pending. */
+    @Test func testBhvAuthoauthtwodevice702PollForTokenPostsTheDeviceCodeGrantUntilApproved() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\"}"))
+        let auth = makeDeviceAuthenticator(client: client)
+
+        try await auth.pollForToken(DeviceAuthorization(
+            deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+
+        #expect(client.requests.count == 3)
+        for request in client.requests {
+            #expect(request.url == "https://auth.example.com/token")
+            #expect(request.body == "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-1")
+        }
+    }
+
+    /* A slow_down answer adds five seconds to the polling interval. */
+    @Test func testBhvAuthoauthtwodevice703SlowDownAddsFiveSecondsToTheInterval() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"error\":\"slow_down\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\"}"))
+        let clock = FakeDeviceClock()
+        let auth = makeDeviceAuthenticator(client: client, clock: clock)
+
+        try await auth.pollForToken(DeviceAuthorization(
+            deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+
+        #expect(clock.waits == [5, 10])
+    }
+
+    /* Any other token error ends polling with the OAuth2ServerError, and polling past expires_in ends with an OAuth2TokenError. */
+    @Test func testBhvAuthoauthtwodevice704PollingEndsOnOtherErrorsAndOnExpiry() async throws {
+        let denied = MockApiClient()
+        denied.responses.append(makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+        denied.responses.append(makeResponse(body: "{\"error\":\"access_denied\"}", statusCode: 400))
+        let deniedAuth = makeDeviceAuthenticator(client: denied)
+        let serverError = await #expect(throws: OAuth2ServerError.self) {
+            try await deniedAuth.pollForToken(DeviceAuthorization(
+                deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+        }
+        #expect(serverError?.code == "access_denied")
+
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"error\":\"authorization_pending\"}", statusCode: 400))
+        let auth = makeDeviceAuthenticator(client: client)
+        let tokenError = await #expect(throws: OAuth2TokenError.self) {
+            try await auth.pollForToken(DeviceAuthorization(
+                deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 12, interval: 5))
+        }
+        #expect(tokenError == .invalidResponse("Device authorization expired before the user approved it"))
+        #expect(client.requests.count == 2)
+    }
+
+    /* Before a token is obtained the authenticator refuses to authenticate; after it, the bearer header carries the polled access token. */
+    @Test func testBhvAuthoauthtwodevice705AuthHeadersNeedAPolledToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\",\"expires_in\":3600}"))
+        let auth = makeDeviceAuthenticator(client: client)
+
+        let error = await #expect(throws: OAuth2AuthorizationCodeError.self) {
+            _ = try await auth.authHeaders()
+        }
+        #expect(error == .deviceTokenNotPolled)
+        #expect(error?.localizedDescription == "Must call pollForToken() before making API requests")
+
+        try await auth.pollForToken(DeviceAuthorization(
+            deviceCode: "dev-1", userCode: "u", verificationURI: "v", expiresIn: 600, interval: 5))
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer device-token")
+    }
+
+    /* The per-scheme wrapper passes the spec's device authorization URL, token URL and scopes in declared order. */
+    @Test func testBhvAuthoauthtwodevice706TheDeviceAuthWrapperSendsTheSpecScopesAndUrls() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"device_code\":\"dev-1\",\"user_code\":\"u\",\"verification_uri\":\"v\",\"expires_in\":600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"device-token\"}"))
+        let clock = FakeDeviceClock()
+        let auth = try DeviceAuthDeviceAuthorizationAuthenticator(
+            host: "https://api.example.com", clientId: "device-client")
+        auth.setApiClient(client)
+        auth.sleep = { seconds in clock.sleep(seconds) }
+        auth.now = { clock.now() }
+
+        let authorization = try await auth.requestDeviceAuthorization()
+        try await auth.pollForToken(authorization)
+
+        #expect(client.requests[0].url == "https://auth.example.com/oauth/device")
+        #expect(client.requests[0].body == "client_id=device-client&scope=pets%3Aread+pets%3Awrite")
+        #expect(client.requests[1].url == "https://auth.example.com/oauth/token")
+    }
+{{/hasOAuth2DeviceAuthorization}}
+}

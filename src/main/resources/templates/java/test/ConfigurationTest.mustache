@@ -1,0 +1,369 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class ConfigurationTest {
+
+    @Test
+    void bhvConfig005TheBuilderProducesTheDefaultValuesWhenNothingIsSet() {
+        Configuration config = Configuration.builder().build();
+
+        assertEquals("{{{basePath}}}", config.getBaseUrl());
+        assertTrue(config.getDefaultHeaders().isEmpty());
+    }
+
+    @Test
+    void bhvConfig004BuilderMergesSingleAndBulkHeaders() {
+        Configuration config = Configuration.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeaders(Map.of("X-Second", "two"))
+                .defaultHeader("X-Third", "three")
+                .build();
+
+        assertEquals(3, config.getDefaultHeaders().size());
+        assertEquals("one", config.getDefaultHeaders().get("X-First"));
+        assertEquals("two", config.getDefaultHeaders().get("X-Second"));
+        assertEquals("three", config.getDefaultHeaders().get("X-Third"));
+    }
+
+    @Test
+    void bhvConfig007BuilderReturnsConfigurationBuilderInstance() {
+        Configuration.Builder builder = Configuration.builder();
+
+        assertNotNull(builder);
+    }
+
+    @Test
+    void bhvConfig011BuilderSetsBaseUrl() {
+        Configuration config = Configuration.builder()
+                .baseUrl("https://custom.example.com")
+                .build();
+
+        assertEquals("https://custom.example.com", config.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig013BuilderSetsSingleDefaultHeader() {
+        Configuration config = Configuration.builder()
+                .defaultHeader("Authorization", "Bearer token123")
+                .build();
+
+        assertEquals(Map.of("Authorization", "Bearer token123"), config.getDefaultHeaders());
+    }
+
+    @Test
+    void bhvConfig012BuilderSetsMultipleDefaultHeaders() {
+        Configuration config = Configuration.builder()
+                .defaultHeaders(Map.of(
+                        "Authorization", "Bearer token123",
+                        "X-Custom", "value"))
+                .build();
+
+        assertEquals("Bearer token123", config.getDefaultHeaders().get("Authorization"));
+        assertEquals("value", config.getDefaultHeaders().get("X-Custom"));
+    }
+
+    @Test
+    void bhvConfig002TheBuilderAccumulatesHeadersAcrossCalls() {
+        Configuration config = Configuration.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeader("X-Second", "two")
+                .defaultHeaders(Map.of("X-Third", "three"))
+                .build();
+
+        assertEquals(3, config.getDefaultHeaders().size());
+        assertEquals("one", config.getDefaultHeaders().get("X-First"));
+        assertEquals("two", config.getDefaultHeaders().get("X-Second"));
+        assertEquals("three", config.getDefaultHeaders().get("X-Third"));
+    }
+
+    @Test
+    void bhvConfig010BuilderSetsAllFields() {
+        Configuration config = Configuration.builder()
+                .baseUrl("https://api.example.com")
+                .defaultHeader("Authorization", "Bearer token")
+                .defaultHeaders(Map.of("X-Custom", "value"))
+                .build();
+
+        assertEquals("https://api.example.com", config.getBaseUrl());
+        assertEquals("Bearer token", config.getDefaultHeaders().get("Authorization"));
+        assertEquals("value", config.getDefaultHeaders().get("X-Custom"));
+    }
+
+    @Test
+    void bhvConfig008BuilderServerResolvesUrl() {
+        ServerConfiguration server = new ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                "Test server",
+                Map.of(
+                        "env", new ServerVariable("api", null, List.of("api", "staging")),
+                        "version", new ServerVariable("v3", null, List.of("v2", "v3"))));
+
+        Configuration config = Configuration.builder()
+                .server(server)
+                .build();
+
+        assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig009BuilderServerWithVariableOverrides() {
+        ServerConfiguration server = new ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                null,
+                Map.of(
+                        "env", new ServerVariable("api", null, List.of("api", "staging")),
+                        "version", new ServerVariable("v3", null, List.of("v2", "v3"))));
+
+        Configuration config = Configuration.builder()
+                .server(server, Map.of("env", "staging", "version", "v2"))
+                .build();
+
+        assertEquals("https://staging.example.com/api/v2", config.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig016InvalidEnumValueThrows() {
+        ServerConfiguration server = new ServerConfiguration(
+                "https://{env}.example.com",
+                null,
+                Map.of("env", new ServerVariable("api", null, List.of("api", "staging"))));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Configuration.builder()
+                        .server(server, Map.of("env", "invalid"))
+                        .build());
+    }
+
+    @Test
+    void bhvConfig001BuilderBaseUrlOverridesServer() {
+        ServerConfiguration server = new ServerConfiguration(
+                "https://api.example.com",
+                null,
+                Map.of());
+
+        Configuration config = Configuration.builder()
+                .server(server)
+                .baseUrl("https://override.example.com")
+                .build();
+
+        assertEquals("https://override.example.com", config.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig019DefaultConfigurationReturnsTheSpecBaseUrl() {
+        Configuration config = Configuration.defaultConfiguration();
+
+        assertNotNull(config);
+        assertEquals("{{{basePath}}}", config.getBaseUrl());
+        assertTrue(config.getDefaultHeaders().isEmpty());
+    }
+
+    @Test
+    void bhvConfig015InspectMasksSensitiveDefaultHeaders() {
+        String text = Configuration.builder()
+                .defaultHeader("Authorization", "Bearer c0nfig-value")
+                .defaultHeader("X-Trace", "trace-1")
+                .build()
+                .toString();
+
+        assertFalse(text.contains("c0nfig-value"));
+        assertTrue(text.contains("Authorization=***"));
+        assertTrue(text.contains("X-Trace=trace-1"));
+    }
+
+    @Test
+    void bhvConfig014DefaultConfigurationIsStateless() {
+        // There is no settable process-wide default: every call hands back a
+        // fresh instance, so one caller cannot change what another gets.
+        Configuration first = Configuration.defaultConfiguration();
+        Configuration second = Configuration.defaultConfiguration();
+
+        assertNotSame(first, second);
+        assertEquals(first.getBaseUrl(), second.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig017ConfigurationDefaultHeadersAreUnmodifiable() {
+        Configuration config = Configuration.builder()
+                .defaultHeader("X-Key", "value")
+                .build();
+
+        assertThrows(UnsupportedOperationException.class,
+                () -> config.getDefaultHeaders().put("X-New", "value"));
+    }
+
+    @Test
+    void bhvConfig006BuilderProducesIndependentInstances() {
+        Configuration.Builder builder = Configuration.builder().baseUrl("https://example.com");
+        Configuration first = builder.build();
+        Configuration second = builder.build();
+
+        assertNotSame(first, second);
+        assertEquals(first.getBaseUrl(), second.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig003EveryBuilderSetterReturnsTheSameBuilder() {
+        Configuration.Builder builder = Configuration.builder();
+
+        assertSame(builder, builder.baseUrl("https://example.com"));
+        assertSame(builder, builder.defaultHeader("X-Key", "value"));
+        assertSame(builder, builder.defaultHeaders(Map.of("X-Other", "val")));
+
+        ServerConfiguration server = new ServerConfiguration(
+                "https://example.com", null, Map.of());
+        assertSame(builder, builder.server(server));
+    }
+
+    @Test
+    void bhvConfig018BuiltAndDefaultConfigurationsUseTheSpecBaseUrl() {
+        assertEquals("{{{basePath}}}", Configuration.builder().build().getBaseUrl());
+        assertEquals("{{{basePath}}}", Configuration.defaultConfiguration().getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig020BuilderChainSetsBaseUrlAndHeadersInOneConfiguration() {
+        Configuration config = Configuration.builder()
+                .baseUrl("https://example.com/v2")
+                .defaultHeader("X-First", "one")
+                .defaultHeader("X-Second", "two")
+                .build();
+
+        assertEquals("https://example.com/v2", config.getBaseUrl());
+        assertEquals("one", config.getDefaultHeaders().get("X-First"));
+        assertEquals("two", config.getDefaultHeaders().get("X-Second"));
+    }
+
+    @Test
+    void bhvConfig021ServerUrlTemplateResolvesItsVariablesToTheirDefaults() {
+        ServerConfiguration server = new ServerConfiguration(
+                "https://{env}.example.com/api/{version}",
+                null,
+                Map.of(
+                        "env", new ServerVariable("api", null, List.of("api", "staging")),
+                        "version", new ServerVariable("v3", null, List.of("v2", "v3"))));
+
+        Configuration config = Configuration.builder().server(server).build();
+
+        assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig022MutatingTheReturnedDefaultHeadersDoesNotChangeTheConfiguration() {
+        Configuration config = Configuration.builder().defaultHeader("X-Key", "value").build();
+        Map<String, String> headers = config.getDefaultHeaders();
+
+        assertThrows(UnsupportedOperationException.class, () -> headers.put("X-New", "value"));
+        assertFalse(config.getDefaultHeaders().containsKey("X-New"));
+    }
+
+    @Test
+    void bhvConfig023EachDefaultConfigurationCallReturnsAFreshInstanceWithTheSameBaseUrl() {
+        Configuration first = Configuration.defaultConfiguration();
+        Configuration second = Configuration.defaultConfiguration();
+
+        assertNotSame(first, second);
+        assertEquals(first.getBaseUrl(), second.getBaseUrl());
+    }
+
+    @Test
+    void bhvConfig024ConfigurationHasNoSettableProcessWideDefault() {
+        boolean hasStaticSetter = java.util.Arrays.stream(Configuration.class.getMethods())
+                .anyMatch(m -> java.lang.reflect.Modifier.isStatic(m.getModifiers())
+                        && m.getName().startsWith("set"));
+        assertFalse(hasStaticSetter);
+    }
+
+    @Test
+    void bhvLangjava059ToStringDoesNotPrintTheCallHook() {
+        CallHook hook = (info, headers) -> null;
+
+        assertFalse(Configuration.builder().callHook(hook).build().toString().contains("callHook"));
+    }
+
+    @Test
+    void bhvConfig026ConfigurationBuiltThroughTheBuilderReturnsTheBaseUrlSet() {
+        assertEquals("https://api.example.com/v2",
+                Configuration.builder().baseUrl("https://api.example.com/v2").build().getBaseUrl());
+    }
+
+    @Test
+    void bhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders() {
+        String text = Configuration.builder()
+                .baseUrl("https://api.example.com")
+                .defaultHeader("Accept", "text/plain")
+                .build()
+                .toString();
+        assertTrue(text.contains("https://api.example.com"), text);
+        assertTrue(text.contains("Accept=text/plain"), text);
+    }
+
+    @Test
+    void bhvMisc175CredentialHeaderNamesAreRecognisedWhateverTheirLetterCase() {
+        String text = Configuration.builder()
+                .defaultHeader("AUTHORIZATION", "Bearer secret")
+                .defaultHeader("cOoKiE", "session=secret")
+                .defaultHeader("Accept", "text/plain")
+                .build()
+                .toString();
+        assertFalse(text.contains("Bearer secret"), text);
+        assertFalse(text.contains("session=secret"), text);
+        assertTrue(text.contains("Accept=text/plain"), text);
+    }
+
+    @Test
+    void bhvMisc180InspectFormShowsTheValuesOfNonSensitiveDefaultHeaders() {
+        String text = Configuration.builder()
+                .defaultHeader("X-Visible", "shown-value")
+                .defaultHeader("Authorization", "Bearer hidden-secret")
+                .build()
+                .toString();
+        assertTrue(text.contains("shown-value"), text);
+        assertFalse(text.contains("hidden-secret"), text);
+    }
+
+    @Test
+    @DisplayName("bhvMisc276 the default configuration and builder use the base URL declared in the spec")
+    void bhvMisc276TheDefaultConfigurationAndBuilderUseTheSpecBaseUrl() {
+        assertEquals("{{{basePath}}}", Configuration.builder().build().getBaseUrl());
+        assertEquals("{{{basePath}}}", Configuration.defaultConfiguration().getBaseUrl());
+    }
+
+    @Test
+    @DisplayName("bhvMisc277 each call to the default configuration returns a distinct object")
+    void bhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject() {
+        assertNotSame(Configuration.defaultConfiguration(), Configuration.defaultConfiguration());
+    }
+
+    @Test
+    @DisplayName("bhvMisc279 changing headers returned from a configuration leaves its own headers unchanged")
+    void bhvMisc279ChangingHeadersReturnedFromAConfigurationLeavesItsOwnHeadersUnchanged() {
+        Configuration config = Configuration.builder()
+                .baseUrl("https://example.com")
+                .defaultHeader("X-Keep", "yes")
+                .build();
+
+        try {
+            config.getDefaultHeaders().put("X-New", "no");
+        } catch (UnsupportedOperationException ignored) {
+            // An unmodifiable view also leaves the configuration untouched.
+        }
+        assertFalse(config.getDefaultHeaders().containsKey("X-New"));
+        assertEquals("yes", config.getDefaultHeaders().get("X-Keep"));
+    }
+}

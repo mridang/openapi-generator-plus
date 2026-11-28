@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 423 Locked.
+/// </summary>
+public class LockedException : ClientException
+{
+    public LockedException()
+        : this("Locked") { }
+
+    public LockedException(string message)
+        : this(message, null, null, null) { }
+
+    public LockedException(string message, Exception innerException)
+        : base(423, message, innerException) { }
+
+    public LockedException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(423, message, responseHeaders, responseBody, errorBody) { }
+}

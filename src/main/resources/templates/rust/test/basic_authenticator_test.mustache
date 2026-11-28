@@ -1,0 +1,311 @@
+{{>api_info}}
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::{AdminBasicAuthenticator, BasicAuthenticator, PetStoreBasicAuthenticator};
+use {{packageName}}::ConfigurationError;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_011_valid_credentials_produce_basic_header() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Basic YWxpY2U6czNjcmV0")
+    );
+}
+
+/// basic-auth-rust-silent-drop: malformed credentials (CR/LF/NUL in either
+/// field, or a colon in the username, per RFC 7617 §2) fail closed at
+/// construction with `ConfigurationError::InvalidArgument` — never a panic and
+/// never an empty header map that would send the request unauthenticated.
+fn assert_rejected_at_construction(username: &str, password: &str, expected: &str) {
+    match BasicAuthenticator::new("https://api.example.com", username, password) {
+        Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(expected, reason),
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument for ({:?}, {:?}), got {:?}",
+            username, password, other
+        ),
+    }
+}
+
+#[test]
+fn test_bhv_authbasic_009_rejects_username_with_crlf_at_construction() {
+    assert_rejected_at_construction(
+        "alice\r\n",
+        "s3cret",
+        "Basic auth username must not contain CR, LF, or NUL characters",
+    );
+    assert_rejected_at_construction(
+        "al\nice",
+        "s3cret",
+        "Basic auth username must not contain CR, LF, or NUL characters",
+    );
+}
+
+#[test]
+fn test_bhv_authbasic_007_rejects_password_with_nul_at_construction() {
+    assert_rejected_at_construction(
+        "alice",
+        "s3c\0ret",
+        "Basic auth password must not contain CR, LF, or NUL characters",
+    );
+}
+
+#[test]
+fn test_bhv_authbasic_008_rejects_username_with_colon_at_construction() {
+    assert_rejected_at_construction(
+        "ali:ce",
+        "s3cret",
+        "Basic auth username must not contain ':' (RFC 7617 §2)",
+    );
+}
+
+#[test]
+fn test_bhv_authbasic_006_redacts_secret() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("s3cret"));
+    assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_bhv_authbasic_005_password_is_not_leaked_in_default_to_string() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    let text = format!("{:?}", auth);
+    assert!(!text.contains("s3cret"), "{}", text);
+}
+
+#[test]
+fn test_bhv_auth_033_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
+    let auth = AdminBasicAuthenticator::new("https://api.example.com", Some("alice"), Some("s3cret")).unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(debug.starts_with("AdminBasicAuthenticator("), "{}", debug);
+    assert!(!debug.contains("s3cret"), "{}", debug);
+    assert!(debug.contains("***"), "{}", debug);
+}
+
+/// Non-ASCII credentials are sent as UTF-8 bytes (RFC 7617 section 2.1), not as
+/// Latin-1 or the platform encoding.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_004_non_ascii_credentials_are_encoded_as_utf8() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "ünïcødé", "pässwörd").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==")
+    );
+}
+
+/// The redacted representation shows the host and username and masks only the
+/// password.
+#[test]
+fn test_bhv_authbasic_010_redacted_representation_shows_the_host_and_username() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    assert_eq!(
+        "BasicAuthenticator { host: \"https://api.example.com\", username: \"alice\", password: \"***\" }",
+        format!("{:?}", auth)
+    );
+}
+
+/// Only the username may not contain a colon: a colon in the password is sent as-is.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_018_a_password_may_contain_a_colon() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "pa:ss:word").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Basic YWxpY2U6cGE6c3M6d29yZA==")
+    );
+}
+
+/// A generated basic wrapper emits exactly the header the base authenticator emits.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_019_generated_basic_wrappers_emit_the_same_basic_header_as_the_base() {
+    let host = "https://api.example.com";
+    let base = BasicAuthenticator::new(host, "alice", "s3cret").unwrap().auth_headers().await;
+    let admin = AdminBasicAuthenticator::new(host, Some("alice"), Some("s3cret"))
+        .unwrap()
+        .auth_headers()
+        .await;
+    assert_eq!(admin.get("Authorization"), base.get("Authorization"));
+}
+
+/// The password is masked in the debug output, compact and pretty alike.
+#[test]
+fn test_bhv_authbasic_020_masks_the_password_in_its_debug_output() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    for text in [format!("{:?}", auth), format!("{:#?}", auth)] {
+        assert!(!text.contains("s3cret"), "{}", text);
+    }
+}
+
+/// The scheme wrappers emit the same header as the authenticator they wrap and
+/// validate the credentials as eagerly.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authbasic_002_scheme_wrappers_emit_the_basic_header_and_validate_eagerly() {
+    let host = "https://api.example.com";
+    let admin = AdminBasicAuthenticator::new(host, Some("alice"), Some("s3cret")).unwrap();
+    let store = PetStoreBasicAuthenticator::new(host, Some("alice"), Some("s3cret")).unwrap();
+    for headers in [admin.auth_headers().await, store.auth_headers().await] {
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Basic YWxpY2U6czNjcmV0")
+        );
+    }
+    assert!(matches!(
+        AdminBasicAuthenticator::new(host, Some("ali:ce"), Some("s3cret")),
+        Err(ConfigurationError::InvalidArgument(_))
+    ));
+    assert!(matches!(
+        PetStoreBasicAuthenticator::new(host, Some("alice"), Some("s3c\0ret")),
+        Err(ConfigurationError::InvalidArgument(_))
+    ));
+}
+
+#[test]
+fn test_bhv_errors_081_a_basic_credential_refused_at_construction_names_the_field_at_fault() {
+    let err = BasicAuthenticator::new("https://example.com", "bad:user", "secret")
+        .expect_err("a colon in the username is refused");
+    assert!(err.to_string().contains("username"), "{}", err);
+    let bad_password = BasicAuthenticator::new("https://example.com", "user", "pass\0word")
+        .expect_err("a NUL in the password is refused");
+    assert!(bad_password.to_string().contains("password"), "{}", bad_password);
+}
+
+/// A colon separates user id from password in the Basic credential, so a username holding one is refused.
+#[test]
+fn test_bhv_auth_036_a_basic_username_containing_a_colon_is_rejected() {
+    match BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret") {
+        Err(ConfigurationError::InvalidArgument(reason)) => assert!(reason.contains("':'"), "{}", reason),
+        other => panic!("expected ConfigurationError::InvalidArgument, got {:?}", other),
+    }
+}
+{{#hasDigestAuth}}
+
+/// The RFC 7616 section 3.9.1 example: its nonce, opaque and client nonce.
+const DIGEST_NONCE: &str = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v";
+const DIGEST_OPAQUE: &str = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS";
+const DIGEST_CNONCE: &str = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ";
+
+/// The RFC 7616 example user's DigestAuthenticator with the example's client nonce.
+fn digest_authenticator() -> {{packageName}}::auth::DigestAuthenticator {
+    {{packageName}}::auth::DigestAuthenticator::new("https://api.example.com", "Mufasa", "Circle of Life")
+        .expect("valid credentials")
+        .with_cnonce(DIGEST_CNONCE)
+}
+
+/// Feeds a challenge and returns the answer for GET /dir/index.html.
+fn digest_answer(challenge: &str) -> String {
+    let auth = digest_authenticator();
+    assert!(auth.accept_challenge(challenge), "expected {} to be accepted", challenge);
+    auth.challenge_authorization("GET", "/dir/index.html")
+        .unwrap_or_else(|| panic!("expected an answer to {}", challenge))
+}
+
+/// The MD5 answer to the RFC 7616 example challenge has the published response
+/// and the header fields in the fixed order.
+#[test]
+fn test_bhv_authdigest_700_the_md5_answer_to_the_rfc7616_example_is_the_published_one() {
+    let got = digest_answer(&format!(
+        "Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm=MD5, nonce=\"{}\", opaque=\"{}\"",
+        DIGEST_NONCE, DIGEST_OPAQUE
+    ));
+    assert_eq!(
+        format!(
+            "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", algorithm=MD5, response=\"8ca523f5e9506fed4657c9700eebdbec\", qop=auth, nc=00000001, cnonce=\"{}\", opaque=\"{}\"",
+            DIGEST_NONCE, DIGEST_CNONCE, DIGEST_OPAQUE
+        ),
+        got
+    );
+}
+
+/// The SHA-256 answer to the RFC 7616 example has the published response, and
+/// the -sess variants hash the first value again with the nonce and the cnonce.
+#[test]
+fn test_bhv_authdigest_701_the_sha256_and_sess_answers_are_the_published_ones() {
+    for (algorithm, response) in [
+        ("SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"),
+        ("MD5-sess", "e783283f46242139c486a698fec7211d"),
+        ("SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"),
+    ] {
+        let got = digest_answer(&format!(
+            "Basic realm=\"other\", Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\", algorithm={}, nonce=\"{}\", opaque=\"{}\", Digest realm=\"http-auth@example.org\", algorithm=MD5, nonce=\"other\"",
+            algorithm, DIGEST_NONCE, DIGEST_OPAQUE
+        ));
+        assert_eq!(
+            format!(
+                "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", algorithm={}, response=\"{}\", qop=auth, nc=00000001, cnonce=\"{}\", opaque=\"{}\"",
+                DIGEST_NONCE, algorithm, response, DIGEST_CNONCE, DIGEST_OPAQUE
+            ),
+            got,
+            "{}",
+            algorithm
+        );
+    }
+}
+
+/// A challenge without qop is answered in the RFC 2069 form, with no qop, nc or
+/// cnonce; opaque is echoed only when sent and algorithm only when named, as
+/// written.
+#[test]
+fn test_bhv_authdigest_704_a_challenge_without_qop_is_answered_in_the_rfc2069_form() {
+    let plain = digest_answer(&format!("Digest realm=\"http-auth@example.org\", nonce=\"{}\"", DIGEST_NONCE));
+    assert_eq!(
+        format!(
+            "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", response=\"7b2cc3b30e75b4777ea31027084363fd\"",
+            DIGEST_NONCE
+        ),
+        plain
+    );
+    let named = digest_answer(&format!(
+        "digest realm=\"http-auth@example.org\", nonce=\"{}\", algorithm=md5, opaque=\"{}\"",
+        DIGEST_NONCE, DIGEST_OPAQUE
+    ));
+    assert_eq!(
+        format!(
+            "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"{}\", uri=\"/dir/index.html\", algorithm=md5, response=\"7b2cc3b30e75b4777ea31027084363fd\", opaque=\"{}\"",
+            DIGEST_NONCE, DIGEST_OPAQUE
+        ),
+        named
+    );
+}
+
+/// A challenge that offers only qop=auth-int, or names an unknown algorithm, is
+/// not answered: nothing is accepted and no header is produced.
+#[test]
+fn test_bhv_authdigest_705_an_auth_int_only_or_unknown_algorithm_challenge_is_not_answered() {
+    for challenge in [
+        "Digest realm=\"r\", nonce=\"n\", qop=\"auth-int\"",
+        "Digest realm=\"r\", nonce=\"n\", algorithm=SHA-512-256",
+        "Basic realm=\"r\"",
+    ] {
+        let auth = digest_authenticator();
+        assert!(!auth.accept_challenge(challenge), "expected {} not to be accepted", challenge);
+        assert_eq!(None, auth.challenge_authorization("GET", "/dir/index.html"), "{}", challenge);
+    }
+}
+
+/// An empty username, a line break or NUL in either field, or a double quote in
+/// the username fails at construction, and the string form masks the password.
+#[test]
+fn test_bhv_authdigest_706_digest_credentials_are_checked_at_construction_and_the_password_is_masked() {
+    for (username, password, expected) in [
+        ("", "pw", "Digest username must not be empty"),
+        ("ali\nce", "pw", "Digest credentials must not contain a line break or NUL"),
+        ("alice", "p\rw", "Digest credentials must not contain a line break or NUL"),
+        ("alice", "p\0w", "Digest credentials must not contain a line break or NUL"),
+        ("ali\"ce", "pw", "Digest username must not contain a double quote"),
+    ] {
+        match {{packageName}}::auth::DigestAuthenticator::new("https://api.example.com", username, password) {
+            Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(expected, reason),
+            other => panic!("expected InvalidArgument for ({:?}, {:?}), got {:?}", username, password, other),
+        }
+    }
+    let auth = {{packageName}}::auth::DigestAuthenticator::new("https://api.example.com", "alice", "s3cret")
+        .expect("valid credentials");
+    assert_eq!(
+        "DigestAuthenticator { host: \"https://api.example.com\", username: \"alice\", password: \"***\" }",
+        format!("{:?}", auth)
+    );
+}
+{{/hasDigestAuth}}

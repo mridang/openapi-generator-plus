@@ -1,0 +1,254 @@
+{{>api_info}}
+import Foundation
+import Testing
+@testable import {{packageName}}
+
+@Suite final class OAuth2ImplicitAuthenticatorTests {
+
+    private func createAuthenticator() -> OAuth2ImplicitAuthenticator {
+        return OAuth2ImplicitAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            authorizationURL: "https://auth.example.com/authorize",
+            scopes: ["read", "write"]
+        )
+    }
+
+    // MARK: - Tests
+
+    /* The token is set from the redirect callback while requests read it from
+       other threads; every read sees a complete token, never a torn one. */
+    @Test func testBhvAuth030ConcurrentSetAndReadOfTheAccessToken() async throws {
+        let auth = createAuthenticator()
+        try auth.setAccessToken("token-0")
+        let headers = await withTaskGroup(of: String?.self) { group in
+            for i in 0..<200 {
+                group.addTask {
+                    if i % 2 == 0 {
+                        try? auth.setAccessToken("token-\(i)")
+                        return nil
+                    }
+                    return try? await auth.authHeaders()["Authorization"]
+                }
+            }
+            var seen: [String] = []
+            for await header in group {
+                if let header { seen.append(header) }
+            }
+            return seen
+        }
+        #expect(headers.count == 100)
+        #expect(headers.allSatisfy { $0.hasPrefix("Bearer token-") })
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit003BuildsAuthorizationUrlWithResponseTypeToken() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(url.contains("response_type=token"))
+        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit002BuildsAuthorizationUrlWithClientId() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(url.contains("client_id=my-client-id"))
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit004BuildsAuthorizationUrlWithScopes() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(
+            url.contains("scope=read%20write")
+                || url.contains("scope=read+write")
+                || url.contains("scope=read write"))
+    }
+
+    /* The implicit flow builds an exact authorize URL with response_type token and percent-encoded scopes. */
+    @Test func testBhvAuth049ImplicitAuthorizeUrlHasResponseTypeTokenAndPercentEncodedScopes() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(url.contains("response_type=token"))
+        #expect(url.contains("scope=read%20write"))
+        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL(state: "my-state")
+
+        #expect(url.contains("state=my-state"))
+    }
+
+    /* RFC 3986 unreserved set: the tilde stays literal, while * ! ' ( ) are
+     * percent-encoded in the client id and the state alike. */
+    @Test func testBhvAuthoauthtwoimplicit001AuthorizationUrlEncodesSubDelimitersAndKeepsTilde() throws {
+        let auth = OAuth2ImplicitAuthenticator(
+            host: "https://api.example.com",
+            clientID: "id~*!'()",
+            authorizationURL: "https://auth.example.com/authorize"
+        )
+
+        let url = try auth.buildAuthorizationURL(state: "st~*!'()")
+
+        #expect(url.contains("client_id=id~%2A%21%27%28%29&"))
+        #expect(url.contains("state=st~%2A%21%27%28%29"))
+    }
+
+    /* An empty state is left out of the authorize URL altogether. */
+    @Test func testBhvAuthoauthtwoimplicit009OmitsAnEmptyStateFromTheAuthorizationUrl() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL()
+
+        #expect(!url.contains("state"))
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken() async throws {
+        let auth = createAuthenticator()
+        try auth.setAccessToken("implicit-tok")
+
+        let headers = try await auth.authHeaders()
+
+        #expect(headers["Authorization"] == "Bearer implicit-tok")
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit016AnImplicitAccessTokenMayContainATab() async throws {
+        let auth = createAuthenticator()
+        try auth.setAccessToken("tok\tvalue")
+
+        let headers = try await auth.authHeaders()
+
+        #expect(headers["Authorization"] == "Bearer tok\tvalue")
+    }
+
+    /* A request made before setAccessToken is a wrong call order: authHeaders
+     * throws ConfigurationError.invalidState, never a trap. */
+    @Test func testBhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet() async {
+        let auth = createAuthenticator()
+
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await auth.authHeaders()
+        }
+        guard case .invalidState(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
+            return
+        }
+        #expect(message.contains("Must set the access token before making API requests"))
+    }
+
+    /* F-A5-04: a token that would inject a header is rejected with
+     * ConfigurationError.invalidArgument, never a trap, and is not stored. */
+    @Test(arguments: ["tok\r\nInjected: yes", "ñoño", "tok\u{0}"])
+    func testBhvAuthoauthtwoimplicit013SetAccessTokenRejectsInvalidToken(token: String) async {
+        let auth = createAuthenticator()
+        let error = #expect(throws: ConfigurationError.self) {
+            try auth.setAccessToken(token)
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        await #expect(throws: ConfigurationError.self) {
+            _ = try await auth.authHeaders()
+        }
+    }
+
+    /* A non-ASCII access token is refused with the RFC 7230 message. */
+    @Test func testBhvAuthoauthtwoimplicit014NonAsciiAccessTokenIsRefusedWithTheRfc7230Message() {
+        let auth = createAuthenticator()
+        let error = #expect(throws: ConfigurationError.self) {
+            try auth.setAccessToken("ñoño")
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(message == "Access token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit008GetHostReturnsConfiguredHost() {
+        let auth = createAuthenticator()
+
+        #expect(auth.host() == "https://api.example.com")
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit010RedactsSecret() async throws {
+        let auth = createAuthenticator()
+        try auth.setAccessToken("implicit-tok")
+        let description = String(describing: auth)
+        #expect(!description.contains("implicit-tok"))
+        #expect(description.contains("***"))
+        /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+         * so the redacted description is not enough: the reflection must hide the secret too. */
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("implicit-tok"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
+    /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
+    @Test func testBhvAuth014AuthorizationUrlUsesFixedParameterOrder() throws {
+        let auth = createAuthenticator()
+
+        let url = try auth.buildAuthorizationURL(state: "s")
+
+        #expect(url == "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s")
+    }
+
+    // MARK: - Generated scheme wrapper
+
+    /* The implicit securityScheme's wrapper carries the spec's authorization
+     * URL and scopes. */
+    @Test func testBhvAuthoauthtwoimplicit006SchemeWrapperCarriesTheSpecAuthorizationUrlAndScopes() throws {
+        let auth = try BrowserAuthImplicitAuthenticator(host: "https://api.example.com", clientId: "cid")
+        #expect(
+            String(describing: auth)
+                == "BrowserAuthImplicitAuthenticator(host: https://api.example.com, clientID: cid, authorizationURL: https://auth.example.com/authorize, scopes: [\"read\"], accessToken: nil)"
+        )
+        let url = try auth.buildAuthorizationURL(state: "s1")
+        #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+        let items = URLComponents(string: url)?.queryItems ?? []
+        #expect(items.first { $0.name == "scope" }?.value == "read")
+        #expect(items.first { $0.name == "client_id" }?.value == "cid")
+    }
+
+    @Test func testBhvAuthoauthtwoimplicit011ReprShowsNonSecretFields() {
+        let auth = OAuth2ImplicitAuthenticator(host: "https://api.example.com", clientID: "client-1", authorizationURL: "https://auth.example.com/authorize")
+        #expect(auth.description.contains("clientID: client-1"))
+        #expect(auth.description.contains("authorizationURL: https://auth.example.com/authorize"))
+    }
+    // MARK: - Behaviour catalogue: replacing the token under concurrent reads
+
+    /* Replacing the token while others read the headers is race-free: each read gets one complete token that was set. */
+    @Test func testBhvMisc001ReplacingTheTokenWhileReadingIsRaceFree() async throws {
+        let auth = createAuthenticator()
+        try auth.setAccessToken("token-0")
+        let seen = await withTaskGroup(of: String?.self) { group in
+            for i in 0..<200 {
+                group.addTask {
+                    if i % 2 == 1 {
+                        try? auth.setAccessToken("token-\(i)")
+                        return nil
+                    }
+                    return try? await auth.authHeaders()["Authorization"]
+                }
+            }
+            var reads: [String] = []
+            for await header in group {
+                if let header { reads.append(header) }
+            }
+            return reads
+        }
+        #expect(seen.count == 100)
+        #expect(seen.allSatisfy { $0.hasPrefix("Bearer token-") })
+    }
+}

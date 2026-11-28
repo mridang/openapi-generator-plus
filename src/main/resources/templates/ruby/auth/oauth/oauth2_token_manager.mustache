@@ -1,0 +1,395 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'json'
+require 'uri'
+require_relative '../../errors/oauth2_token_error'
+require_relative '../../errors/oauth2_server_error'
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+      #
+      # Uses the shared {ApiClient} instance so that token exchange requests
+      # honour the same transport configuration (proxy, TLS, timeouts) as
+      # regular API calls.
+      class OAuth2TokenManager
+        # Largest safety margin (in seconds) applied when the cached token is
+        # read, so that we refresh slightly before it actually expires. The
+        # real expiry is stored and this is the only margin: it is capped at
+        # half the token's lifetime, so a 60 s token is reused for 30 s.
+        EXPIRY_SAFETY_MARGIN_S = 60
+
+        # Ceiling (one year, in seconds) for a server-supplied expires_in, so
+        # a huge lifetime is cached for a year instead of breaking the
+        # expiry arithmetic.
+        MAX_EXPIRES_IN_S = 31_536_000
+
+        private_constant :EXPIRY_SAFETY_MARGIN_S, :MAX_EXPIRES_IN_S
+
+        # The refresh token last issued by the authorization server.
+        #
+        # @return [String, nil] the current refresh token, if any
+        attr_reader :refresh_token
+
+        # Inject the shared API client used for making token requests.
+        #
+        # @param value [ApiClient] the shared API client instance
+        # @return [void]
+        attr_writer :api_client
+
+        # Create a new token manager.
+        #
+        # The {ApiClient} must be injected via {#api_client=} before any
+        # token requests are made.
+        def initialize
+          @mutex = Mutex.new
+          @api_client = nil
+          @access_token = nil
+          @refresh_token = nil
+          @token_expiry = nil
+          # The id_token of the last token response: nil when it carried none,
+          # an empty string when its value was not a JSON string.
+          @last_id_token = nil
+          @token_margin = 0
+          @exchanged = false
+          @stopped = false
+        end
+
+        # Stop the manager: the tokens it holds are dropped and every later token
+        # request fails with an OAuth2TokenError. Stopping again does nothing.
+        #
+        # @return [void]
+        def stop
+          @mutex.synchronize do
+            @stopped = true
+            @access_token = nil
+            @refresh_token = nil
+            @token_expiry = nil
+          end
+        end
+
+        # Record that an authorization code was exchanged for this session.
+        # The flag lives here, with the tokens, so a delegate rebuilt around
+        # this manager (OIDC rediscovery) keeps the session.
+        #
+        # @return [void]
+        def mark_exchanged
+          @mutex.synchronize { @exchanged = true }
+        end
+
+        # Whether an authorization code has been exchanged for this session.
+        #
+        # @return [Boolean]
+        def exchanged?
+          @mutex.synchronize { @exchanged }
+        end
+
+        # Get a valid access token, fetching or refreshing as necessary.
+        #
+        # This method is synchronized to prevent concurrent token requests.
+        #
+        # When a refresh token is held and +params+ is not itself a refresh
+        # grant, the refresh grant (carrying the same client authentication,
+        # RFC 6749 §6) is POSTed to +refresh_url+ first; on failure the
+        # original grant is re-run against +token_url+. Params that already
+        # are a refresh grant are POSTed exactly once.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @param refresh_url [String, nil] the refresh endpoint (defaults to token_url)
+        # @return [String] a valid access token
+        # @raise [RuntimeError] if no API client has been injected
+        # @raise [::{{moduleName}}::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
+        def get_access_token(token_url, params, extra_headers = {}, refresh_url: nil)
+          @mutex.synchronize do
+            raise_if_stopped
+            return @access_token if token_still_valid?
+
+            return @access_token if params['grant_type'] != 'refresh_token' && try_refresh_token(refresh_url || token_url, params, extra_headers)
+
+            fetch_token(token_url, params, extra_headers)
+            @access_token
+          end
+        end
+
+        # POST +params+ verbatim to +token_url+, bypassing the token cache and
+        # the refresh path, and replace the session with exactly what the
+        # response carried. On any failure the previous session is restored
+        # and the error re-raised, so a rejected exchange does not log out.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @yieldparam id_token [String, nil] the response's id_token (nil when it
+        #   carried none, an empty string when it was not a JSON string), handed
+        #   to the block before the session is committed; when the block raises,
+        #   the previous session is restored. OpenID Connect validates it here.
+        # @return [String] the newly issued access token
+        def exchange(token_url, params, extra_headers = {}, &id_token_check)
+          @mutex.synchronize do
+            raise_if_stopped
+            previous = [@access_token, @refresh_token, @token_expiry]
+            @access_token = nil
+            @refresh_token = nil
+            @token_expiry = nil
+            begin
+              fetch_token(token_url, params, extra_headers)
+              id_token_check&.call(@last_id_token)
+            rescue StandardError
+              @access_token, @refresh_token, @token_expiry = previous
+              raise
+            end
+            @access_token.to_s
+          end
+        end
+
+        # Manually set an access token, bypassing the token endpoint.
+        #
+        # @param token [String] the access token to use
+        # @return [void]
+        def access_token=(token)
+          @mutex.synchronize do
+            @access_token = token
+            @token_expiry = nil
+          end
+        end
+
+        # POST +params+ as a form to +url+ through the shared API client, the
+        # way a token request is sent, and return the body of a 2xx answer;
+        # the session is not touched. The device authorization request
+        # (RFC 8628 section 3.1) goes through here.
+        #
+        # @api private
+        # @param url [String] the endpoint URL
+        # @param params [Hash{String => String}] the form parameters, in order
+        # @return [String] the response body
+        # @raise [::{{moduleName}}::Errors::OAuth2ServerError] if the endpoint answers with a non-2xx status
+        def post_form(url, params)
+          @mutex.synchronize do
+            raise_if_stopped
+            post_token_form(url, params, {}).body.to_s
+          end
+        end
+
+        # A lifetime in whole seconds read like a token response's
+        # +expires_in+: an integer, a floored float or a plain decimal string;
+        # anything else is 0, and a value past one year is one year.
+        #
+        # @api private
+        # @param raw [Object] the JSON value
+        # @return [Integer]
+        def lifetime_seconds(raw)
+          parse_expires_in(raw)
+        end
+
+        # Invalidate the cached access token so that the next call to
+        # {#get_access_token} fetches a fresh token from the token endpoint.
+        # Intended for tests and recovery flows.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @mutex.synchronize do
+            @access_token = nil
+            @token_expiry = nil
+          end
+        end
+
+        private
+
+        # @return [Boolean] true when the cached access token is still valid
+        def raise_if_stopped
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'The token manager has been stopped.' if @stopped
+        end
+
+        def token_still_valid?
+          @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - @token_margin))
+        end
+
+        # Try to refresh using the existing refresh token.
+        #
+        # @return [Boolean] true when refresh succeeded and @access_token is set
+        def try_refresh_token(token_url, params, extra_headers)
+          refresh = @refresh_token
+          return false if refresh.nil? || refresh.empty?
+
+          fetch_token(token_url, build_refresh_params(refresh, params), extra_headers)
+          !@access_token.nil?
+        rescue {{apiErrorParent}}
+          false # refresh failed; caller will retry the original grant. A cancellation raised into the thread is not rescued.
+        end
+
+        def build_refresh_params(refresh, original_params)
+          refresh_params = { 'grant_type' => 'refresh_token', 'refresh_token' => refresh }
+          %w[client_id client_secret].each do |key|
+            refresh_params[key] = original_params[key] if original_params.key?(key)
+          end
+          refresh_params
+        end
+
+        # Fetch a token from the token endpoint using the injected API client.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [void]
+        # @raise [RuntimeError] if no API client has been injected
+        # @raise [::{{moduleName}}::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
+        def fetch_token(token_url, params, extra_headers = {})
+          apply_token_response(parse_token_response(post_token_form(token_url, params, extra_headers).body))
+        end
+
+        # POST the form to +token_url+ and return the 2xx response; a non-2xx
+        # response raises the OAuth2ServerError it describes.
+        def post_token_form(token_url, params, extra_headers)
+          client = require_api_client
+          headers = {
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Accept' => 'application/json'
+          }.merge(extra_headers)
+          # Bucket 3.2: refuse 3xx redirects on the token POST. The form
+          # body carries the client credentials (client_id /
+          # client_secret) plus, on the refresh path, the refresh_token.
+          # Silently replaying that body to a redirect target would leak
+          # credentials to an attacker-controlled host.
+          # URI.encode_www_form keeps '*' literal and escapes '~' to %7E — the
+          # reverse of the RFC 3986 unreserved set (A-Za-z0-9-._~) — so
+          # normalise both ('*' -> %2A, %7E -> '~') so every SDK emits
+          # byte-identical bodies (space stays '+' for the form).
+          body = URI.encode_www_form(params).gsub('%7E', '~').gsub('*', '%2A')
+          response = if client.is_a?(::{{moduleName}}::DefaultApiClient)
+                       # The token endpoint belongs to the identity provider: the
+                       # transport's default headers (meant for the API) stay off it.
+                       client.send_request(:post, token_url, headers, body, no_redirect: true, no_default_headers: true,
+                                                                           max_retries: 0)
+                     else
+                       client.send_request(:post, token_url, headers, body, no_redirect: true)
+                     end
+          status = response.status_code
+          # RFC 6749 §3.2 forbids redirects at the token endpoint. With
+          # no_redirect: true the transport surfaces the 3xx verbatim rather
+          # than replaying the credential-bearing POST, so a 3xx fails closed
+          # below like every other non-2xx status instead of leaking the
+          # client credentials / refresh_token to the redirect target.
+          # RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+          # `error` (required), `error_description`, `error_uri`. Parse them
+          # into a typed OAuth2ServerError so callers can recover via rescue.
+          # Fall back to the raw body when the response is not a valid error
+          # object.
+          raise parse_oauth2_server_error(status, response.body) unless (200..299).cover?(status)
+
+          response
+        end
+
+        # A 2xx token response that is not a JSON object cannot yield a
+        # token: surface it as OAuth2TokenError rather than a raw parser error.
+        # The parser's message quotes the input, which may hold a token, so it
+        # is neither put in the message nor kept as the cause.
+        def parse_token_response(body)
+          parsed = JSON.parse(body.to_s)
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Token response is not a JSON object' unless parsed.is_a?(Hash)
+
+          parsed
+        rescue JSON::ParserError
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Token response is not valid JSON', cause: nil
+        end
+
+        def parse_oauth2_server_error(status_code, body)
+          parsed = begin
+            JSON.parse(body)
+          rescue JSON::ParserError
+            nil
+          end
+          if parsed.is_a?(Hash) && parsed['error'].is_a?(String) && !parsed['error'].empty?
+            description = parsed['error_description'].is_a?(String) ? parsed['error_description'] : nil
+            uri = parsed['error_uri'].is_a?(String) ? parsed['error_uri'] : nil
+            ::{{moduleName}}::Errors::OAuth2ServerError.new(status_code, parsed['error'], description, uri, body)
+          else
+            ::{{moduleName}}::Errors::OAuth2ServerError.new(status_code, nil, nil, nil, body)
+          end
+        end
+
+        def require_api_client
+          @api_client || raise(
+            RuntimeError,
+            'ApiClient has not been injected. ' \
+            'Ensure the {{clientClassName}} constructor calls api_client= ' \
+            'on HttpAwareAuthenticator before making API requests.'
+          )
+        end
+
+        def apply_token_response(parsed)
+          access_token = parsed['access_token']
+          unless access_token.is_a?(String) && !access_token.empty?
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Token response missing or empty access_token field'
+          end
+
+          # RFC 6749 section 7.1: a token whose type is not understood must not
+          # be used. Only a missing type or 'bearer' (any case) is accepted;
+          # the value is never echoed.
+          token_type = parsed['token_type']
+          unless token_type.nil? || (token_type.is_a?(String) && token_type.casecmp?('bearer'))
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Unsupported token_type in token response'
+          end
+
+          @access_token = access_token
+          id_token = parsed['id_token']
+          @last_id_token = case id_token
+                           when nil, String then id_token
+                           else ''
+                           end
+          # No expires_in means no expiry: a stale expiry from an earlier
+          # token must not outlive the token that replaced it.
+          @token_expiry = nil
+          @token_margin = 0
+          new_refresh_token = parsed['refresh_token']
+          @refresh_token = new_refresh_token if new_refresh_token.is_a?(String) && !new_refresh_token.empty?
+          return unless parsed.key?('expires_in')
+
+          raw = parsed['expires_in']
+          return if raw.nil?
+
+          # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
+          # providers (Salesforce, some Apigee deployments) send a quoted
+          # string and others send a JSON float. Accept ints, floor floats,
+          # parse digit strings; on anything unparseable or non-positive,
+          # mark the token as immediately stale so the next call refetches
+          # (preferable to caching a token of unknown lifetime forever).
+          expires_in = parse_expires_in(raw)
+
+          lifetime = [expires_in, 0].max
+          @token_expiry = Time.now.to_f + lifetime
+          @token_margin = [EXPIRY_SAFETY_MARGIN_S, lifetime / 2.0].min
+        end
+
+        def parse_expires_in(raw)
+          [parse_raw_expires_in(raw), MAX_EXPIRES_IN_S].min
+        end
+
+        def parse_raw_expires_in(raw)
+          case raw
+          when Integer
+            raw
+          when Float
+            return 0 if raw.nan? || raw.infinite?
+
+            raw.floor
+          when String
+            trimmed = raw.strip
+            return 0 if trimmed.empty?
+
+            # Plain decimal digits with an optional fraction only: Float()
+            # would also accept hex ("0x10"), exponents and underscores.
+            # The integer part is read exactly, so a digit string too long
+            # for a Float is clamped rather than overflowing to Infinity.
+            trimmed.match?(/\A\d+(?:\.\d+)?\z/) ? trimmed.split('.').first.to_i : 0
+          else
+            0
+          end
+        end
+      end
+    end
+  end
+end

@@ -1,0 +1,689 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+@SuppressWarnings("NullAway")
+class TransportOptionsTest {
+
+    @Test
+    @DisplayName("bhvLifecycle024 a caller-supplied HttpClient conflicts with proxy, CA certificate and verifySsl(false)")
+    void bhvLifecycle024SuppliedHttpClientConflictsWithSdkProxyAndTlsSettings() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).caCertPath("/tmp/ca.pem").build());
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+            assertSame(supplied, TransportOptions.builder().httpClient(supplied).build().getHttpClient());
+        } finally {
+            supplied.close();
+        }
+    }
+
+    @Test
+    @DisplayName("a caller-supplied HttpClient that follows redirects is rejected")
+    void bhvRedirects045SuppliedHttpClientThatFollowsRedirectsIsRejected() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newBuilder()
+                .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                .build();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).build());
+        } finally {
+            supplied.close();
+        }
+    }
+    @Test
+    @DisplayName("bhvTransport078 a caller-supplied HttpClient refuses a proxy setting at construction")
+    void bhvTransport078SuppliedHttpClientRefusesAProxySettingAtConstruction() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+        } finally {
+            supplied.close();
+        }
+    }
+
+    @Test
+    @DisplayName("bhvTransport079 turning off certificate verification fails on a supplied HttpClient")
+    void bhvTransport079VerifySslOffFailsOnASuppliedHttpClient() {
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+        } finally {
+            supplied.close();
+        }
+        assertFalse(TransportOptions.builder().verifySsl(false).build().isVerifySsl());
+    }
+
+    @Test
+    @DisplayName("bhvTransport080 a proxy URL the client cannot apply fails at construction")
+    void bhvTransport080UnusableProxySettingFailsAtConstruction() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().proxy("socks5://proxy:1080").build());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().proxy("ftp://proxy:21").build());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().proxy("http://").build());
+    }
+
+    @Test
+    @DisplayName("bhvOptions057 a per-call timeout below one millisecond is refused")
+    void bhvOptions057TimeoutBelowOneMillisecondIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+            TransportOptions.builder().timeout(0).build());
+    }
+
+    @Test
+    @DisplayName("bhvOptions058 no HttpClient is injected unless one is supplied, and a supplied one is kept")
+    void bhvOptions058InjectedHttpClientIsNoneUnlessSuppliedAndKeptWhenSupplied() {
+        assertNull(TransportOptions.builder().build().getHttpClient());
+        java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+        try {
+            assertSame(supplied, TransportOptions.builder().httpClient(supplied).build().getHttpClient());
+        } finally {
+            supplied.close();
+        }
+    }
+
+    @Test
+    @DisplayName("bhvOptions060 the builder entry point carries the same defaults as a direct build")
+    void bhvOptions060BuilderEntryPointHasTheSameDefaultsAsADirectBuild() {
+        TransportOptions viaBuilder = TransportOptions.builder().build();
+        assertEquals(viaBuilder.toString(), TransportOptions.builder().build().toString());
+        assertEquals(2, viaBuilder.getMaxRetries());
+    }
+
+    @Test
+    @DisplayName("bhvOptions061 a user agent set on the options is kept as given")
+    void bhvOptions061UserAgentSetOnTheOptionsIsKeptAsGiven() {
+        assertEquals("custom-agent/1.0", TransportOptions.builder().userAgent("custom-agent/1.0").build().getUserAgent());
+    }
+
+    @Test
+    @DisplayName("bhvOptions062 unset fields of an options object read back as absent")
+    void bhvOptions062UnsetFieldsReadBackAsAbsent() {
+        TransportOptions empty = TransportOptions.builder().build();
+        assertNull(empty.getProxy());
+        assertNull(empty.getCaCertPath());
+        assertNull(empty.getMaxRedirects());
+    }
+
+    @Test
+    @DisplayName("bhvOptions063 a built options object has no field that can be changed")
+    void bhvOptions063BuiltOptionsHasNoMutableField() {
+        for (java.lang.reflect.Field field : TransportOptions.class.getDeclaredFields()) {
+            if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                assertTrue(java.lang.reflect.Modifier.isFinal(field.getModifiers()),
+                    "field " + field.getName() + " must be final");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvOptions064 the printable form shows the configured maximum number of retries")
+    void bhvOptions064PrintableFormShowsTheMaximumNumberOfRetries() {
+        assertTrue(TransportOptions.builder().maxRetries(3).build().toString().contains("maxRetries=3"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions065 the printable form never shows a proxy password")
+    void bhvOptions065PrintableFormNeverShowsAProxyPassword() {
+        String printed = TransportOptions.builder().proxy("http://user:s3cret-pass@proxy:3128").build().toString();
+        assertFalse(printed.contains("s3cret-pass"), printed);
+    }
+
+    @Test
+    @DisplayName("bhvOptions066 the printable form shows a proxy URL with no credentials exactly as configured")
+    void bhvOptions066PrintableFormShowsAProxyUrlWithoutCredentialsExactly() {
+        assertTrue(TransportOptions.builder().proxy("http://proxy:3128").build().toString()
+            .contains("proxy=http://proxy:3128"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions067 a valid proxy URL is kept, and no proxy leaves it unset")
+    void bhvOptions067ValidProxyIsKeptAndNoProxyLeavesItUnset() {
+        assertEquals("http://proxy:3128", TransportOptions.builder().proxy("http://proxy:3128").build().getProxy());
+        assertNull(TransportOptions.builder().build().getProxy());
+    }
+
+
+    @Test
+    @DisplayName("bhvOptions043 verifySsl defaults to true")
+    void bhvOptions043VerifySslDefaultsToTrue() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertTrue(opts.isVerifySsl());
+    }
+
+    @Test
+    @DisplayName("bhvOptions018 caCertPath defaults to null")
+    void bhvOptions018CaCertPathDefaultsToNull() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertNull(opts.getCaCertPath());
+    }
+
+    @Test
+    @DisplayName("bhvOptions032 proxy defaults to null")
+    void bhvOptions032ProxyDefaultsToNull() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertNull(opts.getProxy());
+    }
+
+    @Test
+    @DisplayName("bhvOptions038 timeout defaults to 60000 ms (60 seconds)")
+    void bhvOptions038TimeoutDefaultsTo60Seconds() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertNotNull(opts.getTimeout());
+        assertEquals(60000, opts.getTimeout());
+    }
+
+    @Test
+    @DisplayName("bhvOptions020 followRedirects defaults to true")
+    void bhvOptions020FollowRedirectsDefaultsToTrue() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertTrue(opts.isFollowRedirects());
+    }
+
+    @Test
+    @DisplayName("bhvOptions025 maxRedirects defaults to null")
+    void bhvOptions025MaxRedirectsDefaultsToNull() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertNull(opts.getMaxRedirects());
+    }
+
+    @Test
+    @DisplayName("bhvOptions026 maxRetries defaults to 2 and 0 disables retries")
+    void bhvOptions026MaxRetriesDefaultsToTwo() {
+        assertEquals(2, TransportOptions.builder().build().getMaxRetries());
+        assertEquals(0, TransportOptions.builder().maxRetries(0).build().getMaxRetries());
+        assertEquals(5, TransportOptions.builder().maxRetries(5).build().getMaxRetries());
+    }
+
+    @Test
+    @DisplayName("bhvOptions007 a negative maxRetries is rejected")
+    void bhvOptions007NegativeMaxRetriesIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(
+                IllegalArgumentException.class, () -> TransportOptions.builder().maxRetries(-1));
+        assertEquals("Invalid maxRetries: must not be negative (got -1)", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions041 userAgent defaults to non-empty string")
+    void bhvOptions041UserAgentDefaultsToNonEmptyString() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertNotNull(opts.getUserAgent());
+        assertFalse(opts.getUserAgent().isEmpty());
+    }
+
+    @Test
+    @DisplayName("bhvOptions042 userAgent defaults to the published artifact name")
+    void bhvOptions042UserAgentDefaultsToThePublishedArtifactName() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertEquals("{{artifactId}}/{{artifactVersion}} (java)", opts.getUserAgent());
+    }
+
+    @Test
+    @DisplayName("bhvOptions019 defaultHeaders defaults to empty map")
+    void bhvOptions019DefaultHeadersDefaultsToEmpty() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertTrue(opts.getDefaultHeaders().isEmpty());
+    }
+
+    @Test
+    @DisplayName("bhvOptions022 injectRequestId defaults to false")
+    void bhvOptions022InjectRequestIdDefaultsToFalse() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertFalse(opts.isInjectRequestId());
+    }
+
+    @Test
+    @DisplayName("bhvOptions017 builder sets all fields")
+    void bhvOptions017BuilderSetsAllFields() {
+        TransportOptions opts = TransportOptions.builder()
+                .verifySsl(false)
+                .caCertPath("/path/to/ca.pem")
+                .proxy("http://proxy:8080")
+                .timeout(5000)
+                .followRedirects(false)
+                .maxRedirects(3)
+                .userAgent("TestAgent/1.0")
+                .defaultHeader("X-Custom", "value")
+                .injectRequestId(true)
+                .build();
+
+        assertFalse(opts.isVerifySsl());
+        assertEquals("/path/to/ca.pem", opts.getCaCertPath());
+        assertEquals("http://proxy:8080", opts.getProxy());
+        assertEquals(5000, opts.getTimeout());
+        assertFalse(opts.isFollowRedirects());
+        assertEquals(3, opts.getMaxRedirects());
+        assertEquals("TestAgent/1.0", opts.getUserAgent());
+        assertEquals(Map.of("X-Custom", "value"), opts.getDefaultHeaders());
+        assertTrue(opts.isInjectRequestId());
+    }
+
+    @Test
+    @DisplayName("bhvOptions021 follow redirects defaults to true with null max redirects")
+    void bhvOptions021FollowRedirectsDefaultsToTrueWithNullMaxRedirects() {
+        TransportOptions opts = TransportOptions.builder()
+                .followRedirects(true)
+                .build();
+
+        assertTrue(opts.isFollowRedirects());
+        assertNull(opts.getMaxRedirects());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {-1, 0})
+    @DisplayName("bhvOptions033 a non-positive timeout is rejected with the canonical message")
+    void bhvOptions033NonPositiveTimeoutIsRejected(int timeout) {
+        IllegalArgumentException ex = assertThrowsExactly(
+                IllegalArgumentException.class, () -> TransportOptions.builder().timeout(timeout));
+        assertEquals(
+                "Invalid timeout: must be a positive number of milliseconds (got " + timeout + ")",
+                ex.getMessage());
+        // Null stays valid: it means no deadline.
+        assertNull(TransportOptions.builder().timeout(null).build().getTimeout());
+    }
+
+    @Test
+    @DisplayName("bhvOptions045 a negative maxRedirects is rejected")
+    void bhvOptions045NegativeMaxRedirectsIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(
+                IllegalArgumentException.class, () -> TransportOptions.builder().maxRedirects(-1));
+        assertEquals("Invalid maxRedirects: must not be negative (got -1)", ex.getMessage());
+        assertEquals(0, TransportOptions.builder().maxRedirects(0).build().getMaxRedirects());
+    }
+
+    @Test
+    @DisplayName("bhvOptions046 constructing transport options directly with a non-http proxy scheme is rejected")
+    void bhvOptions046DirectConstructionRejectsANonHttpProxyScheme() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                new TransportOptions(true, null, "ftp://proxy.example.com:21", null, true, null, null,
+                        Map.of(), false, null, 0, null, null));
+        assertEquals(
+                "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+                ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions047 a negative timeout is rejected at configuration")
+    void bhvOptions047NegativeTimeoutIsRejectedAtConfiguration() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().timeout(-1));
+        assertEquals(
+                "Invalid timeout: must be a positive number of milliseconds (got -1)",
+                ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions051 a proxy URL with a scheme other than http or https is rejected")
+    void bhvOptions051ProxyUrlWithAnotherSchemeIsRejected() {
+        for (String proxy : new String[] {"ftp://proxy.example.com:21", "socks5://proxy.example.com:1080"}) {
+            IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                    TransportOptions.builder().proxy(proxy).build());
+            assertEquals("Invalid proxy URL (must use http or https scheme): " + proxy, ex.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("bhvOptions024 invalid proxy URL throws IllegalArgumentException")
+    void bhvOptions024InvalidProxyUrlThrowsException() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("not a valid url ^%$").build());
+        // A bad proxy URL is a configuration mistake, not an SDK error.
+        assertFalse(((Object) ex) instanceof {{errorPrefix}}Exception);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "ftp://proxy.example.com:21|Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+        "socks5://proxy.example.com:1080|Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+        "proxy.example.com:8080|Invalid proxy URL (must use http or https scheme): proxy.example.com:8080",
+        "http://|Invalid proxy URL: http://",
+        "http://:8080|Invalid proxy URL (missing host): http://:8080",
+        "https:///path|Invalid proxy URL (missing host): https:///path",
+        "not a valid url ^%$|Invalid proxy URL: not a valid url ^%$",
+        "socks5://svc:s3cret@proxy.example.com:1080|Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080",
+        "http://svc:s3cret@:8080|Invalid proxy URL (missing host): http://***@:8080",
+        "http://[::1:3128|Invalid proxy URL: http://[::1:3128"
+    })
+    @DisplayName("an unusable proxy URL is rejected with the exact message")
+    void bhvOptions010UnusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
+        {
+            IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                    TransportOptions.builder().proxy(proxy).build());
+            assertEquals(message, ex.getMessage());
+        }
+        {
+            IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                    TransportOptions.builder().proxy("http://[::1:3128").build());
+            assertEquals("Invalid proxy URL: http://[::1:3128", ex.getMessage());
+        }
+    }
+
+    @Test
+    @DisplayName("bhvOptions008 a proxy URL error never carries the user-info")
+    void bhvOptions008ProxyUrlErrorNeverCarriesTheUserInfo() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("socks5://svc:s3cret@proxy.example.com:1080").build());
+        assertFalse(String.valueOf(ex.getMessage()).contains("s3cret"));
+        assertTrue(String.valueOf(ex.getMessage()).contains("***@proxy.example.com:1080"));
+    }
+
+
+    @Test
+    @DisplayName("bhvOptions011 a proxy URL with no host is rejected")
+    void bhvOptions011ProxyUrlWithNoHostIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("http://:8080").build());
+        assertEquals("Invalid proxy URL (missing host): http://:8080", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions013 an invalid proxy URL is rejected at build, not in the setter")
+    void bhvOptions013InvalidProxyUrlIsRejectedAtBuild() {
+        TransportOptions.Builder builder = TransportOptions.builder().proxy("not a valid url ^%$");
+        assertThrowsExactly(IllegalArgumentException.class, builder::build);
+    }
+
+    @Test
+    @DisplayName("bhvOptions023 inspect masks the proxy password and sensitive default headers")
+    void bhvOptions023InspectMasksTheProxyPasswordAndSensitiveHeaders() {
+        String text = TransportOptions.builder()
+                .proxy("http://svc:s3cret@proxy.example.com:8080")
+                .defaultHeader("Authorization", "Bearer s3cret-token")
+                .defaultHeader("X-Trace", "trace-1")
+                .build()
+                .toString();
+        assertFalse(text.contains("s3cret"));
+        assertTrue(text.contains("***@proxy.example.com:8080"));
+        assertTrue(text.contains("trace-1"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions027 maxRetries is set by the builder and by the constructor, 0 disabling retries")
+    void bhvOptions027MaxRetriesIsSetByTheBuilderAndTheConstructor() {
+        assertEquals(0, TransportOptions.builder().maxRetries(0).build().getMaxRetries());
+        assertEquals(
+                0,
+                new TransportOptions(true, null, null, null, true, null, null, Map.of(), false, null, 0, null, null)
+                        .getMaxRetries());
+        assertEquals(
+                4,
+                new TransportOptions(true, null, null, null, true, null, null, Map.of(), false, null, 4, null, null)
+                        .getMaxRetries());
+    }
+
+    @Test
+    @DisplayName("bhvOptions031 an empty proxy URL is rejected as a missing scheme")
+    void bhvOptions031EmptyProxyUrlIsRejected() {
+        IllegalArgumentException ex = assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("").build());
+        assertEquals("Invalid proxy URL (must use http or https scheme): ", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions014 an upper-case http or https proxy scheme is accepted")
+    void bhvOptions014UpperCaseProxySchemeIsAccepted() {
+        assertEquals("HTTP://proxy.example.com:8080",
+                TransportOptions.builder().proxy("HTTP://proxy.example.com:8080").build().getProxy());
+        assertEquals("HTTPS://proxy.example.com:8443",
+                TransportOptions.builder().proxy("HTTPS://proxy.example.com:8443").build().getProxy());
+    }
+
+    @Test
+    @DisplayName("bhvOptions009 a proxy URL with an IPv6 literal host is accepted and kept verbatim")
+    void bhvOptions009Ipv6LiteralProxyUrlIsAcceptedAndKeptVerbatim() {
+        assertEquals("http://[::1]:3128",
+                TransportOptions.builder().proxy("http://[::1]:3128").build().getProxy());
+        assertEquals("https://[2001:db8::1]:8443/",
+                TransportOptions.builder().proxy("https://[2001:db8::1]:8443/").build().getProxy());
+    }
+
+    @Test
+    @DisplayName("bhvOptions030 null proxy URL is accepted")
+    void bhvOptions030NullProxyUrlIsAccepted() {
+        TransportOptions opts = TransportOptions.builder().proxy(null).build();
+        assertNull(opts.getProxy());
+    }
+
+    @Test
+    @DisplayName("bhvOptions015 builder methods return the same builder instance")
+    void bhvOptions015BuilderMethodsReturnSameInstance() {
+        TransportOptions.Builder builder = TransportOptions.builder();
+
+        assertSame(builder, builder.verifySsl(true));
+        assertSame(builder, builder.caCertPath(null));
+        assertSame(builder, builder.proxy(null));
+        assertSame(builder, builder.timeout(null));
+        assertSame(builder, builder.followRedirects(true));
+        assertSame(builder, builder.maxRedirects(null));
+        assertSame(builder, builder.maxRetries(2));
+        assertSame(builder, builder.userAgent(null));
+        assertSame(builder, builder.defaultHeader("X-Key", "val"));
+        assertSame(builder, builder.defaultHeaders(new HashMap<>()));
+        assertSame(builder, builder.injectRequestId(false));
+    }
+
+    @Test
+    @DisplayName("bhvOptions012 accumulates headers from defaultHeader calls")
+    void bhvOptions012AccumulatesHeadersFromDefaultHeaderCalls() {
+        TransportOptions opts = TransportOptions.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeader("X-Second", "two")
+                .build();
+
+        assertEquals(2, opts.getDefaultHeaders().size());
+        assertEquals("one", opts.getDefaultHeaders().get("X-First"));
+        assertEquals("two", opts.getDefaultHeaders().get("X-Second"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions028 merges headers from defaultHeaders call")
+    void bhvOptions028MergesHeadersFromDefaultHeadersCall() {
+        TransportOptions opts = TransportOptions.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeaders(Map.of("X-Second", "two", "X-Third", "three"))
+                .build();
+
+        assertEquals(3, opts.getDefaultHeaders().size());
+        assertEquals("one", opts.getDefaultHeaders().get("X-First"));
+        assertEquals("two", opts.getDefaultHeaders().get("X-Second"));
+        assertEquals("three", opts.getDefaultHeaders().get("X-Third"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions029 modifying source map does not affect built options")
+    void bhvOptions029ModifyingSourceMapDoesNotAffectBuiltOptions() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("X-Original", "original");
+
+        TransportOptions opts = TransportOptions.builder()
+                .defaultHeaders(headers)
+                .build();
+
+        headers.put("X-Added", "added");
+
+        assertEquals(1, opts.getDefaultHeaders().size());
+        assertEquals("original", opts.getDefaultHeaders().get("X-Original"));
+        assertNull(opts.getDefaultHeaders().get("X-Added"));
+    }
+
+    @Test
+    @DisplayName("bhvOptions016 builder produces independent instances")
+    void bhvOptions016BuilderProducesIndependentInstances() {
+        TransportOptions.Builder builder = TransportOptions.builder().verifySsl(false);
+        TransportOptions first = builder.build();
+        TransportOptions second = builder.build();
+
+        assertEquals(first.isVerifySsl(), second.isVerifySsl());
+        assertNotSame(first, second);
+    }
+
+    // TimeoutConfigTests
+
+    @Test
+    @DisplayName("bhvOptions039 timeout defaults to 60000 ms (60 seconds)")
+    void bhvOptions039TimeoutDefaultsTo60SecondsInTimeoutGroup() {
+        // Default TransportOptions has a 60s timeout; matches cross-language parity.
+        TransportOptions opts = TransportOptions.builder().build();
+        assertNotNull(opts.getTimeout());
+        assertEquals(60000, opts.getTimeout());
+    }
+
+    @Test
+    @DisplayName("bhvOptions036 setting timeout to 5000 is accessible")
+    void bhvOptions036SettingTimeoutIsAccessible() {
+        TransportOptions opts = TransportOptions.builder().timeout(5000).build();
+        assertEquals(5000, opts.getTimeout());
+    }
+
+    @Test
+    @DisplayName("bhvOptions040 timeout field is named exactly 'timeout'")
+    void bhvOptions040TimeoutFieldIsNamedTimeout() {
+        // Verify via the getter that the field is named 'timeout' (not e.g. 'connectionTimeout').
+        TransportOptions opts = TransportOptions.builder().timeout(1000).build();
+        assertNotNull(opts.getTimeout());
+        assertEquals(1000, opts.getTimeout());
+    }
+
+    @Test
+    @DisplayName("bhvOptions037 explicitly setting timeout to null disables timeout")
+    void bhvOptions037TimeoutCanBeExplicitlyDisabled() {
+        TransportOptions opts = TransportOptions.builder().timeout(null).build();
+        assertNull(opts.getTimeout());
+    }
+
+    // ProxyConfigTests
+
+    @Test
+    @DisplayName("bhvOptions035 setting proxy URL is preserved on read-back")
+    void bhvOptions035ProxyUrlIsPreservedOnReadBack() {
+        TransportOptions opts = TransportOptions.builder()
+                .proxy("http://proxy.example.com:8080")
+                .build();
+        assertEquals("http://proxy.example.com:8080", opts.getProxy());
+    }
+
+    @Test
+    @DisplayName("bhvOptions052 a proxy URL carrying credentials is accepted")
+    void bhvOptions052ProxyUrlCarryingCredentialsIsAccepted() {
+        TransportOptions opts = TransportOptions.builder()
+                .proxy("http://user:pass@proxy.example.com:8080")
+                .build();
+        assertEquals("http://user:pass@proxy.example.com:8080", opts.getProxy());
+    }
+
+    @Test
+    @DisplayName("bhvOptions034 setting proxy is supported on all platforms")
+    void bhvOptions034SettingProxyIsSupportedOnAllPlatforms() {
+        // Proxy configuration must not throw on any JVM platform.
+        assertDoesNotThrow(() ->
+                TransportOptions.builder().proxy("http://proxy.example.com:8080").build());
+    }
+
+    @Test
+    void bhvLifecycle041SuppliedHttpClientRejectsAnSdkProxyOrTlsSetting() {
+        {
+            java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+            try {
+                org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                    TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+            } finally {
+                supplied.close();
+            }
+        }
+        {
+            java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+            try {
+                org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () ->
+                    TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+            } finally {
+                supplied.close();
+            }
+        }
+    }
+
+
+    @Test
+    void bhvMisc026AConfigurationMistakeIsAnIllegalArgumentNotAnApiError() {
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1).build());
+        org.junit.jupiter.api.Assertions.assertFalse(
+                ((Object) ex) instanceof {{invokerPackage}}.errors.ApiException);
+    }
+
+    @Test
+    void bhvMisc056SettingTheProxyToNullRemovesAProxySetEarlier() {
+        assertNull(TransportOptions.builder().proxy("http://proxy:3128").proxy(null).build().getProxy());
+    }
+
+    @Test
+    void bhvMisc134AZeroTimeoutIsAnArgumentErrorAndNotAnSdkError() {
+        IllegalArgumentException thrown =
+                assertThrowsExactly(IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
+        assertFalse(((Object) thrown) instanceof {{errorPrefix}}Exception);
+    }
+
+    @Test
+    void bhvMisc186AReadyMadeConnectionWithACaBundleIsRejectedWhenBuilt() {
+        assertThrowsExactly(IllegalArgumentException.class, () ->
+                TransportOptions.builder()
+                        .httpClient(java.net.http.HttpClient.newHttpClient())
+                        .caCertPath("/tmp/ca.pem")
+                        .build());
+    }
+
+    @Test
+    @DisplayName("bhvMisc298 a malformed proxy URL is rejected with an invalid proxy error")
+    void bhvMisc298AMalformedProxyUrlIsRejectedWithAnInvalidProxyError() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> TransportOptions.builder().proxy("ftp://proxy.example.com").build());
+        assertTrue(ex.getMessage().startsWith("Invalid proxy URL"), ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions068 a SOCKS proxy is refused at construction with the documented message")
+    void bhvOptions068ASocksProxyIsRefusedAtConstructionWithTheDocumentedMessage() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> TransportOptions.builder().proxy("socks5://proxy.example.com:1080").build());
+        assertEquals("Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+                ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvOptions069 maxResponseBytes is off by default, round-trips and refuses a non-positive value")
+    void bhvOptions069MaxResponseBytesIsOffByDefaultRoundTripsAndRefusesANonPositiveValue() {
+        assertNull(TransportOptions.builder().build().getMaxResponseBytes());
+        assertEquals(1024L, TransportOptions.builder().maxResponseBytes(1024L).build().getMaxResponseBytes());
+        assertNull(TransportOptions.builder().maxResponseBytes(null).build().getMaxResponseBytes());
+        IllegalArgumentException zero = assertThrowsExactly(IllegalArgumentException.class,
+                () -> TransportOptions.builder().maxResponseBytes(0L));
+        assertEquals("Invalid maxResponseBytes: must be a positive number of bytes (got 0)", zero.getMessage());
+        IllegalArgumentException negative = assertThrowsExactly(IllegalArgumentException.class,
+                () -> TransportOptions.builder().maxResponseBytes(-1L));
+        assertEquals("Invalid maxResponseBytes: must be a positive number of bytes (got -1)", negative.getMessage());
+    }
+}

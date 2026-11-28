@@ -1,0 +1,77 @@
+{{>api_info}}
+
+pub mod {{errorPrefixSnake}}_error;
+pub mod api_error;
+pub mod client_error;
+pub mod server_error;
+pub mod bad_request_error;
+pub mod unauthorized_error;
+pub mod forbidden_error;
+pub mod not_found_error;
+pub mod conflict_error;
+pub mod payment_required_error;
+pub mod method_not_allowed_error;
+pub mod request_timeout_error;
+pub mod gone_error;
+pub mod payload_too_large_error;
+pub mod unsupported_media_type_error;
+pub mod locked_error;
+pub mod not_implemented_error;
+pub mod bad_gateway_error;
+pub mod service_unavailable_error;
+pub mod gateway_timeout_error;
+pub mod unprocessable_entity_error;
+pub mod too_many_requests_error;
+pub mod internal_server_error;
+pub mod network_error;
+pub mod network_timeout_error;
+pub mod stream_error;
+pub mod response_too_large_error;
+pub mod serialization_error;
+pub mod pagination_error;
+pub mod oauth2_server_error;
+pub mod oauth2_token_error;
+pub mod oauth2_authorization_code_error;
+pub mod configuration_error;
+{{#errorSchemas}}
+pub mod {{snakeName}};
+{{/errorSchemas}}
+
+pub use {{errorPrefixSnake}}_error::{{errorPrefix}}Error;
+pub use {{errorPrefixSnake}}_error::Error;
+pub(crate) use {{errorPrefixSnake}}_error::api_error_of;
+pub use api_error::{ApiError, ApiErrorFields, ApiErrorInfo, ApiErrorKind, ErrorFactory};
+pub use client_error::ClientError;
+pub use server_error::ServerError;
+pub use bad_request_error::BadRequestError;
+pub use unauthorized_error::UnauthorizedError;
+pub use forbidden_error::ForbiddenError;
+pub use not_found_error::NotFoundError;
+pub use conflict_error::ConflictError;
+pub use payment_required_error::PaymentRequiredError;
+pub use method_not_allowed_error::MethodNotAllowedError;
+pub use request_timeout_error::RequestTimeoutError;
+pub use gone_error::GoneError;
+pub use payload_too_large_error::PayloadTooLargeError;
+pub use unsupported_media_type_error::UnsupportedMediaTypeError;
+pub use locked_error::LockedError;
+pub use not_implemented_error::NotImplementedError;
+pub use bad_gateway_error::BadGatewayError;
+pub use service_unavailable_error::ServiceUnavailableError;
+pub use gateway_timeout_error::GatewayTimeoutError;
+pub use unprocessable_entity_error::UnprocessableEntityError;
+pub use too_many_requests_error::TooManyRequestsError;
+pub use internal_server_error::InternalServerError;
+pub use network_error::NetworkError;
+pub use network_timeout_error::NetworkTimeoutError;
+pub use stream_error::StreamError;
+pub use response_too_large_error::ResponseTooLargeError;
+pub use serialization_error::SerializationError;
+pub use pagination_error::PaginationError;
+pub use oauth2_server_error::OAuth2ServerError;
+pub use oauth2_token_error::OAuth2TokenError;
+pub use oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
+pub use configuration_error::ConfigurationError;
+{{#errorSchemas}}
+pub use {{snakeName}}::{{className}};
+{{/errorSchemas}}

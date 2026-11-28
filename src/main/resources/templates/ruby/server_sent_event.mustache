@@ -1,0 +1,37 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # One server-sent event: the fields of the standard envelope, with the data
+  # decoded. It is a frozen value.
+  #
+  # +id+ is the event id, or +nil+ when the stream has none. +event+ is the
+  # event name, +"message"+ when the server sent none. +data+ is the decoded
+  # +data+ field (a String for a plain payload). +retry+ is the reconnection
+  # time in milliseconds the server named, or +nil+. +raw+ is the +data+ field
+  # exactly as it arrived, lines joined with a line feed.
+  #
+  # {#inspect} and {#to_s} show the event name and the id, never the data.
+  #
+  # @!attribute [r] id
+  #   @return [String, nil]
+  # @!attribute [r] event
+  #   @return [String]
+  # @!attribute [r] data
+  #   @return [Object, nil]
+  # @!attribute [r] retry
+  #   @return [Integer, nil]
+  # @!attribute [r] raw
+  #   @return [String]
+  ServerSentEvent = Data.define(:id, :event, :data, :retry, :raw)
+
+  # The redacted string form of a {ServerSentEvent}.
+  class ServerSentEvent
+    # @return [String] the event name and the id, never the data
+    def inspect
+      "#<#{self.class.name} event=#{event} id=#{id}>"
+    end
+    alias to_s inspect
+  end
+end

@@ -1,0 +1,26 @@
+{{>api_info}}
+{{#imports}}
+import '{{{.}}}';
+{{/imports}}
+
+/// Authenticator for the `{{{schemeName}}}` security scheme.
+{{#schemeDeprecated}}
+///
+/// Deprecated: the API marks the security scheme '{{{schemeName}}}' as deprecated.
+{{/schemeDeprecated}}
+class {{className}} extends {{baseClass}} {
+{{#hasOAuth2MetadataUrl}}
+  /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+  static const String metadataUrl = {{{metadataUrlLiteral}}};
+
+{{/hasOAuth2MetadataUrl}}
+  /// Creates an authenticator for the `{{{schemeName}}}` security scheme.
+  {{className}}({
+    {{{constructorSignature}}},
+  }) : super(
+         {{{superCall}}},
+{{#envVars}}
+         {{argName}}: '{{envName}}',
+{{/envVars}}
+       );
+}

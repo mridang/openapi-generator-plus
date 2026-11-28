@@ -1,0 +1,211 @@
+{{>api_info}}
+namespace {{apiPackage}};
+
+use {{invokerPackage}}\ApiResult;
+{{#hasBinaryStream}}
+use {{invokerPackage}}\ByteStream;
+{{/hasBinaryStream}}
+{{#hasPagedOperation}}
+use {{invokerPackage}}\Paginator;
+{{/hasPagedOperation}}
+{{#hasSseStream}}
+use {{invokerPackage}}\SseStream;
+{{/hasSseStream}}
+{{#hasStreamMethod}}
+use {{invokerPackage}}\StreamOptions;
+{{/hasStreamMethod}}
+{{#optionsImports}}
+use {{invokerPackage}}\Api\Options\{{optionsClassName}};
+{{/optionsImports}}
+{{#enumParamImports}}
+use {{invokerPackage}}\Models\{{.}};
+{{/enumParamImports}}
+
+{{#operations}}
+/**
+ * Contract of {@see {{classname}}}: every operation of the {{baseName}} API group and its
+ * `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+ * your own tests.
+ */
+interface {{classname}}Interface
+{
+{{#operation}}
+    /**
+     * {{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}
+{{#notes}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{#vendorExtensions.pluralExamples}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{#vendorExtensions.op.streamOnly}}
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+{{/vendorExtensions.op.streamOnly}}
+{{#returnType}}
+     * @return {{{vendorExtensions.phpDocReturnType}}}
+{{/returnType}}
+     * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+     * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}
+{{/externalDocs}}
+     */
+{{#returnType}}
+    public function {{#vendorExtensions.op.streamOnly}}{{vendorExtensions.op.streamMethodName}}{{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}{{operationId}}{{/vendorExtensions.op.streamOnly}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}{{#vendorExtensions.op.streamOnly}}, ?StreamOptions $streamOptions = null{{/vendorExtensions.op.streamOnly}}){{#vendorExtensions.phpNativeReturnType}}: {{{vendorExtensions.phpNativeReturnType}}}{{/vendorExtensions.phpNativeReturnType}};
+{{/returnType}}
+{{^returnType}}
+    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): void;
+{{/returnType}}
+
+{{#returnType}}
+{{^vendorExtensions.op.streamOnly}}
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
+     * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult;
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/returnType}}
+{{^returnType}}
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+     * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
+{{/vendorExtensions.op.hasMultipleConsumes}}
+     * @return ApiResult<null>
+     * @throws \{{invokerPackage}}\Errors\ApiException
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+     */
+    public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult;
+{{/returnType}}
+{{^-last}}
+
+{{/-last}}
+{{/operation}}
+}
+{{/operations}}

@@ -1,0 +1,16 @@
+{{#vendorExtensions.op.hasOperationExamples}}
+   *
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+   * {{#lambda.tsComment}}{{{heading}}} example: {{{summary}}}{{/lambda.tsComment}}
+{{#hasDescription}}
+   * {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
+{{/hasDescription}}
+   * {{#lambda.tsComment}}{{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+   *
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+   * {{#lambda.tsComment}}Extension {{{name}}}: {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.op.exposedExtensions}}

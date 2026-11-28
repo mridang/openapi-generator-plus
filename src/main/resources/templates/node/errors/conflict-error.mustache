@@ -1,0 +1,27 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { ClientError } from './client-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 409 Conflict.
+ */
+export class ConflictError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(409, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'ConflictError';
+  }
+}
+
+ApiError.registerStatusError(
+  409,
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new ConflictError(message, headers, body, errorBody, options)
+);

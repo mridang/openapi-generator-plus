@@ -1,0 +1,401 @@
+{{>api_info}}
+import Foundation
+import Testing
+@testable import {{packageName}}
+
+/* API key handling is validated here. Negative scenarios (empty/whitespace
+ * key, CR/LF/NUL control characters, non-ASCII in a header key) throw
+ * ConfigurationError.invalidArgument from ApiKeyAuthenticator.init. The
+ * positive paths lock in the per-location emission contract and the
+ * redaction guarantee. */
+@Suite final class ApiKeyAuthenticatorTests {
+
+    /* A key supplied through a provider function is obtained again for each request, whichever location it is sent in. */
+    @Test func testBhvAuth005AProviderKeyIsObtainedAgainForEachRequest() async throws {
+        final class Counter: @unchecked Sendable {
+            private let lock = NSLock()
+            private var calls = 0
+            func next() -> String {
+                lock.lock()
+                defer { lock.unlock() }
+                calls += 1
+                return "key\(calls)"
+            }
+        }
+        let headerCounter = Counter()
+        let header = ApiKeyAuthenticator(
+            host: "https://example.com", keyParamName: "X-Api-Key", apiKeyProvider: { headerCounter.next() },
+            location: .header)
+        #expect(await header.authHeaders() == ["X-Api-Key": "key1"])
+        #expect(await header.authHeaders() == ["X-Api-Key": "key2"])
+        let counter = Counter()
+        let query = ApiKeyAuthenticator(
+            host: "https://example.com", keyParamName: "api_key", apiKeyProvider: { counter.next() }, location: .query)
+        #expect(query.queryParams() == ["api_key": "key1"])
+        #expect(query.queryParams() == ["api_key": "key2"])
+        let cookieCounter = Counter()
+        let cookie = ApiKeyAuthenticator(
+            host: "https://example.com", keyParamName: "SESSION", apiKeyProvider: { cookieCounter.next() }, location: .cookie)
+        #expect(cookie.cookieParams() == ["SESSION": "key1"])
+        #expect(cookie.cookieParams() == ["SESSION": "key2"])
+    }
+
+    @Test func testBhvAuthapikey014ValidHeaderKeyPasses() async throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com",
+            keyParamName: "X-API-Key",
+            apiKey: "abc123",
+            location: .header
+        )
+        let headers = await auth.authHeaders()
+        #expect(headers["X-API-Key"] == "abc123")
+    }
+
+    @Test func testBhvAuthapikey016ValidQueryKeyPasses() throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com",
+            keyParamName: "api_key",
+            apiKey: "abc123",
+            location: .query
+        )
+        #expect(auth.queryParams() == ["api_key": "abc123"])
+    }
+
+    @Test func testBhvAuthapikey013ValidCookieKeyPasses() throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com",
+            keyParamName: "session",
+            apiKey: "abc123",
+            location: .cookie
+        )
+        #expect(auth.cookieParams() == ["session": "abc123"])
+    }
+
+    /* authenticator-secret-in-default-string-repr: the default string
+     * representation must never expose the stored API key and must show the
+     * `***` redaction marker. */
+    @Test func testBhvAuthapikey010RedactsTheAPIKeyInToString() async throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com",
+            keyParamName: "X-API-Key",
+            apiKey: "abc123",
+            location: .header
+        )
+        let description = String(describing: auth)
+        #expect(!description.contains("abc123"))
+        #expect(description.contains("***"))
+        /* Everything except the secret stays visible. */
+        #expect(
+            description
+                == "ApiKeyAuthenticator(host: https://api.example.com, keyParamName: X-API-Key, apiKey: ***, location: header)"
+        )
+        #expect(String(reflecting: auth) == description)
+    }
+
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+     * included, so the redacted description is not enough: the reflection
+     * must hide the secret too. */
+    @Test func testBhvAuth033DumpDoesNotLeakSecret() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "dump-secret-key", location: .header)
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("dump-secret-key"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
+    /* Empty or whitespace-only keys and CR/LF/NUL are rejected at every
+     * location, and RFC 7230 §3.2.6 rejects non-ASCII in a header key: each
+     * with ConfigurationError.invalidArgument, never a trap. */
+    @Test(arguments: [
+        ("", ApiKeyLocation.header),
+        ("   ", ApiKeyLocation.header),
+        ("abc\r\n", ApiKeyLocation.query),
+        ("abc\n", ApiKeyLocation.cookie),
+        ("kéy", ApiKeyLocation.header),
+    ])
+    func testBhvAuthapikey018InvalidKeyIsRejectedAtConstruction(apiKey: String, location: ApiKeyLocation) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try ApiKeyAuthenticator(
+                host: "https://api.example.com",
+                keyParamName: "X-API-Key",
+                apiKey: apiKey,
+                location: location
+            )
+        }
+        guard case .invalidArgument? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+    }
+
+    /* Each rejection branch reports its own exact message. */
+    @Test(arguments: [
+        ("", ApiKeyLocation.header, "API key value for 'X-API-Key' must not be empty"),
+        ("  \t", ApiKeyLocation.cookie, "API key value for 'X-API-Key' must not be empty"),
+        ("\u{0B}\u{0C} ", ApiKeyLocation.query, "API key value for 'X-API-Key' must not be empty"),
+        ("abc\r\n", ApiKeyLocation.query, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"),
+        ("a\u{0}b", ApiKeyLocation.cookie, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"),
+        ("a\nb", ApiKeyLocation.header, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"),
+        ("kéy", ApiKeyLocation.header, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+        ("a\u{7F}b", ApiKeyLocation.header, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+    ])
+    func testBhvAuth012RejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String) {
+        #expect(throws: ConfigurationError.invalidArgument(message)) {
+            _ = try ApiKeyAuthenticator(
+                host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey, location: location)
+        }
+    }
+
+    /* The printable-ASCII rule is for header values only: a query or cookie
+     * value may carry any other character. */
+    @Test(arguments: [ApiKeyLocation.query, ApiKeyLocation.cookie])
+    func testBhvAuthapikey009NonAsciiKeyIsAcceptedOutsideTheHeader(location: ApiKeyLocation) throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com", keyParamName: "k", apiKey: "kéy", location: location)
+        let emitted = location == .query ? auth.queryParams() : auth.cookieParams()
+        #expect(emitted == ["k": "kéy"])
+    }
+
+    /* Only ASCII whitespace counts as blank: a Unicode space is a valid key. */
+    @Test(arguments: ["\u{A0}", "\u{2003}"])
+    func testBhvAuthapikey001UnicodeSpaceIsAValidKey(key: String) throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com", keyParamName: "k", apiKey: key, location: .query)
+        #expect(auth.queryParams() == ["k": key])
+    }
+
+    /* The key is emitted at its own location and nowhere else. */
+    @Test func testBhvAuthapikey022KeyIsEmittedOnlyAtItsOwnLocation() async throws {
+        let cases: [(ApiKeyLocation, [String: String], [String: String], [String: String])] = [
+            (.header, ["k": "v"], [:], [:]),
+            (.query, [:], ["k": "v"], [:]),
+            (.cookie, [:], [:], ["k": "v"]),
+        ]
+        for (location, header, query, cookie) in cases {
+            let auth = try ApiKeyAuthenticator(
+                host: "https://api.example.com", keyParamName: "k", apiKey: "v", location: location)
+            #expect(await auth.authHeaders() == header, "headers for \(location)")
+            #expect(auth.queryParams() == query, "query for \(location)")
+            #expect(auth.cookieParams() == cookie, "cookies for \(location)")
+        }
+    }
+
+    /* A cookie key accepts a non-ASCII value and emits it unchanged. */
+    @Test func testBhvAuthapikey023CookieKeyAcceptsANonAsciiValue() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "SESSION_ID", apiKey: "caf\u{E9}-session", location: .cookie)
+        #expect(auth.cookieParams() == ["SESSION_ID": "caf\u{E9}-session"])
+    }
+
+    // MARK: - Generated scheme wrappers
+
+    /* Each API-key securityScheme of the spec generates a wrapper that fixes
+     * the scheme's key name and location: the key is emitted there and only
+     * there, the empty key is still rejected eagerly with the scheme's key
+     * name in the message, and the repr names the wrapper and masks the key. */
+    @Test(arguments: [
+        ("ApiKeyHeader", "X-API-Key", ApiKeyLocation.header),
+        ("InternalApiKey", "X-Internal-Key", ApiKeyLocation.header),
+        ("ApiKeyQuery", "api_key", ApiKeyLocation.query),
+        ("SessionCookie", "SESSION_ID", ApiKeyLocation.cookie),
+    ])
+    func testBhvAuthapikey007SchemeWrapperEmitsItsKeyAtItsSpecLocation(scheme: String, name: String, location: ApiKeyLocation) async throws {
+        let auth = try Self.schemeWrapper(scheme, apiKey: "wrapped-key")
+        #expect(await auth.authHeaders() == (location == .header ? [name: "wrapped-key"] : [:]))
+        #expect(auth.queryParams() == (location == .query ? [name: "wrapped-key"] : [:]))
+        #expect(auth.cookieParams() == (location == .cookie ? [name: "wrapped-key"] : [:]))
+        #expect(
+            String(describing: auth)
+                == "\(scheme)Authenticator(host: https://api.example.com, keyParamName: \(name), apiKey: ***, location: \(location))"
+        )
+    }
+
+    @Test(arguments: [
+        ("ApiKeyHeader", "X-API-Key"),
+        ("InternalApiKey", "X-Internal-Key"),
+        ("ApiKeyQuery", "api_key"),
+        ("SessionCookie", "SESSION_ID"),
+    ])
+    func testBhvAuthapikey019SchemeWrapperRejectsAnEmptyKeyEagerly(scheme: String, name: String) {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for '\(name)' must not be empty")) {
+            _ = try Self.schemeWrapper(scheme, apiKey: "")
+        }
+    }
+
+    /* Every API-key wrapper refuses an empty key when it is built and never shows the key in its description. */
+    @Test(arguments: ["ApiKeyHeader", "InternalApiKey", "ApiKeyQuery", "SessionCookie"])
+    func testBhvAuthapikey020SchemeWrapperValidatesEagerlyAndRedactsTheKey(scheme: String) throws {
+        #expect(throws: ConfigurationError.self) {
+            _ = try Self.schemeWrapper(scheme, apiKey: "")
+        }
+        let auth = try Self.schemeWrapper(scheme, apiKey: "wrapper-key-value")
+        #expect(!String(describing: auth).contains("wrapper-key-value"))
+    }
+
+    /* Every API-key wrapper keeps the key out of its debug output. */
+    @Test(arguments: ["ApiKeyHeader", "InternalApiKey", "ApiKeyQuery", "SessionCookie"])
+    func testBhvAuthapikey025SchemeWrapperMasksTheKeyInDebugOutput(scheme: String) throws {
+        let auth = try Self.schemeWrapper(scheme, apiKey: "debug-key-value")
+        #expect(!String(reflecting: auth).contains("debug-key-value"))
+    }
+
+{{#perSchemeAuthEntries}}
+{{#isFirstApiKeyScheme}}
+    /* The first API-key scheme reads its key from the environment when none is passed, and a passed key wins. */
+    @Test func testBhvAuthapikey021{{className}}ReadsTheKeyFromTheEnvironmentAndPrefersAPassedKey() async throws {
+        let fromEnvironment = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-key", {{/envVars}}])
+        let fromEnvironmentHeaders = await fromEnvironment.authHeaders()
+        let emitted = Array(fromEnvironmentHeaders.values) + Array(fromEnvironment.queryParams().values) + Array(fromEnvironment.cookieParams().values)
+        #expect(emitted == ["env-key"])
+        let explicit = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-key", {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-key", {{/envVars}}])
+        let explicitHeaders = await explicit.authHeaders()
+        let explicitEmitted = Array(explicitHeaders.values) + Array(explicit.queryParams().values) + Array(explicit.cookieParams().values)
+        #expect(explicitEmitted == ["explicit-key"])
+    }
+{{/isFirstApiKeyScheme}}
+{{/perSchemeAuthEntries}}
+    private static func schemeWrapper(_ scheme: String, apiKey: String) throws -> ApiKeyAuthenticator {
+        let host = "https://api.example.com"
+        switch scheme {
+        case "ApiKeyHeader": return try ApiKeyHeaderAuthenticator(host: host, apiKey: apiKey)
+        case "InternalApiKey": return try InternalApiKeyAuthenticator(host: host, apiKey: apiKey)
+        case "ApiKeyQuery": return try ApiKeyQueryAuthenticator(host: host, apiKey: apiKey)
+        default: return try SessionCookieAuthenticator(host: host, apiKey: apiKey)
+        }
+    }
+
+    @Test func testBhvAuthapikey002CrlfInCookieKeyThrowsAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "abc\r\n", location: .cookie)
+        }
+    }
+
+    @Test func testBhvAuthapikey003CrlfInQueryKeyThrowsAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "abc\r\n", location: .query)
+        }
+    }
+
+    @Test func testBhvAuthapikey004EmptyKeyInCookieThrowsAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "", location: .cookie)
+        }
+    }
+
+    @Test func testBhvAuthapikey005EmptyKeyInHeaderThrowsAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "", location: .header)
+        }
+    }
+
+    @Test func testBhvAuthapikey006EmptyKeyInQueryThrowsAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "", location: .query)
+        }
+    }
+
+    @Test func testBhvAuthapikey008HeaderLocationRejectsANonAsciiKey() {
+        #expect(throws: ConfigurationError.invalidArgument("API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "kéy", location: .header)
+        }
+    }
+
+    @Test func testBhvAuthapikey011VerticalTabOnlyKeyIsBlank() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "\u{0B}", location: .query)
+        }
+    }
+
+    /* An API key authenticator never shows its key in its default debug output. */
+    @Test func testBhvAuthapikey026AuthenticatorDoesNotLeakItsKeyInDebugOutput() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "default-debug-value", location: .header)
+        #expect(!String(reflecting: auth).contains("default-debug-value"))
+        #expect(!String(describing: auth).contains("default-debug-value"))
+    }
+
+    @Test func testBhvAuthapikey012DescriptionShowsNonSecretFieldsAndMasksTheKey() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "masked-key-value", location: .header)
+        #expect(auth.description.contains("host: https://api.example.com"))
+        #expect(auth.description.contains("keyParamName: X-API-Key"))
+        #expect(auth.description.contains("location: header"))
+        #expect(!auth.description.contains("masked-key-value"))
+    }
+
+    @Test func testBhvAuthapikey015ValidQueryKeyIsExposedInQueryParams() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "api_key", apiKey: "abc123", location: .query)
+        #expect(auth.queryParams() == ["api_key": "abc123"])
+    }
+
+    @Test func testBhvAuthapikey017WhitespaceOnlyKeyThrowsAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("API key value for 'X-API-Key' must not be empty")) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "   ", location: .header)
+        }
+    }
+    // MARK: - Behaviour catalogue: API key placement and redaction
+
+    /* An API key sent in a header appears under the header name the spec declares. */
+    @Test func testBhvAuth006ApiKeyInAHeaderUsesTheDeclaredName() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-123", location: .header)
+        let headers = await auth.authHeaders()
+        #expect(headers["X-API-Key"] == "key-123")
+    }
+
+    /* A secret passed to an authenticator never appears in its description or dump. */
+    @Test func testBhvAuth018ApiKeySecretNeverAppearsInItsDescription() throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-secret-018", location: .header)
+        #expect(!String(describing: auth).contains("key-secret-018"))
+        #expect(!String(reflecting: auth).contains("key-secret-018"))
+    }
+
+    /* A header key is sent under its fixed name with its value unchanged. */
+    @Test func testBhvAuth031ApiKeyHeaderIsSentUnderItsExactNameAndValue() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-Exact-Key", apiKey: "k3y-VALUE_1", location: .header)
+        #expect(await auth.authHeaders() == ["X-Exact-Key": "k3y-VALUE_1"])
+        #expect(auth.queryParams().isEmpty)
+        #expect(auth.cookieParams().isEmpty)
+    }
+
+    /* An API key configured for the header location is never sent as a query or cookie value. */
+    @Test func testBhvMisc057AnApiKeyIsOnlySentAtItsConfiguredLocation() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "header-key", location: .header)
+        #expect(auth.queryParams().isEmpty)
+        #expect(auth.cookieParams().isEmpty)
+        #expect(await auth.authHeaders() == ["X-API-Key": "header-key"])
+    }
+
+    /* A session cookie is sent as SESSION_ID with its value unchanged, and nowhere else. */
+    @Test func testBhvAuth032SessionCookieIsSentAsSessionIdExactly() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "SESSION_ID", apiKey: "sess-42", location: .cookie)
+        #expect(auth.cookieParams() == ["SESSION_ID": "sess-42"])
+        #expect(await auth.authHeaders().isEmpty)
+    }
+
+    /* A blank key is refused at construction at every location, with an error. */
+    @Test(arguments: [ApiKeyLocation.header, ApiKeyLocation.query, ApiKeyLocation.cookie])
+    func testBhvAuth034BlankKeyIsRejectedWhenConstructed(location: ApiKeyLocation) {
+        #expect(throws: ConfigurationError.self) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: " \t\n", location: location)
+        }
+    }
+
+    /* A control, NUL or non-ASCII character in a header or query key is refused with an error. */
+    @Test(arguments: [("a\u{0}b", ApiKeyLocation.header), ("a\rb", ApiKeyLocation.query), ("k\u{E9}y", ApiKeyLocation.header)])
+    func testBhvAuth035ControlOrNonAsciiKeyIsRejected(apiKey: String, location: ApiKeyLocation) {
+        #expect(throws: ConfigurationError.self) {
+            _ = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey, location: location)
+        }
+    }
+
+
+    /* A credential is sent using the security scheme the operation declares, such as an API key header rather than bearer. */
+    @Test func testBhvMisc221ACredentialIsSentInTheDeclaredApiKeyHeaderNotBearer() async throws {
+        let auth = try ApiKeyAuthenticator(
+            host: "https://api.example.com",
+            keyParamName: "X-API-Key",
+            apiKey: "key-1",
+            location: .header
+        )
+        let headers = await auth.authHeaders()
+        #expect(headers["X-API-Key"] == "key-1")
+        #expect(headers["Authorization"] == nil)
+    }
+}

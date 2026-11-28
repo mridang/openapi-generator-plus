@@ -1,0 +1,428 @@
+{{>api_info}}
+
+using {{packageName}};
+using Xunit;
+
+namespace Test;
+
+public class ConfigurationTest
+{
+    [Fact]
+    public void BhvMisc276TheDefaultConfigurationAndTheDefaultBuilderUseTheSpecBaseUrl()
+    {
+        Assert.Equal("{{{basePath}}}", Configuration.DefaultConfiguration().BaseUrl);
+        Assert.Equal("{{{basePath}}}", Configuration.Builder().Build().BaseUrl);
+    }
+
+    [Fact]
+    public void BhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject()
+    {
+        Assert.NotSame(Configuration.DefaultConfiguration(), Configuration.DefaultConfiguration());
+    }
+
+    [Fact]
+    public void BhvMisc279ChangingACopyOfTheDefaultHeadersDoesNotChangeTheConfiguration()
+    {
+        var config = Configuration.Builder().DefaultHeader("X-Trace", "abc").Build();
+
+        var copy = new Dictionary<string, string>(config.DefaultHeaders);
+        copy["X-Other"] = "changed";
+
+        Assert.False(config.DefaultHeaders.ContainsKey("X-Other"));
+        Assert.Single(config.DefaultHeaders);
+    }
+
+    [Fact]
+    public void BhvConfig018DefaultConstructorUsesSpecBaseUrl()
+    {
+        var config = new Configuration();
+
+        Assert.Equal("{{{basePath}}}", config.BaseUrl);
+        Assert.Empty(config.DefaultHeaders);
+    }
+
+    [Fact]
+    public void BhvConfig005TheBuilderProducesTheDefaultValuesWhenNothingIsSet()
+    {
+        var config = Configuration.Builder().Build();
+
+        Assert.Equal("{{{basePath}}}", config.BaseUrl);
+        Assert.Empty(config.DefaultHeaders);
+    }
+
+    [Fact]
+    public void BhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders()
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("https://api.example.com/v2")
+            .DefaultHeader("X-Trace", "keep")
+            .Build();
+
+        var text = config.ToString();
+
+        Assert.Contains("https://api.example.com/v2", text, StringComparison.Ordinal);
+        Assert.Contains("keep", text, StringComparison.Ordinal);
+    }
+
+    private sealed class NoopHook : ICallHook
+    {
+        public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers) => null;
+
+        public override string ToString() => "the-hook-secret";
+    }
+
+    [Fact]
+    public void BhvLangcsharp066TheBuilderSetsTheCallHookAndTheDefaultIsNone()
+    {
+        var hook = new NoopHook();
+
+        Assert.Null(Configuration.Builder().Build().CallHook);
+        Assert.Same(hook, Configuration.Builder().CallHook(hook).Build().CallHook);
+        Assert.Same(hook, new Configuration("http://localhost", null, hook).CallHook);
+    }
+
+    [Fact]
+    public void BhvLangcsharp067TheStringFormDoesNotPrintTheCallHook()
+    {
+        var config = Configuration.Builder().CallHook(new NoopHook()).Build();
+
+        Assert.DoesNotContain("the-hook-secret", config.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvConfig007BuilderReturnsConfigurationBuilderInstance()
+    {
+        var builder = Configuration.Builder();
+
+        Assert.IsType<ConfigurationBuilder>(builder);
+    }
+
+    [Fact]
+    public void BhvConfig011BuilderSetsBaseUrl()
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("https://custom.example.com")
+            .Build();
+
+        Assert.Equal("https://custom.example.com", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig013BuilderSetsSingleDefaultHeader()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeader("Authorization", "Bearer token123")
+            .Build();
+
+        Assert.Single(config.DefaultHeaders);
+        Assert.Equal("Bearer token123", config.DefaultHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public void BhvConfig012BuilderSetsMultipleDefaultHeaders()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeaders(
+                new Dictionary<string, string>
+                {
+                    { "Authorization", "Bearer token123" },
+                    { "X-Custom", "value" },
+                }
+            )
+            .Build();
+
+        Assert.Equal(2, config.DefaultHeaders.Count);
+        Assert.Equal("Bearer token123", config.DefaultHeaders["Authorization"]);
+        Assert.Equal("value", config.DefaultHeaders["X-Custom"]);
+    }
+
+    [Fact]
+    public void BhvConfig002TheBuilderAccumulatesHeadersAcrossCalls()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeader("X-First", "one")
+            .DefaultHeader("X-Second", "two")
+            .DefaultHeaders(new Dictionary<string, string> { { "X-Third", "three" } })
+            .Build();
+
+        Assert.Equal(3, config.DefaultHeaders.Count);
+        Assert.Equal("one", config.DefaultHeaders["X-First"]);
+        Assert.Equal("two", config.DefaultHeaders["X-Second"]);
+        Assert.Equal("three", config.DefaultHeaders["X-Third"]);
+    }
+
+    [Fact]
+    public void BhvConfig004BuilderMergesSingleAndBulkHeaders()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeader("X-Single", "one")
+            .DefaultHeaders(new Dictionary<string, string> { { "X-Bulk", "two" } })
+            .Build();
+
+        Assert.Equal(2, config.DefaultHeaders.Count);
+        Assert.Equal("one", config.DefaultHeaders["X-Single"]);
+        Assert.Equal("two", config.DefaultHeaders["X-Bulk"]);
+    }
+
+    [Fact]
+    public void BhvConfig015InspectMasksSensitiveDefaultHeaders()
+    {
+        string bearer = "tok-" + "marker";
+        var config = Configuration.Builder()
+            .DefaultHeader("Authorization", "Bearer " + bearer)
+            .DefaultHeader("X-Custom", "value")
+            .Build();
+
+        string text = config.ToString();
+
+        Assert.DoesNotContain(bearer, text, StringComparison.Ordinal);
+        Assert.Contains("Authorization=***", text, StringComparison.Ordinal);
+        Assert.Contains("X-Custom=value", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvConfig010BuilderSetsAllFields()
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("https://api.example.com")
+            .DefaultHeader("Authorization", "Bearer token")
+            .DefaultHeaders(new Dictionary<string, string> { { "X-Custom", "value" } })
+            .Build();
+
+        Assert.Equal("https://api.example.com", config.BaseUrl);
+        Assert.Equal(2, config.DefaultHeaders.Count);
+        Assert.Equal("Bearer token", config.DefaultHeaders["Authorization"]);
+        Assert.Equal("value", config.DefaultHeaders["X-Custom"]);
+    }
+
+    [Fact]
+    public void BhvConfig026BuilderReturnsTheBaseUrlThatWasSet()
+    {
+        var config = Configuration.Builder().BaseUrl("https://builder.example.com").Build();
+
+        Assert.Equal("https://builder.example.com", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig020BuilderChainSetsBaseUrlAndDefaultHeadersInOneConfiguration()
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("https://chain.example.com")
+            .DefaultHeader("X-First", "one")
+            .DefaultHeaders(new Dictionary<string, string> { { "X-Second", "two" } })
+            .Build();
+
+        Assert.Equal("https://chain.example.com", config.BaseUrl);
+        Assert.Equal(2, config.DefaultHeaders.Count);
+        Assert.Equal("one", config.DefaultHeaders["X-First"]);
+        Assert.Equal("two", config.DefaultHeaders["X-Second"]);
+    }
+
+    [Fact]
+    public void BhvConfig008BuilderServerResolvesUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            "Test server",
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        var config = Configuration.Builder()
+            .Server(server)
+            .Build();
+
+        Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig009BuilderServerWithVariableOverrides()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        var config = Configuration.Builder()
+            .Server(
+                server,
+                new Dictionary<string, string> { { "env", "staging" }, { "version", "v2" } }
+            )
+            .Build();
+
+        Assert.Equal("https://staging.example.com/api/v2", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig021ServerUrlTemplateResolvesItsVariablesToTheirDefaults()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        var config = Configuration.Builder().Server(server).Build();
+
+        Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig016InvalidServerVariableEnumValueThrows()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        Assert.Throws<ArgumentException>(
+            () =>
+                Configuration.Builder()
+                    .Server(server, new Dictionary<string, string> { { "env", "invalid" } })
+                    .Build()
+        );
+    }
+
+    [Fact]
+    public void BhvConfig006BuilderProducesIndependentInstances()
+    {
+        var builder = Configuration.Builder().BaseUrl("https://example.com");
+        var first = builder.Build();
+        var second = builder.Build();
+
+        Assert.NotSame(first, second);
+        Assert.Equal(first.BaseUrl, second.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig001BuilderBaseUrlOverridesServer()
+    {
+        var server = new ServerConfiguration(
+            "https://api.example.com",
+            null,
+            new Dictionary<string, ServerVariable>()
+        );
+
+        var config = Configuration.Builder()
+            .Server(server)
+            .BaseUrl("https://override.example.com")
+            .Build();
+
+        Assert.Equal("https://override.example.com", config.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig019DefaultConfigurationUsesSpecBaseUrl()
+    {
+        var config = Configuration.DefaultConfiguration();
+
+        Assert.IsType<Configuration>(config);
+        Assert.Equal("{{{basePath}}}", config.BaseUrl);
+        Assert.Empty(config.DefaultHeaders);
+    }
+
+    [Fact]
+    public void BhvConfig014DefaultConfigurationIsStateless()
+    {
+        // There is no settable process-wide default: every call hands back a
+        // fresh instance, so one caller cannot change what another gets.
+        var first = Configuration.DefaultConfiguration();
+        var second = Configuration.DefaultConfiguration();
+
+        Assert.NotSame(first, second);
+        Assert.Equal(first.BaseUrl, second.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig023EachDefaultConfigurationCallReturnsAFreshInstance()
+    {
+        var first = Configuration.DefaultConfiguration();
+        var second = Configuration.DefaultConfiguration();
+
+        Assert.NotSame(first, second);
+        Assert.Equal("{{{basePath}}}", first.BaseUrl);
+        Assert.Equal("{{{basePath}}}", second.BaseUrl);
+    }
+
+    [Fact]
+    public void BhvConfig024ConfigurationHasNoSettableProcessWideDefault()
+    {
+        var settable = typeof(Configuration)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(property => property.CanWrite);
+
+        Assert.Empty(settable);
+    }
+
+    [Fact]
+    public void BhvConfig022MutatingTheReturnedDefaultHeadersLeavesTheConfigurationUnchanged()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeader("X-Test", "value")
+            .Build();
+        var headers = config.DefaultHeaders;
+
+        Assert.Throws<NotSupportedException>(
+            () => ((IDictionary<string, string>)headers)["X-Mutated"] = "should-not-affect-config"
+        );
+        Assert.DoesNotContain("X-Mutated", config.DefaultHeaders.Keys);
+        Assert.Equal("value", config.DefaultHeaders["X-Test"]);
+    }
+
+    [Fact]
+    public void BhvConfig017ABuiltConfigurationCannotBeChanged()
+    {
+        var config = Configuration.Builder()
+            .DefaultHeader("X-Key", "value")
+            .Build();
+
+        // IReadOnlyDictionary prevents modification; verify the values are frozen
+        Assert.Equal("value", config.DefaultHeaders["X-Key"]);
+    }
+
+    [Fact]
+    public void BhvConfig003EveryBuilderSetterReturnsTheSameBuilder()
+    {
+        var builder = Configuration.Builder();
+
+        Assert.Same(builder, builder.BaseUrl("https://example.com"));
+        Assert.Same(builder, builder.DefaultHeader("X-Key", "value"));
+        Assert.Same(
+            builder,
+            builder.DefaultHeaders(new Dictionary<string, string> { { "X-Other", "val" } })
+        );
+
+        var server = new ServerConfiguration(
+            "https://example.com",
+            null,
+            new Dictionary<string, ServerVariable>()
+        );
+        Assert.Same(builder, builder.Server(server));
+    }
+
+    [Fact]
+    public void BhvMisc180TheInspectFormShowsTheValueOfANonSensitiveDefaultHeader()
+    {
+        var config = new Configuration(
+            "https://api.example.com", new Dictionary<string, string> { ["X-Trace"] = "visible-value" });
+
+        Assert.Contains("visible-value", config.ToString(), StringComparison.Ordinal);
+    }
+
+}

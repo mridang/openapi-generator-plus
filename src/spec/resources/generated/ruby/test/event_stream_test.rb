@@ -1,0 +1,257 @@
+# frozen_string_literal: true
+
+require 'minitest/autorun'
+require 'stringio'
+require 'petstore_client'
+
+# Opens an event stream whose n-th connection (from 1) is the n-th entry:
+# a text, a ByteStream or an error to raise. The last entry answers every
+# later connection too.
+class EventStreamScript
+  attr_reader :last_ids
+
+  def initialize(owner, *connections)
+    @owner = owner
+    @connections = connections
+    @last_ids = []
+  end
+
+  def call(last_event_id)
+    @last_ids << last_event_id
+    entry = @connections[[@last_ids.length, @connections.length].min - 1]
+    raise entry if entry.is_a?(Exception)
+    return entry if entry.is_a?(Petstore::Client::ByteStream)
+
+    @owner.bytes(entry)
+  end
+end
+
+# The line splitter, the server-sent events parser and the two stream types
+# over canned bytes.
+describe 'Petstore::Client::EventStream' do
+  parallelize_me!
+
+  def bytes(text, status: 200, headers: { 'content-type' => 'text/event-stream' })
+    Petstore::Client::ByteStream.new(status_code: status, headers: headers, source: StringIO.new(text))
+  end
+
+  def no_content
+    bytes('', status: 204, headers: {})
+  end
+
+  def parse(text)
+    parser = Petstore::Client::EventStream::SseParser.new(bytes(text), 1024, nil)
+    events = []
+    while (event = parser.next_event)
+      events << event
+    end
+    events
+  end
+
+  def lines(text)
+    Petstore::Client::JsonLinesStream.new(source: bytes(text), decoder: nil, max_line_bytes: 1024, method: 'GET',
+                                          path: '/items').to_a
+  end
+
+  def script(*connections)
+    EventStreamScript.new(self, *connections)
+  end
+
+  def fast
+    Petstore::Client::StreamOptions.new(reconnect_delay: 1)
+  end
+
+  def sse(opener, options, decoder: nil, terminator: nil, has_body: false, single_use_body: false)
+    Petstore::Client::SseStream.open(opener: opener, decoder: decoder, terminator: terminator, options: options,
+                                     has_body: has_body, single_use_body: single_use_body, method: 'GET',
+                                     path: '/events')
+  end
+
+  def data_of(stream)
+    stream.map(&:data)
+  end
+
+  def number
+    lambda do |text|
+      Integer(text, 10)
+    rescue ArgumentError => e
+      raise Petstore::Client::Errors::SerializationError.new('not a number', e)
+    end
+  end
+
+  it 'bhv_streaming_002 a JSON Lines stream yields one decoded item per line and skips blank lines' do
+    _(lines("a\n\n  \nb\nc\n")).must_equal %w[a b c]
+  end
+
+  it 'bhv_streaming_003 a JSON Lines stream accepts CRLF line ends and a last line without a newline' do
+    _(lines("a\r\nb\r\nc")).must_equal %w[a b c]
+  end
+
+  it 'bhv_streaming_004 a JSON Lines line that does not decode names its line and ends the stream' do
+    stream = Petstore::Client::JsonLinesStream.new(source: bytes("1\n2\nnope\n4\n"), decoder: number, max_line_bytes: 1024,
+                                                   method: 'GET', path: '/items')
+    items = []
+    failure = assert_raises(Petstore::Client::Errors::SerializationError) { stream.each { |item| items << item } }
+    _(items).must_equal [1, 2]
+    _(failure.message).must_include 'Line 3'
+    _(stream.to_a).must_equal []
+  end
+
+  it 'bhv_streaming_005 a line or event longer than the limit raises a serialization error and ends the stream' do
+    line_stream = Petstore::Client::JsonLinesStream.new(source: bytes("ok\n#{'x' * 50}\nlater\n"), decoder: nil,
+                                                        max_line_bytes: 10, method: 'GET', path: '/items')
+    items = []
+    assert_raises(Petstore::Client::Errors::SerializationError) { line_stream.each { |item| items << item } }
+    _(items).must_equal ['ok']
+    _(line_stream.to_a).must_equal []
+
+    events = sse(script("data: #{'y' * 50}\n\n"), Petstore::Client::StreamOptions.new(max_event_bytes: 10))
+    assert_raises(Petstore::Client::Errors::SerializationError) { events.to_a }
+    _(events.to_a).must_equal []
+  end
+
+  it 'bhv_sse_001 an SSE stream yields the id, event, data and retry fields of each event, with message as the default event' do
+    events = parse("id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n")
+    _(events.size).must_equal 2
+    _(events[0]).must_equal Petstore::Client::EventStream::RawEvent.new(id: '7', event: 'tick', data: 'one', retry: 250)
+    _(events[1].event).must_equal 'message'
+    _(events[1].data).must_equal 'two'
+    _(events[1].id).must_equal '7'
+
+    stream = sse(script("id: 7\nevent: tick\nretry: 250\ndata: one\n\n"), fast)
+    event = stream.first
+    stream.close
+    _(event.id).must_equal '7'
+    _(event.event).must_equal 'tick'
+    _(event.data).must_equal 'one'
+    _(event.retry).must_equal 250
+    _(event.raw).must_equal 'one'
+  end
+
+  it 'bhv_sse_002 an SSE stream joins consecutive data lines with a newline and skips comment lines' do
+    events = parse(": a comment\ndata: one\n: another\ndata: two\n\n")
+    _(events.size).must_equal 1
+    _(events[0].data).must_equal "one\ntwo"
+  end
+
+  it 'bhv_sse_003 an SSE stream drops a byte order mark, accepts every line end and removes one space after the colon' do
+    ["\n", "\r", "\r\n"].each_case do |ending|
+      events = parse("﻿data: a#{ending}data:  b#{ending}#{ending}")
+      _(events.size).must_equal 1
+      _(events[0].data).must_equal "a\n b"
+    end
+    _(parse("data:x\n\n")[0].data).must_equal 'x'
+  end
+
+  it 'bhv_sse_004 an SSE event with an empty data buffer is not delivered but its id is kept' do
+    parser = Petstore::Client::EventStream::SseParser.new(bytes("id: 9\n\n"), 1024, nil)
+    _(parser.next_event).must_be_nil
+    _(parser.last_event_id).must_equal '9'
+  end
+
+  it 'bhv_sse_005 an SSE data payload is decoded and a payload that does not decode raises a serialization error and ends the stream' do
+    stream = sse(script("data: 1\n\ndata: oops\n\ndata: 3\n\n"), fast, decoder: number)
+    seen = []
+    assert_raises(Petstore::Client::Errors::SerializationError) { stream.each { |event| seen << event.data } }
+    _(seen).must_equal [1]
+    _(stream.to_a).must_equal []
+  end
+
+  it 'bhv_sse_008 an SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap' do
+    wait = Petstore::Client::SseStream.method(:reconnect_wait_ms)
+    _(wait.call(3, 1000, 250, nil, 0.0)).must_equal 250
+    _(wait.call(1, 1000, nil, nil, 0.0)).must_equal 1000
+    _(wait.call(2, 1000, nil, nil, 0.0)).must_equal 2000
+    _(wait.call(3, 1000, nil, nil, 0.0)).must_equal 4000
+    _(wait.call(10, 1000, nil, nil, 0.0)).must_equal 30_000
+    _(wait.call(1, 1000, nil, nil, 1.0)).must_equal 750
+    _(wait.call(1, 1000, nil, 5000, 0.0)).must_equal 5000
+  end
+
+  it 'bhv_sse_009 an SSE GET stream stops after five failed reconnects by default and raises the last failure' do
+    connections = script('')
+    stream = sse(connections, fast)
+    assert_raises(Petstore::Client::Errors::NetworkError) { stream.to_a }
+    _(connections.last_ids.length).must_equal 6
+  end
+
+  it 'bhv_sse_010 an SSE reconnect counter resets after an event is received' do
+    connections = script("data: a\n\n", "data: b\n\n", "data: c\n\n", '')
+    stream = sse(connections, Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 1))
+    seen = []
+    assert_raises(Petstore::Client::Errors::NetworkError) { stream.each { |event| seen << event.data } }
+    _(seen).must_equal %w[a b c]
+  end
+
+  it 'bhv_sse_011 an SSE stream does not reconnect after a 204, a 4xx status or a response that is not an event stream' do
+    none = script(no_content)
+    _(data_of(sse(none, fast))).must_equal []
+    _(none.last_ids.length).must_equal 1
+
+    refused = script("data: a\n\n", Petstore::Client::Errors::ApiError.new(status_code: 404, message: 'missing',
+                                                                           response_headers: {}, response_body: '{}'))
+    failure = assert_raises(Petstore::Client::Errors::ApiError) { data_of(sse(refused, fast)) }
+    _(failure.status_code).must_equal 404
+
+    wrong_type = script("data: a\n\n", bytes('', headers: { 'content-type' => 'text/html' }))
+    assert_raises(Petstore::Client::Errors::SerializationError) { data_of(sse(wrong_type, fast)) }
+    _(wrong_type.last_ids.length).must_equal 2
+  end
+
+  it 'bhv_sse_014 an SSE retry field that is not digits and an id containing NUL are ignored' do
+    parser = Petstore::Client::EventStream::SseParser.new(bytes("retry: 12x\nid: a\0b\ndata: x\n\n"), 1024, nil)
+    event = parser.next_event
+    _(event.data).must_equal 'x'
+    _(event.id).must_be_nil
+    _(parser.server_retry).must_be_nil
+  end
+
+  it 'bhv_sse_016 an SSE request with a body is not reconnected unless the caller turns reconnect on' do
+    off = script("data: a\n\n", "data: b\n\n")
+    _(data_of(sse(off, fast, has_body: true))).must_equal ['a']
+    _(off.last_ids.length).must_equal 1
+
+    on = script("data: a\n\n", "data: b\n\n", no_content)
+    reconnecting = Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 2)
+    _(data_of(sse(on, reconnecting, has_body: true))).must_equal %w[a b]
+
+    once = script("data: a\n\n", "data: b\n\n", no_content)
+    persistent = Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 5)
+    _(data_of(sse(once, persistent, has_body: true, single_use_body: true))).must_equal ['a']
+    _(once.last_ids.length).must_equal 1
+  end
+
+  it 'bhv_sse_017 an SSE event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it' do
+    connections = script("data: a\nid: 1\n\nid: 2\n\n", "data: b\nid: 3\n\n", no_content)
+    _(data_of(sse(connections, fast))).must_equal %w[a b]
+    _(connections.last_ids.first(2)).must_equal ['', '2']
+  end
+
+  it 'bhv_sse_019 an SSE event cut off by the end of the connection is discarded' do
+    events = parse("data: whole\n\ndata: cut off\n")
+    _(events.size).must_equal 1
+    _(events[0].data).must_equal 'whole'
+    _(parse('data: no newline at all')).must_be_empty
+  end
+
+  it 'bhv_sse_021 the configured SSE terminator ends the stream and is not delivered' do
+    stream = sse(script("data: a\n\ndata: [DONE]\n\ndata: b\n\n"), fast, terminator: '[DONE]')
+    _(data_of(stream)).must_equal ['a']
+  end
+
+  it 'bhv_sse_022 an SSE event named error raises the API error with the status and data and any other name is an item' do
+    connections = script("event: update\ndata: fine\n\nevent: error\ndata: {\"why\":\"bad\"}\n\n", "data: again\n\n")
+    events = sse(connections, fast).each
+    _(events.next.event).must_equal 'update'
+    failure = assert_raises(Petstore::Client::Errors::ApiError) { events.next }
+    _(failure.status_code).must_equal 200
+    _(failure.response_body).must_equal '{"why":"bad"}'
+    _(connections.last_ids.length).must_equal 1
+  end
+
+  it 'bhv_sse_023 an unknown SSE field is ignored' do
+    events = parse("mystery: 1\ndata: x\nanother\n\n")
+    _(events.size).must_equal 1
+    _(events[0].data).must_equal 'x'
+  end
+end

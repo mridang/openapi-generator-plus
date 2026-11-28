@@ -1,0 +1,574 @@
+# {{appNameBase}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `build.gradle.kts`:
+
+```kts
+implementation("{{groupId}}:{{artifactId}}:{{artifactVersion}}")
+```
+
+Or with Maven:
+
+```xml
+<dependency>
+    <groupId>{{groupId}}</groupId>
+    <artifactId>{{artifactId}}</artifactId>
+    <version>{{artifactVersion}}</version>
+</dependency>
+```
+
+## Quick Start
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+{{#hasExampleOperation}}
+import kotlinx.coroutines.runBlocking
+{{/hasExampleOperation}}
+
+{{>usage_statements}}
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.BearerAuthenticator
+
+val authenticator = BearerAuthenticator("https://api.example.com", "your-token")
+val client = {{clientClassName}}(authenticator)
+```
+
+A credential you pass wins; when you pass none, the authenticator reads `{{envVarPrefix}}_TOKEN` (Basic auth: `{{envVarPrefix}}_USERNAME` and `{{envVarPrefix}}_PASSWORD`, API key: `{{envVarPrefix}}_API_KEY`) once, when it is built, and an empty value counts as unset. A missing credential fails right there with an `IllegalArgumentException` naming the variable. A token that rotates takes `BearerAuthenticator(host, tokenProvider = { currentToken() })`, called on every request (`ApiKeyAuthenticator` has `apiKeyProvider`); a provider is used only when no argument and no environment variable is set.
+
+{{#hasSecuritySchemeEnvVars}}
+The authenticator generated for a security scheme reads its own variable instead:
+
+{{#securitySchemeEnvVars}}
+- `{{envName}}`: the `{{field}}` of the `{{schemeId}}` scheme
+{{/securitySchemeEnvVars}}
+
+{{/hasSecuritySchemeEnvVars}}
+{{#hasClientSchemes}}
+### Credentials per security scheme
+
+`{{clientClassName}}(host, <scheme> = credential, transportOptions)` takes one optional credential for each security scheme of the API, named after the scheme:{{#clientSchemes}} `{{{argName}}}`{{^-last}},{{/-last}}{{/clientSchemes}}. Each operation uses the credential of the first scheme its spec lists that you passed; a call cannot pick another scheme, so an options object has no authenticator. An operation none of whose schemes you passed a credential for uses the authenticator of `{{clientClassName}}(authenticator)` if you gave one and is otherwise sent without a credential, and an operation declared with no security never sends one.
+
+```kotlin statements
+{{#clientSchemes}}
+{{#-first}}
+import {{invokerPackage}}.{{clientClassName}}
+import {{authPackage}}.{{className}}
+
+/* The credential of the scheme comes from the environment. */
+val client = {{clientClassName}}("https://api.example.com", {{{argName}}} = {{className}}("https://api.example.com"))
+{{/-first}}
+{{/clientSchemes}}
+```
+
+{{/hasClientSchemes}}
+{{#hasBasicAuth}}
+### Basic Auth
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.BasicAuthenticator
+
+val authenticator = BasicAuthenticator("https://api.example.com", "username", "password")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.ApiKeyAuthenticator
+import {{invokerPackage}}.auth.ApiKeyLocation
+
+val authenticator = ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.HEADER)
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator
+
+val authenticator = OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", listOf())
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.oauth.OAuth2AuthorizationCodeAuthenticator
+import kotlinx.coroutines.runBlocking
+
+val authenticator = OAuth2AuthorizationCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", listOf())
+val client = {{clientClassName}}(authenticator)
+runBlocking { authenticator.exchangeCode("authorization-code") }
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator
+
+val authenticator = OAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password", listOf())
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.oauth.OAuth2ImplicitAuthenticator
+
+val authenticator = OAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", listOf())
+authenticator.setAccessToken("your-access-token")
+val client = {{clientClassName}}(authenticator)
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.oauth.OpenIdConnectAuthenticator
+import kotlinx.coroutines.runBlocking
+
+val authenticator = OpenIdConnectAuthenticator(
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", listOf())
+val client = {{clientClassName}}(authenticator)
+runBlocking { authenticator.exchangeCode("authorization-code") }
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Unauthorized answers
+
+When the API answers 401 to a call authenticated by an OAuth2 or OpenID Connect authenticator, the SDK calls the authenticator's `invalidateAccessToken()` (the cached access token is dropped, the refresh token is kept), obtains a new token and sends the request once more. A second 401 is raised as `UnauthorizedException`. A single-use body and a multipart body are not replayed, and Basic, Bearer and API key authenticators never replay.
+
+#### PKCE
+
+`buildAuthorizationUrl` adds a PKCE S256 `code_challenge` (RFC 7636) to every authorization URL and keeps the matching 43-character verifier in the authenticator; `exchangeCode` sends it as `code_verifier`. Build the URL and exchange the code on the same authenticator instance.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it up to `60` seconds before its declared expiry (never more than half of the token's lifetime). This single safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed and is not applied twice: a token valid for 60 seconds is reused for 30. A token valid for 1 second or less is fetched again on every call; tune your authorization server's `expires_in` if it is too short.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```kotlin statements
+import {{invokerPackage}}.auth.oauth.ClientAuthMethod
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator
+
+val authenticator = OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", listOf(),
+    clientAuthMethod = ClientAuthMethod.BASIC)
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` object exposes each as a `ServerConfiguration` property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. A server the spec gives a name is also found by that name with `Servers.byName("name")`, which fails with `IllegalArgumentException` when no server has the name. Pass the desired server's URL to the client:
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.Servers
+
+val client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), "your-token")
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.auth.Authenticator
+
+val fake = object : Authenticator {
+    override fun getHost() = "https://api.example.com"
+    override suspend fun getAuthHeaders() = mapOf("Authorization" to "Bearer test-token")
+}
+
+val client = {{clientClassName}}(fake)
+```
+
+## Error Handling
+
+Every error the SDK raises derives from `{{errorPrefix}}Exception`. Besides the HTTP errors under `ApiException` it has three siblings: `SerializationException` (a body or value that could not be encoded or decoded), `OAuth2ServerException` (the token endpoint answered with an OAuth2 error, with `code`, `description` and `uri`) and `OAuth2TokenException` (a token response that is unusable). The error hierarchy is:
+
+- `{{errorPrefix}}Exception` (root)
+  - `SerializationException`
+  - `OAuth2ServerException`
+  - `OAuth2TokenException`
+- `ApiException` (base of the HTTP errors, below `{{errorPrefix}}Exception`)
+  - `ClientException` (4xx)
+    - `BadRequestException` (400)
+    - `UnauthorizedException` (401)
+    - `ForbiddenException` (403)
+    - `NotFoundException` (404)
+    - `ConflictException` (409)
+    - `UnprocessableEntityException` (422)
+    - `TooManyRequestsException` (429)
+    - `PaymentRequiredException` (402)
+    - `MethodNotAllowedException` (405)
+    - `RequestTimeoutException` (408)
+    - `GoneException` (410)
+    - `PayloadTooLargeException` (413)
+    - `UnsupportedMediaTypeException` (415)
+    - `LockedException` (423)
+  - `ServerException` (5xx)
+    - `InternalServerErrorException` (500)
+    - `NotImplementedException` (501)
+    - `BadGatewayException` (502)
+    - `ServiceUnavailableException` (503)
+    - `GatewayTimeoutException` (504)
+  - `NetworkException` (no HTTP response, status 0)
+    - `NetworkTimeoutException` (the request timed out, status 0)
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.errors.ApiException
+import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.NotFoundException
+import {{invokerPackage}}.errors.ServerException
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+/* Operations are suspend functions, so they must be called from a coroutine. */
+suspend fun {{operationId}}OrReport(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    try {
+        client.{{clientPropertyName}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})
+    } catch (e: NotFoundException) {
+        println("Not found: ${e.message}")
+    } catch (e: ClientException) {
+        println("Client error ${e.statusCode}: ${e.message}")
+    } catch (e: ServerException) {
+        println("Server error: ${e.message}")
+    } catch (e: ApiException) {
+        println("API error: ${e.message}")
+    }
+}
+```{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+### Request context on errors
+
+`ApiException` has `requestMethod` and `requestPath` (the path without its query string), shown on a `Request:` line of its string form; both are null on an exception you built yourself. When an operation declares several `2xx` responses with different schemas its result is a union decoded by the status code the server sent.
+
+## Configuration
+
+### Per-call options
+
+Every operation takes an options object, also one with no parameters and no security. It takes `timeout` (milliseconds, one end-to-end budget), `headers` (replace a header of the same name) and `maxRetries` (`0` disables) for that call only, in place of the client-wide setting:
+
+{{>per_call_options}}
+
+### Closing the client
+
+`close()` is graceful and idempotent. It marks the client closed and returns; requests already in flight finish, and the transport the SDK created is released after the last of them. A request issued after that fails with `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). Streams that are still open are cancelled. A Ktor client you supplied through `TransportOptions.builder().httpClient(...)` is never closed. Use `client.use { ... }` to close it when the block ends.
+
+### Cookie parameters
+
+A cookie parameter is sent exactly as you give it when every character is a legal RFC 6265 cookie-octet (`%` and `=` are legal, so a value you already percent-encoded goes out unchanged). A value with a space, quote, comma, semicolon, backslash, control character or non-ASCII character fails with `IllegalArgumentException` before anything is sent, so percent-encode it first. The SDK does not encode cookie values for you.
+
+### Models are never validated when built
+
+A model constructor accepts any value and never raises: an out-of-range number, a string outside its pattern and an empty collection are all kept. A payload is checked only when it is decoded, where a required property that arrives as `null` or is missing and an enum string outside the declared set fail with `SerializationException`.
+
+### Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` (`br` and `zstd` too when `org.brotli:dec` and `com.github.luben:zstd-jni` are on the classpath), decodes the body itself and drops `Content-Encoding` and `Content-Length` from the returned headers.
+
+### Logging
+
+The SDK writes no logs; inject a Ktor `HttpClient` with the `Logging` plugin through `TransportOptions.builder().httpClient(...)`.
+
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the send and observe the status or the error afterwards. With no hook set nothing changes, and the hook is the only seam for tracing.
+
+`start` runs once per operation call, however many sends happen inside it (retries, the one replay after a `401`), after the request headers are final and before the body is encoded. It receives the call (`operationId` as written in the spec, `method`, `urlTemplate`, the `url` without its query string and `serverAddress`) and the headers, which it may read and replace; what it sets is on every send of the call. It returns an observer, or nothing. The observer's `finish` runs exactly once, whatever way the call ends, with the `statusCode` (0 when no response arrived), the lower-cased response `headers` (nothing when no response arrived) and the very error the caller receives. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. A hook never changes the result or the error of a call, and it also runs when you supply your own transport. Several hooks are combined with `chain`, which starts them in the order given and finishes them in the reverse order.
+
+```kotlin statements
+import {{invokerPackage}}.CallHook
+import {{invokerPackage}}.CallObserver
+import {{invokerPackage}}.{{clientClassName}}
+
+val hook = CallHook { info, headers ->
+    headers["X-Request-Source"] = "reports"
+    CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
+}
+val client = {{clientClassName}}.withToken("https://api.example.com", "token", callHook = hook)
+```
+
+The hook runs inline on the calling coroutine, so it must not block.
+{{#hasOpenTelemetryAdapter}}
+
+The optional `OpenTelemetryCallHook` records one span, one request count and one duration value per call. It is built on the OpenTelemetry API package only; add `io.opentelemetry:opentelemetry-api` to your project to use it. The span is named with the operation id, has kind client and is a child of the active span; the hook injects `traceparent` itself. Attributes are `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure); the instruments are the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`), whose own count equals the counter. The instrumentation scope is `{{artifactId}}` with the SDK version. Without a configured provider the hook does nothing.
+
+```kotlin statements
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.OpenTelemetryCallHook
+
+val client = {{clientClassName}}.withToken("https://api.example.com", "token", callHook = OpenTelemetryCallHook.create())
+```
+
+`OpenTelemetryCallHook.create(openTelemetry)` uses the instance you give it instead of the global one.
+{{/hasOpenTelemetryAdapter}}
+
+### Custom Transport Options
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+import {{invokerPackage}}.TransportOptions
+import {{invokerPackage}}.auth.Authenticator
+
+fun clientWithTransport(authenticator: Authenticator): {{clientClassName}} {
+    val transport = TransportOptions.builder()
+        .proxy("http://proxy:3128")
+        .timeout(5000L)
+        .build()
+
+    return {{clientClassName}}(authenticator, transport)
+}
+```
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`use { }`). `readAll()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#binaryStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+import java.io.FileOutputStream
+import java.nio.file.Path
+
+suspend fun saveTo(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}, target: Path) {
+    client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}).use { stream ->
+        println(stream.statusCode)
+        FileOutputStream(target.toFile()).use { out ->
+            stream.chunks().collect { chunk -> out.write(chunk) }
+        }
+    }
+}
+```
+{{/binaryStreamOperation}}
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedOperationException` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.ofFile(path)` or `BodySource.fromSupplier(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Collect its `items()` (its `events()` for an `SseStream`), and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+{{#hasJsonLinesStreamOperation}}
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#jsonLinesStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun readJsonLines(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    client.{{#jsonLinesStreamGroup}}{{clientPropertyName}}{{/jsonLinesStreamGroup}}.{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}).use { feed ->
+        feed.items().collect { println(it) }
+    }
+}
+```
+{{/jsonLinesStreamOperation}}
+{{/hasJsonLinesStreamOperation}}
+{{#hasSseStreamOperation}}
+
+```kotlin file
+import {{invokerPackage}}.{{clientClassName}}
+{{#sseStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}}
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun readEvents(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    client.{{#sseStreamGroup}}{{clientPropertyName}}{{/sseStreamGroup}}.{{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}).use { feed ->
+        feed.events().collect { println(it.data) }
+    }
+}
+```
+{{/sseStreamOperation}}
+{{/hasSseStreamOperation}}
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
+### Pagination
+
+Pagination covers the token cursor, id cursor, offset, page number, `Link` header and next URL in the body styles. The override option and the vendor hints are as described in the readme.
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, C>`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Collect `items()` for a `Flow<T>` of the items, or `pages()` for a `Flow<Page<T, C>>` of `Page<T, C>` values with `items`, `nextCursor` and `result`, the same `ApiResult` that the `WithHttpInfo` variant returns, so the status and headers stay reachable. Collecting again starts again from the starting position.
+{{#hasPagedOperation}}
+
+```kotlin file
+import {{invokerPackage}}.Page
+import {{invokerPackage}}.Paginator
+import {{invokerPackage}}.{{clientClassName}}
+{{#pagedOperation}}
+{{#vendorExtensions.op.pagination.itemModel}}
+import {{modelPackage}}.{{{.}}}
+{{/vendorExtensions.op.pagination.itemModel}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+suspend fun listEverything(client: {{clientClassName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}) {
+    val list: {{{vendorExtensions.op.pagination.kotlinPaginatorType}}} = client.{{#pagedGroup}}{{clientPropertyName}}{{/pagedGroup}}.{{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})
+    list.items().collect { item: {{{vendorExtensions.op.pagination.itemType}}} -> println(item) }
+    list.pages().collect { page: Page<{{{vendorExtensions.op.pagination.itemType}}}, {{#vendorExtensions.op.pagination.isUrlPaged}}Unit{{/vendorExtensions.op.pagination.isUrlPaged}}{{^vendorExtensions.op.pagination.isUrlPaged}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isUrlPaged}}> ->
+        println("${page.items.size} items, status ${page.result.statusCode}")
+    }
+}
+```
+{{/pagedOperation}}
+{{/hasPagedOperation}}
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `null` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationException`, a direct child of `{{errorPrefix}}Exception`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `Flow.take`.
+
+How each style ends and resumes: an id list passes the `last_id` or `next_cursor` of each page as the starting cursor of the next request and ends when a declared `has_more` is false. An offset list starts at the offset you pass, sends the offset past the items it received on each next request, and ends on an empty page or when a declared `has_more` is false. A page-number list sends the page you pass, or none, and then asks for the page after each one, and ends on an empty page or when a declared `has_more` is false. A next URL list takes the URL in the body of each page, follows it only within the origin of the client, and ends when the property is absent, `null` or empty. A cursor, offset or page that does not advance raises `PaginationException` as a token cursor does.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationException` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+A list whose page body carries the next URL in a property (a next URL list) is followed in the same way as a `Link` list: the URL is taken from the body of each response, a next URL that leaves the scheme, host or port of the client is refused with `PaginationException`, nothing is sent to it, and such a method cannot resume from a saved position.
+
+The generator finds a paged operation by its names and shape. The operation must be a GET with one JSON 2xx response, and it must match exactly one of these styles. A token cursor is one query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker`, paired with a next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type. An id cursor is one query parameter among `starting_after`, `after_id` and `after`, paired with a boolean `has_more` and a string `last_id` or `next_cursor` property. A `Link` list has a `Link` header declared on the response. An offset list has an `offset` query parameter with a `limit`, and a page-number list has a `page` query parameter with one of `per_page`, `page_size`, `size` or `limit`. A next URL list has no cursor parameter and a string property with `format: uri` or `uri-reference`, or one named `next_url`, `next_uri`, `nextlink` or `next_link`, that is optional or nullable. An operation that matches more than one style is ambiguous, and one that is streamed is never paged; either keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty, hasMoreProperty}`, where the style is `token`, `link`, `id`, `offset`, `page` or `body`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(myKtorClient)` sends every request through your own Ktor `HttpClient`, which must be built with `followRedirects = false` (`build()` refuses one that follows redirects). The SDK never closes a client you supply. It cannot be combined with `proxy`, `caCertPath` or `verifySsl(false)`.
+
+### Retries
+
+`TransportOptions.builder().maxRetries(n)` sets how many times a failed request is sent again (default 2, `0` disables). A network error before a response and a 408, 409, 429 or 5xx (not 501) answer are retried after 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After` header (seconds or HTTP date, capped at 60 s). Retries share the single end-to-end `timeout` and are never extended past it; a timeout is not retried. Each retry rebuilds the request headers, and a request whose body is a single-use `BodySource` is never retried.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
+
+### Cancellation
+
+Operations are `suspend` functions: cancel the calling coroutine or wrap the call in `withTimeout`, and the call raises `kotlinx.coroutines.CancellationException`. `NetworkTimeoutException` is only for the SDK's own `TransportOptions` timeout.
+
+## API Methods
+
+Each API group is exposed as a typed property on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+All API methods are asynchronous; call them from a coroutine.
+
+## Models
+
+Models are generated as Kotlin data classes in the `{{invokerPackage}}.models` package; a model is copied with a changed property through `copy`.
+
+{{#models}}{{#model}}{{#-first}}{{^isEnum}}{{#vars}}{{#-first}}```kotlin file
+import {{modelPackage}}.{{classname}}
+
+fun withSame{{nameInPascalCase}}(model: {{classname}}, other: {{classname}}): {{classname}} = model.copy({{name}} = other.{{name}})
+```{{/-first}}{{/vars}}{{/isEnum}}{{/-first}}{{/model}}{{/models}}
+
+## Binary / File Uploads
+
+A raw binary request body is a `BodySource` (see Streaming). Multipart file parameters are typed as `ByteArray` (`List<ByteArray>` for multi-file uploads). A binary response body is returned as a `ByteStream` (see Streaming).
+
+## Comment Style
+
+Never place a comment on the same line as code. Use block comments (`/* ... */`); KDoc (`/** ... */`) is fine.
+
+```good
+/* This explains the logic */
+val x = 1
+```
+
+```bad
+// This explains the logic
+val x = 1
+```

@@ -1,0 +1,95 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+use crate::errors::configuration_error::ConfigurationError;
+use crate::server_configuration::{ServerConfiguration, ServerVariable};
+
+/// Generated server configurations from the OpenAPI specification.
+///
+/// Each function corresponds to a server entry defined in the spec's
+/// `servers` array. Use these with `ConfigurationBuilder::server` to select a server:
+///
+/// ```rust,no_run
+/// # use std::collections::HashMap;
+/// # use {{packageName}}::ConfigurationBuilder;
+/// # use {{packageName}}::servers::server_0;
+/// let config = ConfigurationBuilder::new()
+///     .server(&server_0(), &HashMap::new()).unwrap()
+///     .build();
+/// ```
+///
+/// For servers with variables, pass overrides:
+///
+/// ```rust,no_run
+/// # use std::collections::HashMap;
+/// # use {{packageName}}::ConfigurationBuilder;
+/// # use {{packageName}}::servers::server_1;
+/// let mut vars = HashMap::new();
+/// vars.insert("environment".to_string(), "staging".to_string());
+/// let config = ConfigurationBuilder::new()
+///     .server(&server_1(), &vars).unwrap()
+///     .build();
+/// ```
+{{#serverConfigs}}
+/// Server {{serverIndex}}: `{{{serverUrl}}}`
+{{#serverDescription}}
+///
+/// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/serverDescription}}
+pub fn server_{{serverIndex}}() -> ServerConfiguration {
+    ServerConfiguration::new(
+        "{{{serverUrl}}}".to_string(),
+        "{{#serverDescription}}{{#lambda.rustString}}{{{serverDescription}}}{{/lambda.rustString}}{{/serverDescription}}".to_string(),
+        {{#hasVariables}}{
+            let mut vars = HashMap::new();
+{{#serverVariables}}
+            vars.insert(
+                "{{{varName}}}".to_string(),
+                ServerVariable::new(
+                    "{{{varDefault}}}".to_string(),
+                    "{{#varDescription}}{{#lambda.rustString}}{{{varDescription}}}{{/lambda.rustString}}{{/varDescription}}".to_string(),
+                    {{#hasEnumValues}}vec![{{#varEnumValues}}"{{#lambda.rustString}}{{{.}}}{{/lambda.rustString}}".to_string(){{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}vec![]{{/hasEnumValues}},
+                ),
+            );
+{{/serverVariables}}
+            vars
+        }{{/hasVariables}}{{^hasVariables}}HashMap::new(){{/hasVariables}},
+    ){{#serverName}}
+    .with_name("{{#lambda.rustString}}{{{serverName}}}{{/lambda.rustString}}".to_string()){{/serverName}}
+}
+{{/serverConfigs}}
+
+/// All server configurations in declaration order.
+pub fn all_servers() -> Vec<ServerConfiguration> {
+    vec![
+{{#serverConfigs}}
+        server_{{serverIndex}}(),
+{{/serverConfigs}}
+    ]
+}
+
+/// The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+///
+/// # Errors
+///
+/// Returns [`ConfigurationError::InvalidArgument`] when no server has that
+/// name; the message lists the known names.
+pub fn by_name(name: &str) -> Result<ServerConfiguration, ConfigurationError> {
+    let servers = all_servers();
+    let known: Vec<&str> = servers
+        .iter()
+        .map(ServerConfiguration::name)
+        .filter(|server_name| !server_name.is_empty())
+        .collect();
+    let message = format!(
+        "Unknown server name '{}'. Known names: [{}]",
+        name,
+        known.join(", ")
+    );
+    servers
+        .iter()
+        .find(|server| !server.name().is_empty() && server.name() == name)
+        .cloned()
+        .ok_or(ConfigurationError::InvalidArgument(message))
+}

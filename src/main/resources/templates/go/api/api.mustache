@@ -1,0 +1,483 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"context"
+	"fmt"
+{{#hasIoImport}}
+	"io"
+{{/hasIoImport}}
+{{#hasNetipImport}}
+	"net/netip"
+{{/hasNetipImport}}
+{{#hasStringsImport}}
+	"strings"
+{{/hasStringsImport}}
+{{#hasTimeImport}}
+	"time"
+{{/hasTimeImport}}
+{{#hasUuidImport}}
+
+	"github.com/google/uuid"
+{{/hasUuidImport}}
+{{#hasCivilImport}}
+
+	"cloud.google.com/go/civil"
+{{/hasCivilImport}}
+{{#hasDecimalImport}}
+
+	"github.com/shopspring/decimal"
+{{/hasDecimalImport}}
+
+	. "{{packageName}}/pkg/models"
+{{#optionsImports}}
+{{#-first}}
+	opts "{{packageName}}/pkg/options"
+{{/-first}}
+{{/optionsImports}}
+)
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+// {{serverTypeName}} is the interface for per-operation server URLs for {{operationId}}.
+type {{serverTypeName}} interface {
+	/* GetUrl returns the server URL. */
+	GetUrl() string
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+// {{serverTypeName}}{{enumTypeName}} represents valid values for the {{name}} server variable.
+type {{serverTypeName}}{{enumTypeName}} string
+
+const (
+{{#enumValues}}
+	{{serverTypeName}}{{enumTypeName}}{{#goIdentPart}}{{{name}}}{{/goIdentPart}} {{serverTypeName}}{{enumTypeName}} = "{{#goStringLiteral}}{{{value}}}{{/goStringLiteral}}"
+{{/enumValues}}
+)
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+// {{serverTypeName}}{{variantName}} is a server variant for {{serverTypeName}}.
+{{#hasDescription}}
+// {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/hasDescription}}
+type {{serverTypeName}}{{variantName}} struct {
+{{#serverVariables}}
+	{{pascalName}} {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}
+{{/serverVariables}}
+}
+
+// GetUrl returns the server URL.
+func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
+	url := "{{url}}"
+{{#serverVariables}}
+	value{{pascalName}} := {{#hasEnumValues}}string(s.{{pascalName}}){{/hasEnumValues}}{{^hasEnumValues}}s.{{pascalName}}{{/hasEnumValues}}
+{{#defaultValue}}
+	if value{{pascalName}} == "" {
+		value{{pascalName}} = "{{#goStringLiteral}}{{{defaultValue}}}{{/goStringLiteral}}"
+	}
+{{/defaultValue}}
+	url = strings.ReplaceAll(url, "{" + "{{name}}" + "}", value{{pascalName}})
+{{/serverVariables}}
+	return url
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/tagSummary}}
+{{#tagDescription}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/tagDescription}}
+{{#tagParent}}
+// {{#goLineComment}}It belongs to the {{{.}}} API group.{{/goLineComment}}
+{{/tagParent}}
+{{#tagExternalDocs}}
+// See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/tagExternalDocs}}
+type {{classname}} struct {
+	*baseApi
+}
+
+// New{{classname}} creates a new {{classname}} instance. The authenticator is
+// applied to every operation that is not declared without security; the
+// schemeAuthenticators give each security scheme its own credential (see
+// Credentials) and an operation uses the one its spec names. Pass nil and the
+// zero Credentials for the ones you do not use.
+func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator Authenticator, schemeAuthenticators Credentials) *{{classname}} {
+	api := &{{classname}}{
+		baseApi: newBaseApi(apiClient, config, authenticator),
+	}
+	api.credentials = schemeAuthenticators.bySchemeId()
+	return api
+}
+
+// {{classname}}Interface is the set of operations {{classname}} provides. Depend
+// on it instead of the struct to substitute a fake in your own tests.
+type {{classname}}Interface interface {
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+	{{vendorExtensions.op.streamMethodName}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (*{{{returnType}}}, error)
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+	{{operationId}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) ({{#returnType}}{{^vendorExtensions.returnByValue}}*{{/vendorExtensions.returnByValue}}{{{.}}}, {{/returnType}}error)
+	{{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error)
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/operation}}
+}
+
+var _ {{classname}}Interface = (*{{classname}})(nil)
+{{#operation}}
+
+{{#summary}}
+// {{#vendorExtensions.op.streamOnly}}{{vendorExtensions.op.streamMethodName}}{{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}{{operationId}}{{/vendorExtensions.op.streamOnly}} {{{summary}}}
+{{/summary}}
+{{#notes}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
+{{/vendorExtensions.op.responseSummaries}}
+{{#externalDocs}}
+// See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/externalDocs}}
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+{{#pathParams}}
+{{#description}}
+// param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+// param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/description}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+{{#vendorExtensions.op.hasOptionsParam}}
+// param options: Options for query, header, form, and cookie parameters.
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+// param options: Options for this operation; it has no parameters of its own, so pass nil.
+{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries{{#vendorExtensions.hasMultipleConsumes}} and WithRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{#vendorExtensions.op.streamOnly}}, WithIdleTimeout and WithMaxEventBytes{{#vendorExtensions.op.streamsSse}}, and for the reconnections WithMaxReconnects, WithReconnectDelay and WithLastEventID{{/vendorExtensions.op.streamsSse}}{{/vendorExtensions.op.streamOnly}}.
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+// Example for `{{paramName}}` — {{{summary}}}: {{{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#vendorExtensions.op.hasOperationExamples}}
+//
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+// {{#goLineComment}}{{{heading}}} example: {{{summary}}}{{/goLineComment}}
+{{#hasDescription}}
+// {{#goLineComment}}{{{description}}}{{/goLineComment}}
+{{/hasDescription}}
+// {{#goLineComment}}{{{value}}}{{/goLineComment}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+//
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+// {{#goLineComment}}Extension {{{name}}}: {{{value}}}{{/goLineComment}}
+{{/vendorExtensions.op.exposedExtensions}}
+{{#vendorExtensions.op.hasErrorResponses}}
+//
+// Declared errors:
+{{#vendorExtensions.op.errorResponses}}
+//   - HTTP {{status}}: *{{#hasSchema}}{{{schemaClassName}}}, whose Body is a {{{schemaName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
+{{/vendorExtensions.op.hasErrorResponses}}
+{{#vendorExtensions.op.streamOnly}}
+//
+// The call returns once the response headers arrive: range over the stream's
+// All method to read it, and Close it when you stop early.
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamsBinary}}
+//
+// The response body is returned unread as a *ByteStream: read it, then Close it
+// (Close aborts the connection, so close it when you stop early too).
+{{/vendorExtensions.op.streamsBinary}}
+//
+// {{httpMethod}} {{{path}}}
+{{#isDeprecated}}
+//
+// Deprecated: This operation is deprecated.
+{{/isDeprecated}}
+{{#vendorExtensions.op.streamOnly}}
+func (a *{{classname}}) {{vendorExtensions.op.streamMethodName}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (_ *{{{returnType}}}, callErr error) {
+{{>api/operation_prelude}}
+	params := invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "{{#goStringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/goStringLiteral}}",
+		urlTemplate:  "{{#goStringLiteral}}{{{path}}}{{/goStringLiteral}}",
+		call:         call,
+		order:        []string{ {{#queryParams}}"{{baseName}}", {{/queryParams}}{{#formParams}}"{{baseName}}", {{/formParams}}},
+		method:       "{{httpMethod}}",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
+		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+		auth:         {{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#hasAuthMethods}}nil{{/hasAuthMethods}},
+		schemes:      []string{ {{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}} },
+		schemeGroups: [][]string{ {{#vendorExtensions.op.securityAlternatives}}{ {{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}} }, {{/vendorExtensions.op.securityAlternatives}} },
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+		errorFactories: map[string]errorFactory{
+{{#vendorExtensions.op.errorSchemaResponses}}
+			"{{{status}}}": New{{{schemaClassName}}}FromResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+		},
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+	}
+{{#vendorExtensions.op.streamsSse}}
+{{#hasSseTerminator}}
+	terminator := "{{{sseTerminator}}}"
+	return invokeSse(a.baseApi, params, {{#vendorExtensions.op.streamTyped}}decodeItem[{{{vendorExtensions.op.streamData}}}]{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}decodeText{{/vendorExtensions.op.streamTyped}}, &terminator)
+{{/hasSseTerminator}}
+{{^hasSseTerminator}}
+	return invokeSse(a.baseApi, params, {{#vendorExtensions.op.streamTyped}}decodeItem[{{{vendorExtensions.op.streamData}}}]{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}decodeText{{/vendorExtensions.op.streamTyped}}, nil)
+{{/hasSseTerminator}}
+{{/vendorExtensions.op.streamsSse}}
+{{#vendorExtensions.op.streamsJsonLines}}
+	return invokeJsonLines(a.baseApi, params, {{#vendorExtensions.op.streamTyped}}decodeItem[{{{vendorExtensions.op.streamData}}}]{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}decodeText{{/vendorExtensions.op.streamTyped}})
+{{/vendorExtensions.op.streamsJsonLines}}
+}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+func (a *{{classname}}) {{operationId}}(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) ({{#returnType}}{{^vendorExtensions.returnByValue}}*{{/vendorExtensions.returnByValue}}{{{.}}}, {{/returnType}}error) {
+{{#vendorExtensions.returnByValue}}
+	var empty {{{returnType}}}
+{{/vendorExtensions.returnByValue}}
+	result, err := a.{{operationId}}WithHTTPInfo(ctx, {{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}callOptions...)
+	if err != nil {
+		return {{#returnType}}{{#vendorExtensions.returnByValue}}empty{{/vendorExtensions.returnByValue}}{{^vendorExtensions.returnByValue}}nil{{/vendorExtensions.returnByValue}}, {{/returnType}}err
+	}
+{{#returnType}}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return {{#vendorExtensions.returnByValue}}empty{{/vendorExtensions.returnByValue}}{{^vendorExtensions.returnByValue}}nil{{/vendorExtensions.returnByValue}}, newEmptyBodyError("{{operationId}}", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return {{#vendorExtensions.returnByValue}}*{{/vendorExtensions.returnByValue}}result.Data, nil
+{{/returnType}}
+{{^returnType}}
+	_ = result
+	return nil
+{{/returnType}}
+}
+
+// {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
+{{#isDeprecated}}
+//
+// Deprecated: This operation is deprecated.
+{{/isDeprecated}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
+	return a.fetch{{operationId}}Page(ctx, {{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}nil, callOptions...)
+}
+
+/* fetch{{operationId}}Page sends one page of the list: the first when pageURL is nil,
+ * else the URL the Link header of the page before it named. */
+func (a *{{classname}}) fetch{{operationId}}Page(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}pageURL *string, callOptions ...RequestOption) (_ *ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], callErr error) {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
+func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}callOptions ...RequestOption) (_ *ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], callErr error) {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+	if pageURL != nil {
+		path = *pageURL
+		queryParams = make(map[string]any)
+	}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+	{{#vendorExtensions.op.streamsBinary}}streamed, err := a.invokeApiForStream({{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}response, err := a.invokeApi({{/vendorExtensions.op.streamsBinary}}invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "{{#goStringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/goStringLiteral}}",
+		urlTemplate:  "{{#goStringLiteral}}{{{path}}}{{/goStringLiteral}}",
+		call:         call,
+		order:        []string{ {{#queryParams}}"{{baseName}}", {{/queryParams}}{{#formParams}}"{{baseName}}", {{/formParams}}},
+		method:       "{{httpMethod}}",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
+		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
+{{^hasFormParams}}
+{{#bodyParam}}
+{{#isBinary}}
+		rawBody:      true,
+{{/isBinary}}
+{{/bodyParam}}
+{{/hasFormParams}}
+		{{! An operation declared `security: []` has no auth
+		    methods. It must pass the noAuth sentinel (not nil) so base_api applies
+		    NO authentication instead of falling back to the client-level
+		    authenticator and leaking its credential. A secured op passes the
+		    per-call override (or nil for no-override), unchanged. }}
+		auth:         {{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#hasAuthMethods}}nil{{/hasAuthMethods}},
+		schemes:      []string{ {{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}} },
+		schemeGroups: [][]string{ {{#vendorExtensions.op.securityAlternatives}}{ {{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}} }, {{/vendorExtensions.op.securityAlternatives}} },
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+		errorFactories: map[string]errorFactory{
+{{#vendorExtensions.op.errorSchemaResponses}}
+			"{{{status}}}": New{{{schemaClassName}}}FromResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+		},
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+{{#vendorExtensions.op.streamsBinary}}
+	/* The success response is binary: the body is handed over unread, as a
+	 * ByteStream the caller reads and closes, never buffered here. */
+	data := NewByteStream(streamed.StatusCode, streamed.Headers, streamed.Body)
+	return &ApiResult[ByteStream]{
+		StatusCode: streamed.StatusCode,
+		Data:       data,
+		RawBody:    "",
+		Headers:    data.Headers(),
+	}, nil
+{{/vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamsBinary}}
+{{#returnType}}
+	var data {{{.}}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+	/* The operation declares several success responses with different schemas:
+	 * the body is decoded as the schema of the status the server answered with,
+	 * never guessed from its shape, and wrapped in the union. A success status
+	 * the spec does not declare falls back to the union's own decode. */
+	decodeSuccess := func(status int, body []byte, target *{{{returnType}}}) error {
+		switch status {
+{{#vendorExtensions.op.successResponses}}
+{{^isRange}}
+		case {{statusCode}}:
+			var variant {{{returnType}}}
+			if err := deserialize(body, &variant); err != nil {
+				return err
+			}
+			*target = New{{#goVariantName}}{{{returnType}}}{{/goVariantName}}{{{vendorExtensions.op.successUnionType}}}(variant)
+			return nil
+{{/isRange}}
+{{/vendorExtensions.op.successResponses}}
+		}
+{{#vendorExtensions.op.successResponses}}
+{{#isRange}}
+		if status >= 200 && status < 300 {
+			var variant {{{returnType}}}
+			if err := deserialize(body, &variant); err != nil {
+				return err
+			}
+			*target = New{{#goVariantName}}{{{returnType}}}{{/goVariantName}}{{{vendorExtensions.op.successUnionType}}}(variant)
+			return nil
+		}
+{{/isRange}}
+{{/vendorExtensions.op.successResponses}}
+		return deserialize(body, target)
+	}
+{{/vendorExtensions.op.hasMultiple2xx}}
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *{{{.}}}
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[{{{returnType}}}]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := {{#vendorExtensions.op.hasMultiple2xx}}decodeSuccess(response.StatusCode, []byte(response.Body), &data){{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}deserialize([]byte(response.Body), &data){{/vendorExtensions.op.hasMultiple2xx}}; err != nil {
+				return nil, attachResponseContext(err, response, "{{httpMethod}}", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "{{httpMethod}}", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "{{httpMethod}}", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for {{classname}}.{{operationId}}: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "{{httpMethod}}", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[{{{returnType}}}]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+{{/returnType}}
+{{^returnType}}
+	return &ApiResult[any]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+{{/returnType}}
+{{/vendorExtensions.op.streamsBinary}}
+}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
+{{/operation}}
+{{/operations}}

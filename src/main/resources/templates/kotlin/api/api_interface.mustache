@@ -1,0 +1,92 @@
+{{>api_info}}
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
+package {{package}}
+
+import {{invokerPackage}}.ApiResult
+{{#hasBodySource}}
+import {{invokerPackage}}.BodySource
+{{/hasBodySource}}
+{{#hasBinaryStream}}
+import {{invokerPackage}}.ByteStream
+{{/hasBinaryStream}}
+{{#hasJsonLinesStream}}
+import {{invokerPackage}}.JsonLinesStream
+{{/hasJsonLinesStream}}
+{{#hasPaginator}}
+import {{invokerPackage}}.Paginator
+{{/hasPaginator}}
+{{#hasSseStream}}
+import {{invokerPackage}}.SseStream
+{{/hasSseStream}}
+{{#hasEventStream}}
+import {{invokerPackage}}.StreamOptions
+{{/hasEventStream}}
+{{#imports}}import {{import}}
+{{/imports}}
+{{#optionsImports}}
+import {{package}}.options.{{optionsClassName}}
+{{/optionsImports}}
+{{#operations}}
+{{#operation}}
+{{#vendorExtensions.op.successVariants}}
+import {{modelPackage}}.{{{returnType}}}
+{{/vendorExtensions.op.successVariants}}
+{{/operation}}
+{{/operations}}
+
+{{#operations}}
+/**
+ * {{classname}}Interface is the contract of [{{classname}}]: every operation of the {{baseName}}
+ * API group and its `WithHttpInfo` variant. Depend on it instead of the class to substitute a
+ * hand-written fake in your own tests. A fake overrides the full form of each operation; the
+ * default values of the parameters live here, so an override does not restate them.
+ */
+interface {{classname}}Interface {
+{{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    /** The `{{operationId}}` operation as a stream; it has no buffered form. */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    suspend fun {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}, streamOptions: StreamOptions? = null): {{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+{{#servers}}{{#-first}}
+
+    /** Same as [{{operationId}}] but sends the request to the default server. */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}} {
+        {{#returnType}}return {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}{{^returnType}}{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}}){{/returnType}}
+    }
+
+    /** Same as [{{operationId}}WithHttpInfo] but sends the request to the default server. */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+        return {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}} = {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, server = null{{#consumes}}{{#-last}}{{^-first}}, requestContentType = requestContentType{{/-first}}{{/-last}}{{/consumes}})
+    }
+{{/-first}}{{/servers}}
+
+    /** The `{{operationId}}` operation. */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    suspend fun {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}
+
+    /** The `{{operationId}}` operation with its status code, headers and body. */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}>
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/operation}}
+}
+{{/operations}}
