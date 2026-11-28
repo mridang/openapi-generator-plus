@@ -18,7 +18,7 @@ defmodule PetstoreClient.Client do
   discovery) use the same transport configuration as regular API calls.
 
   Each security scheme of the API also has one optional credential, named
-  after the scheme: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. An operation uses the
+  after the scheme: `pet_store_basic`, `admin_basic`, `archive_digest`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `device_auth`, `sso_auth`. An operation uses the
   credential of the first scheme its own security requirement lists that the
   client holds. When it holds none of them, the operation uses the
   authenticator. There is no per-call credential.
@@ -63,6 +63,7 @@ defmodule PetstoreClient.Client do
   @schemes [
     {:pet_store_basic, "petStoreBasic"},
     {:admin_basic, "adminBasic"},
+    {:archive_digest, "archiveDigest"},
     {:pet_store_bearer, "petStoreBearer"},
     {:service_token, "serviceToken"},
     {:api_key_header, "apiKeyHeader"},
@@ -73,6 +74,7 @@ defmodule PetstoreClient.Client do
     {:legacy_auth, "legacyAuth"},
     {:user_auth, "userAuth"},
     {:browser_auth, "browserAuth"},
+    {:device_auth, "deviceAuth"},
     {:sso_auth, "ssoAuth"}
   ]
 
@@ -92,7 +94,7 @@ defmodule PetstoreClient.Client do
     * `transport_options` - HTTP transport configuration (proxy, TLS, timeouts,
       etc.).
     * `schemes` - A keyword list with one optional credential per security
-      scheme, named after the scheme (`pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`). An operation
+      scheme, named after the scheme (`pet_store_basic`, `admin_basic`, `archive_digest`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `device_auth`, `sso_auth`). An operation
       uses the credential of the first scheme its spec lists that is given
       here. A key that is not a scheme of this API raises `ArgumentError`. The
       base URL comes from the first credential given, `authenticator` first.

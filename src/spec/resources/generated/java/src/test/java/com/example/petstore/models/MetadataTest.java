@@ -139,6 +139,24 @@ class MetadataTest {
   }
 
   @Test
+  void bhvModels704PatternPropertiesTypeTheExtraProperties() {
+    com.example.petstore.models.Sensors sensors =
+        java.util.Objects.requireNonNull(
+            serializer.deserialize(
+                "{\"site\":\"north\",\"s1\":3,\"s2\":4}",
+                com.example.petstore.models.Sensors.class));
+
+    java.util.Map<String, Integer> extras = sensors.getAdditionalProperties();
+    assertEquals(Integer.valueOf(3), extras.get("s1"));
+    assertEquals(Integer.valueOf(4), extras.get("s2"));
+    assertThatThrownBy(
+            () ->
+                serializer.deserialize(
+                    "{\"s1\":\"three\"}", com.example.petstore.models.Sensors.class))
+        .isInstanceOf(com.example.petstore.errors.SerializationException.class);
+  }
+
+  @Test
   void bhvModels005TestEqualsAndHashCodeIncludeAdditionalProperties() {
     Metadata first = Metadata.builder().putAdditionalProperty("customField", "hello").build();
     Metadata same = Metadata.builder().putAdditionalProperty("customField", "hello").build();

@@ -32,6 +32,18 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert PetstoreClient.Models.Metadata.additional_properties_type() == "String.t()"
     end
 
+    test "bhv models 704 patternProperties type the extra properties" do
+      sensors =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"site":"north","s1":3,"s2":4}), "Sensors")
+
+      assert sensors.additional_properties == %{"s1" => 3, "s2" => 4}
+      assert PetstoreClient.Models.Sensors.additional_properties_type() == "integer()"
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"s1":"three"}), "Sensors")
+      end
+    end
+
     test "bhv models 025 an additional property of the wrong JSON type fails the decode" do
       for body <- [~s({"a":2.5}), ~s({"a":"2"})] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->

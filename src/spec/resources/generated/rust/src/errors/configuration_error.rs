@@ -38,6 +38,10 @@ pub enum ConfigurationError {
     /// parameter, a header, cookie or multipart value holding characters that
     /// would corrupt the HTTP message, or a malformed request URL.
     InvalidArgument(String),
+    /// A request body breaks a validation keyword of its schema while
+    /// `Configuration::validate_constraints` is on. Holds the full message,
+    /// `Invalid request body: <path> <rule>`.
+    InvalidRequestBody(String),
     /// The call was made in the wrong state: the client was closed, or an
     /// authenticator was used before its API client or access token was set.
     InvalidState(String),
@@ -60,6 +64,7 @@ impl fmt::Display for ConfigurationError {
             ),
             Self::InvalidServerVariable(reason) => write!(f, "invalid server variable: {}", reason),
             Self::InvalidArgument(reason) => write!(f, "invalid argument: {}", reason),
+            Self::InvalidRequestBody(reason) => f.write_str(reason),
             Self::InvalidState(reason) => write!(f, "invalid state: {}", reason),
         }
     }

@@ -41,10 +41,18 @@ public final class Configuration: Sendable {
   /// caller supplied. See ``CallHook``.
   public let callHook: (any CallHook)?
 
-  fileprivate init(baseURL: String, defaultHeaders: [String: String], callHook: (any CallHook)?) {
+  /// Whether every request body is checked against the validation keywords
+  /// of its schema before it is sent. Off by default.
+  public let validateConstraints: Bool
+
+  fileprivate init(
+    baseURL: String, defaultHeaders: [String: String], callHook: (any CallHook)?,
+    validateConstraints: Bool
+  ) {
     self.baseURL = baseURL
     self.defaultHeaders = defaultHeaders
     self.callHook = callHook
+    self.validateConstraints = validateConstraints
   }
 
   /// Create a new builder for constructing ``Configuration`` instances.
@@ -70,6 +78,7 @@ public final class ConfigurationBuilder {
   private var baseURL: String = "/api/v3"
   private var defaultHeaders: [String: String] = [:]
   private var callHook: (any CallHook)?
+  private var validateConstraints: Bool = false
 
   public init() {}
 
@@ -105,6 +114,18 @@ public final class ConfigurationBuilder {
     return self
   }
 
+  /// Turn on the check of every request body against the `minLength`,
+  /// `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`,
+  /// `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`,
+  /// `minProperties` and `maxProperties` keywords of its schema and of the
+  /// models it holds. A body that breaks one is refused before anything is
+  /// sent with ``ConfigurationError/invalidRequestBody(_:)``. Off by default.
+  @discardableResult
+  public func validateConstraints(_ val: Bool) -> ConfigurationBuilder {
+    self.validateConstraints = val
+    return self
+  }
+
   /// Use a server configuration with variable overrides to set the base URL.
   ///
   /// Resolves the server URL template with the given variable overrides
@@ -129,7 +150,8 @@ public final class ConfigurationBuilder {
     return Configuration(
       baseURL: baseURL,
       defaultHeaders: defaultHeaders,
-      callHook: callHook
+      callHook: callHook,
+      validateConstraints: validateConstraints
     )
   }
 }

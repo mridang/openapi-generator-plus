@@ -13,7 +13,13 @@ class DryFood {
 
   final double weightKg;
 
-  const DryFood({this.foodType = 'dry', required this.weightKg});
+  final Decimal? pricePerKg;
+
+  const DryFood({
+    this.foodType = 'dry',
+    required this.weightKg,
+    this.pricePerKg,
+  });
 
   /// Creates a [DryFood] from a JSON map.
   factory DryFood.fromJson(Map<String, dynamic> json) {
@@ -49,6 +55,8 @@ class DryFood {
         foodType: json['foodType'] as String,
 
         weightKg: readDouble(json['weightKg']),
+
+        pricePerKg: readDecimalOrNull(json, 'pricePerKg'),
       );
     } on TypeError catch (e) {
       throw SerializationException('Invalid value for DryFood: $e', e);
@@ -63,6 +71,9 @@ class DryFood {
 
     json['weightKg'] = weightKg;
 
+    if (pricePerKg != null) {
+      json['pricePerKg'] = pricePerKg;
+    }
     return json;
   }
 
@@ -71,10 +82,15 @@ class DryFood {
   /// The model is immutable: a field that is left out keeps its current value
   /// and this instance never changes. A nullable field is set to `null` by
   /// passing `null` explicitly.
-  DryFood copyWith({String? foodType, double? weightKg}) {
+  DryFood copyWith({
+    String? foodType,
+    double? weightKg,
+    Object? pricePerKg = copyUnset,
+  }) {
     return DryFood(
       foodType: foodType ?? this.foodType,
       weightKg: weightKg ?? this.weightKg,
+      pricePerKg: copyField<Decimal>(pricePerKg, this.pricePerKg),
     );
   }
 
@@ -87,7 +103,8 @@ class DryFood {
     if (identical(this, other)) return true;
     return other is DryFood &&
         foodType == other.foodType &&
-        weightKg == other.weightKg;
+        weightKg == other.weightKg &&
+        pricePerKg == other.pricePerKg;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -96,12 +113,13 @@ class DryFood {
   /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
   /// so equal instances hash equally.
   @override
-  int get hashCode => Object.hashAll([foodType, weightKg]);
+  int get hashCode => Object.hashAll([foodType, weightKg, pricePerKg]);
 
   /// Dumps every field; lists, maps
   /// and byte data render element-wise through Dart's own container output.
   /// A `format: password` property prints as `***`; the value on the wire is
   /// unchanged.
   @override
-  String toString() => 'DryFood(foodType: $foodType, weightKg: $weightKg)';
+  String toString() =>
+      'DryFood(foodType: $foodType, weightKg: $weightKg, pricePerKg: $pricePerKg)';
 }

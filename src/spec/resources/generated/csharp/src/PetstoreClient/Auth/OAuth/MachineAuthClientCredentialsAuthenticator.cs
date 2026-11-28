@@ -20,6 +20,10 @@ namespace PetstoreClient.Auth.OAuth;
 /// </summary>
 public sealed class MachineAuthClientCredentialsAuthenticator : OAuth2ClientCredentialsAuthenticator
 {
+    /// <summary>The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.</summary>
+    public const string MetadataUrl =
+        "https://auth.example.com/.well-known/oauth-authorization-server";
+
     /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
     /// <param name="host">API base URL.</param>
     /// <param name="clientId">The clientId, or null to read <c>SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID</c>.</param>

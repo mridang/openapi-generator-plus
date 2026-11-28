@@ -34,15 +34,25 @@ public final class Configuration {
   private final String baseUrl;
   private final Map<String, String> defaultHeaders;
   @Nullable private final CallHook callHook;
+  private final boolean validateConstraints;
 
   Configuration(String baseUrl, Map<String, String> defaultHeaders) {
     this(baseUrl, defaultHeaders, null);
   }
 
   Configuration(String baseUrl, Map<String, String> defaultHeaders, @Nullable CallHook callHook) {
+    this(baseUrl, defaultHeaders, callHook, false);
+  }
+
+  Configuration(
+      String baseUrl,
+      Map<String, String> defaultHeaders,
+      @Nullable CallHook callHook,
+      boolean validateConstraints) {
     this.baseUrl = baseUrl;
     this.defaultHeaders = Collections.unmodifiableMap(new HashMap<>(defaultHeaders));
     this.callHook = callHook;
+    this.validateConstraints = validateConstraints;
   }
 
   /**
@@ -102,6 +112,17 @@ public final class Configuration {
   }
 
   /**
+   * Whether every request body is checked against the validation keywords of its schema before it
+   * is sent. Off by default; when on, a body that breaks one is refused with an {@link
+   * IllegalArgumentException} and nothing is sent.
+   *
+   * @return {@code true} when request bodies are checked
+   */
+  public boolean isValidateConstraints() {
+    return validateConstraints;
+  }
+
+  /**
    * Describe this configuration for a log. The value of every sensitive default header is replaced
    * by {@code ***}, so the text never carries a credential.
    *
@@ -131,6 +152,7 @@ public final class Configuration {
     private String baseUrl = "/api/v3";
     private final Map<String, String> defaultHeaders = new HashMap<>();
     @Nullable private CallHook callHook;
+    private boolean validateConstraints;
 
     Builder() {}
 
@@ -181,6 +203,22 @@ public final class Configuration {
     }
 
     /**
+     * Check every request body against the {@code minLength}, {@code maxLength}, {@code pattern},
+     * {@code minimum}, {@code maximum}, {@code exclusiveMinimum}, {@code exclusiveMaximum}, {@code
+     * multipleOf}, {@code minItems}, {@code maxItems}, {@code minProperties} and {@code
+     * maxProperties} keywords of its schema, and of the models it holds, before it is sent. Off by
+     * default. A body that breaks one is refused with an {@link IllegalArgumentException} such as
+     * {@code Invalid request body: label must be at least 2 characters long}.
+     *
+     * @param validateConstraints {@code true} to check request bodies
+     * @return this builder
+     */
+    public Builder validateConstraints(boolean validateConstraints) {
+      this.validateConstraints = validateConstraints;
+      return this;
+    }
+
+    /**
      * Use a server configuration with variable overrides to set the base URL.
      *
      * <p>Resolves the server URL template with the given variable overrides and uses the result as
@@ -213,7 +251,8 @@ public final class Configuration {
      * @return the configured instance
      */
     public Configuration build() {
-      return new Configuration(baseUrl, new HashMap<>(defaultHeaders), callHook);
+      return new Configuration(
+          baseUrl, new HashMap<>(defaultHeaders), callHook, validateConstraints);
     }
   }
 }

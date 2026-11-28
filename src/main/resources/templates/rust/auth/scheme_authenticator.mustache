@@ -8,9 +8,18 @@ use super::ApiKeyLocation;
 /// Scheme-specific authenticator for the {{schemeName}} security scheme.
 ///
 /// Delegates to [`{{baseClass}}`].
+{{#schemeDeprecated}}
+///
+/// Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
 pub struct {{className}}({{baseClass}});
 
 impl {{className}} {
+{{#hasOAuth2MetadataUrl}}
+    /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+    pub const METADATA_URL: &'static str = {{{metadataUrlLiteral}}};
+
+{{/hasOAuth2MetadataUrl}}
     /// Creates an authenticator for the {{schemeName}} security scheme.
     ///
     /// Each credential is optional. A value passed here wins, even an empty one
@@ -118,6 +127,14 @@ impl crate::auth::Authenticator for {{className}} {
         &'a self,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
         self.0.invalidate_access_token()
+    }
+
+    fn challenge_authorization(&self, method: &str, request_target: &str) -> Option<String> {
+        self.0.challenge_authorization(method, request_target)
+    }
+
+    fn accept_challenge(&self, www_authenticate: &str) -> bool {
+        self.0.accept_challenge(www_authenticate)
     }
 
     fn as_http_aware_mut(&mut self) -> Option<&mut dyn crate::auth::HttpAwareAuthenticator> {

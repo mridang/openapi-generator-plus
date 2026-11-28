@@ -19,6 +19,9 @@ pub use basic_authenticator::*;
 mod bearer_authenticator;
 pub use bearer_authenticator::*;
 
+mod digest_authenticator;
+pub use digest_authenticator::*;
+
 pub mod api_key_authenticator;
 pub use api_key_authenticator::*;
 
@@ -31,6 +34,8 @@ pub mod pet_store_basic_authenticator;
 pub use pet_store_basic_authenticator::*;
 pub mod admin_basic_authenticator;
 pub use admin_basic_authenticator::*;
+pub mod archive_digest_authenticator;
+pub use archive_digest_authenticator::*;
 pub mod pet_store_bearer_authenticator;
 pub use pet_store_bearer_authenticator::*;
 pub mod service_token_authenticator;

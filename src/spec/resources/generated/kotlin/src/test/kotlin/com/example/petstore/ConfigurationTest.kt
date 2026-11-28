@@ -118,7 +118,7 @@ class ConfigurationTest {
         fun builderReturnsBuilderInstance() {
             val builder = Configuration.builder()
             assertNotNull(builder)
-            assertTrue(builder is Configuration.Builder)
+            assertInstanceOf(Configuration.Builder::class.java, builder)
         }
     }
 

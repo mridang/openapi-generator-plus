@@ -13,6 +13,11 @@ import { ApiError } from "../src/errors/api-error.js";
 import { OpenAPIError } from "../src/errors/open-api-error.js";
 import type { ApiClient, SendRequestOptions } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
+import {
+  OAuth2DeviceAuthorizationAuthenticator,
+  type DeviceAuthorization,
+} from "../src/auth/oauth/oauth2-device-authorization-authenticator.js";
+import { DeviceAuthDeviceAuthorizationAuthenticator } from "../src/index.js";
 
 class MockApiClient implements ApiClient {
   lastMethod = "";
@@ -1726,5 +1731,260 @@ describe("OAuth2TokenManager misc behaviours", () => {
       expect((error as Error).constructor).toBe(OAuth2TokenError);
       expect((error as Error).message).toContain("access_token");
     }
+  });
+});
+
+describe("OAuth2DeviceAuthorizationAuthenticator", () => {
+  type Answer = { status: number; body: string };
+  type Sent = { url: string; body: string };
+
+  const sequenceClient = (answers: Answer[], sent: Sent[]): ApiClient =>
+    ({
+      sendRequest: async (
+        _method: string,
+        url: string,
+        _headers: Record<string, string>,
+        body: string | Buffer | null,
+      ) => {
+        sent.push({ url, body: String(body) });
+        const answer = answers.shift();
+        if (answer === undefined) {
+          throw new Error("no canned response left");
+        }
+        return {
+          statusCode: answer.status,
+          body: answer.body,
+          headers: { "content-type": "application/json" },
+        };
+      },
+    }) as unknown as ApiClient;
+
+  const authenticator = (
+    answers: Answer[],
+    sent: Sent[] = [],
+    scopes: string[] = ["read", "write"],
+  ): OAuth2DeviceAuthorizationAuthenticator => {
+    const auth = new OAuth2DeviceAuthorizationAuthenticator(
+      "https://api.example.com",
+      "device-client",
+      "https://auth.example.com/device",
+      "https://auth.example.com/token",
+      scopes,
+    );
+    auth.setApiClient(sequenceClient(answers, sent));
+    return auth;
+  };
+
+  const fakeTime = (auth: OAuth2DeviceAuthorizationAuthenticator): number[] => {
+    const slept: number[] = [];
+    let clock = 0;
+    const seams = auth as unknown as {
+      sleep: (ms: number) => Promise<void>;
+      now: () => number;
+    };
+    seams.sleep = async (ms: number) => {
+      slept.push(ms / 1000);
+      clock += ms;
+    };
+    seams.now = () => clock;
+    return slept;
+  };
+
+  const pending: Answer = {
+    status: 400,
+    body: '{"error":"authorization_pending"}',
+  };
+  const granted: Answer = {
+    status: 200,
+    body: '{"access_token":"device-token","token_type":"Bearer","expires_in":3600}',
+  };
+  const authorization = (
+    interval: number,
+    expiresIn = 600,
+  ): DeviceAuthorization => ({
+    deviceCode: "dev-code",
+    userCode: "USER-CODE",
+    verificationUri: "https://auth.example.com/activate",
+    verificationUriComplete: null,
+    expiresIn,
+    interval,
+  });
+
+  test("bhv authoauthtwodevice 700 requestDeviceAuthorization posts the client id and scopes and returns the device authorization", async () => {
+    const sent: Sent[] = [];
+    const auth = authenticator(
+      [
+        {
+          status: 200,
+          body: '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","verification_uri_complete":"https://auth.example.com/activate?user_code=USER-CODE","expires_in":600,"interval":7}',
+        },
+        {
+          status: 200,
+          body: '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","expires_in":"900"}',
+        },
+      ],
+      sent,
+    );
+
+    const first = await auth.requestDeviceAuthorization();
+    const second = await auth.requestDeviceAuthorization();
+
+    expect(sent.map((call) => call.url)).toEqual([
+      "https://auth.example.com/device",
+      "https://auth.example.com/device",
+    ]);
+    expect(sent[0]!.body).toBe("client_id=device-client&scope=read+write");
+    expect(first).toEqual({
+      deviceCode: "dev-code",
+      userCode: "USER-CODE",
+      verificationUri: "https://auth.example.com/activate",
+      verificationUriComplete:
+        "https://auth.example.com/activate?user_code=USER-CODE",
+      expiresIn: 600,
+      interval: 7,
+    });
+    expect(second.verificationUriComplete).toBeNull();
+    expect(second.expiresIn).toBe(900);
+    expect(second.interval).toBe(5);
+  });
+
+  test("bhv authoauthtwodevice 701 an unusable device authorization response fails with the exact OAuth2 token error and a non-2xx answer with the server error", async () => {
+    const cases: Array<[string, string]> = [
+      ["<html>", "Device authorization response is not valid JSON"],
+      ['["device_code"]', "Device authorization response is not a JSON object"],
+      [
+        '{"user_code":"U","verification_uri":"https://v"}',
+        "Device authorization response missing or empty device_code field",
+      ],
+      [
+        '{"device_code":"D","user_code":"","verification_uri":"https://v"}',
+        "Device authorization response missing or empty user_code field",
+      ],
+      [
+        '{"device_code":"D","user_code":"U","verification_uri":7}',
+        "Device authorization response missing or empty verification_uri field",
+      ],
+    ];
+    for (const [body, message] of cases) {
+      const error = await authenticator([{ status: 200, body }])
+        .requestDeviceAuthorization()
+        .catch((e: unknown) => e);
+      expect((error as Error).constructor).toBe(OAuth2TokenError);
+      expect((error as Error).message).toBe(message);
+    }
+
+    const refused = await authenticator([
+      { status: 400, body: '{"error":"invalid_client"}' },
+    ])
+      .requestDeviceAuthorization()
+      .catch((e: unknown) => e);
+    expect((refused as Error).constructor).toBe(OAuth2ServerError);
+    expect((refused as OAuth2ServerError).code).toBe("invalid_client");
+  });
+
+  test("bhv authoauthtwodevice 702 pollForToken posts the device code grant to the token URL and keeps polling while authorization is pending", async () => {
+    const sent: Sent[] = [];
+    const auth = authenticator([pending, pending, granted], sent);
+    fakeTime(auth);
+
+    await auth.pollForToken(authorization(5));
+
+    expect(sent.map((call) => call.url)).toEqual(
+      Array(3).fill("https://auth.example.com/token"),
+    );
+    expect(sent[2]!.body).toBe(
+      "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-code",
+    );
+    expect(await auth.getAuthHeadersAsync()).toEqual({
+      Authorization: "Bearer device-token",
+    });
+  });
+
+  test("bhv authoauthtwodevice 703 a slow_down answer adds five seconds to the polling interval", async () => {
+    const auth = authenticator([
+      { status: 400, body: '{"error":"slow_down"}' },
+      pending,
+      granted,
+    ]);
+    const slept = fakeTime(auth);
+
+    await auth.pollForToken(authorization(5));
+
+    expect(slept).toEqual([5, 10, 10]);
+  });
+
+  test("bhv authoauthtwodevice 704 a refused grant ends polling with the server error and an expired device code with the token error", async () => {
+    for (const code of ["access_denied", "expired_token"]) {
+      const auth = authenticator([
+        pending,
+        { status: 400, body: `{"error":"${code}"}` },
+      ]);
+      fakeTime(auth);
+      const error = await auth
+        .pollForToken(authorization(5))
+        .catch((e: unknown) => e);
+      expect((error as Error).constructor).toBe(OAuth2ServerError);
+      expect((error as OAuth2ServerError).code).toBe(code);
+    }
+
+    const sent: Sent[] = [];
+    const expiring = authenticator([pending, pending, pending], sent);
+    fakeTime(expiring);
+    const expired = await expiring
+      .pollForToken(authorization(5, 12))
+      .catch((e: unknown) => e);
+    expect((expired as Error).constructor).toBe(OAuth2TokenError);
+    expect((expired as Error).message).toBe(
+      "Device authorization expired before the user approved it",
+    );
+    expect(sent).toHaveLength(2);
+  });
+
+  test("bhv authoauthtwodevice 705 the authenticator refuses to authenticate before a token is polled and sends the bearer token after", async () => {
+    const auth = authenticator([granted]);
+    fakeTime(auth);
+
+    await expect(auth.getAuthHeadersAsync()).rejects.toThrow(
+      "Must call pollForToken() before making API requests",
+    );
+    await auth.pollForToken(authorization(5));
+
+    expect(await auth.getAuthHeadersAsync()).toEqual({
+      Authorization: "Bearer device-token",
+    });
+    expect(JSON.stringify(auth)).toBe(
+      '{"host":"https://api.example.com","clientId":"device-client"}',
+    );
+  });
+
+  test("bhv authoauthtwodevice 706 the DeviceAuthDeviceAuthorizationAuthenticator wrapper passes the spec device authorization URL, token URL and scopes", async () => {
+    const sent: Sent[] = [];
+    const auth = new DeviceAuthDeviceAuthorizationAuthenticator(
+      "https://api.example.com",
+      "device-client",
+    );
+    auth.setApiClient(
+      sequenceClient(
+        [
+          {
+            status: 200,
+            body: '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","expires_in":600}',
+          },
+          granted,
+        ],
+        sent,
+      ),
+    );
+    fakeTime(auth);
+
+    await auth.pollForToken(await auth.requestDeviceAuthorization());
+
+    expect(sent.map((call) => call.url)).toEqual([
+      "https://auth.example.com/oauth/device",
+      "https://auth.example.com/oauth/token",
+    ]);
+    expect(new URLSearchParams(sent[0]!.body).get("scope")).toBe(
+      "pets:read pets:write",
+    );
   });
 });

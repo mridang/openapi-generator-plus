@@ -52,7 +52,8 @@
     attr_reader base_url: String
     attr_reader default_headers: Hash[String, String]
     attr_reader call_hook: _CallHook?
-    def initialize: (base_url: String, default_headers: Hash[String, String], ?call_hook: _CallHook?) -> void
+    attr_reader validate_constraints: bool
+    def initialize: (base_url: String, default_headers: Hash[String, String], ?call_hook: _CallHook?, ?validate_constraints: bool) -> void
     def self.builder: () -> Configuration::Builder
     def self.default_configuration: () -> Configuration
     def inspect: () -> String
@@ -63,6 +64,7 @@
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
       def call_hook: (untyped) -> Builder
+      def validate_constraints: (bool) -> Builder
       def server: (ServerConfiguration, ?Hash[String, String]) -> Builder
       def build: () -> Configuration
     end
@@ -796,6 +798,34 @@
     def self.inject_trace_context: (Hash[String, String]) -> void
   end
 
+  module ConstraintValidator
+{{#constraintModels}}
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isPattern}}
+    {{#lambda.uppercase}}{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}_{{name}}{{/lambda.uppercase}}_PATTERN: Regexp?
+{{/isPattern}}
+{{/checks}}
+{{/vendorExtensions.constraintProps}}
+{{/constraintModels}}
+    def self.validate: (untyped) -> void
+{{#hasConstraintModels}}
+
+    private
+
+    def self.compile: (String) -> Regexp?
+    def self.validate_value: (untyped, String) -> void
+{{#constraintModels}}
+    def self.check_{{#lambda.rubySnake}}{{classname}}{{/lambda.rubySnake}}: (untyped, String) -> void
+{{/constraintModels}}
+    def self.mismatch?: (Regexp?, String) -> bool
+    def self.below?: (Integer | Float, Integer | Float) -> bool
+    def self.above?: (Integer | Float, Integer | Float) -> bool
+    def self.multiple_of?: (Integer | Float, Float) -> bool
+    def self.fail_at: (String, String) -> bot
+{{/hasConstraintModels}}
+  end
+
   class HeaderSelector
     JSON_MIME_PATTERN: Regexp
     def select_headers: (Array[String], String, bool) -> Hash[String, String]
@@ -858,6 +888,33 @@
       def to_s: () -> String
     end
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+
+    class DigestAuthenticator < BaseAuthenticator
+      HASHES: Hash[String, singleton(Digest::Base)]
+      TOKEN: Regexp
+      attr_writer cnonce_source: ^() -> String
+      @username: String
+      @password: String
+      @mutex: Thread::Mutex
+      @challenge: Hash[Symbol, untyped]?
+      @nonce_count: Integer
+      def initialize: (String, ?String?, ?String?, ?env: untyped, ?username_env: String, ?password_env: String) -> void
+      def inspect: () -> String
+      def to_s: () -> String
+      def auth_headers: () -> Hash[String, String]
+      def authorization: (String | Symbol, String) -> String?
+      def accept_challenge: (String | Array[String]) -> bool
+
+      private
+
+      def acceptable?: (Hash[String, String]) -> bool
+      def answer: (Hash[Symbol, untyped], String, String, String) -> String
+      def quoted: (untyped) -> String
+      def parse_challenges: (String) -> Array[[String, Hash[String, String]]]
+      def quoted_value: (StringScanner) -> String
+    end
+{{/hasDigestAuth}}
 
     class BearerAuthenticator < BaseAuthenticator
       def initialize: (String, ?String?, ?token_provider: (^() -> String)?, ?env: untyped, ?token_env: String) -> void
@@ -935,6 +992,34 @@
         def access_token=: (String) -> void
       end
 {{/hasOAuth2Implicit}}
+{{#hasOAuth2DeviceAuthorization}}
+      class DeviceAuthorization < Data
+        attr_reader device_code: String
+        attr_reader user_code: String
+        attr_reader verification_uri: String
+        attr_reader verification_uri_complete: String?
+        attr_reader expires_in: Integer
+        attr_reader interval: Integer
+        def self.new: (device_code: String, user_code: String, verification_uri: String, verification_uri_complete: String?, expires_in: Integer, interval: Integer) -> DeviceAuthorization
+                    | (String, String, String, String?, Integer, Integer) -> DeviceAuthorization
+      end
+
+      class OAuth2DeviceAuthorizationAuthenticator < BaseAuthenticator
+        include HttpAwareAuthenticator
+        DEVICE_CODE_GRANT_TYPE: String
+        DEFAULT_INTERVAL_S: Integer
+        SLOW_DOWN_S: Integer
+        def initialize: (String, String, String, String, Array[String], ?refresh_url: String?) -> void
+        def api_client=: (ApiClient) -> void
+        def invalidate_access_token: () -> void
+        def request_device_authorization: () -> DeviceAuthorization
+        def poll_for_token: (DeviceAuthorization) -> void
+        private
+        def pause: (Integer) -> void
+        def monotonic_now: () -> Float
+        def parse_device_authorization: (String) -> DeviceAuthorization
+      end
+{{/hasOAuth2DeviceAuthorization}}
 {{#hasOpenIdConnect}}
       class OpenIdConnectAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
@@ -967,6 +1052,8 @@
         def initialize: () -> void
         def get_access_token: (String, Hash[String, String], ?Hash[String, String], ?refresh_url: String?) -> String
         def exchange: (String, Hash[String, String], ?Hash[String, String]) ?{ (String?) -> void } -> String
+        def post_form: (String, Hash[String, String]) -> String
+        def lifetime_seconds: (untyped) -> Integer
         def access_token=: (String) -> void
         def invalidate_access_token: () -> void
         def mark_exchanged: () -> void
@@ -978,6 +1065,7 @@
         def try_refresh_token: (String, Hash[String, String], Hash[String, String]) -> bool
         def build_refresh_params: (String, Hash[String, String]) -> Hash[String, String]
         def fetch_token: (String, Hash[String, String], ?Hash[String, String]) -> void
+        def post_token_form: (String, Hash[String, String], Hash[String, String]) -> ApiHttpResponse
         def parse_oauth2_server_error: (Integer, String) -> ::{{moduleName}}::Errors::OAuth2ServerError
         def parse_token_response: (String?) -> Hash[String, untyped]
         def require_api_client: () -> ApiClient
@@ -1034,9 +1122,11 @@
       def invoke_api_for_stream: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[ByteStream]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
-      def authenticated_headers: (Hash[String, String], untyped) -> Hash[String, String]
-      def credentialed_headers: (Hash[String, String], untyped) -> Hash[String, String]
-      def rebuilt_headers: (Hash[String, String], untyped, bool, Hash[Symbol, untyped]?, bool) -> Hash[String, String]
+      def authenticated_headers: (Hash[String, String], untyped, untyped, String) -> Hash[String, String]
+      def credentialed_headers: (Hash[String, String], untyped, untyped, String) -> Hash[String, String]
+      def rebuilt_headers: (Hash[String, String], untyped, bool, Hash[Symbol, untyped]?, bool, untyped, String) -> Hash[String, String]
+      def request_target_of: (String) -> String
+      def header_value: (Hash[untyped, untyped], String) -> String?
       def header_delta: (Hash[String, String], Hash[String, String]) -> Hash[Symbol, untyped]
       def apply_header_delta: (Hash[String, String], Hash[Symbol, untyped], Array[String]) -> void
       def call_info_of: (Symbol, String, String, String?) -> CallInfo

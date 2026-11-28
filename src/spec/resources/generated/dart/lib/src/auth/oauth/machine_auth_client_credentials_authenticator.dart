@@ -10,6 +10,10 @@ import 'oauth2_client_credentials_authenticator.dart';
 /// Authenticator for the `machineAuth` security scheme.
 class MachineAuthClientCredentialsAuthenticator
     extends OAuth2ClientCredentialsAuthenticator {
+  /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+  static const String metadataUrl =
+      'https://auth.example.com/.well-known/oauth-authorization-server';
+
   /// Creates an authenticator for the `machineAuth` security scheme.
   MachineAuthClientCredentialsAuthenticator({
     required super.host,

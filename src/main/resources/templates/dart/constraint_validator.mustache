@@ -1,0 +1,180 @@
+{{>api_info}}
+{{#constraintModels}}
+import 'models/{{classFilename}}.dart';
+{{/constraintModels}}
+
+/// Checks a request body against the validation keywords of its schema
+/// (minLength, maxLength, pattern, minimum, maximum, exclusiveMinimum,
+/// exclusiveMaximum, multipleOf, minItems, maxItems, minProperties and
+/// maxProperties) and of the models it holds, before the request is sent.
+///
+/// `BaseApi` calls it only when `Configuration.validateConstraints` is on. It
+/// is internal: the package library does not export it. A list body is
+/// checked item by item; any other value that is not a model with
+/// constraints passes. Throws an [ArgumentError] naming the path and the rule
+/// of the first violation.
+{{#hasConstraintModels}}
+void validateRequestBody(Object body) {
+  if (body is List<Object?>) {
+    for (var i = 0; i < body.length; i++) {
+      _validateValue(body[i], '[$i].');
+    }
+  } else {
+    _validateValue(body, '');
+  }
+}
+
+/// Checks one value whose path starts with [prefix]. The type is matched
+/// exactly, so a model that extends another is checked by its own rules.
+void _validateValue(Object? value, String prefix) {
+{{#constraintModels}}
+  if (value.runtimeType == {{classname}}) {
+    _check{{classname}}(value as {{classname}}, prefix);
+    return;
+  }
+{{/constraintModels}}
+}
+{{#constraintModels}}
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isPattern}}
+
+final RegExp? _{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Pattern = _compile('{{#lambda.dartString}}{{{pattern}}}{{/lambda.dartString}}');
+{{/isPattern}}
+{{/checks}}
+{{/vendorExtensions.constraintProps}}
+{{/constraintModels}}
+{{#constraintModels}}
+
+/// Checks the properties of a [{{classname}}] in declaration order.
+void _check{{classname}}({{classname}} value, String prefix) {
+{{#vendorExtensions.constraintProps}}
+{{#dartNonNull}}
+  {
+    final field = value.{{name}};
+{{/dartNonNull}}
+{{^dartNonNull}}
+  if (value.{{name}} case final field?) {
+{{/dartNonNull}}
+    final path = _at(prefix, '{{#lambda.dartString}}{{{baseName}}}{{/lambda.dartString}}');
+{{#checks}}
+{{#isMinLength}}
+    if (_shorter(field.runes.length, {{limit}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMinLength}}
+{{#isMaxLength}}
+    if (_longer(field.runes.length, {{limit}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMaxLength}}
+{{#isPattern}}
+    if (_mismatch(_{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Pattern, field)) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isPattern}}
+{{#isMinimum}}
+    if (field < {{limit}}) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMinimum}}
+{{#isMaximum}}
+    if (field > {{limit}}) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+    if (field <= {{limit}}) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+    if (field >= {{limit}}) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+    if (!_multipleOf(field, {{limitDouble}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMultipleOf}}
+{{#isMinItems}}
+    if (_shorter(field.length, {{limit}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMinItems}}
+{{#isMaxItems}}
+    if (_longer(field.length, {{limit}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMaxItems}}
+{{#isMinProperties}}
+    if (_shorter(field.length, {{limit}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMinProperties}}
+{{#isMaxProperties}}
+    if (_longer(field.length, {{limit}})) {
+      _fail(path, '{{#lambda.dartString}}{{{message}}}{{/lambda.dartString}}');
+    }
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+    _validateValue(field, '$path.');
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+    for (var i = 0; i < field.length; i++) {
+      _validateValue(field[i], '$path[$i].');
+    }
+{{/hasNestedItemsModel}}
+  }
+{{/vendorExtensions.constraintProps}}
+}
+{{/constraintModels}}
+{{#dartConstraintHasPattern}}
+
+/// Compiles a schema pattern, or returns null when Dart's engine cannot
+/// compile it, in which case the pattern is not enforced.
+RegExp? _compile(String source) {
+  try {
+    return RegExp(source);
+  } on FormatException {
+    return null;
+  }
+}
+
+/// Whether a compiled pattern finds no match in [text]; a pattern that did
+/// not compile never fails.
+bool _mismatch(RegExp? pattern, String text) =>
+    pattern != null && !pattern.hasMatch(text);
+{{/dartConstraintHasPattern}}
+{{#dartConstraintHasMultipleOf}}
+
+/// Whether [value] divided by [limit] is a whole number, within 1e-9.
+bool _multipleOf(num value, double limit) {
+  final quotient = value / limit;
+  return (quotient - quotient.roundToDouble()).abs() < 1e-9;
+}
+{{/dartConstraintHasMultipleOf}}
+
+{{#dartConstraintHasMinSize}}
+/// Whether a length or a size is below its minimum. A helper rather than an
+/// inline comparison, since a minimum of 1 would read as an emptiness check.
+bool _shorter(int size, int minimum) => size < minimum;
+
+{{/dartConstraintHasMinSize}}
+{{#dartConstraintHasMaxSize}}
+/// Whether a length or a size is above its maximum.
+bool _longer(int size, int maximum) => size > maximum;
+
+{{/dartConstraintHasMaxSize}}
+/// The path of the property [name] of the value at [prefix].
+String _at(String prefix, String name) => '$prefix$name';
+
+/// Throws the argument error for a violation.
+Never _fail(String path, String message) =>
+    throw ArgumentError('Invalid request body: $path $message');
+{{/hasConstraintModels}}
+{{^hasConstraintModels}}
+void validateRequestBody(Object body) {}
+{{/hasConstraintModels}}

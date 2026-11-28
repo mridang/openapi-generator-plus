@@ -11,9 +11,11 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import java.math.BigDecimal
 
 @Serializable
 data class DryFood(
@@ -28,4 +30,62 @@ data class DryFood(
     @SerialName("weightKg")
     @Serializable(with = com.example.petstore.StrictDoubleSerializer::class)
     val weightKg: Double,
-)
+    /**
+     * The `pricePerKg` property.
+     */
+    @SerialName("pricePerKg")
+    @Contextual
+    val pricePerKg: BigDecimal? = null,
+) {
+    /* Kotlin's synthesized data-class equals/hashCode compare Array and
+     * ByteArray by reference identity (and List<ByteArray> bottoms out in
+     * reference-equal elements), so two instances decoded from identical JSON
+     * would not be equal and would hash differently. The overrides below route
+     * those fields through contentEquals/contentHashCode (element-wise for
+     * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+     * class would treat 1.5 and 1.50 as different) while every other field keeps
+     * ordinary == semantics. */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as DryFood
+        if (foodType != other.foodType) return false
+        if (weightKg != other.weightKg) return false
+        if (pricePerKg != null) {
+            if (other.pricePerKg == null) return false
+            if (pricePerKg.compareTo(other.pricePerKg) != 0) return false
+        } else if (other.pricePerKg != null) {
+            return false
+        }
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + foodType.hashCode()
+        result = 31 * result + weightKg.hashCode()
+        result = 31 * result + (pricePerKg?.stripTrailingZeros()?.hashCode() ?: 0)
+        return result
+    }
+
+  /* The synthesized data-class toString prints ByteArray fields as an
+   * identity hash (`[B@1b6d3586`), omits the @Transient additionalProperties
+   * bucket and does not look inside containers. This override keeps the
+   * data-class shape but renders byte data by content, containers
+   * element-wise and appends additionalProperties. A `format: password`
+   * property prints as `***`. */
+    override fun toString(): String =
+        listOf(
+            "foodType=" + renderForToString(foodType),
+            "weightKg=" + renderForToString(weightKg),
+            "pricePerKg=" + renderForToString(pricePerKg),
+        ).joinToString(", ", "DryFood(", ")")
+
+    private fun renderForToString(value: Any?): String =
+        when (value) {
+            is ByteArray -> value.contentToString()
+            is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { "${it.key}=${renderForToString(it.value)}" }
+            is Iterable<*> -> value.joinToString(", ", "[", "]") { renderForToString(it) }
+            else -> value.toString()
+        }
+}

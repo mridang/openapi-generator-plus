@@ -88,15 +88,11 @@ kotlin {
     // is Beta.
     compilerOptions {
         // NOTE: kotlin warnings-as-errors (`allWarningsAsErrors.set(true)`) is
-        // intentionally NOT armed yet — it is the one gate still deferred. Arming
-        // it surfaces two pre-existing warning classes that need a dedicated
-        // cleanup first: (1) the query-param builder null-checks a REQUIRED
-        // (non-null) param (`if (options.x != null)` -> "condition is always
-        // true"), which needs the builder split on the required flag; and (2) a
-        // Kotlin-2.2 "identity-sensitive operation on value type" warning on the
-        // generated `equals()` comparing `OffsetDateTime` fields on every
-        // date-time model (a false positive on correct structural comparison).
-        // The other compiled SDKs DO enforce
+        // NOT armed yet — it is the one gate still deferred. The warning classes
+        // that blocked it (the identity-sensitive `==` on a nullable java.time
+        // field in `equals()`, the experimental contextual-serializer lookup and
+        // the always-true type checks in the tests) are fixed; it is armed once a
+        // run shows the compile output clean. The other compiled SDKs DO enforce
         // warnings-as-errors (java failOnWarning, csharp/swift, elixir, rust).
         freeCompilerArgs.add("-Xexpect-actual-classes")
         // The transport + serializer layers cast erased generic types
@@ -146,7 +142,6 @@ kotlin {
                 // manifest by name.
                 implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.2.0")
                 implementation("io.ktor:ktor-client-mock:3.5.0")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
                 implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
                 implementation("io.opentelemetry:opentelemetry-sdk:1.62.0")
                 implementation("io.opentelemetry:opentelemetry-sdk-testing:1.62.0")

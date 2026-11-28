@@ -337,6 +337,7 @@ import com.example.petstore.Client;
 import com.example.petstore.TransportOptions;
 import com.example.petstore.auth.PetStoreBasicAuthenticator;
 import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.ArchiveDigestAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.auth.ServiceTokenAuthenticator;
 import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
@@ -347,12 +348,14 @@ import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator
 import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
 import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
 import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator;
 import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
 
 class Credentials {
     static Client build(
             PetStoreBasicAuthenticator petStoreBasic,
             AdminBasicAuthenticator adminBasic,
+            ArchiveDigestAuthenticator archiveDigest,
             PetStoreBearerAuthenticator petStoreBearer,
             ServiceTokenAuthenticator serviceToken,
             ApiKeyHeaderAuthenticator apiKeyHeader,
@@ -363,11 +366,13 @@ class Credentials {
             LegacyAuthPasswordAuthenticator legacyAuth,
             UserAuthAuthorizationCodeAuthenticator userAuth,
             BrowserAuthImplicitAuthenticator browserAuth,
+            DeviceAuthDeviceAuthorizationAuthenticator deviceAuth,
             SsoAuthAuthenticator ssoAuth,
             TransportOptions transportOptions) {
         return Client.builder("https://api.example.com")
             .petStoreBasic(petStoreBasic)
             .adminBasic(adminBasic)
+            .archiveDigest(archiveDigest)
             .petStoreBearer(petStoreBearer)
             .serviceToken(serviceToken)
             .apiKeyHeader(apiKeyHeader)
@@ -378,6 +383,7 @@ class Credentials {
             .legacyAuth(legacyAuth)
             .userAuth(userAuth)
             .browserAuth(browserAuth)
+            .deviceAuth(deviceAuth)
             .ssoAuth(ssoAuth)
             .transportOptions(transportOptions)
             .build();
@@ -390,6 +396,10 @@ the client holds. When it holds none of them, the operation falls back to the si
 authenticator of `new Client(authenticator)` if there is one, and is sent
 without a credential otherwise. An operation that declares `security: []` never sends one.
 There is no per-call override of the scheme.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
 
 ### Cookie parameters
 
@@ -416,7 +426,10 @@ The variables are:
 | `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
 | `apiKeyHeader` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
 | `apiKeyQuery` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `archiveDigest` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` |
+| `archiveDigest` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` |
 | `browserAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
 | `internalApiKey` | `apiKey` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
 | `legacyAuth` | `clientId` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
 | `legacyAuth` | `clientSecret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
@@ -580,6 +593,8 @@ plug in a Bean Validation or JSON Schema library.
 `uniqueItems` arrays are held in a `java.util.Set` (a `LinkedHashSet`). They
 are written in the set's own order, which is insertion order; the SDK does not
 sort them, because the order carries no meaning.
+
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ## Not supported
 

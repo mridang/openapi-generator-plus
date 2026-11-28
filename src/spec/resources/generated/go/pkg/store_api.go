@@ -16,6 +16,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/shopspring/decimal"
+
 	. "petstore/pkg/models"
 	opts "petstore/pkg/options"
 )
@@ -80,6 +82,8 @@ type StoreApiInterface interface {
 	GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[][]int32], error)
 	GetMemo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (*Memo, error)
 	GetMemoWithHTTPInfo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (*ApiResult[Memo], error)
+	GetNativeAmount(ctx context.Context, callOptions ...RequestOption) (*decimal.Decimal, error)
+	GetNativeAmountWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[decimal.Decimal], error)
 	GetNativeValues(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*NativeValues, error)
 	GetNativeValuesWithHTTPInfo(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*ApiResult[NativeValues], error)
 	GetOrderById(ctx context.Context, orderId int64, callOptions ...RequestOption) (*Order, error)
@@ -98,6 +102,8 @@ type StoreApiInterface interface {
 	GetTreeWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[TreeNode], error)
 	HeadMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error
 	HeadMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (*ApiResult[any], error)
+	ListNativeAmounts(ctx context.Context, callOptions ...RequestOption) ([]decimal.Decimal, error)
+	ListNativeAmountsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[]decimal.Decimal], error)
 	OptionsMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error
 	OptionsMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (*ApiResult[any], error)
 	PatchMemo(ctx context.Context, memoId string, memo Memo, callOptions ...RequestOption) (*Memo, error)
@@ -108,6 +114,8 @@ type StoreApiInterface interface {
 	ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[ReserveStockResponse], error)
 	SearchStore(ctx context.Context, options *opts.SearchStoreOptions, callOptions ...RequestOption) ([]Order, error)
 	SearchStoreWithHTTPInfo(ctx context.Context, options *opts.SearchStoreOptions, callOptions ...RequestOption) (*ApiResult[[]Order], error)
+	SubmitAllowance(ctx context.Context, allowance Allowance, callOptions ...RequestOption) error
+	SubmitAllowanceWithHTTPInfo(ctx context.Context, allowance Allowance, callOptions ...RequestOption) (*ApiResult[any], error)
 	TraceMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error
 	TraceMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (*ApiResult[any], error)
 	WatchNoticesStream(ctx context.Context, callOptions ...RequestOption) (*SseStream[string], error)
@@ -1510,6 +1518,139 @@ func (a *StoreApi) GetMemoWithHTTPInfo(ctx context.Context, memoId string, serve
 	}, nil
 }
 
+// GetNativeAmount Reads one exact decimal as the whole response body.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /store/native-values/amount
+func (a *StoreApi) GetNativeAmount(ctx context.Context, callOptions ...RequestOption) (*decimal.Decimal, error) {
+	result, err := a.GetNativeAmountWithHTTPInfo(ctx, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetNativeAmount", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetNativeAmountWithHTTPInfo performs the GetNativeAmount operation and returns the full API result.
+func (a *StoreApi) GetNativeAmountWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[decimal.Decimal], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/store/native-values/amount"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "getNativeAmount",
+		urlTemplate:  "/store/native-values/amount",
+		call:         call,
+		order:        []string{},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "decimal.Decimal",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data decimal.Decimal
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *decimal.Decimal
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[decimal.Decimal]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetNativeAmount: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[decimal.Decimal]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // GetNativeValues Reads values of the formats the SDKs type natively.
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -2738,6 +2879,140 @@ func (a *StoreApi) HeadMemoWithHTTPInfo(ctx context.Context, memoId string, call
 	}, nil
 }
 
+// ListNativeAmounts Reads a list of exact decimals as the whole response body.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /store/native-values/amounts
+func (a *StoreApi) ListNativeAmounts(ctx context.Context, callOptions ...RequestOption) ([]decimal.Decimal, error) {
+	var empty []decimal.Decimal
+	result, err := a.ListNativeAmountsWithHTTPInfo(ctx, callOptions...)
+	if err != nil {
+		return empty, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return empty, newEmptyBodyError("ListNativeAmounts", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return *result.Data, nil
+}
+
+// ListNativeAmountsWithHTTPInfo performs the ListNativeAmounts operation and returns the full API result.
+func (a *StoreApi) ListNativeAmountsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (_ *ApiResult[[]decimal.Decimal], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/store/native-values/amounts"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listNativeAmounts",
+		urlTemplate:  "/store/native-values/amounts",
+		call:         call,
+		order:        []string{},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "[]decimal.Decimal",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data []decimal.Decimal
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]decimal.Decimal
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]decimal.Decimal]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.ListNativeAmounts: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[[]decimal.Decimal]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // OptionsMemo Lists the methods a memo accepts with an OPTIONS request
 // Revisions of one memo, read and changed with the less common HTTP methods.
 //
@@ -3439,6 +3714,71 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 	return &ApiResult[[]Order]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// SubmitAllowance Submit an allowance whose schema uses every validation keyword
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// POST /store/allowance
+func (a *StoreApi) SubmitAllowance(ctx context.Context, allowance Allowance, callOptions ...RequestOption) error {
+	result, err := a.SubmitAllowanceWithHTTPInfo(ctx, allowance, callOptions...)
+	if err != nil {
+		return err
+	}
+	_ = result
+	return nil
+}
+
+// SubmitAllowanceWithHTTPInfo performs the SubmitAllowance operation and returns the full API result.
+func (a *StoreApi) SubmitAllowanceWithHTTPInfo(ctx context.Context, allowance Allowance, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/store/allowance"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any = allowance
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "submitAllowance",
+		urlTemplate:  "/store/allowance",
+		call:         call,
+		order:        []string{},
+		method:       "POST",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{},
+		contentType:  "application/json",
+		returnType:   "",
+		auth:         nil,
+		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApiResult[any]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil

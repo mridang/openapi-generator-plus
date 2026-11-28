@@ -34,7 +34,7 @@ public class RubyExamplesSpec extends AbstractExamplesSpec implements RubySpec {
           + "  check '.'\n"
           + "  signature '../../sig'\n"
           + "  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom',"
-          + " 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'\n"
+          + " 'time', 'cgi', 'uri', 'zlib', 'stringio', 'strscan', 'openssl', 'timeout'\n"
           + "  configure_code_diagnostics(D::Ruby.default) do |hash|\n"
           + "    hash[D::Ruby::UndeclaredMethodDefinition] = nil\n"
           + "  end\n"

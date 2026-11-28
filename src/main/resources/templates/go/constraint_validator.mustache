@@ -1,0 +1,259 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"errors"
+{{#hasConstraintModels}}
+	"fmt"
+	"math"
+	"reflect"
+	"regexp"
+	"sync"
+	"unicode/utf8"
+
+	"{{packageName}}/pkg/models"
+{{/hasConstraintModels}}
+)
+
+// ErrInvalidRequestBody is returned, before anything is sent, when the
+// configuration turns on ValidateConstraints and a request body breaks a
+// validation keyword of its schema. Match it with errors.Is; the message names
+// the path of the value and the rule it breaks.
+var ErrInvalidRequestBody = errors.New("invalid request body")
+{{^hasConstraintModels}}
+
+/* validateRequestBody checks a request body against the validation keywords of
+ * its schema. The spec declares no model with such a keyword, so every body
+ * passes. */
+func validateRequestBody(_ any) error {
+	return nil
+}
+{{/hasConstraintModels}}
+{{#hasConstraintModels}}
+
+/* constraintViolationError is the error of the first broken keyword. Its text
+ * is the one message all the SDKs share, so it keeps the capital letter that
+ * staticcheck ST1005 asks a literal error string to drop; errors.Is matches it
+ * to ErrInvalidRequestBody. */
+type constraintViolationError struct {
+	path string
+	rule string
+}
+
+func (e *constraintViolationError) Error() string {
+	return "Invalid request body: " + e.path + " " + e.rule
+}
+
+func (e *constraintViolationError) Unwrap() error {
+	return ErrInvalidRequestBody
+}
+
+/* constraintKind names the keyword one check enforces. */
+type constraintKind int
+
+const (
+	constraintMinLength constraintKind = iota
+	constraintMaxLength
+	constraintPattern
+	constraintMinimum
+	constraintMaximum
+	constraintExclusiveMinimum
+	constraintExclusiveMaximum
+	constraintMultipleOf
+	constraintMinItems
+	constraintMaxItems
+	constraintMinProperties
+	constraintMaxProperties
+)
+
+/* constraintCheck is one keyword of one property: its kind, its limit, its
+ * pattern and the rule text of the message. */
+type constraintCheck struct {
+	kind    constraintKind
+	limit   float64
+	pattern string
+	rule    string
+}
+
+/* constraintPatterns holds each pattern compiled once, nil for a pattern RE2
+ * cannot compile. */
+var constraintPatterns sync.Map
+
+/* constraintRegexp compiles a pattern on first use; a pattern RE2 cannot
+ * compile (a look-around, a back-reference) is nil and is not enforced. */
+func constraintRegexp(pattern string) *regexp.Regexp {
+	if cached, ok := constraintPatterns.Load(pattern); ok {
+		compiled, _ := cached.(*regexp.Regexp)
+		return compiled
+	}
+	compiled, err := regexp.Compile(pattern)
+	if err != nil {
+		compiled = nil
+	}
+	constraintPatterns.Store(pattern, compiled)
+	return compiled
+}
+{{#constraintModels}}
+{{#vendorExtensions.constraintProps}}
+{{#hasChecks}}
+
+var constraints{{classname}}{{name}} = []constraintCheck{
+{{#checks}}
+	{kind: {{#isMinLength}}constraintMinLength{{/isMinLength}}{{#isMaxLength}}constraintMaxLength{{/isMaxLength}}{{#isPattern}}constraintPattern{{/isPattern}}{{#isMinimum}}constraintMinimum{{/isMinimum}}{{#isMaximum}}constraintMaximum{{/isMaximum}}{{#isExclusiveMinimum}}constraintExclusiveMinimum{{/isExclusiveMinimum}}{{#isExclusiveMaximum}}constraintExclusiveMaximum{{/isExclusiveMaximum}}{{#isMultipleOf}}constraintMultipleOf{{/isMultipleOf}}{{#isMinItems}}constraintMinItems{{/isMinItems}}{{#isMaxItems}}constraintMaxItems{{/isMaxItems}}{{#isMinProperties}}constraintMinProperties{{/isMinProperties}}{{#isMaxProperties}}constraintMaxProperties{{/isMaxProperties}}, {{^isPattern}}limit: {{{limit}}}, {{/isPattern}}{{#isPattern}}pattern: "{{#goStringLiteral}}{{{pattern}}}{{/goStringLiteral}}", {{/isPattern}}rule: "{{#goStringLiteral}}{{{message}}}{{/goStringLiteral}}"},
+{{/checks}}
+}
+{{/hasChecks}}
+{{/vendorExtensions.constraintProps}}
+{{/constraintModels}}
+
+/* validateRequestBody checks a request body against the validation keywords of
+ * its schema and of every model it holds, depth first in declaration order, and
+ * returns the first violation. A body that is not a model with a keyword (a map,
+ * a scalar, a stream, a form) passes. */
+func validateRequestBody(body any) error {
+	return validateConstraintValue(body, "")
+}
+
+/* validateConstraintValue dispatches on the model type of a value; a list of
+ * models is checked item by item, its index in brackets in the path. */
+func validateConstraintValue(value any, path string) error {
+	switch v := value.(type) {
+{{#constraintModels}}
+	case models.{{classname}}:
+		return validate{{classname}}Constraints(&v, path)
+	case *models.{{classname}}:
+		return validate{{classname}}Constraints(v, path)
+	case []models.{{classname}}:
+		for i := range v {
+			if err := validate{{classname}}Constraints(&v[i], fmt.Sprintf("%s[%d]", path, i)); err != nil {
+				return err
+			}
+		}
+	case *[]models.{{classname}}:
+		if v != nil {
+			return validateConstraintValue(*v, path)
+		}
+{{/constraintModels}}
+	}
+	return nil
+}
+
+/* joinConstraintPath appends a property's wire name to the path of its holder. */
+func joinConstraintPath(path, name string) string {
+	if path == "" {
+		return name
+	}
+	return path + "." + name
+}
+{{#constraintModels}}
+
+func validate{{classname}}Constraints(o *models.{{classname}}, path string) error {
+	if o == nil {
+		return nil
+	}
+{{#vendorExtensions.constraintProps}}
+{{#hasChecks}}
+	if err := checkConstraints(o.{{name}}, joinConstraintPath(path, "{{#goStringLiteral}}{{{baseName}}}{{/goStringLiteral}}"), constraints{{classname}}{{name}}); err != nil {
+		return err
+	}
+{{/hasChecks}}
+{{#hasNestedModel}}
+	if err := validateConstraintValue(o.{{name}}, joinConstraintPath(path, "{{#goStringLiteral}}{{{baseName}}}{{/goStringLiteral}}")); err != nil {
+		return err
+	}
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+	if err := validateConstraintValue(o.{{name}}, joinConstraintPath(path, "{{#goStringLiteral}}{{{baseName}}}{{/goStringLiteral}}")); err != nil {
+		return err
+	}
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+	return nil
+}
+{{/constraintModels}}
+
+/* checkConstraints runs the checks of one property on its value: a nil pointer
+ * (an absent or null value) is not checked. Lengths count code points. */
+func checkConstraints(value any, path string, checks []constraintCheck) error {
+	rv := reflect.ValueOf(value)
+	for rv.Kind() == reflect.Pointer || rv.Kind() == reflect.Interface {
+		if rv.IsNil() {
+			return nil
+		}
+		rv = rv.Elem()
+	}
+	for _, check := range checks {
+		if !constraintHolds(rv, check) {
+			return &constraintViolationError{path: path, rule: check.rule}
+		}
+	}
+	return nil
+}
+
+/* constraintHolds reports whether a value meets one check; a check that does
+ * not apply to the kind of the value holds. */
+func constraintHolds(rv reflect.Value, check constraintCheck) bool {
+	switch check.kind {
+	case constraintMinLength, constraintMaxLength, constraintPattern:
+		if rv.Kind() != reflect.String {
+			return true
+		}
+		text := rv.String()
+		switch check.kind {
+		case constraintMinLength:
+			return float64(utf8.RuneCountInString(text)) >= check.limit
+		case constraintMaxLength:
+			return float64(utf8.RuneCountInString(text)) <= check.limit
+		default:
+			compiled := constraintRegexp(check.pattern)
+			return compiled == nil || compiled.MatchString(text)
+		}
+	case constraintMinItems, constraintMaxItems:
+		if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+			return true
+		}
+		if check.kind == constraintMinItems {
+			return float64(rv.Len()) >= check.limit
+		}
+		return float64(rv.Len()) <= check.limit
+	case constraintMinProperties, constraintMaxProperties:
+		if rv.Kind() != reflect.Map {
+			return true
+		}
+		if check.kind == constraintMinProperties {
+			return float64(rv.Len()) >= check.limit
+		}
+		return float64(rv.Len()) <= check.limit
+	}
+	number, ok := constraintNumber(rv)
+	if !ok {
+		return true
+	}
+	switch check.kind {
+	case constraintMinimum:
+		return number >= check.limit
+	case constraintMaximum:
+		return number <= check.limit
+	case constraintExclusiveMinimum:
+		return number > check.limit
+	case constraintExclusiveMaximum:
+		return number < check.limit
+	default:
+		quotient := number / check.limit
+		return math.Abs(quotient-math.Round(quotient)) < 1e-9
+	}
+}
+
+/* constraintNumber reads an integer or a float as a float64. */
+func constraintNumber(rv reflect.Value) (float64, bool) {
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return float64(rv.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return float64(rv.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return rv.Float(), true
+	}
+	return 0, false
+}
+{{/hasConstraintModels}}

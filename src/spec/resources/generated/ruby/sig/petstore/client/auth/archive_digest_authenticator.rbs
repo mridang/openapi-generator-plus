@@ -1,0 +1,7 @@
+module Petstore::Client
+  module Auth
+    class ArchiveDigestAuthenticator < DigestAuthenticator
+      def initialize: (String host, ?String? username, ?String? password, ?env: untyped) -> void
+    end
+  end
+end

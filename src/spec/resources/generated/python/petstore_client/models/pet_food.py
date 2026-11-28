@@ -7,7 +7,13 @@
 
 from __future__ import annotations
 
-from pydantic import ConfigDict
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    SerializationInfo,
+    model_serializer,
+    model_validator,
+)
 from petstore_client._types import ApiModel, hash_model, lenient_init
 from typing import Any, ClassVar, Dict, Optional, Tuple, Union
 
@@ -53,6 +59,40 @@ class PetFood(ApiModel):
 
     def __hash__(self) -> int:
         return hash_model(self)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def decode_wire_value(cls, data: Any, handler: Any) -> Any:
+        """Decodes a wire value held by a model property through the union rules.
+
+        A union is a property of another model when the schema of that property is
+        a union (an OAS 3.1 type array, a oneOf or an anyOf). Pydantic hands the
+        raw JSON value to this class, so it is resolved here exactly as a top-level
+        value is; the constructor's own keyword form passes through unchanged.
+        """
+        if isinstance(data, cls):
+            return data
+        if isinstance(data, dict) and (
+            "actual_instance" in data or "matched_instances" in data
+        ):
+            return handler(data)
+        from petstore_client.object_serializer import ObjectSerializer
+
+        return ObjectSerializer()._deserialize_composed(data, cls)
+
+    @model_serializer(mode="wrap")
+    def encode_wire_value(self, handler: Any, info: SerializationInfo) -> Any:
+        """Writes the union as the value it holds when it is a property of another model."""
+        instance = self.actual_instance
+        if isinstance(instance, BaseModel):
+            return instance.model_dump(
+                mode=info.mode,
+                by_alias=True,
+                exclude_none=True,
+                context=info.context,
+                warnings=False,
+            )
+        return instance
 
     discriminator_value_class_map: ClassVar[Dict[str, str]] = {
         "dry": "DryFood",

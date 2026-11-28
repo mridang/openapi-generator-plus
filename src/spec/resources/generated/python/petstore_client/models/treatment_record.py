@@ -7,7 +7,15 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializationInfo,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union
 
 from petstore_client._types import ApiModel, hash_model, lenient_init
@@ -49,6 +57,32 @@ class TreatmentRecord(ApiModel):
 
     def __hash__(self) -> int:
         return hash_model(self)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def decode_wire_value(cls, data: Any, handler: Any) -> Any:
+        """Decodes a wire value held by a model property through the union rules.
+
+        A union is a property of another model when the schema of that property is
+        a union (an OAS 3.1 type array, a oneOf or an anyOf). Pydantic hands the
+        raw JSON value to this class, so it is resolved here exactly as a top-level
+        value is; the constructor's own keyword form passes through unchanged.
+        """
+        if isinstance(data, cls):
+            return data
+        if isinstance(data, dict) and (
+            "actual_instance" in data or "matched_instances" in data
+        ):
+            return handler(data)
+        from petstore_client.object_serializer import ObjectSerializer
+
+        return ObjectSerializer()._deserialize_composed(data, cls)
+
+    @model_serializer(mode="wrap")
+    def encode_wire_value(self, handler: Any, info: SerializationInfo) -> Any:
+        """Writes the union as its wire value when it is a property of another model."""
+        context = info.context if isinstance(info.context, dict) else {}
+        return self.anyof_merged_dump(exact_numbers=bool(context.get("exact_numbers")))
 
     @lenient_init
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -106,6 +140,7 @@ class TreatmentRecord(ApiModel):
         )
         merged: Dict[str, Any] = {}
         for instance in instances:
+            part: Any
             if isinstance(instance, BaseModel):
                 part = instance.model_dump(
                     mode="json",

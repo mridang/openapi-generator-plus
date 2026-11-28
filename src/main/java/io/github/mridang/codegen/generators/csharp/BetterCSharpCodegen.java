@@ -490,6 +490,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.cs"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.cs"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.cs"),
+            new SupportingFileSpec("constraint_validator.mustache", invokerFolder, "ConstraintValidator.cs"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "ICallHook.cs"),
             new SupportingFileSpec("call_observer.mustache", invokerFolder, "ICallObserver.cs"),
@@ -974,7 +975,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         final String refreshArg =
                 spec.refreshUrl() != null ? "new Uri(\"" + spec.refreshUrl() + "\")" : "null";
 
-        if ("BasicAuthenticator".equals(baseClass)) {
+        if ("BasicAuthenticator".equals(baseClass) || "DigestAuthenticator".equals(baseClass)) {
             superCall = "host, " + credential(envNames, "username") + ", "
                     + credential(envNames, "password");
             namespaceSuffix = null;
@@ -1031,6 +1032,17 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             + "\"), "
                             + scopes;
             namespaceSuffix = "OAuth";
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(baseClass)) {
+            superCall =
+                    "host, " + credential(envNames, "clientId") + ", new Uri(\""
+                            + spec.authorizationUrl()
+                            + "\"), new Uri(\""
+                            + spec.tokenUrl()
+                            + "\"), "
+                            + scopes
+                            + ", "
+                            + refreshArg;
+            namespaceSuffix = "OAuth";
         } else if ("OpenIdConnectAuthenticator".equals(baseClass)) {
             superCall =
                     "host, new Uri(\""
@@ -1058,7 +1070,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         if (namespaceSuffix != null) {
             ctx.put("namespaceSuffix", namespaceSuffix);
         }
-        recordSchemeAuthTest(spec, namespaceSuffix, envVars);
+        /* D190: the declared metadata URL becomes a const on the class and a test row. */
+        final String metadataUrlLiteral = Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))
+                ? escapeStringLiteralBody(String.valueOf(ctx.get("oauth2MetadataUrl")))
+                : null;
+        if (metadataUrlLiteral != null) {
+            ctx.put("oauth2MetadataUrlLiteral", metadataUrlLiteral);
+        }
+        recordSchemeAuthTest(spec, namespaceSuffix, envVars, metadataUrlLiteral);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
@@ -1079,7 +1098,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /**
      * Records what {@code SchemeAuthenticatorTest} needs to exercise one per-scheme authenticator:
-     * its class, its base kind and its environment variables.
+     * its class, its base kind, its environment variables and its declared metadata URL literal.
      */
     @SuppressFBWarnings(
             value = "IMPROPER_UNICODE",
@@ -1087,9 +1106,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     private void recordSchemeAuthTest(
             final SchemeAuthSpec spec,
             @Nullable final String namespaceSuffix,
-            final List<Map<String, Object>> envVars) {
+            final List<Map<String, Object>> envVars,
+            @Nullable final String metadataUrlLiteral) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        entry.put("hasOAuth2MetadataUrl", metadataUrlLiteral != null);
+        if (metadataUrlLiteral != null) {
+            entry.put("oauth2MetadataUrlLiteral", metadataUrlLiteral);
+        }
         final String emptyVariableBhv = EMPTY_VARIABLE_BHV.getOrDefault((String) entry.get("className"), "");
         entry.put("emptyVariableBhv", emptyVariableBhv);
         entry.put("hasEmptyVariableBhv", !emptyVariableBhv.isEmpty());
@@ -1098,6 +1122,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         }
         entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
         entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
+        entry.put("isDigest", "DigestAuthenticator".equals(spec.baseClass()));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
         entry.put("isOAuth", spec.isOAuth());
         final String baseClass = spec.baseClass();

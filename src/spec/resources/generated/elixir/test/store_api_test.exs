@@ -932,6 +932,123 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert [%PetstoreClient.ServerSentEvent{data: "plain", raw: "plain"}] = Enum.to_list(notices)
   end
 
+  @constraint_rows [
+    {"minLength", [label: "a"], "label must be at least 2 characters long"},
+    {"maxLength", [label: "abcdef"], "label must be at most 5 characters long"},
+    {"pattern", [label: "AB"], "label must match the pattern ^[a-z]+$"},
+    {"minimum", [count: 0], "count must be greater than or equal to 1"},
+    {"maximum", [count: 11], "count must be less than or equal to 10"},
+    {"exclusiveMinimum", [ratio: 0.0], "ratio must be greater than 0"},
+    {"exclusiveMaximum", [ratio: 1.0], "ratio must be less than 1"},
+    {"multipleOf", [step: 7], "step must be a multiple of 5"},
+    {"minItems", [codes: []], "codes must have at least 1 items"},
+    {"maxItems", [codes: ["a", "b", "c", "d"]], "codes must have at most 3 items"},
+    {"minProperties", [limits: %{}], "limits must have at least 1 properties"},
+    {"maxProperties", [limits: %{"a" => 1, "b" => 2, "c" => 3}],
+     "limits must have at most 2 properties"}
+  ]
+
+  @nested_constraint_rows [
+    {[tier: %PetstoreClient.Models.AllowanceTier{level: -1}],
+     "tier.level must be greater than or equal to 0"},
+    {[tier: %PetstoreClient.Models.AllowanceTier{name: "abcd"}],
+     "tier.name must be at most 3 characters long"},
+    {[
+       parts: [
+         %PetstoreClient.Models.AllowanceTier{level: 0},
+         %PetstoreClient.Models.AllowanceTier{level: -1}
+       ]
+     ], "parts[1].level must be greater than or equal to 0"}
+  ]
+
+  defp validating_store_api do
+    config =
+      PetstoreClient.Configuration.new(base_url: "http://localhost", validate_constraints: true)
+
+    PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+  end
+
+  test "bhv models 706 a body that breaks its constraints is sent unchanged when validation is left at its default" do
+    {:ok, name} = StubApiClient.start("")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+    allowance = %PetstoreClient.Models.Allowance{label: "a", count: 0}
+
+    assert {:ok, nil} = PetstoreClient.Api.StoreApi.submit_allowance(api, allowance)
+
+    assert config.validate_constraints == false
+    assert StubApiClient.captured(name).method == :post
+    assert Jason.decode!(StubApiClient.captured(name).body) == %{"label" => "a", "count" => 0}
+
+    Agent.stop(name)
+  end
+
+  for {keyword, fields, message} <- @constraint_rows do
+    @constraint_row {fields, message}
+
+    test "bhv models 707 a body that breaks #{keyword} is refused before it is sent" do
+      {fields, message} = @constraint_row
+      {:ok, name} = StubApiClient.start("")
+      allowance = struct!(PetstoreClient.Models.Allowance, fields)
+
+      assert_raise ArgumentError, "Invalid request body: " <> message, fn ->
+        PetstoreClient.Api.StoreApi.submit_allowance(validating_store_api(), allowance)
+      end
+
+      assert StubApiClient.captured(name) == nil
+
+      Agent.stop(name)
+    end
+  end
+
+  for {fields, message} <- @nested_constraint_rows do
+    @nested_constraint_row {fields, message}
+
+    test "bhv models 708 a violation inside a held model names its path: #{message}" do
+      {fields, message} = @nested_constraint_row
+      {:ok, name} = StubApiClient.start("")
+      allowance = struct!(PetstoreClient.Models.Allowance, fields)
+
+      assert_raise ArgumentError, "Invalid request body: " <> message, fn ->
+        PetstoreClient.Api.StoreApi.submit_allowance(validating_store_api(), allowance)
+      end
+
+      assert StubApiClient.captured(name) == nil
+
+      Agent.stop(name)
+    end
+  end
+
+  test "bhv models 709 a body within every constraint is sent and nil or absent values are not checked" do
+    {:ok, name} = StubApiClient.start("")
+    api = validating_store_api()
+
+    valid = %PetstoreClient.Models.Allowance{
+      label: "abc",
+      count: 10,
+      ratio: 0.5,
+      step: 15,
+      codes: ["a", "b", "c"],
+      limits: %{"a" => 1, "b" => 2},
+      tier: %PetstoreClient.Models.AllowanceTier{level: 0, name: "abc"},
+      parts: [
+        %PetstoreClient.Models.AllowanceTier{level: 1},
+        %PetstoreClient.Models.AllowanceTier{}
+      ]
+    }
+
+    assert {:ok, nil} = PetstoreClient.Api.StoreApi.submit_allowance(api, valid)
+    assert StubApiClient.captured(name).method == :post
+
+    Agent.update(name, &%{&1 | request: nil})
+
+    sparse = %PetstoreClient.Models.Allowance{tier: %PetstoreClient.Models.AllowanceTier{}}
+    assert {:ok, nil} = PetstoreClient.Api.StoreApi.submit_allowance(api, sparse)
+    assert StubApiClient.captured(name).method == :post
+
+    Agent.stop(name)
+  end
+
   test "bhv headers 501 a response headers struct reads each declared header in its declared type, in any letter case" do
     headers =
       PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders.from_headers(%{

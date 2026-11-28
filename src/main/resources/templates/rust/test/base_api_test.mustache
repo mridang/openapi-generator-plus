@@ -330,6 +330,7 @@ struct CapturingApiClient {
     captured_url: Mutex<String>,
     captured_headers: Mutex<HashMap<String, String>>,
     captured_body: Mutex<Option<Vec<u8>>>,
+    calls: Mutex<usize>,
 }
 
 impl CapturingApiClient {
@@ -338,6 +339,7 @@ impl CapturingApiClient {
             captured_url: Mutex::new(String::new()),
             captured_headers: Mutex::new(HashMap::new()),
             captured_body: Mutex::new(None),
+            calls: Mutex::new(0),
         }
     }
 }
@@ -350,6 +352,7 @@ impl {{packageName}}::api_client::ApiClient for CapturingApiClient {
         headers: &HashMap<String, String>,
         body: Option<&{{packageName}}::api_client::RequestBody>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        *self.calls.lock().unwrap() += 1;
         *self.captured_url.lock().unwrap() = url.to_string();
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = match body {
@@ -2097,6 +2100,102 @@ async fn test_bhv_retries_008_a_second_401_is_reported_after_one_replay() {
     assert_eq!(2, client.authorizations.lock().unwrap().len());
 }
 
+{{#hasDigestAuth}}
+/* D192: a 401 with a Digest challenge is answered and the request replayed once. */
+
+/// The RFC 7616 example challenge.
+const DIGEST_CHALLENGE: &str = "Digest realm=\"http-auth@example.org\", qop=\"auth\", algorithm=MD5, nonce=\"7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v\", opaque=\"FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS\"";
+
+/// Answers the statuses in order (the last repeats), with the example Digest
+/// challenge on every 401, and records the Authorization header of each request.
+struct DigestChallengeApiClient {
+    statuses: Vec<u16>,
+    authorizations: Mutex<Vec<Option<String>>>,
+}
+
+impl {{packageName}}::api_client::ApiClient for DigestChallengeApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        let mut authorizations = self.authorizations.lock().unwrap();
+        let status = self.statuses[authorizations.len().min(self.statuses.len() - 1)];
+        authorizations.push(headers.get("Authorization").cloned());
+        Box::pin(async move {
+            let mut h = HashMap::new();
+            h.insert("content-type".to_string(), "application/json".to_string());
+            if status == 401 {
+                h.insert("www-authenticate".to_string(), DIGEST_CHALLENGE.to_string());
+            }
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(status, "{}".to_string(), h))
+        })
+    }
+}
+
+/// The API over a scripted client, authenticated by the RFC 7616 example user
+/// with the example's client nonce.
+fn digest_api(client: Arc<DigestChallengeApiClient>) -> PetApi {
+    let auth = {{packageName}}::auth::DigestAuthenticator::new("http://localhost", "Mufasa", "Circle of Life")
+        .expect("valid credentials")
+        .with_cnonce("f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ");
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    PetApi::new(client, config, Some(Arc::new(auth)))
+}
+
+/// The answer to the example challenge for DELETE /pet/1 with the given response and nonce count.
+fn digest_answer_for(response: &str, nc: &str) -> Option<String> {
+    Some(format!(
+        "Digest username=\"Mufasa\", realm=\"http-auth@example.org\", nonce=\"7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v\", uri=\"/pet/1\", algorithm=MD5, response=\"{}\", qop=auth, nc={}, cnonce=\"f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ\", opaque=\"FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS\"",
+        response, nc
+    ))
+}
+
+/// A request goes without credentials, the 401 with a Digest challenge is
+/// answered and the request replayed once, and a second 401 is returned as is.
+#[tokio::test]
+async fn test_bhv_authdigest_702_a_digest_challenge_is_answered_and_the_request_replayed_once() {
+    let client = Arc::new(DigestChallengeApiClient { statuses: vec![401, 200], authorizations: Mutex::new(Vec::new()) });
+    digest_api(client.clone())
+        .delete_pet(1, None)
+        .await
+        .expect("the replay with the answer succeeds");
+    assert_eq!(
+        vec![None, digest_answer_for("be371d91c1fdead381d9c187be266432", "00000001")],
+        *client.authorizations.lock().unwrap()
+    );
+
+    let rejecting = Arc::new(DigestChallengeApiClient { statuses: vec![401], authorizations: Mutex::new(Vec::new()) });
+    let err = digest_api(rejecting.clone())
+        .delete_pet(1, None)
+        .await
+        .expect_err("a 401 that survives the replay is an error");
+    assert!(err.downcast_ref::<UnauthorizedError>().is_some(), "got: {}", err);
+    assert_eq!(2, rejecting.authorizations.lock().unwrap().len());
+}
+
+/// A later request answers the remembered challenge up front, with the nonce
+/// count incremented to 00000002.
+#[tokio::test]
+async fn test_bhv_authdigest_703_a_later_request_answers_the_remembered_challenge_up_front() {
+    let client = Arc::new(DigestChallengeApiClient { statuses: vec![401, 200], authorizations: Mutex::new(Vec::new()) });
+    let api = digest_api(client.clone());
+    for _ in 0..2 {
+        api.delete_pet(1, None).await.expect("the call succeeds");
+    }
+    assert_eq!(
+        vec![
+            None,
+            digest_answer_for("be371d91c1fdead381d9c187be266432", "00000001"),
+            digest_answer_for("65dd254f89403e4df9d643d5a54dfeeb", "00000002"),
+        ],
+        *client.authorizations.lock().unwrap()
+    );
+}
+
+{{/hasDigestAuth}}
 #[tokio::test]
 async fn test_bhv_authintegration_002_a_per_call_authenticator_is_given_the_transport() {
     let client = Arc::new(StatusSequenceApiClient {
@@ -5040,3 +5139,105 @@ async fn test_bhv_pagination_032_an_operation_that_is_streamed_is_never_also_giv
     assert!(!source.contains("_pages("), "no paged method in the group of the streamed operations");
     assert!(source.contains("export_orders_stream"), "the streamed operation keeps its stream method");
 }
+
+// -- Constraint validation (D189) --
+
+/// A store API over a capturing transport, with constraint validation on or off.
+fn constraint_api(client: &Arc<CapturingApiClient>, validate: bool) -> StoreApi {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .validate_constraints(validate)
+        .build();
+    StoreApi::new(client.clone(), config, None)
+}
+
+/// Asserts that a call failed with `ConfigurationError::InvalidRequestBody`
+/// and the exact message, and that nothing reached the transport.
+fn assert_constraint_refused(client: &CapturingApiClient, result: Result<(), {{packageName}}::Error>, want: &str) {
+    let err = result.expect_err("an invalid body must be refused");
+    assert_eq!(
+        err.downcast_ref::<{{packageName}}::ConfigurationError>(),
+        Some(&{{packageName}}::ConfigurationError::InvalidRequestBody(want.to_string())),
+        "got: {}",
+        err
+    );
+    assert_eq!(err.to_string(), want);
+    assert_eq!(*client.calls.lock().unwrap(), 0, "no request may be sent");
+}
+
+#[tokio::test]
+async fn test_bhv_models_706_base_api_constraint_validation_is_off_by_default() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let allowance = Allowance::new().with_label("a".to_string()).with_count(0);
+    api.submit_allowance(allowance, None).await.expect("the invalid body is sent");
+    assert_eq!(*client.calls.lock().unwrap(), 1);
+    let body = client.captured_body.lock().unwrap().clone().unwrap_or_default();
+    assert!(String::from_utf8_lossy(&body).contains(r#""label":"a""#), "body: {:?}", body);
+}
+
+#[tokio::test]
+async fn test_bhv_models_707_base_api_constraint_validation_refuses_each_broken_keyword() {
+    let rows: Vec<(&str, Allowance, &str)> = vec![
+        ("minLength", Allowance::new().with_label("a".to_string()), "Invalid request body: label must be at least 2 characters long"),
+        ("maxLength", Allowance::new().with_label("abcdef".to_string()), "Invalid request body: label must be at most 5 characters long"),
+        ("pattern", Allowance::new().with_label("ab1".to_string()), "Invalid request body: label must match the pattern ^[a-z]+$"),
+        ("minimum", Allowance::new().with_count(0), "Invalid request body: count must be greater than or equal to 1"),
+        ("maximum", Allowance::new().with_count(11), "Invalid request body: count must be less than or equal to 10"),
+        ("exclusiveMinimum", Allowance::new().with_ratio(0.0), "Invalid request body: ratio must be greater than 0"),
+        ("exclusiveMaximum", Allowance::new().with_ratio(1.0), "Invalid request body: ratio must be less than 1"),
+        ("multipleOf", Allowance::new().with_step(7), "Invalid request body: step must be a multiple of 5"),
+        ("minItems", Allowance::new().with_codes(vec![]), "Invalid request body: codes must have at least 1 items"),
+        ("maxItems", Allowance::new().with_codes(vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()]), "Invalid request body: codes must have at most 3 items"),
+        ("minProperties", Allowance::new().with_limits(HashMap::new()), "Invalid request body: limits must have at least 1 properties"),
+        ("maxProperties", Allowance::new().with_limits(HashMap::from([("a".to_string(), 1), ("b".to_string(), 2), ("c".to_string(), 3)])), "Invalid request body: limits must have at most 2 properties"),
+    ];
+    for (keyword, allowance, message) in rows {
+        let client = Arc::new(CapturingApiClient::new());
+        let result = constraint_api(&client, true).submit_allowance(allowance, None).await;
+        assert!(result.is_err(), "{} must be refused", keyword);
+        assert_constraint_refused(&client, result, message);
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_models_708_base_api_constraint_validation_names_the_path_of_a_held_model() {
+    let rows: Vec<(Allowance, &str)> = vec![
+        (
+            Allowance::new().with_tier(AllowanceTier::new().with_level(-1)),
+            "Invalid request body: tier.level must be greater than or equal to 0",
+        ),
+        (
+            Allowance::new().with_parts(vec![AllowanceTier::new().with_level(0), AllowanceTier::new().with_level(-1)]),
+            "Invalid request body: parts[1].level must be greater than or equal to 0",
+        ),
+    ];
+    for (allowance, message) in rows {
+        let client = Arc::new(CapturingApiClient::new());
+        let result = constraint_api(&client, true).submit_allowance(allowance, None).await;
+        assert_constraint_refused(&client, result, message);
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_models_709_base_api_constraint_validation_sends_a_valid_body_and_skips_absent_values() {
+    let valid = Allowance::new()
+        .with_label("abc".to_string())
+        .with_count(5)
+        .with_ratio(0.5)
+        .with_step(10)
+        .with_codes(vec!["a".to_string()])
+        .with_limits(HashMap::from([("a".to_string(), 1)]))
+        .with_tier(AllowanceTier::new().with_level(0).with_name("abc".to_string()))
+        .with_parts(vec![AllowanceTier::new().with_level(1)]);
+    for allowance in [valid, Allowance::new()] {
+        let client = Arc::new(CapturingApiClient::new());
+        constraint_api(&client, true)
+            .submit_allowance(allowance, None)
+            .await
+            .expect("a valid body is sent");
+        assert_eq!(*client.calls.lock().unwrap(), 1);
+    }
+}
+

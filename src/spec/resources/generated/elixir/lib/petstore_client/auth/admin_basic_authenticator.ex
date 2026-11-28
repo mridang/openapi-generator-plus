@@ -11,6 +11,8 @@ defmodule PetstoreClient.Auth.AdminBasicAuthenticator do
   Authenticator for the `adminBasic` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.BasicAuthenticator)}`.
 
+  Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
+
   Every credential not passed is read, once, when the authenticator is built, from the
   environment variable of this scheme (an empty variable counts as unset). A credential
   found in neither place raises `ArgumentError`, so the client fails when it is built and

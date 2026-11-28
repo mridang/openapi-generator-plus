@@ -41,7 +41,7 @@ module Petstore::Client
     # Creates a new client from its credentials and transport options.
     #
     # Each security scheme of the API has one optional credential, named after
-    # the scheme (+pet_store_basic+, +admin_basic+, +pet_store_bearer+, +service_token+, +api_key_header+, +internal_api_key+, +api_key_query+, +session_cookie+, +machine_auth+, +legacy_auth+, +user_auth+, +browser_auth+, +sso_auth+). An operation
+    # the scheme (+pet_store_basic+, +admin_basic+, +archive_digest+, +pet_store_bearer+, +service_token+, +api_key_header+, +internal_api_key+, +api_key_query+, +session_cookie+, +machine_auth+, +legacy_auth+, +user_auth+, +browser_auth+, +device_auth+, +sso_auth+). An operation
     # uses the credential of the first scheme in its own security requirement
     # that you configured, and there is no per-call override. When none of its
     # schemes matches, the operation uses +authenticator+ if one is given and
@@ -56,6 +56,7 @@ module Petstore::Client
     # @param transport_options [TransportOptions, nil] HTTP transport configuration (proxy, TLS, timeouts, etc.).
     # @param pet_store_basic [Auth::Authenticator, nil] credential of the +petStoreBasic+ security scheme
     # @param admin_basic [Auth::Authenticator, nil] credential of the +adminBasic+ security scheme
+    # @param archive_digest [Auth::Authenticator, nil] credential of the +archiveDigest+ security scheme
     # @param pet_store_bearer [Auth::Authenticator, nil] credential of the +petStoreBearer+ security scheme
     # @param service_token [Auth::Authenticator, nil] credential of the +serviceToken+ security scheme
     # @param api_key_header [Auth::Authenticator, nil] credential of the +apiKeyHeader+ security scheme
@@ -66,14 +67,16 @@ module Petstore::Client
     # @param legacy_auth [Auth::Authenticator, nil] credential of the +legacyAuth+ security scheme
     # @param user_auth [Auth::Authenticator, nil] credential of the +userAuth+ security scheme
     # @param browser_auth [Auth::Authenticator, nil] credential of the +browserAuth+ security scheme
+    # @param device_auth [Auth::Authenticator, nil] credential of the +deviceAuth+ security scheme
     # @param sso_auth [Auth::Authenticator, nil] credential of the +ssoAuth+ security scheme
     # @param call_hook [#start, nil] the hook that runs around every call, see {CallHook}
     # @raise [ArgumentError] when no credential is given
-    def initialize(authenticator = nil, transport_options = nil, pet_store_basic: nil, admin_basic: nil, pet_store_bearer: nil, service_token: nil, api_key_header: nil, internal_api_key: nil, api_key_query: nil, session_cookie: nil, machine_auth: nil, legacy_auth: nil, user_auth: nil, browser_auth: nil, sso_auth: nil, call_hook: nil)
+    def initialize(authenticator = nil, transport_options = nil, pet_store_basic: nil, admin_basic: nil, archive_digest: nil, pet_store_bearer: nil, service_token: nil, api_key_header: nil, internal_api_key: nil, api_key_query: nil, session_cookie: nil, machine_auth: nil, legacy_auth: nil, user_auth: nil, browser_auth: nil, device_auth: nil, sso_auth: nil, call_hook: nil)
       # @type var schemes: Hash[String, Auth::Authenticator]
       schemes = {}
       schemes['petStoreBasic'] = pet_store_basic unless pet_store_basic.nil?
       schemes['adminBasic'] = admin_basic unless admin_basic.nil?
+      schemes['archiveDigest'] = archive_digest unless archive_digest.nil?
       schemes['petStoreBearer'] = pet_store_bearer unless pet_store_bearer.nil?
       schemes['serviceToken'] = service_token unless service_token.nil?
       schemes['apiKeyHeader'] = api_key_header unless api_key_header.nil?
@@ -84,6 +87,7 @@ module Petstore::Client
       schemes['legacyAuth'] = legacy_auth unless legacy_auth.nil?
       schemes['userAuth'] = user_auth unless user_auth.nil?
       schemes['browserAuth'] = browser_auth unless browser_auth.nil?
+      schemes['deviceAuth'] = device_auth unless device_auth.nil?
       schemes['ssoAuth'] = sso_auth unless sso_auth.nil?
       first_credential = authenticator || schemes.values.first
       raise ArgumentError, 'At least one credential is required' if first_credential.nil?

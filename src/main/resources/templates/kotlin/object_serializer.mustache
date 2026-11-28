@@ -751,6 +751,16 @@ internal class ObjectSerializer(
     }
 
     /**
+     * The contextual serializer registered for [kClass], if any. Kept out of the
+     * inline [deserialize] so the opt-in to the experimental lookup sits on one
+     * non-inline function.
+     */
+    @PublishedApi
+    @OptIn(ExperimentalSerializationApi::class)
+    internal fun contextualSerializer(kClass: kotlin.reflect.KClass<Any>): KSerializer<Any>? =
+        json.serializersModule.getContextual(kClass)
+
+    /**
      * Deserialize a JSON string to an object of the specified type.
      *
      * @param T the type to deserialize to
@@ -783,7 +793,7 @@ internal class ObjectSerializer(
                 if (T::class == ByteArray::class) {
                     Base64ByteArraySerializer
                 } else {
-                    json.serializersModule.getContextual(T::class as kotlin.reflect.KClass<Any>)
+                    contextualSerializer(T::class as kotlin.reflect.KClass<Any>)
                         ?: json.serializersModule.serializer<T>()
                 }
             ) as KSerializer<T>

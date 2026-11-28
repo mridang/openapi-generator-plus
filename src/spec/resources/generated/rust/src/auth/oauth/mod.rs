@@ -24,6 +24,9 @@ pub use oauth2_authorization_code_authenticator::*;
 mod oauth2_implicit_authenticator;
 pub use oauth2_implicit_authenticator::*;
 
+mod oauth2_device_authorization_authenticator;
+pub use oauth2_device_authorization_authenticator::*;
+
 mod openid_connect_authenticator;
 pub use openid_connect_authenticator::*;
 
@@ -35,5 +38,7 @@ pub mod user_auth_authorization_code_authenticator;
 pub use user_auth_authorization_code_authenticator::*;
 pub mod browser_auth_implicit_authenticator;
 pub use browser_auth_implicit_authenticator::*;
+pub mod device_auth_device_authorization_authenticator;
+pub use device_auth_device_authorization_authenticator::*;
 pub mod sso_auth_authenticator;
 pub use sso_auth_authenticator::*;

@@ -1740,6 +1740,22 @@ paths:
         '400':
           description: Invalid Order
 
+  /store/allowance:
+    post:
+      tags:
+        - store
+      summary: Submit an allowance whose schema uses every validation keyword
+      operationId: submitAllowance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Allowance'
+      responses:
+        '204':
+          description: Accepted
+
   /store/audit:
     get:
       tags:
@@ -1957,6 +1973,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NativeValues'
+
+  # A format: decimal number as the whole response body and as the items of an
+  # array body: each decodes with every digit, never through a binary float.
+  /store/native-values/amount:
+    get:
+      tags:
+        - store
+      summary: Reads one exact decimal as the whole response body.
+      operationId: getNativeAmount
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: number
+                format: decimal
+                example: 12.5
+  /store/native-values/amounts:
+    get:
+      tags:
+        - store
+      summary: Reads a list of exact decimals as the whole response body.
+      operationId: listNativeAmounts
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: number
+                  format: decimal
+                example: [12.5, 0.1]
 
   # ─── Memos: path-item servers, every HTTP method, reusable components ─────────
   # Servers declared on a path item apply to every operation under it that
@@ -2481,6 +2534,11 @@ components:
     adminBasic:
       type: http
       scheme: basic
+      deprecated: true
+    # HTTP Digest (RFC 7616, D192, #89): answered after the server's 401 challenge.
+    archiveDigest:
+      type: http
+      scheme: digest
     petStoreBearer:
       type: http
       scheme: bearer
@@ -2506,6 +2564,8 @@ components:
       name: SESSION_ID
     machineAuth:
       type: oauth2
+      # OpenAPI 3.2 fields swagger-models has no field for (D190, #91): read from the raw document.
+      oauth2MetadataUrl: https://auth.example.com/.well-known/oauth-authorization-server
       flows:
         clientCredentials:
           tokenUrl: https://auth.example.com/oauth/token
@@ -2537,6 +2597,17 @@ components:
           authorizationUrl: https://auth.example.com/authorize
           scopes:
             read: Read access
+    # The OpenAPI 3.2 device authorization flow (RFC 8628, D191, #92); swagger-models has no
+    # field for it, so the generator reads it from the raw document.
+    deviceAuth:
+      type: oauth2
+      flows:
+        deviceAuthorization:
+          deviceAuthorizationUrl: https://auth.example.com/oauth/device
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            pets:read: Read pets
+            pets:write: Write pets
     ssoAuth:
       type: openIdConnect
       openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration
@@ -2831,6 +2902,10 @@ components:
         weightKg:
           type: number
           format: double
+        # A decimal inside a oneOf variant (PetFood) keeps every digit too.
+        pricePerKg:
+          type: number
+          format: decimal
 
     WetFood:
       type: object
@@ -3193,6 +3268,146 @@ components:
           format: double
         - type: string
 
+    # OAS 3.1 type arrays and the null type (#98). The generator rewrites a type array
+    # into an anyOf of one schema per type (NormalizeTypeArrayRule) and `type: 'null'`
+    # into an untyped nullable schema (NormalizeNullTypeRule). chasm 1.3.0 cannot load
+    # a type array of two non-null types, so ReadingLevel, ReadingShape and inlineLevel
+    # declare the anyOf the rule produces for `type: [string, integer]` and
+    # `type: [array, object]`; the rewrite itself is covered by NormalizeTypeArrayRuleTest.
+    # None is referenced by an operation.
+    Reading:
+      type: object
+      required:
+        - level
+      properties:
+        level:
+          $ref: '#/components/schemas/ReadingLevel'
+        shape:
+          $ref: '#/components/schemas/ReadingShape'
+        inlineLevel:
+          anyOf:
+            - type: string
+            - type: integer
+        nothing:
+          type: 'null'
+
+    ReadingLevel:
+      anyOf:
+        - type: string
+        - type: integer
+
+    ReadingShape:
+      anyOf:
+        - type: array
+          items:
+            type: string
+        - type: object
+          additionalProperties:
+            type: string
+
+    # JSON Schema 2020-12 validation keywords the SDKs read and do not enforce (#82,
+    # D184): contains, minContains, maxContains, unevaluatedItems, not and contentSchema.
+    # A value they would refuse decodes as given. Not referenced by an operation.
+    Audit:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+          contains:
+            const: core
+          minContains: 1
+          maxContains: 1
+          unevaluatedItems: false
+        score:
+          type: integer
+          format: int32
+          not:
+            maximum: -1
+        payload:
+          type: string
+          contentMediaType: application/json
+          contentSchema:
+            type: object
+
+    # JSON Schema 2020-12 patternProperties and propertyNames (#84, D185): the pattern's
+    # value schema types the extra properties; the key patterns are not enforced.
+    # Not referenced by an operation.
+    Sensors:
+      type: object
+      properties:
+        site:
+          type: string
+      patternProperties:
+        '^s[0-9]+$':
+          type: integer
+          format: int32
+      propertyNames:
+        pattern: '^[a-z0-9]+$'
+
+    # JSON Schema 2020-12 if/then/else (#86, D186): the properties of then and else
+    # become optional properties of the model; the condition is not enforced.
+    # Not referenced by an operation.
+    Shipment:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+      if:
+        properties:
+          kind:
+            const: international
+      then:
+        properties:
+          customsCode:
+            type: string
+        required:
+          - customsCode
+      else:
+        properties:
+          postcode:
+            type: string
+
+    # Discriminator defaultMapping (#87, D187): a payload whose kind is missing or not in
+    # the mapping decodes as the default variant, Letter. defaultMapping is an OpenAPI 3.2
+    # field; the parser drops it, so the generator reads it from the raw document, and
+    # chasm 1.3.0 loads it. Not referenced by an operation.
+    Parcel:
+      oneOf:
+        - $ref: '#/components/schemas/Letter'
+        - $ref: '#/components/schemas/Packet'
+      discriminator:
+        propertyName: kind
+        mapping:
+          letter: '#/components/schemas/Letter'
+          packet: '#/components/schemas/Packet'
+        defaultMapping: '#/components/schemas/Letter'
+
+    Letter:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+        pages:
+          type: integer
+          format: int32
+
+    Packet:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+        weightKg:
+          type: number
+          format: double
+
     # Standalone string-enum component (NOT an inline property enum like
     # Order.status). Exercises the top-level enum template path: in Java that
     # path emits @JsonValue / @JsonCreator and must self-import the Jackson
@@ -3231,6 +3446,11 @@ components:
           type: number
           format: decimal
           example: 12.345678901234567890123
+        amounts:
+          type: array
+          items:
+            type: number
+            format: decimal
         ledger:
           type: string
           format: decimal
@@ -3695,6 +3915,62 @@ components:
           type: string
         text:
           type: string
+
+    # Every JSON Schema validation keyword on one model and on a model it holds
+    # (D189, #83). Only a client with constraint validation turned on enforces
+    # them, before the request is sent.
+    Allowance:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 2
+          maxLength: 5
+          pattern: '^[a-z]+$'
+        count:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+        ratio:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          exclusiveMaximum: 1
+        step:
+          type: integer
+          format: int32
+          multipleOf: 5
+        codes:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+        limits:
+          type: object
+          minProperties: 1
+          maxProperties: 2
+          additionalProperties:
+            type: integer
+            format: int32
+        tier:
+          $ref: '#/components/schemas/AllowanceTier'
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllowanceTier'
+
+    AllowanceTier:
+      type: object
+      properties:
+        level:
+          type: integer
+          format: int32
+          minimum: 0
+        name:
+          type: string
+          maxLength: 3
 
   # Reusable components of every kind (#56). The memo operations reference the
   # parameter, responses, request body, header, example and path item; the link

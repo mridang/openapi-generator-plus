@@ -3827,13 +3827,17 @@ class TestDeadlineAndCancellationClassification:
     def test_bhv_lang_python_084_an_unrelated_connection_failure_is_not_a_timeout(
         self,
     ) -> None:
+        from urllib3.connection import HTTPConnection
+
         from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
             headers = HTTPHeaderDict()
 
             def request(self, *args: Any, **kwargs: Any) -> Any:
-                raise urllib3.exceptions.NewConnectionError(None, "connection refused")
+                raise urllib3.exceptions.NewConnectionError(
+                    HTTPConnection("example.com"), "connection refused"
+                )
 
         with pytest.raises(NetworkException) as excinfo:
             DefaultApiClient(pool_manager=_Pool()).send_request(

@@ -132,7 +132,7 @@ class ProblemsApiProtocol(Protocol):
 
 
 class ProblemsApi(BaseApi):
-    """ProblemsApi provides methods for the problems API group.
+    r"""ProblemsApi provides methods for the problems API group.
     Operations that declare typed error responses
     """
 

@@ -253,6 +253,9 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "rust", "jsonvalue", "rust dynamic JSON value type");
     allow(ALLOWED_EXTRA, "go", "pathutils", "go path-template helpers");
     allow(ALLOWED_EXTRA, "php", "psr18apiclient", "the PSR-18 client implementation");
+    allow(ALLOWED_EXTRA, "java", "challengeauthenticator", "java declares the challenge interface of the digest authenticator in its own file");
+    allow(ALLOWED_EXTRA, "php", "deviceauthorization", "PHP class for the device authorization response (one class per file)");
+    allow(ALLOWED_EXTRA, "ruby", "deviceauthorization", "Ruby class for the device authorization response (one class per file)");
     allow(ALLOWED_EXTRA, "php", "encodedpart", "PHP multipart part carrying its Encoding Object headers");
     allow(ALLOWED_EXTRA, "php", "rawhttpresponse", "PHP wrapper for the PSR-7 response");
     allow(ALLOWED_EXTRA, "go", "requestoption", "go functional request options");
@@ -291,6 +294,7 @@ class GeneratedFileLayoutTest {
 
     allow(ALLOWED_FILE, "elixir", "lib/petstore_client/models/models_module.ex", "namespace module of the models");
     allow(ALLOWED_FILE, "go", "pkg/models/date_time.go", "go date-time model helper");
+    allow(ALLOWED_FILE, "go", "internal/digestseam/digestseam.go", "go digest test seam, internal to the module");
     allow(ALLOWED_EXTRA, "go", "protoduration", "go protobuf-JSON duration codec, internal to the module");
     allow(ALLOWED_EXTRA, "go", "exactdecimal", "go exact decimal codec, internal to the module");
     allow(ALLOWED_FILE, "go", "pkg/models/json_marshal.go", "go JSON marshalling helper of the models");

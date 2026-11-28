@@ -1,0 +1,17 @@
+module Petstore::Client::Models
+  module ReadingInlineLevel
+    class Composite
+      attr_reader anyof_matched_instances: Array[untyped]
+      def initialize: (Array[untyped]) -> void
+      def method_missing: (Symbol, *untyped) ?{ (*untyped) -> untyped } -> untyped
+      def respond_to_missing?: (Symbol, ?bool) -> bool
+      def ==: (untyped) -> bool
+      def eql?: (untyped) -> bool
+      def hash: () -> Integer
+    end
+    def self.openapi_any_of: () -> Array[Symbol]
+    def self.actual_instance: (untyped) -> untyped
+    def self.matched_instances: (untyped) -> Array[untyped]
+    def self.build: (untyped) -> untyped
+  end
+end

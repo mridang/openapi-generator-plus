@@ -24,6 +24,7 @@ use crate::auth::Authenticator;
 pub struct Credentials {
     scheme_pet_store_basic: Option<Arc<dyn Authenticator>>,
     scheme_admin_basic: Option<Arc<dyn Authenticator>>,
+    scheme_archive_digest: Option<Arc<dyn Authenticator>>,
     scheme_pet_store_bearer: Option<Arc<dyn Authenticator>>,
     scheme_service_token: Option<Arc<dyn Authenticator>>,
     scheme_api_key_header: Option<Arc<dyn Authenticator>>,
@@ -34,6 +35,7 @@ pub struct Credentials {
     scheme_legacy_auth: Option<Arc<dyn Authenticator>>,
     scheme_user_auth: Option<Arc<dyn Authenticator>>,
     scheme_browser_auth: Option<Arc<dyn Authenticator>>,
+    scheme_device_auth: Option<Arc<dyn Authenticator>>,
     scheme_sso_auth: Option<Arc<dyn Authenticator>>,
 }
 
@@ -52,6 +54,12 @@ impl Credentials {
     /// Sets the credential of the `adminBasic` security scheme.
     pub fn with_admin_basic(mut self, authenticator: impl Authenticator + 'static) -> Self {
         self.scheme_admin_basic = Some(Arc::new(authenticator));
+        self
+    }
+
+    /// Sets the credential of the `archiveDigest` security scheme.
+    pub fn with_archive_digest(mut self, authenticator: impl Authenticator + 'static) -> Self {
+        self.scheme_archive_digest = Some(Arc::new(authenticator));
         self
     }
 
@@ -115,6 +123,12 @@ impl Credentials {
         self
     }
 
+    /// Sets the credential of the `deviceAuth` security scheme.
+    pub fn with_device_auth(mut self, authenticator: impl Authenticator + 'static) -> Self {
+        self.scheme_device_auth = Some(Arc::new(authenticator));
+        self
+    }
+
     /// Sets the credential of the `ssoAuth` security scheme.
     pub fn with_sso_auth(mut self, authenticator: impl Authenticator + 'static) -> Self {
         self.scheme_sso_auth = Some(Arc::new(authenticator));
@@ -129,6 +143,9 @@ impl Credentials {
         }
         if let Some(authenticator) = &self.scheme_admin_basic {
             credentials.insert("adminBasic".to_string(), authenticator.clone());
+        }
+        if let Some(authenticator) = &self.scheme_archive_digest {
+            credentials.insert("archiveDigest".to_string(), authenticator.clone());
         }
         if let Some(authenticator) = &self.scheme_pet_store_bearer {
             credentials.insert("petStoreBearer".to_string(), authenticator.clone());
@@ -159,6 +176,9 @@ impl Credentials {
         }
         if let Some(authenticator) = &self.scheme_browser_auth {
             credentials.insert("browserAuth".to_string(), authenticator.clone());
+        }
+        if let Some(authenticator) = &self.scheme_device_auth {
+            credentials.insert("deviceAuth".to_string(), authenticator.clone());
         }
         if let Some(authenticator) = &self.scheme_sso_auth {
             credentials.insert("ssoAuth".to_string(), authenticator.clone());

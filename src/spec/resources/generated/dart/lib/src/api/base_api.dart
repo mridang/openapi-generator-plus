@@ -17,6 +17,7 @@ import '../api_http_response.dart';
 import '../api_result.dart';
 import '../api_stream_response.dart';
 import '../auth/authenticator.dart';
+import '../auth/digest_authenticator.dart';
 import '../auth/http_aware_authenticator.dart';
 import '../body_source.dart';
 import '../byte_stream.dart';
@@ -24,6 +25,7 @@ import '../call_hook.dart';
 import '../call_info.dart';
 import '../call_outcome.dart';
 import '../configuration.dart';
+import '../constraint_validator.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';
 import '../json_lines_stream.dart';
@@ -228,6 +230,11 @@ class BaseApi {
     bool stream = false,
     int? idleTimeout,
   }) async {
+    /* With validateConstraints on, a body that breaks a validation keyword of
+     * its schema is refused before anything is built, hooked or sent. */
+    if (config.validateConstraints && body != null) {
+      validateRequestBody(body);
+    }
     if (timeout != null && timeout < 1) {
       throw ArgumentError(
         'Invalid timeout: must be a positive number of milliseconds (got $timeout)',
@@ -328,6 +335,18 @@ class BaseApi {
         final authHeaders = await effectiveAuth.authHeadersAsync();
         headers.addAll(authHeaders);
         authNames.addAll(authHeaders.keys.map((name) => name.toLowerCase()));
+        /* HTTP Digest (D192): the answer to the remembered challenge, for
+         * this method and request target, once the authenticator has one. */
+        if (effectiveAuth is DigestAuthenticator) {
+          final answer = effectiveAuth.authorization(
+            method.toUpperCase(),
+            _requestTargetOf(requestUrl),
+          );
+          if (answer != null) {
+            _mergeHeaders(headers, {'Authorization': answer});
+            authNames.add('authorization');
+          }
+        }
 
         final cookies = effectiveAuth.cookieParams();
         if (cookies.isNotEmpty) {
@@ -474,6 +493,21 @@ class BaseApi {
               continue;
             } catch (_) {
               /* Fall through to the 401. */
+            }
+          } else if (response.statusCode == 401 &&
+              !reauthenticated &&
+              replayable &&
+              effectiveAuth is DigestAuthenticator) {
+            /* HTTP Digest (D192): the first request goes without credentials.
+             * A Digest challenge the authenticator accepts is answered and the
+             * request replayed once; anything else leaves the 401 as it is. */
+            reauthenticated = true;
+            final challenge = _headerValue(
+              response.headers,
+              'www-authenticate',
+            );
+            if (challenge != null && effectiveAuth.acceptChallenge(challenge)) {
+              continue;
             }
           } else if (replayable &&
               retries < maxRetriesLeft &&
@@ -814,6 +848,26 @@ class BaseApi {
       url.startsWith('http://') || url.startsWith('https://')
       ? ApiException.stripQuery(Uri.parse(url).path)
       : ApiException.stripQuery(url);
+
+  /// The request target of [url]: its path and query, without the scheme, the
+  /// host or a fragment.
+  static String _requestTargetOf(String url) {
+    final target = url
+        .split('#')
+        .first
+        .replaceFirst(RegExp(r'^[A-Za-z][A-Za-z0-9+.-]*://[^/?]*'), '');
+    return target.startsWith('/') ? target : '/$target';
+  }
+
+  /// The value of the response header [name], matched in any letter case, or
+  /// null when it is absent.
+  static String? _headerValue(Map<String, String> headers, String name) {
+    final values = headers.entries
+        .where((e) => e.key.toLowerCase() == name)
+        .map((e) => e.value)
+        .toList();
+    return values.isEmpty ? null : values.join(', ');
+  }
 
   /// Waits for [delay] before a retry. Overridable so a test does not have to
   /// wait for real time.

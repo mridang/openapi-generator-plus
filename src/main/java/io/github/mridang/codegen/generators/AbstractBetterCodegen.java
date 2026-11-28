@@ -83,7 +83,6 @@ import io.github.mridang.codegen.rules.NormalizeIntegerWidthRule;
 import io.github.mridang.codegen.rules.NormalizeNullTypeRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
 import io.github.mridang.codegen.rules.NormalizeTypeArrayRule;
-import io.github.mridang.codegen.rules.WarnUnsupportedKeywordsRule;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -180,6 +179,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     protected boolean hasBasicAuth;
     protected boolean hasBearerAuth;
+    /** A scheme is {@code type: http, scheme: digest} (RFC 7616, D192). */
+    protected boolean hasDigestAuth;
     protected boolean hasApiKeyAuth;
 
     /**
@@ -211,6 +212,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected boolean hasOAuth2Password;
     protected boolean hasOAuth2AuthorizationCode;
     protected boolean hasOAuth2Implicit;
+    /** A scheme declares the OpenAPI 3.2 device authorization flow (RFC 8628, D191). */
+    protected boolean hasOAuth2DeviceAuthorization;
     protected boolean hasOpenIdConnect;
     protected boolean hasAnyOAuth2;
     protected boolean generateTests;
@@ -570,6 +573,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
+        // The keyword warnings and the $defs hoist must see the document before the stock
+        // 3.1 normaliser rebuilds array schemas (D184).
+        openapiNormalizer().putIfAbsent("NORMALIZER_CLASS", io.github.mridang.codegen.PreNormalizer.class.getName());
         setEnablePostProcessFile(true);
         supportingFiles.clear();
 
@@ -802,6 +808,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         putInfoMetadata(openAPI.getInfo());
         responseSummaries = RawSpecReader.responseSummaries(getInputSpec());
+        discriminatorDefaults = RawSpecReader.discriminatorDefaults(getInputSpec());
         computeSchemeEnvVars(openAPI);
         // Webhooks are out of scope (S11); the stock generator would write each one into an API
         // class as an ordinary operation and overwrite the untagged operations of the document.
@@ -824,7 +831,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                                 : "https://spdx.org/licenses/" + identifier + ".html");
             }
         }
-        WarnUnsupportedKeywordsRule.check(openAPI, LOGGER);
+        io.github.mridang.codegen.SpecPreChecks.run(openAPI, LOGGER);
+        io.github.mridang.codegen.SpecPreChecks.clear(openAPI);
         new InlinePathItemReferencesRule()
                 .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         // D156: the summary and description written beside a $ref override the target's text.
@@ -832,6 +840,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new io.github.mridang.codegen.rules.NormalizePatternPropertiesRule()
+                .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeConstRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new IgnoreReservedHeadersRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeIntegerWidthRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
@@ -861,6 +871,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("hasClientSchemes", !sharedClientSchemes.isEmpty());
         additionalProperties.put("hasBasicAuth", hasBasicAuth);
         additionalProperties.put("hasBearerAuth", hasBearerAuth);
+        additionalProperties.put("hasDigestAuth", hasDigestAuth);
         additionalProperties.put("hasApiKeyAuth", hasApiKeyAuth);
         final List<Map<String, Object>> apiKeyHeaderNamesList = new ArrayList<>();
         for (final String name : apiKeyHeaderNames) {
@@ -881,6 +892,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("hasOAuth2Password", hasOAuth2Password);
         additionalProperties.put("hasOAuth2AuthorizationCode", hasOAuth2AuthorizationCode);
         additionalProperties.put("hasOAuth2Implicit", hasOAuth2Implicit);
+        additionalProperties.put("hasOAuth2DeviceAuthorization", hasOAuth2DeviceAuthorization);
         additionalProperties.put("hasOpenIdConnect", hasOpenIdConnect);
         additionalProperties.put("hasAnyOAuth2", hasAnyOAuth2);
         // Expose the (still-empty) mutable list before supporting files are
@@ -984,6 +996,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     hasBasicAuth = true;
                 } else if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
                     hasBearerAuth = true;
+                } else if ("digest".equalsIgnoreCase(scheme.getScheme())) {
+                    hasDigestAuth = true;
                 }
             } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
                 hasApiKeyAuth = true;
@@ -1006,6 +1020,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     }
                 }
             } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                    && hasDeviceFlow(entry.getKey())) {
+                hasOAuth2DeviceAuthorization = true;
+            }
+            if (scheme.getType() == SecurityScheme.Type.OAUTH2
                     && scheme.getFlows() != null) {
                 if (scheme.getFlows().getClientCredentials() != null) {
                     hasOAuth2ClientCredentials = true;
@@ -1027,7 +1045,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 hasOAuth2ClientCredentials
                         || hasOAuth2Password
                         || hasOAuth2AuthorizationCode
-                        || hasOAuth2Implicit;
+                        || hasOAuth2Implicit
+                        || hasOAuth2DeviceAuthorization;
+    }
+
+    /** Whether the named scheme declares a device authorization flow in the raw document (D191). */
+    private boolean hasDeviceFlow(String schemeName) {
+        final RawSpecReader.RawSecurityScheme raw = rawSecuritySchemes().get(schemeName);
+        return raw != null && raw.hasDeviceFlow();
     }
 
     /** Environment variable of every credential field of every scheme (F862). */
@@ -1116,6 +1141,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         m.put("oauth2_password_authenticator", "OAuth2PasswordAuthenticator");
         m.put("oauth2_authorization_code_authenticator", "OAuth2AuthorizationCodeAuthenticator");
         m.put("oauth2_implicit_authenticator", "OAuth2ImplicitAuthenticator");
+        m.put("oauth2_device_authorization_authenticator", "OAuth2DeviceAuthorizationAuthenticator");
         m.put("openid_connect_authenticator", "OpenIdConnectAuthenticator");
         m.put("client_auth_method", "ClientAuthMethod");
         return Collections.unmodifiableMap(m);
@@ -1253,6 +1279,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "auth/bearer_authenticator.mustache",
                 getAuthDir(),
                 toAuthFilename("bearer_authenticator")));
+        if (hasDigestAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/digest_authenticator.mustache",
+                    getAuthDir(),
+                    toAuthFilename("digest_authenticator")));
+        }
         if (hasApiKeyAuth) {
             supportingFiles.add(new SupportingFile(
                     "auth/api_key_location.mustache",
@@ -1298,6 +1330,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     "auth/oauth/oauth2_implicit_authenticator.mustache",
                     getOAuthDir(),
                     toAuthFilename("oauth2_implicit_authenticator")));
+        }
+        if (hasOAuth2DeviceAuthorization) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_device_authorization_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_device_authorization_authenticator")));
         }
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile(
@@ -1421,6 +1459,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         List.of("host", "token"),
                         null, null, null, null, null, null, null);
             }
+            if ("digest".equalsIgnoreCase(scheme.getScheme())) {
+                return new SchemeAuthSpec(schemeName, cls, "", "DigestAuthenticator", false,
+                        List.of("host", "username", "password"),
+                        null, null, null, null, null, null, null);
+            }
         } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
             final String location =
                     NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
@@ -1428,7 +1471,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     List.of("host", "apiKey"),
                     scheme.getName(), location, null, null, null, null, null);
         } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
+                && (scheme.getFlows() != null || hasDeviceFlow(schemeName))) {
             return buildOAuthSpec(schemeName, cls, scheme, warn);
         } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
             return new SchemeAuthSpec(schemeName, cls, "", "OpenIdConnectAuthenticator", true,
@@ -1474,7 +1517,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     static String unsupportedSchemeMessage(String schemeName, SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.HTTP) {
             return "Unsupported http security scheme '" + scheme.getScheme() + "' for '"
-                    + schemeName + "': only basic and bearer get an authenticator";
+                    + schemeName + "': only basic, bearer and digest get an authenticator";
         }
         return "Unsupported security scheme type " + scheme.getType() + " for '" + schemeName
                 + "': no authenticator is generated";
@@ -1585,41 +1628,54 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             String schemeName, String cls, SecurityScheme scheme, boolean warn) {
         if (warn) {
             final List<String> declared = declaredOAuthFlows(scheme);
+            if (hasDeviceFlow(schemeName)) {
+                declared.add("deviceAuthorization");
+            }
             if (declared.size() > 1) {
                 LOGGER.warn(
                         "{}", droppedOAuthFlowsMessage(schemeName, declared));
             }
         }
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
+        final var flows = scheme.getFlows() != null ? scheme.getFlows() : new io.swagger.v3.oas.models.security.OAuthFlows();
+        if (flows.getClientCredentials() != null) {
+            final var flow = flows.getClientCredentials();
             return new SchemeAuthSpec(schemeName, cls, "ClientCredentials",
                     "OAuth2ClientCredentialsAuthenticator", true,
                     List.of("host", "clientId", "clientSecret"),
                     null, null, flow.getTokenUrl(), null, null, null, flow.getScopes());
         }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
+        if (flows.getPassword() != null) {
+            final var flow = flows.getPassword();
             return new SchemeAuthSpec(schemeName, cls, "Password",
                     "OAuth2PasswordAuthenticator", true,
                     List.of("host", "clientId", "clientSecret", "username", "password"),
                     null, null, flow.getTokenUrl(), null, flow.getRefreshUrl(), null,
                     flow.getScopes());
         }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
+        if (flows.getAuthorizationCode() != null) {
+            final var flow = flows.getAuthorizationCode();
             return new SchemeAuthSpec(schemeName, cls, "AuthorizationCode",
                     "OAuth2AuthorizationCodeAuthenticator", true,
                     List.of("host", "clientId", "clientSecret", "redirectUri"),
                     null, null, flow.getTokenUrl(), flow.getAuthorizationUrl(),
                     flow.getRefreshUrl(), null, flow.getScopes());
         }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
+        if (flows.getImplicit() != null) {
+            final var flow = flows.getImplicit();
             return new SchemeAuthSpec(schemeName, cls, "Implicit",
                     "OAuth2ImplicitAuthenticator", true,
                     List.of("host", "clientId"),
                     null, null, null, flow.getAuthorizationUrl(), null, null,
                     flow.getScopes());
+        }
+        final RawSpecReader.RawSecurityScheme device = rawSecuritySchemes().get(schemeName);
+        if (device != null && device.hasDeviceFlow()) {
+            // D191: a public client; the device code is shown to the user, who approves it elsewhere.
+            return new SchemeAuthSpec(schemeName, cls, "DeviceAuthorization",
+                    "OAuth2DeviceAuthorizationAuthenticator", true,
+                    List.of("host", "clientId"),
+                    null, null, device.deviceTokenUrl(), device.deviceAuthorizationUrl(),
+                    device.deviceRefreshUrl(), null, device.deviceScopes());
         }
         LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", schemeName);
         return null;
@@ -1732,7 +1788,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         ctx.put("envVars", own);
         ctx.put("hasEnvVars", !own.isEmpty());
+        // D190: the OpenAPI 3.2 scheme fields swagger-models drops, read from the raw document.
+        final RawSpecReader.RawSecurityScheme raw = rawSecuritySchemes().get(spec.schemeName());
+        ctx.put("schemeDeprecated", raw != null && raw.deprecated());
+        final String metadataUrl = raw == null ? null : raw.oauth2MetadataUrl();
+        ctx.put("hasOAuth2MetadataUrl", metadataUrl != null);
+        if (metadataUrl != null) {
+            ctx.put("oauth2MetadataUrl", metadataUrl);
+        }
         return ctx;
+    }
+
+    /** The raw OpenAPI 3.2 security scheme fields, read once per generation (D190, D191). */
+    @Nullable private Map<String, RawSpecReader.RawSecurityScheme> rawSecuritySchemes;
+
+    /**
+     * Returns the OpenAPI 3.2 fields of every security scheme (deprecated, oauth2MetadataUrl,
+     * the device authorization flow), read from the document as written because swagger-models
+     * 2.2 has no field for them.
+     */
+    protected final Map<String, RawSpecReader.RawSecurityScheme> rawSecuritySchemes() {
+        Map<String, RawSpecReader.RawSecurityScheme> raw = rawSecuritySchemes;
+        if (raw == null) {
+            raw = RawSpecReader.securitySchemes(getInputSpec());
+            rawSecuritySchemes = raw;
+        }
+        return raw;
     }
 
     /**
@@ -1950,6 +2031,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     private Map<String, Map<String, String>> responseSummaries = Map.of();
 
+    /** The Discriminator Object {@code defaultMapping} per component schema, read raw (#87). */
+    private Map<String, String> discriminatorDefaults = Map.of();
+
     /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
     private static final Set<String> SAFE_HTTP_METHODS =
             Set.of("GET", "HEAD", "OPTIONS", "TRACE", "QUERY");
@@ -2153,6 +2237,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final CodegenModel built = super.fromModel(name, schema);
         if (built != null) {
             populateTypedAdditionalProperties(built, schema);
+            markDiscriminatorDefault(name, built);
         }
         // Record enum models so referenced-enum properties (which carry
         // isEnum == false but a complexType naming the enum) can be told apart
@@ -2175,6 +2260,63 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     protected final boolean isEnumModel(@Nullable String typeName) {
         return typeName != null && enumModelNames.contains(typeName);
+    }
+
+    /**
+     * Hands a discriminated model the variant its {@code defaultMapping} names (#87, D187):
+     * {@code vendorExtensions.discriminatorDefault} is the variant's model name and
+     * {@code discriminatorDefaultMappingName} the mapping key that names the same schema, or the
+     * schema's own name when the mapping does not list it. A template decodes a payload whose
+     * discriminator is missing or not in the mapping as that variant instead of failing.
+     */
+    private void markDiscriminatorDefault(String name, CodegenModel model) {
+        final String target = discriminatorDefaults.get(name);
+        if (target == null || model.discriminator == null) {
+            return;
+        }
+        final String modelName = toModelName(target);
+        String mappingName = target;
+        if (model.discriminator.getMappedModels() != null) {
+            for (final org.openapitools.codegen.CodegenDiscriminator.MappedModel mapped
+                    : model.discriminator.getMappedModels()) {
+                if (modelName.equals(mapped.getModelName())) {
+                    mappingName = mapped.getMappingName();
+                    break;
+                }
+            }
+        }
+        model.vendorExtensions.put("discriminatorDefault", modelName);
+        model.vendorExtensions.put("discriminatorDefaultMappingName", mappingName);
+        // Inside a {{#discriminator}} section the name vendorExtensions resolves to the
+        // discriminator's own map, so the values are put there as well.
+        model.discriminator.getVendorExtensions().put("discriminatorDefault", modelName);
+        model.discriminator.getVendorExtensions().put("discriminatorDefaultMappingName", mappingName);
+    }
+
+    /**
+     * Returns {@code true} when {@code typeName} names a generated model that is a
+     * {@code oneOf} or {@code anyOf} wrapper, so a property of that type holds the
+     * union's wire value (a scalar, an array or an object) rather than an object.
+     */
+    protected static boolean isUnionModel(@Nullable String typeName, List<Object> allModels) {
+        if (typeName == null) {
+            return false;
+        }
+        for (final Object candidate : allModels) {
+            if (!(candidate instanceof CodegenModel)) {
+                continue;
+            }
+            final CodegenModel model = (CodegenModel) candidate;
+            if (typeName.equals(model.classname)) {
+                final org.openapitools.codegen.CodegenComposedSchemas composed = model.getComposedSchemas();
+                return (model.oneOf != null && !model.oneOf.isEmpty())
+                        || (model.anyOf != null && !model.anyOf.isEmpty())
+                        || (composed != null
+                                && ((composed.getOneOf() != null && !composed.getOneOf().isEmpty())
+                                        || (composed.getAnyOf() != null && !composed.getAnyOf().isEmpty())));
+            }
+        }
+        return false;
     }
 
     /**
@@ -5881,6 +6023,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // class-transformer's @Type(() => X), which needs a class constructor).
         // Surface enum-ness of the referenced type so templates can suppress it.
         d.put("complexTypeIsEnum", isEnumModel(property.complexType));
+        // A property whose type is a oneOf or anyOf wrapper (a union component, or
+        // the union an OAS 3.1 type array becomes) holds a wire value that need not
+        // be an object, so a template decodes it through the union rules (#98).
+        d.put("complexTypeIsUnion", isUnionModel(property.complexType, allModels));
         final boolean itemsComplexTypeIsEnum =
                 property.items != null && isEnumModel(property.items.complexType);
         d.put("itemsComplexTypeIsEnum", itemsComplexTypeIsEnum);
@@ -8600,6 +8746,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (indirectsRecursiveProperties()) {
             indirectRecursiveProperties(result);
         }
+        // D189: the models the opt-in constraint validator checks, for its supporting file.
+        final List<CodegenModel> constraintModels = ConstraintChecks.mark(result, openAPI);
+        additionalProperties.put("constraintModels", constraintModels);
+        additionalProperties.put("hasConstraintModels", !constraintModels.isEmpty());
         return result;
     }
 

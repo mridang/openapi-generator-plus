@@ -77,12 +77,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final Set<String> CREDENTIAL_FALLBACK_BASES =
             Set.of(
                     "BasicAuthenticator",
+                    "DigestAuthenticator",
                     "BearerAuthenticator",
                     "ApiKeyAuthenticator",
                     "OAuth2ClientCredentialsAuthenticator",
                     "OAuth2PasswordAuthenticator",
                     "OAuth2AuthorizationCodeAuthenticator",
-                    "OAuth2ImplicitAuthenticator");
+                    "OAuth2ImplicitAuthenticator",
+                    "OAuth2DeviceAuthorizationAuthenticator");
 
     protected String invokerPackage = "OpenAPI\\Client";
 
@@ -466,6 +468,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ResponseTooLargeException.mustache", errorsFolder, "ResponseTooLargeException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
+            new SupportingFileSpec("constraint_validator.mustache", invokerFolder, "ConstraintValidator.php"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.php"),
             new SupportingFileSpec("call_observer.mustache", invokerFolder, "CallObserver.php"),
             new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.php"),
@@ -571,6 +574,112 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             sb.append(line);
         }
         return sb.toString();
+    }
+
+    /**
+     * Adds the php-only data the constraint validator (D189) needs to each entry the shared
+     * {@code ConstraintChecks} computed: {@code phpNullable} on a property whose declared PHP type
+     * admits {@code null} (the same rule as {@code model_var_type.mustache}, so the validator never
+     * compares a non-nullable property with null), and {@code phpPattern} on a pattern check, the
+     * pattern wrapped in PCRE delimiters.
+     *
+     * @param objs the processed models
+     * @return the models, unchanged
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        final Object models = additionalProperties.get("constraintModels");
+        if (!(models instanceof List)) {
+            return result;
+        }
+        // The instanceof chain of the validator tries a subclass before its parent, so a
+        // subtype is checked against its own properties too.
+        final List<CodegenModel> bySubclassFirst = new ArrayList<>();
+        for (final Object model : (List<?>) models) {
+            bySubclassFirst.add((CodegenModel) model);
+        }
+        bySubclassFirst.sort((a, b) -> Integer.compare(inheritanceDepth(b), inheritanceDepth(a)));
+        additionalProperties.put("phpConstraintModels", bySubclassFirst);
+        for (final Object model : (List<?>) models) {
+            final Object props = ((CodegenModel) model).vendorExtensions.get("constraintProps");
+            if (!(props instanceof List)) {
+                continue;
+            }
+            for (final Object item : (List<?>) props) {
+                final Map<String, Object> entry = (Map<String, Object>) item;
+                final Object prop = entry.get("prop");
+                final Object checks = entry.get("checks");
+                if (!(prop instanceof CodegenProperty) || !(checks instanceof List)) {
+                    continue;
+                }
+                entry.put("phpNullable", isPhpNullable((CodegenProperty) prop));
+                for (final Object c : (List<?>) checks) {
+                    final Map<String, Object> check = (Map<String, Object>) c;
+                    final Object pattern = check.get("pattern");
+                    if (pattern != null) {
+                        check.put("phpPattern", phpRegex(pattern.toString()));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * The number of classes a model extends.
+     *
+     * @param model the model
+     * @return 0 for a model with no parent
+     */
+    private static int inheritanceDepth(CodegenModel model) {
+        int depth = 0;
+        for (CodegenModel parent = model.parentModel; parent != null && depth < 64; parent = parent.parentModel) {
+            depth++;
+        }
+        return depth;
+    }
+
+    /**
+     * Whether the declared PHP type of a model property admits {@code null}, by the rule of
+     * {@code model_var_type.mustache}.
+     *
+     * @param prop the property
+     * @return whether the property's type is nullable
+     */
+    static boolean isPhpNullable(CodegenProperty prop) {
+        if (prop.required) {
+            return prop.isNullable && !prop.isAnyType;
+        }
+        if (prop.defaultValue == null) {
+            return !prop.isAnyType || prop.isEnum;
+        }
+        return !prop.isContainer && !prop.isEnum && prop.isNullable;
+    }
+
+    /**
+     * Wraps a pattern in the {@code /} delimiters of PCRE with the {@code u} modifier, escaping
+     * every {@code /} that is not already escaped.
+     *
+     * @param pattern the pattern as written in the schema
+     * @return the delimited pattern
+     */
+    static String phpRegex(String pattern) {
+        final StringBuilder out = new StringBuilder(pattern.length() + 4).append('/');
+        boolean escaped = false;
+        for (int i = 0; i < pattern.length(); i++) {
+            final char c = pattern.charAt(i);
+            if (escaped) {
+                escaped = false;
+            } else if (c == '\\') {
+                escaped = true;
+            } else if (c == '/') {
+                out.append('\\');
+            }
+            out.append(c);
+        }
+        return out.append("/u").toString();
     }
 
     /**
@@ -1282,6 +1391,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasOAuth2DeviceAuthorization) {
+            /* PSR-4 maps one class to one file: the device authorization value (D191). */
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/device_authorization.mustache", getOAuthDir(), "DeviceAuthorization.php"));
+        }
         if (!generateTests) {
             return;
         }
@@ -1352,7 +1466,28 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
         ctx.put("superArgs", superArgs);
         ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
+        recordOAuth2MetadataUrl(ctx);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
+    private final List<Map<String, Object>> oauth2MetadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Adds the quoted {@code oauth2MetadataUrlLiteral} to a scheme context that declares a metadata
+     * URL and lists the scheme under {@code oauth2MetadataUrlSchemes} for the generated test (D190).
+     */
+    private void recordOAuth2MetadataUrl(Map<String, Object> ctx) {
+        if (!Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))) {
+            return;
+        }
+        final String literal = toPhpStringLiteral(String.valueOf(ctx.get("oauth2MetadataUrl")));
+        ctx.put("oauth2MetadataUrlLiteral", literal);
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("qualifiedClassName", "\\" + ctx.get("package") + "\\" + ctx.get("className"));
+        entry.put("oauth2MetadataUrlLiteral", literal);
+        oauth2MetadataUrlSchemes.add(entry);
+        additionalProperties.put("oauth2MetadataUrlSchemes", oauth2MetadataUrlSchemes);
     }
 
     /**
@@ -1451,7 +1586,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /**
      * Records the first scheme of each OAuth2 grant the tests can build ({@code
      * oauthClientCredentialsScheme}, {@code oauthPasswordScheme}, {@code oauthAuthCodeScheme},
-     * {@code oauthImplicitScheme}):
+     * {@code oauthImplicitScheme}, {@code oauthDeviceAuthorizationScheme}):
      * its generated class, the token and authorization URLs of the spec as PHP literals, and the
      * spec scopes, so the scheme wrapper tests can assert what the wrapper sends.
      */
@@ -1470,6 +1605,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             case "OAuth2ImplicitAuthenticator":
                 key = "oauthImplicitScheme";
                 break;
+            case "OAuth2DeviceAuthorizationAuthenticator":
+                key = "oauthDeviceAuthorizationScheme";
+                break;
             default:
                 return;
         }
@@ -1481,6 +1619,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         scheme.put("authorizationUrlLiteral",
                 toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")));
         scheme.put("scopesLiteral", formatPhpScopes(spec.scopes()));
+        scheme.put("scopeLiteral", toPhpStringLiteral(spec.scopes() == null
+                ? "" : String.join(" ", spec.scopes().keySet())));
         scheme.put("hasScopes", spec.scopes() != null && !spec.scopes().isEmpty());
         additionalProperties.putIfAbsent(key, scheme);
     }
@@ -1497,7 +1637,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     private List<String> buildPhpSuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("$host", "$username", "$password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
@@ -1532,6 +1673,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             final String scopes = formatPhpScopes(spec.scopes());
             return List.of("$host", "$clientId",
                     toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), scopes);
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? toPhpStringLiteral(java.util.Objects.toString(spec.refreshUrl(), "")) : "null";
+            final String scopes = formatPhpScopes(spec.scopes());
+            return List.of("$host", "$clientId",
+                    toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")),
+                    toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")), scopes, refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("$host", toPhpStringLiteral(java.util.Objects.toString(spec.openIdConnectUrl(), "")),

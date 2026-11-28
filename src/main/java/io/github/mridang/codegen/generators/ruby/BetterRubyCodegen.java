@@ -353,6 +353,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("header_selector.mustache", libPath, "header_selector.rb"),
             new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
             new SupportingFileSpec("value_serializer.mustache", libPath, "value_serializer.rb"),
+            new SupportingFileSpec("constraint_validator.mustache", libPath, "constraint_validator.rb"),
             new SupportingFileSpec("trace_context_util.mustache", libPath, "trace_context_util.rb"),
             new SupportingFileSpec("call_info.mustache", libPath, "call_info.rb"),
             new SupportingFileSpec("call_outcome.mustache", libPath, "call_outcome.rb"),
@@ -1066,6 +1067,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasOAuth2DeviceAuthorization) {
+            /* D191: one constant per file, so the device authorization value has a file of its own. */
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/device_authorization.mustache", getOAuthDir(), "device_authorization.rb"));
+        }
         if (!generateTests) {
             return;
         }
@@ -1297,6 +1303,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 .put(
                         "camelize",
                         (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())))
+                .put(
+                        "noSpaces",
+                        (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\s+", "")))
                 .put(
                         "rubySnake",
                         (fragment, writer) -> writer.write(NamingConvention.SNAKE_CASE.apply(fragment.execute())))
@@ -1533,7 +1542,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         ctx.put("resolutions", ctor.resolutions);
         ctx.put("hasResolutions", !ctor.resolutions.isEmpty());
         ctx.put("rbsSignature", ctor.rbsSignature);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            ctx.put("metadataUrlLiteral", toRubyStringLiteral(String.valueOf(metadataUrl)));
+        }
         final Map<String, Object> entry = new HashMap<>();
+        /* D190: authscheme700 reads the metadata URL constant of the first scheme that declares one. */
+        entry.put(
+                "metadataUrlTest",
+                metadataUrl != null
+                        && schemeEnvironmentEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+        entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
         entry.put("className", ctx.get("className"));
         entry.put("namespace", spec.isOAuth() ? "Auth::OAuth" : "Auth");
         entry.put("isOAuth", spec.isOAuth());
@@ -1543,6 +1562,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             credentials.add(Map.of("name", e.getKey(), "envName", e.getValue()));
         }
         entry.put("credentials", credentials);
+        /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+        final boolean device = "OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass());
+        entry.put(
+                "deviceTest",
+                device && schemeEnvironmentEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("deviceTest"))));
+        if (device) {
+            entry.put("deviceFile", NamingConvention.SNAKE_CASE.apply(String.valueOf(ctx.get("className"))));
+            entry.put("deviceAuthorizationUrl", spec.authorizationUrl());
+            entry.put("deviceTokenUrl", spec.tokenUrl());
+            entry.put("deviceScopes", formatRubyScopes(spec.scopes()));
+        }
         entry.put("firstEnvName", credentials.isEmpty() ? "" : credentials.get(0).get("envName"));
         schemeEnvironmentEntries.add(entry);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
@@ -1600,7 +1630,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             superArgs.add("token_provider: token_provider");
             superArgs.add("env: env");
             superArgs.add("token_env: " + rubyLiteral(envByParam.get("token")));
-        } else if ("BasicAuthenticator".equals(base)) {
+        } else if ("BasicAuthenticator".equals(base) || "DigestAuthenticator".equals(base)) {
             signature.append(", username = nil, password = nil, env: ENV");
             rbs.append(", ?String? username, ?String? password, ?env: untyped");
             superArgs.add("env: env");
@@ -1661,7 +1691,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     private List<String> buildRubySuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass()) || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
@@ -1698,6 +1728,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             final String scopes = formatRubyScopes(spec.scopes());
             return List.of("host", "client_id",
                     "'" + spec.authorizationUrl() + "'", scopes);
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "nil";
+            return List.of("host", "client_id",
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    formatRubyScopes(spec.scopes()),
+                    "refresh_url: " + refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "'" + spec.openIdConnectUrl() + "'",

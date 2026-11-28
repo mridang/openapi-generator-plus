@@ -217,14 +217,7 @@ defmodule PetstoreClient.DefaultApiClient do
     opts = client.transport_options
 
     {merged, serialized_body} =
-      prepare_request(
-        client,
-        method,
-        headers,
-        body,
-        request_opts,
-        buffered_accept_encoding(opts.max_response_bytes)
-      )
+      prepare_request(client, method, headers, body, request_opts, buffered_accept_encoding())
 
     # Req re-sends Authorization / Cookie / Proxy-Authorization
     # across cross-origin 3xx redirects by default, which leaks bearer
@@ -497,12 +490,9 @@ defmodule PetstoreClient.DefaultApiClient do
   # Only advertise "br" when the optional :brotli NIF is actually loaded, and
   # "zstd" when Erlang/OTP ships the :zstd module (OTP 28); otherwise a server
   # may return a body that cannot be decoded, leaving raw bytes the caller
-  # can't parse. With `max_response_bytes` set only gzip and deflate are asked
-  # for, because only those two are inflated a piece at a time, so a body that
-  # inflates past the limit is stopped before it is inflated in full.
-  defp buffered_accept_encoding(limit) when is_integer(limit), do: stream_accept_encoding()
-
-  defp buffered_accept_encoding(_limit) do
+  # can't parse. Every codec is decoded a piece at a time under
+  # `max_response_bytes`, so the same set is asked for with or without a limit.
+  defp buffered_accept_encoding do
     Enum.join(
       ["gzip", "deflate"] ++
         if(Code.ensure_loaded?(:brotli), do: ["br"], else: []) ++
@@ -562,10 +552,9 @@ defmodule PetstoreClient.DefaultApiClient do
   # arrived but cannot be decompressed surfaces as a typed ApiError carrying the
   # response's real status code, never a NetworkError.
   #
-  # With a `limit` (`max_response_bytes`), gzip, deflate and zstd are decoded a
-  # piece at a time and stop with ResponseTooLargeError as soon as the output
-  # passes the limit; a br body (never asked for under a limit, and the optional
-  # :brotli library has no incremental decoder here) is checked once decoded.
+  # With a `limit` (`max_response_bytes`), every codec is decoded a piece at a
+  # time and stops with ResponseTooLargeError as soon as the output passes the
+  # limit, so a small body that expands to a huge one is never decoded in full.
   @spec decompress_body(binary(), String.t(), integer(), pos_integer() | nil) :: binary()
   # An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
   # decompress, so it passes through unchanged for ANY declared encoding —
@@ -591,7 +580,7 @@ defmodule PetstoreClient.DefaultApiClient do
         inflate_body(body, status, limit)
 
       "br" ->
-        body |> brotli_body(status) |> within_limit!(status, limit)
+        brotli_body(body, status, limit)
 
       "zstd" ->
         zstd_body(body, status, limit)
@@ -706,16 +695,6 @@ defmodule PetstoreClient.DefaultApiClient do
     end
   end
 
-  defp within_limit!(decoded, _status, nil), do: decoded
-
-  defp within_limit!(decoded, status, limit) do
-    if byte_size(decoded) > limit do
-      raise PetstoreClient.Errors.ResponseTooLargeError, status_code: status, limit: limit
-    end
-
-    decoded
-  end
-
   # Reads a buffered body under `max_response_bytes`: the chunks are counted as
   # they arrive, before any decompression, and the read stops (the connection is
   # dropped, not drained) as soon as the count passes the limit or the declared
@@ -767,25 +746,58 @@ defmodule PetstoreClient.DefaultApiClient do
 
   # `br` is only advertised in Accept-Encoding when the optional :brotli NIF is
   # loaded, so a server should never send it otherwise; guard anyway.
-  defp brotli_body(body, status) do
+  defp brotli_body(body, status, limit) do
     if Code.ensure_loaded?(:brotli) do
       # Called through apply/3: :brotli is an optional dependency, so it is
-      # not known when this module is compiled. A `mod.decode(body)` call on a
+      # not known when this module is compiled. A `mod.fun(arg)` call on a
       # variable module is constant-folded by the compiler and warns that the
       # module is undefined, which `--warnings-as-errors` turns into a failure.
-      case apply(:brotli, :decode, [body]) do
-        {:ok, decoded} ->
-          decoded
-
-        _ ->
-          raise PetstoreClient.Errors.ApiError,
-            message: "Failed to decompress br response body",
-            status_code: status
-      end
+      decoder = apply(:brotli_decoder, :new, [])
+      brotli_within(decoder, body, [], 0, {status, limit})
     else
       raise PetstoreClient.Errors.ApiError,
         message: "Received a br-encoded response but the br library is unavailable",
         status_code: status
+    end
+  end
+
+  # Makes the same :brotli_nif calls as :brotli_decoder.stream/2, but counts the
+  # output each time the decoder hands it over (at most one window, a few MiB),
+  # so under a limit decoding stops with ResponseTooLargeError as soon as the
+  # output passes it instead of after the whole body is decoded. A stream that
+  # ends before its last meta-block, or is corrupt, fails like any other
+  # undecodable body.
+  defp brotli_within(decoder, input, acc, size, {status, _limit} = bound) do
+    case apply(:brotli_nif, :decoder_decompress_stream, [decoder, input]) do
+      :ok ->
+        {acc, _size} = brotli_take(decoder, acc, size, bound)
+        IO.iodata_to_binary(acc)
+
+      {:more_output, remaining} ->
+        {acc, size} = brotli_take(decoder, acc, size, bound)
+        rest = binary_part(input, byte_size(input) - remaining, remaining)
+        brotli_within(decoder, rest, acc, size, bound)
+
+      _ ->
+        raise PetstoreClient.Errors.ApiError,
+          message: "Failed to decompress br response body",
+          status_code: status
+    end
+  end
+
+  defp brotli_take(decoder, acc, size, {status, limit} = bound) do
+    case apply(:brotli_nif, :decoder_take_output, [decoder]) do
+      <<>> ->
+        {acc, size}
+
+      output ->
+        size = size + byte_size(output)
+
+        if is_integer(limit) and size > limit do
+          raise PetstoreClient.Errors.ResponseTooLargeError, status_code: status, limit: limit
+        end
+
+        brotli_take(decoder, [acc, output], size, bound)
     end
   end
 

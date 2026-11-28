@@ -281,6 +281,54 @@ class _ScriptedStreamingClient implements RetryingApiClient, StreamingApiClient 
   }
 }
 
+{{#hasDigestAuth}}
+/// The headers of a scripted response: a 401 carries a Digest challenge.
+Map<String, String> _digestHeaders(int status) => status == 401
+    ? {'WWW-Authenticate': 'Digest realm="api", nonce="abc", qop="auth"'}
+    : {'content-type': 'application/octet-stream'};
+
+/// Answers each stream call from a script of statuses, every 401 with a
+/// Digest challenge, and keeps the headers each call was sent.
+class _DigestStreamingClient implements StreamingApiClient {
+  _DigestStreamingClient(this.statuses);
+
+  final List<int> statuses;
+  final List<Map<String, String>> streamHeaders = [];
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) async =>
+      throw UnsupportedError('stream calls only');
+
+  @override
+  Future<ApiStreamResponse> sendStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
+  }) async {
+    final status = statuses[streamHeaders.length];
+    streamHeaders.add(Map<String, String>.from(headers));
+    return ApiStreamResponse(
+      statusCode: status,
+      headers: _digestHeaders(status),
+      body: Stream<List<int>>.value(utf8.encode('ok')),
+    );
+  }
+}
+
+{{/hasDigestAuth}}
 /// A response body that remembers whether its subscription was cancelled.
 class _CloseTrackingBody {
   _CloseTrackingBody(List<int> bytes) {
@@ -4054,6 +4102,63 @@ void main() {
 
       expect(client.sentHeaders, hasLength(2));
     });
+{{#hasDigestAuth}}
+
+    DigestAuthenticator digestAuth() => DigestAuthenticator(
+        host: 'https://api.example.com', username: 'alice', password: 'wonder')
+      ..cnonceSource = () => '0a4f113b';
+
+    String digestHeader(String method, String target, String nc, String response) =>
+        'Digest username="alice", realm="api", nonce="abc", uri="$target", '
+        'response="$response", qop=auth, nc=$nc, cnonce="0a4f113b"';
+
+    test('bhv authdigest 702 a Digest challenge is answered and the request replayed once, buffered and streamed', () async {
+      final client = _ScriptedApiClient(
+          [_reply(401, headers: _digestHeaders(401)), _reply(200)]);
+      await _RecordingApi(client, authenticator: digestAuth())
+          .invokeApi(method: 'GET', path: '/things', queryParams: {'page': '2'});
+
+      expect(client.sentHeaders.map((h) => h['Authorization']), equals([
+        null,
+        digestHeader('GET', '/things?page=2', '00000001', '85d61a1d8b7020a6473e3eb179db9bf8'),
+      ]));
+
+      final streaming = _DigestStreamingClient([401, 200]);
+      final result = await _RecordingApi(streaming, authenticator: digestAuth())
+          .invokeApiForStream(method: 'GET', path: '/items/blob');
+      await result.data!.readAll();
+
+      expect(streaming.streamHeaders.map((h) => h['Authorization']), equals([
+        null,
+        digestHeader('GET', '/items/blob', '00000001', 'bba8d1a1d53e6b727f78314fd570c2bf'),
+      ]));
+
+      final refused = _ScriptedApiClient([
+        _reply(401, headers: _digestHeaders(401)),
+        _reply(401, headers: _digestHeaders(401)),
+        _reply(200),
+      ]);
+
+      await expectLater(
+        _RecordingApi(refused, authenticator: digestAuth()).invokeApi(method: 'PUT', path: '/things'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(refused.sentHeaders, hasLength(2));
+    });
+
+    test('bhv authdigest 703 a later request answers the remembered challenge up front with nc 00000002', () async {
+      final client = _ScriptedApiClient(
+          [_reply(401, headers: _digestHeaders(401)), _reply(200), _reply(200)]);
+      final api = _RecordingApi(client, authenticator: digestAuth());
+
+      await api.invokeApi(method: 'PUT', path: '/things');
+      await api.invokeApi(method: 'PUT', path: '/things');
+
+      expect(client.sentHeaders, hasLength(3));
+      expect(client.sentHeaders.last['Authorization'],
+          equals(digestHeader('PUT', '/things', '00000002', 'dd932467ef056ef31a6664986bd14283')));
+    });
+{{/hasDigestAuth}}
   });
 
   group('BaseApi retries', () {

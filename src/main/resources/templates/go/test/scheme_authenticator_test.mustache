@@ -564,3 +564,11 @@ func TestBhvMisc205_SchemeAuthenticator_MissingCredentialErrorNamesTheVariable(t
 {{#-last}}
 }
 {{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#metadataUrlTest}}
+
+func TestBhvAuthscheme700_SchemeAuthenticator_{{className}}_ExposesTheMetadataURLTheSchemeDeclares(t *testing.T) {
+	if got := {{package}}.{{className}}MetadataURL; got != "{{{oauth2MetadataUrl}}}" {
+		t.Errorf("{{className}}MetadataURL = %q, want %q", got, "{{{oauth2MetadataUrl}}}")
+	}
+}
+{{/metadataUrlTest}}{{/schemeAuthTests}}

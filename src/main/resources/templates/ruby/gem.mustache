@@ -55,6 +55,7 @@ require '{{modulePath}}/servers'
 require '{{modulePath}}/header_selector'
 require '{{modulePath}}/object_serializer'
 require '{{modulePath}}/value_serializer'
+require '{{modulePath}}/constraint_validator'
 require '{{modulePath}}/trace_context_util'
 require '{{modulePath}}/call_info'
 require '{{modulePath}}/call_outcome'
@@ -84,6 +85,9 @@ require '{{modulePath}}/auth/all_of_http_aware_authenticator'
 {{#hasBasicAuth}}
 require '{{modulePath}}/auth/basic_authenticator'
 {{/hasBasicAuth}}
+{{#hasDigestAuth}}
+require '{{modulePath}}/auth/digest_authenticator'
+{{/hasDigestAuth}}
 require '{{modulePath}}/auth/bearer_authenticator'
 {{#hasApiKeyAuth}}
 require '{{modulePath}}/auth/api_key_location'
@@ -108,6 +112,10 @@ require '{{modulePath}}/auth/oauth/oauth2_authorization_code_authenticator'
 {{#hasOAuth2Implicit}}
 require '{{modulePath}}/auth/oauth/oauth2_implicit_authenticator'
 {{/hasOAuth2Implicit}}
+{{#hasOAuth2DeviceAuthorization}}
+require '{{modulePath}}/auth/oauth/device_authorization'
+require '{{modulePath}}/auth/oauth/oauth2_device_authorization_authenticator'
+{{/hasOAuth2DeviceAuthorization}}
 {{#hasOpenIdConnect}}
 require '{{modulePath}}/auth/oauth/openid_connect_authenticator'
 {{/hasOpenIdConnect}}

@@ -9,6 +9,7 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 import javax.annotation.Nullable;
 
 /** DryFood. */
@@ -27,6 +28,11 @@ public class DryFood extends PetFood {
   @JsonProperty("weightKg")
   public final Double weightKg;
 
+  /** The {@code pricePerKg} property. */
+  @JsonProperty("pricePerKg")
+  @Nullable
+  public final BigDecimal pricePerKg;
+
   /**
    * Creates an instance with all required properties.
    *
@@ -43,6 +49,7 @@ public class DryFood extends PetFood {
     builder.requireNullableProperties();
     this.foodType = java.util.Objects.requireNonNull(builder.foodType, "foodType is required");
     this.weightKg = java.util.Objects.requireNonNull(builder.weightKg, "weightKg is required");
+    this.pricePerKg = builder.pricePerKg;
   }
 
   /**
@@ -64,6 +71,7 @@ public class DryFood extends PetFood {
     Builder builder = new Builder();
     builder.foodType = this.foodType;
     builder.weightKg = this.weightKg;
+    builder.pricePerKg = this.pricePerKg;
     return builder;
   }
 
@@ -78,6 +86,7 @@ public class DryFood extends PetFood {
   public static final class Builder {
     @Nullable private String foodType = "dry";
     @Nullable private Double weightKg;
+    @Nullable private BigDecimal pricePerKg;
 
     private Builder() {}
 
@@ -102,6 +111,18 @@ public class DryFood extends PetFood {
     @JsonProperty("weightKg")
     public Builder weightKg(Double weightKg) {
       this.weightKg = weightKg;
+      return this;
+    }
+
+    /**
+     * Sets the "pricePerKg" property.
+     *
+     * @param pricePerKg the new value
+     * @return this builder
+     */
+    @JsonProperty("pricePerKg")
+    public Builder pricePerKg(@Nullable BigDecimal pricePerKg) {
+      this.pricePerKg = pricePerKg;
       return this;
     }
 
@@ -134,12 +155,15 @@ public class DryFood extends PetFood {
       return false;
     }
     return java.util.Objects.equals(this.foodType, other.foodType)
-        && java.util.Objects.equals(this.weightKg, other.weightKg);
+        && java.util.Objects.equals(this.weightKg, other.weightKg)
+        && com.example.petstore.ObjectSerializer.structuralEquals(
+            this.pricePerKg, other.pricePerKg);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(foodType, weightKg);
+    return java.util.Objects.hash(
+        foodType, weightKg, com.example.petstore.ObjectSerializer.structuralHashCode(pricePerKg));
   }
 
   @Override
@@ -148,6 +172,7 @@ public class DryFood extends PetFood {
     sb.append(getClass().getSimpleName()).append("{");
     sb.append("foodType=").append(foodType);
     sb.append(", weightKg=").append(weightKg);
+    sb.append(", pricePerKg=").append(pricePerKg);
     sb.append("}");
     return sb.toString();
   }

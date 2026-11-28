@@ -24,6 +24,7 @@ import com.example.petstore.api.options.GetGroupedCategoriesOptions
 import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.GetMatrixOptions
 import com.example.petstore.api.options.GetMemoOptions
+import com.example.petstore.api.options.GetNativeAmountOptions
 import com.example.petstore.api.options.GetNativeValuesOptions
 import com.example.petstore.api.options.GetOrderByIdOptions
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions
@@ -33,15 +34,18 @@ import com.example.petstore.api.options.GetSwatchOptions
 import com.example.petstore.api.options.GetTimestampGroupsOptions
 import com.example.petstore.api.options.GetTreeOptions
 import com.example.petstore.api.options.HeadMemoOptions
+import com.example.petstore.api.options.ListNativeAmountsOptions
 import com.example.petstore.api.options.OptionsMemoOptions
 import com.example.petstore.api.options.PatchMemoOptions
 import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
+import com.example.petstore.api.options.SubmitAllowanceOptions
 import com.example.petstore.api.options.TraceMemoOptions
 import com.example.petstore.api.options.WatchNoticesOptions
 import com.example.petstore.api.options.WatchOrdersOptions
 import com.example.petstore.models.Account
+import com.example.petstore.models.Allowance
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
@@ -53,6 +57,7 @@ import com.example.petstore.models.ReserveStockResponse
 import com.example.petstore.models.StockItem
 import com.example.petstore.models.Swatch
 import com.example.petstore.models.TreeNode
+import java.math.BigDecimal
 import java.time.OffsetDateTime
 import kotlin.collections.List
 import kotlin.collections.Map
@@ -169,6 +174,12 @@ interface StoreApiInterface {
         options: GetMemoOptions? = null,
     ): ApiResult<Memo>
 
+    /** The `getNativeAmount` operation. */
+    suspend fun getNativeAmount(options: GetNativeAmountOptions? = null): BigDecimal
+
+    /** The `getNativeAmount` operation with its status code, headers and body. */
+    suspend fun getNativeAmountWithHttpInfo(options: GetNativeAmountOptions? = null): ApiResult<BigDecimal>
+
     /** The `getNativeValues` operation. */
     suspend fun getNativeValues(options: GetNativeValuesOptions? = null): NativeValues
 
@@ -241,6 +252,12 @@ interface StoreApiInterface {
         options: HeadMemoOptions? = null,
     ): ApiResult<Unit>
 
+    /** The `listNativeAmounts` operation. */
+    suspend fun listNativeAmounts(options: ListNativeAmountsOptions? = null): List<BigDecimal>
+
+    /** The `listNativeAmounts` operation with its status code, headers and body. */
+    suspend fun listNativeAmountsWithHttpInfo(options: ListNativeAmountsOptions? = null): ApiResult<List<BigDecimal>>
+
     /** The `optionsMemo` operation. */
     suspend fun optionsMemo(
         memoId: String,
@@ -290,6 +307,18 @@ interface StoreApiInterface {
 
     /** The `searchStore` operation with its status code, headers and body. */
     suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions? = null): ApiResult<List<Order>>
+
+    /** The `submitAllowance` operation. */
+    suspend fun submitAllowance(
+        allowance: Allowance,
+        options: SubmitAllowanceOptions? = null,
+    ): Unit
+
+    /** The `submitAllowance` operation with its status code, headers and body. */
+    suspend fun submitAllowanceWithHttpInfo(
+        allowance: Allowance,
+        options: SubmitAllowanceOptions? = null,
+    ): ApiResult<Unit>
 
     /** The `traceMemo` operation. */
     suspend fun traceMemo(

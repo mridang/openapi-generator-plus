@@ -69,6 +69,10 @@ futures-core = "0.3"
 futures-util = "0.3"
 base64 = "0.22"
 sha2 = "0.10"
+{{#hasDigestAuth}}
+# HTTP Digest (RFC 7616) answers MD5 challenges; the standard library has no MD5.
+md-5 = "0.10"
+{{/hasDigestAuth}}
 uuid = { version = "1", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false, features = ["std", "serde"] }
@@ -90,6 +94,10 @@ features = ["trace", "metrics"]
 # in-memory exporter and a current span. They are compiled with the
 # `opentelemetry` feature, so run the tests with `--all-features`.
 opentelemetry_sdk = { version = "0.32", features = ["testing"] }
+{{#hasOAuth2DeviceAuthorization}}
+# Paused tokio time lets the device authorization tests poll without waiting.
+tokio = { version = "1", features = ["test-util"] }
+{{/hasOAuth2DeviceAuthorization}}
 {{#generateTests}}
 # reusable-containers lets every integration binary share one set of fixture
 # containers. Cargo compiles each file under tests/ separately, so without it

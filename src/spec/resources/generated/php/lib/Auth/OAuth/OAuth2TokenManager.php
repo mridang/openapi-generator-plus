@@ -286,46 +286,10 @@ final class OAuth2TokenManager
      */
     private function fetchToken(string $tokenUrl, array $params, array $extraHeaders = []): void
     {
-        if (!$this->apiClient instanceof ApiClient) {
-            throw new \LogicException(
-                'ApiClient has not been injected. '
-                . 'Ensure the Client constructor calls setApiClient() '
-                . 'on HttpAwareAuthenticator before making API requests.'
-            );
-        }
-
-        $headers = array_merge(
-            ['Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json'],
-            $extraHeaders
-        );
-        /* http_build_query defaults to PHP_QUERY_RFC1738 (space -> '+', correct
-         * for application/x-www-form-urlencoded) but escapes '~' to %7E; RFC
-         * 3986 keeps '~' unreserved, so map it back so every SDK emits
-         * byte-identical bodies. */
-        $body = str_replace('%7E', '~', http_build_query($this->orderTokenForm($params)));
-
-        /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
-         * redirect (RFC 6749 §3.2 forbids redirects at the token
-         * endpoint). A malicious upstream proxy that rewrites a token
-         * endpoint Location to an attacker-controlled host would
-         * otherwise harvest client credentials (or a refresh token)
-         * sent in the body. We disable redirect following on the
-         * transport via $noRedirect=true so the 3xx surfaces here and is
-         * refused below. A transport failure propagates unchanged as
-         * NetworkException / NetworkTimeoutException. */
-        $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body, noRedirect: true, noDefaultHeaders: true);
-        if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            /* Any non-2xx answer, a refused 3xx included, is an
-             * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
-             * are JSON bodies with `error` (required), `error_description`,
-             * `error_uri`. Parse them into the typed properties so callers
-             * can recover. Fall back to the raw body when the response is
-             * not a valid error object. */
-            throw $this->parseOAuth2ServerError($response->statusCode, $response->body);
-        }
+        $responseText = $this->postForm($tokenUrl, $params, $extraHeaders);
 
         try {
-            $responseBody = json_decode($response->body, true, 512, JSON_THROW_ON_ERROR);
+            $responseBody = json_decode($responseText, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             throw new OAuth2TokenException('Token response is not valid JSON');
         }
@@ -360,7 +324,7 @@ final class OAuth2TokenManager
              * parse digit strings; on anything unparseable or non-positive,
              * mark the token as immediately stale so the next call refetches
              * (preferable to caching a token of unknown lifetime forever). */
-            $expiresIn = $this->parseExpiresIn($responseBody['expires_in']);
+            $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
             if ($expiresIn > 0) {
                 /* One margin only, applied here and never again when the token
                  * is read: min(60 s, half the lifetime), so a 60 s token is
@@ -378,16 +342,65 @@ final class OAuth2TokenManager
     }
 
     /**
-     * Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+     * POST a form-encoded body to an OAuth2 endpoint through the injected
+     * ApiClient and return the body of a 2xx answer. The device authorization
+     * request (RFC 8628 section 3.1) uses it too, so both requests share the
+     * encoding, the key order, the transport and the server error.
      *
-     * Returns `0` (caller skips caching) when the value is missing,
-     * unparseable, or non-positive. Accepts integers, floors floats,
-     * and parses strings matching `^[0-9]+(\.[0-9]+)?$` after trimming ASCII
-     * whitespace (e.g. `"3600"` from Salesforce). The result never exceeds
-     * one year.
+     * @internal
+     * @param string                $url          the endpoint URL
+     * @param array<string, string> $params       the form parameters
+     * @param array<string, string> $extraHeaders additional HTTP headers
+     * @return string the response body
      *
-     * @param mixed $raw the raw JSON-decoded value
+     * @throws \LogicException if the API client has not been injected
+     * @throws OAuth2ServerException if the endpoint returns a non-2xx response
+     * @throws OAuth2TokenException if the token manager has been stopped
      */
+    public function postForm(string $url, array $params, array $extraHeaders = []): string
+    {
+        $this->assertNotStopped();
+        if (!$this->apiClient instanceof ApiClient) {
+            throw new \LogicException(
+                'ApiClient has not been injected. '
+                . 'Ensure the Client constructor calls setApiClient() '
+                . 'on HttpAwareAuthenticator before making API requests.'
+            );
+        }
+
+        $headers = array_merge(
+            ['Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json'],
+            $extraHeaders
+        );
+        /* http_build_query defaults to PHP_QUERY_RFC1738 (space -> '+', correct
+         * for application/x-www-form-urlencoded) but escapes '~' to %7E; RFC
+         * 3986 keeps '~' unreserved, so map it back so every SDK emits
+         * byte-identical bodies. */
+        $body = str_replace('%7E', '~', http_build_query($this->orderTokenForm($params)));
+
+        /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
+         * redirect (RFC 6749 §3.2 forbids redirects at the token
+         * endpoint). A malicious upstream proxy that rewrites a token
+         * endpoint Location to an attacker-controlled host would
+         * otherwise harvest client credentials (or a refresh token)
+         * sent in the body. We disable redirect following on the
+         * transport via $noRedirect=true so the 3xx surfaces here and is
+         * refused below. A transport failure propagates unchanged as
+         * NetworkException / NetworkTimeoutException. */
+        $response = $this->apiClient->sendRequest('POST', $url, $headers, $body, noRedirect: true, noDefaultHeaders: true);
+        if ($response->statusCode < 200 || $response->statusCode >= 300) {
+            /* Any non-2xx answer, a refused 3xx included, is an
+             * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses
+             * are JSON bodies with `error` (required), `error_description`,
+             * `error_uri`. Parse them into the typed properties so callers
+             * can recover. Fall back to the raw body when the response is
+             * not a valid error object. */
+            throw $this->parseOAuth2ServerError($response->statusCode, $response->body);
+        }
+
+        return $response->body;
+    }
+
     /**
      * Returns the token-request params in the fixed key order, then the other keys sorted.
      *
@@ -427,7 +440,20 @@ final class OAuth2TokenManager
         return new OAuth2ServerException($statusCode, null, null, null, $body);
     }
 
-    private function parseExpiresIn(mixed $raw): int
+    /**
+     * Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+     *
+     * Returns `0` (caller skips caching) when the value is missing,
+     * unparseable, or non-positive. Accepts integers, floors floats,
+     * and parses strings matching `^[0-9]+(\.[0-9]+)?$` after trimming ASCII
+     * whitespace (e.g. `"3600"` from Salesforce). The result never exceeds
+     * one year. The device authorization response reads its lifetime and
+     * interval with it too.
+     *
+     * @internal
+     * @param mixed $raw the raw JSON-decoded value
+     */
+    public static function parseExpiresIn(mixed $raw): int
     {
         $ceiling = (float) self::MAX_EXPIRES_IN_SECONDS;
         if (is_int($raw)) {

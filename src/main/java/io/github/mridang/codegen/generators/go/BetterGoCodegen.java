@@ -491,6 +491,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             for (int i = 0; i < sliceDepth; i++) {
                                 clean += "Slice";
                             }
+                            if (!clean.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                                // A map or other composite type (an OAS 3.1 type array
+                                // of array and object) is no identifier: name it after
+                                // its variant, as the constructors are.
+                                final String variant = variantName(type);
+                                clean = variant.isEmpty()
+                                        ? ""
+                                        : Character.toLowerCase(variant.charAt(0)) + variant.substring(1);
+                            }
                             if (clean.isEmpty()) {
                                 clean = "val";
                             }
@@ -775,6 +784,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "default_api_client.mustache", "pkg", "default_api_client.go"),
                 new SupportingFileSpec("base_api.mustache", "pkg", "base_api.go"),
+                new SupportingFileSpec(
+                        "constraint_validator.mustache", "pkg", "constraint_validator.go"),
                 new SupportingFileSpec("request_option.mustache", "pkg", "request_option.go"),
                 new SupportingFileSpec("path_utils.mustache", "pkg", "path_utils.go"),
                 new SupportingFileSpec("authenticator.mustache", "pkg", "authenticator.go"),
@@ -1249,6 +1260,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasDigestAuth) {
+            /* D192: the module-internal seam the tests use to fix a digest answer's client nonce. */
+            supportingFiles.add(
+                    new SupportingFile("internal/digestseam.mustache", "internal/digestseam", "digestseam.go"));
+        }
         if (!generateTests) {
             return;
         }
@@ -1372,11 +1388,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildGoSuperArgs(spec));
-        // Basic, Bearer and API-key base constructors validate their credentials and
+        // Basic, Bearer, API-key and Digest base constructors validate their credentials and
         // return (T, error); the scheme wrapper forwards that error.
-        ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+        ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator")
                 .contains(spec.baseClass()));
-        recordSchemeAuthTest(spec, envVars, isBearer);
+        recordSchemeAuthTest(spec, envVars, isBearer, ctx);
         final Map<String, Object> credentialScheme = new HashMap<>();
         credentialScheme.put("schemeId", spec.schemeName());
         credentialScheme.put("fieldName", goIdentifier(NamingConvention.PASCAL_CASE.apply(spec.schemeName())));
@@ -1391,9 +1407,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     private void recordSchemeAuthTest(
             final SchemeAuthSpec spec,
             final List<Map<String, Object>> envVars,
-            final boolean isBearer) {
+            final boolean isBearer,
+            final Map<String, Object> ctx) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        /* D190: authscheme700 reads the metadata URL constant of the first scheme that declares one. */
+        entry.put(
+                "metadataUrlTest",
+                Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))
+                        && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+        entry.put("oauth2MetadataUrl", ctx.get("oauth2MetadataUrl"));
         entry.put("failsNamingId", nullIfEmpty(FAILS_NAMING_IDS.getOrDefault((String) entry.get("className"), "")));
         entry.put("package", spec.isOAuth() ? "oauth" : "auth");
         final boolean isBasic = "BasicAuthenticator".equals(spec.baseClass());
@@ -1553,6 +1576,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "token");
         }
+        if ("DigestAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + goStringBody(java.util.Objects.toString(spec.keyParamName(), "")) + "\"", "apiKey",
                     "ApiKeyLocation" + NamingConvention.PASCAL_CASE.apply(spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header"));
@@ -1574,6 +1600,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             return List.of("host", "clientId", "clientSecret",
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
                     "redirectUri", formatGoScopes(spec.scopes()), refreshArg);
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    formatGoScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId",

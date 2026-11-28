@@ -667,6 +667,59 @@ fn parse_json_number(text: &str) -> Result<rust_decimal::Decimal, String> {
     }
 }
 
+/// The JSON text of the value a deserializer holds, for a union that picks its
+/// variant itself. It is read from serde_json's own source text (the
+/// `raw_value` feature), so a variant decoded from it keeps every digit of a
+/// `format: decimal` number; a value serde has already buffered (inside a
+/// flattened or untagged model) is written back from that buffer.
+pub fn json_text<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    deserializer.deserialize_newtype_struct(RAW_TEXT_TOKEN, JsonTextVisitor)
+}
+
+/// Decodes a union variant from the JSON text [`json_text`] returned. The
+/// message of a failure is serde_json's without the line and column, the same
+/// text a decode from a `serde_json::Value` gives.
+pub fn from_json_text<T: DeserializeOwned>(text: &str) -> Result<T, String> {
+    serde_json::from_str(text).map_err(|error| {
+        let message = error.to_string();
+        match message.rfind(" at line ") {
+            Some(at) if error.line() > 0 => message[..at].to_string(),
+            _ => message,
+        }
+    })
+}
+
+/* The name serde_json gives the newtype through which it hands a value's
+ * source text to `serde_json::value::RawValue` (the `raw_value` feature). */
+const RAW_TEXT_TOKEN: &str = "$serde_json::private::RawValue";
+
+struct JsonTextVisitor;
+
+impl<'de> serde::de::Visitor<'de> for JsonTextVisitor {
+    type Value = String;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a JSON value")
+    }
+
+    /* serde_json hands the source text as a one-entry map keyed by the token. */
+    fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<String, A::Error> {
+        let key: Option<String> = map.next_key()?;
+        if key.as_deref() != Some(RAW_TEXT_TOKEN) {
+            return Err(serde::de::Error::invalid_type(serde::de::Unexpected::Map, &self));
+        }
+        map.next_value()
+    }
+
+    /* A value serde has buffered arrives as a newtype over the buffer. */
+    fn visit_newtype_struct<D: serde::Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<String, D::Error> {
+        <serde_json::Value as serde::Deserialize>::deserialize(deserializer).map(|value| value.to_string())
+    }
+}
+
 /// Serde adapter for a `type: number`, `format: decimal` field: reads the
 /// digits of the JSON number from its source text, never through an `f64`,
 /// and writes them back as a bare JSON number in plain notation.

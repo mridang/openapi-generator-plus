@@ -334,6 +334,13 @@ func decodeText(text string) (string, error) { return text, nil }
 // invokeCall is the one call loop of invokeApiForResult and invokeApiForStream.
 // A stream call returns the open response and no buffered one.
 func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpResponse, *ApiStreamResponse, error) {
+	/* With ValidateConstraints on, the body is checked before anything else:
+	 * before it is serialized, before the call hook and before any request. */
+	if params.body != nil && b.config.ValidateConstraints() {
+		if err := validateRequestBody(params.body); err != nil {
+			return nil, nil, err
+		}
+	}
 	var streamer StreamingApiClient
 	if stream {
 		var ok bool
@@ -507,6 +514,15 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 			for name := range authHeaders {
 				freshAuth[strings.ToLower(name)] = struct{}{}
 			}
+			/* A challenge authenticator (HTTP Digest) answers the challenge it
+			 * accepted for this method and request target; before any challenge
+			 * it adds nothing. */
+			if challenger, ok := effectiveAuth.(auth.ChallengeAuthenticator); ok {
+				if answer, answered := challenger.Authorization(params.method, requestTargetOf(attemptURL)); answered {
+					mergeHeaders(headers, map[string]string{"Authorization": answer})
+					freshAuth["authorization"] = struct{}{}
+				}
+			}
 			/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
 			 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
 			 * arrive as literal `%3D` and break JWT/session cookies. Validate and
@@ -615,7 +631,8 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 	}
 
 	/* Send the request. A 401 on an OAuth2 or OpenID Connect request drops the
-	 * cached access token and replays the request once with fresh headers; a
+	 * cached access token and replays the request once with fresh headers (a
+	 * Digest request is replayed once with the answer to the challenge); a
 	 * transient failure is retried with backoff (see TransportOptions.MaxRetries).
 	 * The retry budget never extends the transport's end-to-end timeout: both
 	 * run under one deadline. */
@@ -721,6 +738,18 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 			return response, nil, nil
 		}
 		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)
+		/* A 401 with a challenge the challenge authenticator accepts is
+		 * answered: the request is replayed once with the answer. A body that
+		 * cannot be replayed is not sent again. */
+		if response.StatusCode == http.StatusUnauthorized && !replayed && !streamBody {
+			if challenger, ok := effectiveAuth.(auth.ChallengeAuthenticator); ok {
+				if challenge := headerValue(response.Headers, "WWW-Authenticate"); challenge != "" && challenger.AcceptChallenge(challenge) {
+					replayed = true
+					lastFailure = failure
+					continue
+				}
+			}
+		}
 		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
 			invalidator.InvalidateAccessToken()
 			replayed = true
@@ -762,6 +791,16 @@ const (
 // its transport belongs to the caller.
 type retryPolicyProvider interface {
 	retryPolicy() (maxRetries int, timeout time.Duration)
+}
+
+// requestTargetOf returns the path and query of a request URL, the request
+// target a challenge answer covers.
+func requestTargetOf(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	return parsed.RequestURI()
 }
 
 // isRetryableStatus reports whether a response status is worth retrying.

@@ -705,12 +705,18 @@ module {{moduleName}}
         decode_byte(data)
       when /\AArray<(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
+        # A JSON object is no list: refusing it lets a union with a list and a
+        # map variant (an OAS 3.1 type array of array and object) pick the map.
+        raise Errors::SerializationError, "expected a JSON array for #{return_type}" unless data.is_a?(Array)
+
         data.map { |item| convert_element(item, sub_type) }
       when /\ASet<(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
         Set.new(data.map { |item| convert_element(item, sub_type) })
       when /\AHash<String,\s*(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
+        raise Errors::SerializationError, "expected a JSON object for #{return_type}" unless data.is_a?(Hash)
+
         # @type var converted: Hash[untyped, untyped]
         converted = {}
         data.each_with_object(converted) do |(key, value), hash|

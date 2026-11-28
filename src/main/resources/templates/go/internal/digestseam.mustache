@@ -1,0 +1,9 @@
+{{>api_info}}
+// Package digestseam lets the SDK's own tests fix the client nonce of a
+// DigestAuthenticator, so an answer can be compared with a published vector.
+// It is internal to the module and not part of the SDK's API.
+package digestseam
+
+// SetCnonce makes the given *auth.DigestAuthenticator use cnonce for every
+// answer instead of a random one. The auth package sets it when it loads.
+var SetCnonce func(authenticator any, cnonce string)

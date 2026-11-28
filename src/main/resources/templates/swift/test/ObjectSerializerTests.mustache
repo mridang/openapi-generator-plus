@@ -1088,6 +1088,60 @@ import Testing
         #expect(try ObjectSerializer.serialize(value).contains("\"location\":[1.5,2,\"x\"]"))
     }
 
+    /* An OAS 3.1 type array of scalars is a union of its types (#98). */
+    @Test func testBhvModels700ScalarTypeArrayDecodesEachType() throws {
+        let text = try #require(try ObjectSerializer.deserialize("{\"level\":\"high\",\"inlineLevel\":3}", as: Reading.self))
+        #expect(text.level.asString == "high")
+        #expect(text.inlineLevel?.asInt64 == 3)
+        #expect(try ObjectSerializer.serialize(text).contains("\"level\":\"high\""))
+        let number = try #require(try ObjectSerializer.deserialize("{\"level\":7}", as: Reading.self))
+        #expect(number.level.asInt64 == 7)
+        #expect(try ObjectSerializer.serialize(number).contains("\"level\":7"))
+    }
+
+    /* An OAS 3.1 type array of array and object decodes both shapes (#98). */
+    @Test func testBhvModels701ArrayAndObjectTypeArrayDecodesBothShapes() throws {
+        let list = try #require(try ObjectSerializer.deserialize("{\"level\":1,\"shape\":[\"a\",\"b\"]}", as: Reading.self))
+        #expect(list.shape?.asStringList == ["a", "b"])
+        #expect(try ObjectSerializer.serialize(list).contains("\"shape\":[\"a\",\"b\"]"))
+        let map = try #require(try ObjectSerializer.deserialize("{\"level\":1,\"shape\":{\"k\":\"v\"}}", as: Reading.self))
+        #expect(map.shape?.asStringStringMap == ["k": "v"])
+        #expect(try ObjectSerializer.serialize(map).contains("\"shape\":{\"k\":\"v\"}"))
+    }
+
+    /* A missing or unlisted discriminator value is the defaultMapping variant (#87). */
+    @Test func testBhvUnions700DefaultMappingCatchesMissingAndUnlistedValues() throws {
+        let unlisted = try #require(try ObjectSerializer.deserialize("{\"kind\":\"postcard\",\"pages\":2}", as: Parcel.self))
+        #expect(unlisted.asLetter?.pages == 2)
+        let missing = try #require(try ObjectSerializer.deserialize("{\"pages\":3}", as: Parcel.self))
+        #expect(missing.isLetter)
+        let box = try #require(try ObjectSerializer.deserialize("{\"kind\":\"packet\",\"weightKg\":1.5}", as: Parcel.self))
+        #expect(box.isPacket)
+    }
+
+    /* The then and else properties are optional properties, the condition not enforced (#86). */
+    @Test func testBhvModels705ConditionalBranchPropertiesAreOptionalProperties() throws {
+        let shipment = try #require(try ObjectSerializer.deserialize("{\"kind\":\"domestic\",\"customsCode\":\"C2\",\"postcode\":\"2000\"}", as: Shipment.self))
+        #expect(shipment.customsCode == "C2")
+        #expect(shipment.postcode == "2000")
+        #expect(try ObjectSerializer.serialize(shipment).contains("\"customsCode\":\"C2\""))
+    }
+
+    /* The validation-only JSON Schema keywords are not enforced (#82). */
+    @Test func testBhvModels703ValidationOnlyKeywordsAreNotEnforced() throws {
+        let audit = try #require(try ObjectSerializer.deserialize("{\"tags\":[\"a\",\"b\"],\"score\":-5,\"payload\":\"not json\"}", as: Audit.self))
+        #expect(audit.tags == ["a", "b"])
+        #expect(audit.score == -5)
+        #expect(audit.payload == "not json")
+        #expect(try ObjectSerializer.serialize(audit).contains("\"score\":-5"))
+    }
+
+    /* A property of type null accepts null (#98). */
+    @Test func testBhvModels702NullTypePropertyAcceptsNull() throws {
+        let reading = try #require(try ObjectSerializer.deserialize("{\"level\":1,\"nothing\":null}", as: Reading.self))
+        #expect(reading.nothing == nil || reading.nothing?.value is NSNull)
+    }
+
     /* Schema defaults are exact typed values. */
     @Test func testBhvSerializationobject111NumericDefaultsAreExactTypedValues() throws {
         let decoded = try ObjectSerializer.deserialize("{}", as: Defaults.self)

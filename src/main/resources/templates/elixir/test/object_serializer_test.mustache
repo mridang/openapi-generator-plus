@@ -2056,6 +2056,68 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert decoded.location == [1.5, 2.5, "label"]
     end
 
+    test "bhv models 700 a type array of scalars decodes each type into its union and writes it back" do
+      text = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":"high","inlineLevel":3}), "Reading")
+      assert {{moduleName}}.Models.ReadingLevel.actual_instance(text.level) == "high"
+      assert {{moduleName}}.Models.ReadingInlineLevel.actual_instance(text.inline_level) == 3
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(text))["level"] == "high"
+
+      number = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":7}), "Reading")
+      assert {{moduleName}}.Models.ReadingLevel.actual_instance(number.level) == 7
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(number))["level"] == 7
+    end
+
+    test "bhv models 701 a type array of array and object decodes both shapes and writes them back" do
+      list = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"shape":["a","b"]}), "Reading")
+      assert {{moduleName}}.Models.ReadingShape.actual_instance(list.shape) == ["a", "b"]
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(list))["shape"] == ["a", "b"]
+
+      map = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"shape":{"k":"v"}}), "Reading")
+      assert {{moduleName}}.Models.ReadingShape.actual_instance(map.shape) == %{"k" => "v"}
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(map))["shape"] == %{"k" => "v"}
+    end
+
+    test "bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant" do
+      unlisted = {{moduleName}}.ObjectSerializer.deserialize(~s({"kind":"postcard","pages":2}), "Parcel")
+      assert %{{moduleName}}.Models.Letter{pages: 2} = unlisted
+
+      assert %{{moduleName}}.Models.Letter{} =
+               {{moduleName}}.ObjectSerializer.deserialize(~s({"pages":3}), "Parcel")
+
+      assert %{{moduleName}}.Models.Packet{} =
+               {{moduleName}}.ObjectSerializer.deserialize(~s({"kind":"packet","weightKg":1.5}), "Parcel")
+    end
+
+    test "bhv models 705 the properties of then and else are optional properties and the condition is not enforced" do
+      shipment =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          ~s({"kind":"domestic","customsCode":"C2","postcode":"2000"}),
+          "Shipment"
+        )
+
+      assert shipment.customs_code == "C2"
+      assert shipment.postcode == "2000"
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(shipment))["customsCode"] == "C2"
+    end
+
+    test "bhv models 703 the validation-only JSON Schema keywords are not enforced" do
+      audit =
+        {{moduleName}}.ObjectSerializer.deserialize(
+          ~s({"tags":["a","b"],"score":-5,"payload":"not json"}),
+          "Audit"
+        )
+
+      assert audit.tags == ["a", "b"]
+      assert audit.score == -5
+      assert audit.payload == "not json"
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(audit))["score"] == -5
+    end
+
+    test "bhv models 702 a property of type null accepts null" do
+      reading = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"nothing":null}), "Reading")
+      assert reading.nothing == nil
+    end
+
     test "bhv serializationobject 117 a digit-leading and a keyword-named property keep their wire keys" do
       edge = %{{moduleName}}.Models.EdgeCases{n2fa: true, class: "c", return: "r", _and: true, _or: false, _not: true}
       data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(edge))

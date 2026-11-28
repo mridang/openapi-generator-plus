@@ -61,7 +61,7 @@ class Client:
 
     Takes credentials and optionally :class:`TransportOptions`, then exposes
     each API group as a typed property. Each security scheme of the API has one
-    optional credential, a keyword argument named after the scheme (``pet_store_basic``, ``admin_basic``, ``pet_store_bearer``, ``service_token``, ``api_key_header``, ``internal_api_key``, ``api_key_query``, ``session_cookie``, ``machine_auth``, ``legacy_auth``, ``user_auth``, ``browser_auth``, ``sso_auth``).
+    optional credential, a keyword argument named after the scheme (``pet_store_basic``, ``admin_basic``, ``archive_digest``, ``pet_store_bearer``, ``service_token``, ``api_key_header``, ``internal_api_key``, ``api_key_query``, ``session_cookie``, ``machine_auth``, ``legacy_auth``, ``user_auth``, ``browser_auth``, ``device_auth``, ``sso_auth``).
     An operation uses the credential of the first scheme its spec lists that
     you configured; there is no per-call override. A single ``authenticator``
     is the default for an operation none of whose schemes you configured. If a
@@ -98,6 +98,7 @@ class Client:
         *,
         pet_store_basic: Optional[Authenticator] = None,
         admin_basic: Optional[Authenticator] = None,
+        archive_digest: Optional[Authenticator] = None,
         pet_store_bearer: Optional[Authenticator] = None,
         service_token: Optional[Authenticator] = None,
         api_key_header: Optional[Authenticator] = None,
@@ -108,6 +109,7 @@ class Client:
         legacy_auth: Optional[Authenticator] = None,
         user_auth: Optional[Authenticator] = None,
         browser_auth: Optional[Authenticator] = None,
+        device_auth: Optional[Authenticator] = None,
         sso_auth: Optional[Authenticator] = None,
     ) -> None:
         """Creates a new client from its credentials and transport options.
@@ -137,6 +139,7 @@ class Client:
                 call: it can edit the request headers and observe the outcome.
             pet_store_basic: The credential of the ``petStoreBasic`` security scheme.
             admin_basic: The credential of the ``adminBasic`` security scheme.
+            archive_digest: The credential of the ``archiveDigest`` security scheme.
             pet_store_bearer: The credential of the ``petStoreBearer`` security scheme.
             service_token: The credential of the ``serviceToken`` security scheme.
             api_key_header: The credential of the ``apiKeyHeader`` security scheme.
@@ -147,6 +150,7 @@ class Client:
             legacy_auth: The credential of the ``legacyAuth`` security scheme.
             user_auth: The credential of the ``userAuth`` security scheme.
             browser_auth: The credential of the ``browserAuth`` security scheme.
+            device_auth: The credential of the ``deviceAuth`` security scheme.
             sso_auth: The credential of the ``ssoAuth`` security scheme.
 
         Raises:
@@ -157,6 +161,8 @@ class Client:
             schemes["petStoreBasic"] = pet_store_basic
         if admin_basic is not None:
             schemes["adminBasic"] = admin_basic
+        if archive_digest is not None:
+            schemes["archiveDigest"] = archive_digest
         if pet_store_bearer is not None:
             schemes["petStoreBearer"] = pet_store_bearer
         if service_token is not None:
@@ -177,6 +183,8 @@ class Client:
             schemes["userAuth"] = user_auth
         if browser_auth is not None:
             schemes["browserAuth"] = browser_auth
+        if device_auth is not None:
+            schemes["deviceAuth"] = device_auth
         if sso_auth is not None:
             schemes["ssoAuth"] = sso_auth
         credentials = ([authenticator] if authenticator is not None else []) + list(

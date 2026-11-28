@@ -772,6 +772,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.java"),
             new SupportingFileSpec("value_serializer.mustache", Path.of(invokerFolder, "api").toString(), "ValueSerializer.java"),
             new SupportingFileSpec("header_selector.mustache", Path.of(invokerFolder, "api").toString(), "HeaderSelector.java"),
+            new SupportingFileSpec(
+                "constraint_validator.mustache", Path.of(invokerFolder, "api").toString(), "ConstraintValidator.java"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.java"),
             new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.java"),
@@ -1533,6 +1535,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         super.registerAuthSupportingFiles();
+        if (hasDigestAuth) {
+            /* The challenge contract the dispatch hands the method and request target to (D192). */
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/challenge_authenticator.mustache",
+                            getAuthDir(),
+                            "ChallengeAuthenticator.java"));
+        }
 
         if (generateTests) {
             final String testFolder =
@@ -1659,9 +1669,31 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("isBearerWrapper", "BearerAuthenticator".equals(spec.baseClass()));
+        ctx.put("isDigestWrapper", "DigestAuthenticator".equals(spec.baseClass()));
         ctx.put("schemeNameLiteral", escapeJavaLiteral(spec.schemeName()));
         ctx.put("superArgs", schemeSuperArgs(spec, envNameByField));
+        recordOAuth2MetadataUrl(ctx);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
+    private final List<Map<String, Object>> oauth2MetadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Adds the escaped {@code oauth2MetadataUrlLiteral} to a scheme context that declares a metadata
+     * URL and lists the scheme under {@code oauth2MetadataUrlSchemes} for the generated test (D190).
+     */
+    private void recordOAuth2MetadataUrl(Map<String, Object> ctx) {
+        if (!Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))) {
+            return;
+        }
+        final String literal = escapeJavaLiteral((String) ctx.get("oauth2MetadataUrl"));
+        ctx.put("oauth2MetadataUrlLiteral", literal);
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("qualifiedClassName", ctx.get("package") + "." + ctx.get("className"));
+        entry.put("oauth2MetadataUrlLiteral", literal);
+        oauth2MetadataUrlSchemes.add(entry);
+        additionalProperties.put("oauth2MetadataUrlSchemes", oauth2MetadataUrlSchemes);
     }
 
     private static String formatJavaScopes(@Nullable Map<String, String> scopes) {
@@ -1716,7 +1748,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     private List<String> buildJavaSuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
@@ -1747,6 +1780,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId",
                     "\"" + spec.authorizationUrl() + "\"", formatJavaScopes(spec.scopes()));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    formatJavaScopes(spec.scopes()), refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",

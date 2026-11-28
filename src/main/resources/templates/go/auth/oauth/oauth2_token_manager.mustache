@@ -89,6 +89,13 @@ func (m *OAuth2TokenManager) Stop() {
 	m.tokenExpiry = time.Time{}
 }
 
+// client returns the injected API client, or nil before SetApiClient.
+func (m *OAuth2TokenManager) client() auth.ApiClient {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.apiClient
+}
+
 // RefreshToken returns the current refresh token, if any.
 func (m *OAuth2TokenManager) RefreshToken() string {
 	m.mu.Lock()

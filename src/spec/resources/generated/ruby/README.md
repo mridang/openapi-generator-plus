@@ -53,7 +53,10 @@ A credential comes from the first of: the value you pass to the constructor, for
 | `adminBasic` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
 | `apiKeyHeader` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
 | `apiKeyQuery` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `archiveDigest` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` |
+| `archiveDigest` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` |
 | `browserAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
 | `internalApiKey` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
 | `legacyAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
 | `legacyAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
@@ -77,7 +80,11 @@ An authenticator you build without a scheme (`Client.with_token`, or `BearerAuth
 
 ### Credentials per security scheme
 
-`Petstore.new` takes one optional credential for each security scheme of the API, named after the scheme: `pet_store_basic:`, `admin_basic:`, `pet_store_bearer:`, `service_token:`, `api_key_header:`, `internal_api_key:`, `api_key_query:`, `session_cookie:`, `machine_auth:`, `legacy_auth:`, `user_auth:`, `browser_auth:`, `sso_auth:`. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
+`Petstore.new` takes one optional credential for each security scheme of the API, named after the scheme: `pet_store_basic:`, `admin_basic:`, `archive_digest:`, `pet_store_bearer:`, `service_token:`, `api_key_header:`, `internal_api_key:`, `api_key_query:`, `session_cookie:`, `machine_auth:`, `legacy_auth:`, `user_auth:`, `browser_auth:`, `device_auth:`, `sso_auth:`. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call request_device_authorization() to get the user code and verification URI to show to the user, then poll_for_token() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
 
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
 
@@ -328,6 +335,14 @@ client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: Te
 
 The gem follows semantic versioning (`1.0.0` today). The supported Ruby versions are the ones that still receive security fixes (`>= 3.2` today); dropping an end-of-life Ruby is a minor release.
 
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a dependency has a known vulnerability (`bundle-audit check --update`, every locked gem).
+
 ## Gem
 
 - Name: `petstore_client`
@@ -451,6 +466,8 @@ validator.
 
 `uniqueItems` arrays are modelled as `Set`. A `Set` is sent in its own iteration
 order: the SDK does not sort it, so do not rely on the order of the values on the wire.
+
+Constraint validation can be turned on with the `validate_constraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ### SOCKS proxies
 

@@ -39,6 +39,7 @@ class OAuth2TokenManagerTest {
         var lastHeaders: Map<String, String> = emptyMap()
             private set
         val bodies = mutableListOf<String?>()
+        val urls = mutableListOf<String>()
 
         fun enqueue(body: String, statusCode: Int = 200) {
             responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
@@ -54,6 +55,7 @@ class OAuth2TokenManagerTest {
             lastUrl = url
             lastBody = body?.toString()
             bodies.add(lastBody)
+            urls.add(url)
             lastNoRedirect = noRedirect
             lastHeaders = headers
             return responses.poll() ?: throw IllegalStateException("No responses queued")
@@ -1429,5 +1431,202 @@ class OAuth2TokenManagerTest {
         repeat(2) { runBlocking { manager.getAccessToken("https://auth.example.com/token", params) } }
         assertEquals(2, client.bodies.size)
     }
+{{#hasOAuth2DeviceAuthorization}}
 
+    private fun deviceAuthenticator(
+        client: FakeApiClient,
+        slept: MutableList<Long> = mutableListOf(),
+    ): OAuth2DeviceAuthorizationAuthenticator {
+        val auth = OAuth2DeviceAuthorizationAuthenticator(
+            "https://api.example.com",
+            "my-client",
+            "https://auth.example.com/device",
+            "https://auth.example.com/token",
+            listOf("read", "write"),
+        )
+        auth.setApiClient(client)
+        auth.sleeper = { seconds -> slept.add(seconds) }
+        return auth
+    }
+
+    private fun deviceCode(expiresIn: Long, interval: Long) =
+        OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization(
+            "dev-code", "USER-CODE", "https://auth.example.com/activate", null, expiresIn, interval,
+        )
+
+    @Test
+    fun bhvAuthoauthtwodevice700RequestDeviceAuthorizationPostsTheClientAndScopesAndReturnsTheFields() = runBlocking<Unit> {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"device_code":"dc","user_code":"UC-1","verification_uri":"https://auth.example.com/activate",""" +
+                """"verification_uri_complete":"https://auth.example.com/activate?user_code=UC-1",""" +
+                """"expires_in":600,"interval":7}""",
+        )
+        client.enqueue(
+            """{"device_code":"dc2","user_code":"UC-2","verification_uri":"https://auth.example.com/activate",""" +
+                """"expires_in":"900"}""",
+        )
+        val auth = deviceAuthenticator(client)
+
+        val first = auth.requestDeviceAuthorization()
+        val second = auth.requestDeviceAuthorization()
+
+        assertEquals(listOf("https://auth.example.com/device", "https://auth.example.com/device"), client.urls)
+        assertEquals("client_id=my-client&scope=read+write", client.bodies[0])
+        assertEquals(
+            OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization(
+                "dc", "UC-1", "https://auth.example.com/activate",
+                "https://auth.example.com/activate?user_code=UC-1", 600L, 7L,
+            ),
+            first,
+        )
+        assertEquals(
+            OAuth2DeviceAuthorizationAuthenticator.DeviceAuthorization(
+                "dc2", "UC-2", "https://auth.example.com/activate", null, 900L, 5L,
+            ),
+            second,
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice701AnUnusableDeviceAuthorizationResponseIsATokenError() {
+        val cases = listOf(
+            "not json" to "Device authorization response is not valid JSON",
+            "[1]" to "Device authorization response is not a JSON object",
+            """{"user_code":"u","verification_uri":"v"}""" to
+                "Device authorization response missing or empty device_code field",
+            """{"device_code":"","user_code":"u","verification_uri":"v"}""" to
+                "Device authorization response missing or empty device_code field",
+            """{"device_code":"d","user_code":7,"verification_uri":"v"}""" to
+                "Device authorization response missing or empty user_code field",
+            """{"device_code":"d","user_code":"u"}""" to
+                "Device authorization response missing or empty verification_uri field",
+        )
+        for ((body, expected) in cases) {
+            val client = FakeApiClient()
+            client.enqueue(body)
+            val auth = deviceAuthenticator(client)
+
+            val failure = assertThrowsExactly(OAuth2TokenException::class.java) {
+                runBlocking { auth.requestDeviceAuthorization() }
+            }
+
+            assertEquals(expected, failure.message, body)
+        }
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice701ANonSuccessDeviceAuthorizationAnswerIsAServerError() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"invalid_client"}""", statusCode = 400)
+        val auth = deviceAuthenticator(client)
+
+        val failure = assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking { auth.requestDeviceAuthorization() }
+        }
+
+        assertEquals(400, failure.statusCode)
+        assertEquals("invalid_client", failure.code)
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice702PollForTokenPostsTheDeviceCodeGrantAndKeepsPollingWhilePending() = runBlocking<Unit> {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"authorization_pending"}""", statusCode = 400)
+        client.enqueue("""{"error":"authorization_pending"}""", statusCode = 400)
+        client.enqueue("""{"access_token":"device-token","expires_in":3600}""")
+        val auth = deviceAuthenticator(client)
+
+        auth.pollForToken(deviceCode(600, 5))
+
+        val grant = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code" +
+            "&client_id=my-client&device_code=dev-code"
+        assertEquals(listOf(grant, grant, grant), client.bodies)
+        assertEquals(List(3) { "https://auth.example.com/token" }, client.urls)
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice703ASlowDownAnswerAddsFiveSecondsToTheInterval() = runBlocking<Unit> {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"slow_down"}""", statusCode = 400)
+        client.enqueue("""{"error":"authorization_pending"}""", statusCode = 400)
+        client.enqueue("""{"access_token":"device-token","expires_in":3600}""")
+        val slept = mutableListOf<Long>()
+        val auth = deviceAuthenticator(client, slept)
+
+        auth.pollForToken(deviceCode(600, 5))
+
+        assertEquals(listOf(5L, 10L, 10L), slept)
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice704AnyOtherTokenErrorEndsPollingWithTheServerError() {
+        for (code in listOf("access_denied", "expired_token", "invalid_grant")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"error":"authorization_pending"}""", statusCode = 400)
+            client.enqueue("{\"error\":\"$code\"}", statusCode = 400)
+            val auth = deviceAuthenticator(client)
+
+            val failure = assertThrowsExactly(OAuth2ServerException::class.java) {
+                runBlocking { auth.pollForToken(deviceCode(600, 5)) }
+            }
+
+            assertEquals(code, failure.code)
+            assertEquals(2, client.urls.size, code)
+        }
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice704PollingPastExpiresInIsATokenError() {
+        val client = FakeApiClient()
+        repeat(3) { client.enqueue("""{"error":"authorization_pending"}""", statusCode = 400) }
+        val auth = deviceAuthenticator(client)
+        var seconds = 0L
+        auth.sleeper = { slept -> seconds += slept }
+        auth.monotonicNanos = { seconds * 1_000_000_000L }
+
+        val failure = assertThrowsExactly(OAuth2TokenException::class.java) {
+            runBlocking { auth.pollForToken(deviceCode(12, 5)) }
+        }
+
+        assertEquals("Device authorization expired before the user approved it", failure.message)
+        assertEquals(2, client.urls.size)
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice705TheBearerHeaderNeedsAPolledToken() = runBlocking<Unit> {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"device-token","expires_in":3600}""")
+        val auth = deviceAuthenticator(client)
+
+        val before = assertThrowsExactly(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+        auth.pollForToken(deviceCode(600, 5))
+
+        assertEquals("Must call pollForToken() before making API requests", before.message)
+        assertEquals(mapOf("Authorization" to "Bearer device-token"), auth.getAuthHeaders())
+    }
+
+    @Test
+    fun bhvAuthoauthtwodevice706TheSchemeWrapperPassesTheSpecUrlsAndScopes() = runBlocking<Unit> {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"device_code":"dc","user_code":"uc","verification_uri":"https://auth.example.com/activate",""" +
+                """"expires_in":600}""",
+        )
+        client.enqueue("""{"access_token":"device-token","expires_in":3600}""")
+        val auth = DeviceAuthDeviceAuthorizationAuthenticator("https://api.example.com", "my-client")
+        auth.setApiClient(client)
+        auth.sleeper = { }
+
+        auth.pollForToken(auth.requestDeviceAuthorization())
+
+        assertEquals(
+            listOf("https://auth.example.com/oauth/device", "https://auth.example.com/oauth/token"),
+            client.urls,
+        )
+        assertEquals("client_id=my-client&scope=pets%3Aread+pets%3Awrite", client.bodies[0])
+    }
+{{/hasOAuth2DeviceAuthorization}}
 }

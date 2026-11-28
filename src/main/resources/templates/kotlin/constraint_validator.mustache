@@ -1,0 +1,279 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * Checks a request body against the validation keywords of its schema before it is sent, when
+ * [Configuration.validateConstraints] is on.
+ *
+ * A body that is a model, or a list of models, is checked property by property in declaration
+ * order, depth first through the models it holds; the first broken keyword raises an
+ * [IllegalArgumentException] that names the property by its wire path. A null value is not
+ * checked, and any other body passes. The helpers are not private, so a spec without one keyword
+ * leaves none unused.
+ */
+internal object ConstraintValidator {
+    /** A compiled pattern, or null when the JVM engine cannot compile it. */
+    private class Compiled(val regex: Regex?)
+
+    private val patterns = java.util.concurrent.ConcurrentHashMap<String, Compiled>()
+
+    /* The validator of each model by its exact class, so the lookup never matches a supertype. */
+    private val validators: Map<kotlin.reflect.KClass<*>, (Any, String) -> Unit> =
+        mapOf(
+{{#constraintModels}}
+            {{modelPackage}}.{{classname}}::class to { value, prefix -> validate{{classname}}(value as {{modelPackage}}.{{classname}}, prefix) },
+{{/constraintModels}}
+        )
+
+    /**
+     * Check a request body.
+     *
+     * @param body the request body
+     * @throws IllegalArgumentException when a value breaks a keyword of its schema
+     */
+    fun validate(body: Any?) {
+        if (body is Collection<*>) {
+            body.forEachIndexed { index, item -> validateModel(item, "[$index].") }
+            return
+        }
+        validateModel(body, "")
+    }
+
+    fun validateModel(
+        value: Any?,
+        prefix: String,
+    ) {
+        if (value != null) {
+            validators[value::class]?.invoke(value, prefix)
+        }
+    }
+
+    fun validateItems(
+        items: Collection<*>?,
+        prefix: String,
+        name: String,
+    ) {
+        items?.forEachIndexed { index, item -> validateModel(item, "$prefix$name[$index].") }
+    }
+{{#constraintModels}}
+
+    private fun validate{{classname}}(
+        model: {{modelPackage}}.{{classname}},
+        prefix: String,
+    ) {
+{{#vendorExtensions.constraintProps}}
+{{#checks}}
+{{#isMinLength}}
+        minLength(model.{{name}}, {{limit}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMinLength}}
+{{#isMaxLength}}
+        maxLength(model.{{name}}, {{limit}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMaxLength}}
+{{#isPattern}}
+        pattern(model.{{name}}, "{{#lambda.kotlinString}}{{{pattern}}}{{/lambda.kotlinString}}", prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isPattern}}
+{{#isMinimum}}
+        minimum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMinimum}}
+{{#isMaximum}}
+        maximum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+        exclusiveMinimum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+        exclusiveMaximum(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+        multipleOf(model.{{name}}, {{limitDouble}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMultipleOf}}
+{{#isMinItems}}
+        minSize(model.{{name}}, {{limit}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMinItems}}
+{{#isMaxItems}}
+        maxSize(model.{{name}}, {{limit}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMaxItems}}
+{{#isMinProperties}}
+        minEntries(model.{{name}}, {{limit}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMinProperties}}
+{{#isMaxProperties}}
+        maxEntries(model.{{name}}, {{limit}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}", "{{#lambda.kotlinString}}{{{message}}}{{/lambda.kotlinString}}")
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+        validateModel(model.{{name}}, prefix + "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}.")
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        validateItems(model.{{name}}, prefix, "{{#lambda.kotlinString}}{{{baseName}}}{{/lambda.kotlinString}}")
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+    }
+{{/constraintModels}}
+
+    private fun refused(
+        prefix: String,
+        name: String,
+        message: String,
+    ): IllegalArgumentException = IllegalArgumentException("Invalid request body: $prefix$name $message")
+
+    fun minLength(
+        value: String?,
+        limit: Int,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.codePointCount(0, value.length) < limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun maxLength(
+        value: String?,
+        limit: Int,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.codePointCount(0, value.length) > limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    /* A pattern is searched, not anchored; one the JVM engine cannot compile is not enforced. */
+    fun pattern(
+        value: String?,
+        regex: String,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value == null) {
+            return
+        }
+        val compiled = patterns.getOrPut(regex) { Compiled(compile(regex)) }.regex
+        if (compiled != null && !compiled.containsMatchIn(value)) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    private fun compile(regex: String): Regex? =
+        try {
+            Regex(regex)
+        } catch (_: java.util.regex.PatternSyntaxException) {
+            null
+        }
+
+    fun minimum(
+        value: Number?,
+        limit: Double,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.toDouble() < limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun maximum(
+        value: Number?,
+        limit: Double,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.toDouble() > limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun exclusiveMinimum(
+        value: Number?,
+        limit: Double,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.toDouble() <= limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun exclusiveMaximum(
+        value: Number?,
+        limit: Double,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.toDouble() >= limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun multipleOf(
+        value: Number?,
+        limit: Double,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value == null) {
+            return
+        }
+        val quotient = value.toDouble() / limit
+        if (kotlin.math.abs(quotient - kotlin.math.round(quotient)) >= 1e-9) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun minSize(
+        value: Collection<*>?,
+        limit: Int,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.size < limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun maxSize(
+        value: Collection<*>?,
+        limit: Int,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.size > limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun minEntries(
+        value: Map<*, *>?,
+        limit: Int,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.size < limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+
+    fun maxEntries(
+        value: Map<*, *>?,
+        limit: Int,
+        prefix: String,
+        name: String,
+        message: String,
+    ) {
+        if (value != null && value.size > limit) {
+            throw refused(prefix, name, message)
+        }
+    }
+}

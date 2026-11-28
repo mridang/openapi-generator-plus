@@ -99,6 +99,27 @@ class BetterKotlinCodegenTest {
         assertEquals(false, plain.vendorExtensions.get("eqDecimalContainer"));
     }
 
+    /* A nullable java.time field is compared with a null check and equals(), because Kotlin 2.2
+     * warns that == on a nullable value-based type is identity-sensitive (#124). */
+    @Test
+    void nullableTimeFieldsAreComparedWithoutAnIdentitySensitiveOperation() {
+        CodegenProperty optional = property("OffsetDateTime", false, false);
+        BetterKotlinCodegen.markEquality(optional);
+        assertEquals(true, optional.vendorExtensions.get("eqValueBased"));
+
+        CodegenProperty qualified = property("java.time.Duration", true, true);
+        BetterKotlinCodegen.markEquality(qualified);
+        assertEquals(true, qualified.vendorExtensions.get("eqValueBased"));
+
+        CodegenProperty required = property("LocalDate", true, false);
+        BetterKotlinCodegen.markEquality(required);
+        assertEquals(false, required.vendorExtensions.get("eqValueBased"));
+
+        CodegenProperty text = property("String", false, false);
+        BetterKotlinCodegen.markEquality(text);
+        assertEquals(false, text.vendorExtensions.get("eqValueBased"));
+    }
+
     /* The package link options reach the POM and the README (F894). */
     @Test
     void homepageDefaultsToTheRepositoryAndAuthorsAreSplit() {

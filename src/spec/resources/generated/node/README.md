@@ -174,6 +174,7 @@ share a variable:
 
 - `PetStoreBasicAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD`
 - `AdminBasicAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`
+- `ArchiveDigestAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD`
 - `PetStoreBearerAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN`
 - `ServiceTokenAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`
 - `ApiKeyHeaderAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY`
@@ -184,6 +185,7 @@ share a variable:
 - `LegacyAuthPasswordAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID`, `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`, `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD`
 - `UserAuthAuthorizationCodeAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID`, `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET`, `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI`
 - `BrowserAuthImplicitAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`
+- `DeviceAuthDeviceAuthorizationAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID`
 - `SsoAuthAuthenticator`: `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID`, `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET`, `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI`
 
 The OAuth 2.0 and OpenID Connect authenticators take their credentials as arguments only. A
@@ -202,9 +204,13 @@ function clientWithRotatingToken(readToken: () => Promise<string>): Client {
 }
 ```
 
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call requestDeviceAuthorization() to get the user code and verification URI to show to the user, then pollForToken() to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
 ### Credentials per security scheme
 
-`Client` takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Pass them as an object in place of the authenticator:
+`Client` takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `archiveDigest`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `deviceAuth`, `ssoAuth`. Pass them as an object in place of the authenticator:
 
 ```typescript file
 import { Client, type Authenticator } from "petstore-client";
@@ -571,6 +577,8 @@ library.
 
 `uniqueItems` arrays are sent in the natural order of the collection
 (a `Set` keeps its insertion order), not sorted.
+
+Constraint validation can be turned on with the `validateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ## Not supported
 

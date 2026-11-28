@@ -52,6 +52,52 @@ class _FakeApiClient implements ApiClient {
   }
 }
 
+{{#hasOAuth2DeviceAuthorization}}
+/// A device authenticator whose pauses are recorded and move a fake
+/// monotonic clock instead of waiting.
+class _InstantDeviceAuthenticator extends OAuth2DeviceAuthorizationAuthenticator {
+  final List<int> pauses = [];
+  int _now = 0;
+
+  _InstantDeviceAuthenticator()
+      : super(
+          host: 'https://api.example.com',
+          clientId: 'device_client',
+          deviceAuthorizationUrl: 'https://auth.example.com/device',
+          tokenUrl: 'https://auth.example.com/token',
+          scopes: const ['read', 'write'],
+        );
+
+  @override
+  Future<void> sleepBeforePoll(Duration delay) async {
+    pauses.add(delay.inSeconds);
+    _now += delay.inMilliseconds;
+  }
+
+  @override
+  int monotonicMilliseconds() => _now;
+}
+
+DeviceAuthorization _deviceAuthorization({int expiresIn = 600, int interval = 5}) =>
+    DeviceAuthorization(
+      deviceCode: 'dev_code',
+      userCode: 'USER-CODE',
+      verificationUri: 'https://auth.example.com/activate',
+      expiresIn: expiresIn,
+      interval: interval,
+    );
+{{#deviceSchemes}}
+
+/// The generated device authorization wrapper, without the wait between polls.
+class _InstantDeviceScheme extends {{className}} {
+  _InstantDeviceScheme() : super(host: 'https://api.example.com', clientId: 'wrapper_id');
+
+  @override
+  Future<void> sleepBeforePoll(Duration delay) async {}
+}
+{{/deviceSchemes}}
+
+{{/hasOAuth2DeviceAuthorization}}
 /// Slow fake that waits on a completer before responding, so that tests
 /// can stack multiple concurrent callers against an in-flight request.
 class _GatedApiClient implements ApiClient {
@@ -1147,5 +1193,159 @@ void main() {
     });
 
   });
+{{#hasOAuth2DeviceAuthorization}}
+
+  group('OAuth2DeviceAuthorizationAuthenticator', () {
+    test('bhv authoauthtwodevice 700 posts the client id and the scopes and returns the device authorization', () async {
+      final client = _FakeApiClient()
+        ..enqueue(jsonEncode({
+          'device_code': 'dev_code',
+          'user_code': 'USER-CODE',
+          'verification_uri': 'https://auth.example.com/activate',
+          'verification_uri_complete': 'https://auth.example.com/activate?user_code=USER-CODE',
+          'expires_in': 600,
+          'interval': 7,
+        }))
+        ..enqueue(jsonEncode({
+          'device_code': 'dev_code',
+          'user_code': 'USER-CODE',
+          'verification_uri': 'https://auth.example.com/activate',
+          'expires_in': '300',
+        }));
+      final auth = _InstantDeviceAuthenticator()..setApiClient(client);
+
+      final first = await auth.requestDeviceAuthorization();
+      expect(client.lastUrl, equals('https://auth.example.com/device'));
+      expect(client.lastHeaders!['Content-Type'], equals('application/x-www-form-urlencoded'));
+      expect(client.lastBody, equals('client_id=device_client&scope=read+write'));
+      expect(
+        first,
+        equals(const DeviceAuthorization(
+          deviceCode: 'dev_code',
+          userCode: 'USER-CODE',
+          verificationUri: 'https://auth.example.com/activate',
+          verificationUriComplete: 'https://auth.example.com/activate?user_code=USER-CODE',
+          expiresIn: 600,
+          interval: 7,
+        )),
+      );
+      final second = await auth.requestDeviceAuthorization();
+      expect(second.verificationUriComplete, isNull);
+      expect(second.expiresIn, equals(300));
+      expect(second.interval, equals(5));
+    });
+
+    test('bhv authoauthtwodevice 701 an unusable device authorization response fails with the exact error', () async {
+      final cases = <String, String>{
+        'not json': 'Device authorization response is not valid JSON',
+        '[1]': 'Device authorization response is not a JSON object',
+        '{"user_code":"u","verification_uri":"https://v"}':
+            'Device authorization response missing or empty device_code field',
+        '{"device_code":"d","user_code":"","verification_uri":"https://v"}':
+            'Device authorization response missing or empty user_code field',
+        '{"device_code":"d","user_code":"u","verification_uri":7}':
+            'Device authorization response missing or empty verification_uri field',
+      };
+      for (final entry in cases.entries) {
+        final auth = _InstantDeviceAuthenticator()
+          ..setApiClient(_FakeApiClient()..enqueue(entry.key));
+        await expectLater(
+          auth.requestDeviceAuthorization(),
+          throwsA(isA<OAuth2TokenException>()
+              .having((e) => e.message, 'message', equals(entry.value))),
+        );
+      }
+      final auth = _InstantDeviceAuthenticator()
+        ..setApiClient(_FakeApiClient()..enqueue('{"error":"invalid_client"}', statusCode: 400));
+      await expectLater(
+        auth.requestDeviceAuthorization(),
+        throwsA(isA<OAuth2ServerException>()
+            .having((e) => e.statusCode, 'statusCode', equals(400))
+            .having((e) => e.code, 'code', equals('invalid_client'))),
+      );
+    });
+
+    test('bhv authoauthtwodevice 702 polls the token url with the device code grant while authorization is pending', () async {
+      final client = _FakeApiClient()
+        ..enqueue('{"error":"authorization_pending"}', statusCode: 400)
+        ..enqueue('{"error":"authorization_pending"}', statusCode: 400)
+        ..enqueue('{"access_token":"device_tok","expires_in":3600}');
+      final auth = _InstantDeviceAuthenticator()..setApiClient(client);
+
+      await auth.pollForToken(_deviceAuthorization());
+      expect(client.requestCount, equals(3));
+      expect(client.urls.toSet(), equals({'https://auth.example.com/token'}));
+      expect(
+        client.bodies.toSet(),
+        equals({
+          'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device_client&device_code=dev_code',
+        }),
+      );
+      expect(auth.pauses, equals([5, 5, 5]));
+    });
+
+    test('bhv authoauthtwodevice 703 a slow_down answer adds five seconds to the interval', () async {
+      final client = _FakeApiClient()
+        ..enqueue('{"error":"slow_down"}', statusCode: 400)
+        ..enqueue('{"access_token":"device_tok","expires_in":3600}');
+      final auth = _InstantDeviceAuthenticator()..setApiClient(client);
+
+      await auth.pollForToken(_deviceAuthorization());
+      expect(auth.pauses, equals([5, 10]));
+    });
+
+    test('bhv authoauthtwodevice 704 any other error ends polling and so does the expiry of the device code', () async {
+      for (final code in ['access_denied', 'expired_token']) {
+        final auth = _InstantDeviceAuthenticator()
+          ..setApiClient(_FakeApiClient()..enqueue('{"error":"$code"}', statusCode: 400));
+        await expectLater(
+          auth.pollForToken(_deviceAuthorization()),
+          throwsA(isA<OAuth2ServerException>().having((e) => e.code, 'code', equals(code))),
+        );
+      }
+      final client = _FakeApiClient()
+        ..enqueue('{"error":"authorization_pending"}', statusCode: 400)
+        ..enqueue('{"error":"authorization_pending"}', statusCode: 400);
+      final auth = _InstantDeviceAuthenticator()..setApiClient(client);
+      await expectLater(
+        auth.pollForToken(_deviceAuthorization(expiresIn: 12, interval: 5)),
+        throwsA(isA<OAuth2TokenException>().having((e) => e.message, 'message',
+            equals('Device authorization expired before the user approved it'))),
+      );
+      expect(auth.pauses, equals([5, 5]));
+      expect(client.requestCount, equals(2));
+    });
+
+    test('bhv authoauthtwodevice 705 refuses to authenticate before a token is polled and sends it after', () async {
+      final auth = _InstantDeviceAuthenticator()
+        ..setApiClient(_FakeApiClient()..enqueue('{"access_token":"device_tok","expires_in":3600}'));
+      await expectLater(
+        auth.authHeadersAsync(),
+        throwsA(isA<StateError>().having((e) => e.message, 'message',
+            equals('Must call pollForToken() before making API requests'))),
+      );
+
+      await auth.pollForToken(_deviceAuthorization());
+      expect(await auth.authHeadersAsync(), equals({'Authorization': 'Bearer device_tok'}));
+      expect(auth.toString(), contains('clientId: device_client'));
+    });
+{{#deviceSchemes}}
+
+    test('bhv authoauthtwodevice 706 {{className}} uses the declared URLs and scopes', () async {
+      final client = _FakeApiClient()
+        ..enqueue('{"device_code":"d","user_code":"u","verification_uri":"https://v","expires_in":600}')
+        ..enqueue('{"access_token":"device_tok","expires_in":3600}');
+      final auth = _InstantDeviceScheme()..setApiClient(client);
+
+      await auth.pollForToken(await auth.requestDeviceAuthorization());
+      expect(client.urls, equals([{{{deviceAuthorizationUrlLiteral}}}, {{{tokenUrlLiteral}}}]));
+      expect(
+        client.bodies.first,
+        equals('client_id=wrapper_id&scope=${Uri.encodeQueryComponent({{{scopesLiteral}}}.join(' '))}'),
+      );
+    });
+{{/deviceSchemes}}
+  });
+{{/hasOAuth2DeviceAuthorization}}
 }
 {{/generateTests}}

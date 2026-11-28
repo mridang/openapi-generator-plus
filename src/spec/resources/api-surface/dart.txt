@@ -1,0 +1,2447 @@
+AbstractApiClient::AbstractApiClient(TransportOptions _transportOptions, Client _httpClient, String? _proxyAuthHeader, [bool _ownsClient = true]) [uses http:Client]
+AbstractApiClient::Future<ApiHttpResponse> sendAdmittedRequest(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false})
+AbstractApiClient::Future<ApiHttpResponse> sendRequest(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false})
+AbstractApiClient::Future<ApiStreamResponse> sendAdmittedStreaming(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false, int? idleTimeout})
+AbstractApiClient::Future<ApiStreamResponse> sendStreaming(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false, int? idleTimeout})
+AbstractApiClient::Stream<List<int>> decompressStream(Stream<List<int>> body, String contentEncoding)
+AbstractApiClient::String? get proxyAuthHeader
+AbstractApiClient::Uint8List decompressBytes(Uint8List bytes, String contentEncoding)
+AbstractApiClient::Uint8List decompressBytesWithin(Uint8List bytes, String contentEncoding, int maxBytes)
+AbstractApiClient::bool isNetworkError(Object error)
+AbstractApiClient::int get maxRetries
+AbstractApiClient::int? get timeoutMillis
+AbstractApiClient::static String decodeText(Uint8List bytes, String contentType)
+AbstractApiClient::static String? buildProxyAuthHeader(Uri? proxy)
+AbstractApiClient::static bool isTextContentType(String contentType)
+AbstractApiClient::static bool isTimeoutMessage(String message)
+AbstractApiClient::void Function() beginRequest()
+AbstractApiClient::void close()
+AccessTokenInvalidating::AccessTokenInvalidating()
+AccessTokenInvalidating::void invalidateAccessToken()
+Account::Account copyWith({Object? id = copyUnset, String? username, Object? password = copyUnset})
+Account::Account({int? id, required String username, String? password})
+Account::Account.fromJson(Map<String, dynamic> json)
+Account::Map<String, dynamic> toJson()
+Account::String toString()
+Account::bool ==(Object other)
+Account::final String username
+Account::final String? password
+Account::final int? id
+Account::int get hashCode
+AddPetOptions::AddPetOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+AddPetOptions::final Map<String, String>? headers
+AddPetOptions::final int? maxRetries
+AddPetOptions::final int? timeout
+AddPetPhotosOptions::AddPetPhotosOptions({required List<Uint8List> files, required PhotoMetadata metadata, int? timeout, Map<String, String>? headers, int? maxRetries})
+AddPetPhotosOptions::final List<Uint8List> files
+AddPetPhotosOptions::final Map<String, String>? headers
+AddPetPhotosOptions::final PhotoMetadata metadata
+AddPetPhotosOptions::final int? maxRetries
+AddPetPhotosOptions::final int? timeout
+AddPetTreatmentOptions::AddPetTreatmentOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+AddPetTreatmentOptions::final Map<String, String>? headers
+AddPetTreatmentOptions::final int? maxRetries
+AddPetTreatmentOptions::final int? timeout
+AdminBasicAuthenticator::AdminBasicAuthenticator({required String host, String? username, String? password, (String, String) Function()? credentialsProvider, Map<String, String>? environment})
+AdmittingApiClient::AdmittingApiClient()
+AdmittingApiClient::Future<ApiHttpResponse> sendAdmittedRequest(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false})
+AdmittingApiClient::void Function() beginRequest()
+AdmittingStreamingApiClient::AdmittingStreamingApiClient()
+AdmittingStreamingApiClient::Future<ApiStreamResponse> sendAdmittedStreaming(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false, int? idleTimeout})
+Allowance::Allowance copyWith({Object? label = copyUnset, Object? count = copyUnset, Object? ratio = copyUnset, Object? step = copyUnset, Object? codes = copyUnset, Object? limits = copyUnset, Object? tier = copyUnset, Object? parts = copyUnset})
+Allowance::Allowance({String? label, int? count, double? ratio, int? step, List<String>? codes, Map<String, int>? limits, AllowanceTier? tier, List<AllowanceTier>? parts})
+Allowance::Allowance.fromJson(Map<String, dynamic> json)
+Allowance::Map<String, dynamic> toJson()
+Allowance::String toString()
+Allowance::bool ==(Object other)
+Allowance::final AllowanceTier? tier
+Allowance::final List<AllowanceTier>? parts
+Allowance::final List<String>? codes
+Allowance::final Map<String, int>? limits
+Allowance::final String? label
+Allowance::final double? ratio
+Allowance::final int? count
+Allowance::final int? step
+Allowance::int get hashCode
+AllowanceTier::AllowanceTier copyWith({Object? level = copyUnset, Object? name = copyUnset})
+AllowanceTier::AllowanceTier({int? level, String? name})
+AllowanceTier::AllowanceTier.fromJson(Map<String, dynamic> json)
+AllowanceTier::Map<String, dynamic> toJson()
+AllowanceTier::String toString()
+AllowanceTier::bool ==(Object other)
+AllowanceTier::final String? name
+AllowanceTier::final int? level
+AllowanceTier::int get hashCode
+ApiClient::ApiClient()
+ApiClient::Future<ApiHttpResponse> sendRequest(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false})
+ApiException::ApiException withRequest(String method, String path)
+ApiException::ApiException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+ApiException::String toString()
+ApiException::String? get requestId
+ApiException::T? getTypedErrorBody<T>(T Function(Map<String, dynamic>) fromJson)
+ApiException::bool get isRetryable
+ApiException::final Map<String, String>? responseHeaders
+ApiException::final Object? cause
+ApiException::final Object? errorBody
+ApiException::final String message
+ApiException::final String? requestMethod
+ApiException::final String? requestPath
+ApiException::final String? responseBody
+ApiException::final int statusCode
+ApiException::static ApiException fromResponse(int statusCode, Map<String, String>? responseHeaders, String? responseBody, {String? requestMethod, String? requestPath, Map<String, ApiException Function({String? requestMethod, String? requestPath, String? responseBody, Map<String, String>? responseHeaders, required int statusCode})>? errorSchemas, Object? cause})
+ApiException::static String stripQuery(String path)
+ApiHttpResponse::ApiHttpResponse({required int statusCode, required String body, required Map<String, String> headers})
+ApiHttpResponse::final Map<String, String> headers
+ApiHttpResponse::final String body
+ApiHttpResponse::final int statusCode
+ApiKeyAuthenticator::ApiKeyAuthenticator({required String host, required String keyParamName, String? apiKey, String Function()? apiKeyProvider, required ApiKeyLocation location, String? environmentVariable, Map<String, String>? environment})
+ApiKeyAuthenticator::Map<String, String> authHeaders()
+ApiKeyAuthenticator::Map<String, String> cookieParams()
+ApiKeyAuthenticator::Map<String, String> queryParams()
+ApiKeyAuthenticator::String host()
+ApiKeyAuthenticator::String toString()
+ApiKeyAuthenticator::static const String defaultEnvironmentVariable
+ApiKeyHeaderAuthenticator::ApiKeyHeaderAuthenticator({required String host, String? apiKey, String Function()? apiKeyProvider, Map<String, String>? environment})
+ApiKeyLocation::ApiKeyLocation()
+ApiKeyLocation::enum value cookie
+ApiKeyLocation::enum value header
+ApiKeyLocation::enum value query
+ApiKeyQueryAuthenticator::ApiKeyQueryAuthenticator({required String host, String? apiKey, String Function()? apiKeyProvider, Map<String, String>? environment})
+ApiResponse::ApiResponse copyWith({Object? code = copyUnset, Object? type = copyUnset, Object? message = copyUnset})
+ApiResponse::ApiResponse({int? code, String? type, String? message})
+ApiResponse::ApiResponse.fromJson(Map<String, dynamic> json)
+ApiResponse::Map<String, dynamic> toJson()
+ApiResponse::String toString()
+ApiResponse::bool ==(Object other)
+ApiResponse::final String? message
+ApiResponse::final String? type
+ApiResponse::final int? code
+ApiResponse::int get hashCode
+ApiResult::ApiResult<T>({required int statusCode, required T? data, required String rawBody, required Map<String, String> headers})
+ApiResult::final Map<String, String> headers
+ApiResult::final String rawBody
+ApiResult::final T? data
+ApiResult::final int statusCode
+ApiStreamResponse::ApiStreamResponse({required int statusCode, required Map<String, String> headers, required Stream<List<int>> body})
+ApiStreamResponse::Future<Uint8List> readBounded(int maxBytes)
+ApiStreamResponse::Future<void> close()
+ApiStreamResponse::String toString()
+ApiStreamResponse::final Map<String, String> headers
+ApiStreamResponse::final Stream<List<int>> body
+ApiStreamResponse::final int statusCode
+ArchiveDigestAuthenticator::ArchiveDigestAuthenticator({required String host, String? username, String? password, Map<String, String>? environment})
+AttachPetFilesOptions::AttachPetFilesOptions({required Uint8List file, String? caption, int? timeout, Map<String, String>? headers, int? maxRetries})
+AttachPetFilesOptions::final Map<String, String>? headers
+AttachPetFilesOptions::final String? caption
+AttachPetFilesOptions::final Uint8List file
+AttachPetFilesOptions::final int? maxRetries
+AttachPetFilesOptions::final int? timeout
+AttachPetFilesRequest::AttachPetFilesRequest copyWith({Uint8List? file, Object? caption = copyUnset})
+AttachPetFilesRequest::AttachPetFilesRequest({required Uint8List file, String? caption})
+AttachPetFilesRequest::AttachPetFilesRequest.fromJson(Map<String, dynamic> json)
+AttachPetFilesRequest::Map<String, dynamic> toJson()
+AttachPetFilesRequest::String toString()
+AttachPetFilesRequest::bool ==(Object other)
+AttachPetFilesRequest::final String? caption
+AttachPetFilesRequest::final Uint8List file
+AttachPetFilesRequest::int get hashCode
+Audit::Audit copyWith({Object? tags = copyUnset, Object? score = copyUnset, Object? payload = copyUnset})
+Audit::Audit({List<String>? tags, int? score, String? payload})
+Audit::Audit.fromJson(Map<String, dynamic> json)
+Audit::Map<String, dynamic> toJson()
+Audit::String toString()
+Audit::bool ==(Object other)
+Audit::final List<String>? tags
+Audit::final String? payload
+Audit::final int? score
+Audit::int get hashCode
+Authenticator::Authenticator()
+Authenticator::Future<Map<String, String>> authHeadersAsync()
+Authenticator::Map<String, String> authHeaders()
+Authenticator::Map<String, String> cookieParams()
+Authenticator::Map<String, String> queryParams()
+Authenticator::String host()
+Availability::Availability(String value)
+Availability::String toJson()
+Availability::String toString()
+Availability::enum value ab
+Availability::enum value available
+Availability::enum value eq
+Availability::enum value oclock
+Availability::enum value onHold
+Availability::enum value sold
+Availability::enum value unknownDefaultOpenApi
+Availability::enum value x
+Availability::final String value
+Availability::static Availability fromJson(String value)
+BadGatewayException::BadGatewayException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+BadRequestException::BadRequestException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+BaseAuthenticator::BaseAuthenticator()
+BaseAuthenticator::Future<Map<String, String>> authHeadersAsync()
+BaseAuthenticator::Map<String, String> cookieParams()
+BaseAuthenticator::Map<String, String> queryParams()
+BasicAuthenticator::BasicAuthenticator({required String host, String? username, String? password, (String, String) Function()? credentialsProvider, String? usernameVariable, String? passwordVariable, Map<String, String>? environment})
+BasicAuthenticator::Map<String, String> authHeaders()
+BasicAuthenticator::String host()
+BasicAuthenticator::String toString()
+BasicAuthenticator::static const String defaultPasswordVariable
+BasicAuthenticator::static const String defaultUsernameVariable
+BearerAuthenticator::BearerAuthenticator({required String host, String? token, FutureOr<String> Function()? tokenProvider, String? environmentVariable, Map<String, String>? environment})
+BearerAuthenticator::Future<Map<String, String>> authHeadersAsync()
+BearerAuthenticator::Map<String, String> authHeaders()
+BearerAuthenticator::String host()
+BearerAuthenticator::String toString()
+BearerAuthenticator::static const String defaultEnvironmentVariable
+BinaryVault::BinaryVault copyWith({Object? seal = copyUnset, Object? shards = copyUnset, Object? labels = copyUnset})
+BinaryVault::BinaryVault({Uint8List? seal, List<Uint8List>? shards, Map<String, Uint8List>? labels})
+BinaryVault::BinaryVault.fromJson(Map<String, dynamic> json)
+BinaryVault::Map<String, dynamic> toJson()
+BinaryVault::String toString()
+BinaryVault::bool ==(Object other)
+BinaryVault::final List<Uint8List>? shards
+BinaryVault::final Map<String, Uint8List>? labels
+BinaryVault::final Uint8List? seal
+BinaryVault::int get hashCode
+Blobs::Blobs copyWith({Object? label = copyUnset, Map<String, Uint8List>? additionalProperties})
+Blobs::Blobs({String? label, Map<String, Uint8List> additionalProperties = const {}})
+Blobs::Blobs.fromJson(Map<String, dynamic> json)
+Blobs::Map<String, Uint8List> get additionalProperties
+Blobs::Map<String, dynamic> toJson()
+Blobs::String toString()
+Blobs::bool ==(Object other)
+Blobs::final String? label
+Blobs::int get hashCode
+BodySource::BodySource.fromFactory(Stream<List<int>> Function() factory, {int? length})
+BodySource::BodySource.of(List<int> bytes)
+BodySource::BodySource.ofFile(String path)
+BodySource::BodySource.once(Stream<List<int>> stream, {int? length})
+BodySource::Stream<List<int>> open()
+BodySource::String toString()
+BodySource::bool get isReplayable
+BodySource::int? get length
+BrowserAuthImplicitAuthenticator::BrowserAuthImplicitAuthenticator({required String host, String? clientId, Map<String, String>? environment})
+ByteStream::ByteStream({required int statusCode, required Map<String, String> headers, required Stream<List<int>> source})
+ByteStream::Future<Uint8List> readAll()
+ByteStream::Future<void> close()
+ByteStream::StreamSubscription<List<int>> listen(void Function(List<int>)? onData, {Function? onError, void Function()? onDone, bool? cancelOnError})
+ByteStream::String toString()
+ByteStream::bool get isClosed
+ByteStream::final Map<String, String> headers
+ByteStream::final int statusCode
+ByteStream::int get bytesDelivered
+CallHook chainCallHooks(List<CallHook> hooks)
+CallHook::CallHook()
+CallHook::CallObserver? start(CallInfo info, Map<String, String> headers)
+CallInfo::CallInfo({required String operationId, required String method, required String urlTemplate, required String url, required String serverAddress})
+CallInfo::CallInfo.of({required String operationId, required String method, required String urlTemplate, required String target})
+CallInfo::final String method
+CallInfo::final String operationId
+CallInfo::final String serverAddress
+CallInfo::final String url
+CallInfo::final String urlTemplate
+CallObserver::CallObserver()
+CallObserver::void finish(CallOutcome outcome)
+CallOutcome::CallOutcome({required int statusCode, required Map<String, String>? headers, required Object? error})
+CallOutcome::final Map<String, String>? headers
+CallOutcome::final Object? error
+CallOutcome::final int statusCode
+Car::Car copyWith({String? vehicleType, String? plate, int? doorCount})
+Car::Car({String vehicleType = 'car', required String plate, required int doorCount})
+Car::Car.fromJson(Map<String, dynamic> json)
+Car::Map<String, dynamic> toJson()
+Car::String toString()
+Car::bool ==(Object other)
+Car::final int doorCount
+Car::int get hashCode
+Category::Category copyWith({Object? id = copyUnset, Object? name = copyUnset})
+Category::Category({int? id, String? name})
+Category::Category.fromJson(Map<String, dynamic> json)
+Category::Map<String, dynamic> toJson()
+Category::String toString()
+Category::bool ==(Object other)
+Category::final String? name
+Category::final int? id
+Category::int get hashCode
+Circle::Circle copyWith({String? shapeType, Object? label = copyUnset, double? radius})
+Circle::Circle({String shapeType = 'Circle', String? label, required double radius})
+Circle::Circle.fromJson(Map<String, dynamic> json)
+Circle::Map<String, dynamic> toJson()
+Circle::String toString()
+Circle::bool ==(Object other)
+Circle::final double radius
+Circle::int get hashCode
+Client::Client({Authenticator? authenticator, Authenticator? petStoreBasic, Authenticator? adminBasic, Authenticator? archiveDigest, Authenticator? petStoreBearer, Authenticator? serviceToken, Authenticator? apiKeyHeader, Authenticator? internalApiKey, Authenticator? apiKeyQuery, Authenticator? sessionCookie, Authenticator? machineAuth, Authenticator? legacyAuth, Authenticator? userAuth, Authenticator? browserAuth, Authenticator? deviceAuth, Authenticator? ssoAuth, TransportOptions? transportOptions, CallHook? callHook})
+Client::Client.withToken({required String host, String? accessToken, FutureOr<String> Function()? tokenProvider, TransportOptions? transportOptions, CallHook? callHook})
+Client::final PetApi pet
+Client::final ProblemsApi problems
+Client::final StoreApi store
+Client::static Client withAuthenticator(Authenticator authenticator, [TransportOptions? transportOptions])
+Client::void close()
+ClientAuthMethod::ClientAuthMethod()
+ClientAuthMethod::enum value basic
+ClientAuthMethod::enum value body
+ClientException::ClientException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+ClientInterface::ClientInterface()
+ClientInterface::PetApiInterface get pet
+ClientInterface::ProblemsApiInterface get problems
+ClientInterface::StoreApiInterface get store
+ClientInterface::void close()
+Color::Color(String value)
+Color::String toJson()
+Color::String toString()
+Color::enum value blue
+Color::enum value green
+Color::enum value red
+Color::enum value unknownDefaultOpenApi
+Color::final String value
+Color::static Color fromJson(String value)
+Configuration::Configuration.defaultConfiguration()
+Configuration::Map<String, String> get defaultHeaders
+Configuration::String toString()
+Configuration::final CallHook? callHook
+Configuration::final String baseUrl
+Configuration::final bool validateConstraints
+Configuration::static ConfigurationBuilder builder()
+ConfigurationBuilder::Configuration build()
+ConfigurationBuilder::ConfigurationBuilder baseUrl(String val)
+ConfigurationBuilder::ConfigurationBuilder callHook(CallHook? val)
+ConfigurationBuilder::ConfigurationBuilder defaultHeader(String name, String value)
+ConfigurationBuilder::ConfigurationBuilder defaultHeaders(Map<String, String> headers)
+ConfigurationBuilder::ConfigurationBuilder server(ServerConfiguration server, [Map<String, String>? variables])
+ConfigurationBuilder::ConfigurationBuilder validateConstraints(bool val)
+ConfigurationBuilder::ConfigurationBuilder()
+ConflictException::ConflictException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+Counters::Counters copyWith({Object? label = copyUnset, Map<String, int>? additionalProperties})
+Counters::Counters({String? label, Map<String, int> additionalProperties = const {}})
+Counters::Counters.fromJson(Map<String, dynamic> json)
+Counters::Map<String, dynamic> toJson()
+Counters::Map<String, int> get additionalProperties
+Counters::String toString()
+Counters::bool ==(Object other)
+Counters::final String? label
+Counters::int get hashCode
+CreateAccountOptions::CreateAccountOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+CreateAccountOptions::final Map<String, String>? headers
+CreateAccountOptions::final int? maxRetries
+CreateAccountOptions::final int? timeout
+DefaultApiClient::DefaultApiClient({TransportOptions? transportOptions})
+DefaultApiClient::Stream<List<int>> decompressStream(Stream<List<int>> body, String contentEncoding)
+DefaultApiClient::Uint8List decompressBytes(Uint8List bytes, String contentEncoding)
+DefaultApiClient::Uint8List decompressBytesWithin(Uint8List bytes, String contentEncoding, int maxBytes)
+DefaultApiClient::bool isNetworkError(Object error)
+Defaults::Defaults copyWith({Object? retries = copyUnset, Object? mode = copyUnset, Object? label = copyUnset, Object? greeting = copyUnset, Object? swatch = copyUnset, Object? ratio = copyUnset, Object? scale = copyUnset, Object? weight = copyUnset, Object? ceiling = copyUnset})
+Defaults::Defaults({int? retries = 3, DefaultsModeEnum? mode = DefaultsModeEnum.medium, String? label = 'untitled', String? greeting = 'it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b', Swatch? swatch = Swatch.green, double? ratio = 1.5, double? scale = 0.25, double? weight = 2, int? ceiling = 9000000000})
+Defaults::Defaults.fromJson(Map<String, dynamic> json)
+Defaults::Map<String, dynamic> toJson()
+Defaults::String toString()
+Defaults::bool ==(Object other)
+Defaults::final DefaultsModeEnum? mode
+Defaults::final String? greeting
+Defaults::final String? label
+Defaults::final Swatch? swatch
+Defaults::final double? ratio
+Defaults::final double? scale
+Defaults::final double? weight
+Defaults::final int? ceiling
+Defaults::final int? retries
+Defaults::int get hashCode
+DefaultsModeEnum::DefaultsModeEnum(String value)
+DefaultsModeEnum::String toJson()
+DefaultsModeEnum::String toString()
+DefaultsModeEnum::enum value high
+DefaultsModeEnum::enum value low
+DefaultsModeEnum::enum value medium
+DefaultsModeEnum::enum value unknownDefaultOpenApi
+DefaultsModeEnum::final String value
+DefaultsModeEnum::static DefaultsModeEnum fromJson(String value)
+DeleteOrderOptions::DeleteOrderOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+DeleteOrderOptions::final Map<String, String>? headers
+DeleteOrderOptions::final int? maxRetries
+DeleteOrderOptions::final int? timeout
+DeletePetOptions::DeletePetOptions({String? apiKey, int? timeout, Map<String, String>? headers, int? maxRetries})
+DeletePetOptions::final Map<String, String>? headers
+DeletePetOptions::final String? apiKey
+DeletePetOptions::final int? maxRetries
+DeletePetOptions::final int? timeout
+Department::Department copyWith({String? name, Object? lead = copyUnset})
+Department::Department({required String name, Employee? lead})
+Department::Department.fromJson(Map<String, dynamic> json)
+Department::Map<String, dynamic> toJson()
+Department::String toString()
+Department::bool ==(Object other)
+Department::final Employee? lead
+Department::final String name
+Department::int get hashCode
+DeviceAuthDeviceAuthorizationAuthenticator::DeviceAuthDeviceAuthorizationAuthenticator({required String host, String? clientId, Map<String, String>? environment})
+DeviceAuthorization::DeviceAuthorization({required String deviceCode, required String userCode, required String verificationUri, String? verificationUriComplete, required int expiresIn, required int interval})
+DeviceAuthorization::String toString()
+DeviceAuthorization::bool ==(Object other)
+DeviceAuthorization::final String deviceCode
+DeviceAuthorization::final String userCode
+DeviceAuthorization::final String verificationUri
+DeviceAuthorization::final String? verificationUriComplete
+DeviceAuthorization::final int expiresIn
+DeviceAuthorization::final int interval
+DeviceAuthorization::int get hashCode
+DigestAuthenticator::DigestAuthenticator({required String host, String? username, String? password, String? usernameVariable, String? passwordVariable, Map<String, String>? environment})
+DigestAuthenticator::Map<String, String> authHeaders()
+DigestAuthenticator::String Function() cnonceSource
+DigestAuthenticator::String host()
+DigestAuthenticator::String toString()
+DigestAuthenticator::String? authorization(String method, String requestTarget)
+DigestAuthenticator::bool acceptChallenge(String wwwAuthenticate)
+DigestAuthenticator::static const String defaultPasswordVariable
+DigestAuthenticator::static const String defaultUsernameVariable
+DownloadPetDocumentOptions::DownloadPetDocumentOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+DownloadPetDocumentOptions::final Map<String, String>? headers
+DownloadPetDocumentOptions::final int? maxRetries
+DownloadPetDocumentOptions::final int? timeout
+DryFood::DryFood copyWith({String? foodType, double? weightKg, Object? pricePerKg = copyUnset})
+DryFood::DryFood({String foodType = 'dry', required double weightKg, Decimal? pricePerKg}) [uses decimal:Decimal]
+DryFood::DryFood.fromJson(Map<String, dynamic> json)
+DryFood::Map<String, dynamic> toJson()
+DryFood::String toString()
+DryFood::bool ==(Object other)
+DryFood::final Decimal? pricePerKg [uses decimal:Decimal]
+DryFood::final String foodType
+DryFood::final double weightKg
+DryFood::int get hashCode
+Duration parseProtobufDuration(String input)
+EdgeCases::EdgeCases copyWith({Object? freeFormAny = copyUnset, Object? favoriteColor = copyUnset, Object? permissionsNote = copyUnset, Object? and = copyUnset, Object? or = copyUnset, Object? not = copyUnset, Object? class_ = copyUnset, Object? return_ = copyUnset, Object? retryAfter = copyUnset, Object? expiresAt = copyUnset, Object? n2fa = copyUnset, Object? separator = copyUnset, Object? null_ = copyUnset, Object? true_ = copyUnset, Object? false_ = copyUnset, Object? lastError = copyUnset, Object? outcome = copyUnset, Object? cutoff = copyUnset, Object? phase = copyUnset, Object? slug = copyUnset})
+EdgeCases::EdgeCases({Object? freeFormAny, Color? favoriteColor, String? permissionsNote, bool? and, bool? or, bool? not, String? class_, String? return_, Duration? retryAfter, DateTime? expiresAt, bool? n2fa, Separator? separator, String? null_, bool? true_, bool? false_, ModelError? lastError, Result? outcome, String? cutoff, EdgeCasesPhaseEnum? phase, String? slug})
+EdgeCases::EdgeCases.fromJson(Map<String, dynamic> json)
+EdgeCases::Map<String, dynamic> toJson()
+EdgeCases::String toString()
+EdgeCases::bool ==(Object other)
+EdgeCases::final Color? favoriteColor
+EdgeCases::final DateTime? expiresAt
+EdgeCases::final Duration? retryAfter
+EdgeCases::final EdgeCasesPhaseEnum? phase
+EdgeCases::final ModelError? lastError
+EdgeCases::final Object? freeFormAny
+EdgeCases::final Result? outcome
+EdgeCases::final Separator? separator
+EdgeCases::final String? class_
+EdgeCases::final String? cutoff
+EdgeCases::final String? null_
+EdgeCases::final String? permissionsNote
+EdgeCases::final String? return_
+EdgeCases::final String? slug
+EdgeCases::final bool? and
+EdgeCases::final bool? false_
+EdgeCases::final bool? n2fa
+EdgeCases::final bool? not
+EdgeCases::final bool? or
+EdgeCases::final bool? true_
+EdgeCases::int get hashCode
+EdgeCasesPhaseEnum::EdgeCasesPhaseEnum(String value)
+EdgeCasesPhaseEnum::String toJson()
+EdgeCasesPhaseEnum::String toString()
+EdgeCasesPhaseEnum::enum value instock
+EdgeCasesPhaseEnum::enum value onhold
+EdgeCasesPhaseEnum::enum value outofstock
+EdgeCasesPhaseEnum::enum value unknownDefaultOpenApi
+EdgeCasesPhaseEnum::final String value
+EdgeCasesPhaseEnum::static EdgeCasesPhaseEnum fromJson(String value)
+Employee::Employee copyWith({String? name, Object? department = copyUnset})
+Employee::Employee({required String name, Department? department})
+Employee::Employee.fromJson(Map<String, dynamic> json)
+Employee::Map<String, dynamic> toJson()
+Employee::String toString()
+Employee::bool ==(Object other)
+Employee::final Department? department
+Employee::final String name
+Employee::int get hashCode
+ExportOrdersOptions::ExportOrdersOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+ExportOrdersOptions::final Map<String, String>? headers
+ExportOrdersOptions::final int? maxRetries
+ExportOrdersOptions::final int? timeout
+FindPetsBornOnOptions::FindPetsBornOnOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+FindPetsBornOnOptions::final Map<String, String>? headers
+FindPetsBornOnOptions::final int? maxRetries
+FindPetsBornOnOptions::final int? timeout
+FindPetsByStatusOptions::FindPetsByStatusOptions({String? status, Map<String, String>? filter, DateTime? bornAfter, int? n2ndPage, DateTime? reportDate, int? timeout, Map<String, String>? headers, int? maxRetries})
+FindPetsByStatusOptions::final DateTime? bornAfter
+FindPetsByStatusOptions::final DateTime? reportDate
+FindPetsByStatusOptions::final Map<String, String>? filter
+FindPetsByStatusOptions::final Map<String, String>? headers
+FindPetsByStatusOptions::final String? status
+FindPetsByStatusOptions::final int? maxRetries
+FindPetsByStatusOptions::final int? n2ndPage
+FindPetsByStatusOptions::final int? timeout
+ForbiddenException::ForbiddenException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+Freeform::Freeform copyWith({Object? label = copyUnset, Map<String, dynamic>? additionalProperties})
+Freeform::Freeform({String? label, Map<String, dynamic> additionalProperties = const {}})
+Freeform::Freeform.fromJson(Map<String, dynamic> json)
+Freeform::Map<String, dynamic> get additionalProperties
+Freeform::Map<String, dynamic> toJson()
+Freeform::String toString()
+Freeform::bool ==(Object other)
+Freeform::final String? label
+Freeform::int get hashCode
+GatewayTimeoutException::GatewayTimeoutException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+GetAuditTrailOptions::GetAuditTrailOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetAuditTrailOptions::final Map<String, String>? headers
+GetAuditTrailOptions::final int? maxRetries
+GetAuditTrailOptions::final int? timeout
+GetBySwatchOptions::GetBySwatchOptions({Swatch? querySwatch, Swatch? preferredSwatch, int? timeout, Map<String, String>? headers, int? maxRetries})
+GetBySwatchOptions::final Map<String, String>? headers
+GetBySwatchOptions::final Swatch? preferredSwatch
+GetBySwatchOptions::final Swatch? querySwatch
+GetBySwatchOptions::final int? maxRetries
+GetBySwatchOptions::final int? timeout
+GetDefaultsOptions::GetDefaultsOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetDefaultsOptions::final Map<String, String>? headers
+GetDefaultsOptions::final int? maxRetries
+GetDefaultsOptions::final int? timeout
+GetDepartmentOptions::GetDepartmentOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetDepartmentOptions::final Map<String, String>? headers
+GetDepartmentOptions::final int? maxRetries
+GetDepartmentOptions::final int? timeout
+GetExternalPetInfoOptions::GetExternalPetInfoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetExternalPetInfoOptions::final Map<String, String>? headers
+GetExternalPetInfoOptions::final int? maxRetries
+GetExternalPetInfoOptions::final int? timeout
+GetExternalPetInfoServer::GetExternalPetInfoServer()
+GetExternalPetInfoServer::String getUrl()
+GetExternalPetInfoServerServer0::GetExternalPetInfoServerServer0()
+GetExternalPetInfoServerServer0::String getUrl()
+GetFallbackOptions::GetFallbackOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetFallbackOptions::final Map<String, String>? headers
+GetFallbackOptions::final int? maxRetries
+GetFallbackOptions::final int? timeout
+GetGroupedCategoriesOptions::GetGroupedCategoriesOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetGroupedCategoriesOptions::final Map<String, String>? headers
+GetGroupedCategoriesOptions::final int? maxRetries
+GetGroupedCategoriesOptions::final int? timeout
+GetInventoryOptions::GetInventoryOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetInventoryOptions::final Map<String, String>? headers
+GetInventoryOptions::final int? maxRetries
+GetInventoryOptions::final int? timeout
+GetMatrixOptions::GetMatrixOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetMatrixOptions::final Map<String, String>? headers
+GetMatrixOptions::final int? maxRetries
+GetMatrixOptions::final int? timeout
+GetMemberOptions::GetMemberOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetMemberOptions::final Map<String, String>? headers
+GetMemberOptions::final int? maxRetries
+GetMemberOptions::final int? timeout
+GetMemoOptions::GetMemoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetMemoOptions::final Map<String, String>? headers
+GetMemoOptions::final int? maxRetries
+GetMemoOptions::final int? timeout
+GetMemoResponseHeaders::GetMemoResponseHeaders({int? xRevision, List<String>? xLabels, bool? xArchived})
+GetMemoResponseHeaders::GetMemoResponseHeaders.from(Map<String, String> headers)
+GetMemoResponseHeaders::final List<String>? xLabels
+GetMemoResponseHeaders::final bool? xArchived
+GetMemoResponseHeaders::final int? xRevision
+GetMemoServer::GetMemoServer()
+GetMemoServer::String getUrl()
+GetMemoServerMemos::GetMemoServerMemos()
+GetMemoServerMemos::String getUrl()
+GetMultiServerPetInfoOptions::GetMultiServerPetInfoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetMultiServerPetInfoOptions::final Map<String, String>? headers
+GetMultiServerPetInfoOptions::final int? maxRetries
+GetMultiServerPetInfoOptions::final int? timeout
+GetMultiServerPetInfoServer::GetMultiServerPetInfoServer()
+GetMultiServerPetInfoServer::String getUrl()
+GetMultiServerPetInfoServerChannel::GetMultiServerPetInfoServerChannel(String value)
+GetMultiServerPetInfoServerChannel::enum value A_B
+GetMultiServerPetInfoServerChannel::enum value IT_S
+GetMultiServerPetInfoServerChannel::final String value
+GetMultiServerPetInfoServerMirror::GetMultiServerPetInfoServerMirror(GetMultiServerPetInfoServerMirrorRegion region, GetMultiServerPetInfoServerChannel channel)
+GetMultiServerPetInfoServerMirror::String getUrl()
+GetMultiServerPetInfoServerMirror::final GetMultiServerPetInfoServerChannel channel
+GetMultiServerPetInfoServerMirror::final GetMultiServerPetInfoServerMirrorRegion region
+GetMultiServerPetInfoServerMirrorRegion::GetMultiServerPetInfoServerMirrorRegion(String value)
+GetMultiServerPetInfoServerMirrorRegion::enum value EU
+GetMultiServerPetInfoServerMirrorRegion::enum value US
+GetMultiServerPetInfoServerMirrorRegion::final String value
+GetMultiServerPetInfoServerPrimary::GetMultiServerPetInfoServerPrimary()
+GetMultiServerPetInfoServerPrimary::String getUrl()
+GetMultiServerPetInfoServerRegional::GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion region)
+GetMultiServerPetInfoServerRegional::String getUrl()
+GetMultiServerPetInfoServerRegional::final GetMultiServerPetInfoServerRegionalRegion region
+GetMultiServerPetInfoServerRegionalRegion::GetMultiServerPetInfoServerRegionalRegion(String value)
+GetMultiServerPetInfoServerRegionalRegion::enum value AP
+GetMultiServerPetInfoServerRegionalRegion::enum value EU
+GetMultiServerPetInfoServerRegionalRegion::enum value US
+GetMultiServerPetInfoServerRegionalRegion::final String value
+GetNativeAmountOptions::GetNativeAmountOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetNativeAmountOptions::final Map<String, String>? headers
+GetNativeAmountOptions::final int? maxRetries
+GetNativeAmountOptions::final int? timeout
+GetNativeValuesOptions::GetNativeValuesOptions({String? address4, Duration? delay, Decimal? amount, String? xAddress6, int? timeout, Map<String, String>? headers, int? maxRetries}) [uses decimal:Decimal]
+GetNativeValuesOptions::final Decimal? amount [uses decimal:Decimal]
+GetNativeValuesOptions::final Duration? delay
+GetNativeValuesOptions::final Map<String, String>? headers
+GetNativeValuesOptions::final String? address4
+GetNativeValuesOptions::final String? xAddress6
+GetNativeValuesOptions::final int? maxRetries
+GetNativeValuesOptions::final int? timeout
+GetOrderByIdOptions::GetOrderByIdOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetOrderByIdOptions::final Map<String, String>? headers
+GetOrderByIdOptions::final int? maxRetries
+GetOrderByIdOptions::final int? timeout
+GetOrderByTrackingIdOptions::GetOrderByTrackingIdOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetOrderByTrackingIdOptions::final Map<String, String>? headers
+GetOrderByTrackingIdOptions::final int? maxRetries
+GetOrderByTrackingIdOptions::final int? timeout
+GetPetAvatarOptions::GetPetAvatarOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetAvatarOptions::final Map<String, String>? headers
+GetPetAvatarOptions::final int? maxRetries
+GetPetAvatarOptions::final int? timeout
+GetPetAvatarThumbnailOptions::GetPetAvatarThumbnailOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetAvatarThumbnailOptions::final Map<String, String>? headers
+GetPetAvatarThumbnailOptions::final int? maxRetries
+GetPetAvatarThumbnailOptions::final int? timeout
+GetPetByIdOptions::GetPetByIdOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetByIdOptions::final Map<String, String>? headers
+GetPetByIdOptions::final int? maxRetries
+GetPetByIdOptions::final int? timeout
+GetPetByIdServer::GetPetByIdServer()
+GetPetByIdServer::String getUrl()
+GetPetByIdServerCDNBackedReadEndpointForPetDetails::GetPetByIdServerCDNBackedReadEndpointForPetDetails()
+GetPetByIdServerCDNBackedReadEndpointForPetDetails::String getUrl()
+GetPetByNameOptions::GetPetByNameOptions({required String category, required String xCorrelationId, int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetByNameOptions::final Map<String, String>? headers
+GetPetByNameOptions::final String category
+GetPetByNameOptions::final String xCorrelationId
+GetPetByNameOptions::final int? maxRetries
+GetPetByNameOptions::final int? timeout
+GetPetByNoteOptions::GetPetByNoteOptions({required String? note, required int? rank, int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetByNoteOptions::final Map<String, String>? headers
+GetPetByNoteOptions::final String? note
+GetPetByNoteOptions::final int? maxRetries
+GetPetByNoteOptions::final int? rank
+GetPetByNoteOptions::final int? timeout
+GetPetPassportOptions::GetPetPassportOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetPassportOptions::final Map<String, String>? headers
+GetPetPassportOptions::final int? maxRetries
+GetPetPassportOptions::final int? timeout
+GetPetPhotoOptions::GetPetPhotoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetPhotoOptions::final Map<String, String>? headers
+GetPetPhotoOptions::final int? maxRetries
+GetPetPhotoOptions::final int? timeout
+GetPetSummaryOptions::GetPetSummaryOptions({required String session, List<DateTime>? days, int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetSummaryOptions::final List<DateTime>? days
+GetPetSummaryOptions::final Map<String, String>? headers
+GetPetSummaryOptions::final String session
+GetPetSummaryOptions::final int? maxRetries
+GetPetSummaryOptions::final int? timeout
+GetPetTagOptions::GetPetTagOptions({List<String>? colors, List<String>? sizes, String? filter, String? revision, PetCriteria? criteria, PetCriteria? criteriaCsv, PetCriteria? criteriaDeep, Uint8List? fingerprint, PetCriteria? xCriteria, Uint8List? xFingerprint, int? timeout, Map<String, String>? headers, int? maxRetries})
+GetPetTagOptions::final List<String>? colors
+GetPetTagOptions::final List<String>? sizes
+GetPetTagOptions::final Map<String, String>? headers
+GetPetTagOptions::final PetCriteria? criteria
+GetPetTagOptions::final PetCriteria? criteriaCsv
+GetPetTagOptions::final PetCriteria? criteriaDeep
+GetPetTagOptions::final PetCriteria? xCriteria
+GetPetTagOptions::final String? filter
+GetPetTagOptions::final String? revision
+GetPetTagOptions::final Uint8List? fingerprint
+GetPetTagOptions::final Uint8List? xFingerprint
+GetPetTagOptions::final int? maxRetries
+GetPetTagOptions::final int? timeout
+GetProjectOptions::GetProjectOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetProjectOptions::final Map<String, String>? headers
+GetProjectOptions::final int? maxRetries
+GetProjectOptions::final int? timeout
+GetRangeOptions::GetRangeOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetRangeOptions::final Map<String, String>? headers
+GetRangeOptions::final int? maxRetries
+GetRangeOptions::final int? timeout
+GetStagingPetInfoOptions::GetStagingPetInfoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetStagingPetInfoOptions::final Map<String, String>? headers
+GetStagingPetInfoOptions::final int? maxRetries
+GetStagingPetInfoOptions::final int? timeout
+GetStagingPetInfoServer::GetStagingPetInfoServer()
+GetStagingPetInfoServer::String getUrl()
+GetStagingPetInfoServerEnvironment::GetStagingPetInfoServerEnvironment(String value)
+GetStagingPetInfoServerEnvironment::enum value SANDBOX
+GetStagingPetInfoServerEnvironment::enum value STAGING
+GetStagingPetInfoServerEnvironment::final String value
+GetStagingPetInfoServerStagingServer::GetStagingPetInfoServerStagingServer(GetStagingPetInfoServerEnvironment environment, GetStagingPetInfoServerVersion version)
+GetStagingPetInfoServerStagingServer::String getUrl()
+GetStagingPetInfoServerStagingServer::final GetStagingPetInfoServerEnvironment environment
+GetStagingPetInfoServerStagingServer::final GetStagingPetInfoServerVersion version
+GetStagingPetInfoServerVersion::GetStagingPetInfoServerVersion(String value)
+GetStagingPetInfoServerVersion::enum value V2
+GetStagingPetInfoServerVersion::enum value V3
+GetStagingPetInfoServerVersion::final String value
+GetStockItemOptions::GetStockItemOptions({DateTime? asOf, int? timeout, Map<String, String>? headers, int? maxRetries})
+GetStockItemOptions::final DateTime? asOf
+GetStockItemOptions::final Map<String, String>? headers
+GetStockItemOptions::final int? maxRetries
+GetStockItemOptions::final int? timeout
+GetSwatchGroupsOptions::GetSwatchGroupsOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetSwatchGroupsOptions::final Map<String, String>? headers
+GetSwatchGroupsOptions::final int? maxRetries
+GetSwatchGroupsOptions::final int? timeout
+GetSwatchOptions::GetSwatchOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetSwatchOptions::final Map<String, String>? headers
+GetSwatchOptions::final int? maxRetries
+GetSwatchOptions::final int? timeout
+GetTimestampGroupsOptions::GetTimestampGroupsOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetTimestampGroupsOptions::final Map<String, String>? headers
+GetTimestampGroupsOptions::final int? maxRetries
+GetTimestampGroupsOptions::final int? timeout
+GetTreeOptions::GetTreeOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetTreeOptions::final Map<String, String>? headers
+GetTreeOptions::final int? maxRetries
+GetTreeOptions::final int? timeout
+GetUpstreamOptions::GetUpstreamOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetUpstreamOptions::final Map<String, String>? headers
+GetUpstreamOptions::final int? maxRetries
+GetUpstreamOptions::final int? timeout
+GoneException::GoneException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+HeadMemoOptions::HeadMemoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+HeadMemoOptions::final Map<String, String>? headers
+HeadMemoOptions::final int? maxRetries
+HeadMemoOptions::final int? timeout
+HeadMemoResponseHeaders::HeadMemoResponseHeaders({int? xRevision})
+HeadMemoResponseHeaders::HeadMemoResponseHeaders.from(Map<String, String> headers)
+HeadMemoResponseHeaders::final int? xRevision
+HttpAwareAuthenticator::HttpAwareAuthenticator()
+HttpAwareAuthenticator::void setApiClient(ApiClient client)
+InternalApiKeyAuthenticator::InternalApiKeyAuthenticator({required String host, String? apiKey, String Function()? apiKeyProvider, Map<String, String>? environment})
+InternalServerErrorException::InternalServerErrorException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+JsonLinesStream::Future<void> close()
+JsonLinesStream::JsonLinesStream<T>(ByteStream _source, T Function(String) _decoder, int maxLineBytes, String _method, String _path)
+JsonLinesStream::Map<String, String> get headers
+JsonLinesStream::StreamSubscription<T> listen(void Function(T)? onData, {Function? onError, void Function()? onDone, bool? cancelOnError})
+JsonLinesStream::String toString()
+JsonLinesStream::int get statusCode
+Ledger::Ledger copyWith({int? entryId, Object? entryIds = copyUnset})
+Ledger::Ledger({required int entryId, List<int>? entryIds})
+Ledger::Ledger.fromJson(Map<String, dynamic> json)
+Ledger::Map<String, dynamic> toJson()
+Ledger::String toString()
+Ledger::bool ==(Object other)
+Ledger::final List<int>? entryIds
+Ledger::final int entryId
+Ledger::int get hashCode
+LegacyAuthPasswordAuthenticator::LegacyAuthPasswordAuthenticator({required String host, String? clientId, String? clientSecret, String? username, String? password, Map<String, String>? environment})
+Letter::Letter copyWith({String? kind, Object? pages = copyUnset})
+Letter::Letter({String kind = 'letter', int? pages})
+Letter::Letter.fromJson(Map<String, dynamic> json)
+Letter::Map<String, dynamic> toJson()
+Letter::String toString()
+Letter::bool ==(Object other)
+Letter::final String kind
+Letter::final int? pages
+Letter::int get hashCode
+ListNativeAmountsOptions::ListNativeAmountsOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+ListNativeAmountsOptions::final Map<String, String>? headers
+ListNativeAmountsOptions::final int? maxRetries
+ListNativeAmountsOptions::final int? timeout
+ListPetArchiveOptions::ListPetArchiveOptions({String? cursor, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetArchiveOptions::final Map<String, String>? headers
+ListPetArchiveOptions::final String? cursor
+ListPetArchiveOptions::final int? maxRetries
+ListPetArchiveOptions::final int? timeout
+ListPetCatalogOptions::ListPetCatalogOptions withCursor(String cursor)
+ListPetCatalogOptions::ListPetCatalogOptions({int? limit, String? cursor, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetCatalogOptions::final Map<String, String>? headers
+ListPetCatalogOptions::final String? cursor
+ListPetCatalogOptions::final int? limit
+ListPetCatalogOptions::final int? maxRetries
+ListPetCatalogOptions::final int? timeout
+ListPetEventsOptions::ListPetEventsOptions withCursor(String cursor)
+ListPetEventsOptions::ListPetEventsOptions({String? since, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetEventsOptions::final Map<String, String>? headers
+ListPetEventsOptions::final String? since
+ListPetEventsOptions::final int? maxRetries
+ListPetEventsOptions::final int? timeout
+ListPetFeedOptions::ListPetFeedOptions({int? limit, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetFeedOptions::final Map<String, String>? headers
+ListPetFeedOptions::final int? limit
+ListPetFeedOptions::final int? maxRetries
+ListPetFeedOptions::final int? timeout
+ListPetFeedResponseHeaders::ListPetFeedResponseHeaders({String? link})
+ListPetFeedResponseHeaders::ListPetFeedResponseHeaders.from(Map<String, String> headers)
+ListPetFeedResponseHeaders::final String? link
+ListPetMatchesOptions::ListPetMatchesOptions({String? cursor, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetMatchesOptions::final Map<String, String>? headers
+ListPetMatchesOptions::final String? cursor
+ListPetMatchesOptions::final int? maxRetries
+ListPetMatchesOptions::final int? timeout
+ListPetNextUrlOptions::ListPetNextUrlOptions({int? limit, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetNextUrlOptions::final Map<String, String>? headers
+ListPetNextUrlOptions::final int? limit
+ListPetNextUrlOptions::final int? maxRetries
+ListPetNextUrlOptions::final int? timeout
+ListPetNotesOptions::ListPetNotesOptions withCursor(String cursor)
+ListPetNotesOptions::ListPetNotesOptions({String? pos, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetNotesOptions::final Map<String, String>? headers
+ListPetNotesOptions::final String? pos
+ListPetNotesOptions::final int? maxRetries
+ListPetNotesOptions::final int? timeout
+ListPetOffsetsOptions::ListPetOffsetsOptions withCursor(int cursor)
+ListPetOffsetsOptions::ListPetOffsetsOptions({int? offset, int? limit, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetOffsetsOptions::final Map<String, String>? headers
+ListPetOffsetsOptions::final int? limit
+ListPetOffsetsOptions::final int? maxRetries
+ListPetOffsetsOptions::final int? offset
+ListPetOffsetsOptions::final int? timeout
+ListPetPageNumbersOptions::ListPetPageNumbersOptions withCursor(int cursor)
+ListPetPageNumbersOptions::ListPetPageNumbersOptions({int? page, int? perPage, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetPageNumbersOptions::final Map<String, String>? headers
+ListPetPageNumbersOptions::final int? maxRetries
+ListPetPageNumbersOptions::final int? page
+ListPetPageNumbersOptions::final int? perPage
+ListPetPageNumbersOptions::final int? timeout
+ListPetsAfterOptions::ListPetsAfterOptions withCursor(String cursor)
+ListPetsAfterOptions::ListPetsAfterOptions({String? startingAfter, int? limit, int? timeout, Map<String, String>? headers, int? maxRetries})
+ListPetsAfterOptions::final Map<String, String>? headers
+ListPetsAfterOptions::final String? startingAfter
+ListPetsAfterOptions::final int? limit
+ListPetsAfterOptions::final int? maxRetries
+ListPetsAfterOptions::final int? timeout
+LockedException::LockedException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+MachineAuthClientCredentialsAuthenticator::MachineAuthClientCredentialsAuthenticator({required String host, String? clientId, String? clientSecret, Map<String, String>? environment})
+MachineAuthClientCredentialsAuthenticator::static const String metadataUrl
+Medication::Map<String, dynamic> toJson()
+Medication::Medication copyWith({String? drugName, Object? dosage = copyUnset, Object? notes = copyUnset})
+Medication::Medication({required String drugName, String? dosage, String? notes})
+Medication::Medication.fromJson(Map<String, dynamic> json)
+Medication::String toString()
+Medication::bool ==(Object other)
+Medication::final String drugName
+Medication::final String? dosage
+Medication::final String? notes
+Medication::int get hashCode
+MemberNotFound::Map<String, dynamic> toJson()
+MemberNotFound::MemberNotFound copyWith({Object? code = copyUnset, Object? detail = copyUnset})
+MemberNotFound::MemberNotFound({int? code, String? detail})
+MemberNotFound::MemberNotFound.fromJson(Map<String, dynamic> json)
+MemberNotFound::String toString()
+MemberNotFound::bool ==(Object other)
+MemberNotFound::final String? detail
+MemberNotFound::final int? code
+MemberNotFound::int get hashCode
+MemberNotFoundException::MemberNotFound? get errorBody
+MemberNotFoundException::MemberNotFoundException({String message = '', String? responseBody, Map<String, String>? responseHeaders, MemberNotFound? errorBody, Object? cause, String? requestMethod, String? requestPath})
+MemberNotFoundException::static ApiException fromErrorResponse({required int statusCode, Map<String, String>? responseHeaders, String? responseBody, String? requestMethod, String? requestPath})
+Memo::Map<String, dynamic> toJson()
+Memo::Memo copyWith({String? memoId, Object? text = copyUnset})
+Memo::Memo({required String memoId, String? text})
+Memo::Memo.fromJson(Map<String, dynamic> json)
+Memo::String toString()
+Memo::bool ==(Object other)
+Memo::final String memoId
+Memo::final String? text
+Memo::int get hashCode
+Metadata::Map<String, String> get additionalProperties
+Metadata::Map<String, dynamic> toJson()
+Metadata::Metadata copyWith({Object? createdAt = copyUnset, Map<String, String>? additionalProperties})
+Metadata::Metadata({DateTime? createdAt, Map<String, String> additionalProperties = const {}})
+Metadata::Metadata.fromJson(Map<String, dynamic> json)
+Metadata::String toString()
+Metadata::bool ==(Object other)
+Metadata::final DateTime? createdAt
+Metadata::int get hashCode
+MethodNotAllowedException::MethodNotAllowedException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+ModelError::Map<String, dynamic> toJson()
+ModelError::ModelError copyWith({Object? code = copyUnset, Object? message = copyUnset})
+ModelError::ModelError({int? code, String? message})
+ModelError::ModelError.fromJson(Map<String, dynamic> json)
+ModelError::String toString()
+ModelError::bool ==(Object other)
+ModelError::final String? message
+ModelError::final int? code
+ModelError::int get hashCode
+Moments::Map<String, DateTime> get additionalProperties
+Moments::Map<String, dynamic> toJson()
+Moments::Moments copyWith({Object? label = copyUnset, Map<String, DateTime>? additionalProperties})
+Moments::Moments({String? label, Map<String, DateTime> additionalProperties = const {}})
+Moments::Moments.fromJson(Map<String, dynamic> json)
+Moments::String toString()
+Moments::bool ==(Object other)
+Moments::final String? label
+Moments::int get hashCode
+NativeValues::Map<String, dynamic> toJson()
+NativeValues::NativeValues copyWith({Object? address4 = copyUnset, Object? address6 = copyUnset, Object? addresses = copyUnset, Object? homepage = copyUnset, Object? amount = copyUnset, Object? amounts = copyUnset, Object? ledger = copyUnset, Object? wait = copyUnset, Object? since = copyUnset, Object? host = copyUnset, Object? contact = copyUnset})
+NativeValues::NativeValues({String? address4, String? address6, List<String>? addresses, String? homepage, Decimal? amount, List<Decimal>? amounts, Decimal? ledger, Duration? wait, DateTime? since, String? host, String? contact}) [uses decimal:Decimal]
+NativeValues::NativeValues.fromJson(Map<String, dynamic> json)
+NativeValues::String toString()
+NativeValues::bool ==(Object other)
+NativeValues::final DateTime? since
+NativeValues::final Decimal? amount [uses decimal:Decimal]
+NativeValues::final Decimal? ledger [uses decimal:Decimal]
+NativeValues::final Duration? wait
+NativeValues::final List<Decimal>? amounts [uses decimal:Decimal]
+NativeValues::final List<String>? addresses
+NativeValues::final String? address4
+NativeValues::final String? address6
+NativeValues::final String? contact
+NativeValues::final String? homepage
+NativeValues::final String? host
+NativeValues::int get hashCode
+NetworkException::NetworkException({required String message, Object? cause, String? requestMethod, String? requestPath})
+NetworkTimeoutException::NetworkTimeoutException({required String message, Object? cause, String? requestMethod, String? requestPath})
+NotFoundException::NotFoundException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+NotImplementedException::NotImplementedException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+OAuth2AuthorizationCodeAuthenticator::Future<Map<String, String>> authHeadersAsync()
+OAuth2AuthorizationCodeAuthenticator::Future<void> exchangeCode(String code, {void Function(String?)? idTokenCheck})
+OAuth2AuthorizationCodeAuthenticator::Map<String, String> authHeaders()
+OAuth2AuthorizationCodeAuthenticator::OAuth2AuthorizationCodeAuthenticator({required String host, String? clientId, String? clientSecret, String? clientIdVariable, String? clientSecretVariable, required String authorizationUrl, required String tokenUrl, String? redirectUri, String? redirectUriVariable, List<String> scopes = const [], String refreshUrl = '', Map<String, String>? environment})
+OAuth2AuthorizationCodeAuthenticator::String buildAuthorizationUrl([String state = ''])
+OAuth2AuthorizationCodeAuthenticator::String host()
+OAuth2AuthorizationCodeAuthenticator::String toString()
+OAuth2AuthorizationCodeAuthenticator::String? get pendingPkceVerifier
+OAuth2AuthorizationCodeAuthenticator::static String pkceChallenge(String verifier)
+OAuth2AuthorizationCodeAuthenticator::void invalidateAccessToken()
+OAuth2AuthorizationCodeAuthenticator::void resumePkce(String? verifier)
+OAuth2AuthorizationCodeAuthenticator::void setApiClient(ApiClient client)
+OAuth2ClientCredentialsAuthenticator::Future<Map<String, String>> authHeadersAsync()
+OAuth2ClientCredentialsAuthenticator::Map<String, String> authHeaders()
+OAuth2ClientCredentialsAuthenticator::OAuth2ClientCredentialsAuthenticator({required String host, String? clientId, String? clientSecret, String? clientIdVariable, String? clientSecretVariable, required String tokenUrl, List<String> scopes = const [], ClientAuthMethod clientAuthMethod = ClientAuthMethod.body, Map<String, String>? environment})
+OAuth2ClientCredentialsAuthenticator::String host()
+OAuth2ClientCredentialsAuthenticator::String toString()
+OAuth2ClientCredentialsAuthenticator::void invalidateAccessToken()
+OAuth2ClientCredentialsAuthenticator::void setApiClient(ApiClient client)
+OAuth2DeviceAuthorizationAuthenticator::Future<DeviceAuthorization> requestDeviceAuthorization()
+OAuth2DeviceAuthorizationAuthenticator::Future<Map<String, String>> authHeadersAsync()
+OAuth2DeviceAuthorizationAuthenticator::Future<void> pollForToken(DeviceAuthorization authorization)
+OAuth2DeviceAuthorizationAuthenticator::Future<void> sleepBeforePoll(Duration delay)
+OAuth2DeviceAuthorizationAuthenticator::Map<String, String> authHeaders()
+OAuth2DeviceAuthorizationAuthenticator::OAuth2DeviceAuthorizationAuthenticator({required String host, String? clientId, String? clientIdVariable, required String deviceAuthorizationUrl, required String tokenUrl, List<String> scopes = const [], String? refreshUrl, Map<String, String>? environment})
+OAuth2DeviceAuthorizationAuthenticator::String host()
+OAuth2DeviceAuthorizationAuthenticator::String toString()
+OAuth2DeviceAuthorizationAuthenticator::int monotonicMilliseconds()
+OAuth2DeviceAuthorizationAuthenticator::void invalidateAccessToken()
+OAuth2DeviceAuthorizationAuthenticator::void setApiClient(ApiClient client)
+OAuth2ImplicitAuthenticator::Map<String, String> authHeaders()
+OAuth2ImplicitAuthenticator::OAuth2ImplicitAuthenticator({required String host, String? clientId, String? clientIdVariable, required String authorizationUrl, List<String> scopes = const [], Map<String, String>? environment})
+OAuth2ImplicitAuthenticator::String buildAuthorizationUrl([String state = ''])
+OAuth2ImplicitAuthenticator::String host()
+OAuth2ImplicitAuthenticator::String toString()
+OAuth2ImplicitAuthenticator::void setAccessToken(String token)
+OAuth2ImplicitAuthenticator::void setApiClient(ApiClient client)
+OAuth2PasswordAuthenticator::Future<Map<String, String>> authHeadersAsync()
+OAuth2PasswordAuthenticator::Map<String, String> authHeaders()
+OAuth2PasswordAuthenticator::OAuth2PasswordAuthenticator({required String host, String? clientId, String? clientSecret, String? clientIdVariable, String? clientSecretVariable, required String tokenUrl, String? username, String? password, String? usernameVariable, String? passwordVariable, List<String> scopes = const [], String refreshUrl = '', ClientAuthMethod clientAuthMethod = ClientAuthMethod.body, Map<String, String>? environment})
+OAuth2PasswordAuthenticator::String host()
+OAuth2PasswordAuthenticator::String toString()
+OAuth2PasswordAuthenticator::void invalidateAccessToken()
+OAuth2PasswordAuthenticator::void setApiClient(ApiClient client)
+OAuth2ServerException::OAuth2ServerException(int statusCode, String? code, String? description, String? uri, String rawBody)
+OAuth2ServerException::String toString()
+OAuth2ServerException::final String message
+OAuth2ServerException::final String rawBody
+OAuth2ServerException::final String? code
+OAuth2ServerException::final String? description
+OAuth2ServerException::final String? uri
+OAuth2ServerException::final int statusCode
+OAuth2TokenException::OAuth2TokenException(String message)
+OAuth2TokenException::String toString()
+OAuth2TokenException::final String message
+OAuth2TokenManager::Future<String> getAccessToken(String tokenUrl, Map<String, String> params, [Map<String, String> extraHeaders = const {}, String? refreshUrl])
+OAuth2TokenManager::Future<String> postForm(String url, Map<String, String> params)
+OAuth2TokenManager::Future<void> exchange(String tokenUrl, Map<String, String> params, [Map<String, String> extraHeaders = const {}, void Function(String?)? idTokenCheck])
+OAuth2TokenManager::OAuth2TokenManager()
+OAuth2TokenManager::String get refreshToken
+OAuth2TokenManager::static int lifetimeSeconds(Object? raw)
+OAuth2TokenManager::void invalidateAccessToken()
+OAuth2TokenManager::void setAccessToken(String token)
+OAuth2TokenManager::void setApiClient(ApiClient client)
+OAuth2TokenManager::void stop()
+OpenAPIException::OpenAPIException()
+OpenAPIException::String get message
+OpenAPIException::String toString()
+OpenIdConnectAuthenticator::Future<Map<String, String>> authHeadersAsync()
+OpenIdConnectAuthenticator::Future<String> buildAuthorizationUrl([String state = ''])
+OpenIdConnectAuthenticator::Future<void> exchangeCode(String code)
+OpenIdConnectAuthenticator::Map<String, String> authHeaders()
+OpenIdConnectAuthenticator::OpenIdConnectAuthenticator({required String host, required String openIdConnectUrl, String? clientId, String? clientSecret, String? clientIdVariable, String? clientSecretVariable, String? redirectUri, String? redirectUriVariable, List<String> scopes = const [], Map<String, String>? environment})
+OpenIdConnectAuthenticator::String host()
+OpenIdConnectAuthenticator::String toString()
+OpenIdConnectAuthenticator::void invalidateAccessToken()
+OpenIdConnectAuthenticator::void setApiClient(ApiClient client)
+OptionsMemoOptions::OptionsMemoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+OptionsMemoOptions::final Map<String, String>? headers
+OptionsMemoOptions::final int? maxRetries
+OptionsMemoOptions::final int? timeout
+OptionsMemoResponseHeaders::OptionsMemoResponseHeaders({String? allow})
+OptionsMemoResponseHeaders::OptionsMemoResponseHeaders.from(Map<String, String> headers)
+OptionsMemoResponseHeaders::final String? allow
+Order::Map<String, dynamic> toJson()
+Order::Order copyWith({Object? id = copyUnset, Object? petId = copyUnset, Object? quantity = copyUnset, Object? trackingId = copyUnset, Object? shipDate = copyUnset, Object? status = copyUnset, Object? complete = copyUnset})
+Order::Order({int? id, int? petId, int? quantity, UuidValue? trackingId, DateTime? shipDate, OrderStatusEnum? status = OrderStatusEnum.placed, bool? complete})
+Order::Order.fromJson(Map<String, dynamic> json)
+Order::String toString()
+Order::bool ==(Object other)
+Order::final DateTime? shipDate
+Order::final OrderStatusEnum? status
+Order::final UuidValue? trackingId
+Order::final bool? complete
+Order::final int? id
+Order::final int? petId
+Order::final int? quantity
+Order::int get hashCode
+OrderStatusEnum::OrderStatusEnum(String value)
+OrderStatusEnum::String toJson()
+OrderStatusEnum::String toString()
+OrderStatusEnum::enum value approved
+OrderStatusEnum::enum value delivered
+OrderStatusEnum::enum value placed
+OrderStatusEnum::enum value unknownDefaultOpenApi
+OrderStatusEnum::final String value
+OrderStatusEnum::static OrderStatusEnum fromJson(String value)
+Packet::Map<String, dynamic> toJson()
+Packet::Packet copyWith({String? kind, Object? weightKg = copyUnset})
+Packet::Packet({String kind = 'packet', double? weightKg})
+Packet::Packet.fromJson(Map<String, dynamic> json)
+Packet::String toString()
+Packet::bool ==(Object other)
+Packet::final String kind
+Packet::final double? weightKg
+Packet::int get hashCode
+Page::Page<T, C>(Iterable<T> items, C? nextCursor, ApiResult<Object?> result)
+Page::String toString()
+Page::final ApiResult<Object?> result
+Page::final C? nextCursor
+Page::final List<T> items
+PaginationException::PaginationException(String message, [String? requestPath])
+PaginationException::String toString()
+PaginationException::final String message
+PaginationException::final String? requestPath
+Paginator::Stream<Page<T, C>> pages()
+Paginator::Stream<T> items()
+Paginator::static Paginator<T, C> ofCursor<T, C extends Object, B>({C? start, required Future<ApiResult<B>> Function(C?) fetch, required Iterable<T>? Function(B) items, required C? Function(B) next, bool? Function(B)? hasMore, required String requestPath})
+Paginator::static Paginator<T, int> ofOffset<T, B>({int? start, required Future<ApiResult<B>> Function(int?) fetch, required Iterable<T>? Function(B) items, bool? Function(B)? hasMore, required String requestPath})
+Paginator::static Paginator<T, int> ofPage<T, B>({int? start, required Future<ApiResult<B>> Function(int?) fetch, required Iterable<T>? Function(B) items, bool? Function(B)? hasMore, required String requestPath})
+Paginator::static Paginator<T, void> ofLink<T, B>({required String baseUrl, required Future<ApiResult<B>> Function(String?) fetch, required Iterable<T>? Function(B) items, required String requestPath})
+Paginator::static Paginator<T, void> ofNextUrl<T, B>({required String baseUrl, required Future<ApiResult<B>> Function(String?) fetch, required Iterable<T>? Function(B) items, required String? Function(B) next, required String requestPath})
+Parcel::Letter? get asLetter
+Parcel::Object? get actualInstance
+Parcel::Object? toJson()
+Parcel::Packet? get asPacket
+Parcel::Parcel(Object? actualInstance)
+Parcel::Parcel.fromJson(Map<String, dynamic> json)
+Parcel::Parcel.letter(Letter value)
+Parcel::Parcel.packet(Packet value)
+Parcel::String toString()
+Parcel::bool ==(Object other)
+Parcel::bool get isLetter
+Parcel::bool get isPacket
+Parcel::int get hashCode
+PatchMemoOptions::PatchMemoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+PatchMemoOptions::final Map<String, String>? headers
+PatchMemoOptions::final int? maxRetries
+PatchMemoOptions::final int? timeout
+PatchMemoResponseHeaders::PatchMemoResponseHeaders({int? xRevision, List<String>? xLabels, bool? xArchived})
+PatchMemoResponseHeaders::PatchMemoResponseHeaders.from(Map<String, String> headers)
+PatchMemoResponseHeaders::final List<String>? xLabels
+PatchMemoResponseHeaders::final bool? xArchived
+PatchMemoResponseHeaders::final int? xRevision
+PayloadTooLargeException::PayloadTooLargeException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+PaymentRequiredException::PaymentRequiredException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+Pet::Map<String, dynamic> toJson()
+Pet::Pet copyWith({Object? id = copyUnset, String? name, Object? category = copyUnset, Set<String>? photoUrls, Object? tags = copyUnset, Object? status = copyUnset, Object? location = copyUnset, Object? homepageUrl = copyUnset, Object? thumbnailRef = copyUnset, Object? linkTemplate = copyUnset, Object? ownerEmail = copyUnset, Object? weightKg = copyUnset, Object? nickname = copyUnset})
+Pet::Pet({int? id, required String name, Category? category, required Set<String> photoUrls, List<Tag>? tags, PetStatusEnum? status, List<Object>? location, String? homepageUrl, String? thumbnailRef, String? linkTemplate, String? ownerEmail, double? weightKg, String? nickname})
+Pet::Pet.fromJson(Map<String, dynamic> json)
+Pet::String toString()
+Pet::bool ==(Object other)
+Pet::final Category? category
+Pet::final List<Object>? location
+Pet::final List<Tag>? tags
+Pet::final PetStatusEnum? status
+Pet::final Set<String> photoUrls
+Pet::final String name
+Pet::final String? homepageUrl
+Pet::final String? linkTemplate
+Pet::final String? nickname
+Pet::final String? ownerEmail
+Pet::final String? thumbnailRef
+Pet::final double? weightKg
+Pet::final int? id
+Pet::int get hashCode
+PetAfterPage::Map<String, dynamic> toJson()
+PetAfterPage::PetAfterPage copyWith({Object? data = copyUnset, Object? hasMore = copyUnset, Object? lastId = copyUnset})
+PetAfterPage::PetAfterPage({List<Pet>? data, bool? hasMore, String? lastId})
+PetAfterPage::PetAfterPage.fromJson(Map<String, dynamic> json)
+PetAfterPage::String toString()
+PetAfterPage::bool ==(Object other)
+PetAfterPage::final List<Pet>? data
+PetAfterPage::final String? lastId
+PetAfterPage::final bool? hasMore
+PetAfterPage::int get hashCode
+PetApi::Future<ApiResponse> attachPetFiles(int petId, AttachPetFilesOptions options)
+PetApi::Future<ApiResponse> setPetPreferences(int petId, SetPetPreferencesOptions options)
+PetApi::Future<ApiResponse> uploadPetCertificate(int petId, UploadPetCertificateOptions options)
+PetApi::Future<ApiResponse> uploadPetDocument(int petId, UploadPetDocumentOptions options, [String? requestContentType])
+PetApi::Future<ApiResult<ApiResponse>> attachPetFilesWithHttpInfo(int petId, AttachPetFilesOptions options)
+PetApi::Future<ApiResult<ApiResponse>> setPetPreferencesWithHttpInfo(int petId, SetPetPreferencesOptions options)
+PetApi::Future<ApiResult<ApiResponse>> uploadPetCertificateWithHttpInfo(int petId, UploadPetCertificateOptions options)
+PetApi::Future<ApiResult<ApiResponse>> uploadPetDocumentWithHttpInfo(int petId, UploadPetDocumentOptions options, [String? requestContentType])
+PetApi::Future<ApiResult<ByteStream>> downloadPetDocumentWithHttpInfo(int petId, int documentId, DownloadPetDocumentOptions? options)
+PetApi::Future<ApiResult<ByteStream>> getPetAvatarWithHttpInfo(int petId, GetPetAvatarOptions? options)
+PetApi::Future<ApiResult<ByteStream>> getPetPhotoWithHttpInfo(int petId, int photoId, GetPetPhotoOptions? options)
+PetApi::Future<ApiResult<List<Pet>>> findPetsBornOnWithHttpInfo(DateTime bornOn, FindPetsBornOnOptions? options)
+PetApi::Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(FindPetsByStatusOptions? options)
+PetApi::Future<ApiResult<List<Pet>>> listPetFeedWithHttpInfo(ListPetFeedOptions? options)
+PetApi::Future<ApiResult<List<Photo>>> addPetPhotosWithHttpInfo(int petId, AddPetPhotosOptions options)
+PetApi::Future<ApiResult<Pet>> addPetWithHttpInfo(Pet pet, AddPetOptions? options)
+PetApi::Future<ApiResult<Pet>> getExternalPetInfoWithHttpInfo(int petId, GetExternalPetInfoServer? server, GetExternalPetInfoOptions? options)
+PetApi::Future<ApiResult<Pet>> getMultiServerPetInfoWithHttpInfo(int petId, GetMultiServerPetInfoServer? server, GetMultiServerPetInfoOptions? options)
+PetApi::Future<ApiResult<Pet>> getPetByIdWithHttpInfo(int petId, GetPetByIdServer? server, GetPetByIdOptions? options)
+PetApi::Future<ApiResult<Pet>> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options)
+PetApi::Future<ApiResult<Pet>> getPetByNoteWithHttpInfo(GetPetByNoteOptions options)
+PetApi::Future<ApiResult<Pet>> getPetTagWithHttpInfo(int petId, String tagName, GetPetTagOptions? options)
+PetApi::Future<ApiResult<Pet>> getStagingPetInfoWithHttpInfo(int petId, GetStagingPetInfoServer? server, GetStagingPetInfoOptions? options)
+PetApi::Future<ApiResult<Pet>> updatePetWithHttpInfo(int petId, Pet pet, UpdatePetOptions? options)
+PetApi::Future<ApiResult<PetAfterPage>> listPetsAfterWithHttpInfo(ListPetsAfterOptions? options)
+PetApi::Future<ApiResult<PetArchivePage>> listPetArchiveWithHttpInfo(ListPetArchiveOptions? options)
+PetApi::Future<ApiResult<PetCatalogPage>> listPetCatalogWithHttpInfo(ListPetCatalogOptions? options)
+PetApi::Future<ApiResult<PetEventPage>> listPetEventsWithHttpInfo(ListPetEventsOptions? options)
+PetApi::Future<ApiResult<PetMatchPage>> listPetMatchesWithHttpInfo(ListPetMatchesOptions? options)
+PetApi::Future<ApiResult<PetNextUrlPage>> listPetNextUrlWithHttpInfo(ListPetNextUrlOptions? options)
+PetApi::Future<ApiResult<PetNotePage>> listPetNotesWithHttpInfo(ListPetNotesOptions? options)
+PetApi::Future<ApiResult<PetOffsetPage>> listPetOffsetsWithHttpInfo(ListPetOffsetsOptions? options)
+PetApi::Future<ApiResult<PetPageNumberPage>> listPetPageNumbersWithHttpInfo(ListPetPageNumbersOptions? options)
+PetApi::Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(int petId, GetPetPassportOptions? options)
+PetApi::Future<ApiResult<PetTreatment>> addPetTreatmentWithHttpInfo(int petId, PetTreatment petTreatment, AddPetTreatmentOptions? options)
+PetApi::Future<ApiResult<String>> getPetSummaryWithHttpInfo(int petId, DateTime asOf, GetPetSummaryOptions options)
+PetApi::Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(int petId, GetPetAvatarThumbnailOptions? options)
+PetApi::Future<ApiResult<void>> deletePetWithHttpInfo(int petId, DeletePetOptions? options)
+PetApi::Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, SetPetAvatarThumbnailOptions? options)
+PetApi::Future<ApiResult<void>> setPetAvatarWithHttpInfo(int petId, BodySource body, SetPetAvatarOptions? options, [String? requestContentType])
+PetApi::Future<ByteStream> downloadPetDocument(int petId, int documentId, DownloadPetDocumentOptions? options)
+PetApi::Future<ByteStream> getPetAvatar(int petId, GetPetAvatarOptions? options)
+PetApi::Future<ByteStream> getPetPhoto(int petId, int photoId, GetPetPhotoOptions? options)
+PetApi::Future<List<Pet>> findPetsBornOn(DateTime bornOn, FindPetsBornOnOptions? options)
+PetApi::Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options)
+PetApi::Future<List<Pet>> listPetFeed(ListPetFeedOptions? options)
+PetApi::Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions options)
+PetApi::Future<Pet> addPet(Pet pet, AddPetOptions? options)
+PetApi::Future<Pet> getExternalPetInfo(int petId, GetExternalPetInfoServer? server, GetExternalPetInfoOptions? options)
+PetApi::Future<Pet> getMultiServerPetInfo(int petId, GetMultiServerPetInfoServer? server, GetMultiServerPetInfoOptions? options)
+PetApi::Future<Pet> getPetById(int petId, GetPetByIdServer? server, GetPetByIdOptions? options)
+PetApi::Future<Pet> getPetByName(String name, GetPetByNameOptions options)
+PetApi::Future<Pet> getPetByNote(GetPetByNoteOptions options)
+PetApi::Future<Pet> getPetTag(int petId, String tagName, GetPetTagOptions? options)
+PetApi::Future<Pet> getStagingPetInfo(int petId, GetStagingPetInfoServer? server, GetStagingPetInfoOptions? options)
+PetApi::Future<Pet> updatePet(int petId, Pet pet, UpdatePetOptions? options)
+PetApi::Future<PetAfterPage> listPetsAfter(ListPetsAfterOptions? options)
+PetApi::Future<PetArchivePage> listPetArchive(ListPetArchiveOptions? options)
+PetApi::Future<PetCatalogPage> listPetCatalog(ListPetCatalogOptions? options)
+PetApi::Future<PetEventPage> listPetEvents(ListPetEventsOptions? options)
+PetApi::Future<PetMatchPage> listPetMatches(ListPetMatchesOptions? options)
+PetApi::Future<PetNextUrlPage> listPetNextUrl(ListPetNextUrlOptions? options)
+PetApi::Future<PetNotePage> listPetNotes(ListPetNotesOptions? options)
+PetApi::Future<PetOffsetPage> listPetOffsets(ListPetOffsetsOptions? options)
+PetApi::Future<PetPageNumberPage> listPetPageNumbers(ListPetPageNumbersOptions? options)
+PetApi::Future<PetPassport> getPetPassport(int petId, GetPetPassportOptions? options)
+PetApi::Future<PetTreatment> addPetTreatment(int petId, PetTreatment petTreatment, AddPetTreatmentOptions? options)
+PetApi::Future<String> getPetSummary(int petId, DateTime asOf, GetPetSummaryOptions options)
+PetApi::Future<Uint8List> getPetAvatarThumbnail(int petId, GetPetAvatarThumbnailOptions? options)
+PetApi::Future<void> deletePet(int petId, DeletePetOptions? options)
+PetApi::Future<void> setPetAvatar(int petId, BodySource body, SetPetAvatarOptions? options, [String? requestContentType])
+PetApi::Future<void> setPetAvatarThumbnail(int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, SetPetAvatarThumbnailOptions? options)
+PetApi::Paginator<Pet, String> listPetCatalogPages(ListPetCatalogOptions? options)
+PetApi::Paginator<Pet, String> listPetsAfterPages(ListPetsAfterOptions? options)
+PetApi::Paginator<Pet, int> listPetOffsetsPages(ListPetOffsetsOptions? options)
+PetApi::Paginator<Pet, int> listPetPageNumbersPages(ListPetPageNumbersOptions? options)
+PetApi::Paginator<Pet, void> listPetFeedPages(ListPetFeedOptions? options)
+PetApi::Paginator<Pet, void> listPetNextUrlPages(ListPetNextUrlOptions? options)
+PetApi::Paginator<String, String> listPetEventsPages(ListPetEventsOptions? options)
+PetApi::Paginator<String, String> listPetNotesPages(ListPetNotesOptions? options)
+PetApi::PetApi({ApiClient? apiClient, Configuration? config, Authenticator? authenticator, Map<String, Authenticator>? schemeAuthenticators})
+PetApiInterface::Future<ApiResponse> attachPetFiles(int petId, AttachPetFilesOptions options)
+PetApiInterface::Future<ApiResponse> setPetPreferences(int petId, SetPetPreferencesOptions options)
+PetApiInterface::Future<ApiResponse> uploadPetCertificate(int petId, UploadPetCertificateOptions options)
+PetApiInterface::Future<ApiResponse> uploadPetDocument(int petId, UploadPetDocumentOptions options, [String? requestContentType])
+PetApiInterface::Future<ApiResult<ApiResponse>> attachPetFilesWithHttpInfo(int petId, AttachPetFilesOptions options)
+PetApiInterface::Future<ApiResult<ApiResponse>> setPetPreferencesWithHttpInfo(int petId, SetPetPreferencesOptions options)
+PetApiInterface::Future<ApiResult<ApiResponse>> uploadPetCertificateWithHttpInfo(int petId, UploadPetCertificateOptions options)
+PetApiInterface::Future<ApiResult<ApiResponse>> uploadPetDocumentWithHttpInfo(int petId, UploadPetDocumentOptions options, [String? requestContentType])
+PetApiInterface::Future<ApiResult<ByteStream>> downloadPetDocumentWithHttpInfo(int petId, int documentId, DownloadPetDocumentOptions? options)
+PetApiInterface::Future<ApiResult<ByteStream>> getPetAvatarWithHttpInfo(int petId, GetPetAvatarOptions? options)
+PetApiInterface::Future<ApiResult<ByteStream>> getPetPhotoWithHttpInfo(int petId, int photoId, GetPetPhotoOptions? options)
+PetApiInterface::Future<ApiResult<List<Pet>>> findPetsBornOnWithHttpInfo(DateTime bornOn, FindPetsBornOnOptions? options)
+PetApiInterface::Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(FindPetsByStatusOptions? options)
+PetApiInterface::Future<ApiResult<List<Pet>>> listPetFeedWithHttpInfo(ListPetFeedOptions? options)
+PetApiInterface::Future<ApiResult<List<Photo>>> addPetPhotosWithHttpInfo(int petId, AddPetPhotosOptions options)
+PetApiInterface::Future<ApiResult<Pet>> addPetWithHttpInfo(Pet pet, AddPetOptions? options)
+PetApiInterface::Future<ApiResult<Pet>> getExternalPetInfoWithHttpInfo(int petId, GetExternalPetInfoServer? server, GetExternalPetInfoOptions? options)
+PetApiInterface::Future<ApiResult<Pet>> getMultiServerPetInfoWithHttpInfo(int petId, GetMultiServerPetInfoServer? server, GetMultiServerPetInfoOptions? options)
+PetApiInterface::Future<ApiResult<Pet>> getPetByIdWithHttpInfo(int petId, GetPetByIdServer? server, GetPetByIdOptions? options)
+PetApiInterface::Future<ApiResult<Pet>> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options)
+PetApiInterface::Future<ApiResult<Pet>> getPetByNoteWithHttpInfo(GetPetByNoteOptions options)
+PetApiInterface::Future<ApiResult<Pet>> getPetTagWithHttpInfo(int petId, String tagName, GetPetTagOptions? options)
+PetApiInterface::Future<ApiResult<Pet>> getStagingPetInfoWithHttpInfo(int petId, GetStagingPetInfoServer? server, GetStagingPetInfoOptions? options)
+PetApiInterface::Future<ApiResult<Pet>> updatePetWithHttpInfo(int petId, Pet pet, UpdatePetOptions? options)
+PetApiInterface::Future<ApiResult<PetAfterPage>> listPetsAfterWithHttpInfo(ListPetsAfterOptions? options)
+PetApiInterface::Future<ApiResult<PetArchivePage>> listPetArchiveWithHttpInfo(ListPetArchiveOptions? options)
+PetApiInterface::Future<ApiResult<PetCatalogPage>> listPetCatalogWithHttpInfo(ListPetCatalogOptions? options)
+PetApiInterface::Future<ApiResult<PetEventPage>> listPetEventsWithHttpInfo(ListPetEventsOptions? options)
+PetApiInterface::Future<ApiResult<PetMatchPage>> listPetMatchesWithHttpInfo(ListPetMatchesOptions? options)
+PetApiInterface::Future<ApiResult<PetNextUrlPage>> listPetNextUrlWithHttpInfo(ListPetNextUrlOptions? options)
+PetApiInterface::Future<ApiResult<PetNotePage>> listPetNotesWithHttpInfo(ListPetNotesOptions? options)
+PetApiInterface::Future<ApiResult<PetOffsetPage>> listPetOffsetsWithHttpInfo(ListPetOffsetsOptions? options)
+PetApiInterface::Future<ApiResult<PetPageNumberPage>> listPetPageNumbersWithHttpInfo(ListPetPageNumbersOptions? options)
+PetApiInterface::Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(int petId, GetPetPassportOptions? options)
+PetApiInterface::Future<ApiResult<PetTreatment>> addPetTreatmentWithHttpInfo(int petId, PetTreatment petTreatment, AddPetTreatmentOptions? options)
+PetApiInterface::Future<ApiResult<String>> getPetSummaryWithHttpInfo(int petId, DateTime asOf, GetPetSummaryOptions options)
+PetApiInterface::Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(int petId, GetPetAvatarThumbnailOptions? options)
+PetApiInterface::Future<ApiResult<void>> deletePetWithHttpInfo(int petId, DeletePetOptions? options)
+PetApiInterface::Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, SetPetAvatarThumbnailOptions? options)
+PetApiInterface::Future<ApiResult<void>> setPetAvatarWithHttpInfo(int petId, BodySource body, SetPetAvatarOptions? options, [String? requestContentType])
+PetApiInterface::Future<ByteStream> downloadPetDocument(int petId, int documentId, DownloadPetDocumentOptions? options)
+PetApiInterface::Future<ByteStream> getPetAvatar(int petId, GetPetAvatarOptions? options)
+PetApiInterface::Future<ByteStream> getPetPhoto(int petId, int photoId, GetPetPhotoOptions? options)
+PetApiInterface::Future<List<Pet>> findPetsBornOn(DateTime bornOn, FindPetsBornOnOptions? options)
+PetApiInterface::Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options)
+PetApiInterface::Future<List<Pet>> listPetFeed(ListPetFeedOptions? options)
+PetApiInterface::Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions options)
+PetApiInterface::Future<Pet> addPet(Pet pet, AddPetOptions? options)
+PetApiInterface::Future<Pet> getExternalPetInfo(int petId, GetExternalPetInfoServer? server, GetExternalPetInfoOptions? options)
+PetApiInterface::Future<Pet> getMultiServerPetInfo(int petId, GetMultiServerPetInfoServer? server, GetMultiServerPetInfoOptions? options)
+PetApiInterface::Future<Pet> getPetById(int petId, GetPetByIdServer? server, GetPetByIdOptions? options)
+PetApiInterface::Future<Pet> getPetByName(String name, GetPetByNameOptions options)
+PetApiInterface::Future<Pet> getPetByNote(GetPetByNoteOptions options)
+PetApiInterface::Future<Pet> getPetTag(int petId, String tagName, GetPetTagOptions? options)
+PetApiInterface::Future<Pet> getStagingPetInfo(int petId, GetStagingPetInfoServer? server, GetStagingPetInfoOptions? options)
+PetApiInterface::Future<Pet> updatePet(int petId, Pet pet, UpdatePetOptions? options)
+PetApiInterface::Future<PetAfterPage> listPetsAfter(ListPetsAfterOptions? options)
+PetApiInterface::Future<PetArchivePage> listPetArchive(ListPetArchiveOptions? options)
+PetApiInterface::Future<PetCatalogPage> listPetCatalog(ListPetCatalogOptions? options)
+PetApiInterface::Future<PetEventPage> listPetEvents(ListPetEventsOptions? options)
+PetApiInterface::Future<PetMatchPage> listPetMatches(ListPetMatchesOptions? options)
+PetApiInterface::Future<PetNextUrlPage> listPetNextUrl(ListPetNextUrlOptions? options)
+PetApiInterface::Future<PetNotePage> listPetNotes(ListPetNotesOptions? options)
+PetApiInterface::Future<PetOffsetPage> listPetOffsets(ListPetOffsetsOptions? options)
+PetApiInterface::Future<PetPageNumberPage> listPetPageNumbers(ListPetPageNumbersOptions? options)
+PetApiInterface::Future<PetPassport> getPetPassport(int petId, GetPetPassportOptions? options)
+PetApiInterface::Future<PetTreatment> addPetTreatment(int petId, PetTreatment petTreatment, AddPetTreatmentOptions? options)
+PetApiInterface::Future<String> getPetSummary(int petId, DateTime asOf, GetPetSummaryOptions options)
+PetApiInterface::Future<Uint8List> getPetAvatarThumbnail(int petId, GetPetAvatarThumbnailOptions? options)
+PetApiInterface::Future<void> deletePet(int petId, DeletePetOptions? options)
+PetApiInterface::Future<void> setPetAvatar(int petId, BodySource body, SetPetAvatarOptions? options, [String? requestContentType])
+PetApiInterface::Future<void> setPetAvatarThumbnail(int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, SetPetAvatarThumbnailOptions? options)
+PetApiInterface::Paginator<Pet, String> listPetCatalogPages(ListPetCatalogOptions? options)
+PetApiInterface::Paginator<Pet, String> listPetsAfterPages(ListPetsAfterOptions? options)
+PetApiInterface::Paginator<Pet, int> listPetOffsetsPages(ListPetOffsetsOptions? options)
+PetApiInterface::Paginator<Pet, int> listPetPageNumbersPages(ListPetPageNumbersOptions? options)
+PetApiInterface::Paginator<Pet, void> listPetFeedPages(ListPetFeedOptions? options)
+PetApiInterface::Paginator<Pet, void> listPetNextUrlPages(ListPetNextUrlOptions? options)
+PetApiInterface::Paginator<String, String> listPetEventsPages(ListPetEventsOptions? options)
+PetApiInterface::Paginator<String, String> listPetNotesPages(ListPetNotesOptions? options)
+PetApiInterface::PetApiInterface()
+PetArchivePage::Map<String, dynamic> toJson()
+PetArchivePage::PetArchivePage copyWith({Object? items = copyUnset, Object? nextCursor = copyUnset})
+PetArchivePage::PetArchivePage({List<Pet>? items, String? nextCursor})
+PetArchivePage::PetArchivePage.fromJson(Map<String, dynamic> json)
+PetArchivePage::String toString()
+PetArchivePage::bool ==(Object other)
+PetArchivePage::final List<Pet>? items
+PetArchivePage::final String? nextCursor
+PetArchivePage::int get hashCode
+PetCatalogPage::Map<String, dynamic> toJson()
+PetCatalogPage::PetCatalogPage copyWith({Object? items = copyUnset, Object? nextCursor = copyUnset})
+PetCatalogPage::PetCatalogPage({List<Pet>? items, String? nextCursor})
+PetCatalogPage::PetCatalogPage.fromJson(Map<String, dynamic> json)
+PetCatalogPage::String toString()
+PetCatalogPage::bool ==(Object other)
+PetCatalogPage::final List<Pet>? items
+PetCatalogPage::final String? nextCursor
+PetCatalogPage::int get hashCode
+PetCriteria::Map<String, dynamic> toJson()
+PetCriteria::PetCriteria copyWith({Object? breed = copyUnset, Object? minAge = copyUnset})
+PetCriteria::PetCriteria({String? breed, int? minAge})
+PetCriteria::PetCriteria.fromJson(Map<String, dynamic> json)
+PetCriteria::String toString()
+PetCriteria::bool ==(Object other)
+PetCriteria::final String? breed
+PetCriteria::final int? minAge
+PetCriteria::int get hashCode
+PetEventPage::Map<String, dynamic> toJson()
+PetEventPage::PetEventPage copyWith({Object? events = copyUnset, Object? upto = copyUnset})
+PetEventPage::PetEventPage({List<String>? events, String? upto})
+PetEventPage::PetEventPage.fromJson(Map<String, dynamic> json)
+PetEventPage::String toString()
+PetEventPage::bool ==(Object other)
+PetEventPage::final List<String>? events
+PetEventPage::final String? upto
+PetEventPage::int get hashCode
+PetFood::DryFood? get asDryFood
+PetFood::Object? get actualInstance
+PetFood::Object? toJson()
+PetFood::PetFood(Object? actualInstance)
+PetFood::PetFood.dryFood(DryFood value)
+PetFood::PetFood.fromJson(Map<String, dynamic> json)
+PetFood::PetFood.wetFood(WetFood value)
+PetFood::String toString()
+PetFood::WetFood? get asWetFood
+PetFood::bool ==(Object other)
+PetFood::bool get isDryFood
+PetFood::bool get isWetFood
+PetFood::int get hashCode
+PetMatchPage::Map<String, dynamic> toJson()
+PetMatchPage::PetMatchPage copyWith({Object? pets = copyUnset, Object? owners = copyUnset, Object? nextCursor = copyUnset})
+PetMatchPage::PetMatchPage({List<Pet>? pets, List<String>? owners, String? nextCursor})
+PetMatchPage::PetMatchPage.fromJson(Map<String, dynamic> json)
+PetMatchPage::String toString()
+PetMatchPage::bool ==(Object other)
+PetMatchPage::final List<Pet>? pets
+PetMatchPage::final List<String>? owners
+PetMatchPage::final String? nextCursor
+PetMatchPage::int get hashCode
+PetNextUrlPage::Map<String, dynamic> toJson()
+PetNextUrlPage::PetNextUrlPage copyWith({Object? items = copyUnset, Object? nextUrl = copyUnset})
+PetNextUrlPage::PetNextUrlPage({List<Pet>? items, String? nextUrl})
+PetNextUrlPage::PetNextUrlPage.fromJson(Map<String, dynamic> json)
+PetNextUrlPage::String toString()
+PetNextUrlPage::bool ==(Object other)
+PetNextUrlPage::final List<Pet>? items
+PetNextUrlPage::final String? nextUrl
+PetNextUrlPage::int get hashCode
+PetNotePage::Map<String, dynamic> toJson()
+PetNotePage::PetNotePage copyWith({Object? rows = copyUnset, Object? following = copyUnset})
+PetNotePage::PetNotePage({List<String>? rows, String? following})
+PetNotePage::PetNotePage.fromJson(Map<String, dynamic> json)
+PetNotePage::String toString()
+PetNotePage::bool ==(Object other)
+PetNotePage::final List<String>? rows
+PetNotePage::final String? following
+PetNotePage::int get hashCode
+PetOffsetPage::Map<String, dynamic> toJson()
+PetOffsetPage::PetOffsetPage copyWith({Object? items = copyUnset, Object? hasMore = copyUnset})
+PetOffsetPage::PetOffsetPage({List<Pet>? items, bool? hasMore})
+PetOffsetPage::PetOffsetPage.fromJson(Map<String, dynamic> json)
+PetOffsetPage::String toString()
+PetOffsetPage::bool ==(Object other)
+PetOffsetPage::final List<Pet>? items
+PetOffsetPage::final bool? hasMore
+PetOffsetPage::int get hashCode
+PetPageNumberPage::Map<String, dynamic> toJson()
+PetPageNumberPage::PetPageNumberPage copyWith({Object? items = copyUnset, Object? hasMore = copyUnset})
+PetPageNumberPage::PetPageNumberPage({List<Pet>? items, bool? hasMore})
+PetPageNumberPage::PetPageNumberPage.fromJson(Map<String, dynamic> json)
+PetPageNumberPage::String toString()
+PetPageNumberPage::bool ==(Object other)
+PetPageNumberPage::final List<Pet>? items
+PetPageNumberPage::final bool? hasMore
+PetPageNumberPage::int get hashCode
+PetPassport::Map<String, dynamic> toJson()
+PetPassport::PetPassport copyWith({Object? pet = copyUnset, Object? thumbnail = copyUnset, Object? scans = copyUnset, Object? issuedAt = copyUnset, Object? biometricChip = copyUnset})
+PetPassport::PetPassport({Pet? pet, Uint8List? thumbnail, List<Uint8List>? scans, DateTime? issuedAt, Uint8List? biometricChip})
+PetPassport::PetPassport.fromJson(Map<String, dynamic> json)
+PetPassport::String toString()
+PetPassport::bool ==(Object other)
+PetPassport::final DateTime? issuedAt
+PetPassport::final List<Uint8List>? scans
+PetPassport::final Pet? pet
+PetPassport::final Uint8List? biometricChip
+PetPassport::final Uint8List? thumbnail
+PetPassport::int get hashCode
+PetStatusEnum::PetStatusEnum(String value)
+PetStatusEnum::String toJson()
+PetStatusEnum::String toString()
+PetStatusEnum::enum value available
+PetStatusEnum::enum value pending
+PetStatusEnum::enum value sold
+PetStatusEnum::enum value unknownDefaultOpenApi
+PetStatusEnum::final String value
+PetStatusEnum::static PetStatusEnum fromJson(String value)
+PetStoreBasicAuthenticator::PetStoreBasicAuthenticator({required String host, String? username, String? password, (String, String) Function()? credentialsProvider, Map<String, String>? environment})
+PetStoreBearerAuthenticator::PetStoreBearerAuthenticator({required String host, String? token, FutureOr<String> Function()? tokenProvider, Map<String, String>? environment})
+PetTreatment::List<Object?> get matchedInstances
+PetTreatment::Medication? get asMedication
+PetTreatment::Object? get actualInstance
+PetTreatment::Object? toJson()
+PetTreatment::PetTreatment.fromJson(Map<String, dynamic> json)
+PetTreatment::PetTreatment.medication(Medication value)
+PetTreatment::PetTreatment.ofValues(List<Object?> values)
+PetTreatment::PetTreatment.surgery(Surgery value)
+PetTreatment::String toString()
+PetTreatment::Surgery? get asSurgery
+PetTreatment::T? valueOf<T>()
+PetTreatment::bool ==(Object other)
+PetTreatment::bool get isMedication
+PetTreatment::bool get isSurgery
+PetTreatment::int get hashCode
+PetWithOwner::Map<String, dynamic> toJson()
+PetWithOwner::PetWithOwner copyWith({Object? id = copyUnset, String? name, Object? category = copyUnset, Set<String>? photoUrls, Object? tags = copyUnset, Object? status = copyUnset, Object? location = copyUnset, Object? homepageUrl = copyUnset, Object? thumbnailRef = copyUnset, Object? linkTemplate = copyUnset, Object? ownerEmail = copyUnset, Object? weightKg = copyUnset, Object? nickname = copyUnset, String? ownerName})
+PetWithOwner::PetWithOwner({int? id, required String name, Category? category, required Set<String> photoUrls, List<Tag>? tags, PetWithOwnerStatusEnum? status, List<Object>? location, String? homepageUrl, String? thumbnailRef, String? linkTemplate, String? ownerEmail, double? weightKg, String? nickname, required String ownerName})
+PetWithOwner::PetWithOwner.fromJson(Map<String, dynamic> json)
+PetWithOwner::String toString()
+PetWithOwner::bool ==(Object other)
+PetWithOwner::final Category? category
+PetWithOwner::final List<Object>? location
+PetWithOwner::final List<Tag>? tags
+PetWithOwner::final PetWithOwnerStatusEnum? status
+PetWithOwner::final Set<String> photoUrls
+PetWithOwner::final String name
+PetWithOwner::final String ownerName
+PetWithOwner::final String? homepageUrl
+PetWithOwner::final String? linkTemplate
+PetWithOwner::final String? nickname
+PetWithOwner::final String? ownerEmail
+PetWithOwner::final String? thumbnailRef
+PetWithOwner::final double? weightKg
+PetWithOwner::final int? id
+PetWithOwner::int get hashCode
+PetWithOwnerStatusEnum::PetWithOwnerStatusEnum(String value)
+PetWithOwnerStatusEnum::String toJson()
+PetWithOwnerStatusEnum::String toString()
+PetWithOwnerStatusEnum::enum value available
+PetWithOwnerStatusEnum::enum value pending
+PetWithOwnerStatusEnum::enum value sold
+PetWithOwnerStatusEnum::enum value unknownDefaultOpenApi
+PetWithOwnerStatusEnum::final String value
+PetWithOwnerStatusEnum::static PetWithOwnerStatusEnum fromJson(String value)
+Photo::Map<String, dynamic> toJson()
+Photo::Photo copyWith({Object? id = copyUnset, Object? caption = copyUnset, Object? isPrimary = copyUnset, Object? url = copyUnset})
+Photo::Photo({int? id, String? caption, bool? isPrimary, String? url})
+Photo::Photo.fromJson(Map<String, dynamic> json)
+Photo::String toString()
+Photo::bool ==(Object other)
+Photo::final String? caption
+Photo::final String? url
+Photo::final bool? isPrimary
+Photo::final int? id
+Photo::int get hashCode
+PhotoMetadata::Map<String, dynamic> toJson()
+PhotoMetadata::PhotoMetadata copyWith({Object? caption = copyUnset, Object? isPrimary = copyUnset, Object? takenAt = copyUnset, Object? location = copyUnset})
+PhotoMetadata::PhotoMetadata({String? caption, bool? isPrimary, DateTime? takenAt, PhotoMetadataLocation? location})
+PhotoMetadata::PhotoMetadata.fromJson(Map<String, dynamic> json)
+PhotoMetadata::String toString()
+PhotoMetadata::bool ==(Object other)
+PhotoMetadata::final DateTime? takenAt
+PhotoMetadata::final PhotoMetadataLocation? location
+PhotoMetadata::final String? caption
+PhotoMetadata::final bool? isPrimary
+PhotoMetadata::int get hashCode
+PhotoMetadataLocation::Map<String, dynamic> toJson()
+PhotoMetadataLocation::PhotoMetadataLocation copyWith({Object? lat = copyUnset, Object? lng = copyUnset})
+PhotoMetadataLocation::PhotoMetadataLocation({double? lat, double? lng})
+PhotoMetadataLocation::PhotoMetadataLocation.fromJson(Map<String, dynamic> json)
+PhotoMetadataLocation::String toString()
+PhotoMetadataLocation::bool ==(Object other)
+PhotoMetadataLocation::final double? lat
+PhotoMetadataLocation::final double? lng
+PhotoMetadataLocation::int get hashCode
+PlaceOrderOptions::PlaceOrderOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+PlaceOrderOptions::final Map<String, String>? headers
+PlaceOrderOptions::final int? maxRetries
+PlaceOrderOptions::final int? timeout
+Priority::Priority(int value)
+Priority::String toString()
+Priority::enum value number1
+Priority::enum value number2
+Priority::enum value number3
+Priority::enum value unknownDefaultOpenApi
+Priority::final int value
+Priority::int toJson()
+Priority::static Priority fromJson(int value)
+ProblemsApi::Future<ApiResult<Result>> getFallbackWithHttpInfo(String fallbackId, GetFallbackOptions? options)
+ProblemsApi::Future<ApiResult<Result>> getMemberWithHttpInfo(String memberId, GetMemberOptions? options)
+ProblemsApi::Future<ApiResult<Result>> getProjectWithHttpInfo(String projectId, GetProjectOptions? options)
+ProblemsApi::Future<ApiResult<Result>> getRangeWithHttpInfo(String rangeId, GetRangeOptions? options)
+ProblemsApi::Future<ApiResult<Result>> getUpstreamWithHttpInfo(String upstreamId, GetUpstreamOptions? options)
+ProblemsApi::Future<ApiResult<Result>> takeLockWithHttpInfo(String lockId, TakeLockOptions? options)
+ProblemsApi::Future<Result> getFallback(String fallbackId, GetFallbackOptions? options)
+ProblemsApi::Future<Result> getMember(String memberId, GetMemberOptions? options)
+ProblemsApi::Future<Result> getProject(String projectId, GetProjectOptions? options)
+ProblemsApi::Future<Result> getRange(String rangeId, GetRangeOptions? options)
+ProblemsApi::Future<Result> getUpstream(String upstreamId, GetUpstreamOptions? options)
+ProblemsApi::Future<Result> takeLock(String lockId, TakeLockOptions? options)
+ProblemsApi::ProblemsApi({ApiClient? apiClient, Configuration? config, Authenticator? authenticator, Map<String, Authenticator>? schemeAuthenticators})
+ProblemsApiInterface::Future<ApiResult<Result>> getFallbackWithHttpInfo(String fallbackId, GetFallbackOptions? options)
+ProblemsApiInterface::Future<ApiResult<Result>> getMemberWithHttpInfo(String memberId, GetMemberOptions? options)
+ProblemsApiInterface::Future<ApiResult<Result>> getProjectWithHttpInfo(String projectId, GetProjectOptions? options)
+ProblemsApiInterface::Future<ApiResult<Result>> getRangeWithHttpInfo(String rangeId, GetRangeOptions? options)
+ProblemsApiInterface::Future<ApiResult<Result>> getUpstreamWithHttpInfo(String upstreamId, GetUpstreamOptions? options)
+ProblemsApiInterface::Future<ApiResult<Result>> takeLockWithHttpInfo(String lockId, TakeLockOptions? options)
+ProblemsApiInterface::Future<Result> getFallback(String fallbackId, GetFallbackOptions? options)
+ProblemsApiInterface::Future<Result> getMember(String memberId, GetMemberOptions? options)
+ProblemsApiInterface::Future<Result> getProject(String projectId, GetProjectOptions? options)
+ProblemsApiInterface::Future<Result> getRange(String rangeId, GetRangeOptions? options)
+ProblemsApiInterface::Future<Result> getUpstream(String upstreamId, GetUpstreamOptions? options)
+ProblemsApiInterface::Future<Result> takeLock(String lockId, TakeLockOptions? options)
+ProblemsApiInterface::ProblemsApiInterface()
+ProjectNotFound::Map<String, dynamic> toJson()
+ProjectNotFound::ProjectNotFound copyWith({Object? code = copyUnset, Object? message = copyUnset})
+ProjectNotFound::ProjectNotFound({int? code, String? message})
+ProjectNotFound::ProjectNotFound.fromJson(Map<String, dynamic> json)
+ProjectNotFound::String toString()
+ProjectNotFound::bool ==(Object other)
+ProjectNotFound::final String? message
+ProjectNotFound::final int? code
+ProjectNotFound::int get hashCode
+ProjectNotFoundException::ProjectNotFound? get errorBody
+ProjectNotFoundException::ProjectNotFoundException({String message = '', String? responseBody, Map<String, String>? responseHeaders, ProjectNotFound? errorBody, Object? cause, String? requestMethod, String? requestPath})
+ProjectNotFoundException::static ApiException fromErrorResponse({required int statusCode, Map<String, String>? responseHeaders, String? responseBody, String? requestMethod, String? requestPath})
+Rank::Rank(int value)
+Rank::String toString()
+Rank::enum value high
+Rank::enum value low
+Rank::enum value medium
+Rank::enum value unknownDefaultOpenApi
+Rank::final int value
+Rank::int toJson()
+Rank::static Rank fromJson(int value)
+Reading::Map<String, dynamic> toJson()
+Reading::Reading copyWith({ReadingLevel? level, Object? shape = copyUnset, Object? inlineLevel = copyUnset, Object? nothing = copyUnset})
+Reading::Reading({required ReadingLevel level, ReadingShape? shape, ReadingInlineLevel? inlineLevel, Object? nothing})
+Reading::Reading.fromJson(Map<String, dynamic> json)
+Reading::String toString()
+Reading::bool ==(Object other)
+Reading::final Object? nothing
+Reading::final ReadingInlineLevel? inlineLevel
+Reading::final ReadingLevel level
+Reading::final ReadingShape? shape
+Reading::int get hashCode
+ReadingInlineLevel::Object? get actualInstance
+ReadingInlineLevel::Object? toJson()
+ReadingInlineLevel::ReadingInlineLevel(Object? actualInstance)
+ReadingInlineLevel::ReadingInlineLevel.fromJson(Object? json)
+ReadingInlineLevel::ReadingInlineLevel.int(int value)
+ReadingInlineLevel::ReadingInlineLevel.string(String value)
+ReadingInlineLevel::String toString()
+ReadingInlineLevel::String? get asString
+ReadingInlineLevel::bool ==(Object other)
+ReadingInlineLevel::bool get isInt
+ReadingInlineLevel::bool get isString
+ReadingInlineLevel::int get hashCode
+ReadingInlineLevel::int? get asInt
+ReadingLevel::Object? get actualInstance
+ReadingLevel::Object? toJson()
+ReadingLevel::ReadingLevel(Object? actualInstance)
+ReadingLevel::ReadingLevel.fromJson(Object? json)
+ReadingLevel::ReadingLevel.int(int value)
+ReadingLevel::ReadingLevel.string(String value)
+ReadingLevel::String toString()
+ReadingLevel::String? get asString
+ReadingLevel::bool ==(Object other)
+ReadingLevel::bool get isInt
+ReadingLevel::bool get isString
+ReadingLevel::int get hashCode
+ReadingLevel::int? get asInt
+ReadingShape::Object? get actualInstance
+ReadingShape::Object? toJson()
+ReadingShape::ReadingShape(Object? actualInstance)
+ReadingShape::ReadingShape.fromJson(Object? json)
+ReadingShape::String toString()
+ReadingShape::bool ==(Object other)
+ReadingShape::int get hashCode
+RejectedRequest::Map<String, dynamic> toJson()
+RejectedRequest::RejectedRequest copyWith({Object? code = copyUnset, Object? message = copyUnset})
+RejectedRequest::RejectedRequest({int? code, String? message})
+RejectedRequest::RejectedRequest.fromJson(Map<String, dynamic> json)
+RejectedRequest::String toString()
+RejectedRequest::bool ==(Object other)
+RejectedRequest::final String? message
+RejectedRequest::final int? code
+RejectedRequest::int get hashCode
+RejectedRequestException::RejectedRequest? get errorBody
+RejectedRequestException::RejectedRequestException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, RejectedRequest? errorBody, Object? cause, String? requestMethod, String? requestPath})
+RejectedRequestException::static ApiException fromErrorResponse({required int statusCode, Map<String, String>? responseHeaders, String? responseBody, String? requestMethod, String? requestPath})
+RequestTimeoutException::RequestTimeoutException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+RequiredNullable::Map<String, dynamic> toJson()
+RequiredNullable::RequiredNullable copyWith({Object? note = copyUnset})
+RequiredNullable::RequiredNullable({required String? note})
+RequiredNullable::RequiredNullable.fromJson(Map<String, dynamic> json)
+RequiredNullable::String toString()
+RequiredNullable::bool ==(Object other)
+RequiredNullable::final String? note
+RequiredNullable::int get hashCode
+Reservation::Map<String, dynamic> toJson()
+Reservation::Reservation copyWith({int? reservationId, int? quantity})
+Reservation::Reservation({required int reservationId, required int quantity})
+Reservation::Reservation.fromJson(Map<String, dynamic> json)
+Reservation::String toString()
+Reservation::bool ==(Object other)
+Reservation::final int quantity
+Reservation::final int reservationId
+Reservation::int get hashCode
+ReservationReceipt::Map<String, dynamic> toJson()
+ReservationReceipt::ReservationReceipt copyWith({String? receiptCode, DateTime? expiresAt})
+ReservationReceipt::ReservationReceipt({required String receiptCode, required DateTime expiresAt})
+ReservationReceipt::ReservationReceipt.fromJson(Map<String, dynamic> json)
+ReservationReceipt::String toString()
+ReservationReceipt::bool ==(Object other)
+ReservationReceipt::final DateTime expiresAt
+ReservationReceipt::final String receiptCode
+ReservationReceipt::int get hashCode
+ReserveStockOptions::ReserveStockOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+ReserveStockOptions::final Map<String, String>? headers
+ReserveStockOptions::final int? maxRetries
+ReserveStockOptions::final int? timeout
+ReserveStockResponse::Object? get actualInstance
+ReserveStockResponse::Object? toJson()
+ReserveStockResponse::Reservation? get asReservation
+ReserveStockResponse::ReservationReceipt? get asReservationReceipt
+ReserveStockResponse::ReserveStockResponse(Object? actualInstance)
+ReserveStockResponse::ReserveStockResponse.fromJson(Map<String, dynamic> json)
+ReserveStockResponse::ReserveStockResponse.reservation(Reservation value)
+ReserveStockResponse::ReserveStockResponse.reservationReceipt(ReservationReceipt value)
+ReserveStockResponse::String toString()
+ReserveStockResponse::bool ==(Object other)
+ReserveStockResponse::bool get isReservation
+ReserveStockResponse::bool get isReservationReceipt
+ReserveStockResponse::int get hashCode
+ResponseTooLargeException::ResponseTooLargeException({required int limit, required int statusCode, Map<String, String>? responseHeaders, Object? cause, String? requestMethod, String? requestPath})
+ResponseTooLargeException::bool get isRetryable
+ResponseTooLargeException::final int limit
+Result::Map<String, dynamic> toJson()
+Result::Result copyWith({Object? ok = copyUnset})
+Result::Result({bool? ok})
+Result::Result.fromJson(Map<String, dynamic> json)
+Result::String toString()
+Result::bool ==(Object other)
+Result::final bool? ok
+Result::int get hashCode
+RetryingApiClient::RetryingApiClient()
+RetryingApiClient::int get maxRetries
+RetryingApiClient::int? get timeoutMillis
+Roster::Map<String, Category> get additionalProperties
+Roster::Map<String, dynamic> toJson()
+Roster::Roster copyWith({Object? label = copyUnset, Map<String, Category>? additionalProperties})
+Roster::Roster({String? label, Map<String, Category> additionalProperties = const {}})
+Roster::Roster.fromJson(Map<String, dynamic> json)
+Roster::String toString()
+Roster::bool ==(Object other)
+Roster::final String? label
+Roster::int get hashCode
+SearchStoreOptions::SearchStoreOptions({PhotoMetadata? q, List<String>? labels, String? at, Map<String, String>? xFilter, int? timeout, Map<String, String>? headers, int? maxRetries})
+SearchStoreOptions::final List<String>? labels
+SearchStoreOptions::final Map<String, String>? headers
+SearchStoreOptions::final Map<String, String>? xFilter
+SearchStoreOptions::final PhotoMetadata? q
+SearchStoreOptions::final String? at
+SearchStoreOptions::final int? maxRetries
+SearchStoreOptions::final int? timeout
+Sensors::Map<String, dynamic> toJson()
+Sensors::Map<String, int> get additionalProperties
+Sensors::Sensors copyWith({Object? site = copyUnset, Map<String, int>? additionalProperties})
+Sensors::Sensors({String? site, Map<String, int> additionalProperties = const {}})
+Sensors::Sensors.fromJson(Map<String, dynamic> json)
+Sensors::String toString()
+Sensors::bool ==(Object other)
+Sensors::final String? site
+Sensors::int get hashCode
+Separator::Separator(String value)
+Separator::String toJson()
+Separator::String toString()
+Separator::enum value ab
+Separator::enum value ab2
+Separator::enum value space1
+Separator::enum value unknownDefaultOpenApi
+Separator::enum value value00400040
+Separator::final String value
+Separator::static Separator fromJson(String value)
+SerializationException::SerializationException withResponse({required int statusCode, required Map<String, String> responseHeaders, required String responseBody, required String requestMethod, required String requestPath})
+SerializationException::SerializationException(String message, [Object? cause])
+SerializationException::String toString()
+SerializationException::final Map<String, String>? responseHeaders
+SerializationException::final Object? cause
+SerializationException::final String message
+SerializationException::final String? requestMethod
+SerializationException::final String? requestPath
+SerializationException::final String? responseBody
+SerializationException::final int? statusCode
+ServerConfiguration serverByName(String name)
+ServerConfiguration::ServerConfiguration({required String urlTemplate, String description = '', Map<String, ServerVariable> variables = const {}, String name = ''})
+ServerConfiguration::String url([Map<String, String>? overrides])
+ServerConfiguration::final Map<String, ServerVariable> variables
+ServerConfiguration::final String description
+ServerConfiguration::final String name
+ServerConfiguration::final String urlTemplate
+ServerException::ServerException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+ServerSentEvent::ServerSentEvent<T>({String? id, String event = 'message', required T data, int? retry, required String raw})
+ServerSentEvent::String toString()
+ServerSentEvent::final String event
+ServerSentEvent::final String raw
+ServerSentEvent::final String? id
+ServerSentEvent::final T data
+ServerSentEvent::final int? retry
+ServerVariable::List<String> get enumValues
+ServerVariable::ServerVariable({required String defaultValue, String description = '', List<String> enumValues = const []})
+ServerVariable::bool ==(Object other)
+ServerVariable::final String defaultValue
+ServerVariable::final String description
+ServerVariable::int get hashCode
+ServiceTokenAuthenticator::ServiceTokenAuthenticator({required String host, String? token, FutureOr<String> Function()? tokenProvider, Map<String, String>? environment})
+ServiceUnavailableException::ServiceUnavailableException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+SessionCookieAuthenticator::SessionCookieAuthenticator({required String host, String? apiKey, String Function()? apiKeyProvider, Map<String, String>? environment})
+SetPetAvatarOptions::SetPetAvatarOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+SetPetAvatarOptions::final Map<String, String>? headers
+SetPetAvatarOptions::final int? maxRetries
+SetPetAvatarOptions::final int? timeout
+SetPetAvatarRequest::Map<String, dynamic> toJson()
+SetPetAvatarRequest::SetPetAvatarRequest copyWith({Uint8List? data, String? mimeType})
+SetPetAvatarRequest::SetPetAvatarRequest({required Uint8List data, required String mimeType})
+SetPetAvatarRequest::SetPetAvatarRequest.fromJson(Map<String, dynamic> json)
+SetPetAvatarRequest::String toString()
+SetPetAvatarRequest::bool ==(Object other)
+SetPetAvatarRequest::final String mimeType
+SetPetAvatarRequest::final Uint8List data
+SetPetAvatarRequest::int get hashCode
+SetPetAvatarThumbnailOptions::SetPetAvatarThumbnailOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+SetPetAvatarThumbnailOptions::final Map<String, String>? headers
+SetPetAvatarThumbnailOptions::final int? maxRetries
+SetPetAvatarThumbnailOptions::final int? timeout
+SetPetAvatarThumbnailRequest::Object? get actualInstance
+SetPetAvatarThumbnailRequest::Object? toJson()
+SetPetAvatarThumbnailRequest::SetPetAvatarThumbnailRequest(Object? actualInstance)
+SetPetAvatarThumbnailRequest::SetPetAvatarThumbnailRequest.fromJson(Object? json)
+SetPetAvatarThumbnailRequest::String toString()
+SetPetAvatarThumbnailRequest::bool ==(Object other)
+SetPetAvatarThumbnailRequest::int get hashCode
+SetPetPreferencesOptions::SetPetPreferencesOptions({required String nickname, List<String>? tags, String? note, DateTime? renewalDate, DateTime? reminder, int? intervalDays, double? ratio, bool? urgent, Duration? snooze, String? route, List<String>? aliases, int? timeout, Map<String, String>? headers, int? maxRetries})
+SetPetPreferencesOptions::final DateTime? reminder
+SetPetPreferencesOptions::final DateTime? renewalDate
+SetPetPreferencesOptions::final Duration? snooze
+SetPetPreferencesOptions::final List<String>? aliases
+SetPetPreferencesOptions::final List<String>? tags
+SetPetPreferencesOptions::final Map<String, String>? headers
+SetPetPreferencesOptions::final String nickname
+SetPetPreferencesOptions::final String? note
+SetPetPreferencesOptions::final String? route
+SetPetPreferencesOptions::final bool? urgent
+SetPetPreferencesOptions::final double? ratio
+SetPetPreferencesOptions::final int? intervalDays
+SetPetPreferencesOptions::final int? maxRetries
+SetPetPreferencesOptions::final int? timeout
+Shape::Map<String, dynamic> toJson()
+Shape::Shape({required String shapeType, String? label})
+Shape::Shape.fromJson(Map<String, dynamic> json)
+Shape::String toString()
+Shape::bool ==(Object other)
+Shape::final String shapeType
+Shape::final String? label
+Shape::int get hashCode
+Shipment::Map<String, dynamic> toJson()
+Shipment::Shipment copyWith({String? kind, Object? customsCode = copyUnset, Object? postcode = copyUnset})
+Shipment::Shipment({required String kind, String? customsCode, String? postcode})
+Shipment::Shipment.fromJson(Map<String, dynamic> json)
+Shipment::String toString()
+Shipment::bool ==(Object other)
+Shipment::final String kind
+Shipment::final String? customsCode
+Shipment::final String? postcode
+Shipment::int get hashCode
+Sparse::Map<String, String?> get additionalProperties
+Sparse::Map<String, dynamic> toJson()
+Sparse::Sparse copyWith({Object? label = copyUnset, Map<String, String?>? additionalProperties})
+Sparse::Sparse({String? label, Map<String, String?> additionalProperties = const {}})
+Sparse::Sparse.fromJson(Map<String, dynamic> json)
+Sparse::String toString()
+Sparse::bool ==(Object other)
+Sparse::final String? label
+Sparse::int get hashCode
+Square::Map<String, dynamic> toJson()
+Square::Square copyWith({String? shapeType, Object? label = copyUnset, double? side})
+Square::Square({String shapeType = 'Square', String? label, required double side})
+Square::Square.fromJson(Map<String, dynamic> json)
+Square::String toString()
+Square::bool ==(Object other)
+Square::final double side
+Square::int get hashCode
+SseStream::Future<void> close()
+SseStream::Map<String, String> get headers
+SseStream::StreamSubscription<ServerSentEvent<T>> listen(void Function(ServerSentEvent<T>)? onData, {Function? onError, void Function()? onDone, bool? cancelOnError})
+SseStream::String get lastEventId
+SseStream::String toString()
+SseStream::int get statusCode
+SseStream::static Future<SseStream<T>> open<T>({required Future<ByteStream> Function(String) opener, T Function(String)? decoder, String? terminator, StreamOptions? options, bool hasBody = false, bool singleUseBody = false, required String method, required String path})
+SseStream::static int reconnectWaitMillis(int attempt, int base, int? serverRetry, int? retryAfter, double jitterSample)
+SsoAuthAuthenticator::SsoAuthAuthenticator({required String host, String? clientId, String? clientSecret, String? redirectUri, Map<String, String>? environment})
+Stage::Stage(String value)
+Stage::String toJson()
+Stage::String toString()
+Stage::enum value active
+Stage::enum value active2
+Stage::enum value onHold
+Stage::enum value unknownDefaultOpenApi
+Stage::final String value
+Stage::static Stage fromJson(String value)
+StateConflict::Map<String, dynamic> toJson()
+StateConflict::StateConflict copyWith({Object? code = copyUnset, Object? message = copyUnset})
+StateConflict::StateConflict({int? code, String? message})
+StateConflict::StateConflict.fromJson(Map<String, dynamic> json)
+StateConflict::String toString()
+StateConflict::bool ==(Object other)
+StateConflict::final String? message
+StateConflict::final int? code
+StateConflict::int get hashCode
+StateConflictException::StateConflict? get errorBody
+StateConflictException::StateConflictException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, StateConflict? errorBody, Object? cause, String? requestMethod, String? requestPath})
+StateConflictException::static ApiException fromErrorResponse({required int statusCode, Map<String, String>? responseHeaders, String? responseBody, String? requestMethod, String? requestPath})
+StockItem::Map<String, dynamic> toJson()
+StockItem::StockItem copyWith({Priority? priority, Object? availability = copyUnset, Object? matrix = copyUnset})
+StockItem::StockItem({required Priority priority, Availability? availability = Availability.onHold, List<List<int>>? matrix})
+StockItem::StockItem.fromJson(Map<String, dynamic> json)
+StockItem::String toString()
+StockItem::bool ==(Object other)
+StockItem::final Availability? availability
+StockItem::final List<List<int>>? matrix
+StockItem::final Priority priority
+StockItem::int get hashCode
+StoreApi::Future<Account> createAccount(Account account, CreateAccountOptions? options)
+StoreApi::Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? options)
+StoreApi::Future<ApiResult<Account>> createAccountWithHttpInfo(Account account, CreateAccountOptions? options)
+StoreApi::Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(GetAuditTrailOptions? options)
+StoreApi::Future<ApiResult<Category>> getBySwatchWithHttpInfo(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApi::Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(GetNativeAmountOptions? options) [uses decimal:Decimal]
+StoreApi::Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(GetDefaultsOptions? options)
+StoreApi::Future<ApiResult<Department>> getDepartmentWithHttpInfo(GetDepartmentOptions? options)
+StoreApi::Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(ListNativeAmountsOptions? options) [uses decimal:Decimal]
+StoreApi::Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(GetMatrixOptions? options)
+StoreApi::Future<ApiResult<List<Map<String, Category>>>> getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options)
+StoreApi::Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(GetTimestampGroupsOptions? options)
+StoreApi::Future<ApiResult<List<Map<String, Swatch>>>> getSwatchGroupsWithHttpInfo(GetSwatchGroupsOptions? options)
+StoreApi::Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(SearchStoreOptions? options)
+StoreApi::Future<ApiResult<Map<String, int>>> getInventoryWithHttpInfo(GetInventoryOptions? options)
+StoreApi::Future<ApiResult<Memo>> getMemoWithHttpInfo(String memoId, GetMemoServer? server, GetMemoOptions? options)
+StoreApi::Future<ApiResult<Memo>> patchMemoWithHttpInfo(String memoId, Memo memo, PatchMemoOptions? options)
+StoreApi::Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(GetNativeValuesOptions? options)
+StoreApi::Future<ApiResult<Order>> getOrderByIdWithHttpInfo(int orderId, GetOrderByIdOptions? options)
+StoreApi::Future<ApiResult<Order>> getOrderByTrackingIdWithHttpInfo(UuidValue trackingId, GetOrderByTrackingIdOptions? options)
+StoreApi::Future<ApiResult<Order>> placeOrderWithHttpInfo(Order? order, PlaceOrderOptions? options)
+StoreApi::Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo(ReserveStockOptions? options)
+StoreApi::Future<ApiResult<StockItem>> getStockItemWithHttpInfo(GetStockItemOptions? options)
+StoreApi::Future<ApiResult<Swatch>> getSwatchWithHttpInfo(GetSwatchOptions? options)
+StoreApi::Future<ApiResult<TreeNode>> getTreeWithHttpInfo(GetTreeOptions? options)
+StoreApi::Future<ApiResult<void>> deleteOrderWithHttpInfo(int orderId, DeleteOrderOptions? options)
+StoreApi::Future<ApiResult<void>> headMemoWithHttpInfo(String memoId, HeadMemoOptions? options)
+StoreApi::Future<ApiResult<void>> optionsMemoWithHttpInfo(String memoId, OptionsMemoOptions? options)
+StoreApi::Future<ApiResult<void>> submitAllowanceWithHttpInfo(Allowance allowance, SubmitAllowanceOptions? options)
+StoreApi::Future<ApiResult<void>> traceMemoWithHttpInfo(String memoId, TraceMemoOptions? options)
+StoreApi::Future<Category> getBySwatch(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApi::Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) [uses decimal:Decimal]
+StoreApi::Future<Defaults> getDefaults(GetDefaultsOptions? options)
+StoreApi::Future<Department> getDepartment(GetDepartmentOptions? options)
+StoreApi::Future<JsonLinesStream<Order>> exportOrdersStream(ExportOrdersOptions? options, [StreamOptions? streamOptions])
+StoreApi::Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options) [uses decimal:Decimal]
+StoreApi::Future<List<List<int>>> getMatrix(GetMatrixOptions? options)
+StoreApi::Future<List<Map<String, Category>>> getGroupedCategories(GetGroupedCategoriesOptions? options)
+StoreApi::Future<List<Map<String, DateTime>>> getTimestampGroups(GetTimestampGroupsOptions? options)
+StoreApi::Future<List<Map<String, Swatch>>> getSwatchGroups(GetSwatchGroupsOptions? options)
+StoreApi::Future<List<Order>> searchStore(SearchStoreOptions? options)
+StoreApi::Future<Map<String, int>> getInventory(GetInventoryOptions? options)
+StoreApi::Future<Memo> getMemo(String memoId, GetMemoServer? server, GetMemoOptions? options)
+StoreApi::Future<Memo> patchMemo(String memoId, Memo memo, PatchMemoOptions? options)
+StoreApi::Future<NativeValues> getNativeValues(GetNativeValuesOptions? options)
+StoreApi::Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options)
+StoreApi::Future<Order> getOrderByTrackingId(UuidValue trackingId, GetOrderByTrackingIdOptions? options)
+StoreApi::Future<Order> placeOrder(Order? order, PlaceOrderOptions? options)
+StoreApi::Future<ReserveStockResponse> reserveStock(ReserveStockOptions? options)
+StoreApi::Future<SseStream<Order>> watchOrdersStream(WatchOrdersOptions? options, [StreamOptions? streamOptions])
+StoreApi::Future<SseStream<String>> watchNoticesStream(WatchNoticesOptions? options, [StreamOptions? streamOptions])
+StoreApi::Future<StockItem> getStockItem(GetStockItemOptions? options)
+StoreApi::Future<Swatch> getSwatch(GetSwatchOptions? options)
+StoreApi::Future<TreeNode> getTree(GetTreeOptions? options)
+StoreApi::Future<void> deleteOrder(int orderId, DeleteOrderOptions? options)
+StoreApi::Future<void> headMemo(String memoId, HeadMemoOptions? options)
+StoreApi::Future<void> optionsMemo(String memoId, OptionsMemoOptions? options)
+StoreApi::Future<void> submitAllowance(Allowance allowance, SubmitAllowanceOptions? options)
+StoreApi::Future<void> traceMemo(String memoId, TraceMemoOptions? options)
+StoreApi::StoreApi({ApiClient? apiClient, Configuration? config, Authenticator? authenticator, Map<String, Authenticator>? schemeAuthenticators})
+StoreApiInterface::Future<Account> createAccount(Account account, CreateAccountOptions? options)
+StoreApiInterface::Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? options)
+StoreApiInterface::Future<ApiResult<Account>> createAccountWithHttpInfo(Account account, CreateAccountOptions? options)
+StoreApiInterface::Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(GetAuditTrailOptions? options)
+StoreApiInterface::Future<ApiResult<Category>> getBySwatchWithHttpInfo(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApiInterface::Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(GetNativeAmountOptions? options) [uses decimal:Decimal]
+StoreApiInterface::Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(GetDefaultsOptions? options)
+StoreApiInterface::Future<ApiResult<Department>> getDepartmentWithHttpInfo(GetDepartmentOptions? options)
+StoreApiInterface::Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(ListNativeAmountsOptions? options) [uses decimal:Decimal]
+StoreApiInterface::Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(GetMatrixOptions? options)
+StoreApiInterface::Future<ApiResult<List<Map<String, Category>>>> getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options)
+StoreApiInterface::Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(GetTimestampGroupsOptions? options)
+StoreApiInterface::Future<ApiResult<List<Map<String, Swatch>>>> getSwatchGroupsWithHttpInfo(GetSwatchGroupsOptions? options)
+StoreApiInterface::Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(SearchStoreOptions? options)
+StoreApiInterface::Future<ApiResult<Map<String, int>>> getInventoryWithHttpInfo(GetInventoryOptions? options)
+StoreApiInterface::Future<ApiResult<Memo>> getMemoWithHttpInfo(String memoId, GetMemoServer? server, GetMemoOptions? options)
+StoreApiInterface::Future<ApiResult<Memo>> patchMemoWithHttpInfo(String memoId, Memo memo, PatchMemoOptions? options)
+StoreApiInterface::Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(GetNativeValuesOptions? options)
+StoreApiInterface::Future<ApiResult<Order>> getOrderByIdWithHttpInfo(int orderId, GetOrderByIdOptions? options)
+StoreApiInterface::Future<ApiResult<Order>> getOrderByTrackingIdWithHttpInfo(UuidValue trackingId, GetOrderByTrackingIdOptions? options)
+StoreApiInterface::Future<ApiResult<Order>> placeOrderWithHttpInfo(Order? order, PlaceOrderOptions? options)
+StoreApiInterface::Future<ApiResult<ReserveStockResponse>> reserveStockWithHttpInfo(ReserveStockOptions? options)
+StoreApiInterface::Future<ApiResult<StockItem>> getStockItemWithHttpInfo(GetStockItemOptions? options)
+StoreApiInterface::Future<ApiResult<Swatch>> getSwatchWithHttpInfo(GetSwatchOptions? options)
+StoreApiInterface::Future<ApiResult<TreeNode>> getTreeWithHttpInfo(GetTreeOptions? options)
+StoreApiInterface::Future<ApiResult<void>> deleteOrderWithHttpInfo(int orderId, DeleteOrderOptions? options)
+StoreApiInterface::Future<ApiResult<void>> headMemoWithHttpInfo(String memoId, HeadMemoOptions? options)
+StoreApiInterface::Future<ApiResult<void>> optionsMemoWithHttpInfo(String memoId, OptionsMemoOptions? options)
+StoreApiInterface::Future<ApiResult<void>> submitAllowanceWithHttpInfo(Allowance allowance, SubmitAllowanceOptions? options)
+StoreApiInterface::Future<ApiResult<void>> traceMemoWithHttpInfo(String memoId, TraceMemoOptions? options)
+StoreApiInterface::Future<Category> getBySwatch(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApiInterface::Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) [uses decimal:Decimal]
+StoreApiInterface::Future<Defaults> getDefaults(GetDefaultsOptions? options)
+StoreApiInterface::Future<Department> getDepartment(GetDepartmentOptions? options)
+StoreApiInterface::Future<JsonLinesStream<Order>> exportOrdersStream(ExportOrdersOptions? options, [StreamOptions? streamOptions])
+StoreApiInterface::Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options) [uses decimal:Decimal]
+StoreApiInterface::Future<List<List<int>>> getMatrix(GetMatrixOptions? options)
+StoreApiInterface::Future<List<Map<String, Category>>> getGroupedCategories(GetGroupedCategoriesOptions? options)
+StoreApiInterface::Future<List<Map<String, DateTime>>> getTimestampGroups(GetTimestampGroupsOptions? options)
+StoreApiInterface::Future<List<Map<String, Swatch>>> getSwatchGroups(GetSwatchGroupsOptions? options)
+StoreApiInterface::Future<List<Order>> searchStore(SearchStoreOptions? options)
+StoreApiInterface::Future<Map<String, int>> getInventory(GetInventoryOptions? options)
+StoreApiInterface::Future<Memo> getMemo(String memoId, GetMemoServer? server, GetMemoOptions? options)
+StoreApiInterface::Future<Memo> patchMemo(String memoId, Memo memo, PatchMemoOptions? options)
+StoreApiInterface::Future<NativeValues> getNativeValues(GetNativeValuesOptions? options)
+StoreApiInterface::Future<Order> getOrderById(int orderId, GetOrderByIdOptions? options)
+StoreApiInterface::Future<Order> getOrderByTrackingId(UuidValue trackingId, GetOrderByTrackingIdOptions? options)
+StoreApiInterface::Future<Order> placeOrder(Order? order, PlaceOrderOptions? options)
+StoreApiInterface::Future<ReserveStockResponse> reserveStock(ReserveStockOptions? options)
+StoreApiInterface::Future<SseStream<Order>> watchOrdersStream(WatchOrdersOptions? options, [StreamOptions? streamOptions])
+StoreApiInterface::Future<SseStream<String>> watchNoticesStream(WatchNoticesOptions? options, [StreamOptions? streamOptions])
+StoreApiInterface::Future<StockItem> getStockItem(GetStockItemOptions? options)
+StoreApiInterface::Future<Swatch> getSwatch(GetSwatchOptions? options)
+StoreApiInterface::Future<TreeNode> getTree(GetTreeOptions? options)
+StoreApiInterface::Future<void> deleteOrder(int orderId, DeleteOrderOptions? options)
+StoreApiInterface::Future<void> headMemo(String memoId, HeadMemoOptions? options)
+StoreApiInterface::Future<void> optionsMemo(String memoId, OptionsMemoOptions? options)
+StoreApiInterface::Future<void> submitAllowance(Allowance allowance, SubmitAllowanceOptions? options)
+StoreApiInterface::Future<void> traceMemo(String memoId, TraceMemoOptions? options)
+StoreApiInterface::StoreApiInterface()
+StreamException::StreamException({required String message, Object? cause, String? requestMethod, String? requestPath})
+StreamOptions::StreamOptions({int? idleTimeout, int? maxReconnects, int? reconnectDelay, String? lastEventId, int? maxEventBytes})
+StreamOptions::String toString()
+StreamOptions::final String? lastEventId
+StreamOptions::final int? idleTimeout
+StreamOptions::final int? maxEventBytes
+StreamOptions::final int? maxReconnects
+StreamOptions::final int? reconnectDelay
+StreamingApiClient::Future<ApiStreamResponse> sendStreaming(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false, int? idleTimeout})
+StreamingApiClient::StreamingApiClient()
+StrictTag::Map<String, dynamic> toJson()
+StrictTag::StrictTag copyWith({Object? id = copyUnset, Object? name = copyUnset})
+StrictTag::StrictTag({int? id, String? name})
+StrictTag::StrictTag.fromJson(Map<String, dynamic> json)
+StrictTag::String toString()
+StrictTag::bool ==(Object other)
+StrictTag::final String? name
+StrictTag::final int? id
+StrictTag::int get hashCode
+String buildFilenameDirective(String filename)
+String escapeMultipartFieldName(String name)
+String formatProtobufDuration(Duration duration)
+String rfc5987EncodeValue(String s)
+String validatePartialTime(String input)
+SubmitAllowanceOptions::SubmitAllowanceOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+SubmitAllowanceOptions::final Map<String, String>? headers
+SubmitAllowanceOptions::final int? maxRetries
+SubmitAllowanceOptions::final int? timeout
+Subscription::Map<String, dynamic> toJson()
+Subscription::String toString()
+Subscription::Subscription copyWith({Object? tier = copyUnset, Rank? rank, Object? stage = copyUnset, Object? interval = copyUnset})
+Subscription::Subscription({Tier? tier = Tier.medium, required Rank rank, Stage? stage, SubscriptionIntervalEnum? interval})
+Subscription::Subscription.fromJson(Map<String, dynamic> json)
+Subscription::bool ==(Object other)
+Subscription::final Rank rank
+Subscription::final Stage? stage
+Subscription::final SubscriptionIntervalEnum? interval
+Subscription::final Tier? tier
+Subscription::int get hashCode
+SubscriptionIntervalEnum::String toJson()
+SubscriptionIntervalEnum::String toString()
+SubscriptionIntervalEnum::SubscriptionIntervalEnum(String value)
+SubscriptionIntervalEnum::enum value monthly
+SubscriptionIntervalEnum::enum value unknownDefaultOpenApi
+SubscriptionIntervalEnum::enum value yearly
+SubscriptionIntervalEnum::final String value
+SubscriptionIntervalEnum::static SubscriptionIntervalEnum fromJson(String value)
+Surgery::Map<String, dynamic> toJson()
+Surgery::String toString()
+Surgery::Surgery copyWith({String? procedureName, Object? durationMinutes = copyUnset, Object? notes = copyUnset})
+Surgery::Surgery({required String procedureName, int? durationMinutes, String? notes})
+Surgery::Surgery.fromJson(Map<String, dynamic> json)
+Surgery::bool ==(Object other)
+Surgery::final String procedureName
+Surgery::final String? notes
+Surgery::final int? durationMinutes
+Surgery::int get hashCode
+Swatch::String toJson()
+Swatch::String toString()
+Swatch::Swatch(String value)
+Swatch::enum value blue
+Swatch::enum value green
+Swatch::enum value red
+Swatch::enum value unknownDefaultOpenApi
+Swatch::final String value
+Swatch::static Swatch fromJson(String value)
+Tag::Map<String, dynamic> toJson()
+Tag::String toString()
+Tag::Tag copyWith({Object? id = copyUnset, Object? name = copyUnset})
+Tag::Tag({int? id, String? name})
+Tag::Tag.fromJson(Map<String, dynamic> json)
+Tag::bool ==(Object other)
+Tag::final String? name
+Tag::final int? id
+Tag::int get hashCode
+TakeLockOptions::TakeLockOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+TakeLockOptions::final Map<String, String>? headers
+TakeLockOptions::final int? maxRetries
+TakeLockOptions::final int? timeout
+Tier::String toJson()
+Tier::String toString()
+Tier::Tier(String value)
+Tier::enum value large
+Tier::enum value medium
+Tier::enum value small
+Tier::enum value unknownDefaultOpenApi
+Tier::final String value
+Tier::static Tier fromJson(String value)
+TooManyRequestsException::TooManyRequestsException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+TraceContextUtil::TraceContextUtil()
+TraceContextUtil::static void Function(Map<String, String>)? propagator
+TraceContextUtil::static void injectTraceContext(Map<String, String> headers)
+TraceMemoOptions::TraceMemoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+TraceMemoOptions::final Map<String, String>? headers
+TraceMemoOptions::final int? maxRetries
+TraceMemoOptions::final int? timeout
+TransportOptions::Map<String, String> get defaultHeaders
+TransportOptions::String toString()
+TransportOptions::final Client? httpClient [uses http:Client]
+TransportOptions::final String? caCertPath
+TransportOptions::final String? userAgent
+TransportOptions::final Uri? proxy
+TransportOptions::final bool followRedirects
+TransportOptions::final bool injectRequestId
+TransportOptions::final bool verifySsl
+TransportOptions::final int maxRetries
+TransportOptions::final int? idleTimeout
+TransportOptions::final int? maxRedirects
+TransportOptions::final int? maxResponseBytes
+TransportOptions::final int? timeout
+TransportOptions::static TransportOptionsBuilder builder()
+TransportOptionsBuilder::TransportOptions build()
+TransportOptionsBuilder::TransportOptionsBuilder caCertPath(String? val)
+TransportOptionsBuilder::TransportOptionsBuilder defaultHeader(String name, String value)
+TransportOptionsBuilder::TransportOptionsBuilder defaultHeaders(Map<String, String> headers)
+TransportOptionsBuilder::TransportOptionsBuilder followRedirects(bool val)
+TransportOptionsBuilder::TransportOptionsBuilder httpClient(Client? val) [uses http:Client]
+TransportOptionsBuilder::TransportOptionsBuilder idleTimeout(int? val)
+TransportOptionsBuilder::TransportOptionsBuilder injectRequestId(bool val)
+TransportOptionsBuilder::TransportOptionsBuilder maxRedirects(int? val)
+TransportOptionsBuilder::TransportOptionsBuilder maxResponseBytes(int? val)
+TransportOptionsBuilder::TransportOptionsBuilder maxRetries(int val)
+TransportOptionsBuilder::TransportOptionsBuilder proxy(String? val)
+TransportOptionsBuilder::TransportOptionsBuilder timeout(int? val)
+TransportOptionsBuilder::TransportOptionsBuilder userAgent(String? val)
+TransportOptionsBuilder::TransportOptionsBuilder verifySsl(bool val)
+TransportOptionsBuilder::TransportOptionsBuilder()
+TreatmentRecord::List<Object?> get matchedInstances
+TreatmentRecord::Medication? get asMedication
+TreatmentRecord::Object? get actualInstance
+TreatmentRecord::Object? toJson()
+TreatmentRecord::String toString()
+TreatmentRecord::Surgery? get asSurgery
+TreatmentRecord::T? valueOf<T>()
+TreatmentRecord::TreatmentRecord.fromJson(Map<String, dynamic> json)
+TreatmentRecord::TreatmentRecord.medication(Medication value)
+TreatmentRecord::TreatmentRecord.ofValues(List<Object?> values)
+TreatmentRecord::TreatmentRecord.surgery(Surgery value)
+TreatmentRecord::bool ==(Object other)
+TreatmentRecord::bool get isMedication
+TreatmentRecord::bool get isSurgery
+TreatmentRecord::int get hashCode
+TreeNode::Map<String, dynamic> toJson()
+TreeNode::String toString()
+TreeNode::TreeNode copyWith({String? value, Object? child = copyUnset})
+TreeNode::TreeNode({required String value, TreeNode? child})
+TreeNode::TreeNode.fromJson(Map<String, dynamic> json)
+TreeNode::bool ==(Object other)
+TreeNode::final String value
+TreeNode::final TreeNode? child
+TreeNode::int get hashCode
+Truck::Map<String, dynamic> toJson()
+Truck::String toString()
+Truck::Truck copyWith({String? vehicleType, String? plate, Object? payloadKg = copyUnset})
+Truck::Truck({String vehicleType = 'truck', required String plate, int? payloadKg})
+Truck::Truck.fromJson(Map<String, dynamic> json)
+Truck::bool ==(Object other)
+Truck::final int? payloadKg
+Truck::int get hashCode
+UnauthorizedException::UnauthorizedException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+UnexpectedFailure::Map<String, dynamic> toJson()
+UnexpectedFailure::String toString()
+UnexpectedFailure::UnexpectedFailure copyWith({Object? code = copyUnset, Object? message = copyUnset})
+UnexpectedFailure::UnexpectedFailure({int? code, String? message})
+UnexpectedFailure::UnexpectedFailure.fromJson(Map<String, dynamic> json)
+UnexpectedFailure::bool ==(Object other)
+UnexpectedFailure::final String? message
+UnexpectedFailure::final int? code
+UnexpectedFailure::int get hashCode
+UnexpectedFailureException::UnexpectedFailure? get errorBody
+UnexpectedFailureException::UnexpectedFailureException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, UnexpectedFailure? errorBody, Object? cause, String? requestMethod, String? requestPath})
+UnexpectedFailureException::static ApiException fromErrorResponse({required int statusCode, Map<String, String>? responseHeaders, String? responseBody, String? requestMethod, String? requestPath})
+UnprocessableEntityException::UnprocessableEntityException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+UnsupportedMediaTypeException::UnsupportedMediaTypeException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
+UpdatePetOptions::UpdatePetOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+UpdatePetOptions::final Map<String, String>? headers
+UpdatePetOptions::final int? maxRetries
+UpdatePetOptions::final int? timeout
+UploadPetCertificateOptions::UploadPetCertificateOptions({required Uint8List file, int? timeout, Map<String, String>? headers, int? maxRetries})
+UploadPetCertificateOptions::final Map<String, String>? headers
+UploadPetCertificateOptions::final Uint8List file
+UploadPetCertificateOptions::final int? maxRetries
+UploadPetCertificateOptions::final int? timeout
+UploadPetDocumentOptions::UploadPetDocumentOptions({required Uint8List file, String? documentType, String? notes, bool? isPrimary, int? pageCount, DateTime? takenAt, Swatch? swatch, int? timeout, Map<String, String>? headers, int? maxRetries})
+UploadPetDocumentOptions::final DateTime? takenAt
+UploadPetDocumentOptions::final Map<String, String>? headers
+UploadPetDocumentOptions::final String? documentType
+UploadPetDocumentOptions::final String? notes
+UploadPetDocumentOptions::final Swatch? swatch
+UploadPetDocumentOptions::final Uint8List file
+UploadPetDocumentOptions::final bool? isPrimary
+UploadPetDocumentOptions::final int? maxRetries
+UploadPetDocumentOptions::final int? pageCount
+UploadPetDocumentOptions::final int? timeout
+UpstreamFailure::Map<String, dynamic> toJson()
+UpstreamFailure::String toString()
+UpstreamFailure::UpstreamFailure copyWith({Object? code = copyUnset, Object? message = copyUnset})
+UpstreamFailure::UpstreamFailure({int? code, String? message})
+UpstreamFailure::UpstreamFailure.fromJson(Map<String, dynamic> json)
+UpstreamFailure::bool ==(Object other)
+UpstreamFailure::final String? message
+UpstreamFailure::final int? code
+UpstreamFailure::int get hashCode
+UpstreamFailureException::UpstreamFailure? get errorBody
+UpstreamFailureException::UpstreamFailureException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, UpstreamFailure? errorBody, Object? cause, String? requestMethod, String? requestPath})
+UpstreamFailureException::static ApiException fromErrorResponse({required int statusCode, Map<String, String>? responseHeaders, String? responseBody, String? requestMethod, String? requestPath})
+UserAuthAuthorizationCodeAuthenticator::UserAuthAuthorizationCodeAuthenticator({required String host, String? clientId, String? clientSecret, String? redirectUri, Map<String, String>? environment})
+UuidValue::String toString()
+UuidValue::UuidValue.fromString(String source)
+UuidValue::bool ==(Object other)
+UuidValue::final String uuid
+UuidValue::int get hashCode
+Vehicle::Map<String, dynamic> toJson()
+Vehicle::String toString()
+Vehicle::Vehicle({required String vehicleType, required String plate})
+Vehicle::Vehicle.fromJson(Map<String, dynamic> json)
+Vehicle::bool ==(Object other)
+Vehicle::final String plate
+Vehicle::final String vehicleType
+Vehicle::int get hashCode
+WatchNoticesOptions::WatchNoticesOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+WatchNoticesOptions::final Map<String, String>? headers
+WatchNoticesOptions::final int? maxRetries
+WatchNoticesOptions::final int? timeout
+WatchOrdersOptions::WatchOrdersOptions({String? status, int? timeout, Map<String, String>? headers, int? maxRetries})
+WatchOrdersOptions::final Map<String, String>? headers
+WatchOrdersOptions::final String? status
+WatchOrdersOptions::final int? maxRetries
+WatchOrdersOptions::final int? timeout
+WetFood::Map<String, dynamic> toJson()
+WetFood::String toString()
+WetFood::WetFood copyWith({String? foodType, int? volumeMl})
+WetFood::WetFood({String foodType = 'wet', required int volumeMl})
+WetFood::WetFood.fromJson(Map<String, dynamic> json)
+WetFood::bool ==(Object other)
+WetFood::final String foodType
+WetFood::final int volumeMl
+WetFood::int get hashCode
+abstract class AbstractApiClient implements RetryingApiClient, AdmittingStreamingApiClient
+abstract class AccessTokenInvalidating
+abstract class AdmittingApiClient implements ApiClient
+abstract class AdmittingStreamingApiClient implements AdmittingApiClient, StreamingApiClient
+abstract class ApiClient
+abstract class Authenticator
+abstract class BaseAuthenticator implements Authenticator
+abstract class GetExternalPetInfoServer
+abstract class GetMemoServer
+abstract class GetMultiServerPetInfoServer
+abstract class GetPetByIdServer
+abstract class GetStagingPetInfoServer
+abstract class HttpAwareAuthenticator implements Authenticator
+abstract class OpenAPIException implements Exception
+abstract class RetryingApiClient implements ApiClient
+abstract class Shape
+abstract class StreamingApiClient implements ApiClient
+abstract class Vehicle
+abstract interface class CallHook
+abstract interface class CallObserver
+abstract interface class ClientInterface
+abstract interface class PetApiInterface
+abstract interface class ProblemsApiInterface
+abstract interface class StoreApiInterface
+class Account
+class AddPetOptions
+class AddPetPhotosOptions
+class AddPetTreatmentOptions
+class AdminBasicAuthenticator extends BasicAuthenticator
+class Allowance
+class AllowanceTier
+class ApiException extends OpenAPIException
+class ApiHttpResponse
+class ApiKeyAuthenticator extends BaseAuthenticator
+class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator
+class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator
+class ApiResponse
+class ApiResult<T>
+class ApiStreamResponse
+class ArchiveDigestAuthenticator extends DigestAuthenticator
+class AttachPetFilesOptions
+class AttachPetFilesRequest
+class Audit
+class BadGatewayException extends ServerException
+class BadRequestException extends ClientException
+class BasicAuthenticator extends BaseAuthenticator
+class BearerAuthenticator extends BaseAuthenticator
+class BinaryVault
+class Blobs
+class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator
+class CallInfo
+class CallOutcome
+class Car extends Vehicle
+class Category
+class Circle extends Shape
+class Client implements ClientInterface
+class ClientException extends ApiException
+class Configuration
+class ConfigurationBuilder
+class ConflictException extends ClientException
+class Counters
+class CreateAccountOptions
+class DefaultApiClient extends AbstractApiClient
+class Defaults
+class DeleteOrderOptions
+class DeletePetOptions
+class Department
+class DeviceAuthDeviceAuthorizationAuthenticator extends OAuth2DeviceAuthorizationAuthenticator
+class DeviceAuthorization
+class DigestAuthenticator extends BaseAuthenticator
+class DownloadPetDocumentOptions
+class DryFood
+class EdgeCases
+class Employee
+class ExportOrdersOptions
+class FindPetsBornOnOptions
+class FindPetsByStatusOptions
+class ForbiddenException extends ClientException
+class Freeform
+class GatewayTimeoutException extends ServerException
+class GetAuditTrailOptions
+class GetBySwatchOptions
+class GetDefaultsOptions
+class GetDepartmentOptions
+class GetExternalPetInfoOptions
+class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer
+class GetFallbackOptions
+class GetGroupedCategoriesOptions
+class GetInventoryOptions
+class GetMatrixOptions
+class GetMemberOptions
+class GetMemoOptions
+class GetMemoResponseHeaders
+class GetMemoServerMemos extends GetMemoServer
+class GetMultiServerPetInfoOptions
+class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer
+class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer
+class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
+class GetNativeAmountOptions
+class GetNativeValuesOptions
+class GetOrderByIdOptions
+class GetOrderByTrackingIdOptions
+class GetPetAvatarOptions
+class GetPetAvatarThumbnailOptions
+class GetPetByIdOptions
+class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer
+class GetPetByNameOptions
+class GetPetByNoteOptions
+class GetPetPassportOptions
+class GetPetPhotoOptions
+class GetPetSummaryOptions
+class GetPetTagOptions
+class GetProjectOptions
+class GetRangeOptions
+class GetStagingPetInfoOptions
+class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer
+class GetStockItemOptions
+class GetSwatchGroupsOptions
+class GetSwatchOptions
+class GetTimestampGroupsOptions
+class GetTreeOptions
+class GetUpstreamOptions
+class GoneException extends ClientException
+class HeadMemoOptions
+class HeadMemoResponseHeaders
+class InternalApiKeyAuthenticator extends ApiKeyAuthenticator
+class InternalServerErrorException extends ServerException
+class Ledger
+class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
+class Letter
+class ListNativeAmountsOptions
+class ListPetArchiveOptions
+class ListPetCatalogOptions
+class ListPetEventsOptions
+class ListPetFeedOptions
+class ListPetFeedResponseHeaders
+class ListPetMatchesOptions
+class ListPetNextUrlOptions
+class ListPetNotesOptions
+class ListPetOffsetsOptions
+class ListPetPageNumbersOptions
+class ListPetsAfterOptions
+class LockedException extends ClientException
+class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
+class Medication
+class MemberNotFound
+class MemberNotFoundException extends NotFoundException
+class Memo
+class Metadata
+class MethodNotAllowedException extends ClientException
+class ModelError
+class Moments
+class NativeValues
+class NetworkException extends ApiException
+class NetworkTimeoutException extends NetworkException
+class NotFoundException extends ClientException
+class NotImplementedException extends ServerException
+class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
+class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
+class OAuth2DeviceAuthorizationAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
+class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
+class OAuth2PasswordAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
+class OAuth2ServerException extends OpenAPIException
+class OAuth2TokenException extends OpenAPIException
+class OAuth2TokenManager
+class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
+class OptionsMemoOptions
+class OptionsMemoResponseHeaders
+class Order
+class Packet
+class PaginationException extends OpenAPIException
+class Parcel
+class PatchMemoOptions
+class PatchMemoResponseHeaders
+class PayloadTooLargeException extends ClientException
+class PaymentRequiredException extends ClientException
+class Pet
+class PetAfterPage
+class PetApi extends BaseApi implements PetApiInterface
+class PetArchivePage
+class PetCatalogPage
+class PetCriteria
+class PetEventPage
+class PetFood
+class PetMatchPage
+class PetNextUrlPage
+class PetNotePage
+class PetOffsetPage
+class PetPageNumberPage
+class PetPassport
+class PetStoreBasicAuthenticator extends BasicAuthenticator
+class PetStoreBearerAuthenticator extends BearerAuthenticator
+class PetTreatment
+class PetWithOwner
+class Photo
+class PhotoMetadata
+class PhotoMetadataLocation
+class PlaceOrderOptions
+class ProblemsApi extends BaseApi implements ProblemsApiInterface
+class ProjectNotFound
+class ProjectNotFoundException extends NotFoundException
+class Reading
+class ReadingInlineLevel
+class ReadingLevel
+class ReadingShape
+class RejectedRequest
+class RejectedRequestException extends ClientException
+class RequestTimeoutException extends ClientException
+class RequiredNullable
+class Reservation
+class ReservationReceipt
+class ReserveStockOptions
+class ReserveStockResponse
+class ResponseTooLargeException extends ApiException
+class Result
+class Roster
+class SearchStoreOptions
+class Sensors
+class SerializationException extends OpenAPIException
+class ServerConfiguration
+class ServerException extends ApiException
+class ServerSentEvent<T>
+class ServerVariable
+class ServiceTokenAuthenticator extends BearerAuthenticator
+class ServiceUnavailableException extends ServerException
+class SessionCookieAuthenticator extends ApiKeyAuthenticator
+class SetPetAvatarOptions
+class SetPetAvatarRequest
+class SetPetAvatarThumbnailOptions
+class SetPetAvatarThumbnailRequest
+class SetPetPreferencesOptions
+class Shipment
+class Sparse
+class Square extends Shape
+class SsoAuthAuthenticator extends OpenIdConnectAuthenticator
+class StateConflict
+class StateConflictException extends ClientException
+class StockItem
+class StoreApi extends BaseApi implements StoreApiInterface
+class StreamException extends NetworkException
+class StreamOptions
+class StrictTag
+class SubmitAllowanceOptions
+class Subscription
+class Surgery
+class Tag
+class TakeLockOptions
+class TooManyRequestsException extends ClientException
+class TraceContextUtil
+class TraceMemoOptions
+class TransportOptions
+class TransportOptionsBuilder
+class TreatmentRecord
+class TreeNode
+class Truck extends Vehicle
+class UnauthorizedException extends ClientException
+class UnexpectedFailure
+class UnexpectedFailureException extends ApiException
+class UnprocessableEntityException extends ClientException
+class UnsupportedMediaTypeException extends ClientException
+class UpdatePetOptions
+class UploadPetCertificateOptions
+class UploadPetDocumentOptions
+class UpstreamFailure
+class UpstreamFailureException extends ServerException
+class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator
+class UuidValue
+class WatchNoticesOptions
+class WatchOrdersOptions
+class WetFood
+const List<ServerConfiguration> allServers
+const ServerConfiguration server0
+const ServerConfiguration server1
+const ServerConfiguration server2
+enum ApiKeyLocation
+enum Availability
+enum ClientAuthMethod
+enum Color
+enum DefaultsModeEnum
+enum EdgeCasesPhaseEnum
+enum GetMultiServerPetInfoServerChannel
+enum GetMultiServerPetInfoServerMirrorRegion
+enum GetMultiServerPetInfoServerRegionalRegion
+enum GetStagingPetInfoServerEnvironment
+enum GetStagingPetInfoServerVersion
+enum OrderStatusEnum
+enum PetStatusEnum
+enum PetWithOwnerStatusEnum
+enum Priority
+enum Rank
+enum Separator
+enum Stage
+enum SubscriptionIntervalEnum
+enum Swatch
+enum Tier
+export Decimal from package:decimal/decimal.dart
+final class BodySource
+final class ByteStream extends Stream<List<int>>
+final class JsonLinesStream<T> extends Stream<T>
+final class Page<T, C>
+final class Paginator<T, C>
+final class SseStream<T> extends Stream<ServerSentEvent<T>>
+typedef ErrorFactory = ApiException Function({String? requestMethod, String? requestPath, String? responseBody, Map<String, String>? responseHeaders, required int statusCode})
+void validateMultipartFieldName(String? name)
+void validateMultipartFilename(String? filename)

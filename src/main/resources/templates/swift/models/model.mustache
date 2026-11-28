@@ -721,12 +721,12 @@ public struct {{classname}}: Codable, @unchecked Sendable {
         let data = try container.decode(AnyCodable.self)
 
         struct DiscriminatorHelper: Decodable {
-            let {{propertyBaseName}}: String
+            let {{propertyBaseName}}: String{{#vendorExtensions.discriminatorDefault}}?{{/vendorExtensions.discriminatorDefault}}
         }
         let rawData = try ObjectSerializer.encodeToData(data)
         let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
 
-        switch disc.{{propertyBaseName}} {
+        switch disc.{{propertyBaseName}}{{#vendorExtensions.discriminatorDefault}} ?? ""{{/vendorExtensions.discriminatorDefault}} {
 {{#mappedModels}}
         case "{{{mappingName}}}":
             let v = try ObjectSerializer.decodeFromData(rawData, as: {{{modelName}}}.self)
@@ -734,12 +734,18 @@ public struct {{classname}}: Codable, @unchecked Sendable {
             return
 {{/mappedModels}}
         default:
+{{#vendorExtensions.discriminatorDefault}}
+            /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+            self._value = try ObjectSerializer.decodeFromData(rawData, as: {{vendorExtensions.discriminatorDefault}}.self)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(
                     codingPath: decoder.codingPath,
                     debugDescription: "Unknown discriminator value: \(disc.{{propertyBaseName}})"
                 )
             )
+{{/vendorExtensions.discriminatorDefault}}
         }
 {{/discriminator}}
 {{^discriminator}}

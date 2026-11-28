@@ -37,11 +37,12 @@ StoreApi _storeApiFor(HttpServer server) {
   return StoreApi(apiClient: DefaultApiClient(), config: config);
 }
 
-/// Records the method and URL of every call and answers it without a
+/// Records the method, URL and body of every call and answers it without a
 /// network, so a call to a host that does not resolve can still be checked.
 class _RecordingApiClient implements ApiClient {
   final List<String> methods = [];
   final List<String> urls = [];
+  final List<Object?> bodies = [];
 
   @override
   Future<ApiHttpResponse> sendRequest(
@@ -55,6 +56,7 @@ class _RecordingApiClient implements ApiClient {
   }) async {
     methods.add(method);
     urls.add(url);
+    bodies.add(body);
     if (method == 'GET' || method == 'PATCH') {
       return ApiHttpResponse(
         statusCode: 200,
@@ -75,6 +77,42 @@ StoreApi _recordingStoreApi(_RecordingApiClient client) {
       ConfigurationBuilder().baseUrl('https://client-base.example.com').build();
   return StoreApi(apiClient: client, config: config);
 }
+
+StoreApi _validatingStoreApi(_RecordingApiClient client) {
+  final config = ConfigurationBuilder()
+      .baseUrl('https://client-base.example.com')
+      .validateConstraints(true)
+      .build();
+  return StoreApi(apiClient: client, config: config);
+}
+
+/// One row per validation keyword of `Allowance`: a body that breaks it and
+/// the rule the error names.
+final List<(String, Allowance, String)> _constraintRows = [
+  ('minLength', const Allowance(label: 'a'), 'label must be at least 2 characters long'),
+  ('maxLength', const Allowance(label: 'abcdef'), 'label must be at most 5 characters long'),
+  ('pattern', const Allowance(label: 'AB'), 'label must match the pattern ^[a-z]+\$'),
+  ('minimum', const Allowance(count: 0), 'count must be greater than or equal to 1'),
+  ('maximum', const Allowance(count: 11), 'count must be less than or equal to 10'),
+  ('exclusiveMinimum', const Allowance(ratio: 0.0), 'ratio must be greater than 0'),
+  ('exclusiveMaximum', const Allowance(ratio: 1.0), 'ratio must be less than 1'),
+  ('multipleOf', const Allowance(step: 7), 'step must be a multiple of 5'),
+  ('minItems', const Allowance(codes: []), 'codes must have at least 1 items'),
+  ('maxItems', const Allowance(codes: ['a', 'b', 'c', 'd']), 'codes must have at most 3 items'),
+  ('minProperties', const Allowance(limits: {}), 'limits must have at least 1 properties'),
+  ('maxProperties', const Allowance(limits: {'a': 1, 'b': 2, 'c': 3}), 'limits must have at most 2 properties'),
+];
+
+/// Bodies whose violation sits inside a held model or a list of models, and
+/// the path and rule the error names.
+final List<(Allowance, String)> _nestedConstraintRows = [
+  (const Allowance(tier: AllowanceTier(level: -1)), 'tier.level must be greater than or equal to 0'),
+  (const Allowance(tier: AllowanceTier(name: 'abcd')), 'tier.name must be at most 3 characters long'),
+  (
+    const Allowance(parts: [AllowanceTier(level: 0), AllowanceTier(level: -1)]),
+    'parts[1].level must be greater than or equal to 0',
+  ),
+];
 
 void main() {
   setUpAll(() async {
@@ -940,6 +978,68 @@ void main() {
       await api.traceMemo('m1', null);
 
       expect(client.methods, equals(['PATCH', 'HEAD', 'OPTIONS', 'TRACE']));
+    });
+
+    test('bhv models 706 a body that breaks its constraints is sent unchanged when validation is left at its default', () async {
+      final client = _RecordingApiClient();
+      final config = ConfigurationBuilder().baseUrl('https://client-base.example.com').build();
+      final api = StoreApi(apiClient: client, config: config);
+
+      await api.submitAllowance(const Allowance(label: 'a', count: 0), null);
+
+      expect(config.validateConstraints, isFalse);
+      expect(client.methods, equals(['POST']));
+      expect(jsonDecode(utf8.decode(client.bodies.single! as List<int>)), equals({'label': 'a', 'count': 0}));
+    });
+
+    for (final (keyword, body, message) in _constraintRows) {
+      test('bhv models 707 a body that breaks $keyword is refused before it is sent', () async {
+        final client = _RecordingApiClient();
+
+        await expectLater(
+          _validatingStoreApi(client).submitAllowance(body, null),
+          throwsA(isA<ArgumentError>()
+              .having((e) => e.runtimeType, 'type', ArgumentError)
+              .having((e) => '${e.message}', 'message', 'Invalid request body: $message')),
+        );
+        expect(client.methods, isEmpty);
+      });
+    }
+
+    for (final (body, message) in _nestedConstraintRows) {
+      test('bhv models 708 a violation inside a held model names its path: $message', () async {
+        final client = _RecordingApiClient();
+
+        await expectLater(
+          _validatingStoreApi(client).submitAllowance(body, null),
+          throwsA(isA<ArgumentError>()
+              .having((e) => e.runtimeType, 'type', ArgumentError)
+              .having((e) => '${e.message}', 'message', 'Invalid request body: $message')),
+        );
+        expect(client.methods, isEmpty);
+      });
+    }
+
+    test('bhv models 709 a body within every constraint is sent and null or absent values are not checked', () async {
+      final client = _RecordingApiClient();
+      final api = _validatingStoreApi(client);
+
+      await api.submitAllowance(
+        const Allowance(
+          label: 'abc',
+          count: 10,
+          ratio: 0.5,
+          step: 15,
+          codes: ['a', 'b', 'c'],
+          limits: {'a': 1, 'b': 2},
+          tier: AllowanceTier(level: 0, name: 'abc'),
+          parts: [AllowanceTier(level: 1), AllowanceTier()],
+        ),
+        null,
+      );
+      await api.submitAllowance(const Allowance(tier: AllowanceTier()), null);
+
+      expect(client.methods, equals(['POST', 'POST']));
     });
   });
 }

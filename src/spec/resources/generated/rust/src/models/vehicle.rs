@@ -36,20 +36,19 @@ impl<'de> serde::Deserialize<'de> for Vehicle {
         D: serde::Deserializer<'de>,
     {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let discriminator = value
-            .get("vehicleType")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                D::Error::custom(
-                    "missing discriminator field `vehicleType` for Vehicle".to_string(),
-                )
-            })?;
+        /* The variant is decoded from the exact JSON text, never from a
+         * serde_json::Value, so a decimal inside it keeps every digit. */
+        let text = crate::object_serializer::json_text(deserializer)?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(D::Error::custom)?;
+        let found = value.get("vehicleType").and_then(|v| v.as_str());
+        let discriminator = found.ok_or_else(|| {
+            D::Error::custom("missing discriminator field `vehicleType` for Vehicle".to_string())
+        })?;
         match discriminator {
-            "car" => serde_json::from_value::<Car>(value)
+            "car" => crate::object_serializer::from_json_text::<Car>(&text)
                 .map(Vehicle::Car)
                 .map_err(D::Error::custom),
-            "truck" => serde_json::from_value::<Truck>(value)
+            "truck" => crate::object_serializer::from_json_text::<Truck>(&text)
                 .map(Vehicle::Truck)
                 .map_err(D::Error::custom),
             other => Err(D::Error::custom(format!(

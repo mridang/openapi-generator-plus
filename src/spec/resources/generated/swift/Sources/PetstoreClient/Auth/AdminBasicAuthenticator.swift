@@ -16,6 +16,8 @@ import Foundation
 ///
 /// - `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME`
 /// - `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD`
+///
+/// Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
 public final class AdminBasicAuthenticator: BasicAuthenticator, @unchecked Sendable {
   /// Creates the authenticator from explicit credentials and the process environment.
   override public convenience init(host: String, username: String? = nil, password: String? = nil)

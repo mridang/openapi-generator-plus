@@ -254,7 +254,9 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
       '{{nickname}}',
       {{#lambda.tsString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.tsString}},
-      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}{{^hasFormParams}}{{#bodyParam}}{{#isModel}},
+      {{#lambda.tsString}}{{{baseType}}}{{/lambda.tsString}}{{/isModel}}{{#isArray}}{{#items.isModel}},
+      {{#lambda.tsString}}{{{items.complexType}}}{{/lambda.tsString}}{{/items.isModel}}{{/isArray}}{{/bodyParam}}{{/hasFormParams}}
     );
   }
 {{/vendorExtensions.op.streamOnly}}
@@ -413,7 +415,7 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
         throw lastError;
       },
 {{/vendorExtensions.op.hasMultiple2xx}}
-      {{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},{{/vendorExtensions.op.hasMultiple2xx}}
+      {{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}{{#vendorExtensions.isDecimalLeaf}}(json: unknown) => ObjectSerializer.deserializeDecimal(json, {{#vendorExtensions.isStringDecimalLeaf}}true{{/vendorExtensions.isStringDecimalLeaf}}{{^vendorExtensions.isStringDecimalLeaf}}false{{/vendorExtensions.isStringDecimalLeaf}})!{{/vendorExtensions.isDecimalLeaf}}{{^vendorExtensions.isDecimalLeaf}}(json: unknown) => json as {{{returnType}}}{{/vendorExtensions.isDecimalLeaf}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},{{/vendorExtensions.op.hasMultiple2xx}}
 {{/vendorExtensions.op.streamsBinary}}
       {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}this.resolveRequirementAuth([{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}]){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}this.resolveSchemeAuth([{{#vendorExtensions.op.securitySchemeOrder}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
@@ -434,7 +436,9 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       undefined,
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
       {{#lambda.tsString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.tsString}},
-      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}{{^hasFormParams}}{{#bodyParam}}{{#isModel}},
+      {{#lambda.tsString}}{{{baseType}}}{{/lambda.tsString}}{{/isModel}}{{#isArray}}{{#items.isModel}},
+      {{#lambda.tsString}}{{{items.complexType}}}{{/lambda.tsString}}{{/items.isModel}}{{/isArray}}{{/bodyParam}}{{/hasFormParams}}
     );
   }
 {{#vendorExtensions.op.hasPagesMethod}}

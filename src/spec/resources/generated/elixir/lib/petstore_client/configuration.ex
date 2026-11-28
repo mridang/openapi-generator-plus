@@ -33,17 +33,23 @@ defmodule PetstoreClient.Configuration do
   * `call_hook` - An optional hook that runs around every operation call (see
     `#{inspect(PetstoreClient.CallHook)}`), or `nil`. It runs above the
     transport, so it is not part of `#{inspect(PetstoreClient.TransportOptions)}`.
+  * `validate_constraints` - Whether every request body is checked against the
+    validation keywords of its schema (minLength, pattern, minimum, ...) before
+    it is sent. Off by default; when on, a body that breaks one raises an
+    `ArgumentError` and nothing is sent.
   """
   @type t :: %__MODULE__{
           base_url: String.t(),
           default_headers: %{optional(String.t()) => String.t()},
-          call_hook: PetstoreClient.CallHook.t() | nil
+          call_hook: PetstoreClient.CallHook.t() | nil,
+          validate_constraints: boolean()
         }
 
   @enforce_keys [:base_url]
   defstruct base_url: "/api/v3",
             default_headers: %{},
-            call_hook: nil
+            call_hook: nil,
+            validate_constraints: false
 
   # Default headers may carry credentials (for example Authorization), so the
   # Inspect representation masks the sensitive ones as `***`. A hook may hold
@@ -73,14 +79,17 @@ defmodule PetstoreClient.Configuration do
       headers and authentication headers.
     * `:call_hook` - A `#{inspect(PetstoreClient.CallHook)}` module, or
       `{module, opts}`, that runs around every operation call. Defaults to none.
+    * `:validate_constraints` - Whether every request body is checked against
+      the validation keywords of its schema before it is sent. Defaults to
+      `false`; when `true`, a body that breaks one raises an `ArgumentError`.
 
   ## Examples
 
       iex> PetstoreClient.Configuration.new()
-      %PetstoreClient.Configuration{base_url: "/api/v3", default_headers: %{}, call_hook: nil}
+      %PetstoreClient.Configuration{base_url: "/api/v3", default_headers: %{}, call_hook: nil, validate_constraints: false}
 
       iex> PetstoreClient.Configuration.new(base_url: "https://custom.example.com")
-      %PetstoreClient.Configuration{base_url: "https://custom.example.com", default_headers: %{}, call_hook: nil}
+      %PetstoreClient.Configuration{base_url: "https://custom.example.com", default_headers: %{}, call_hook: nil, validate_constraints: false}
 
   """
   @spec new(keyword()) :: t()
@@ -88,7 +97,8 @@ defmodule PetstoreClient.Configuration do
     %__MODULE__{
       base_url: Keyword.get(opts, :base_url, "/api/v3"),
       default_headers: Keyword.get(opts, :default_headers, %{}),
-      call_hook: Keyword.get(opts, :call_hook)
+      call_hook: Keyword.get(opts, :call_hook),
+      validate_constraints: Keyword.get(opts, :validate_constraints, false)
     }
   end
 

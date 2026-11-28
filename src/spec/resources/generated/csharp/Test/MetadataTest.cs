@@ -113,6 +113,19 @@ public class MetadataTest
         Assert.Equal("value", extras["key"]);
     }
 
+    [Fact]
+    public void BhvModels704PatternPropertiesTypeTheExtraProperties()
+    {
+        var sensors = _serializer.Deserialize<Sensors>("{\"site\":\"north\",\"s1\":3,\"s2\":4}");
+
+        Dictionary<string, int> extras = sensors!.AdditionalProperties;
+        Assert.Equal(3, extras["s1"]);
+        Assert.Equal(4, extras["s2"]);
+        Assert.Throws<PetstoreClient.Errors.SerializationException>(() =>
+            _serializer.Deserialize<Sensors>("{\"s1\":\"three\"}")
+        );
+    }
+
     [Theory]
     [InlineData("{\"a\":2.5}")]
     [InlineData("{\"a\":\"2\"}")]

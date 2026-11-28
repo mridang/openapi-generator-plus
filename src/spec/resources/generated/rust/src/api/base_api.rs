@@ -460,6 +460,20 @@ impl BaseApi {
         self
     }
 
+    /// Checks a request body against the validation keywords of its schema when
+    /// the configuration turns `validate_constraints` on; every operation calls
+    /// it before the body is serialized, so a refused body sends nothing and
+    /// never reaches the call hook.
+    pub(crate) fn validate_request_body(
+        &self,
+        body: &dyn std::any::Any,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if self.config.validate_constraints() {
+            crate::constraint_validator::validate_request_body(body)?;
+        }
+        Ok(())
+    }
+
     /// The credential of the first of `schemes` that the client holds, in the
     /// order the operation lists them, or `None` when it holds none of them.
     pub(crate) fn authenticator_for(&self, schemes: &[&str]) -> Option<Arc<dyn Authenticator>> {
@@ -632,6 +646,14 @@ impl BaseApi {
             for (k, v) in auth.try_auth_headers().await? {
                 insert_header(&mut headers, k, v);
             }
+            /* A challenge authenticator (HTTP Digest) answers the challenge it
+             * accepted for this method and request target; before any
+             * challenge it adds nothing. */
+            if let Some(answer) =
+                auth.challenge_authorization(params.method, &request_target_of(&request_url))
+            {
+                insert_header(&mut headers, "Authorization".to_string(), answer);
+            }
             /* RFC 6265 -- cookie name is a token (RFC 7230 s3.2.6); cookie
              * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
              * comma, semicolon, backslash, controls). DO NOT URL-encode here:
@@ -797,8 +819,15 @@ impl BaseApi {
                     {
                         let delay = retry_delay(attempt, None);
                         if fits_budget(deadline, delay)
-                            && refresh_request_headers(effective_auth, &mut headers, trace, hooked)
-                                .await
+                            && refresh_request_headers(
+                                effective_auth,
+                                &mut headers,
+                                trace,
+                                hooked,
+                                params.method,
+                                &request_url,
+                            )
+                            .await
                         {
                             tokio::time::sleep(delay).await;
                             attempt += 1;
@@ -817,6 +846,25 @@ impl BaseApi {
             if response.status_code() == 401 && !renewed_after_401 && replayable {
                 renewed_after_401 = true;
                 if let Some(auth) = effective_auth {
+                    /* A 401 with a challenge the challenge authenticator (HTTP
+                     * Digest) accepts is answered: the request is replayed once
+                     * with the answer. */
+                    let challenge = response
+                        .headers()
+                        .iter()
+                        .find(|(name, _)| name.eq_ignore_ascii_case("www-authenticate"))
+                        .map(|(_, value)| value.clone());
+                    if let Some(challenge) = challenge {
+                        if auth.accept_challenge(&challenge) {
+                            if let Some(answer) = auth.challenge_authorization(
+                                params.method,
+                                &request_target_of(&request_url),
+                            ) {
+                                insert_header(&mut headers, "Authorization".to_string(), answer);
+                                continue;
+                            }
+                        }
+                    }
                     if auth.invalidate_access_token().await {
                         if let Ok(fresh) = auth.try_auth_headers().await {
                             for (k, v) in fresh {
@@ -836,7 +884,15 @@ impl BaseApi {
                     .and_then(|(_, value)| parse_retry_after(value));
                 let delay = retry_delay(attempt, retry_after);
                 if fits_budget(deadline, delay)
-                    && refresh_request_headers(effective_auth, &mut headers, trace, hooked).await
+                    && refresh_request_headers(
+                        effective_auth,
+                        &mut headers,
+                        trace,
+                        hooked,
+                        params.method,
+                        &request_url,
+                    )
+                    .await
                 {
                     tokio::time::sleep(delay).await;
                     attempt += 1;
@@ -1358,6 +1414,8 @@ async fn refresh_request_headers(
     headers: &mut HashMap<String, String>,
     trace: &trace_context_util::TraceContext,
     hooked: bool,
+    method: &str,
+    request_url: &str,
 ) -> bool {
     if let Some(auth) = auth {
         match auth.try_auth_headers().await {
@@ -1368,6 +1426,11 @@ async fn refresh_request_headers(
             }
             Err(_) => return false,
         }
+        /* A Digest answer carries a nonce count, so a retry answers again. */
+        if let Some(answer) = auth.challenge_authorization(method, &request_target_of(request_url))
+        {
+            insert_header(headers, "Authorization".to_string(), answer);
+        }
     }
     /* With a call hook the headers already carry the trace context as the hook
      * left it (an adapter writes the client span there), so it is not
@@ -1376,6 +1439,18 @@ async fn refresh_request_headers(
         trace.inject(headers);
     }
     true
+}
+
+/// The path and query of a request URL, the request target a challenge answer
+/// covers.
+fn request_target_of(url: &str) -> String {
+    match reqwest::Url::parse(url) {
+        Ok(parsed) => match parsed.query() {
+            Some(query) => format!("{}?{}", parsed.path(), query),
+            None => parsed.path().to_string(),
+        },
+        Err(_) => url.to_string(),
+    }
 }
 
 /// The URL without its query string and fragment.

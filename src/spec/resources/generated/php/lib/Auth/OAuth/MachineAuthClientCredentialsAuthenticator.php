@@ -18,6 +18,9 @@ namespace PetstoreClient\Auth\OAuth;
  */
 final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
 {
+    /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
+    public const string METADATA_URL = 'https://auth.example.com/.well-known/oauth-authorization-server';
+
     protected const array ENV_VARS = [
         'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID',
         'clientSecret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET',

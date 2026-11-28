@@ -532,6 +532,69 @@ function revalidateNestedFields(holder: Record<string, unknown>): void {
  * `{"a":{"a":...}}` payload would stack-overflow / DoS. All twelve SDKs
  * use the same cap.
  */
+/** Marks a union variant that the JSON value does not match. */
+const NO_VARIANT_MATCH: unique symbol = Symbol('noVariantMatch');
+
+/**
+ * Decodes a JSON value as one variant of a union whose variants are not all
+ * generated models, such as the union an OAS 3.1 type array becomes: a scalar,
+ * an array or a map of a declared TypeScript shape, or a model by name. Returns
+ * {@link NO_VARIANT_MATCH} when the value is not that variant.
+ */
+function decodePlainVariant(json: unknown, schemaName: string): unknown {
+  const name = schemaName.trim();
+  if (name === 'string' || name === 'boolean' || name === 'number') {
+    return typeof json === name ? json : NO_VARIANT_MATCH;
+  }
+  if (name === 'unknown' || name === 'any') {
+    return json;
+  }
+  const array = /^Array<(.+)>$/.exec(name);
+  if (array) {
+    if (!Array.isArray(json)) {
+      return NO_VARIANT_MATCH;
+    }
+    const items: unknown[] = [];
+    for (const element of json) {
+      const item = decodePlainVariant(element, array[1]);
+      if (item === NO_VARIANT_MATCH) {
+        return NO_VARIANT_MATCH;
+      }
+      items.push(item);
+    }
+    return items;
+  }
+  const map = /^\{ \[key: string\]: (.+) \}$/.exec(name);
+  if (map) {
+    if (json === null || typeof json !== 'object' || Array.isArray(json)) {
+      return NO_VARIANT_MATCH;
+    }
+    const entries: Record<string, unknown> = {};
+    for (const [key, element] of Object.entries(json as Record<string, unknown>)) {
+      const item = decodePlainVariant(element, map[1]);
+      if (item === NO_VARIANT_MATCH) {
+        return NO_VARIANT_MATCH;
+      }
+      entries[key] = item;
+    }
+    return entries;
+  }
+  const modelCls = (models as Record<string, unknown>)[name] as ClassConstructor<unknown> | undefined;
+  if (modelCls) {
+    try {
+      return ObjectSerializer.deserialize(json, modelCls);
+    } catch {
+      return NO_VARIANT_MATCH;
+    }
+  }
+  return NO_VARIANT_MATCH;
+}
+
+/** Whether a union variant name is a generated model class. */
+function isModelVariant(schemaName: string): boolean {
+  return (models as Record<string, unknown>)[schemaName.trim()] !== undefined;
+}
+
 const MAX_JSON_DEPTH = 1000;
 
 /**
@@ -636,6 +699,58 @@ export function decodePlainNumber(obj: unknown, wireName: string): unknown {
   throw new SerializationError(
     `Expected a JSON number for '${wireName}' but received ${typeof raw === 'string' ? 'a quoted string' : typeof raw}`
   );
+}
+
+/**
+ * Decode an array field of bare `type: number` decimals into decimal.js
+ * Decimals, each built from its element's exact source text (recorded by the
+ * JSON.parse reviver on the array), never from the double JSON.parse produced.
+ * Used by the model `@Transform` of such a field.
+ *
+ * @param obj the wire object that holds the field
+ * @param wireName the field's wire name
+ * @param nullable whether an element may be null
+ * @returns the Decimals, or the value itself when it is null or absent
+ * @throws SerializationError when the value is not an array of JSON numbers
+ */
+export function decodePlainNumberArray(obj: unknown, wireName: string, nullable = false): unknown {
+  if (obj === null || typeof obj !== 'object') {
+    return undefined;
+  }
+  const raw = (obj as Record<string, unknown>)[wireName];
+  if (raw === null || raw === undefined) {
+    return raw;
+  }
+  return ObjectSerializer.deserializeArray(raw, (x: unknown) => ObjectSerializer.deserializeDecimal(x, false, nullable));
+}
+
+/**
+ * The source text of the number being read as a container element or as a
+ * whole response body. {@link ObjectSerializer.deserializeArray} and
+ * {@link ObjectSerializer.deserializeMap} set it around each element, and
+ * {@link ObjectSerializer.withNumberSource} around a body, so that
+ * {@link ObjectSerializer.deserializeDecimal} reads every digit. Decoding is
+ * synchronous, so the value belongs to exactly one element at a time.
+ */
+let pendingNumberSource: string | undefined;
+
+/**
+ * Run `read` with `source` as the pending number source text, restoring the
+ * previous one afterwards.
+ */
+function withPendingSource<R>(source: string | undefined, read: () => R): R {
+  const saved = pendingNumberSource;
+  pendingNumberSource = source;
+  try {
+    return read();
+  } finally {
+    pendingNumberSource = saved;
+  }
+}
+
+/** The recorded source text of the number under `key` of `holder`, if any. */
+function recordedSource(holder: unknown, key: string): string | undefined {
+  return (holder as { [NUMBER_SOURCE_TEXT]?: Map<string, string> })[NUMBER_SOURCE_TEXT]?.get(key);
 }
 
 /**
@@ -1016,6 +1131,8 @@ export class ObjectSerializer {
       const oneOfSchemas = clsRecord['ONE_OF_SCHEMAS'] as string[] | undefined;
       const discProp = clsRecord['DISCRIMINATOR_PROPERTY'] as string | undefined;
       const discMapping = clsRecord['DISCRIMINATOR_MAPPING'] as Record<string, string> | undefined;
+      /* defaultMapping (D187): the variant a missing or unlisted value decodes as. */
+      const discDefault = clsRecord['DISCRIMINATOR_DEFAULT'] as string | undefined;
       const schemas = anyOfSchemas ?? oneOfSchemas;
 
       /**
@@ -1033,7 +1150,7 @@ export class ObjectSerializer {
         !Array.isArray(json)
       ) {
         const record = json as Record<string, unknown>;
-        if (!(discProp in record)) {
+        if (!(discProp in record) && discDefault === undefined) {
           throw new SerializationError(
             `Missing discriminator property '${discProp}' in payload.`
           );
@@ -1041,7 +1158,7 @@ export class ObjectSerializer {
         const discValue = record[discProp] as string;
         const targetName = Object.prototype.hasOwnProperty.call(discMapping, discValue)
           ? discMapping[discValue]
-          : undefined;
+          : discDefault;
         const targetCls = targetName
           ? ((models as Record<string, unknown>)[targetName] as ClassConstructor<T> | undefined)
           : undefined;
@@ -1054,10 +1171,42 @@ export class ObjectSerializer {
         return ObjectSerializer.deserialize(json, targetCls);
       }
 
+      /**
+       * A union with a variant that is not a generated model (the union an OAS
+       * 3.1 type array becomes: a string, a number, an array or a map) matches
+       * the JSON value against each declared shape in order: a oneOf keeps the
+       * first match, an anyOf every match.
+       */
+      if (schemas && !(discProp && discMapping) && !schemas.every(isModelVariant)) {
+        const matchedPlain: unknown[] = [];
+        for (const schemaName of schemas) {
+          const value = decodePlainVariant(json, schemaName);
+          if (value === NO_VARIANT_MATCH) {
+            continue;
+          }
+          if (anyOfSchemas === undefined) {
+            return new (cls as unknown as new (i: unknown) => T)(value);
+          }
+          matchedPlain.push(value);
+        }
+        if (matchedPlain.length > 0) {
+          return new (cls as unknown as new (i: unknown) => T)(matchedPlain);
+        }
+        throw new SerializationError(
+          `Value does not match any of the declared schemas (${schemas.join(', ')}).`
+        );
+      }
+
       if (schemas && json && typeof json === 'object') {
-        if (discProp && discMapping && discProp in (json as Record<string, unknown>)) {
+        if (
+          discProp &&
+          discMapping &&
+          (discProp in (json as Record<string, unknown>) || discDefault !== undefined)
+        ) {
           const discValue = (json as Record<string, unknown>)[discProp] as string;
-          const targetName = discMapping[discValue];
+          const targetName = Object.prototype.hasOwnProperty.call(discMapping, discValue)
+            ? discMapping[discValue]
+            : discDefault;
           if (targetName) {
             const targetCls = (models as Record<string, unknown>)[targetName] as ClassConstructor<unknown> | undefined;
             if (targetCls) {
@@ -1245,7 +1394,9 @@ export class ObjectSerializer {
       throw new SerializationError('Expected array but received: ' + typeof json);
     }
     const deserializeElement = ObjectSerializer.elementDeserializer(cls);
-    const mapped = json.map((item: unknown) => deserializeElement(item));
+    const mapped = json.map((item: unknown, index: number) =>
+      withPendingSource(recordedSource(json, String(index)), () => deserializeElement(item))
+    );
     /**
      * A null element of a model-class element type is rejected: null is not
      * an object, and the element type cannot express nullability, so it is
@@ -1263,6 +1414,62 @@ export class ObjectSerializer {
       });
     }
     return mapped as T[];
+  }
+
+  /**
+   * Decode one `format: decimal` value (or a bare `type: number`) that is a
+   * response body or an element of an array or map into a decimal.js
+   * Decimal. A number-shaped value is built from its exact source text (the
+   * text recorded for the element, or the body's own text), never from the
+   * double JSON.parse produced; a string-shaped one must be a JSON string
+   * holding a plain decimal number.
+   *
+   * @param value the parsed wire value
+   * @param stringShaped whether the schema is a `type: string` decimal
+   * @param nullable whether a null value is allowed
+   * @returns the Decimal, or null for an allowed null
+   * @throws SerializationError when the value is not a decimal of that shape
+   */
+  static deserializeDecimal(value: unknown, stringShaped = false, nullable = false): Decimal | null {
+    if (value === null || value === undefined) {
+      if (!nullable) {
+        throw new SerializationError('Expected a decimal number but received: null');
+      }
+      return null;
+    }
+    if (stringShaped) {
+      const parsed = typeof value === 'string' ? decimalFromText(value, true) : undefined;
+      if (parsed === undefined) {
+        throw new SerializationError(
+          `Expected a decimal number in a JSON string but received ${typeof value === 'string' ? JSON.stringify(value) : typeof value}`
+        );
+      }
+      return parsed;
+    }
+    if (typeof value !== 'number') {
+      throw new SerializationError(
+        `Expected a JSON number but received ${typeof value === 'string' ? 'a quoted string' : typeof value}`
+      );
+    }
+    const text = pendingNumberSource ?? String(value);
+    const parsed = decimalFromText(text);
+    if (parsed === undefined) {
+      throw new SerializationError(`Expected a JSON number but received ${text}`);
+    }
+    return parsed;
+  }
+
+  /**
+   * Run `read` with `source`, the exact text of a whole JSON body, as the
+   * number source text {@link deserializeDecimal} reads, so a body that is one
+   * bare decimal keeps every digit.
+   *
+   * @param source the body text, or undefined when the body is not a number
+   * @param read the decoding to run
+   * @returns what `read` returns
+   */
+  static withNumberSource<R>(source: string | undefined, read: () => R): R {
+    return withPendingSource(source, read);
   }
 
   /**
@@ -1327,7 +1534,7 @@ export class ObjectSerializer {
     const rejectNulls = ObjectSerializer.isClassConstructor(cls);
     const out: Record<string, T> = {};
     for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
-      const deserialized = deserializeValue(v);
+      const deserialized = withPendingSource(recordedSource(json, k), () => deserializeValue(v));
       if (rejectNulls && (deserialized === null || deserialized === undefined)) {
         throw new SerializationError(
           `Null value for key ${JSON.stringify(k)} of a map of ${(cls as ClassConstructor<T>).name}`

@@ -226,7 +226,7 @@ end
 
 ### Credentials
 
-`PetstoreClient.Client.new/3` takes one optional credential for each security scheme of the API, named after the scheme in a keyword list: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each is an authenticator. An operation uses the credential of the first scheme its own security requirement lists that the client holds, and there is no per-call override. The optional first argument, the authenticator, serves an operation that none of the scheme credentials matches. An operation whose spec says `security: []` sends no credential. The base URL comes from the first credential given, the authenticator first. The client is refused (`ArgumentError`) when it gets no credential at all, or a key that names no scheme of this API.
+`PetstoreClient.Client.new/3` takes one optional credential for each security scheme of the API, named after the scheme in a keyword list: `pet_store_basic`, `admin_basic`, `archive_digest`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `device_auth`, `sso_auth`. Each is an authenticator. An operation uses the credential of the first scheme its own security requirement lists that the client holds, and there is no per-call override. The optional first argument, the authenticator, serves an operation that none of the scheme credentials matches. An operation whose spec says `security: []` sends no credential. The base URL comes from the first credential given, the authenticator first. The client is refused (`ArgumentError`) when it gets no credential at all, or a key that names no scheme of this API.
 
 ```elixir file
 defmodule SchemeCredential do
@@ -246,7 +246,10 @@ Each security scheme reads its own variables, named `SWAGGER_PETSTORE_OPEN_API_3
 | `adminBasic` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
 | `apiKeyHeader` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
 | `apiKeyQuery` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `archiveDigest` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME` |
+| `archiveDigest` | `password` | `SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD` |
 | `browserAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `deviceAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID` |
 | `internalApiKey` | `api_key` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
 | `legacyAuth` | `client_id` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
 | `legacyAuth` | `client_secret` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
@@ -267,6 +270,10 @@ Each security scheme reads its own variables, named `SWAGGER_PETSTORE_OPEN_API_3
 | `userAuth` | `redirect_uri` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
 
 An authenticator you build without a scheme (`BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` on their own) reads `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` or `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`. Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0` prefix.
+
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call request_device_authorization/1 to get the user code and verification URI to show to the user, then poll_for_token/2 to wait for the approval.
+
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
 
 ### Cancellation
 
@@ -513,6 +520,8 @@ network round trip, plug in a JSON Schema validator library.
 
 `uniqueItems` arrays are held as a `MapSet` and sent in the `MapSet`'s own
 enumeration order, not sorted.
+
+Constraint validation can be turned on with the `validate_constraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ### SOCKS proxies
 

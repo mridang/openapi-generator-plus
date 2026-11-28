@@ -1217,6 +1217,15 @@ fn test_bhv_serializationobject_413_a_decimal_field_is_the_exact_rust_decimal_ty
     let amount: Option<rust_decimal::Decimal> = values.amount;
     let ledger: Option<rust_decimal::Decimal> = values.ledger;
     assert_eq!(amount.zip(ledger).map(|(a, b)| a + b), Some(rust_decimal::Decimal::new(3, 1)));
+
+    let exact: rust_decimal::Decimal = "12.345678901234567890123".parse().expect("a decimal");
+    let food: {{packageName}}::models::PetFood =
+        serde_json::from_str(r#"{"foodType":"dry","weightKg":1.5,"pricePerKg":12.345678901234567890123}"#)
+            .expect("decode");
+    match food {
+        {{packageName}}::models::PetFood::DryFood(dry) => assert_eq!(dry.price_per_kg, Some(exact)),
+        other => panic!("decoded the wrong variant: {other:?}"),
+    }
 }
 
 #[test]

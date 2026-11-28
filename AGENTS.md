@@ -63,7 +63,7 @@ The twelve SDKs must be perfectly harmonised: the same public API shape, wire by
 - **Green before it lands.** `etc/ci-local.sh` is the one definition of green (CI runs the same steps). `.claude/hooks/commit-guard.sh` refuses commit messages with a trailer or attribution line and refuses pushes of commits that have not passed a local check (`--quick` is enough for the main session; CI runs the full suites).
 - **Docker.** `.claude/hooks/docker-guard.sh` removes leaked test containers and holds new runs while Docker is full. Start hand-run containers only with `docker run --rm --label parity.guard=1`.
 - **Nothing outside the repo.** Working state lives in the `AGENTS.md` files and in GitHub issues, never in a scratch directory or a session's memory.
-- **No public API guard yet.** The tool that compared the twelve public surfaces was removed; until the Java specs of #122 exist, compare the public members of the twelve by hand before a change that adds, renames or reorders one.
+- **The public API guard.** `<Lang>ApiSurfaceSpec` (D180, #122) fails when a generated SDK's public signatures differ from `src/spec/resources/api-surface/<lang>.txt`, when a public type is not reachable from the entry point or an internal one is exported, or when a public signature names a third-party type not listed with its reason in `<lang>.leaks.txt` (unreachable types: `<lang>.reach.txt`). After a change to the API, regenerate the goldens and rerun the language's spec with `-DupdateApiSurface=true`, and review the snapshot diff like a golden diff.
 
 The desktop app reads hooks and agents from the main checkout's `.claude/`, so after pulling changes to them copy `.claude/{settings.json,agents,hooks}` from the PR branch into the main checkout.
 

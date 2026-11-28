@@ -1147,6 +1147,102 @@ fn test_bhv_serializationobject_012_pet_location_tuple_round_trips_as_an_open_li
     );
 }
 
+/* -- an OAS 3.1 type array of scalars is a union of its types (#98) -- */
+
+#[test]
+fn test_bhv_models_700_reading_scalar_type_array_decodes_each_type() {
+    let text: Reading = serde_json::from_str(r#"{"level":"high","inlineLevel":3}"#).expect("failed to decode Reading");
+    assert_eq!(Some("high".to_string()), text.level.string);
+    assert_eq!(Some(3), text.inline_level.as_ref().expect("inlineLevel must decode").i64);
+    assert_eq!(
+        serde_json::json!("high"),
+        serde_json::to_value(&text).expect("failed to encode Reading")["level"]
+    );
+    let number: Reading = serde_json::from_str(r#"{"level":7}"#).expect("failed to decode Reading");
+    assert_eq!(Some(7), number.level.i64);
+    assert_eq!(
+        serde_json::json!(7),
+        serde_json::to_value(&number).expect("failed to encode Reading")["level"]
+    );
+}
+
+/* -- an OAS 3.1 type array of array and object decodes both shapes (#98) -- */
+
+#[test]
+fn test_bhv_models_701_reading_array_and_object_type_array_decodes_both_shapes() {
+    let list: Reading = serde_json::from_str(r#"{"level":1,"shape":["a","b"]}"#).expect("failed to decode Reading");
+    assert_eq!(
+        Some(vec!["a".to_string(), "b".to_string()]),
+        list.shape.as_ref().expect("shape must decode").vec_string
+    );
+    assert_eq!(
+        serde_json::json!(["a", "b"]),
+        serde_json::to_value(&list).expect("failed to encode Reading")["shape"]
+    );
+    let map: Reading = serde_json::from_str(r#"{"level":1,"shape":{"k":"v"}}"#).expect("failed to decode Reading");
+    assert_eq!(
+        Some("v"),
+        map.shape
+            .as_ref()
+            .and_then(|shape| shape.std_collections_hash_map_string_string.as_ref())
+            .and_then(|entries| entries.get("k"))
+            .map(String::as_str)
+    );
+    assert_eq!(
+        serde_json::json!({"k": "v"}),
+        serde_json::to_value(&map).expect("failed to encode Reading")["shape"]
+    );
+}
+
+/* -- a property of type null accepts null (#98) -- */
+
+#[test]
+fn test_bhv_models_702_reading_null_type_property_accepts_null() {
+    let reading: Reading = serde_json::from_str(r#"{"level":1,"nothing":null}"#).expect("failed to decode Reading");
+    assert!(reading.nothing.is_none());
+}
+
+/* -- a missing or unlisted discriminator value is the defaultMapping variant (#87) -- */
+
+#[test]
+fn test_bhv_unions_700_parcel_default_mapping_catches_missing_and_unlisted_values() {
+    let unlisted: Parcel = serde_json::from_str(r#"{"kind":"postcard","pages":2}"#).expect("failed to decode Parcel");
+    assert!(matches!(unlisted, Parcel::Letter(ref letter) if letter.pages == Some(2)));
+    let missing: Parcel = serde_json::from_str(r#"{"pages":3}"#).expect("failed to decode Parcel");
+    assert!(matches!(missing, Parcel::Letter(_)));
+    let boxed: Parcel = serde_json::from_str(r#"{"kind":"packet","weightKg":1.5}"#).expect("failed to decode Parcel");
+    assert!(matches!(boxed, Parcel::Packet(_)));
+}
+
+/* -- the then and else properties are optional properties (#86) -- */
+
+#[test]
+fn test_bhv_models_705_shipment_conditional_branch_properties_are_optional_properties() {
+    let shipment: Shipment = serde_json::from_str(r#"{"kind":"domestic","customsCode":"C2","postcode":"2000"}"#)
+        .expect("failed to decode Shipment");
+    assert_eq!(Some("C2".to_string()), shipment.customs_code);
+    assert_eq!(Some("2000".to_string()), shipment.postcode);
+    assert_eq!(
+        serde_json::json!("C2"),
+        serde_json::to_value(&shipment).expect("failed to encode Shipment")["customsCode"]
+    );
+}
+
+/* -- the validation-only JSON Schema keywords are not enforced (#82) -- */
+
+#[test]
+fn test_bhv_models_703_audit_validation_only_keywords_are_not_enforced() {
+    let audit: Audit = serde_json::from_str(r#"{"tags":["a","b"],"score":-5,"payload":"not json"}"#)
+        .expect("failed to decode Audit");
+    assert_eq!(Some(vec!["a".to_string(), "b".to_string()]), audit.tags);
+    assert_eq!(Some(-5), audit.score);
+    assert_eq!(Some("not json".to_string()), audit.payload);
+    assert_eq!(
+        serde_json::json!(-5),
+        serde_json::to_value(&audit).expect("failed to encode Audit")["score"]
+    );
+}
+
 /* -- a protobuf-JSON duration decodes and re-encodes (F1149) -- */
 
 #[test]
@@ -1270,7 +1366,7 @@ fn test_bhv_unions_041_an_untagged_one_of_decodes_each_json_shape_to_its_variant
 #[test]
 fn test_bhv_unions_043_a_discriminator_set_on_a_subtype_is_written_as_given() {
     use {{packageName}}::models::{DryFood, PetFood};
-    let food = DryFood { food_type: "custom".to_string(), weight_kg: 2.5 };
+    let food = DryFood { food_type: "custom".to_string(), ..DryFood::new(2.5) };
     let wire = serde_json::to_value(PetFood::DryFood(food)).expect("serializes");
     assert_eq!(wire["foodType"], serde_json::json!("custom"));
 }

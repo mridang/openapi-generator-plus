@@ -22,6 +22,7 @@ import {
   Moments,
   Pet,
   Roster,
+  Sensors,
   Sparse,
 } from "../src/models/index.js";
 
@@ -219,6 +220,18 @@ describe("Metadata", () => {
       ) as Metadata;
       const extras: Record<string, string> = metadata.additionalProperties;
       expect(extras["customField"]).toBe("hello");
+    });
+
+    test("bhv models 704 patternProperties type the extra properties", () => {
+      const sensors = ObjectSerializer.deserialize(
+        { site: "north", s1: 3, s2: 4 },
+        Sensors,
+      ) as Sensors;
+      const extras: Record<string, number> = sensors.additionalProperties;
+      expect(extras).toEqual({ s1: 3, s2: 4 });
+      expect(() =>
+        ObjectSerializer.deserialize({ s1: "three" }, Sensors),
+      ).toThrow(SerializationError);
     });
 
     test("bhv models 025 an additional property of the wrong JSON type fails the decode", () => {

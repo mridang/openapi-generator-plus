@@ -139,6 +139,9 @@ module Petstore::Client
         accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
         error_schemas: nil, spec_operation_id: nil, url_template: nil, stream: false, idle_timeout: nil
       )
+        # With validate_constraints on, a body that breaks a validation keyword
+        # of its schema is refused before anything is built, hooked or sent.
+        ::Petstore::Client::ConstraintValidator.validate(body) if @config.validate_constraints && !body.nil?
         started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         url = if path.start_with?('http://', 'https://')
                 path
@@ -189,7 +192,7 @@ module Petstore::Client
         merge_call_headers(headers, @config.default_headers)
         headers.merge!(header_params)
         merge_call_headers(headers, request_options.headers) if request_options&.headers
-        request_headers = authenticated_headers(headers, effective_auth)
+        request_headers = authenticated_headers(headers, effective_auth, method, url)
         # The hook starts once per call, right after the trace context is in the
         # headers, and may edit them. Every retry and replay is a fresh request
         # whose headers are rebuilt, so what the hook changed is kept as a delta
@@ -211,7 +214,7 @@ module Petstore::Client
           # authentication among them, which may now hold a renewed token) are
           # rebuilt from the same inputs.
           fresh_headers = lambda do |replay = false|
-            rebuilt_headers(headers, effective_auth, serialized_body.nil?, hook_delta, replay)
+            rebuilt_headers(headers, effective_auth, serialized_body.nil?, hook_delta, replay, method, url)
           end
           call_options = transport_call_options(request_options)
           call_options = remaining_deadline(call_options, started_at)
@@ -232,6 +235,18 @@ module Petstore::Client
               # The refused response is closed unread before the replay.
               response.close if stream
               response = send_call(stream, method, url, renewed, serialized_body, fresh_headers, call_options)
+            end
+          elsif response.status_code == 401 && effective_auth.respond_to?(:accept_challenge) &&
+                replayable_body?(serialized_body)
+            # HTTP Digest (D192): the first request goes without credentials. A
+            # Digest challenge the authenticator accepts is answered and the
+            # request replayed once; anything else leaves the 401 as is.
+            challenge = header_value(response.headers, 'WWW-Authenticate')
+            if challenge && effective_auth.accept_challenge(challenge)
+              # The refused response is closed unread before the replay.
+              response.close if stream
+              response = send_call(stream, method, url, fresh_headers.call(true), serialized_body, fresh_headers,
+                                   call_options)
             end
           end
           if response.status_code < 200 || response.status_code >= 300
@@ -438,17 +453,22 @@ module Petstore::Client
 
       # The request headers: +base_headers+ plus what +effective_auth+ adds
       # (its headers and cookies) and the trace context, as a new Hash.
-      def authenticated_headers(base_headers, effective_auth)
-        headers = credentialed_headers(base_headers, effective_auth)
+      def authenticated_headers(base_headers, effective_auth, method, url)
+        headers = credentialed_headers(base_headers, effective_auth, method, url)
         ::Petstore::Client::TraceContextUtil.inject_trace_context(headers)
         headers
       end
 
       # +base_headers+ plus what +effective_auth+ adds (its headers and cookies),
-      # as a new Hash.
-      def credentialed_headers(base_headers, effective_auth)
+      # as a new Hash. A digest authenticator answers its remembered challenge
+      # for this method and request target (D192), once it has one.
+      def credentialed_headers(base_headers, effective_auth, method, url)
         headers = base_headers.dup
         headers.merge!(effective_auth.auth_headers) if effective_auth
+        if effective_auth.respond_to?(:accept_challenge)
+          answer = effective_auth.authorization(method.to_s.upcase, request_target_of(url))
+          headers['Authorization'] = answer unless answer.nil?
+        end
         cookies = effective_auth&.cookie_params || {}
         unless cookies.empty?
           # RFC 6265 — don't URL-encode cookie name/value; most cookie
@@ -474,8 +494,8 @@ module Petstore::Client
       # and the trace context, with what the call hook changed put back. A retry
       # keeps every hook change. A replay carries fresh credentials, so a
       # header the credentials set replaces a hook header of the same name.
-      def rebuilt_headers(base, effective_auth, no_body, hook_delta, replay)
-        credentialed = credentialed_headers(base, effective_auth)
+      def rebuilt_headers(base, effective_auth, no_body, hook_delta, replay, method, url)
+        credentialed = credentialed_headers(base, effective_auth, method, url)
         credential_names = [] # : Array[String]
         credential_names = credentialed.keys.reject { |name| credentialed[name] == base[name] } if replay
         ::Petstore::Client::TraceContextUtil.inject_trace_context(credentialed)
@@ -697,6 +717,20 @@ module Petstore::Client
       def request_path_of(url)
         path = url.split('?', 2).first.to_s.sub(%r{\A[A-Za-z][A-Za-z0-9+.-]*://[^/]*}, '')
         path.empty? ? '/' : path
+      end
+
+      # The request target of a URL: its path and query, without the scheme,
+      # the host or a fragment.
+      def request_target_of(url)
+        target = url.split('#', 2).first.to_s.sub(%r{\A[A-Za-z][A-Za-z0-9+.-]*://[^/?]*}, '')
+        target.start_with?('/') ? target : "/#{target}"
+      end
+
+      # The value of a response header, matched case-insensitively; repeated
+      # lines are joined with a comma.
+      def header_value(headers, name)
+        values = headers.select { |key, _value| key.to_s.casecmp?(name) }.values.flatten
+        values.empty? ? nil : values.join(', ')
       end
 
       def build_query_string(query_params)

@@ -92,6 +92,10 @@ class Client implements \PetstoreClient\ClientInterface
      *                                              operation uses the scheme its security requirement names;
      *                                              once any scheme credential is given, an operation whose
      *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $archiveDigest        The credential of the `archiveDigest` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
      * @param Authenticator|null  $petStoreBearer        The credential of the `petStoreBearer` security scheme. Each
      *                                              operation uses the scheme its security requirement names;
      *                                              once any scheme credential is given, an operation whose
@@ -132,6 +136,10 @@ class Client implements \PetstoreClient\ClientInterface
      *                                              operation uses the scheme its security requirement names;
      *                                              once any scheme credential is given, an operation whose
      *                                              requirement none of them meets sends no credential.
+     * @param Authenticator|null  $deviceAuth        The credential of the `deviceAuth` security scheme. Each
+     *                                              operation uses the scheme its security requirement names;
+     *                                              once any scheme credential is given, an operation whose
+     *                                              requirement none of them meets sends no credential.
      * @param Authenticator|null  $ssoAuth        The credential of the `ssoAuth` security scheme. Each
      *                                              operation uses the scheme its security requirement names;
      *                                              once any scheme credential is given, an operation whose
@@ -147,6 +155,7 @@ class Client implements \PetstoreClient\ClientInterface
         ?ApiClient $apiClient = null,
         ?Authenticator $petStoreBasic = null,
         ?Authenticator $adminBasic = null,
+        ?Authenticator $archiveDigest = null,
         ?Authenticator $petStoreBearer = null,
         ?Authenticator $serviceToken = null,
         ?Authenticator $apiKeyHeader = null,
@@ -157,6 +166,7 @@ class Client implements \PetstoreClient\ClientInterface
         ?Authenticator $legacyAuth = null,
         ?Authenticator $userAuth = null,
         ?Authenticator $browserAuth = null,
+        ?Authenticator $deviceAuth = null,
         ?Authenticator $ssoAuth = null,
         ?CallHook $callHook = null
     ) {
@@ -166,6 +176,9 @@ class Client implements \PetstoreClient\ClientInterface
         }
         if ($adminBasic instanceof \PetstoreClient\Auth\Authenticator) {
             $schemeAuthenticators['adminBasic'] = $adminBasic;
+        }
+        if ($archiveDigest instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['archiveDigest'] = $archiveDigest;
         }
         if ($petStoreBearer instanceof \PetstoreClient\Auth\Authenticator) {
             $schemeAuthenticators['petStoreBearer'] = $petStoreBearer;
@@ -196,6 +209,9 @@ class Client implements \PetstoreClient\ClientInterface
         }
         if ($browserAuth instanceof \PetstoreClient\Auth\Authenticator) {
             $schemeAuthenticators['browserAuth'] = $browserAuth;
+        }
+        if ($deviceAuth instanceof \PetstoreClient\Auth\Authenticator) {
+            $schemeAuthenticators['deviceAuth'] = $deviceAuth;
         }
         if ($ssoAuth instanceof \PetstoreClient\Auth\Authenticator) {
             $schemeAuthenticators['ssoAuth'] = $ssoAuth;
@@ -314,6 +330,8 @@ class Client implements \PetstoreClient\ClientInterface
             null,
             null,
             null,
+            null,
+            null,
             $callHook
         );
     }
@@ -344,6 +362,8 @@ class Client implements \PetstoreClient\ClientInterface
             $authenticator,
             $transportOptions,
             $apiClient,
+            null,
+            null,
             null,
             null,
             null,
@@ -406,6 +426,8 @@ class Client implements \PetstoreClient\ClientInterface
             $authenticator,
             $transportOptions,
             new Psr18ApiClient($httpClient, $requestFactory, $streamFactory, $transportOptions),
+            null,
+            null,
             null,
             null,
             null,

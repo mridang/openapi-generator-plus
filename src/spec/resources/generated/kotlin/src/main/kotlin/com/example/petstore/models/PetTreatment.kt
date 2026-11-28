@@ -150,6 +150,7 @@ class PetTreatment(
             // (or that no declared serializer accepts) is skipped. encodeSerializableValue
             // is an Encoder member, so no extra import is needed.
             val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
+            var bare: kotlinx.serialization.json.JsonElement? = null
             for (instance in value.matchedInstances) {
                 var element: kotlinx.serialization.json.JsonElement? = null
                 if (element == null) {
@@ -177,7 +178,15 @@ class PetTreatment(
                 val obj = element as? kotlinx.serialization.json.JsonObject
                 if (obj != null) {
                     merged.putAll(obj)
+                } else if (element != null && bare == null) {
+                    bare = element
                 }
+            }
+            // A scalar or array variant (a type array such as [string, integer]) has no
+            // fields to merge, so the first one is written as it is.
+            if (merged.isEmpty() && bare != null) {
+                jsonEncoder.encodeJsonElement(bare)
+                return
             }
             if (merged.isEmpty()) {
                 throw kotlinx.serialization.SerializationException(

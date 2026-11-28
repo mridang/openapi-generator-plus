@@ -40,6 +40,10 @@ class NativeValues implements \Ds\Hashable, \Stringable
     #[SerializedName('amount')]
     public readonly ?\Brick\Math\BigDecimal $amount;
 
+    /** @var \Ds\Vector<\Brick\Math\BigDecimal>|null */
+    #[SerializedName('amounts')]
+    public readonly ?\Ds\Vector $amounts;
+
     /** @example 12.50 */
     #[\PetstoreClient\WireFormat('decimal')]
     #[SerializedName('ledger')]
@@ -63,6 +67,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
 
     /**
      * @param \Ds\Vector<string>|null $addresses
+     * @param \Ds\Vector<\Brick\Math\BigDecimal>|null $amounts
      */
     public function __construct(
         ?string $address4 = null,
@@ -70,6 +75,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
         ?\Ds\Vector $addresses = null,
         ?string $homepage = null,
         ?\Brick\Math\BigDecimal $amount = null,
+        ?\Ds\Vector $amounts = null,
         ?\Brick\Math\BigDecimal $ledger = null,
         ?\DateInterval $wait = null,
         ?\DateTime $since = null,
@@ -81,6 +87,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
         $this->addresses = $addresses;
         $this->homepage = $homepage;
         $this->amount = $amount;
+        $this->amounts = $amounts;
         $this->ledger = $ledger;
         $this->wait = $wait;
         $this->since = $since;
@@ -99,6 +106,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,
@@ -118,6 +126,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,
@@ -139,6 +148,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,
@@ -158,6 +168,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,
@@ -177,6 +188,29 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $amount,
+            amounts: $this->amounts,
+            ledger: $this->ledger,
+            wait: $this->wait,
+            since: $this->since,
+            host: $this->host,
+            contact: $this->contact,
+        );
+    }
+
+    /**
+     * Returns a copy of this model with amounts replaced. This model is not changed.
+     *
+     * @param \Ds\Vector<\Brick\Math\BigDecimal>|null $amounts
+     */
+    public function withAmounts(?\Ds\Vector $amounts): self
+    {
+        return new self(
+            address4: $this->address4,
+            address6: $this->address6,
+            addresses: $this->addresses,
+            homepage: $this->homepage,
+            amount: $this->amount,
+            amounts: $amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,
@@ -196,6 +230,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $ledger,
             wait: $this->wait,
             since: $this->since,
@@ -215,6 +250,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $wait,
             since: $this->since,
@@ -234,6 +270,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $since,
@@ -253,6 +290,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,
@@ -272,6 +310,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
             addresses: $this->addresses,
             homepage: $this->homepage,
             amount: $this->amount,
+            amounts: $this->amounts,
             ledger: $this->ledger,
             wait: $this->wait,
             since: $this->since,

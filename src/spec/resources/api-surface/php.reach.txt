@@ -1,0 +1,4 @@
+# PHP types allowed to be unreachable or internal-but-exported: <type> | <reason>
+PetstoreClient\HeaderSelector | @internal, yet the type of BaseApi's protected headerSelector property, so an API subclass sees it
+PetstoreClient\RawHttpResponse | @internal transport-seam value type, yet the return type of the protected AbstractApiClient::execute() a custom transport overrides
+PetstoreClient\RawStreamResponse | @internal transport-seam value type, yet the return type of the protected AbstractApiClient::executeStreaming() a custom transport overrides

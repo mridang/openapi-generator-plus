@@ -1,0 +1,21 @@
+module Petstore::Client::Models
+  class Allowance < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> Allowance
+    attr_reader label: String?
+    attr_reader count: Integer?
+    attr_reader ratio: Float?
+    attr_reader step: Integer?
+    attr_reader codes: Array[String]?
+    attr_reader limits: Hash[String, Integer]?
+    attr_reader tier: AllowanceTier?
+    attr_reader parts: Array[AllowanceTier]?
+  end
+end

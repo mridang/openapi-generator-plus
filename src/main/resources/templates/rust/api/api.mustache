@@ -1158,11 +1158,13 @@ impl {{classname}} {
          * treat differently from an absent body. */
         let mut request_body: Option<Vec<u8>> = None;
         if let Some(body) = &{{paramName}} {
+            self.base.validate_request_body(body)?;
             request_body = Some(object_serializer::serialize(body)?.into_bytes());
         }
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 {{/required}}
 {{#required}}
+        self.base.validate_request_body(&{{paramName}})?;
         let request_body = Some(object_serializer::serialize(&{{paramName}})?.into_bytes());
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 {{/required}}

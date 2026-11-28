@@ -15,6 +15,8 @@ import type { Authenticator } from "../auth/authenticator.js";
 import type { CallHook, CallObserver } from "../call-hook.js";
 import { isNoAuth } from "../auth/authenticator.js";
 import { isHttpAwareAuthenticator } from "../auth/http-aware-authenticator.js";
+import { isChallengeAuthenticator } from "../auth/digest-authenticator.js";
+import type { ChallengeAuthenticator } from "../auth/digest-authenticator.js";
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
 import { ApiError, SerializationError, OpenAPIError } from "../errors/index.js";
@@ -27,6 +29,7 @@ import { JsonLinesStream } from "../json-lines-stream.js";
 import { SseStream } from "../sse-stream.js";
 import type { StreamOptions } from "../stream-options.js";
 import { Configuration } from "../configuration.js";
+import { ConstraintValidator } from "../constraint-validator.js";
 import { DefaultApiClient } from "#transport";
 import { HeaderSelector } from "../header-selector.js";
 import { ObjectSerializer, isTemporalValue } from "../object-serializer.js";
@@ -180,6 +183,8 @@ export abstract class BaseApi {
    *   to the call hook
    * @param urlTemplate the spec path template of the operation, given to the
    *   call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -199,6 +204,7 @@ export abstract class BaseApi {
     errorSchemas?: ErrorSchemas,
     operationId = operationName,
     urlTemplate = "",
+    bodyType?: string,
   ): Promise<ApiResult<T>> {
     return this.invokeCall(
       false,
@@ -218,6 +224,7 @@ export abstract class BaseApi {
       errorSchemas,
       operationId,
       urlTemplate,
+      bodyType,
     );
   }
 
@@ -250,6 +257,8 @@ export abstract class BaseApi {
    *   to the call hook
    * @param urlTemplate the spec path template of the operation, given to the
    *   call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns the result whose data is the open {@link ByteStream}; its raw body is empty
    * @throws TypeError if the transport cannot stream
    */
@@ -268,6 +277,7 @@ export abstract class BaseApi {
     errorSchemas?: ErrorSchemas,
     operationId = operationName,
     urlTemplate = "",
+    bodyType?: string,
   ): Promise<ApiResult<ByteStream>> {
     return this.invokeCall<ByteStream>(
       true,
@@ -287,6 +297,7 @@ export abstract class BaseApi {
       errorSchemas,
       operationId,
       urlTemplate,
+      bodyType,
     );
   }
 
@@ -310,6 +321,8 @@ export abstract class BaseApi {
    * @param operationName the operation name, used in error messages
    * @param operationId the operation id exactly as written in the spec, given to the call hook
    * @param urlTemplate the spec path template of the operation, given to the call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns the open stream of items
    */
   protected async invokeApiForJsonLines<T>(
@@ -328,6 +341,7 @@ export abstract class BaseApi {
     operationName = "",
     operationId = operationName,
     urlTemplate = "",
+    bodyType?: string,
   ): Promise<JsonLinesStream<T>> {
     const result = await this.invokeCall<ByteStream>(
       true,
@@ -347,6 +361,7 @@ export abstract class BaseApi {
       errorSchemas,
       operationId,
       urlTemplate,
+      bodyType,
     );
     const decoder = (line: string): T => {
       const json = ObjectSerializer.parseJson(line);
@@ -384,6 +399,8 @@ export abstract class BaseApi {
    * @param operationName the operation name, used in error messages
    * @param operationId the operation id exactly as written in the spec, given to the call hook
    * @param urlTemplate the spec path template of the operation, given to the call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns the open stream of events
    */
   protected async invokeApiForSse<T>(
@@ -403,6 +420,7 @@ export abstract class BaseApi {
     operationName = "",
     operationId = operationName,
     urlTemplate = "",
+    bodyType?: string,
   ): Promise<SseStream<T>> {
     const sseHeaders: Record<string, string> = { ...headerParams };
     const has = (
@@ -447,6 +465,7 @@ export abstract class BaseApi {
         errorSchemas,
         operationId,
         urlTemplate,
+        bodyType,
       );
       return result.data as ByteStream;
     };
@@ -494,8 +513,18 @@ export abstract class BaseApi {
     errorSchemas: ErrorSchemas | undefined,
     operationId: string,
     urlTemplate: string,
+    bodyType: string | undefined,
   ): Promise<ApiResult<T>> {
     BaseApi.checkCallLimits(requestOptions);
+    /* The opt-in constraint check runs before anything is built or sent, so a
+     * refused body never reaches the call hook or the transport. */
+    if (
+      this.config.validateConstraints &&
+      body != null &&
+      bodyType !== undefined
+    ) {
+      ConstraintValidator.validate(body, bodyType);
+    }
     const callTimeout = requestOptions?.timeout;
     const callMaxRetries = requestOptions?.maxRetries;
     /* Only a stream call carries an idle timeout, in its StreamOptions. */
@@ -647,6 +676,17 @@ export abstract class BaseApi {
         const existing = headers["Cookie"];
         headers["Cookie"] = existing ? `${existing}; ${cookieStr}` : cookieStr;
       }
+      /* A challenge authenticator answers the challenge it remembers (D192). */
+      if (isChallengeAuthenticator(effectiveAuth)) {
+        const answer = effectiveAuth.authorization(
+          method,
+          BaseApi.requestTarget(url),
+        );
+        if (answer !== null) {
+          credentialHeaderNames.push("Authorization");
+          overlay({ Authorization: answer });
+        }
+      }
     }
     injectTraceContext(headers);
 
@@ -794,6 +834,32 @@ export abstract class BaseApi {
         }
       }
 
+      /* HTTP Digest (D192): a 401 with a challenge the authenticator accepts
+       * is answered and the request replayed once; a second 401 stands. */
+      if (
+        response.statusCode === 401 &&
+        isChallengeAuthenticator(effectiveAuth) &&
+        BaseApi.isReplayableBody(serializedBody)
+      ) {
+        const answer = BaseApi.answerChallenge(
+          effectiveAuth,
+          method,
+          url,
+          response.headers,
+        );
+        if (answer !== null) {
+          response = await this.apiClient.sendRequest(
+            method,
+            url,
+            BaseApi.withAuthorization(headers, answer),
+            serializedBody,
+            sendOptions,
+          );
+          statusCode = response.statusCode;
+          responseHeaders = response.headers;
+        }
+      }
+
       if (response.statusCode < 200 || response.statusCode >= 300) {
         this.throwApiError(response, method, url, errorSchemas);
       }
@@ -868,6 +934,8 @@ export abstract class BaseApi {
    *   to the call hook
    * @param urlTemplate the spec path template of the operation, given to the
    *   call hook
+   * @param bodyType the model name of the body (of its items for a list body),
+   *   checked against its schema when `validateConstraints` is on
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -887,6 +955,7 @@ export abstract class BaseApi {
     errorSchemas?: ErrorSchemas,
     operationId = operationName,
     urlTemplate = "",
+    bodyType?: string,
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -905,6 +974,7 @@ export abstract class BaseApi {
       errorSchemas,
       operationId,
       urlTemplate,
+      bodyType,
     );
     return result.data;
   }
@@ -999,7 +1069,73 @@ export abstract class BaseApi {
         );
       }
     }
+    if (
+      response.statusCode === 401 &&
+      isChallengeAuthenticator(effectiveAuth) &&
+      BaseApi.isReplayableBody(serializedBody)
+    ) {
+      const answer = BaseApi.answerChallenge(
+        effectiveAuth,
+        method,
+        url,
+        response.headers,
+      );
+      if (answer !== null) {
+        await response.close();
+        response = await transport.sendStreaming(
+          method,
+          url,
+          BaseApi.withAuthorization(headers, answer),
+          serializedBody,
+          sendOptions,
+        );
+      }
+    }
     return response;
+  }
+
+  /**
+   * The request target of a URL: its path and query, without the scheme and host.
+   */
+  private static requestTarget(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.pathname + parsed.search;
+    } catch {
+      return url.split("#")[0]!;
+    }
+  }
+
+  /**
+   * The answer to the challenge of a 401, or `null` when the response carries
+   * no challenge the authenticator accepts.
+   */
+  private static answerChallenge(
+    auth: ChallengeAuthenticator,
+    method: string,
+    url: string,
+    responseHeaders: Record<string, string>,
+  ): string | null {
+    const challenge = Object.entries(responseHeaders).find(
+      ([name]) => name.toLowerCase() === "www-authenticate",
+    )?.[1];
+    if (challenge === undefined || !auth.acceptChallenge(challenge)) {
+      return null;
+    }
+    return auth.authorization(method, BaseApi.requestTarget(url));
+  }
+
+  /** The headers with the Authorization header, whatever its case, replaced. */
+  private static withAuthorization(
+    headers: Record<string, string>,
+    authorization: string,
+  ): Record<string, string> {
+    const replayHeaders: Record<string, string> = {};
+    for (const [key, value] of Object.entries(headers)) {
+      if (key.toLowerCase() !== "authorization") replayHeaders[key] = value;
+    }
+    replayHeaders["Authorization"] = authorization;
+    return replayHeaders;
   }
 
   /**
@@ -1169,7 +1305,12 @@ export abstract class BaseApi {
       if (json === null) {
         return null as unknown as T;
       }
-      return returnType(json, statusCode);
+      /* A body that is one bare number is decoded with its own text as the
+       * number source, so a decimal body keeps every digit. */
+      const source = typeof json === "number" ? cleaned.trim() : undefined;
+      return ObjectSerializer.withNumberSource(source, () =>
+        returnType(json, statusCode),
+      );
     }
   }
 

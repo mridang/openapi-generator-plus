@@ -3105,6 +3105,25 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       end)
 
     assert Task.await(capped, 30_000).limit == 1024
+
+    # br is checked while it decodes too (issue #186). The optional :brotli NIF
+    # is declared only: :prod (see bhv transport 004), so this part runs only
+    # where a consumer has added it.
+    if Code.ensure_loaded?(:brotli) do
+      {:ok, br} = apply(:brotli, :encode, [:binary.copy(<<0>>, 64 * 1_048_576)])
+      br_url = start_server(200, "application/octet-stream", br, [{"Content-Encoding", "br"}])
+
+      br_capped =
+        Task.async(fn ->
+          Process.flag(:max_heap_size, %{size: 8_000_000, kill: true, error_logger: false, include_shared_binaries: true})
+
+          assert_raise {{moduleName}}.Errors.ResponseTooLargeError, fn ->
+            DefaultApiClient.send_request(client, :get, "#{br_url}/items/blob", %{}, nil)
+          end
+        end)
+
+      assert Task.await(br_capped, 30_000).limit == 1024
+    end
   end
 
   test "bhv streaming 001 a binary stream delivers the bytes in order and returns before the body has ended" do

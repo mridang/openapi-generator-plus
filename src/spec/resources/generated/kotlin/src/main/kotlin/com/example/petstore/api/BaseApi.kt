@@ -26,6 +26,7 @@ import com.example.petstore.StreamOptions
 import com.example.petstore.TraceContextUtil
 import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
+import com.example.petstore.auth.DigestAuthenticator
 import com.example.petstore.auth.HttpAwareAuthenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
@@ -302,6 +303,8 @@ abstract class BaseApi {
 
         fun statusOf(answer: R): Int
 
+        fun headersOf(answer: R): Map<String, String>
+
         /** Gives up an answer that will not be used, such as the 401 that a replay replaces. */
         fun discard(answer: R)
 
@@ -321,6 +324,8 @@ abstract class BaseApi {
 
         override fun statusOf(answer: ApiHttpResponse) = answer.statusCode
 
+        override fun headersOf(answer: ApiHttpResponse) = answer.headers
+
         override fun discard(answer: ApiHttpResponse) {
             // A buffered answer holds no connection, so there is nothing to give up.
         }
@@ -339,6 +344,8 @@ abstract class BaseApi {
         ) = apiClient.sendStreaming(method, url, headers, body)
 
         override fun statusOf(answer: ApiStreamResponse) = answer.statusCode
+
+        override fun headersOf(answer: ApiStreamResponse) = answer.headers
 
         override fun discard(answer: ApiStreamResponse) = answer.close()
 
@@ -369,6 +376,12 @@ abstract class BaseApi {
         }
         require(callMaxRetries == null || callMaxRetries >= 0) {
             "Invalid maxRetries: must not be negative (got $callMaxRetries)"
+        }
+        /* D189: with constraint validation on, a body that breaks a keyword of its schema is
+         * refused here, before anything is encoded, the hook starts or a request is sent. */
+        if (body != null && config.validateConstraints) {
+            com.example.petstore.ConstraintValidator
+                .validate(body)
         }
         val callStartedAt = System.nanoTime()
         var url = resolveUrl(path)
@@ -429,6 +442,13 @@ abstract class BaseApi {
         headers.putAll(headerParams)
         if (effectiveAuth != null) {
             headers.putAll(authHeaders.orEmpty())
+            // A Digest authenticator answers the challenge it remembers up front (D192).
+            if (effectiveAuth is DigestAuthenticator) {
+                effectiveAuth.authorization(method.uppercase(java.util.Locale.ROOT), requestTargetOf(url))?.let { answer ->
+                    headers.keys.removeAll { it.equals("Authorization", ignoreCase = true) }
+                    headers["Authorization"] = answer
+                }
+            }
             val cookies = effectiveAuth.getCookieParams()
             if (cookies.isNotEmpty()) {
                 // RFC 6265 — don't URL-encode cookie name/value; most cookie
@@ -562,6 +582,30 @@ abstract class BaseApi {
 
             var response = send(headers)
 
+            /* A Digest authenticator answers the server's challenge and the request is replayed once
+             * under the same rules as the token replay below; a second 401 stands (D192). */
+            if (transport.statusOf(response) == 401 && effectiveAuth is DigestAuthenticator) {
+                val challenge =
+                    transport
+                        .headersOf(response)
+                        .entries
+                        .lastOrNull { it.key.equals("WWW-Authenticate", ignoreCase = true) }
+                        ?.value
+                if (challenge != null &&
+                    effectiveAuth.acceptChallenge(challenge) &&
+                    requestBody !is Map<*, *> &&
+                    !(requestBody is BodySource && !requestBody.isReplayable)
+                ) {
+                    val answer = effectiveAuth.authorization(method.uppercase(java.util.Locale.ROOT), requestTargetOf(url))
+                    if (answer != null) {
+                        transport.discard(response)
+                        val replayHeaders = headers.toMutableMap()
+                        replayHeaders.keys.removeAll { it.equals("Authorization", ignoreCase = true) }
+                        replayHeaders["Authorization"] = answer
+                        response = send(replayHeaders)
+                    }
+                }
+            }
             if (transport.statusOf(response) == 401 && effectiveAuth is HttpAwareAuthenticator) {
                 // A cached OAuth2 token the API no longer accepts must not outlive this answer.
                 effectiveAuth.invalidateAccessToken()
@@ -671,6 +715,14 @@ abstract class BaseApi {
         failure.requestMethod = method
         failure.requestPath = requestPathOf(resolveUrl(path))
         return failure
+    }
+
+    /** The request target of a URL for a Digest answer: its path and query, without the fragment. */
+    private fun requestTargetOf(url: String): String {
+        val withoutFragment = url.substringBefore('#')
+        val query = withoutFragment.substringAfter('?', "")
+        val path = requestPathOf(withoutFragment)
+        return if (query.isEmpty()) path else "$path?$query"
     }
 
     /**

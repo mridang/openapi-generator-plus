@@ -29,6 +29,8 @@ module Petstore::Client
       def get_matrix_with_http_info: (?Options::GetMatrixOptions? options) -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
       def get_memo: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> Models::Memo
       def get_memo_with_http_info: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> ::Petstore::Client::ApiResult[Models::Memo]
+      def get_native_amount: (?Options::GetNativeAmountOptions? options) -> BigDecimal
+      def get_native_amount_with_http_info: (?Options::GetNativeAmountOptions? options) -> ::Petstore::Client::ApiResult[BigDecimal]
       def get_native_values: (?Options::GetNativeValuesOptions? options) -> Models::NativeValues
       def get_native_values_with_http_info: (?Options::GetNativeValuesOptions? options) -> ::Petstore::Client::ApiResult[Models::NativeValues]
       def get_order_by_id: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> Models::Order
@@ -47,6 +49,8 @@ module Petstore::Client
       def get_tree_with_http_info: (?Options::GetTreeOptions? options) -> ::Petstore::Client::ApiResult[Models::TreeNode]
       def head_memo: (String memo_id, ?Options::HeadMemoOptions? options) -> void
       def head_memo_with_http_info: (String memo_id, ?Options::HeadMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def list_native_amounts: (?Options::ListNativeAmountsOptions? options) -> Array[BigDecimal]
+      def list_native_amounts_with_http_info: (?Options::ListNativeAmountsOptions? options) -> ::Petstore::Client::ApiResult[Array[BigDecimal]]
       def options_memo: (String memo_id, ?Options::OptionsMemoOptions? options) -> void
       def options_memo_with_http_info: (String memo_id, ?Options::OptionsMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def patch_memo: (String memo_id, Models::Memo memo, ?Options::PatchMemoOptions? options) -> Models::Memo
@@ -57,6 +61,8 @@ module Petstore::Client
       def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+      def submit_allowance: (Models::Allowance allowance, ?Options::SubmitAllowanceOptions? options) -> void
+      def submit_allowance_with_http_info: (Models::Allowance allowance, ?Options::SubmitAllowanceOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def trace_memo: (String memo_id, ?Options::TraceMemoOptions? options) -> void
       def trace_memo_with_http_info: (String memo_id, ?Options::TraceMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def watch_notices_stream: (?Options::WatchNoticesOptions? options, ?::Petstore::Client::StreamOptions? stream_options) -> ::Petstore::Client::SseStream
@@ -85,6 +91,8 @@ module Petstore::Client
       def get_matrix_with_http_info: (?Options::GetMatrixOptions? options) -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
       def get_memo: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> Models::Memo
       def get_memo_with_http_info: (String memo_id, ?Options::GetMemoOptions? options, ?server: GetMemoServer?) -> ::Petstore::Client::ApiResult[Models::Memo]
+      def get_native_amount: (?Options::GetNativeAmountOptions? options) -> BigDecimal
+      def get_native_amount_with_http_info: (?Options::GetNativeAmountOptions? options) -> ::Petstore::Client::ApiResult[BigDecimal]
       def get_native_values: (?Options::GetNativeValuesOptions? options) -> Models::NativeValues
       def get_native_values_with_http_info: (?Options::GetNativeValuesOptions? options) -> ::Petstore::Client::ApiResult[Models::NativeValues]
       def get_order_by_id: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> Models::Order
@@ -103,6 +111,8 @@ module Petstore::Client
       def get_tree_with_http_info: (?Options::GetTreeOptions? options) -> ::Petstore::Client::ApiResult[Models::TreeNode]
       def head_memo: (String memo_id, ?Options::HeadMemoOptions? options) -> void
       def head_memo_with_http_info: (String memo_id, ?Options::HeadMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def list_native_amounts: (?Options::ListNativeAmountsOptions? options) -> Array[BigDecimal]
+      def list_native_amounts_with_http_info: (?Options::ListNativeAmountsOptions? options) -> ::Petstore::Client::ApiResult[Array[BigDecimal]]
       def options_memo: (String memo_id, ?Options::OptionsMemoOptions? options) -> void
       def options_memo_with_http_info: (String memo_id, ?Options::OptionsMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def patch_memo: (String memo_id, Models::Memo memo, ?Options::PatchMemoOptions? options) -> Models::Memo
@@ -113,6 +123,8 @@ module Petstore::Client
       def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+      def submit_allowance: (Models::Allowance allowance, ?Options::SubmitAllowanceOptions? options) -> void
+      def submit_allowance_with_http_info: (Models::Allowance allowance, ?Options::SubmitAllowanceOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def trace_memo: (String memo_id, ?Options::TraceMemoOptions? options) -> void
       def trace_memo_with_http_info: (String memo_id, ?Options::TraceMemoOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def watch_notices_stream: (?Options::WatchNoticesOptions? options, ?::Petstore::Client::StreamOptions? stream_options) -> ::Petstore::Client::SseStream

@@ -418,6 +418,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),
             new SupportingFileSpec("trace_context_util.mustache", "src", "trace-context-util.ts"),
             new SupportingFileSpec("call_hook.mustache", "src", "call-hook.ts"),
+            new SupportingFileSpec("constraint_validator.mustache", "src", "constraint-validator.ts"),
             new SupportingFileSpec("opentelemetry_call_hook.mustache", "src", "opentelemetry-call-hook.ts"),
             new SupportingFileSpec("tsconfig.mustache", "", "tsconfig.json"),
             new SupportingFileSpec("typedoc.mustache", "", "typedoc.json"),
@@ -445,10 +446,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** Base classes the barrel already exports, so a per-scheme class of the same name is skipped. */
     private static final Set<String> BASE_AUTHENTICATORS = Set.of(
-            "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator",
+            "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator",
             "OAuth2ClientCredentialsAuthenticator", "OAuth2PasswordAuthenticator",
             "OAuth2AuthorizationCodeAuthenticator", "OAuth2ImplicitAuthenticator",
-            "OpenIdConnectAuthenticator");
+            "OAuth2DeviceAuthorizationAuthenticator", "OpenIdConnectAuthenticator");
 
     /** Per-scheme authenticators for the barrel: {className, path}. Filled during generation. */
     private final List<Map<String, String>> perSchemeAuthExports = new ArrayList<>();
@@ -809,6 +810,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if (opsObj instanceof List<?>) {
             for (final Object o : (List<?>) opsObj) {
                 final CodegenOperation op = (CodegenOperation) o;
+                // A decimal response body (markDecimalReturn) names Decimal in the method.
+                if (op.returnType != null && op.returnType.contains("Decimal")) {
+                    brands.add("Decimal");
+                }
                 final List<CodegenParameter> positional = new ArrayList<>(op.allParams);
                 if (op.pathParams != null) {
                     positional.addAll(op.pathParams);
@@ -1013,6 +1018,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             final String classname = (String) operations.get("classname");
             if (classname != null) {
                 operations.put("classFilename", getFilenameCasing().apply(classname));
+            }
+            @SuppressWarnings("unchecked")
+            final List<CodegenOperation> decimalOps =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (decimalOps != null) {
+                decimalOps.forEach(BetterNodeCodegen::markDecimalReturn);
             }
             collectBrandImports(operations, objs);
 
@@ -1748,10 +1759,54 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildNodeSuperArgs(spec, envNames));
+        recordOAuth2MetadataUrl(ctx);
+        recordDeviceAuthorizationScheme(spec, String.valueOf(ctx.get("className")));
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             ctx.put("typeImports", List.of(imp("CredentialProvider", "./credentials")));
         }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators of a device authorization flow, for the test template (D191). */
+    private final List<Map<String, Object>> deviceAuthorizationSchemes = new ArrayList<>();
+
+    /**
+     * Lists a device authorization scheme under {@code deviceAuthorizationSchemes} with its spec
+     * URLs and scopes as literals, so the generated test checks the wrapper passes them (D191).
+     */
+    private void recordDeviceAuthorizationScheme(SchemeAuthSpec spec, String className) {
+        if (!"OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            return;
+        }
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("deviceAuthorizationUrlLiteral",
+                toStringLiteral(Objects.toString(spec.authorizationUrl(), "")));
+        entry.put("tokenUrlLiteral", toStringLiteral(Objects.toString(spec.tokenUrl(), "")));
+        entry.put("scopeLiteral", toStringLiteral(spec.scopes() == null
+                ? "" : String.join(" ", spec.scopes().keySet())));
+        deviceAuthorizationSchemes.add(entry);
+        additionalProperties.put("deviceAuthorizationSchemes", deviceAuthorizationSchemes);
+    }
+
+    /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
+    private final List<Map<String, Object>> oauth2MetadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Adds the quoted {@code oauth2MetadataUrlLiteral} to a scheme context that declares a metadata
+     * URL and lists the scheme under {@code oauth2MetadataUrlSchemes} for the generated test (D190).
+     */
+    private void recordOAuth2MetadataUrl(Map<String, Object> ctx) {
+        if (!Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))) {
+            return;
+        }
+        final String literal = toStringLiteral(String.valueOf(ctx.get("oauth2MetadataUrl")));
+        ctx.put("oauth2MetadataUrlLiteral", literal);
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", ctx.get("className"));
+        entry.put("oauth2MetadataUrlLiteral", literal);
+        oauth2MetadataUrlSchemes.add(entry);
+        additionalProperties.put("oauth2MetadataUrlSchemes", oauth2MetadataUrlSchemes);
     }
 
     /**
@@ -1790,6 +1845,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("BearerAuthenticator", "./bearer-authenticator"));
         }
+        if ("DigestAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("DigestAuthenticator", "./digest-authenticator"));
+        }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of(
                     imp("ApiKeyAuthenticator", "./api-key-authenticator"),
@@ -1810,6 +1868,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("OAuth2ImplicitAuthenticator",
                     "./oauth2-implicit-authenticator"));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            return List.of(imp("OAuth2DeviceAuthorizationAuthenticator",
+                    "./oauth2-device-authorization-authenticator"));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of(imp("OpenIdConnectAuthenticator",
@@ -1950,6 +2012,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     "resolveCredential(password, " + quoteSingle(envName(envNames, "password"))
                             + ", 'Basic auth password')");
         }
+        if ("DigestAuthenticator".equals(spec.baseClass())) {
+            return List.of("host",
+                    "resolveCredential(username, " + quoteSingle(envName(envNames, "username"))
+                            + ", 'Digest username')",
+                    "resolveCredential(password, " + quoteSingle(envName(envNames, "password"))
+                            + ", 'Digest password')");
+        }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
             return List.of("host",
                     "typeof token === 'function' ? token : resolveCredential(token, "
@@ -1983,6 +2052,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", oauthArg(envNames, "clientId"),
                     "'" + spec.authorizationUrl() + "'", formatNodeScopes(spec.scopes()));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "null";
+            return List.of("host", oauthArg(envNames, "clientId"),
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    formatNodeScopes(spec.scopes()), refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "'" + spec.openIdConnectUrl() + "'",
@@ -2285,11 +2361,16 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (nestsModel) {
                     serializerImports.add("reattachAdditionalProperties");
                 }
-                if (model.vendorExtensions.get("additionalPropertiesValue") != null) {
+                if (model.vendorExtensions.get("additionalPropertiesValue") != null
+                        || model.vars.stream().anyMatch(BetterNodeCodegen::holdsUnion)) {
                     serializerImports.add("ObjectSerializer");
                 }
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
                     serializerImports.add("decodePlainNumber");
+                }
+                if (model.vars.stream()
+                        .anyMatch(v -> Boolean.TRUE.equals(v.vendorExtensions.get("isPlainNumberDecimalArray")))) {
+                    serializerImports.add("decodePlainNumberArray");
                 }
                 if (model.vars.stream()
                         .anyMatch(v -> Boolean.TRUE.equals(v.vendorExtensions.get("isStringDecimal")))) {
@@ -2318,6 +2399,62 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return Boolean.TRUE.equals(prop.vendorExtensions.get("isPlainNumberDecimal"));
     }
 
+    /**
+     * Whether a scalar schema is a number-shaped decimal: a {@code type: number} with no
+     * format or with {@code format: decimal}, which this SDK reads as a {@code Decimal}.
+     */
+    private static boolean isNumberDecimalLeaf(@Nullable CodegenProperty leaf) {
+        return leaf != null
+                && !leaf.isContainer
+                && (leaf.isNumber || "number".equals(leaf.openApiType))
+                && (leaf.dataFormat == null || "decimal".equals(leaf.dataFormat))
+                && !"string".equals(leaf.openApiType);
+    }
+
+    /** Whether a scalar schema is a {@code type: string} with {@code format: decimal}. */
+    private static boolean isStringDecimalLeaf(@Nullable CodegenProperty leaf) {
+        return leaf != null
+                && !leaf.isContainer
+                && "decimal".equals(leaf.dataFormat)
+                && "string".equals(leaf.openApiType);
+    }
+
+    /**
+     * Types a decimal response body, bare or the leaf of an array or map, as {@code Decimal}
+     * and flags the leaf {@code isDecimalLeaf} (and {@code isStringDecimalLeaf} for the
+     * string-shaped form), so the response deserializer reads it through
+     * {@code ObjectSerializer.deserializeDecimal} from its exact text rather than casting the
+     * double {@code JSON.parse} produced.
+     *
+     * @param op the operation whose return type to mark
+     */
+    static void markDecimalReturn(final CodegenOperation op) {
+        if (op.returnProperty == null || op.returnType == null) {
+            return;
+        }
+        CodegenProperty leaf = op.returnProperty;
+        while (leaf != null && leaf.isContainer) {
+            leaf = leaf.items;
+        }
+        final boolean number = isNumberDecimalLeaf(leaf);
+        final boolean string = isStringDecimalLeaf(leaf);
+        if (leaf == null || !(number || string)) {
+            return;
+        }
+        leaf.vendorExtensions.put("isDecimalLeaf", true);
+        leaf.vendorExtensions.put("isStringDecimalLeaf", string);
+        final String scalar = number ? "number" : "string";
+        if (!op.returnProperty.isContainer) {
+            op.returnType = "Decimal";
+            op.returnBaseType = "Decimal";
+        } else {
+            op.returnType = op.returnType.replace(scalar, "Decimal");
+            if (scalar.equals(op.returnBaseType)) {
+                op.returnBaseType = "Decimal";
+            }
+        }
+    }
+
     /** Whether the property is a {@code format: ipv4} or {@code ipv6} string, or an array of them. */
     private static boolean holdsIpAddress(CodegenProperty prop) {
         return Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv4"))
@@ -2338,18 +2475,32 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     protected boolean needsTypeDecorator(CodegenProperty prop) {
-        if (isPlainDate(prop)) {
+        if (isPlainDate(prop) || holdsUnion(prop)) {
             return false;
         }
         return super.needsTypeDecorator(prop);
     }
 
+    /**
+     * Whether the property's type is a oneOf or anyOf wrapper class, whose wire value
+     * may be a scalar or an array: it is decoded through {@code ObjectSerializer}
+     * rather than class-transformer's {@code @Type} (#98).
+     */
+    @SuppressWarnings("unchecked")
+    private static boolean holdsUnion(CodegenProperty prop) {
+        final Object decorators = prop.vendorExtensions.get("prop");
+        return decorators instanceof Map
+                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("complexTypeIsUnion"));
+    }
+
     /** Whether the model template emits an {@code @Transform} for the property. */
     private static boolean hasTransform(CodegenProperty prop) {
         final Map<String, Object> ext = prop.vendorExtensions;
-        return Boolean.TRUE.equals(ext.get("isTimeFormat"))
+        return holdsUnion(prop)
+                || Boolean.TRUE.equals(ext.get("isTimeFormat"))
                 || Boolean.TRUE.equals(ext.get("isDurationFormat"))
                 || Boolean.TRUE.equals(ext.get("isPlainNumberDecimal"))
+                || Boolean.TRUE.equals(ext.get("isPlainNumberDecimalArray"))
                 || Boolean.TRUE.equals(ext.get("isStringDecimal"))
                 || prop.isByteArray
                 || prop.isDateTime
@@ -2363,6 +2514,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * {@code additionalProperties}, which class-transformer would drop.
      */
     private static boolean nestsModel(CodegenProperty prop) {
+        if (holdsUnion(prop)) {
+            return false;
+        }
         if (prop.isArray) {
             return prop.items != null && prop.items.isModel;
         }
@@ -2441,12 +2595,23 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         // `number` schema type defaults to the `number` JS primitive at
         // the typeMapping layer to avoid collateral damage with `long`
         // and `integer`; we override at the property level here.
+        if (property.isArray && isNumberDecimalLeaf(property.items)) {
+            // An array of number-shaped decimals is an Array<Decimal>: each element is
+            // read from its exact source text (decodePlainNumberArray), never a double.
+            property.items.dataType = "Decimal";
+            property.items.datatypeWithEnum = "Decimal";
+            property.dataType = "Array<Decimal>";
+            property.datatypeWithEnum = "Array<Decimal>";
+            property.vendorExtensions.put("isPlainNumberDecimalArray", true);
+            return;
+        }
         final boolean isPlainNumber =
-                (property.isNumber || "number".equals(property.openApiType))
+                !property.isContainer
+                        && (property.isNumber || "number".equals(property.openApiType))
                         && (property.dataFormat == null || "decimal".equals(property.dataFormat))
                         && !"string".equals(property.openApiType);
         final boolean isStringDecimal =
-                "decimal".equals(property.dataFormat) && !isPlainNumber;
+                !property.isContainer && "decimal".equals(property.dataFormat) && !isPlainNumber;
         if (isPlainNumber || isStringDecimal) {
             property.dataType = "Decimal";
             property.datatypeWithEnum = "Decimal";

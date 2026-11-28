@@ -8,6 +8,14 @@ use std::sync::{Arc, Mutex};
 use {{packageName}}::api_client::{ApiClient, RequestBody, RequestOptions};
 use {{packageName}}::api_http_response::ApiHttpResponse;
 use {{packageName}}::auth::oauth::OAuth2TokenManager;
+{{#hasOAuth2DeviceAuthorization}}
+use {{packageName}}::auth::oauth::{
+    DeviceAuthDeviceAuthorizationAuthenticator, DeviceAuthorization,
+    OAuth2DeviceAuthorizationAuthenticator,
+};
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::OAuth2AuthorizationCodeError;
+{{/hasOAuth2DeviceAuthorization}}
 use {{packageName}}::{OAuth2ServerError, OAuth2TokenError};
 use {{packageName}}::{ApiError, ConfigurationError, NetworkError, NetworkTimeoutError};
 
@@ -20,6 +28,7 @@ struct FakeApiClient {
     last_no_redirect: Mutex<Option<bool>>,
     last_headers: Mutex<HashMap<String, String>>,
     requests: Mutex<Vec<(String, String)>>,
+    sent_at: Mutex<Vec<tokio::time::Instant>>,
 }
 
 impl FakeApiClient {
@@ -31,6 +40,7 @@ impl FakeApiClient {
             last_no_redirect: Mutex::new(None),
             last_headers: Mutex::new(HashMap::new()),
             requests: Mutex::new(Vec::new()),
+            sent_at: Mutex::new(Vec::new()),
         }
     }
 
@@ -87,6 +97,7 @@ impl ApiClient for FakeApiClient {
             *last_body = Some(sent_body.clone());
         }
         self.requests.lock().unwrap().push((url.to_string(), sent_body));
+        self.sent_at.lock().unwrap().push(tokio::time::Instant::now());
         let response = {
             let mut responses = self.responses.lock().unwrap();
             responses.remove(0)
@@ -1881,4 +1892,313 @@ async fn test_bhv_misc_069_an_unusable_token_response_is_refused_naming_the_prob
         assert!(err.to_string().contains(problem), "{}", err);
     }
 }
+{{#hasOAuth2DeviceAuthorization}}
 
+/// A device authorization authenticator against the scripted client.
+fn device_authenticator(
+    client: Arc<FakeApiClient>,
+    scopes: Vec<String>,
+) -> OAuth2DeviceAuthorizationAuthenticator {
+    let mut authenticator = OAuth2DeviceAuthorizationAuthenticator::new(
+        "https://api.example.com",
+        "device-client",
+        "https://auth.example.com/device",
+        "https://auth.example.com/token",
+        scopes,
+        "",
+    );
+    authenticator
+        .as_http_aware_mut()
+        .expect("http aware")
+        .set_api_client(client);
+    authenticator
+}
+
+/// A device authorization with the given lifetime and interval.
+fn device_authorization(expires_in: u64, interval: u64) -> DeviceAuthorization {
+    DeviceAuthorization {
+        device_code: "dev-1".to_string(),
+        user_code: "u".to_string(),
+        verification_uri: "v".to_string(),
+        verification_uri_complete: None,
+        expires_in,
+        interval,
+    }
+}
+
+/// The device authorization request is a form POST of the client id and the
+/// scopes in declared order, and the answer is read into DeviceAuthorization,
+/// with an interval of 5 seconds when the server sends none.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwodevice_700_device_authorization_request_and_response() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"device_code":"dev-1","user_code":"ABCD-EFGH","verification_uri":"https://auth.example.com/activate","verification_uri_complete":"https://auth.example.com/activate?user_code=ABCD-EFGH","expires_in":1800,"interval":7}"#,
+        200,
+    );
+    client.enqueue(
+        r#"{"device_code":"dev-2","user_code":"WXYZ","verification_uri":"https://auth.example.com/activate","expires_in":"600"}"#,
+        200,
+    );
+    let authenticator =
+        device_authenticator(client.clone(), vec!["read".to_string(), "write".to_string()]);
+
+    let first = authenticator
+        .request_device_authorization()
+        .await
+        .expect("a usable answer");
+    assert_eq!(
+        DeviceAuthorization {
+            device_code: "dev-1".to_string(),
+            user_code: "ABCD-EFGH".to_string(),
+            verification_uri: "https://auth.example.com/activate".to_string(),
+            verification_uri_complete: Some(
+                "https://auth.example.com/activate?user_code=ABCD-EFGH".to_string()
+            ),
+            expires_in: 1800,
+            interval: 7,
+        },
+        first
+    );
+    let second = authenticator
+        .request_device_authorization()
+        .await
+        .expect("a usable answer");
+    assert_eq!(5, second.interval);
+    assert_eq!(600, second.expires_in);
+    assert_eq!(None, second.verification_uri_complete);
+    assert_eq!(
+        (
+            "https://auth.example.com/device".to_string(),
+            "client_id=device-client&scope=read+write".to_string()
+        ),
+        client.requests()[0]
+    );
+    assert_eq!(
+        Some("application/x-www-form-urlencoded"),
+        client
+            .last_headers
+            .lock()
+            .unwrap()
+            .get("Content-Type")
+            .map(String::as_str)
+    );
+
+    let unscoped = Arc::new(FakeApiClient::new());
+    unscoped.enqueue(
+        r#"{"device_code":"d","user_code":"u","verification_uri":"v","expires_in":60}"#,
+        200,
+    );
+    device_authenticator(unscoped.clone(), vec![])
+        .request_device_authorization()
+        .await
+        .expect("a usable answer");
+    assert_eq!("client_id=device-client", unscoped.requests()[0].1);
+}
+
+/// An unusable device authorization answer is an OAuth2TokenError with a fixed
+/// message, and a non-2xx answer is an OAuth2ServerError.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_authoauthtwodevice_701_unusable_device_authorization_responses_are_typed() {
+    let cases = [
+        ("<html>ok</html>", "Device authorization response is not valid JSON"),
+        (r#"["a"]"#, "Device authorization response is not a JSON object"),
+        (
+            r#"{"user_code":"u","verification_uri":"v"}"#,
+            "Device authorization response missing or empty device_code field",
+        ),
+        (
+            r#"{"device_code":"","user_code":"u","verification_uri":"v"}"#,
+            "Device authorization response missing or empty device_code field",
+        ),
+        (
+            r#"{"device_code":7,"user_code":"u","verification_uri":"v"}"#,
+            "Device authorization response missing or empty device_code field",
+        ),
+        (
+            r#"{"device_code":"d","verification_uri":"v"}"#,
+            "Device authorization response missing or empty user_code field",
+        ),
+        (
+            r#"{"device_code":"d","user_code":"u"}"#,
+            "Device authorization response missing or empty verification_uri field",
+        ),
+    ];
+    for (body, message) in cases {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 200);
+        let err = device_authenticator(client, vec![])
+            .request_device_authorization()
+            .await
+            .expect_err("an unusable answer must fail");
+        let typed = err
+            .downcast_ref::<OAuth2TokenError>()
+            .unwrap_or_else(|| panic!("{}: expected OAuth2TokenError, got: {}", body, err));
+        assert_eq!(message, typed.message(), "{}", body);
+    }
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+    let err = device_authenticator(client, vec![])
+        .request_device_authorization()
+        .await
+        .expect_err("a 401 must fail");
+    let typed = err
+        .downcast_ref::<OAuth2ServerError>()
+        .unwrap_or_else(|| panic!("expected OAuth2ServerError, got: {}", err));
+    assert_eq!(401, typed.status_code());
+    assert_eq!(Some("invalid_client"), typed.code());
+}
+
+/// Polling posts the device code grant to the token URL and keeps polling while
+/// the server answers authorization_pending.
+#[tokio::test(start_paused = true)]
+async fn test_bhv_authoauthtwodevice_702_poll_for_token_posts_the_device_code_grant_until_approved() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"authorization_pending"}"#, 400);
+    client.enqueue(r#"{"error":"authorization_pending"}"#, 400);
+    client.enqueue(r#"{"access_token":"device-token"}"#, 200);
+    let authenticator = device_authenticator(client.clone(), vec![]);
+
+    authenticator
+        .poll_for_token(&device_authorization(600, 5))
+        .await
+        .expect("the third poll is approved");
+
+    let requests = client.requests();
+    assert_eq!(3, requests.len());
+    for (url, body) in requests {
+        assert_eq!("https://auth.example.com/token", url);
+        assert_eq!(
+            "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-1",
+            body
+        );
+    }
+}
+
+/// A slow_down answer adds five seconds to the polling interval.
+#[tokio::test(start_paused = true)]
+async fn test_bhv_authoauthtwodevice_703_slow_down_adds_five_seconds_to_the_interval() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"slow_down"}"#, 400);
+    client.enqueue(r#"{"access_token":"device-token"}"#, 200);
+    let authenticator = device_authenticator(client.clone(), vec![]);
+    let started = tokio::time::Instant::now();
+
+    authenticator
+        .poll_for_token(&device_authorization(600, 5))
+        .await
+        .expect("the second poll is approved");
+
+    let sent_at = client.sent_at.lock().unwrap().clone();
+    assert_eq!(
+        vec![
+            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(10)
+        ],
+        vec![sent_at[0] - started, sent_at[1] - sent_at[0]]
+    );
+}
+
+/// Any other token error ends polling with the OAuth2ServerError, and polling
+/// past expires_in ends with an OAuth2TokenError.
+#[tokio::test(start_paused = true)]
+async fn test_bhv_authoauthtwodevice_704_polling_ends_on_other_errors_and_on_expiry() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"authorization_pending"}"#, 400);
+    client.enqueue(r#"{"error":"access_denied"}"#, 400);
+    let err = device_authenticator(client, vec![])
+        .poll_for_token(&device_authorization(600, 5))
+        .await
+        .expect_err("access_denied ends polling");
+    let typed = err
+        .downcast_ref::<OAuth2ServerError>()
+        .unwrap_or_else(|| panic!("expected OAuth2ServerError, got: {}", err));
+    assert_eq!(Some("access_denied"), typed.code());
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"authorization_pending"}"#, 400);
+    client.enqueue(r#"{"error":"authorization_pending"}"#, 400);
+    let err = device_authenticator(client.clone(), vec![])
+        .poll_for_token(&device_authorization(12, 5))
+        .await
+        .expect_err("polling past expires_in fails");
+    let typed = err
+        .downcast_ref::<OAuth2TokenError>()
+        .unwrap_or_else(|| panic!("expected OAuth2TokenError, got: {}", err));
+    assert_eq!(
+        "Device authorization expired before the user approved it",
+        typed.message()
+    );
+    assert_eq!(2, client.requests().len());
+}
+
+/// Before a token is obtained the authenticator refuses to authenticate; after
+/// it, the bearer header carries the polled access token.
+#[tokio::test(start_paused = true)]
+async fn test_bhv_authoauthtwodevice_705_auth_headers_need_a_polled_token() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"device-token","expires_in":3600}"#, 200);
+    let authenticator = device_authenticator(client, vec![]);
+
+    let err = authenticator
+        .try_auth_headers()
+        .await
+        .expect_err("no token was polled yet");
+    assert_eq!(
+        Some(&OAuth2AuthorizationCodeError::DeviceTokenNotPolled),
+        err.downcast_ref::<OAuth2AuthorizationCodeError>()
+    );
+    assert_eq!(
+        "Must call poll_for_token() before making API requests",
+        err.to_string()
+    );
+
+    authenticator
+        .poll_for_token(&device_authorization(600, 5))
+        .await
+        .expect("the poll is approved");
+    let headers = authenticator.try_auth_headers().await.expect("a token");
+    assert_eq!(
+        Some("Bearer device-token"),
+        headers.get("Authorization").map(String::as_str)
+    );
+}
+
+/// The per-scheme wrapper passes the spec's device authorization URL, token URL
+/// and scopes in declared order.
+#[tokio::test(start_paused = true)]
+async fn test_bhv_authoauthtwodevice_706_the_device_auth_wrapper_sends_the_spec_scopes_and_urls() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"device_code":"dev-1","user_code":"u","verification_uri":"v","expires_in":600}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"device-token"}"#, 200);
+    let mut authenticator =
+        DeviceAuthDeviceAuthorizationAuthenticator::new("https://api.example.com", Some("device-client"))
+            .expect("a client id was passed");
+    authenticator
+        .as_http_aware_mut()
+        .expect("http aware")
+        .set_api_client(client.clone());
+
+    let authorization = authenticator
+        .request_device_authorization()
+        .await
+        .expect("a usable answer");
+    authenticator
+        .poll_for_token(&authorization)
+        .await
+        .expect("the poll is approved");
+
+    let requests = client.requests();
+    assert_eq!(
+        (
+            "https://auth.example.com/oauth/device".to_string(),
+            "client_id=device-client&scope=pets%3Aread+pets%3Awrite".to_string()
+        ),
+        requests[0]
+    );
+    assert_eq!("https://auth.example.com/oauth/token", requests[1].0);
+}
+{{/hasOAuth2DeviceAuthorization}}

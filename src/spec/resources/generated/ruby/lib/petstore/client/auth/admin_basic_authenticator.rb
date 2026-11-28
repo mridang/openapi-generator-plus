@@ -10,6 +10,7 @@
 module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the adminBasic security scheme.
+    # Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
     class AdminBasicAuthenticator < BasicAuthenticator
       # A credential not given here is read, once, from the environment variable
       # of this scheme (an empty variable counts as unset), then from the token

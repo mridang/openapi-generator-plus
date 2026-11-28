@@ -41,7 +41,11 @@ data class Metadata(
         if (this === other) return true
         if (other == null || this::class != other::class) return false
         other as Metadata
-        if (createdAt != other.createdAt) return false
+        if (createdAt == null) {
+            if (other.createdAt != null) return false
+        } else if (!createdAt.equals(other.createdAt)) {
+            return false
+        }
         // The additionalProperties overflow bucket is a @Transient property in the
         // class body, so Kotlin's synthesized data-class equals excludes it. Fold
         // it in here so two instances carrying different extra keys are unequal.

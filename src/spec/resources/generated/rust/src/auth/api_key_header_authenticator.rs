@@ -114,6 +114,14 @@ impl crate::auth::Authenticator for ApiKeyHeaderAuthenticator {
         self.0.invalidate_access_token()
     }
 
+    fn challenge_authorization(&self, method: &str, request_target: &str) -> Option<String> {
+        self.0.challenge_authorization(method, request_target)
+    }
+
+    fn accept_challenge(&self, www_authenticate: &str) -> bool {
+        self.0.accept_challenge(www_authenticate)
+    }
+
     fn as_http_aware_mut(&mut self) -> Option<&mut dyn crate::auth::HttpAwareAuthenticator> {
         self.0.as_http_aware_mut()
     }

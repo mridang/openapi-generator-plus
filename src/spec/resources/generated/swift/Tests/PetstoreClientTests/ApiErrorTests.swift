@@ -403,7 +403,8 @@ import Testing
             _ = try await api.getPetById(petId: 1)
             Issue.record("Expected error for status 429")
           } catch let error as TooManyRequestsError {
-            #expect(error is ClientError)
+            let family: Error = error
+            #expect(family is ClientError)
             #expect(error.statusCode == 429)
           }
         }
@@ -538,7 +539,8 @@ import Testing
     }
     #expect(caught is NotFoundError)
     #expect(caught?.statusCode == 404)
-    #expect(caught as? OpenAPIError != nil)
+    let asProtocol: (any OpenAPIError)? = caught
+    #expect(asProtocol != nil)
   }
 
   /* The status error constructors leave the response context unset unless it is passed. */

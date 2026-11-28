@@ -267,6 +267,27 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback get_native_amount(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetNativeAmountOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, Decimal.t()} | {:error, Exception.t()}
+
+  @callback get_native_amount!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetNativeAmountOptions.t() | nil,
+              keyword()
+            ) ::
+              Decimal.t()
+
+  @callback get_native_amount_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetNativeAmountOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback get_native_values(
               PetstoreClient.Api.StoreApi.t(),
               PetstoreClient.Api.Options.GetNativeValuesOptions.t() | nil,
@@ -465,6 +486,27 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback list_native_amounts(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.ListNativeAmountsOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, [Decimal.t()]} | {:error, Exception.t()}
+
+  @callback list_native_amounts!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.ListNativeAmountsOptions.t() | nil,
+              keyword()
+            ) ::
+              [Decimal.t()]
+
+  @callback list_native_amounts_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.ListNativeAmountsOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback options_memo(
               PetstoreClient.Api.StoreApi.t(),
               String.t(),
@@ -578,6 +620,30 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
   @callback search_store_with_http_info(
               PetstoreClient.Api.StoreApi.t(),
               PetstoreClient.Api.Options.SearchStoreOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback submit_allowance(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Models.Allowance.t(),
+              PetstoreClient.Api.Options.SubmitAllowanceOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, nil} | {:error, Exception.t()}
+
+  @callback submit_allowance!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Models.Allowance.t(),
+              PetstoreClient.Api.Options.SubmitAllowanceOptions.t() | nil,
+              keyword()
+            ) ::
+              nil
+
+  @callback submit_allowance_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Models.Allowance.t(),
+              PetstoreClient.Api.Options.SubmitAllowanceOptions.t() | nil,
               keyword()
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
@@ -2034,6 +2100,120 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Reads one exact decimal as the whole response body.
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, Decimal.t()}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_native_amount(
+          t(),
+          PetstoreClient.Api.Options.GetNativeAmountOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, Decimal.t()} | {:error, Exception.t()}
+  @impl true
+  def get_native_amount(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_native_amount_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for get_native_amount but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_native_amount`. Raises on error.
+  """
+  @spec get_native_amount!(
+          t(),
+          PetstoreClient.Api.Options.GetNativeAmountOptions.t() | nil,
+          keyword()
+        ) ::
+          Decimal.t()
+  @impl true
+  def get_native_amount!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_native_amount(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_native_amount` but returns the full `ApiResult`.
+  """
+  @spec get_native_amount_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetNativeAmountOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def get_native_amount_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/native-values/amount"
+    query_params = []
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "Decimal.t()",
+      auth,
+      Keyword.put(call, :operation, {"getNativeAmount", "/store/native-values/amount"}),
+      %{}
+    )
+  end
+
+  @doc """
   Reads values of the formats the SDKs type natively.
 
   ## Parameters
@@ -3234,6 +3414,120 @@ defmodule PetstoreClient.Api.StoreApi do
   end
 
   @doc """
+  Reads a list of exact decimals as the whole response body.
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, [Decimal.t()]}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec list_native_amounts(
+          t(),
+          PetstoreClient.Api.Options.ListNativeAmountsOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, [Decimal.t()]} | {:error, Exception.t()}
+  @impl true
+  def list_native_amounts(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_native_amounts_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for list_native_amounts but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `list_native_amounts`. Raises on error.
+  """
+  @spec list_native_amounts!(
+          t(),
+          PetstoreClient.Api.Options.ListNativeAmountsOptions.t() | nil,
+          keyword()
+        ) ::
+          [Decimal.t()]
+  @impl true
+  def list_native_amounts!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_native_amounts(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `list_native_amounts` but returns the full `ApiResult`.
+  """
+  @spec list_native_amounts_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ListNativeAmountsOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def list_native_amounts_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/native-values/amounts"
+    query_params = []
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "[Decimal.t()]",
+      auth,
+      Keyword.put(call, :operation, {"listNativeAmounts", "/store/native-values/amounts"}),
+      %{}
+    )
+  end
+
+  @doc """
   Lists the methods a memo accepts with an OPTIONS request
 
   Revisions of one memo, read and changed with the less common HTTP methods.
@@ -3938,6 +4232,114 @@ defmodule PetstoreClient.Api.StoreApi do
       "[Order]",
       auth,
       Keyword.put(call, :operation, {"searchStore", "/store/search"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Submit an allowance whose schema uses every validation keyword
+
+  ## Parameters
+    * `allowance` - Allowance
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, nil}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec submit_allowance(
+          t(),
+          PetstoreClient.Models.Allowance.t(),
+          PetstoreClient.Api.Options.SubmitAllowanceOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, nil} | {:error, Exception.t()}
+  @impl true
+  def submit_allowance(%__MODULE__{} = api, allowance, options \\ nil, opts \\ []) do
+    case submit_allowance_with_http_info(api, allowance, options, opts) do
+      {:ok, result} -> {:ok, result.data}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Bang version of `submit_allowance`. Raises on error.
+  """
+  @spec submit_allowance!(
+          t(),
+          PetstoreClient.Models.Allowance.t(),
+          PetstoreClient.Api.Options.SubmitAllowanceOptions.t() | nil,
+          keyword()
+        ) ::
+          nil
+  @impl true
+  def submit_allowance!(%__MODULE__{} = api, allowance, options \\ nil, opts \\ []) do
+    case submit_allowance(api, allowance, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `submit_allowance` but returns the full `ApiResult`.
+  """
+  @spec submit_allowance_with_http_info(
+          t(),
+          PetstoreClient.Models.Allowance.t(),
+          PetstoreClient.Api.Options.SubmitAllowanceOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def submit_allowance_with_http_info(%__MODULE__{} = api, allowance, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
+
+    if is_nil(allowance) do
+      raise ArgumentError,
+            "Missing the required parameter 'allowance' when calling StoreApi.submit_allowance"
+    end
+
+    path = "/store/allowance"
+    query_params = []
+    header_params = %{}
+
+    request_body =
+      PetstoreClient.ObjectSerializer.prepare_body(allowance, PetstoreClient.Models.Allowance)
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :POST,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      [],
+      "application/json",
+      nil,
+      auth,
+      Keyword.put(call, :operation, {"submitAllowance", "/store/allowance"}),
       %{}
     )
   end

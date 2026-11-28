@@ -30,17 +30,15 @@ impl serde::Serialize for TreatmentRecord {
         use serde::ser::Error;
         let mut merged = serde_json::Map::new();
         if let Some(ref variant) = self.surgery {
-            if let serde_json::Value::Object(map) =
-                serde_json::to_value(variant).map_err(S::Error::custom)?
-            {
-                merged.extend(map);
+            match serde_json::to_value(variant).map_err(S::Error::custom)? {
+                serde_json::Value::Object(map) => merged.extend(map),
+                other => return other.serialize(serializer),
             }
         }
         if let Some(ref variant) = self.medication {
-            if let serde_json::Value::Object(map) =
-                serde_json::to_value(variant).map_err(S::Error::custom)?
-            {
-                merged.extend(map);
+            match serde_json::to_value(variant).map_err(S::Error::custom)? {
+                serde_json::Value::Object(map) => merged.extend(map),
+                other => return other.serialize(serializer),
             }
         }
         serde_json::Value::Object(merged).serialize(serializer)
@@ -67,12 +65,14 @@ impl<'de> serde::Deserialize<'de> for TreatmentRecord {
         D: serde::Deserializer<'de>,
     {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
+        /* Each member is decoded from the exact JSON text, never from a
+         * serde_json::Value, so a decimal inside it keeps every digit. */
+        let text = crate::object_serializer::json_text(deserializer)?;
         let mut composite = TreatmentRecord::default();
-        if let Ok(variant) = serde_json::from_value::<Surgery>(value.clone()) {
+        if let Ok(variant) = crate::object_serializer::from_json_text::<Surgery>(&text) {
             composite.surgery = Some(variant);
         }
-        if let Ok(variant) = serde_json::from_value::<Medication>(value.clone()) {
+        if let Ok(variant) = crate::object_serializer::from_json_text::<Medication>(&text) {
             composite.medication = Some(variant);
         }
         if !composite.matches_any() {

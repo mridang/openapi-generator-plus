@@ -1,0 +1,156 @@
+{{>api_info}}
+"""The opt-in check of a request body against the validation keywords of its schema.
+
+It runs when ``Configuration.validate_constraints`` is on. Internal plumbing: it
+is not exported from the package.
+"""
+
+import re
+from typing import Any, Callable, Dict, NoReturn, Optional, Pattern
+
+{{#constraintModels}}
+from {{modelPackage}}.{{classFilename}} import {{classname}}
+{{/constraintModels}}
+
+_PATTERNS: Dict[str, Optional[Pattern[str]]] = {}
+
+
+def validate_request_body(body: Any) -> None:
+    """Check a request body before it is serialized.
+
+    A body that is not one of the models with a check, or a list of them,
+    passes unchecked.
+
+    Args:
+        body: The request body as the operation was given it.
+
+    Raises:
+        ValueError: Naming the path and the rule of the first violation.
+    """
+    if isinstance(body, (list, tuple)):
+        for index, item in enumerate(body):
+            _check_model(item, f'[{index}]')
+        return
+    _check_model(body, '')
+
+
+def _check_model(value: Any, prefix: str) -> None:
+    """Check a value that may be one of the models with a check, by its class or a base class."""
+    for klass in type(value).__mro__:
+        check = _CHECKS.get(klass)
+        if check is not None:
+            check(value, prefix)
+            return
+
+
+def _refuse(path: str, rule: str) -> NoReturn:
+    """Raise the argument error for a violation."""
+    raise ValueError(f'Invalid request body: {path} {rule}')
+
+
+def _join(prefix: str, name: str) -> str:
+    """The path of a property below a prefix."""
+    return f'{prefix}.{name}' if prefix else name
+
+
+def _is_number(value: Any) -> bool:
+    """Whether a value is a number the numeric keywords apply to."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _size(value: Any) -> int:
+    """The number of items of a list or set, or of keys of a map; -1 for anything else."""
+    return len(value) if isinstance(value, (list, tuple, set, frozenset, dict)) else -1
+
+
+def _is_multiple_of(value: Any, limit: float) -> bool:
+    """Whether a number is a multiple of a limit, within 1e-9 of a whole quotient."""
+    quotient = value / limit
+    return bool(abs(quotient - round(quotient)) < 1e-9)
+
+
+def _matches(value: str, pattern: str) -> bool:
+    """Whether a string contains a match of a pattern; a pattern ``re`` cannot compile always matches."""
+    if pattern not in _PATTERNS:
+        try:
+            _PATTERNS[pattern] = re.compile(pattern)
+        except re.error:
+            _PATTERNS[pattern] = None
+    compiled = _PATTERNS[pattern]
+    return compiled is None or compiled.search(value) is not None
+{{#constraintModels}}
+
+
+def _check_{{classFilename}}(value: Any, prefix: str) -> None:
+    """Check a value of the {{classname}} model."""
+{{#vendorExtensions.constraintProps}}
+    field_value = getattr(value, {{#lambda.quotedLiteral}}{{{name}}}{{/lambda.quotedLiteral}}, None)
+    if field_value is not None:
+        path = _join(prefix, {{#lambda.quotedLiteral}}{{{baseName}}}{{/lambda.quotedLiteral}})
+{{#checks}}
+{{#isMinLength}}
+        if isinstance(field_value, str) and len(field_value) < {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMinLength}}
+{{#isMaxLength}}
+        if isinstance(field_value, str) and len(field_value) > {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMaxLength}}
+{{#isPattern}}
+        if isinstance(field_value, str) and not _matches(field_value, {{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}}):
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isPattern}}
+{{#isMinimum}}
+        if _is_number(field_value) and field_value < {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMinimum}}
+{{#isMaximum}}
+        if _is_number(field_value) and field_value > {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMaximum}}
+{{#isExclusiveMinimum}}
+        if _is_number(field_value) and field_value <= {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isExclusiveMinimum}}
+{{#isExclusiveMaximum}}
+        if _is_number(field_value) and field_value >= {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isExclusiveMaximum}}
+{{#isMultipleOf}}
+        if _is_number(field_value) and not _is_multiple_of(field_value, {{{limit}}}):
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMultipleOf}}
+{{#isMinItems}}
+        if 0 <= _size(field_value) < {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMinItems}}
+{{#isMaxItems}}
+        if _size(field_value) > {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMaxItems}}
+{{#isMinProperties}}
+        if 0 <= _size(field_value) < {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMinProperties}}
+{{#isMaxProperties}}
+        if _size(field_value) > {{{limit}}}:
+            _refuse(path, {{#lambda.quotedLiteral}}{{{message}}}{{/lambda.quotedLiteral}})
+{{/isMaxProperties}}
+{{/checks}}
+{{#hasNestedModel}}
+        _check_model(field_value, path)
+{{/hasNestedModel}}
+{{#hasNestedItemsModel}}
+        if isinstance(field_value, (list, tuple, set, frozenset)):
+            for index, item in enumerate(field_value):
+                _check_model(item, f'{path}[{index}]')
+{{/hasNestedItemsModel}}
+{{/vendorExtensions.constraintProps}}
+{{/constraintModels}}
+
+
+_CHECKS: Dict[type, Callable[[Any, str], None]] = {
+{{#constraintModels}}
+    {{classname}}: _check_{{classFilename}},
+{{/constraintModels}}
+}

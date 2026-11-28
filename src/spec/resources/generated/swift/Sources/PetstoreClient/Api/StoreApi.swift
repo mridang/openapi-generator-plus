@@ -638,6 +638,56 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Memo.self)
   }
 
+  /// Reads one exact decimal as the whole response body.
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func getNativeAmount(options: GetNativeAmountOptions? = nil) async throws -> Decimal {
+    let result = try await getNativeAmountWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getNativeAmount but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getNativeAmount operation and returns the full API result.
+  public func getNativeAmountWithHTTPInfo(options: GetNativeAmountOptions? = nil) async throws
+    -> ApiResult<Decimal>
+  {
+
+    let path = "/store/native-values/amount"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Decimal",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.getNativeAmount",
+      operationId: "getNativeAmount",
+      urlTemplate: "/store/native-values/amount",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: Decimal.self)
+  }
+
   /// Reads values of the formats the SDKs type natively.
   ///
   /// - Parameters:
@@ -1156,6 +1206,57 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     return try await invokeAPIForEmptyResult(params)
   }
 
+  /// Reads a list of exact decimals as the whole response body.
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listNativeAmounts(options: ListNativeAmountsOptions? = nil) async throws -> [Decimal]
+  {
+    let result = try await listNativeAmountsWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listNativeAmounts but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listNativeAmounts operation and returns the full API result.
+  public func listNativeAmountsWithHTTPInfo(options: ListNativeAmountsOptions? = nil) async throws
+    -> ApiResult<[Decimal]>
+  {
+
+    let path = "/store/native-values/amounts"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[Decimal]",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.listNativeAmounts",
+      operationId: "listNativeAmounts",
+      urlTemplate: "/store/native-values/amounts",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: [Decimal].self)
+  }
+
   /// Lists the methods a memo accepts with an OPTIONS request
   /// Revisions of one memo, read and changed with the less common HTTP methods.
   ///
@@ -1515,6 +1616,51 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: [Order].self)
+  }
+
+  /// Submit an allowance whose schema uses every validation keyword
+  ///
+  /// - Parameters:
+  ///   - allowance: The request body.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func submitAllowance(allowance: Allowance, options: SubmitAllowanceOptions? = nil)
+    async throws
+  {
+    let result = try await submitAllowanceWithHTTPInfo(allowance: allowance, options: options)
+    _ = result
+  }
+
+  /// Performs the submitAllowance operation and returns the full API result.
+  public func submitAllowanceWithHTTPInfo(
+    allowance: Allowance, options: SubmitAllowanceOptions? = nil
+  ) async throws -> ApiResult<Void> {
+
+    let path = "/store/allowance"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = allowance
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: "application/json",
+      returnType: "",
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
+      operation: "StoreApi.submitAllowance",
+      operationId: "submitAllowance",
+      urlTemplate: "/store/allowance",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForEmptyResult(params)
   }
 
   /// Echoes a memo request with a TRACE request

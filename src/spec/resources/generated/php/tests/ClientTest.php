@@ -593,6 +593,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($storeListed)->toContain('getInventory')->toContain('getInventoryWithHttpInfo');
     expect($storeListed)->toContain('getMatrix')->toContain('getMatrixWithHttpInfo');
     expect($storeListed)->toContain('getMemo')->toContain('getMemoWithHttpInfo');
+    expect($storeListed)->toContain('getNativeAmount')->toContain('getNativeAmountWithHttpInfo');
     expect($storeListed)->toContain('getNativeValues')->toContain('getNativeValuesWithHttpInfo');
     expect($storeListed)->toContain('getOrderById')->toContain('getOrderByIdWithHttpInfo');
     expect($storeListed)->toContain('getOrderByTrackingId')->toContain('getOrderByTrackingIdWithHttpInfo');
@@ -602,11 +603,13 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($storeListed)->toContain('getTimestampGroups')->toContain('getTimestampGroupsWithHttpInfo');
     expect($storeListed)->toContain('getTree')->toContain('getTreeWithHttpInfo');
     expect($storeListed)->toContain('headMemo')->toContain('headMemoWithHttpInfo');
+    expect($storeListed)->toContain('listNativeAmounts')->toContain('listNativeAmountsWithHttpInfo');
     expect($storeListed)->toContain('optionsMemo')->toContain('optionsMemoWithHttpInfo');
     expect($storeListed)->toContain('patchMemo')->toContain('patchMemoWithHttpInfo');
     expect($storeListed)->toContain('placeOrder')->toContain('placeOrderWithHttpInfo');
     expect($storeListed)->toContain('reserveStock')->toContain('reserveStockWithHttpInfo');
     expect($storeListed)->toContain('searchStore')->toContain('searchStoreWithHttpInfo');
+    expect($storeListed)->toContain('submitAllowance')->toContain('submitAllowanceWithHttpInfo');
     expect($storeListed)->toContain('traceMemo')->toContain('traceMemoWithHttpInfo');
     expect($storeListed)->toContain('watchNoticesStream');
     expect($storeListed)->toContain('watchOrdersStream');
@@ -859,6 +862,7 @@ test('bhv misc 072 every api group holds the default credential and the scheme c
 test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
     expect(class_exists(\PetstoreClient\Auth\PetStoreBasicAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\AdminBasicAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ArchiveDigestAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\PetStoreBearerAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\ServiceTokenAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\ApiKeyHeaderAuthenticator::class))->toBeTrue();
@@ -869,6 +873,7 @@ test('bhv misc 073 a wrapper class exists for every security scheme the spec dec
     expect(class_exists(\PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\OAuth\UserAuthAuthorizationCodeAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\OAuth\BrowserAuthImplicitAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\DeviceAuthDeviceAuthorizationAuthenticator::class))->toBeTrue();
     expect(class_exists(\PetstoreClient\Auth\OAuth\SsoAuthAuthenticator::class))->toBeTrue();
 });
 

@@ -19,10 +19,16 @@ export 'src/auth/authenticator.dart' hide NoAuthAuthenticator, noAuth;
 export 'src/auth/base_authenticator.dart';
 export 'src/auth/basic_authenticator.dart';
 export 'src/auth/bearer_authenticator.dart';
+{{#hasDigestAuth}}
+export 'src/auth/digest_authenticator.dart';
+{{/hasDigestAuth}}
 export 'src/auth/http_aware_authenticator.dart';
 export 'src/auth/oauth/client_auth_method.dart';
 export 'src/auth/oauth/oauth2_authorization_code_authenticator.dart';
 export 'src/auth/oauth/oauth2_client_credentials_authenticator.dart';
+{{#hasOAuth2DeviceAuthorization}}
+export 'src/auth/oauth/oauth2_device_authorization_authenticator.dart';
+{{/hasOAuth2DeviceAuthorization}}
 export 'src/auth/oauth/oauth2_implicit_authenticator.dart';
 export 'src/auth/oauth/oauth2_password_authenticator.dart';
 export 'src/auth/oauth/oauth2_token_manager.dart';

@@ -86,6 +86,18 @@ import Testing
     #expect(extras["extra"] == "x")
   }
 
+  /* The patternProperties schema types the extra properties (#84). */
+  @Test func testBhvModels704PatternPropertiesTypeTheExtraProperties() throws {
+    let sensors = try #require(
+      try ObjectSerializer.deserialize(
+        Data("{\"site\":\"north\",\"s1\":3,\"s2\":4}".utf8), as: Sensors.self))
+    let extras: [String: Int] = sensors.additionalProperties
+    #expect(extras == ["s1": 3, "s2": 4])
+    #expect(throws: SerializationError.self) {
+      try ObjectSerializer.deserialize(Data("{\"s1\":\"three\"}".utf8), as: Sensors.self)
+    }
+  }
+
   /* A value of the wrong JSON type fails the decode with the SDK's serialization error. */
   @Test func testBhvModels025AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode() {
     for body in ["{\"a\":2.5}", "{\"a\":\"2\"}"] {
@@ -364,7 +376,10 @@ import Testing
     "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD",
     "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
     "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY",
+    "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME",
+    "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD",
     "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
+    "SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID",
     "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
     "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID",
     "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
@@ -510,19 +525,21 @@ import Testing
     throws
   {
     let models: [String] = [
-      "Account", "ApiResponse", "AttachPetFilesRequest", "Availability", "BinaryVault", "Blobs",
-      "Car", "Category", "Circle", "Color", "Counters", "Defaults", "Department", "DryFood",
-      "EdgeCases", "Employee", "Freeform", "Ledger", "Medication", "MemberNotFound", "Memo",
-      "Metadata", "ModelError", "ModelResult", "Moments", "NativeValues", "Order", "Pet",
-      "PetAfterPage", "PetArchivePage", "PetCatalogPage", "PetCriteria", "PetEventPage", "PetFood",
-      "PetMatchPage", "PetNextUrlPage", "PetNotePage", "PetOffsetPage", "PetPageNumberPage",
-      "PetPassport", "PetTreatment", "PetWithOwner", "Photo", "PhotoMetadata",
-      "PhotoMetadataLocation", "Priority", "ProjectNotFound", "Rank", "RejectedRequest",
-      "RequiredNullable", "Reservation", "ReservationReceipt", "ReserveStockResponse", "Roster",
-      "Separator", "SetPetAvatarRequest", "SetPetAvatarThumbnailRequest", "Shape", "Sparse",
-      "Square", "Stage", "StateConflict", "StockItem", "StrictTag", "Subscription", "Surgery",
-      "Swatch", "Tag", "Tier", "TreatmentRecord", "TreeNode", "Truck", "UnexpectedFailure",
-      "UpstreamFailure", "Vehicle", "WetFood",
+      "Account", "Allowance", "AllowanceTier", "ApiResponse", "AttachPetFilesRequest", "Audit",
+      "Availability", "BinaryVault", "Blobs", "Car", "Category", "Circle", "Color", "Counters",
+      "Defaults", "Department", "DryFood", "EdgeCases", "Employee", "Freeform", "Ledger", "Letter",
+      "Medication", "MemberNotFound", "Memo", "Metadata", "ModelError", "ModelResult", "Moments",
+      "NativeValues", "Order", "Packet", "Parcel", "Pet", "PetAfterPage", "PetArchivePage",
+      "PetCatalogPage", "PetCriteria", "PetEventPage", "PetFood", "PetMatchPage", "PetNextUrlPage",
+      "PetNotePage", "PetOffsetPage", "PetPageNumberPage", "PetPassport", "PetTreatment",
+      "PetWithOwner", "Photo", "PhotoMetadata", "PhotoMetadataLocation", "Priority",
+      "ProjectNotFound", "Rank", "Reading", "ReadingInlineLevel", "ReadingLevel", "ReadingShape",
+      "RejectedRequest", "RequiredNullable", "Reservation", "ReservationReceipt",
+      "ReserveStockResponse", "Roster", "Sensors", "Separator", "SetPetAvatarRequest",
+      "SetPetAvatarThumbnailRequest", "Shape", "Shipment", "Sparse", "Square", "Stage",
+      "StateConflict", "StockItem", "StrictTag", "Subscription", "Surgery", "Swatch", "Tag", "Tier",
+      "TreatmentRecord", "TreeNode", "Truck", "UnexpectedFailure", "UpstreamFailure", "Vehicle",
+      "WetFood",
     ]
     for name in ["README.md", "SKILLS.md"] {
       for fence in swiftFences(try rootFile(name)) {

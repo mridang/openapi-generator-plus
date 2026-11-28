@@ -865,7 +865,7 @@ class PetApiProtocol(Protocol):
 
 
 class PetApi(BaseApi):
-    """PetApi provides methods for the pet API group.
+    r"""PetApi provides methods for the pet API group.
     Everything about your Pets (globs like /pets/\* and /pets/\*\*/ and an id of #{petId})
 
     .. seealso::

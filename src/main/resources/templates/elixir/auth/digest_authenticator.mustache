@@ -1,0 +1,227 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.DigestAuthenticator do
+  @moduledoc """
+  Authenticator for HTTP Digest authentication (RFC 7616).
+
+  Nothing is sent until the server answers 401 with a `WWW-Authenticate: Digest`
+  challenge; the SDK then hands the challenge to `accept_challenge/2` and replays
+  the request once with the answer. Later requests answer the remembered
+  challenge up front, with the nonce count incremented. MD5, MD5-sess, SHA-256
+  and SHA-256-sess are answered, with `qop=auth` or without qop; a challenge
+  that offers only `auth-int` or names another algorithm is not.
+  """
+
+  use {{moduleName}}.Auth.BaseAuthenticator
+
+  @type t :: %__MODULE__{
+          host: String.t(),
+          username: String.t(),
+          password: String.t(),
+          state: pid(),
+          cnonce_source: (-> String.t())
+        }
+
+  # The remembered challenge and the nonce count live in a process that every
+  # copy of this struct shares, as the token manager's token does. The password
+  # is masked as `***` in the Inspect representation; see the impl below.
+  # `cnonce_source` draws each answer's client nonce; a test fixes it.
+  defstruct [:host, :username, :password, :state, :cnonce_source]
+
+  defimpl Inspect do
+    def inspect(auth, opts), do: Inspect.Any.inspect(%{auth | password: "***"}, opts)
+  end
+
+  @algorithms %{"MD5" => :md5, "MD5-SESS" => :md5, "SHA-256" => :sha256, "SHA-256-SESS" => :sha256}
+
+  @doc """
+  Create a new Digest authenticator.
+
+  ## Parameters
+
+    * `host` - API base URL.
+    * `username` - The username. `nil` reads it from the environment variable
+      `{{envVarPrefix}}_USERNAME`.
+    * `password` - The password. `nil` reads it from the environment variable
+      `{{envVarPrefix}}_PASSWORD`.
+
+  Raises `ArgumentError` when the username is empty, either credential holds a
+  line break or NUL, or the username holds a double quote.
+  """
+  @spec new(String.t(), String.t() | nil, String.t() | nil) :: t()
+  def new(host, username, password) do
+    username = {{moduleName}}.Auth.BaseAuthenticator.credential(username, "USERNAME")
+    password = {{moduleName}}.Auth.BaseAuthenticator.credential(password, "PASSWORD")
+
+    if username == "" do
+      raise ArgumentError, "Digest username must not be empty"
+    end
+
+    if username =~ ~r/[\r\n\x00]/ or password =~ ~r/[\r\n\x00]/ do
+      raise ArgumentError, "Digest credentials must not contain a line break or NUL"
+    end
+
+    if String.contains?(username, "\"") do
+      raise ArgumentError, "Digest username must not contain a double quote"
+    end
+
+    {:ok, state} = Agent.start_link(fn -> %{challenge: nil, count: 0} end)
+
+    %__MODULE__{
+      host: host,
+      username: username,
+      password: password,
+      state: state,
+      cnonce_source: fn -> Base.encode16(:crypto.strong_rand_bytes(16), case: :lower) end
+    }
+  end
+
+  @impl true
+  def host(%__MODULE__{} = self), do: self.host
+
+  @doc """
+  A digest credential is never sent as a plain header: the SDK asks
+  `authorization/3` for each request instead.
+  """
+  @impl true
+  def auth_headers(%__MODULE__{}), do: %{}
+
+  @doc """
+  The `Authorization` value answering the remembered challenge for one request,
+  or `nil` before any challenge was accepted. Each answer counts the nonce up by
+  one and draws a fresh client nonce.
+  """
+  @spec authorization(t(), String.t(), String.t()) :: String.t() | nil
+  def authorization(%__MODULE__{} = self, method, request_target) do
+    taken =
+      Agent.get_and_update(self.state, fn
+        %{challenge: nil} = state -> {nil, state}
+        %{challenge: challenge, count: count} = state ->
+          taken = {challenge, count + 1}
+          {taken, %{state | count: count + 1}}
+      end)
+
+    case taken do
+      nil -> nil
+      {challenge, count} -> answer(self, challenge, String.upcase(method), request_target, count)
+    end
+  end
+
+  @doc """
+  Reads every Digest challenge of the `WWW-Authenticate` values (one per header
+  line) and remembers the first one this authenticator can answer, resetting the
+  nonce count. Returns whether a challenge was accepted.
+  """
+  @spec accept_challenge(t(), String.t() | [String.t()]) :: boolean()
+  def accept_challenge(%__MODULE__{} = self, www_authenticate) do
+    chosen =
+      www_authenticate
+      |> List.wrap()
+      |> Enum.join(", ")
+      |> parse_challenges()
+      |> Enum.find(fn {scheme, params} -> String.downcase(scheme) == "digest" and acceptable?(params) end)
+
+    case chosen do
+      nil ->
+        false
+
+      {_scheme, params} ->
+        challenge = %{
+          realm: Map.get(params, "realm", ""),
+          nonce: Map.get(params, "nonce", ""),
+          opaque: Map.get(params, "opaque"),
+          algorithm: Map.get(params, "algorithm"),
+          qop: Map.has_key?(params, "qop")
+        }
+
+        Agent.update(self.state, fn _state -> %{challenge: challenge, count: 0} end)
+        true
+    end
+  end
+
+  defp acceptable?(params) do
+    algorithm = Map.get(params, "algorithm")
+    qop = Map.get(params, "qop")
+
+    (is_nil(algorithm) or Map.has_key?(@algorithms, String.upcase(algorithm))) and
+      (is_nil(qop) or Enum.any?(String.split(qop, ","), &(String.downcase(String.trim(&1)) == "auth")))
+  end
+
+  defp answer(self, challenge, method, request_target, count) do
+    name = String.upcase(challenge.algorithm || "MD5")
+    hash = &hex(Map.fetch!(@algorithms, name), &1)
+    cnonce = self.cnonce_source.()
+    nc = count |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(8, "0")
+    first = hash.("#{self.username}:#{challenge.realm}:#{self.password}")
+    first = if String.ends_with?(name, "-SESS"), do: hash.("#{first}:#{challenge.nonce}:#{cnonce}"), else: first
+    second = hash.("#{method}:#{request_target}")
+
+    response =
+      if challenge.qop,
+        do: hash.("#{first}:#{challenge.nonce}:#{nc}:#{cnonce}:auth:#{second}"),
+        else: hash.("#{first}:#{challenge.nonce}:#{second}")
+
+    fields =
+      [
+        "username=#{quoted(self.username)}",
+        "realm=#{quoted(challenge.realm)}",
+        "nonce=#{quoted(challenge.nonce)}",
+        "uri=#{quoted(request_target)}",
+        challenge.algorithm && "algorithm=#{challenge.algorithm}",
+        "response=#{quoted(response)}"
+      ] ++
+        if(challenge.qop, do: ["qop=auth", "nc=#{nc}", "cnonce=#{quoted(cnonce)}"], else: []) ++
+        [challenge.opaque && "opaque=#{quoted(challenge.opaque)}"]
+
+    "Digest " <> (fields |> Enum.reject(&is_nil/1) |> Enum.join(", "))
+  end
+
+  defp hex(algorithm, text), do: algorithm |> :crypto.hash(text) |> Base.encode16(case: :lower)
+
+  defp quoted(value), do: "\"" <> String.replace(value, ["\\", "\""], &("\\" <> &1)) <> "\""
+
+  # The challenges of a header value as {scheme, params} pairs, in order;
+  # parameter names are lower-cased and quoted values unescaped.
+  defp parse_challenges(text), do: text |> scan([]) |> Enum.reverse()
+
+  defp scan("", acc), do: acc
+
+  defp scan(<<char, rest::binary>>, acc) when char in [?\s, ?\t, ?,], do: scan(rest, acc)
+
+  defp scan(text, acc) do
+    case Regex.run(~r/\A([!#$%&'*+\-.^_`|~0-9A-Za-z]+)(?:[ \t]*=[ \t]*)?/, text) do
+      nil ->
+        <<_char, rest::binary>> = text
+        scan(rest, acc)
+
+      [whole, token] ->
+        rest = binary_part(text, byte_size(whole), byte_size(text) - byte_size(whole))
+        if String.contains?(whole, "="), do: param(token, rest, acc), else: scan(rest, [{token, %{}} | acc])
+    end
+  end
+
+  defp param(name, text, acc) do
+    {value, rest} = param_value(text)
+
+    acc =
+      case acc do
+        [{scheme, params} | older] -> [{scheme, Map.put(params, String.downcase(name), value)} | older]
+        [] -> []
+      end
+
+    scan(rest, acc)
+  end
+
+  defp param_value(<<?", rest::binary>>), do: unquote_value(rest, "")
+
+  defp param_value(text) do
+    case Regex.run(~r/\A[!#$%&'*+\-.^_`|~0-9A-Za-z]*/, text) do
+      [token] -> {token, binary_part(text, byte_size(token), byte_size(text) - byte_size(token))}
+    end
+  end
+
+  defp unquote_value("", value), do: {value, ""}
+  defp unquote_value(<<?", rest::binary>>, value), do: {value, rest}
+  defp unquote_value(<<?\\, char, rest::binary>>, value), do: unquote_value(rest, value <> <<char>>)
+  defp unquote_value(<<char, rest::binary>>, value), do: unquote_value(rest, value <> <<char>>)
+end

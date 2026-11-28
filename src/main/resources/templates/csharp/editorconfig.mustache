@@ -85,6 +85,14 @@ dotnet_diagnostic.CS0618.severity = none
 # Next, ...); the model keeps the spec's name, as in the other SDKs.
 dotnet_diagnostic.CA1716.severity = none
 
+{{#hasDigestAuth}}
+# HTTP Digest (RFC 7616) makes MD5 its default algorithm, so a server that offers
+# only MD5 can be answered only with MD5. The Digest authenticator hashes with
+# SHA-256 whenever the challenge names it; MD5 appears nowhere else.
+[**/Auth/DigestAuthenticator.cs]
+dotnet_diagnostic.CA5351.severity = none
+
+{{/hasDigestAuth}}
 [Test/**.cs]
 dotnet_diagnostic.CS0618.severity = none
 # xunit discovers only public test classes, nested ones included, and a fixture

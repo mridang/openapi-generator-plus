@@ -10,6 +10,7 @@ from __future__ import annotations
 from pydantic import ConfigDict, Field
 from pydantic import StrictStr
 from petstore_client._types import ApiModel, hash_model
+from typing import Optional
 
 
 class DryFood(ApiModel):
@@ -19,6 +20,7 @@ class DryFood(ApiModel):
 
     food_type: StrictStr = Field(alias="foodType", default="dry")
     weight_kg: LaxFloat = Field(alias="weightKg")
+    price_per_kg: Optional[JsonNumber] = Field(default=None, alias="pricePerKg")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
@@ -34,6 +36,7 @@ class DryFood(ApiModel):
         return hash_model(self)
 
 
+from petstore_client._types import JsonNumber
 from petstore_client._types import LaxFloat
 
 DryFood.model_rebuild(raise_errors=False)

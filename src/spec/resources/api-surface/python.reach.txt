@@ -1,0 +1,3 @@
+# Python types allowed to be unreachable or internal-but-exported: <type> | <reason>
+petstore_client._types.ApiModel | base class of every model, defined in the private _types module; callers see it through each model and cannot import it from a public module
+petstore_client._types.CatchAllEnum | base class of every spec enum, defined in the private _types module; callers see it through each enum and cannot import it from a public module

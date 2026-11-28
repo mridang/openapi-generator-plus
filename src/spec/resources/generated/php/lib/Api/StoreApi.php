@@ -33,6 +33,7 @@ use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
 use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\Options\GetMatrixOptions;
 use PetstoreClient\Api\Options\GetMemoOptions;
+use PetstoreClient\Api\Options\GetNativeAmountOptions;
 use PetstoreClient\Api\Options\GetNativeValuesOptions;
 use PetstoreClient\Api\Options\GetOrderByIdOptions;
 use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
@@ -42,11 +43,13 @@ use PetstoreClient\Api\Options\GetSwatchGroupsOptions;
 use PetstoreClient\Api\Options\GetTimestampGroupsOptions;
 use PetstoreClient\Api\Options\GetTreeOptions;
 use PetstoreClient\Api\Options\HeadMemoOptions;
+use PetstoreClient\Api\Options\ListNativeAmountsOptions;
 use PetstoreClient\Api\Options\OptionsMemoOptions;
 use PetstoreClient\Api\Options\PatchMemoOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\SubmitAllowanceOptions;
 use PetstoreClient\Api\Options\TraceMemoOptions;
 use PetstoreClient\Api\Options\WatchNoticesOptions;
 use PetstoreClient\Api\Options\WatchOrdersOptions;
@@ -915,6 +918,78 @@ class StoreApi extends BaseApi implements StoreApiInterface
     }
 
     /**
+     * Reads one exact decimal as the whole response body.
+     * @param GetNativeAmountOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function getNativeAmount(?GetNativeAmountOptions $options = null): \Brick\Math\BigDecimal
+    {
+        $apiResult = $this->getNativeAmountWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for getNativeAmount but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Brick\Math\BigDecimal $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param GetNativeAmountOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\Brick\Math\BigDecimal>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function getNativeAmountWithHttpInfo(?GetNativeAmountOptions $options = null): ApiResult
+    {
+        $path = '/store/native-values/amount';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Brick\Math\BigDecimal> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \Brick\Math\BigDecimal::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'getNativeAmount',
+            urlTemplate: '/store/native-values/amount',
+        );
+        return $result;
+    }
+
+    /**
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -1675,6 +1750,79 @@ class StoreApi extends BaseApi implements StoreApiInterface
     }
 
     /**
+     * Reads a list of exact decimals as the whole response body.
+     * @param ListNativeAmountsOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \Ds\Vector<\Brick\Math\BigDecimal>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listNativeAmounts(?ListNativeAmountsOptions $options = null): \Ds\Vector
+    {
+        $apiResult = $this->listNativeAmountsWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listNativeAmounts but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\Brick\Math\BigDecimal> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListNativeAmountsOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\Ds\Vector<\Brick\Math\BigDecimal>>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listNativeAmountsWithHttpInfo(?ListNativeAmountsOptions $options = null): ApiResult
+    {
+        $path = '/store/native-values/amounts';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\Brick\Math\BigDecimal>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<\Brick\Math\BigDecimal>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'listNativeAmounts',
+            urlTemplate: '/store/native-values/amounts',
+        );
+        return $result;
+    }
+
+    /**
      * Lists the methods a memo accepts with an OPTIONS request
      * Revisions of one memo, read and changed with the less common HTTP methods.
      * @param string $memoId The memo whose revisions are read or changed
@@ -2113,6 +2261,61 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'searchStore',
             urlTemplate: '/store/search',
+        );
+        return $result;
+    }
+
+    /**
+     * Submit an allowance whose schema uses every validation keyword
+     * @param SubmitAllowanceOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function submitAllowance(\PetstoreClient\Models\Allowance $allowance, ?SubmitAllowanceOptions $options = null): void
+    {
+        $this->submitAllowanceWithHttpInfo($allowance, $options);
+    }
+
+    /**
+     * @param SubmitAllowanceOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function submitAllowanceWithHttpInfo(\PetstoreClient\Models\Allowance $allowance, ?SubmitAllowanceOptions $options = null): ApiResult
+    {
+        $path = '/store/allowance';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = $allowance;
+
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
+            'POST',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [],
+            'application/json',
+            null,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'submitAllowance',
+            urlTemplate: '/store/allowance',
         );
         return $result;
     }

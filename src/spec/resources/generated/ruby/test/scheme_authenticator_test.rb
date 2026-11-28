@@ -181,6 +181,7 @@ describe 'scheme authenticators' do
     [
       ['PetStoreBasicAuthenticator', 'BasicAuthenticator', { 'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', 'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD' }],
       ['AdminBasicAuthenticator', 'BasicAuthenticator', { 'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME', 'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD' }],
+      ['ArchiveDigestAuthenticator', 'DigestAuthenticator', { 'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME', 'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD' }],
       ['PetStoreBearerAuthenticator', 'BearerAuthenticator', { 'token' => 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN' }],
       ['ServiceTokenAuthenticator', 'BearerAuthenticator', { 'token' => 'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN' }],
       ['ApiKeyHeaderAuthenticator', 'ApiKeyAuthenticator', { 'api_key' => 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY' }],
@@ -191,6 +192,7 @@ describe 'scheme authenticators' do
       ['LegacyAuthPasswordAuthenticator', 'OAuth2PasswordAuthenticator', { 'client_id' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID', 'client_secret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET', 'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME', 'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD' }],
       ['UserAuthAuthorizationCodeAuthenticator', 'OAuth2AuthorizationCodeAuthenticator', { 'client_id' => 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID', 'client_secret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET', 'redirect_uri' => 'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI' }],
       ['BrowserAuthImplicitAuthenticator', 'OAuth2ImplicitAuthenticator', { 'client_id' => 'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID' }],
+      ['DeviceAuthDeviceAuthorizationAuthenticator', 'OAuth2DeviceAuthorizationAuthenticator', { 'client_id' => 'SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID' }],
       ['SsoAuthAuthenticator', 'OpenIdConnectAuthenticator', { 'client_id' => 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID', 'client_secret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET', 'redirect_uri' => 'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI' }]
     ]
   end
@@ -416,6 +418,10 @@ describe 'scheme authenticators' do
         _(auth.auth_headers['Authorization']).must_equal "Basic #{Base64.strict_encode64('given:pw')}", name
       end
     end
+  end
+
+  it 'bhv_authscheme_700 exposes the metadata url the scheme declares as a constant' do
+    _(scheme_class('MachineAuthClientCredentialsAuthenticator')::METADATA_URL).must_equal 'https://auth.example.com/.well-known/oauth-authorization-server'
   end
 
   it 'bhv_authoauthtwoimplicit_006 an implicit wrapper builds its authorization url with its spec scopes' do

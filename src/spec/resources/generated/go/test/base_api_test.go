@@ -33,6 +33,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
+	"petstore/internal/digestseam"
 	petstore "petstore/pkg"
 	"petstore/pkg/auth"
 	"petstore/pkg/auth/oauth"
@@ -658,6 +659,7 @@ type capturingApiClient struct {
 	capturedBody    any
 	capturedOpts    *petstore.RequestOptions
 	responseBody    string
+	calls           int
 }
 
 func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.ApiHttpResponse, error) {
@@ -665,6 +667,7 @@ func (c *capturingApiClient) SendRequest(method, url string, headers map[string]
 }
 
 func (c *capturingApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.ApiHttpResponse, error) {
+	c.calls++
 	c.capturedOpts = opts
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {
@@ -2474,6 +2477,95 @@ func TestBhvRetries002_BaseApi_ABearerRequestIsNeverReplayedOnA401(t *testing.T)
 	}
 	if got := srv.apiHits.Load(); got != 1 {
 		t.Errorf("expected no replay for a bearer token, got %d requests", got)
+	}
+}
+
+// ── D192: a 401 with a Digest challenge is answered and replayed once ──
+
+// digestChallengeHeader is the RFC 7616 example challenge.
+const digestChallengeHeader = `Digest realm="http-auth@example.org", qop="auth", algorithm=MD5, nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"`
+
+// digestScriptedClient answers from a script of statuses (the last repeats),
+// with the example Digest challenge on every 401, and keeps the Authorization
+// header of each request.
+type digestScriptedClient struct {
+	mu       sync.Mutex
+	statuses []int
+	sent     []string
+}
+
+func (c *digestScriptedClient) SendRequest(method, url string, headers map[string]string, body any) (*petstore.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *digestScriptedClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *petstore.RequestOptions) (*petstore.ApiHttpResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	status := c.statuses[min(len(c.sent), len(c.statuses)-1)]
+	c.sent = append(c.sent, headers["Authorization"])
+	if status == 401 {
+		return &petstore.ApiHttpResponse{StatusCode: 401, Body: `{"message":"challenge"}`, Headers: map[string]string{"content-type": "application/json", "www-authenticate": digestChallengeHeader}}, nil
+	}
+	return &petstore.ApiHttpResponse{StatusCode: 200, Body: `{"id":1,"name":"Test","photoUrls":[]}`, Headers: map[string]string{"content-type": "application/json"}}, nil
+}
+
+func (c *digestScriptedClient) Close() error { return nil }
+
+// digestApi is the API over a scripted client, authenticated by the RFC 7616
+// example user with the example's client nonce.
+func digestApi(t *testing.T, client *digestScriptedClient) *petstore.PetApi {
+	t.Helper()
+	authObj, err := auth.NewDigestAuthenticator("http://localhost", "Mufasa", "Circle of Life")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	digestseam.SetCnonce(authObj, "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ")
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	return petstore.NewPetApi(client, config, authObj, petstore.Credentials{})
+}
+
+// digestAnswerFor is the answer to the example challenge for GET /pet/7 with the given response and nonce count.
+func digestAnswerFor(response, nc string) string {
+	return `Digest username="Mufasa", realm="http-auth@example.org", nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", uri="/pet/7", algorithm=MD5, response="` + response + `", qop=auth, nc=` + nc + `, cnonce="f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ", opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"`
+}
+
+// A request goes without credentials, the 401 with a Digest challenge is
+// answered and the request replayed once, and a second 401 is returned as is.
+func TestBhvAuthdigest702_BaseApi_ADigestChallengeIsAnsweredAndTheRequestReplayedOnce(t *testing.T) {
+	t.Parallel()
+	client := &digestScriptedClient{statuses: []int{401, 200}}
+	if _, err := digestApi(t, client).GetPetById(context.Background(), int64(7), nil); err != nil {
+		t.Fatalf("expected the replayed request to succeed, got %v", err)
+	}
+	if want := []string{"", digestAnswerFor("680a940b3de8784bf5cb52faf53bbef4", "00000001")}; !reflect.DeepEqual(client.sent, want) {
+		t.Errorf("expected the requests %q, got %q", want, client.sent)
+	}
+
+	rejecting := &digestScriptedClient{statuses: []int{401}}
+	_, err := digestApi(t, rejecting).GetPetById(context.Background(), int64(7), nil)
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := len(rejecting.sent); got != 2 {
+		t.Errorf("expected exactly one replay, got %d requests", got)
+	}
+}
+
+// A later request answers the remembered challenge up front, with the nonce
+// count incremented to 00000002.
+func TestBhvAuthdigest703_BaseApi_ALaterRequestAnswersTheRememberedChallengeUpFront(t *testing.T) {
+	t.Parallel()
+	client := &digestScriptedClient{statuses: []int{401, 200}}
+	api := digestApi(t, client)
+	for range 2 {
+		if _, err := api.GetPetById(context.Background(), int64(7), nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	want := []string{"", digestAnswerFor("680a940b3de8784bf5cb52faf53bbef4", "00000001"), digestAnswerFor("bb35834772445b1909f78694eb67c9f3", "00000002")}
+	if !reflect.DeepEqual(client.sent, want) {
+		t.Errorf("expected the requests %q, got %q", want, client.sent)
 	}
 }
 
@@ -5073,5 +5165,133 @@ func TestBhvStreaming030_BaseApi_ATransportThatCannotStreamFailsAStreamCallNamin
 	}
 	if len(transport.sentURLs) != 1 || !strings.HasSuffix(transport.sentURLs[0], "/pet/1") {
 		t.Errorf("expected the buffered call to reach the transport, got %v", transport.sentURLs)
+	}
+}
+
+// ── Constraint validation (D189) ──
+
+// newConstraintApi builds a store API over a capturing transport, with
+// constraint validation on or off.
+func newConstraintApi(client *capturingApiClient, validate bool) *petstore.StoreApi {
+	config := petstore.NewConfigurationBuilder().
+		BaseURL("http://localhost").
+		ValidateConstraints(validate).
+		Build()
+	return petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
+}
+
+// assertConstraintRefused checks that a call failed with ErrInvalidRequestBody
+// and the exact message, and that nothing reached the transport.
+func assertConstraintRefused(t *testing.T, client *capturingApiClient, err error, want string) {
+	t.Helper()
+	if !errors.Is(err, petstore.ErrInvalidRequestBody) {
+		t.Fatalf("expected ErrInvalidRequestBody, got %v", err)
+	}
+	if err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+	if client.calls != 0 {
+		t.Errorf("expected the transport not to be called, got %d calls", client.calls)
+	}
+}
+
+func TestBhvModels706_BaseApi_ConstraintValidationIsOffByDefault(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewStoreApi(client, config, nil, petstore.Credentials{})
+	allowance := models.NewAllowance().WithLabel("a").WithCount(0)
+	if err := api.SubmitAllowance(context.Background(), allowance); err != nil {
+		t.Fatalf("expected the invalid body to be sent, got %v", err)
+	}
+	if client.calls != 1 {
+		t.Errorf("expected one call to the transport, got %d", client.calls)
+	}
+	if body, _ := client.capturedBody.([]byte); !strings.Contains(string(body), `"label":"a"`) {
+		t.Errorf("expected the body to be sent unchanged, got %q", string(body))
+	}
+}
+
+func TestBhvModels707_BaseApi_ConstraintValidationRefusesEachBrokenKeyword(t *testing.T) {
+	t.Parallel()
+	base := *models.NewAllowance()
+	rows := []struct {
+		keyword   string
+		allowance models.Allowance
+		message   string
+	}{
+		{"minLength", base.WithLabel("a"), "Invalid request body: label must be at least 2 characters long"},
+		{"maxLength", base.WithLabel("abcdef"), "Invalid request body: label must be at most 5 characters long"},
+		{"pattern", base.WithLabel("ab1"), "Invalid request body: label must match the pattern ^[a-z]+$"},
+		{"minimum", base.WithCount(0), "Invalid request body: count must be greater than or equal to 1"},
+		{"maximum", base.WithCount(11), "Invalid request body: count must be less than or equal to 10"},
+		{"exclusiveMinimum", base.WithRatio(0), "Invalid request body: ratio must be greater than 0"},
+		{"exclusiveMaximum", base.WithRatio(1), "Invalid request body: ratio must be less than 1"},
+		{"multipleOf", base.WithStep(7), "Invalid request body: step must be a multiple of 5"},
+		{"minItems", base.WithCodes([]string{}), "Invalid request body: codes must have at least 1 items"},
+		{"maxItems", base.WithCodes([]string{"a", "b", "c", "d"}), "Invalid request body: codes must have at most 3 items"},
+		{"minProperties", base.WithLimits(map[string]int32{}), "Invalid request body: limits must have at least 1 properties"},
+		{"maxProperties", base.WithLimits(map[string]int32{"a": 1, "b": 2, "c": 3}), "Invalid request body: limits must have at most 2 properties"},
+	}
+	for _, row := range rows {
+		t.Run(row.keyword, func(t *testing.T) {
+			t.Parallel()
+			client := &capturingApiClient{}
+			err := newConstraintApi(client, true).SubmitAllowance(context.Background(), row.allowance)
+			assertConstraintRefused(t, client, err, row.message)
+		})
+	}
+}
+
+func TestBhvModels708_BaseApi_ConstraintValidationNamesThePathOfAHeldModel(t *testing.T) {
+	t.Parallel()
+	base := *models.NewAllowance()
+	rows := []struct {
+		name      string
+		allowance models.Allowance
+		message   string
+	}{
+		{"held model", base.WithTier(models.NewAllowanceTier().WithLevel(-1)), "Invalid request body: tier.level must be greater than or equal to 0"},
+		{"list of models", base.WithParts([]models.AllowanceTier{models.NewAllowanceTier().WithLevel(0), models.NewAllowanceTier().WithLevel(-1)}), "Invalid request body: parts[1].level must be greater than or equal to 0"},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+			client := &capturingApiClient{}
+			err := newConstraintApi(client, true).SubmitAllowance(context.Background(), row.allowance)
+			assertConstraintRefused(t, client, err, row.message)
+		})
+	}
+}
+
+func TestBhvModels709_BaseApi_ConstraintValidationSendsAValidBodyAndSkipsAbsentValues(t *testing.T) {
+	t.Parallel()
+	valid := models.NewAllowance().
+		WithLabel("abc").
+		WithCount(5).
+		WithRatio(0.5).
+		WithStep(10).
+		WithCodes([]string{"a"}).
+		WithLimits(map[string]int32{"a": 1}).
+		WithTier(models.NewAllowanceTier().WithLevel(0).WithName("abc")).
+		WithParts([]models.AllowanceTier{models.NewAllowanceTier().WithLevel(1)})
+	rows := []struct {
+		name      string
+		allowance models.Allowance
+	}{
+		{"every constraint met", valid},
+		{"every value absent", *models.NewAllowance()},
+	}
+	for _, row := range rows {
+		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+			client := &capturingApiClient{}
+			if err := newConstraintApi(client, true).SubmitAllowance(context.Background(), row.allowance); err != nil {
+				t.Fatalf("expected the body to be sent, got %v", err)
+			}
+			if client.calls != 1 {
+				t.Errorf("expected one call to the transport, got %d", client.calls)
+			}
+		})
 	}
 }

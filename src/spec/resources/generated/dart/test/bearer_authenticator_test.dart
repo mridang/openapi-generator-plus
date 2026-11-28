@@ -548,6 +548,16 @@ void main() {
         reason: 'BrowserAuthImplicitAuthenticator',
       );
       expect(
+        () => DeviceAuthDeviceAuthorizationAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'DeviceAuthDeviceAuthorizationAuthenticator',
+      );
+      expect(
         () => InternalApiKeyAuthenticator(
           host: '/api/v3',
           environment: {
@@ -706,6 +716,20 @@ void main() {
             ),
           ),
           reason: 'BrowserAuthImplicitAuthenticator',
+        );
+        expect(
+          () => DeviceAuthDeviceAuthorizationAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'DeviceAuthDeviceAuthorizationAuthenticator',
         );
         expect(
           () => InternalApiKeyAuthenticator(
@@ -891,6 +915,20 @@ void main() {
             ),
           ),
           reason: 'BrowserAuthImplicitAuthenticator',
+        );
+        expect(
+          () => DeviceAuthDeviceAuthorizationAuthenticator(
+            host: '/api/v3',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'DeviceAuthDeviceAuthorizationAuthenticator',
         );
         expect(
           () => InternalApiKeyAuthenticator(
@@ -1088,6 +1126,22 @@ void main() {
           reason: 'BrowserAuthImplicitAuthenticator',
         );
         expect(
+          () => DeviceAuthDeviceAuthorizationAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'DeviceAuthDeviceAuthorizationAuthenticator',
+        );
+        expect(
           () => InternalApiKeyAuthenticator(
             host: '/api/v3',
             environment: {
@@ -1281,6 +1335,16 @@ void main() {
           ).toString(),
           startsWith('BrowserAuthImplicitAuthenticator('),
           reason: 'BrowserAuthImplicitAuthenticator',
+        );
+        expect(
+          DeviceAuthDeviceAuthorizationAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID': 'value',
+            },
+          ).toString(),
+          startsWith('DeviceAuthDeviceAuthorizationAuthenticator('),
+          reason: 'DeviceAuthDeviceAuthorizationAuthenticator',
         );
         expect(
           InternalApiKeyAuthenticator(
@@ -1493,6 +1557,20 @@ void main() {
               'message',
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
             ),
+          ),
+        );
+      },
+    );
+  });
+
+  group('per-scheme metadata url', () {
+    test(
+      'bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator',
+      () {
+        expect(
+          MachineAuthClientCredentialsAuthenticator.metadataUrl,
+          equals(
+            'https://auth.example.com/.well-known/oauth-authorization-server',
           ),
         );
       },

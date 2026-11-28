@@ -2257,6 +2257,89 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.location == [1.5, 2.5, "label"]
     end
 
+    test "bhv models 700 a type array of scalars decodes each type into its union and writes it back" do
+      text =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"level":"high","inlineLevel":3}),
+          "Reading"
+        )
+
+      assert PetstoreClient.Models.ReadingLevel.actual_instance(text.level) == "high"
+      assert PetstoreClient.Models.ReadingInlineLevel.actual_instance(text.inline_level) == 3
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(text))["level"] == "high"
+
+      number = PetstoreClient.ObjectSerializer.deserialize(~s({"level":7}), "Reading")
+      assert PetstoreClient.Models.ReadingLevel.actual_instance(number.level) == 7
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(number))["level"] == 7
+    end
+
+    test "bhv models 701 a type array of array and object decodes both shapes and writes them back" do
+      list =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"level":1,"shape":["a","b"]}), "Reading")
+
+      assert PetstoreClient.Models.ReadingShape.actual_instance(list.shape) == ["a", "b"]
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(list))["shape"] == ["a", "b"]
+
+      map =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"level":1,"shape":{"k":"v"}}), "Reading")
+
+      assert PetstoreClient.Models.ReadingShape.actual_instance(map.shape) == %{"k" => "v"}
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(map))["shape"] == %{
+               "k" => "v"
+             }
+    end
+
+    test "bhv unions 700 a missing or unlisted discriminator value decodes as the defaultMapping variant" do
+      unlisted =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"kind":"postcard","pages":2}), "Parcel")
+
+      assert %PetstoreClient.Models.Letter{pages: 2} = unlisted
+
+      assert %PetstoreClient.Models.Letter{} =
+               PetstoreClient.ObjectSerializer.deserialize(~s({"pages":3}), "Parcel")
+
+      assert %PetstoreClient.Models.Packet{} =
+               PetstoreClient.ObjectSerializer.deserialize(
+                 ~s({"kind":"packet","weightKg":1.5}),
+                 "Parcel"
+               )
+    end
+
+    test "bhv models 705 the properties of then and else are optional properties and the condition is not enforced" do
+      shipment =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"kind":"domestic","customsCode":"C2","postcode":"2000"}),
+          "Shipment"
+        )
+
+      assert shipment.customs_code == "C2"
+      assert shipment.postcode == "2000"
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(shipment))["customsCode"] ==
+               "C2"
+    end
+
+    test "bhv models 703 the validation-only JSON Schema keywords are not enforced" do
+      audit =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"tags":["a","b"],"score":-5,"payload":"not json"}),
+          "Audit"
+        )
+
+      assert audit.tags == ["a", "b"]
+      assert audit.score == -5
+      assert audit.payload == "not json"
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(audit))["score"] == -5
+    end
+
+    test "bhv models 702 a property of type null accepts null" do
+      reading =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"level":1,"nothing":null}), "Reading")
+
+      assert reading.nothing == nil
+    end
+
     test "bhv serializationobject 117 a digit-leading and a keyword-named property keep their wire keys" do
       edge = %PetstoreClient.Models.EdgeCases{
         n2fa: true,

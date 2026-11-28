@@ -1913,6 +1913,70 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvModels700 a type array of scalars decodes each type into its union and writes it back")
+        fun scalarTypeArrayDecodesEachType() {
+            val text = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":\"high\",\"inlineLevel\":3}")!!
+            assertEquals("high", text.level.actualInstance)
+            assertEquals(3L, text.inlineLevel!!.actualInstance)
+            assertTrue(serializer.serialize(text).contains("\"level\":\"high\""))
+            val number = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":7}")!!
+            assertEquals(7L, number.level.actualInstance)
+            assertTrue(serializer.serialize(number).contains("\"level\":7"))
+        }
+
+        @Test
+        @DisplayName("bhvModels701 a type array of array and object decodes both shapes and writes them back")
+        fun arrayAndObjectTypeArrayDecodesBothShapes() {
+            val list = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"shape\":[\"a\",\"b\"]}")!!
+            assertEquals(listOf("a", "b"), list.shape!!.actualInstance)
+            assertTrue(serializer.serialize(list).contains("\"shape\":[\"a\",\"b\"]"))
+            val map = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"shape\":{\"k\":\"v\"}}")!!
+            assertEquals(mapOf("k" to "v"), map.shape!!.actualInstance)
+            assertTrue(serializer.serialize(map).contains("\"shape\":{\"k\":\"v\"}"))
+        }
+
+        @Test
+        @DisplayName("bhvUnions700 a missing or unlisted discriminator value decodes as the defaultMapping variant")
+        fun defaultMappingCatchesMissingAndUnlistedValues() {
+            val unlisted = serializer.deserialize<{{modelPackage}}.Parcel>("{\"kind\":\"postcard\",\"pages\":2}")!!
+            assertEquals(2, (unlisted.actualInstance as {{modelPackage}}.Letter).pages)
+            val missing = serializer.deserialize<{{modelPackage}}.Parcel>("{\"pages\":3}")!!
+            assertTrue(missing.actualInstance is {{modelPackage}}.Letter)
+            val box = serializer.deserialize<{{modelPackage}}.Parcel>("{\"kind\":\"packet\",\"weightKg\":1.5}")!!
+            assertTrue(box.actualInstance is {{modelPackage}}.Packet)
+        }
+
+        @Test
+        @DisplayName("bhvModels705 the properties of then and else are optional properties and the condition is not enforced")
+        fun conditionalBranchPropertiesAreOptionalProperties() {
+            val shipment = serializer.deserialize<{{modelPackage}}.Shipment>(
+                "{\"kind\":\"domestic\",\"customsCode\":\"C2\",\"postcode\":\"2000\"}",
+            )!!
+            assertEquals("C2", shipment.customsCode)
+            assertEquals("2000", shipment.postcode)
+            assertTrue(serializer.serialize(shipment).contains("\"customsCode\":\"C2\""))
+        }
+
+        @Test
+        @DisplayName("bhvModels703 the validation-only JSON Schema keywords are not enforced")
+        fun validationOnlyKeywordsAreNotEnforced() {
+            val audit = serializer.deserialize<{{modelPackage}}.Audit>(
+                "{\"tags\":[\"a\",\"b\"],\"score\":-5,\"payload\":\"not json\"}",
+            )!!
+            assertEquals(listOf("a", "b"), audit.tags)
+            assertEquals(-5, audit.score)
+            assertEquals("not json", audit.payload)
+            assertTrue(serializer.serialize(audit).contains("\"score\":-5"))
+        }
+
+        @Test
+        @DisplayName("bhvModels702 a property of type null accepts null")
+        fun nullTypePropertyAcceptsNull() {
+            val reading = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"nothing\":null}")!!
+            assertNull(reading.nothing)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject003 a date-time without an offset is rejected, never completed from the host time zone")
         fun dateTimeWithoutOffsetIsRejected() {
             // D57/F080, F1163: the host time zone must never fill the missing offset in.

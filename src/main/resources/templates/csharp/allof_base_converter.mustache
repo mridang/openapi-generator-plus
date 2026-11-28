@@ -9,6 +9,25 @@
         {
             using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
+            {{#vendorExtensions.discriminatorDefault}}
+            /* defaultMapping (D187): a missing or unlisted value is the default subtype. */
+            string? found = doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out System.Text.Json.JsonElement probe)
+                && probe.ValueKind == System.Text.Json.JsonValueKind.String ? probe.GetString() : null;
+            bool listed = found switch
+            {
+                {{#discriminator}}
+                {{#mappedModels}}
+                "{{mappingName}}" => true,
+                {{/mappedModels}}
+                {{/discriminator}}
+                _ => false,
+            };
+            if (!listed)
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<{{vendorExtensions.discriminatorDefault}}>(raw, options);
+            }
+            {{/vendorExtensions.discriminatorDefault}}
             if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out System.Text.Json.JsonElement disc)
                 && disc.ValueKind != System.Text.Json.JsonValueKind.Null)
             {

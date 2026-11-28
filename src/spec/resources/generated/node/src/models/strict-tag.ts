@@ -172,7 +172,7 @@ export class StrictTag {
       if (a.length !== b.length) {
         return false;
       }
-      return a.every((v, i) => StrictTag.__deepEquals(v, b[i]));
+      return a.every((v, i) => StrictTag.__deepEquals(v, b[i], decimal));
     }
     if (a instanceof Set && b instanceof Set) {
       if (a.size !== b.size) {

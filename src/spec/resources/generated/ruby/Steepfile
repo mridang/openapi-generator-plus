@@ -5,7 +5,7 @@ D = Steep::Diagnostic
 target :lib do
   check 'lib'
   signature 'sig'
-  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'
+  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'strscan', 'openssl', 'timeout'
 end
 
 # The shipped examples are type-checked against the SDK's signatures with the
@@ -13,7 +13,7 @@ end
 target :examples do
   check 'examples'
   signature 'sig'
-  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'
+  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'strscan', 'openssl', 'timeout'
 end
 
 # The tests are type-checked against the SDK's signatures, so a test that
@@ -24,7 +24,7 @@ end
 target :test do
   check 'test'
   signature 'sig'
-  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout',
+  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'strscan', 'openssl', 'timeout',
           'minitest', 'tempfile', 'logger'
   configure_code_diagnostics(D::Ruby.default) do |hash|
     hash[D::Ruby::NoMethod] = nil

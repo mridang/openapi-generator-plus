@@ -56,18 +56,28 @@ export class Configuration {
    */
   public readonly callHook: CallHook | undefined;
 
+  /**
+   * Whether every request body is checked against the validation keywords of
+   * its schema (`minLength`, `pattern`, `minimum`, `maxItems`, ...) before it
+   * is sent. Off by default; a body that breaks one is refused with a
+   * `TypeError` and nothing is sent.
+   */
+  public readonly validateConstraints: boolean;
+
   constructor(
     options?: Partial<{
       baseUrl: string;
       defaultHeaders: Record<string, string>;
       signal: AbortSignal;
       callHook: CallHook;
+      validateConstraints: boolean;
     }>,
   ) {
     this.baseUrl = options?.baseUrl ?? "/api/v3";
     this.defaultHeaders = Object.freeze({ ...(options?.defaultHeaders ?? {}) });
     this.signal = options?.signal;
     this.callHook = options?.callHook;
+    this.validateConstraints = options?.validateConstraints ?? false;
   }
 
   /**
@@ -121,6 +131,7 @@ export class ConfigurationBuilder {
   private _defaultHeaders: Record<string, string> = {};
   private _signal: AbortSignal | undefined;
   private _callHook: CallHook | undefined;
+  private _validateConstraints = false;
 
   /**
    * Set the client-level cancellation signal. Aborting it cancels every call
@@ -145,6 +156,19 @@ export class ConfigurationBuilder {
    */
   callHook(hook: CallHook | undefined): this {
     this._callHook = hook;
+    return this;
+  }
+
+  /**
+   * Turn the check of every request body against the validation keywords of
+   * its schema on or off. Off by default; when on, a body that breaks one is
+   * refused with a `TypeError` before anything is sent.
+   *
+   * @param validate whether request bodies are checked
+   * @returns this builder
+   */
+  validateConstraints(validate: boolean): this {
+    this._validateConstraints = validate;
     return this;
   }
 
@@ -212,6 +236,7 @@ export class ConfigurationBuilder {
       defaultHeaders: this._defaultHeaders,
       signal: this._signal,
       callHook: this._callHook,
+      validateConstraints: this._validateConstraints,
     });
   }
 }

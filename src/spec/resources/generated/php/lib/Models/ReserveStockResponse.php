@@ -22,8 +22,8 @@ class ReserveStockResponse implements \Ds\Hashable
     private static function oneOfCandidates(): array
     {
         return [
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Reservation::class)),
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\ReservationReceipt::class)),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize(is_string($d) ? json_encode($d, JSON_THROW_ON_ERROR) : $d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Reservation::class)),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize(is_string($d) ? json_encode($d, JSON_THROW_ON_ERROR) : $d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\ReservationReceipt::class)),
         ];
     }
 

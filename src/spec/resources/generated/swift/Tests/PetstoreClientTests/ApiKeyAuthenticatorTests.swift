@@ -29,20 +29,23 @@ import Testing
         return "key\(calls)"
       }
     }
+    let headerCounter = Counter()
     let header = ApiKeyAuthenticator(
-      host: "https://example.com", keyParamName: "X-Api-Key", apiKeyProvider: Counter().next,
+      host: "https://example.com", keyParamName: "X-Api-Key",
+      apiKeyProvider: { headerCounter.next() },
       location: .header)
     #expect(await header.authHeaders() == ["X-Api-Key": "key1"])
     #expect(await header.authHeaders() == ["X-Api-Key": "key2"])
     let counter = Counter()
     let query = ApiKeyAuthenticator(
-      host: "https://example.com", keyParamName: "api_key", apiKeyProvider: counter.next,
+      host: "https://example.com", keyParamName: "api_key", apiKeyProvider: { counter.next() },
       location: .query)
     #expect(query.queryParams() == ["api_key": "key1"])
     #expect(query.queryParams() == ["api_key": "key2"])
+    let cookieCounter = Counter()
     let cookie = ApiKeyAuthenticator(
-      host: "https://example.com", keyParamName: "SESSION", apiKeyProvider: Counter().next,
-      location: .cookie)
+      host: "https://example.com", keyParamName: "SESSION",
+      apiKeyProvider: { cookieCounter.next() }, location: .cookie)
     #expect(cookie.cookieParams() == ["SESSION": "key1"])
     #expect(cookie.cookieParams() == ["SESSION": "key2"])
   }
@@ -419,7 +422,7 @@ import Testing
     let auth = try ApiKeyAuthenticator(
       host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "key-123",
       location: .header)
-    let headers = try await auth.authHeaders()
+    let headers = await auth.authHeaders()
     #expect(headers["X-API-Key"] == "key-123")
   }
 

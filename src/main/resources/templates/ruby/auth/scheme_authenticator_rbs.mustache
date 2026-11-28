@@ -3,12 +3,20 @@ module {{moduleName}}
 {{#isOAuth}}
     module OAuth
       class {{className}} < {{baseClass}}
+{{#hasOAuth2MetadataUrl}}
+        METADATA_URL: String
+
+{{/hasOAuth2MetadataUrl}}
         def initialize: ({{{rbsSignature}}}) -> void
       end
     end
 {{/isOAuth}}
 {{^isOAuth}}
     class {{className}} < {{baseClass}}
+{{#hasOAuth2MetadataUrl}}
+      METADATA_URL: String
+
+{{/hasOAuth2MetadataUrl}}
       def initialize: ({{{rbsSignature}}}) -> void
     end
 {{/isOAuth}}

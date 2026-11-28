@@ -24,6 +24,9 @@ pub enum OAuth2AuthorizationCodeError {
     EmptyCode,
     /// The access token expired and the token response held no refresh token; `exchange_code` must run again.
     NoRefreshToken,
+    /// Auth headers were requested before `poll_for_token` obtained a token on
+    /// the device authorization authenticator.
+    DeviceTokenNotPolled,
 }
 
 impl fmt::Display for OAuth2AuthorizationCodeError {
@@ -36,6 +39,9 @@ impl fmt::Display for OAuth2AuthorizationCodeError {
             Self::NoRefreshToken => f.write_str(
                 "Access token expired and no refresh token is held; call exchange_code() again",
             ),
+            Self::DeviceTokenNotPolled => {
+                f.write_str("Must call poll_for_token() before making API requests")
+            }
         }
     }
 }

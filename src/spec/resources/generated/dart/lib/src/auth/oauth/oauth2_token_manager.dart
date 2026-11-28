@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../api_client.dart';
+import '../../api_http_response.dart';
 import '../../errors/oauth2_server_exception.dart';
 import '../../errors/oauth2_token_exception.dart';
 import '../../value_serializer.dart';
@@ -209,6 +210,25 @@ class OAuth2TokenManager {
     }
   }
 
+  /// Posts [params] as a form to [url] through the shared [ApiClient], the
+  /// way a token request is sent, and returns the body of a 2xx answer; the
+  /// session is not touched. A non-2xx answer throws the
+  /// [OAuth2ServerException] it describes. The device authorization request
+  /// (RFC 8628 section 3.1) goes through here.
+  Future<String> postForm(String url, Map<String, String> params) async {
+    _throwIfStopped();
+    final response = await _postForm(url, params, const {});
+    return response.body;
+  }
+
+  /// A lifetime in whole seconds read like a token response's `expires_in`:
+  /// an integer, a floored float or a plain decimal string; anything else is
+  /// `0`, and a value past one year is one year.
+  static int lifetimeSeconds(Object? raw) {
+    final seconds = _parseExpiresIn(raw);
+    return seconds < 0 ? 0 : seconds;
+  }
+
   /// Invalidates the cached access token so that the next call to
   /// [getAccessToken] fetches a fresh token from the token endpoint.
   /// Intended for tests and recovery flows.
@@ -228,6 +248,17 @@ class OAuth2TokenManager {
     Map<String, String> params, [
     Map<String, String> extraHeaders = const {},
   ]) async {
+    final response = await _postForm(tokenUrl, params, extraHeaders);
+    _applyTokenResponse(response.body);
+  }
+
+  /* Posts the form to [tokenUrl] and returns the 2xx response; a non-2xx
+   * response throws the OAuth2ServerException it describes. */
+  Future<ApiHttpResponse> _postForm(
+    String tokenUrl,
+    Map<String, String> params,
+    Map<String, String> extraHeaders,
+  ) async {
     final client = _apiClient;
     if (client == null) {
       throw StateError(
@@ -279,12 +310,15 @@ class OAuth2TokenManager {
        * response is not a valid error object. */
       throw _parseOAuth2ServerError(response.statusCode, response.body);
     }
+    return response;
+  }
 
+  void _applyTokenResponse(String body) {
     /* A 2xx body that is not a JSON object cannot yield a token: surface it
      * as OAuth2TokenException rather than a raw FormatException. */
     final Object? decoded;
     try {
-      decoded = jsonDecode(response.body);
+      decoded = jsonDecode(body);
     } on FormatException {
       throw OAuth2TokenException('Token response is not valid JSON');
     }
@@ -397,7 +431,7 @@ class OAuth2TokenManager {
   /// Returns `0` (the token is treated as stale) when unparseable, non-finite
   /// or non-positive. Accepts integers, floors floats, parses digit strings
   /// (e.g. `"3600"` from Salesforce) and clamps every result to one year.
-  int _parseExpiresIn(Object? raw) {
+  static int _parseExpiresIn(Object? raw) {
     if (raw == null) {
       return 0;
     }

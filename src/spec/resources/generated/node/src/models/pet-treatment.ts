@@ -41,7 +41,11 @@ export class PetTreatment {
    * variant that validated. At least one instance is always retained.
    */
   constructor(instance: PetTreatmentType | PetTreatmentType[]) {
-    this.matchedInstances = Array.isArray(instance) ? instance : [instance];
+    /* A variant may itself be an array (an OAS 3.1 type array of array and
+     * object), so the cast names the list form the deserializer passes. */
+    this.matchedInstances = Array.isArray(instance)
+      ? (instance as PetTreatmentType[])
+      : [instance];
   }
 
   /**
@@ -132,9 +136,14 @@ export class PetTreatment {
    * co-satisfied composite emits the UNION of all variants' fields (lossless
    * round-trip), not just the first variant's.
    */
-  toJSON(): Record<string, unknown> {
+  toJSON(): unknown {
     const merged: Record<string, unknown> = {};
     for (const inst of this.matchedInstances) {
+      /* A scalar or array variant (an OAS 3.1 type array) cannot be merged
+       * field by field; it is the whole value, as in the other SDKs. */
+      if (inst === null || typeof inst !== "object" || Array.isArray(inst)) {
+        return inst;
+      }
       Object.assign(merged, inst as unknown as Record<string, unknown>);
     }
     return merged;

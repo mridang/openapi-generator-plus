@@ -203,4 +203,49 @@ class RawSpecReaderTest {
     void missingLocationYieldsNoLicenseIdentifier() {
         assertNull(RawSpecReader.licenseIdentifier(null));
     }
+
+    @Test
+    @DisplayName("a security scheme's deprecated flag, metadata URL and device flow are read")
+    void readsSecuritySchemeFields(@TempDir final Path dir) throws IOException {
+        final Path spec =
+                write(dir,
+                        "openapi: 3.2.0\n"
+                                + "components:\n"
+                                + "  securitySchemes:\n"
+                                + "    old:\n"
+                                + "      type: http\n"
+                                + "      scheme: basic\n"
+                                + "      deprecated: true\n"
+                                + "    device:\n"
+                                + "      type: oauth2\n"
+                                + "      oauth2MetadataUrl: https://id.example.com/.well-known/oauth-authorization-server\n"
+                                + "      flows:\n"
+                                + "        deviceAuthorization:\n"
+                                + "          deviceAuthorizationUrl: https://id.example.com/device\n"
+                                + "          tokenUrl: https://id.example.com/token\n"
+                                + "          scopes:\n"
+                                + "            b: B\n"
+                                + "            a: A\n");
+        final Map<String, RawSpecReader.RawSecurityScheme> schemes =
+                RawSpecReader.securitySchemes(spec.toString());
+        final RawSpecReader.RawSecurityScheme old = Objects.requireNonNull(schemes.get("old"));
+        assertTrue(old.deprecated());
+        assertNull(old.oauth2MetadataUrl());
+        assertTrue(!old.hasDeviceFlow());
+        final RawSpecReader.RawSecurityScheme device = Objects.requireNonNull(schemes.get("device"));
+        assertEquals(
+                "https://id.example.com/.well-known/oauth-authorization-server",
+                device.oauth2MetadataUrl());
+        assertTrue(device.hasDeviceFlow());
+        assertEquals("https://id.example.com/device", device.deviceAuthorizationUrl());
+        assertEquals("https://id.example.com/token", device.deviceTokenUrl());
+        assertNull(device.deviceRefreshUrl());
+        assertEquals(List.of("b", "a"), List.copyOf(device.deviceScopes().keySet()));
+    }
+
+    @Test
+    @DisplayName("a missing location yields no security scheme fields")
+    void missingLocationYieldsNoSecuritySchemes() {
+        assertTrue(RawSpecReader.securitySchemes(null).isEmpty());
+    }
 }

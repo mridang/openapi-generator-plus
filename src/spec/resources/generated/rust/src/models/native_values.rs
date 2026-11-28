@@ -34,6 +34,13 @@ pub struct NativeValues {
         with = "crate::object_serializer::decimal_number::option"
     )]
     pub amount: Option<rust_decimal::Decimal>,
+    #[serde(
+        rename = "amounts",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::decimal_number::vec_option"
+    )]
+    pub amounts: Option<Vec<rust_decimal::Decimal>>,
     /// Example: `12.50`
     #[serde(
         rename = "ledger",
@@ -70,6 +77,7 @@ impl NativeValues {
             addresses: None,
             homepage: None,
             amount: None,
+            amounts: None,
             ledger: None,
             wait: None,
             since: None,
@@ -115,6 +123,14 @@ impl NativeValues {
     /// clone to keep the original.
     pub fn with_amount(mut self, amount: rust_decimal::Decimal) -> Self {
         self.amount = Some(amount);
+        self
+    }
+
+    /// Returns this value with `amounts` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_amounts(mut self, amounts: Vec<rust_decimal::Decimal>) -> Self {
+        self.amounts = Some(amounts);
         self
     }
 

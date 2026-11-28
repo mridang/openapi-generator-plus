@@ -26,4 +26,9 @@ class MachineAuthClientCredentialsAuthenticator : OAuth2ClientCredentialsAuthent
         "https://auth.example.com/oauth/token",
         listOf("pets:read", "pets:write"),
     )
+
+    companion object {
+        /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
+        const val METADATA_URL: String = "https://auth.example.com/.well-known/oauth-authorization-server"
+    }
 }

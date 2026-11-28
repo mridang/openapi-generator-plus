@@ -336,8 +336,13 @@ class {{classname}}(
       val discriminator =
         (obj["{{discriminator.propertyBaseName}}"]
           as? kotlinx.serialization.json.JsonPrimitive)?.content
+{{#vendorExtensions.discriminatorDefault}}
+          ?: ""
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
           ?: throw kotlinx.serialization.SerializationException(
             "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+{{/vendorExtensions.discriminatorDefault}}
       // Resolve the variant from the discriminator value, then decode the
       // matching concrete type. An unknown value fails loud rather than
       // silently yielding an empty wrapper.
@@ -346,8 +351,14 @@ class {{classname}}(
         "{{mappingName}}" ->
           jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
         {{/discriminator.mappedModels}}
+{{#vendorExtensions.discriminatorDefault}}
+        // defaultMapping (D187): a missing or unlisted value is the default variant.
+        else -> jsonDecoder.json.decodeFromJsonElement({{vendorExtensions.discriminatorDefault}}.serializer(), obj)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         else -> throw kotlinx.serialization.SerializationException(
           "Unknown {{classname}} discriminator value: '$discriminator'")
+{{/vendorExtensions.discriminatorDefault}}
       }
       return {{classname}}(instance)
     }
@@ -695,6 +706,7 @@ class {{classname}}(
       // (or that no declared serializer accepts) is skipped. encodeSerializableValue
       // is an Encoder member, so no extra import is needed.
       val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
+      var bare: kotlinx.serialization.json.JsonElement? = null
       for (instance in value.matchedInstances) {
         var element: kotlinx.serialization.json.JsonElement? = null
         {{#composedSchemas.anyOf}}
@@ -710,7 +722,15 @@ class {{classname}}(
         val obj = element as? kotlinx.serialization.json.JsonObject
         if (obj != null) {
           merged.putAll(obj)
+        } else if (element != null && bare == null) {
+          bare = element
         }
+      }
+      // A scalar or array variant (a type array such as [string, integer]) has no
+      // fields to merge, so the first one is written as it is.
+      if (merged.isEmpty() && bare != null) {
+        jsonEncoder.encodeJsonElement(bare)
+        return
       }
       if (merged.isEmpty()) {
         throw kotlinx.serialization.SerializationException(
@@ -824,15 +844,26 @@ sealed interface {{classname}} {
       val discriminator =
         (obj["{{discriminator.propertyBaseName}}"]
           as? kotlinx.serialization.json.JsonPrimitive)?.content
+{{#vendorExtensions.discriminatorDefault}}
+          ?: ""
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
           ?: throw kotlinx.serialization.SerializationException(
             "{{classname}} is missing the '{{discriminator.propertyBaseName}}' discriminator property")
+{{/vendorExtensions.discriminatorDefault}}
       return when (discriminator) {
         {{#discriminator.mappedModels}}
         "{{mappingName}}" ->
           jsonDecoder.json.decodeFromJsonElement({{modelName}}.serializer(), obj)
         {{/discriminator.mappedModels}}
+{{#vendorExtensions.discriminatorDefault}}
+        // defaultMapping (D187): a missing or unlisted value is the default variant.
+        else -> jsonDecoder.json.decodeFromJsonElement({{vendorExtensions.discriminatorDefault}}.serializer(), obj)
+{{/vendorExtensions.discriminatorDefault}}
+{{^vendorExtensions.discriminatorDefault}}
         else -> throw kotlinx.serialization.SerializationException(
           "Unknown {{classname}} discriminator value: '$discriminator'")
+{{/vendorExtensions.discriminatorDefault}}
       }
     }
   }
@@ -1244,7 +1275,16 @@ data class {{classname}}(
 {{^vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqDecimal}}
 {{^vendorExtensions.eqDecimalContainer}}
+{{#vendorExtensions.eqValueBased}}
+    if ({{name}} == null) {
+      if (other.{{name}} != null) return false
+    } else if (!{{name}}.equals(other.{{name}})) {
+      return false
+    }
+{{/vendorExtensions.eqValueBased}}
+{{^vendorExtensions.eqValueBased}}
     if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqValueBased}}
 {{/vendorExtensions.eqDecimalContainer}}
 {{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}

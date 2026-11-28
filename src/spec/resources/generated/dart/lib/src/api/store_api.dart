@@ -15,6 +15,7 @@ import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_exception.dart';
 import '../models/account.dart';
+import '../models/allowance.dart';
 import '../models/api_response.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
@@ -39,6 +40,7 @@ import 'options/get_grouped_categories_options.dart';
 import 'options/get_inventory_options.dart';
 import 'options/get_matrix_options.dart';
 import 'options/get_memo_options.dart';
+import 'options/get_native_amount_options.dart';
 import 'options/get_native_values_options.dart';
 import 'options/get_order_by_id_options.dart';
 import 'options/get_order_by_tracking_id_options.dart';
@@ -48,11 +50,13 @@ import 'options/get_swatch_groups_options.dart';
 import 'options/get_timestamp_groups_options.dart';
 import 'options/get_tree_options.dart';
 import 'options/head_memo_options.dart';
+import 'options/list_native_amounts_options.dart';
 import 'options/options_memo_options.dart';
 import 'options/patch_memo_options.dart';
 import 'options/place_order_options.dart';
 import 'options/reserve_stock_options.dart';
 import 'options/search_store_options.dart';
+import 'options/submit_allowance_options.dart';
 import 'options/trace_memo_options.dart';
 import 'options/watch_notices_options.dart';
 import 'options/watch_orders_options.dart';
@@ -144,6 +148,11 @@ abstract interface class StoreApiInterface {
     GetMemoServer? server,
     GetMemoOptions? options,
   );
+  Future<Decimal> getNativeAmount(GetNativeAmountOptions? options);
+
+  Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(
+    GetNativeAmountOptions? options,
+  );
   Future<NativeValues> getNativeValues(GetNativeValuesOptions? options);
 
   Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(
@@ -195,6 +204,11 @@ abstract interface class StoreApiInterface {
     String memoId,
     HeadMemoOptions? options,
   );
+  Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options);
+
+  Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(
+    ListNativeAmountsOptions? options,
+  );
   Future<void> optionsMemo(String memoId, OptionsMemoOptions? options);
 
   Future<ApiResult<void>> optionsMemoWithHttpInfo(
@@ -223,6 +237,15 @@ abstract interface class StoreApiInterface {
 
   Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(
     SearchStoreOptions? options,
+  );
+  Future<void> submitAllowance(
+    Allowance allowance,
+    SubmitAllowanceOptions? options,
+  );
+
+  Future<ApiResult<void>> submitAllowanceWithHttpInfo(
+    Allowance allowance,
+    SubmitAllowanceOptions? options,
   );
   Future<void> traceMemo(String memoId, TraceMemoOptions? options);
 
@@ -976,6 +999,62 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     );
   }
 
+  /// Reads one exact decimal as the whole response body.
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) async {
+    final result = await getNativeAmountWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Decimal` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getNativeAmount but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getNativeAmount operation and returns the full API result.
+  @override
+  Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(
+    GetNativeAmountOptions? options,
+  ) async {
+    var path = '/store/native-values/amount';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Decimal>(
+      method: 'GET',
+      operation: 'StoreApi.getNativeAmount',
+      operationId: 'getNativeAmount',
+      urlTemplate: '/store/native-values/amount',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Decimal',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+      deserialize: (body) => readDecimalBody(body),
+    );
+  }
+
   /// Reads values of the formats the SDKs type natively.
   /// `options` options for query, header, form, and cookie parameters
   @override
@@ -1630,6 +1709,67 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     );
   }
 
+  /// Reads a list of exact decimals as the whole response body.
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<List<Decimal>> listNativeAmounts(
+    ListNativeAmountsOptions? options,
+  ) async {
+    final result = await listNativeAmountsWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Decimal>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for listNativeAmounts but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listNativeAmounts operation and returns the full API result.
+  @override
+  Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(
+    ListNativeAmountsOptions? options,
+  ) async {
+    var path = '/store/native-values/amounts';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Decimal>>(
+      method: 'GET',
+      operation: 'StoreApi.listNativeAmounts',
+      operationId: 'listNativeAmounts',
+      urlTemplate: '/store/native-values/amounts',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Decimal>',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserializeArrayFromJson(body, (e) => readDecimalValue(e))
+              as List<Decimal>,
+    );
+  }
+
   /// Lists the methods a memo accepts with an OPTIONS request
   /// Revisions of one memo, read and changed with the less common HTTP methods.
   /// `memoId` The memo whose revisions are read or changed
@@ -2043,6 +2183,49 @@ class StoreApi extends BaseApi implements StoreApiInterface {
 
       deserialize: (body) =>
           deserializeList(body, Order.fromJson) as List<Order>,
+    );
+  }
+
+  /// Submit an allowance whose schema uses every validation keyword
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<void> submitAllowance(
+    Allowance allowance,
+    SubmitAllowanceOptions? options,
+  ) async {
+    await submitAllowanceWithHttpInfo(allowance, options);
+  }
+
+  /// Performs the submitAllowance operation and returns the full API result.
+  @override
+  Future<ApiResult<void>> submitAllowanceWithHttpInfo(
+    Allowance allowance,
+    SubmitAllowanceOptions? options,
+  ) async {
+    var path = '/store/allowance';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object requestBody = allowance;
+
+    return invokeApiForResult<void>(
+      method: 'POST',
+      operation: 'StoreApi.submitAllowance',
+      operationId: 'submitAllowance',
+      urlTemplate: '/store/allowance',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [],
+      contentType: 'application/json',
+      returnType: '',
+      auth: null,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
     );
   }
 

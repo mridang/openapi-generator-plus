@@ -1,0 +1,231 @@
+{{>api_info}}
+import Foundation
+
+/// The device authorization response (RFC 8628 section 3.2): the codes and the
+/// URI to show to the user, and how long and how often to poll.
+public struct DeviceAuthorization: Sendable, Equatable {
+    /// The device verification code sent back when polling.
+    public let deviceCode: String
+    /// The code the user enters at the verification URI.
+    public let userCode: String
+    /// The page where the user enters the user code.
+    public let verificationURI: String
+    /// The verification URI with the user code included, when the server sent one.
+    public let verificationURIComplete: String?
+    /// The lifetime of the codes, in seconds.
+    public let expiresIn: Int
+    /// The minimum wait between polls, in seconds (5 when the server sent none).
+    public let interval: Int
+
+    /// Creates a device authorization, such as one kept from an earlier
+    /// ``OAuth2DeviceAuthorizationAuthenticator/requestDeviceAuthorization()``.
+    public init(
+        deviceCode: String,
+        userCode: String,
+        verificationURI: String,
+        verificationURIComplete: String? = nil,
+        expiresIn: Int,
+        interval: Int = 5
+    ) {
+        self.deviceCode = deviceCode
+        self.userCode = userCode
+        self.verificationURI = verificationURI
+        self.verificationURIComplete = verificationURIComplete
+        self.expiresIn = expiresIn
+        self.interval = interval
+    }
+}
+
+/// OAuth2DeviceAuthorizationAuthenticator provides the OAuth2 device
+/// authorization flow (RFC 8628), for a public client without a secret.
+///
+/// Conforms to ``HttpAwareAuthenticator`` so that the device authorization and
+/// token requests use the shared ``ApiClient`` with the same transport
+/// configuration (proxy, TLS, timeouts) as regular API calls.
+///
+/// Usage:
+///  1. Call ``requestDeviceAuthorization()`` to get the user code and verification URI
+///  2. Show them to the user
+///  3. Call ``pollForToken(_:)`` with the authorization to wait for the approval
+///  4. Use the authenticator normally -- tokens are managed automatically
+public class OAuth2DeviceAuthorizationAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, AccessTokenInvalidating, @unchecked Sendable {
+    /// Grant type of the device access token request (RFC 8628 section 3.4).
+    private static let deviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
+    /// Seconds a `slow_down` answer adds to the polling interval (RFC 8628 section 3.5).
+    private static let slowDownIncrement = 5
+
+    private let _host: String
+    private let clientID: String
+    private let deviceAuthorizationURL: String
+    let tokenURL: String
+    private let refreshURL: String
+    private let scopes: [String]
+    let tokenManager: OAuth2TokenManager
+    /* The wait between polls and the clock that measures the authorization's
+       lifetime. Internal so the tests replace both and never wait. */
+    var sleep: @Sendable (Int) async throws -> Void = { seconds in
+        try await Task.sleep(nanoseconds: UInt64(max(seconds, 0)) * 1_000_000_000)
+    }
+    var now: @Sendable () -> TimeInterval = { MonotonicClock.now() }
+
+    /// Creates a new device authorization authenticator.
+    ///
+    /// If refreshURL is empty, the tokenURL is used for refresh requests.
+    public init(
+        host: String,
+        clientID: String,
+        deviceAuthorizationURL: String,
+        tokenURL: String,
+        scopes: [String] = [],
+        refreshURL: String = ""
+    ) {
+        self._host = host
+        self.clientID = clientID
+        self.deviceAuthorizationURL = deviceAuthorizationURL
+        self.tokenURL = tokenURL
+        self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
+        self.scopes = scopes
+        self.tokenManager = OAuth2TokenManager()
+        super.init()
+    }
+
+    /// Drops the cached access token so that the next call fetches a fresh one
+    /// (a refresh grant first when a refresh token is held). The SDK calls this
+    /// itself when the API answers 401.
+    public func invalidateAccessToken() {
+        tokenManager.invalidateAccessToken()
+    }
+
+    /// Returns the API base URL.
+    override public func host() -> String {
+        return _host
+    }
+
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        tokenManager.setApiClient(client)
+    }
+
+    /// Asks the device authorization endpoint for a device code and a user code
+    /// (RFC 8628 section 3.1). Showing the user code and the verification URI
+    /// to the user is the caller's job.
+    ///
+    /// - Throws: ``OAuth2ServerError`` for a non-2xx answer and
+    ///   ``OAuth2TokenError`` for a 2xx answer that cannot be used.
+    public func requestDeviceAuthorization() async throws -> DeviceAuthorization {
+        var params = ["client_id": clientID]
+        if !scopes.isEmpty {
+            params["scope"] = scopes.joined(separator: " ")
+        }
+        let body = try await tokenManager.postForm(url: deviceAuthorizationURL, params: params)
+        return try Self.parseDeviceAuthorization(body)
+    }
+
+    /// Reads a 2xx device authorization response. The messages are fixed text
+    /// with no parser detail, the same in every SDK.
+    private static func parseDeviceAuthorization(_ body: String) throws -> DeviceAuthorization {
+        guard let data = body.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        else {
+            throw OAuth2TokenError.invalidResponse("Device authorization response is not valid JSON")
+        }
+        guard let fields = json as? [String: Any] else {
+            throw OAuth2TokenError.invalidResponse("Device authorization response is not a JSON object")
+        }
+        func required(_ name: String) throws -> String {
+            guard let value = fields[name] as? String, !value.isEmpty else {
+                throw OAuth2TokenError.invalidResponse(
+                    "Device authorization response missing or empty \(name) field")
+            }
+            return value
+        }
+        let deviceCode = try required("device_code")
+        let userCode = try required("user_code")
+        let verificationURI = try required("verification_uri")
+        let complete = (fields["verification_uri_complete"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let rawInterval = fields["interval"]
+        let interval = rawInterval == nil || rawInterval is NSNull
+            ? 5 : OAuth2TokenManager.parseExpiresIn(rawInterval)
+        return DeviceAuthorization(
+            deviceCode: deviceCode,
+            userCode: userCode,
+            verificationURI: verificationURI,
+            verificationURIComplete: complete,
+            expiresIn: OAuth2TokenManager.parseExpiresIn(fields["expires_in"]),
+            interval: interval
+        )
+    }
+
+    /// Polls the token endpoint until the user approves the device (RFC 8628
+    /// section 3.4), waiting the authorization's interval before each poll.
+    ///
+    /// `authorization_pending` keeps polling and `slow_down` adds five seconds
+    /// to the interval. A success replaces the session; any other error ends
+    /// polling with that ``OAuth2ServerError``. Polling stops with an
+    /// ``OAuth2TokenError`` once the authorization's `expires_in` has passed.
+    public func pollForToken(_ authorization: DeviceAuthorization) async throws {
+        let params = [
+            "grant_type": Self.deviceCodeGrantType,
+            "client_id": clientID,
+            "device_code": authorization.deviceCode,
+        ]
+        let started = now()
+        var interval = authorization.interval
+        while true {
+            if now() - started + TimeInterval(interval) > TimeInterval(authorization.expiresIn) {
+                throw OAuth2TokenError.invalidResponse(
+                    "Device authorization expired before the user approved it")
+            }
+            try await sleep(interval)
+            do {
+                try await tokenManager.exchange(tokenURL: tokenURL, params: params)
+                return
+            } catch let error as OAuth2ServerError where error.code == "authorization_pending" {
+                continue
+            } catch let error as OAuth2ServerError where error.code == "slow_down" {
+                interval += Self.slowDownIncrement
+            }
+        }
+    }
+
+    /// Returns the Bearer authentication header with a valid access token, or
+    /// throws ``OAuth2AuthorizationCodeError/deviceTokenNotPolled`` before
+    /// ``pollForToken(_:)`` has obtained a token, or the error of a failed
+    /// refresh.
+    ///
+    /// Equivalent to ``authHeaders()``.
+    public func authHeadersOrThrow() async throws -> [String: String] {
+        guard tokenManager.exchanged else {
+            throw OAuth2AuthorizationCodeError.deviceTokenNotPolled
+        }
+        let params: [String: String] = [
+            "grant_type": "refresh_token",
+            "refresh_token": tokenManager.refreshToken,
+            "client_id": clientID,
+        ]
+        let accessToken = try await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
+        return ["Authorization": "Bearer \(accessToken)"]
+    }
+
+    /// Returns the Bearer authentication header with a valid access token.
+    ///
+    /// Throws ``OAuth2AuthorizationCodeError/deviceTokenNotPolled`` before
+    /// ``pollForToken(_:)`` has obtained a token, and rethrows a token refresh
+    /// failure, so the request is never sent unauthenticated.
+    override public func authHeaders() async throws -> [String: String] {
+        return try await authHeadersOrThrow()
+    }
+}
+
+extension OAuth2DeviceAuthorizationAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A description of the configuration. The flow has no client secret, and
+    /// the tokens held by the token manager are never printed.
+    public var description: String {
+        "\(type(of: self))(host: \(_host), clientID: \(clientID), deviceAuthorizationURL: \(deviceAuthorizationURL), tokenURL: \(tokenURL), refreshURL: \(refreshURL), scopes: \(scopes), tokenObtained: \(tokenManager.exchanged))"
+    }
+
+    /// The same text as ``description``.
+    public var debugDescription: String {
+        description
+    }
+}

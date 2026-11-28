@@ -186,6 +186,14 @@ empty value counts as unset. A credential that is neither passed nor set fails t
 {{/securitySchemeEnvVars}}
 {{/hasSecuritySchemeEnvVars}}
 
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call RequestDeviceAuthorizationAsync() to get the user code and verification URI to show to the user, then PollForTokenAsync() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
+{{#hasDigestAuth}}
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+{{/hasDigestAuth}}
 ### Response compression
 
 The client asks for `gzip, deflate, br` and decodes the response itself, so the body you read
@@ -597,6 +605,8 @@ System.Text.Json enforces required members, integer ranges and wire types,
 and nothing else. The SDK does not check the remaining keywords before the
 request is sent. `uniqueItems` arrays are modelled as `HashSet<T>` and sent in
 the set's natural enumeration order, not sorted.
+
+Constraint validation can be turned on with the `ValidateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ## Not supported
 

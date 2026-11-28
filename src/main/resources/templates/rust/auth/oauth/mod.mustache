@@ -31,6 +31,11 @@ mod oauth2_implicit_authenticator;
 pub use oauth2_implicit_authenticator::*;
 {{/hasOAuth2Implicit}}
 
+{{#hasOAuth2DeviceAuthorization}}
+mod oauth2_device_authorization_authenticator;
+pub use oauth2_device_authorization_authenticator::*;
+{{/hasOAuth2DeviceAuthorization}}
+
 {{#hasOpenIdConnect}}
 mod openid_connect_authenticator;
 pub use openid_connect_authenticator::*;

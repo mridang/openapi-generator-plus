@@ -1,0 +1,15 @@
+module Petstore::Client::Models
+  module Parcel
+    def self.openapi_one_of: () -> Array[Symbol]
+    def self.serialize_oneof: (untyped) -> untyped
+    def self.as_letter: (untyped) -> Letter?
+    def self.letter_variant?: (untyped) -> bool
+    def self.from_letter: (Letter) -> Letter
+    def self.as_packet: (untyped) -> Packet?
+    def self.packet_variant?: (untyped) -> bool
+    def self.from_packet: (Packet) -> Packet
+    def self.openapi_discriminator_name: () -> Symbol
+    def self.openapi_discriminator_mapping: () -> Hash[String, Symbol]
+    def self.build: (untyped) -> untyped
+  end
+end

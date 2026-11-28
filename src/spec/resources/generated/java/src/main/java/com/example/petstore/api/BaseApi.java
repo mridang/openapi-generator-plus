@@ -26,6 +26,7 @@ import com.example.petstore.SseStream;
 import com.example.petstore.StreamOptions;
 import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.auth.ChallengeAuthenticator;
 import com.example.petstore.auth.HttpAwareAuthenticator;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.errors.ErrorFactory;
@@ -770,6 +771,12 @@ public abstract class BaseApi {
       String specOperationId,
       String urlTemplate) {
 
+    /* D189: with constraint validation on, a body that breaks a keyword of its schema is
+     * refused here, before anything is encoded, the hook starts or a request is sent. */
+    if (body != null && config.isValidateConstraints()) {
+      ConstraintValidator.validate(body);
+    }
+
     String url;
     if (path.startsWith("http://") || path.startsWith("https://")) {
       url = path;
@@ -833,6 +840,16 @@ public abstract class BaseApi {
             requestPathOf(url));
       }
       headers.putAll(sentAuthHeaders);
+      /* A Digest authenticator answers the challenge it remembers up front (D192). */
+      if (effectiveAuth instanceof ChallengeAuthenticator challenged) {
+        String answer =
+            challenged.authorization(
+                method.toUpperCase(java.util.Locale.ROOT), requestTargetOf(url));
+        if (answer != null) {
+          headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+          headers.put("Authorization", answer);
+        }
+      }
       Map<String, String> cookies = effectiveAuth.getCookieParams();
       if (!cookies.isEmpty()) {
         /* RFC 6265 — cookie name is a token (RFC 7230 §3.2.6); cookie
@@ -1290,6 +1307,17 @@ public abstract class BaseApi {
     ApiStreamResponse response =
         apiClient.sendStreaming(
             method, url, headers, requestBody, timeoutMillis, maxRetries, idleTimeoutMillis);
+    if (response.statusCode() == 401 && auth instanceof ChallengeAuthenticator challenged) {
+      String answer = answerChallenge(challenged, response.headers(), method, url, requestBody);
+      if (answer == null) {
+        return response;
+      }
+      response.close();
+      headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+      headers.put("Authorization", answer);
+      return apiClient.sendStreaming(
+          method, url, headers, requestBody, timeoutMillis, maxRetries, idleTimeoutMillis);
+    }
     if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
       return response;
     }
@@ -1367,7 +1395,8 @@ public abstract class BaseApi {
    * UnauthorizedException}. The request is not sent again when its body is a stream or a multipart
    * form (it cannot be replayed), or when the authenticator has no fresher credential to offer.
    * Authenticators that are not {@link HttpAwareAuthenticator} (API key, basic, bearer) never
-   * replay.
+   * replay, except a Digest authenticator, which answers the server's challenge and replays once
+   * under the same rules (D192).
    */
   private ApiHttpResponse sendReplayingOnUnauthorized(
       String method,
@@ -1379,6 +1408,15 @@ public abstract class BaseApi {
       @Nullable Integer timeoutMillis,
       @Nullable Integer maxRetries) {
     ApiHttpResponse response = send(method, url, headers, requestBody, timeoutMillis, maxRetries);
+    if (response.statusCode() == 401 && auth instanceof ChallengeAuthenticator challenged) {
+      String answer = answerChallenge(challenged, response.headers(), method, url, requestBody);
+      if (answer == null) {
+        return response;
+      }
+      headers.keySet().removeIf(name -> name.equalsIgnoreCase("Authorization"));
+      headers.put("Authorization", answer);
+      return send(method, url, headers, requestBody, timeoutMillis, maxRetries);
+    }
     if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
       return response;
     }
@@ -1398,6 +1436,59 @@ public abstract class BaseApi {
     headers.keySet().removeIf(name -> fresh.keySet().stream().anyMatch(name::equalsIgnoreCase));
     headers.putAll(fresh);
     return send(method, url, headers, requestBody, timeoutMillis, maxRetries);
+  }
+
+  /**
+   * The {@code Authorization} answer to the Digest challenge of a {@code 401}, or {@code null} when
+   * the response carries no challenge the authenticator accepts or the body cannot be sent again
+   * (D192).
+   */
+  @Nullable
+  private static String answerChallenge(
+      ChallengeAuthenticator challenged,
+      Map<String, String> responseHeaders,
+      String method,
+      String url,
+      @Nullable Object requestBody) {
+    String challenge = null;
+    for (Map.Entry<String, String> header : responseHeaders.entrySet()) {
+      if (header.getKey().equalsIgnoreCase("WWW-Authenticate")) {
+        challenge = header.getValue();
+      }
+    }
+    if (challenge == null || !challenged.acceptChallenge(challenge)) {
+      return null;
+    }
+    boolean replayable =
+        requestBody == null
+            || requestBody instanceof String
+            || requestBody instanceof byte[]
+            || (requestBody instanceof BodySource source && source.isReplayable());
+    if (!replayable) {
+      return null;
+    }
+    return challenged.authorization(
+        method.toUpperCase(java.util.Locale.ROOT), requestTargetOf(url));
+  }
+
+  /** The request target of a URL for a Digest answer: its path and query, without the fragment. */
+  private static String requestTargetOf(String url) {
+    String target = url;
+    int fragment = target.indexOf('#');
+    if (fragment >= 0) {
+      target = target.substring(0, fragment);
+    }
+    int scheme = target.indexOf("://");
+    if (scheme >= 0) {
+      int slash = target.indexOf('/', scheme + 3);
+      int query = target.indexOf('?', scheme + 3);
+      if (slash < 0 || (query >= 0 && query < slash)) {
+        target = query < 0 ? "/" : "/" + target.substring(query);
+      } else {
+        target = target.substring(slash);
+      }
+    }
+    return target;
   }
 
   /** Send through the client, passing the per-call overrides only when there are any. */

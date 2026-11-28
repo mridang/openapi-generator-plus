@@ -14,6 +14,7 @@ defmodule PetstoreClient.Models.DryFood do
 
   @type t :: %__MODULE__{
           weight_kg: float(),
+          price_per_kg: Decimal.t() | nil,
           food_type: String.t()
         }
 
@@ -23,6 +24,7 @@ defmodule PetstoreClient.Models.DryFood do
   ]
   defstruct [
     :weight_kg,
+    :price_per_kg,
     food_type: "dry"
   ]
 
@@ -31,6 +33,7 @@ defmodule PetstoreClient.Models.DryFood do
   def attribute_map do
     %{
       weight_kg: "weightKg",
+      price_per_kg: "pricePerKg",
       food_type: "foodType"
     }
   end
@@ -46,6 +49,7 @@ defmodule PetstoreClient.Models.DryFood do
   def json_key_order do
     [
       "weightKg",
+      "pricePerKg",
       "foodType"
     ]
   end
@@ -84,6 +88,7 @@ defmodule PetstoreClient.Models.DryFood do
   def openapi_types do
     %{
       weight_kg: "float()",
+      price_per_kg: "Decimal.t()",
       food_type: "String.t()"
     }
   end

@@ -178,6 +178,42 @@ class ReplayApiClient
   end
 end
 
+{{#hasDigestAuth}}
+# Answers every call from a list of statuses, each 401 carrying a Digest
+# challenge, and records the headers of every request.
+class DigestChallengeApiClient
+  attr_reader :sent_headers
+
+  def initialize(*statuses)
+    @statuses = statuses
+    @sent_headers = []
+  end
+
+  def send_request(_method, _url, headers, _body, **_kwargs)
+    status = next_status(headers)
+    {{moduleName}}::ApiHttpResponse.new(status_code: status, body: '{}', headers: response_headers(status))
+  end
+
+  def send_streaming(_method, _url, headers, _body, **_kwargs)
+    status = next_status(headers)
+    {{moduleName}}::ApiStreamResponse.new(status_code: status, headers: response_headers(status), body: StringIO.new('ok'))
+  end
+
+  private
+
+  def next_status(headers)
+    @sent_headers << headers.dup
+    @statuses[@sent_headers.length - 1] || @statuses.last
+  end
+
+  def response_headers(status)
+    headers = { 'content-type' => 'application/json' }
+    headers['WWW-Authenticate'] = 'Digest realm="api", nonce="abc", qop="auth"' if status == 401
+    headers
+  end
+end
+
+{{/hasDigestAuth}}
 # Answers a stream call from a script: the statuses it replies with, one per
 # call, and the body each reply opens.
 class ScriptedStreamingClient
@@ -1970,6 +2006,55 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.api_requests.length).must_equal 1
   end
 
+{{#hasDigestAuth}}
+  # ── D192: a Digest challenge is answered and the request replayed once ──
+
+  def digest_auth
+    auth = {{moduleName}}::Auth::DigestAuthenticator.new('https://api.example.com', 'alice', 'wonder', env: {})
+    auth.cnonce_source = -> { '0a4f113b' }
+    auth
+  end
+
+  def digest_header(method, target, count)
+    first = Digest::MD5.hexdigest('alice:api:wonder')
+    second = Digest::MD5.hexdigest("#{method}:#{target}")
+    response = Digest::MD5.hexdigest("#{first}:abc:#{count}:0a4f113b:auth:#{second}")
+    "Digest username=\"alice\", realm=\"api\", nonce=\"abc\", uri=\"#{target}\", response=\"#{response}\", " \
+      "qop=auth, nc=#{count}, cnonce=\"0a4f113b\""
+  end
+
+  it 'bhv_authdigest_702 answers a Digest challenge and replays once, on the buffered and the streaming path' do
+    client = DigestChallengeApiClient.new(401, 200)
+    api = replay_api(client, digest_auth)
+    api.call('GET', '/items', { 'page' => '2' }, {}, nil, ['application/json'], 'application/json', nil)
+
+    _(client.sent_headers.map { |headers| headers['Authorization'] })
+      .must_equal [nil, digest_header('GET', '/items?page=2', '00000001')]
+
+    streaming = DigestChallengeApiClient.new(401, 200)
+    replay_api(streaming, digest_auth).stream('GET', '/items').data.close
+
+    _(streaming.sent_headers.map { |headers| headers['Authorization'] })
+      .must_equal [nil, digest_header('GET', '/items', '00000001')]
+
+    refused = DigestChallengeApiClient.new(401, 401, 200)
+    refused_api = replay_api(refused, digest_auth)
+
+    assert_raises({{moduleName}}::Errors::UnauthorizedError) { replay_call(refused_api) }
+    _(refused.sent_headers.length).must_equal 2
+  end
+
+  it 'bhv_authdigest_703 a later request answers the remembered challenge up front with nc 00000002' do
+    client = DigestChallengeApiClient.new(401, 200, 200)
+    api = replay_api(client, digest_auth)
+    replay_call(api)
+    replay_call(api)
+
+    _(client.sent_headers.length).must_equal 3
+    _(client.sent_headers.last['Authorization']).must_equal digest_header('POST', '/items', '00000002')
+  end
+
+{{/hasDigestAuth}}
   # ── Request context on errors ──
 
   it 'bhv_errors_036 names the method and the path, never the query string, on an API error' do

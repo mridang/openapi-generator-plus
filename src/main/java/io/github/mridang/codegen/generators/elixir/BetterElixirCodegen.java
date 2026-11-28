@@ -644,6 +644,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
             new SupportingFileSpec("value_serializer.mustache", libDir, "value_serializer.ex"),
+            new SupportingFileSpec("constraint_validator.mustache", libDir, "constraint_validator.ex"),
             new SupportingFileSpec("trace_context_util.mustache", libDir, "trace_context_util.ex"),
             new SupportingFileSpec("call_info.mustache", libDir, "call_info.ex"),
             new SupportingFileSpec("call_outcome.mustache", libDir, "call_outcome.ex"),
@@ -960,7 +961,57 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                         Comparator.comparing(p -> hasStructDefault(p) ? 1 : 0));
             }
         }
+        additionalProperties.putAll(constraintHelperUse(additionalProperties.get("constraintModels")));
         return result;
+    }
+
+    /**
+     * Says which private helpers of the constraint validator (D189) the checks call: the pattern
+     * matcher, the multipleOf test and the minimum and maximum length or size tests. The validator
+     * defines each only when it is called, since {@code mix compile --warnings-as-errors} fails on
+     * an unused private function.
+     *
+     * @param constraintModels the {@code constraintModels} additional property, a list of models
+     * @return the flags {@code elixirConstraintHasPattern}, {@code elixirConstraintHasMultipleOf},
+     *     {@code elixirConstraintHasMinSize} and {@code elixirConstraintHasMaxSize}
+     */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> constraintHelperUse(@Nullable Object constraintModels) {
+        boolean pattern = false;
+        boolean multipleOf = false;
+        boolean minSize = false;
+        boolean maxSize = false;
+        if (constraintModels instanceof List) {
+            for (final Object model : (List<Object>) constraintModels) {
+                final Object props = ((CodegenModel) model).vendorExtensions.get("constraintProps");
+                if (!(props instanceof List)) {
+                    continue;
+                }
+                for (final Object entry : (List<Object>) props) {
+                    final Object checks = ((Map<String, Object>) entry).get("checks");
+                    if (!(checks instanceof List)) {
+                        continue;
+                    }
+                    for (final Object check : (List<Object>) checks) {
+                        final Map<String, Object> c = (Map<String, Object>) check;
+                        pattern |= Boolean.TRUE.equals(c.get("isPattern"));
+                        multipleOf |= Boolean.TRUE.equals(c.get("isMultipleOf"));
+                        minSize |= Boolean.TRUE.equals(c.get("isMinLength"))
+                                || Boolean.TRUE.equals(c.get("isMinItems"))
+                                || Boolean.TRUE.equals(c.get("isMinProperties"));
+                        maxSize |= Boolean.TRUE.equals(c.get("isMaxLength"))
+                                || Boolean.TRUE.equals(c.get("isMaxItems"))
+                                || Boolean.TRUE.equals(c.get("isMaxProperties"));
+                    }
+                }
+            }
+        }
+        final Map<String, Object> flags = new HashMap<>();
+        flags.put("elixirConstraintHasPattern", pattern);
+        flags.put("elixirConstraintHasMultipleOf", multipleOf);
+        flags.put("elixirConstraintHasMinSize", minSize);
+        flags.put("elixirConstraintHasMaxSize", maxSize);
+        return flags;
     }
 
     /** Whether the property is written as a {@code key: default} pair in {@code defstruct}. */
@@ -1203,6 +1254,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildElixirSuperArgs(spec));
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            ctx.put("metadataUrlLiteral", toElixirStringLiteral(String.valueOf(metadataUrl)));
+        }
         if (!credentials.isEmpty()) {
             final String className = spec.schemeClass() + spec.oauthSuffix() + "Authenticator";
             final Map<String, Object> entry = new HashMap<>();
@@ -1214,6 +1269,22 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
             entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
             entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+            /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+            entry.put(
+                    "metadataUrlTest",
+                    metadataUrl != null
+                            && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+            entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
+            /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+            final boolean device = "OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass());
+            entry.put(
+                    "deviceTest",
+                    device && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("deviceTest"))));
+            if (device) {
+                entry.put("deviceAuthorizationUrlLiteral", toElixirStringLiteral(spec.authorizationUrl()));
+                entry.put("deviceTokenUrlLiteral", toElixirStringLiteral(spec.tokenUrl()));
+                entry.put("deviceScopes", formatElixirScopes(spec.scopes()));
+            }
             perSchemeAuthEntries.add(entry);
         }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
@@ -1252,7 +1323,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
                     + " — toLowerCase(Locale.ROOT) is intentional and safe here")
     private List<String> buildElixirSuperArgs(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass()) || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
@@ -1292,6 +1363,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "client_id", toElixirStringLiteral(spec.authorizationUrl()),
                     formatElixirScopes(spec.scopes()));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final List<String> args = new ArrayList<>(List.of("host", "client_id",
+                    toElixirStringLiteral(spec.authorizationUrl()),
+                    toElixirStringLiteral(spec.tokenUrl()),
+                    formatElixirScopes(spec.scopes())));
+            if (spec.refreshUrl() != null) {
+                args.add("refresh_url: " + toElixirStringLiteral(spec.refreshUrl()));
+            }
+            return args;
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", toElixirStringLiteral(spec.openIdConnectUrl()),

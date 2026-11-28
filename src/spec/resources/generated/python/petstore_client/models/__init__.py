@@ -7,10 +7,13 @@
 
 # import models into model package
 from petstore_client.models.account import Account as Account
+from petstore_client.models.allowance import Allowance as Allowance
+from petstore_client.models.allowance_tier import AllowanceTier as AllowanceTier
 from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.attach_pet_files_request import (
     AttachPetFilesRequest as AttachPetFilesRequest,
 )
+from petstore_client.models.audit import Audit as Audit
 from petstore_client.models.availability import Availability as Availability
 from petstore_client.models.binary_vault import BinaryVault as BinaryVault
 from petstore_client.models.blobs import Blobs as Blobs
@@ -27,6 +30,7 @@ from petstore_client.models.employee import Employee as Employee
 from petstore_client.models.error import Error as Error
 from petstore_client.models.freeform import Freeform as Freeform
 from petstore_client.models.ledger import Ledger as Ledger
+from petstore_client.models.letter import Letter as Letter
 from petstore_client.models.medication import Medication as Medication
 from petstore_client.models.member_not_found import MemberNotFound as MemberNotFound
 from petstore_client.models.memo import Memo as Memo
@@ -34,6 +38,8 @@ from petstore_client.models.metadata import Metadata as Metadata
 from petstore_client.models.moments import Moments as Moments
 from petstore_client.models.native_values import NativeValues as NativeValues
 from petstore_client.models.order import Order as Order
+from petstore_client.models.packet import Packet as Packet
+from petstore_client.models.parcel import Parcel as Parcel
 from petstore_client.models.pet import Pet as Pet
 from petstore_client.models.pet_after_page import PetAfterPage as PetAfterPage
 from petstore_client.models.pet_archive_page import PetArchivePage as PetArchivePage
@@ -59,6 +65,12 @@ from petstore_client.models.photo_metadata_location import (
 from petstore_client.models.priority import Priority as Priority
 from petstore_client.models.project_not_found import ProjectNotFound as ProjectNotFound
 from petstore_client.models.rank import Rank as Rank
+from petstore_client.models.reading import Reading as Reading
+from petstore_client.models.reading_inline_level import (
+    ReadingInlineLevel as ReadingInlineLevel,
+)
+from petstore_client.models.reading_level import ReadingLevel as ReadingLevel
+from petstore_client.models.reading_shape import ReadingShape as ReadingShape
 from petstore_client.models.rejected_request import RejectedRequest as RejectedRequest
 from petstore_client.models.required_nullable import (
     RequiredNullable as RequiredNullable,
@@ -72,6 +84,7 @@ from petstore_client.models.reserve_stock_response import (
 )
 from petstore_client.models.result import Result as Result
 from petstore_client.models.roster import Roster as Roster
+from petstore_client.models.sensors import Sensors as Sensors
 from petstore_client.models.separator import Separator as Separator
 from petstore_client.models.set_pet_avatar_request import (
     SetPetAvatarRequest as SetPetAvatarRequest,
@@ -80,6 +93,7 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
 from petstore_client.models.shape import Shape as Shape
+from petstore_client.models.shipment import Shipment as Shipment
 from petstore_client.models.sparse import Sparse as Sparse
 from petstore_client.models.square import Square as Square
 from petstore_client.models.stage import Stage as Stage

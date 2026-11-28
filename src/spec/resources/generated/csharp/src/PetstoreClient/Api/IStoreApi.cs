@@ -155,6 +155,18 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>GetNativeAmount</c> operation.</summary>
+    Task<decimal> GetNativeAmountAsync(
+        GetNativeAmountOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>GetNativeAmount</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<decimal>> GetNativeAmountWithHttpInfoAsync(
+        GetNativeAmountOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>GetNativeValues</c> operation.</summary>
     Task<NativeValues> GetNativeValuesAsync(
         GetNativeValuesOptions? options = null,
@@ -269,6 +281,18 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>ListNativeAmounts</c> operation.</summary>
+    Task<List<decimal>> ListNativeAmountsAsync(
+        ListNativeAmountsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListNativeAmounts</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<List<decimal>>> ListNativeAmountsWithHttpInfoAsync(
+        ListNativeAmountsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>OptionsMemo</c> operation.</summary>
     Task OptionsMemoAsync(
         string memoId,
@@ -334,6 +358,20 @@ public interface IStoreApi
     /// <summary>The <c>SearchStore</c> operation with its status code, headers and body.</summary>
     Task<ApiResult<List<Order>>> SearchStoreWithHttpInfoAsync(
         SearchStoreOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>SubmitAllowance</c> operation.</summary>
+    Task SubmitAllowanceAsync(
+        Allowance allowance,
+        SubmitAllowanceOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>SubmitAllowance</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<object?>> SubmitAllowanceWithHttpInfoAsync(
+        Allowance allowance,
+        SubmitAllowanceOptions? options = null,
         CancellationToken cancellationToken = default
     );
 

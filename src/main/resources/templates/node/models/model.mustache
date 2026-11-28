@@ -84,6 +84,10 @@ export type {{classname}}Type = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf
 export class {{classname}} {
   static readonly ONE_OF_SCHEMAS: string[] = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
   static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+{{#vendorExtensions.discriminatorDefault}}
+  /** The variant a missing or unlisted discriminator value decodes as (defaultMapping, D187). */
+  static readonly DISCRIMINATOR_DEFAULT = '{{vendorExtensions.discriminatorDefault}}';
+{{/vendorExtensions.discriminatorDefault}}
   static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
 {{#mappedModels}}
     {{mappingName}}: '{{modelName}}'{{^-last}},{{/-last}}
@@ -211,7 +215,11 @@ export class {{classname}} {
    * variant that validated. At least one instance is always retained.
    */
   constructor(instance: {{classname}}Type | {{classname}}Type[]) {
-    this.matchedInstances = Array.isArray(instance) ? instance : [instance];
+    /* A variant may itself be an array (an OAS 3.1 type array of array and
+     * object), so the cast names the list form the deserializer passes. */
+    this.matchedInstances = Array.isArray(instance)
+      ? (instance as {{classname}}Type[])
+      : [instance];
   }
 
   /**
@@ -280,9 +288,14 @@ export class {{classname}} {
    * co-satisfied composite emits the UNION of all variants' fields (lossless
    * round-trip), not just the first variant's.
    */
-  toJSON(): Record<string, unknown> {
+  toJSON(): unknown {
     const merged: Record<string, unknown> = {};
     for (const inst of this.matchedInstances) {
+      /* A scalar or array variant (an OAS 3.1 type array) cannot be merged
+       * field by field; it is the whole value, as in the other SDKs. */
+      if (inst === null || typeof inst !== 'object' || Array.isArray(inst)) {
+        return inst;
+      }
       Object.assign(merged, inst as unknown as Record<string, unknown>);
     }
     return merged;
@@ -414,6 +427,10 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * the mapped subtype, so decoding this type returns the subtype.
    */
   static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+{{#vendorExtensions.discriminatorDefault}}
+  /** The subtype a missing or unlisted discriminator value decodes as (defaultMapping, D187). */
+  static readonly DISCRIMINATOR_DEFAULT = '{{vendorExtensions.discriminatorDefault}}';
+{{/vendorExtensions.discriminatorDefault}}
   static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
 {{#discriminator}}
 {{#mappedModels}}
@@ -533,6 +550,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * float coercion) and rejects a quoted string. */
   @Transform(({ obj }) => decodePlainNumber(obj, '{{baseName}}'), { toClassOnly: true })
 {{/vendorExtensions.isPlainNumberDecimal}}
+{{#vendorExtensions.isPlainNumberDecimalArray}}
+  /* Each element of an array of decimals is a JSON number: decode keeps its
+   * exact text (no float coercion) and rejects a quoted string. */
+  @Transform(({ obj }) => decodePlainNumberArray(obj, '{{baseName}}'{{#items.isNullable}}, true{{/items.isNullable}}), { toClassOnly: true })
+{{/vendorExtensions.isPlainNumberDecimalArray}}
 {{#vendorExtensions.isStringDecimal}}
   /* A `type: string` decimal is a JSON string: decode keeps its text and
    * rejects a bare number. */
@@ -586,6 +608,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^isEnum}}
 {{^vendorExtensions.prop.complexTypeIsEnum}}
 {{^isFreeFormObject}}
+{{#vendorExtensions.prop.complexTypeIsUnion}}
+  /* A oneOf or anyOf value may be a scalar or an array, so it is decoded through
+   * the union rules of the serializer rather than as a nested object. */
+  @Transform(
+    ({ obj }) => {
+      const wire = (obj as Record<string, unknown>)['{{baseName}}'];
+      return wire === undefined || wire === null ? wire : ObjectSerializer.deserialize(wire, {{complexType}});
+    },
+    { toClassOnly: true }
+  )
+{{/vendorExtensions.prop.complexTypeIsUnion}}
+{{^vendorExtensions.prop.complexTypeIsUnion}}
   @Type(() => {{complexType}})
 {{#isModel}}
   /* A nested model that declares additionalProperties keeps its free-form
@@ -595,6 +629,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     { toClassOnly: true }
   )
 {{/isModel}}
+{{/vendorExtensions.prop.complexTypeIsUnion}}
 {{/isFreeFormObject}}
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{/isEnum}}
@@ -1152,9 +1187,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#complexType}}
 {{^vendorExtensions.prop.complexTypeIsEnum}}
 {{^isFreeFormObject}}
+{{^vendorExtensions.prop.complexTypeIsUnion}}
     if (this.{{name}} != null && (typeof this.{{name}} !== 'object' || Array.isArray(this.{{name}}))) {
       throw new TypeError(`{{name}} must be an object, got ${Array.isArray(this.{{name}}) ? 'array' : typeof this.{{name}}}`);
     }
+{{/vendorExtensions.prop.complexTypeIsUnion}}
 {{/isFreeFormObject}}
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{/complexType}}
@@ -1380,7 +1417,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/parent}}
 {{#vars}}
-    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}}{{#vendorExtensions.isDecimalFormat}}, true{{/vendorExtensions.isDecimalFormat}})) {
+    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}}{{#vendorExtensions.isDecimalFormat}}, true{{/vendorExtensions.isDecimalFormat}}{{#vendorExtensions.isPlainNumberDecimalArray}}, true{{/vendorExtensions.isPlainNumberDecimalArray}})) {
       return false;
     }
 {{/vars}}
@@ -1447,7 +1484,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       if (a.length !== b.length) {
         return false;
       }
-      return a.every((v, i) => {{classname}}.__deepEquals(v, b[i]));
+      return a.every((v, i) => {{classname}}.__deepEquals(v, b[i], decimal));
     }
     if (a instanceof Set && b instanceof Set) {
       if (a.size !== b.size) {

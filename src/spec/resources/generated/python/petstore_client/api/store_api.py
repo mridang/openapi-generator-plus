@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Mapping, Optional, Protocol
 from pydantic import AwareDatetime, StrictInt, StrictStr
 
 from petstore_client.models.account import Account
+from petstore_client.models.allowance import Allowance
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
@@ -23,6 +24,7 @@ from petstore_client.models.reserve_stock_response import ReserveStockResponse
 from petstore_client.models.stock_item import StockItem
 from petstore_client.models.swatch import Swatch
 from petstore_client.models.tree_node import TreeNode
+from petstore_client._types import JsonNumber
 from petstore_client.json_lines_stream import JsonLinesStream
 from petstore_client.sse_stream import SseStream
 from petstore_client.stream_options import StreamOptions
@@ -47,6 +49,7 @@ from .options.get_grouped_categories_options import GetGroupedCategoriesOptions
 from .options.get_inventory_options import GetInventoryOptions
 from .options.get_matrix_options import GetMatrixOptions
 from .options.get_memo_options import GetMemoOptions
+from .options.get_native_amount_options import GetNativeAmountOptions
 from .options.get_native_values_options import GetNativeValuesOptions
 from .options.get_order_by_id_options import GetOrderByIdOptions
 from .options.get_order_by_tracking_id_options import GetOrderByTrackingIdOptions
@@ -56,11 +59,13 @@ from .options.get_swatch_groups_options import GetSwatchGroupsOptions
 from .options.get_timestamp_groups_options import GetTimestampGroupsOptions
 from .options.get_tree_options import GetTreeOptions
 from .options.head_memo_options import HeadMemoOptions
+from .options.list_native_amounts_options import ListNativeAmountsOptions
 from .options.options_memo_options import OptionsMemoOptions
 from .options.patch_memo_options import PatchMemoOptions
 from .options.place_order_options import PlaceOrderOptions
 from .options.reserve_stock_options import ReserveStockOptions
 from .options.search_store_options import SearchStoreOptions
+from .options.submit_allowance_options import SubmitAllowanceOptions
 from .options.trace_memo_options import TraceMemoOptions
 from .options.watch_notices_options import WatchNoticesOptions
 from .options.watch_orders_options import WatchOrdersOptions
@@ -250,6 +255,20 @@ class StoreApiProtocol(Protocol):
         """The ``get_memo`` operation with its status code, headers and body."""
         ...
 
+    async def get_native_amount(
+        self,
+        options: Optional[GetNativeAmountOptions] = None,
+    ) -> JsonNumber:
+        """The ``get_native_amount`` operation."""
+        ...
+
+    async def get_native_amount_with_http_info(
+        self,
+        options: Optional[GetNativeAmountOptions] = None,
+    ) -> "ApiResult[JsonNumber]":
+        """The ``get_native_amount`` operation with its status code, headers and body."""
+        ...
+
     async def get_native_values(
         self,
         options: Optional[GetNativeValuesOptions] = None,
@@ -382,6 +401,20 @@ class StoreApiProtocol(Protocol):
         """The ``head_memo`` operation with its status code, headers and body."""
         ...
 
+    async def list_native_amounts(
+        self,
+        options: Optional[ListNativeAmountsOptions] = None,
+    ) -> List[JsonNumber]:
+        """The ``list_native_amounts`` operation."""
+        ...
+
+    async def list_native_amounts_with_http_info(
+        self,
+        options: Optional[ListNativeAmountsOptions] = None,
+    ) -> "ApiResult[List[JsonNumber]]":
+        """The ``list_native_amounts`` operation with its status code, headers and body."""
+        ...
+
     async def options_memo(
         self,
         memo_id: StrictStr,
@@ -460,6 +493,22 @@ class StoreApiProtocol(Protocol):
         """The ``search_store`` operation with its status code, headers and body."""
         ...
 
+    async def submit_allowance(
+        self,
+        allowance: Allowance,
+        options: Optional[SubmitAllowanceOptions] = None,
+    ) -> None:
+        """The ``submit_allowance`` operation."""
+        ...
+
+    async def submit_allowance_with_http_info(
+        self,
+        allowance: Allowance,
+        options: Optional[SubmitAllowanceOptions] = None,
+    ) -> "ApiResult[None]":
+        """The ``submit_allowance`` operation with its status code, headers and body."""
+        ...
+
     async def trace_memo(
         self,
         memo_id: StrictStr,
@@ -494,7 +543,7 @@ class StoreApiProtocol(Protocol):
 
 
 class StoreApi(BaseApi):
-    """StoreApi provides methods for the store API group.
+    r"""StoreApi provides methods for the store API group.
     Access to Petstore orders
     """
 
@@ -1197,6 +1246,61 @@ class StoreApi(BaseApi):
             request_options=options,
         )
 
+    async def get_native_amount(
+        self,
+        options: Optional[GetNativeAmountOptions] = None,
+    ) -> JsonNumber:
+        """Reads one exact decimal as the whole response body.
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: JsonNumber
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_native_amount_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_native_amount but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_native_amount_with_http_info(
+        self,
+        options: Optional[GetNativeAmountOptions] = None,
+    ) -> "ApiResult[JsonNumber]":
+        """Reads one exact decimal as the whole response body. (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/native-values/amount"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "JsonNumber",
+            NO_AUTH,
+            operation_name="get_native_amount",
+            operation_id="getNativeAmount",
+            url_template="/store/native-values/amount",
+            request_options=options,
+        )
+
     async def get_native_values(
         self,
         options: Optional[GetNativeValuesOptions] = None,
@@ -1833,6 +1937,61 @@ class StoreApi(BaseApi):
             request_options=options,
         )
 
+    async def list_native_amounts(
+        self,
+        options: Optional[ListNativeAmountsOptions] = None,
+    ) -> List[JsonNumber]:
+        """Reads a list of exact decimals as the whole response body.
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: List[JsonNumber]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_native_amounts_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_native_amounts but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_native_amounts_with_http_info(
+        self,
+        options: Optional[ListNativeAmountsOptions] = None,
+    ) -> "ApiResult[List[JsonNumber]]":
+        """Reads a list of exact decimals as the whole response body. (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/native-values/amounts"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[JsonNumber]",
+            NO_AUTH,
+            operation_name="list_native_amounts",
+            operation_id="listNativeAmounts",
+            url_template="/store/native-values/amounts",
+            request_options=options,
+        )
+
     async def options_memo(
         self,
         memo_id: StrictStr,
@@ -2227,6 +2386,59 @@ class StoreApi(BaseApi):
             operation_name="search_store",
             operation_id="searchStore",
             url_template="/store/search",
+            request_options=options,
+        )
+
+    async def submit_allowance(
+        self,
+        allowance: Allowance,
+        options: Optional[SubmitAllowanceOptions] = None,
+    ) -> None:
+        """Submit an allowance whose schema uses every validation keyword
+        :param allowance:  (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.submit_allowance_with_http_info(
+            allowance,
+            options=options,
+        )
+
+        return result.data
+
+    async def submit_allowance_with_http_info(
+        self,
+        allowance: Allowance,
+        options: Optional[SubmitAllowanceOptions] = None,
+    ) -> "ApiResult[None]":
+        """Submit an allowance whose schema uses every validation keyword (with HTTP info)
+        :param allowance:  (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if allowance is None:
+            raise ValueError(
+                "Missing the required parameter 'allowance' when calling StoreApi.submit_allowance"
+            )
+
+        path = "/store/allowance"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = allowance
+        return await self._invoke_api_for_result(
+            "POST",
+            path,
+            query_params,
+            header_params,
+            body,
+            [],
+            "application/json",
+            None,
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
+            operation_name="submit_allowance",
+            operation_id="submitAllowance",
+            url_template="/store/allowance",
             request_options=options,
         )
 

@@ -37,6 +37,17 @@ SCHEMES: List[Tuple[str, str, List[Tuple[str, str]], bool, bool, bool]] = [
         False,
     ),
     (
+        "petstore_client.auth.archive_digest_authenticator",
+        "ArchiveDigestAuthenticator",
+        [
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD"),
+        ],
+        False,
+        False,
+        False,
+    ),
+    (
         "petstore_client.auth.pet_store_bearer_authenticator",
         "PetStoreBearerAuthenticator",
         [("token", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")],
@@ -130,6 +141,14 @@ SCHEMES: List[Tuple[str, str, List[Tuple[str, str]], bool, bool, bool]] = [
         "petstore_client.auth.oauth.browser_auth_implicit_authenticator",
         "BrowserAuthImplicitAuthenticator",
         [("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID")],
+        False,
+        False,
+        False,
+    ),
+    (
+        "petstore_client.auth.oauth.device_auth_device_authorization_authenticator",
+        "DeviceAuthDeviceAuthorizationAuthenticator",
+        [("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID")],
         False,
         False,
         False,
@@ -241,6 +260,23 @@ def test_bhv_authscheme_008_the_ssoauth_scheme_treats_an_empty_variable_as_unset
 ) -> None:
     module, name, variables = _scheme_by_name("SsoAuthAuthenticator")
     _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+# (module, class name, declared oauth2MetadataUrl) for each scheme that declares one
+METADATA_URL_SCHEMES: List[Tuple[str, str, str]] = [
+    (
+        "petstore_client.auth.oauth.machine_auth_client_credentials_authenticator",
+        "MachineAuthClientCredentialsAuthenticator",
+        "https://auth.example.com/.well-known/oauth-authorization-server",
+    ),
+]
+
+
+@pytest.mark.parametrize("module,name,url", METADATA_URL_SCHEMES)
+def test_bhv_authscheme_700_a_scheme_that_declares_a_metadata_url_exposes_it_as_a_constant(
+    module: str, name: str, url: str
+) -> None:
+    assert _scheme_class(module, name).METADATA_URL == url
 
 
 def test_bhv_misc_073_a_wrapper_class_exists_for_every_declared_scheme() -> None:
@@ -641,6 +677,15 @@ FLOW_SCHEMES: List[Tuple[str, str, str, List[Tuple[str, str]]]] = [
     ),
     (
         "none",
+        "petstore_client.auth.archive_digest_authenticator",
+        "ArchiveDigestAuthenticator",
+        [
+            ("username", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME"),
+            ("password", "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD"),
+        ],
+    ),
+    (
+        "none",
         "petstore_client.auth.pet_store_bearer_authenticator",
         "PetStoreBearerAuthenticator",
         [("token", "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")],
@@ -716,6 +761,12 @@ FLOW_SCHEMES: List[Tuple[str, str, str, List[Tuple[str, str]]]] = [
         "petstore_client.auth.oauth.browser_auth_implicit_authenticator",
         "BrowserAuthImplicitAuthenticator",
         [("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID")],
+    ),
+    (
+        "none",
+        "petstore_client.auth.oauth.device_auth_device_authorization_authenticator",
+        "DeviceAuthDeviceAuthorizationAuthenticator",
+        [("client_id", "SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID")],
     ),
     (
         "none",

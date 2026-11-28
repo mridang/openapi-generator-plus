@@ -56,6 +56,8 @@ export interface ClientCredentials {
   readonly petStoreBasic?: Authenticator;
   /** Credential for the `adminBasic` security scheme, for example a `AdminBasicAuthenticator`. */
   readonly adminBasic?: Authenticator;
+  /** Credential for the `archiveDigest` security scheme, for example a `ArchiveDigestAuthenticator`. */
+  readonly archiveDigest?: Authenticator;
   /** Credential for the `petStoreBearer` security scheme, for example a `PetStoreBearerAuthenticator`. */
   readonly petStoreBearer?: Authenticator;
   /** Credential for the `serviceToken` security scheme, for example a `ServiceTokenAuthenticator`. */
@@ -76,6 +78,8 @@ export interface ClientCredentials {
   readonly userAuth?: Authenticator;
   /** Credential for the `browserAuth` security scheme, for example a `BrowserAuthImplicitAuthenticator`. */
   readonly browserAuth?: Authenticator;
+  /** Credential for the `deviceAuth` security scheme, for example a `DeviceAuthDeviceAuthorizationAuthenticator`. */
+  readonly deviceAuth?: Authenticator;
   /** Credential for the `ssoAuth` security scheme, for example a `SsoAuthAuthenticator`. */
   readonly ssoAuth?: Authenticator;
 }
@@ -89,6 +93,7 @@ const SCHEMES: ReadonlyArray<
 > = [
   ["petStoreBasic", "petStoreBasic"],
   ["adminBasic", "adminBasic"],
+  ["archiveDigest", "archiveDigest"],
   ["petStoreBearer", "petStoreBearer"],
   ["serviceToken", "serviceToken"],
   ["apiKeyHeader", "apiKeyHeader"],
@@ -99,6 +104,7 @@ const SCHEMES: ReadonlyArray<
   ["legacyAuth", "legacyAuth"],
   ["userAuth", "userAuth"],
   ["browserAuth", "browserAuth"],
+  ["deviceAuth", "deviceAuth"],
   ["ssoAuth", "ssoAuth"],
 ];
 

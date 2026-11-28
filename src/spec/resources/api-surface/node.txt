@@ -1,0 +1,2126 @@
+Account.__validate(): void
+Account.constructor(data?: Partial<Account>)
+Account.equals(other: unknown): boolean
+Account.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Account.readonly id?: number | undefined
+Account.readonly password?: string | undefined
+Account.readonly username: string
+Account.static readonly __decimalFields: ReadonlySet<string>
+Account.static readonly __requiredNullableFields: ReadonlySet<string>
+Account.static readonly __stringDecimalFields: ReadonlySet<string>
+Account.static readonly __uuidFields: ReadonlySet<string>
+Account.with(patch: Partial<Account>): Account
+AddPetPhotosOptions.readonly files: (Buffer<ArrayBufferLike> | Blob)[]
+AddPetPhotosOptions.readonly metadata: PhotoMetadata
+AdminBasicAuthenticator.constructor(host: string, username?: string, password?: string)
+Allowance.__validate(): void
+Allowance.constructor(data?: Partial<Allowance>)
+Allowance.equals(other: unknown): boolean
+Allowance.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Allowance.readonly codes?: string[] | undefined
+Allowance.readonly count?: number | undefined
+Allowance.readonly label?: string | undefined
+Allowance.readonly limits?: { [key: string]: number; } | undefined
+Allowance.readonly parts?: AllowanceTier[] | undefined
+Allowance.readonly ratio?: number | undefined
+Allowance.readonly step?: number | undefined
+Allowance.readonly tier?: AllowanceTier | undefined
+Allowance.static readonly __decimalFields: ReadonlySet<string>
+Allowance.static readonly __requiredNullableFields: ReadonlySet<string>
+Allowance.static readonly __stringDecimalFields: ReadonlySet<string>
+Allowance.static readonly __uuidFields: ReadonlySet<string>
+Allowance.with(patch: Partial<Allowance>): Allowance
+AllowanceTier.__validate(): void
+AllowanceTier.constructor(data?: Partial<AllowanceTier>)
+AllowanceTier.equals(other: unknown): boolean
+AllowanceTier.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+AllowanceTier.readonly level?: number | undefined
+AllowanceTier.readonly name?: string | undefined
+AllowanceTier.static readonly __decimalFields: ReadonlySet<string>
+AllowanceTier.static readonly __requiredNullableFields: ReadonlySet<string>
+AllowanceTier.static readonly __stringDecimalFields: ReadonlySet<string>
+AllowanceTier.static readonly __uuidFields: ReadonlySet<string>
+AllowanceTier.with(patch: Partial<AllowanceTier>): AllowanceTier
+ApiClient.sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | BodySource | null, options?: SendRequestOptions): Promise<ApiHttpResponse>
+ApiError.constructor<T = unknown>(statusCode: number, message: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+ApiError.get isRetryable: boolean
+ApiError.get requestId: string | null
+ApiError.getTypedErrorBody<U>(clazz: ClassConstructor<U>): U | null [uses class-transformer:ClassConstructor]
+ApiError.readonly errorBody: T | null
+ApiError.readonly requestMethod: string | null
+ApiError.readonly requestPath: string | null
+ApiError.readonly responseBody: string | null
+ApiError.readonly responseHeaders: Record<string, string> | null
+ApiError.readonly statusCode: number
+ApiError.static fromResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }, errorSchemas?: ErrorSchemas): ApiError
+ApiError.toString(): string
+ApiErrorOptions.readonly cause?: unknown
+ApiErrorOptions.readonly requestMethod?: string | undefined
+ApiErrorOptions.readonly requestPath?: string | undefined
+ApiKeyAuthenticator.constructor(host: string, keyParamName: string, apiKey: string | undefined, location: ApiKeyLocation)
+ApiKeyAuthenticator.getAuthHeaders(): Record<string, string>
+ApiKeyAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+ApiKeyAuthenticator.getCookieParams(): Record<string, string>
+ApiKeyAuthenticator.getHost(): string
+ApiKeyAuthenticator.getQueryParams(): Record<string, string>
+ApiKeyAuthenticator.toJSON(): Record<string, string>
+ApiKeyHeaderAuthenticator.constructor(host: string, apiKey?: string)
+ApiKeyLocation.COOKIE = "cookie"
+ApiKeyLocation.HEADER = "header"
+ApiKeyLocation.QUERY = "query"
+ApiKeyQueryAuthenticator.constructor(host: string, apiKey?: string)
+ApiResponse.__validate(): void
+ApiResponse.constructor(data?: Partial<ApiResponse>)
+ApiResponse.equals(other: unknown): boolean
+ApiResponse.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+ApiResponse.readonly code?: number | undefined
+ApiResponse.readonly message?: string | undefined
+ApiResponse.readonly type?: string | undefined
+ApiResponse.static readonly __decimalFields: ReadonlySet<string>
+ApiResponse.static readonly __requiredNullableFields: ReadonlySet<string>
+ApiResponse.static readonly __stringDecimalFields: ReadonlySet<string>
+ApiResponse.static readonly __uuidFields: ReadonlySet<string>
+ApiResponse.with(patch: Partial<ApiResponse>): ApiResponse
+ApiResult.readonly data: T | undefined
+ApiResult.readonly headers: Readonly<Record<string, string>>
+ApiResult.readonly rawBody: string
+ApiResult.readonly statusCode: number
+ApiStreamResponse.close(): Promise<void>
+ApiStreamResponse.constructor(statusCode: number, headers: Readonly<Record<string, string>>, body: ReadableStream<Uint8Array>)
+ApiStreamResponse.readBounded(maxBytes: number): Promise<Buffer>
+ApiStreamResponse.readonly body: ReadableStream<Uint8Array<ArrayBufferLike>>
+ApiStreamResponse.readonly headers: Readonly<Record<string, string>>
+ApiStreamResponse.readonly statusCode: number
+ApiStreamResponse.toJSON(): Record<string, unknown>
+ApiStreamResponse.toString(): string
+ArchiveDigestAuthenticator.constructor(host: string, username?: string, password?: string)
+AttachPetFilesOptions.readonly caption?: string | undefined
+AttachPetFilesOptions.readonly file: Buffer<ArrayBufferLike> | Blob
+AttachPetFilesRequest.__validate(): void
+AttachPetFilesRequest.constructor(data?: Partial<AttachPetFilesRequest>)
+AttachPetFilesRequest.equals(other: unknown): boolean
+AttachPetFilesRequest.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+AttachPetFilesRequest.readonly caption?: string | undefined
+AttachPetFilesRequest.readonly file: Buffer<ArrayBufferLike>
+AttachPetFilesRequest.static readonly __decimalFields: ReadonlySet<string>
+AttachPetFilesRequest.static readonly __requiredNullableFields: ReadonlySet<string>
+AttachPetFilesRequest.static readonly __stringDecimalFields: ReadonlySet<string>
+AttachPetFilesRequest.static readonly __uuidFields: ReadonlySet<string>
+AttachPetFilesRequest.with(patch: Partial<AttachPetFilesRequest>): AttachPetFilesRequest
+Audit.__validate(): void
+Audit.constructor(data?: Partial<Audit>)
+Audit.equals(other: unknown): boolean
+Audit.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Audit.readonly payload?: string | undefined
+Audit.readonly score?: number | undefined
+Audit.readonly tags?: string[] | undefined
+Audit.static readonly __decimalFields: ReadonlySet<string>
+Audit.static readonly __requiredNullableFields: ReadonlySet<string>
+Audit.static readonly __stringDecimalFields: ReadonlySet<string>
+Audit.static readonly __uuidFields: ReadonlySet<string>
+Audit.with(patch: Partial<Audit>): Audit
+Authenticator.getAuthHeaders(): Record<string, string>
+Authenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+Authenticator.getCookieParams(): Record<string, string>
+Authenticator.getHost(): string
+Authenticator.getQueryParams(): Record<string, string>
+BadGatewayError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+BadRequestError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+BasicAuthenticator.constructor(host: string, username: string | undefined, password: string | undefined)
+BasicAuthenticator.getAuthHeaders(): Record<string, string>
+BasicAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+BasicAuthenticator.getCookieParams(): Record<string, string>
+BasicAuthenticator.getHost(): string
+BasicAuthenticator.getQueryParams(): Record<string, string>
+BasicAuthenticator.toJSON(): Record<string, string>
+BearerAuthenticator.constructor(host: string, token?: string | CredentialProvider)
+BearerAuthenticator.getAuthHeaders(): Record<string, string>
+BearerAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+BearerAuthenticator.getCookieParams(): Record<string, string>
+BearerAuthenticator.getHost(): string
+BearerAuthenticator.getQueryParams(): Record<string, string>
+BearerAuthenticator.toJSON(): Record<string, string>
+BinaryVault.__validate(): void
+BinaryVault.constructor(data?: Partial<BinaryVault>)
+BinaryVault.equals(other: unknown): boolean
+BinaryVault.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+BinaryVault.readonly labels?: { [key: string]: Buffer<ArrayBufferLike>; } | undefined
+BinaryVault.readonly seal?: Buffer<ArrayBufferLike> | undefined
+BinaryVault.readonly shards?: Buffer<ArrayBufferLike>[] | undefined
+BinaryVault.static readonly __decimalFields: ReadonlySet<string>
+BinaryVault.static readonly __requiredNullableFields: ReadonlySet<string>
+BinaryVault.static readonly __stringDecimalFields: ReadonlySet<string>
+BinaryVault.static readonly __uuidFields: ReadonlySet<string>
+BinaryVault.with(patch: Partial<BinaryVault>): BinaryVault
+Blobs.[key: string]: unknown
+Blobs.__validate(): void
+Blobs.constructor(data?: Partial<Blobs>)
+Blobs.equals(other: unknown): boolean
+Blobs.get additionalProperties: Record<string, Buffer<ArrayBufferLike>>
+Blobs.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Blobs.readonly label?: string | undefined
+Blobs.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Blobs.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Blobs.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Blobs.static readonly __decimalFields: ReadonlySet<string>
+Blobs.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, Buffer>
+Blobs.static readonly __requiredNullableFields: ReadonlySet<string>
+Blobs.static readonly __stringDecimalFields: ReadonlySet<string>
+Blobs.static readonly __uuidFields: ReadonlySet<string>
+Blobs.with(patch: Partial<Blobs>): Blobs
+BodySource.get length: number | null
+BodySource.get replayable: boolean
+BodySource.open(): Promise<OpenedBody>
+BodySource.static fromFactory(factory: BodyStreamFactory, length?: number): BodySource
+BodySource.static of(bytes: Uint8Array | ArrayBuffer): BodySource
+BodySource.static ofFile(path: string): BodySource
+BodySource.static once(stream: BodyStream, length?: number): BodySource
+BodySource.toJSON(): Record<string, unknown>
+BodySource.toString(): string
+BrowserAuthImplicitAuthenticator.constructor(host: string, clientId?: string)
+ByteStream.close(): Promise<void>
+ByteStream.constructor(statusCode: number, headers: Readonly<Record<string, string>>, source: ReadableStream<Uint8Array>)
+ByteStream.readAll(): Promise<Buffer>
+ByteStream.readonly headers: Readonly<Record<string, string>>
+ByteStream.readonly statusCode: number
+ByteStream.toJSON(): Record<string, unknown>
+ByteStream.toString(): string
+CallHook.start(info: CallInfo, headers: Record<string, string>): CallObserver | void
+CallInfo.readonly method: string
+CallInfo.readonly operationId: string
+CallInfo.readonly serverAddress: string
+CallInfo.readonly url: string
+CallInfo.readonly urlTemplate: string
+CallObserver.finish(outcome: CallOutcome): void
+CallOutcome.readonly error: unknown
+CallOutcome.readonly headers: Readonly<Record<string, string>> | null
+CallOutcome.readonly statusCode: number
+Car.__validate(): void
+Car.constructor(data?: Partial<Car>)
+Car.equals(other: unknown): boolean
+Car.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Car.readonly doorCount: number
+Car.readonly vehicleType: string
+Car.static readonly __decimalFields: ReadonlySet<string>
+Car.static readonly __requiredNullableFields: ReadonlySet<string>
+Car.static readonly __stringDecimalFields: ReadonlySet<string>
+Car.static readonly __uuidFields: ReadonlySet<string>
+Car.with(patch: Partial<Car>): Car
+Category.__validate(): void
+Category.constructor(data?: Partial<Category>)
+Category.equals(other: unknown): boolean
+Category.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Category.readonly id?: number | undefined
+Category.readonly name?: string | undefined
+Category.static readonly __decimalFields: ReadonlySet<string>
+Category.static readonly __requiredNullableFields: ReadonlySet<string>
+Category.static readonly __stringDecimalFields: ReadonlySet<string>
+Category.static readonly __uuidFields: ReadonlySet<string>
+Category.with(patch: Partial<Category>): Category
+ChallengeAuthenticator.acceptChallenge(wwwAuthenticate: string): boolean
+ChallengeAuthenticator.authorization(method: string, requestTarget: string): string | null
+Circle.__validate(): void
+Circle.constructor(data?: Partial<Circle>)
+Circle.equals(other: unknown): boolean
+Circle.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Circle.readonly radius: number
+Circle.readonly shapeType: string
+Circle.static readonly __decimalFields: ReadonlySet<string>
+Circle.static readonly __requiredNullableFields: ReadonlySet<string>
+Circle.static readonly __stringDecimalFields: ReadonlySet<string>
+Circle.static readonly __uuidFields: ReadonlySet<string>
+Circle.with(patch: Partial<Circle>): Circle
+Client.close(): Promise<void>
+Client.constructor(authenticator: Authenticator)
+Client.constructor(authenticator: Authenticator, transportOptions: TransportOptions)
+Client.constructor(credentials: Authenticator | ClientCredentials, transportOptions: TransportOptions | undefined, clientOptions: ClientOptions)
+Client.constructor(credentials: ClientCredentials)
+Client.constructor(credentials: ClientCredentials, transportOptions: TransportOptions)
+Client.readonly pet: PetApi
+Client.readonly problems: ProblemsApi
+Client.readonly store: StoreApi
+Client.static withAuthenticator(authenticator: Authenticator, transportOptions?: TransportOptions, clientOptions?: ClientOptions): Client
+Client.static withToken(host: string, accessToken?: string | CredentialProvider, transportOptions?: TransportOptions, clientOptions?: ClientOptions): Client
+ClientAuthMethod.Basic = "basic"
+ClientAuthMethod.Body = "body"
+ClientError.constructor<T = unknown>(statusCode: number, message: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+ClientInterface.close(): Promise<void>
+ClientInterface.readonly pet: PetApiInterface
+ClientInterface.readonly problems: ProblemsApiInterface
+ClientInterface.readonly store: StoreApiInterface
+ClientOptions.readonly callHook?: CallHook | undefined
+ClientOptions.readonly signal?: AbortSignal | undefined
+Configuration.constructor(options?: Partial<{ baseUrl: string; defaultHeaders: Record<string, string>; signal: AbortSignal; callHook: CallHook; validateConstraints: boolean; }>)
+Configuration.readonly baseUrl: string
+Configuration.readonly callHook: CallHook | undefined
+Configuration.readonly defaultHeaders: Readonly<Record<string, string>>
+Configuration.readonly signal: AbortSignal | undefined
+Configuration.readonly validateConstraints: boolean
+Configuration.static builder(): ConfigurationBuilder
+Configuration.static defaultConfiguration(): Configuration
+Configuration.toJSON(): Record<string, unknown>
+Configuration.toString(): string
+ConfigurationBuilder.baseUrl(baseUrl: string): this
+ConfigurationBuilder.build(): Configuration
+ConfigurationBuilder.callHook(hook: CallHook | undefined): this
+ConfigurationBuilder.defaultHeader(name: string, value: string): this
+ConfigurationBuilder.defaultHeaders(headers: Record<string, string>): this
+ConfigurationBuilder.server(serverConfig: ServerConfiguration, variables?: Record<string, string>): this
+ConfigurationBuilder.signal(signal: AbortSignal | undefined): this
+ConfigurationBuilder.validateConstraints(validate: boolean): this
+ConflictError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+Counters.[key: string]: unknown
+Counters.__validate(): void
+Counters.constructor(data?: Partial<Counters>)
+Counters.equals(other: unknown): boolean
+Counters.get additionalProperties: Record<string, number>
+Counters.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Counters.readonly label?: string | undefined
+Counters.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Counters.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Counters.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Counters.static readonly __decimalFields: ReadonlySet<string>
+Counters.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, number>
+Counters.static readonly __requiredNullableFields: ReadonlySet<string>
+Counters.static readonly __stringDecimalFields: ReadonlySet<string>
+Counters.static readonly __uuidFields: ReadonlySet<string>
+Counters.with(patch: Partial<Counters>): Counters
+DefaultApiClient.close(): Promise<void>
+DefaultApiClient.constructor()
+DefaultApiClient.constructor(transportOptions: TransportOptions)
+DefaultApiClient.protected closed: boolean
+DefaultApiClient.protected prepareDispatcher(): Promise<unknown>
+DefaultApiClient.protected readonly transportOptions: TransportOptions
+DefaultApiClient.protected releaseTransport(): Promise<void>
+DefaultApiClient.protected static isDecodeFailure(error: unknown): boolean
+DefaultApiClient.protected static transportError(error: unknown, method: string, url: string): ApiError
+DefaultApiClient.protected supportedEncodings(): string
+DefaultApiClient.sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | BodySource | null, options?: SendRequestOptions): Promise<ApiHttpResponse>
+DefaultApiClient.sendStreaming(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | BodySource | null, options?: SendStreamingOptions): Promise<ApiStreamResponse>
+DefaultApiClient.static buildContentDisposition(name: string, filename: string): string
+DefaultApiClient.static buildDispatcher(transportOptions: TransportOptions): ProxyAgent | Agent | undefined [uses undici:Agent, undici:ProxyAgent]
+DefaultApiClient.static collectHeaders(response: Response): Record<string, string>
+DefaultApiClient.static decodeBody(buf: Buffer, contentType?: string): string
+DefaultApiClient.static ensureDecoded(buf: Buffer, contentEncoding: string, statusCode?: number, responseHeaders?: Record<string, string> | null, cap?: { readonly limit: number; readonly tooLarge: () => ApiError; }): Promise<Buffer>
+DefaultApiClient.static mimeTypeForFilename(filename: string): string
+DefaultApiClient.static redactUrl(url: string): string
+DefaultApiClient.static retryAfterMillis(value: string | undefined): number | null
+DefaultApiClient.static textOrBase64(bytes: Buffer, contentType: string): string
+DefaultApiClient.static zstdDecoder: ((buf: Buffer, maxOutputLength?: number) => Promise<Buffer>) | null
+Defaults.__validate(): void
+Defaults.constructor(data?: Partial<Defaults>)
+Defaults.equals(other: unknown): boolean
+Defaults.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Defaults.readonly ceiling?: number | undefined
+Defaults.readonly greeting?: string | undefined
+Defaults.readonly label?: string | undefined
+Defaults.readonly mode?: DefaultsModeEnum | undefined
+Defaults.readonly ratio?: Decimal | undefined [uses decimal.js:Decimal]
+Defaults.readonly retries?: number | undefined
+Defaults.readonly scale?: number | undefined
+Defaults.readonly swatch?: Swatch | undefined
+Defaults.readonly weight?: number | undefined
+Defaults.static readonly __decimalFields: ReadonlySet<string>
+Defaults.static readonly __requiredNullableFields: ReadonlySet<string>
+Defaults.static readonly __stringDecimalFields: ReadonlySet<string>
+Defaults.static readonly __uuidFields: ReadonlySet<string>
+Defaults.with(patch: Partial<Defaults>): Defaults
+DeletePetOptions.readonly apiKey?: string | undefined
+Department.__validate(): void
+Department.constructor(data?: Partial<Department>)
+Department.equals(other: unknown): boolean
+Department.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Department.readonly lead?: Employee | undefined
+Department.readonly name: string
+Department.static readonly __decimalFields: ReadonlySet<string>
+Department.static readonly __requiredNullableFields: ReadonlySet<string>
+Department.static readonly __stringDecimalFields: ReadonlySet<string>
+Department.static readonly __uuidFields: ReadonlySet<string>
+Department.with(patch: Partial<Department>): Department
+DeviceAuthDeviceAuthorizationAuthenticator.constructor(host: string, clientId?: string)
+DeviceAuthorization.readonly deviceCode: string
+DeviceAuthorization.readonly expiresIn: number
+DeviceAuthorization.readonly interval: number
+DeviceAuthorization.readonly userCode: string
+DeviceAuthorization.readonly verificationUri: string
+DeviceAuthorization.readonly verificationUriComplete: string | null
+DigestAuthenticator.acceptChallenge(wwwAuthenticate: string): boolean
+DigestAuthenticator.authorization(method: string, requestTarget: string): string | null
+DigestAuthenticator.constructor(host: string, username: string | undefined, password: string | undefined)
+DigestAuthenticator.getAuthHeaders(): Record<string, string>
+DigestAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+DigestAuthenticator.getCookieParams(): Record<string, string>
+DigestAuthenticator.getHost(): string
+DigestAuthenticator.getQueryParams(): Record<string, string>
+DigestAuthenticator.toJSON(): Record<string, string>
+DryFood.__validate(): void
+DryFood.constructor(data?: Partial<DryFood>)
+DryFood.equals(other: unknown): boolean
+DryFood.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+DryFood.readonly foodType: string
+DryFood.readonly pricePerKg?: Decimal | undefined [uses decimal.js:Decimal]
+DryFood.readonly weightKg: number
+DryFood.static readonly __decimalFields: ReadonlySet<string>
+DryFood.static readonly __requiredNullableFields: ReadonlySet<string>
+DryFood.static readonly __stringDecimalFields: ReadonlySet<string>
+DryFood.static readonly __uuidFields: ReadonlySet<string>
+DryFood.with(patch: Partial<DryFood>): DryFood
+EdgeCases.__validate(): void
+EdgeCases.constructor(data?: Partial<EdgeCases>)
+EdgeCases.equals(other: unknown): boolean
+EdgeCases.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+EdgeCases.readonly and?: boolean | undefined
+EdgeCases.readonly class?: string | undefined
+EdgeCases.readonly cutoff?: Temporal.PlainTime | undefined [uses temporal-spec:Temporal.PlainTime]
+EdgeCases.readonly expiresAt?: Date | undefined
+EdgeCases.readonly false?: boolean | undefined
+EdgeCases.readonly favoriteColor?: Color | undefined
+EdgeCases.readonly freeFormAny?: unknown
+EdgeCases.readonly lastError?: ModelError | undefined
+EdgeCases.readonly n2fa?: boolean | undefined
+EdgeCases.readonly not?: boolean | undefined
+EdgeCases.readonly null?: string | undefined
+EdgeCases.readonly or?: boolean | undefined
+EdgeCases.readonly outcome?: ModelResult | undefined
+EdgeCases.readonly permissionsNote?: string | undefined
+EdgeCases.readonly phase?: EdgeCasesPhaseEnum | undefined
+EdgeCases.readonly retryAfter?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration]
+EdgeCases.readonly return?: string | undefined
+EdgeCases.readonly separator?: Separator | undefined
+EdgeCases.readonly slug?: string | undefined
+EdgeCases.readonly true?: boolean | undefined
+EdgeCases.static readonly __decimalFields: ReadonlySet<string>
+EdgeCases.static readonly __requiredNullableFields: ReadonlySet<string>
+EdgeCases.static readonly __stringDecimalFields: ReadonlySet<string>
+EdgeCases.static readonly __uuidFields: ReadonlySet<string>
+EdgeCases.static readonly __wireNames: Readonly<Record<string, string>>
+EdgeCases.with(patch: Partial<EdgeCases>): EdgeCases
+Employee.__validate(): void
+Employee.constructor(data?: Partial<Employee>)
+Employee.equals(other: unknown): boolean
+Employee.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Employee.readonly department?: Department | undefined
+Employee.readonly name: string
+Employee.static readonly __decimalFields: ReadonlySet<string>
+Employee.static readonly __requiredNullableFields: ReadonlySet<string>
+Employee.static readonly __stringDecimalFields: ReadonlySet<string>
+Employee.static readonly __uuidFields: ReadonlySet<string>
+Employee.with(patch: Partial<Employee>): Employee
+FindPetsByStatusOptions.readonly bornAfter?: string | Date | undefined
+FindPetsByStatusOptions.readonly filter?: { [key: string]: string; } | undefined
+FindPetsByStatusOptions.readonly n2ndPage?: number | undefined
+FindPetsByStatusOptions.readonly reportDate?: string | Date | undefined
+FindPetsByStatusOptions.readonly status?: string | undefined
+ForbiddenError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+Freeform.[key: string]: unknown
+Freeform.__validate(): void
+Freeform.constructor(data?: Partial<Freeform>)
+Freeform.equals(other: unknown): boolean
+Freeform.get additionalProperties: Record<string, unknown>
+Freeform.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Freeform.readonly label?: string | undefined
+Freeform.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Freeform.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Freeform.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Freeform.static readonly __decimalFields: ReadonlySet<string>
+Freeform.static readonly __requiredNullableFields: ReadonlySet<string>
+Freeform.static readonly __stringDecimalFields: ReadonlySet<string>
+Freeform.static readonly __uuidFields: ReadonlySet<string>
+Freeform.with(patch: Partial<Freeform>): Freeform
+GatewayTimeoutError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+GetBySwatchOptions.readonly preferredSwatch?: Swatch | undefined
+GetBySwatchOptions.readonly querySwatch?: Swatch | undefined
+GetExternalPetInfoServer.abstract getUrl(): string
+GetExternalPetInfoServerServer0.constructor()
+GetExternalPetInfoServerServer0.getUrl(): string
+GetMemoResponseHeaders.readonly xArchived: boolean | undefined
+GetMemoResponseHeaders.readonly xLabels: string[] | undefined
+GetMemoResponseHeaders.readonly xRevision: number | undefined
+GetMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): GetMemoResponseHeaders
+GetMemoServer.abstract getUrl(): string
+GetMemoServerMemos.constructor()
+GetMemoServerMemos.getUrl(): string
+GetMultiServerPetInfoServer.abstract getUrl(): string
+GetMultiServerPetInfoServerMirror.constructor(region: GetMultiServerPetInfoServerMirrorRegion, channel: GetMultiServerPetInfoServerChannel)
+GetMultiServerPetInfoServerMirror.getUrl(): string
+GetMultiServerPetInfoServerMirror.readonly channel: GetMultiServerPetInfoServerChannel
+GetMultiServerPetInfoServerMirror.readonly region: GetMultiServerPetInfoServerMirrorRegion
+GetMultiServerPetInfoServerPrimary.constructor()
+GetMultiServerPetInfoServerPrimary.getUrl(): string
+GetMultiServerPetInfoServerRegional.constructor(region: GetMultiServerPetInfoServerRegionalRegion)
+GetMultiServerPetInfoServerRegional.getUrl(): string
+GetMultiServerPetInfoServerRegional.readonly region: GetMultiServerPetInfoServerRegionalRegion
+GetNativeValuesOptions.readonly address4?: string | undefined
+GetNativeValuesOptions.readonly amount?: Decimal | undefined [uses decimal.js:Decimal]
+GetNativeValuesOptions.readonly delay?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration]
+GetNativeValuesOptions.readonly xAddress6?: string | undefined
+GetPetByIdServer.abstract getUrl(): string
+GetPetByIdServerCDNBackedReadEndpointForPetDetails.constructor()
+GetPetByIdServerCDNBackedReadEndpointForPetDetails.getUrl(): string
+GetPetByNameOptions.readonly category: string
+GetPetByNameOptions.readonly xCorrelationId: string
+GetPetByNoteOptions.readonly note: string | null
+GetPetByNoteOptions.readonly rank: number | null
+GetPetSummaryOptions.readonly days?: (string | Date)[] | undefined
+GetPetSummaryOptions.readonly session: string
+GetPetTagOptions.readonly colors?: string[] | undefined
+GetPetTagOptions.readonly criteria?: PetCriteria | undefined
+GetPetTagOptions.readonly criteriaCsv?: PetCriteria | undefined
+GetPetTagOptions.readonly criteriaDeep?: PetCriteria | undefined
+GetPetTagOptions.readonly filter?: string | undefined
+GetPetTagOptions.readonly fingerprint?: Buffer<ArrayBufferLike> | undefined
+GetPetTagOptions.readonly revision?: string | undefined
+GetPetTagOptions.readonly sizes?: string[] | undefined
+GetPetTagOptions.readonly xCriteria?: PetCriteria | undefined
+GetPetTagOptions.readonly xFingerprint?: Buffer<ArrayBufferLike> | undefined
+GetStagingPetInfoServer.abstract getUrl(): string
+GetStagingPetInfoServerStagingServer.constructor(environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion)
+GetStagingPetInfoServerStagingServer.getUrl(): string
+GetStagingPetInfoServerStagingServer.readonly environment: GetStagingPetInfoServerEnvironment
+GetStagingPetInfoServerStagingServer.readonly version: GetStagingPetInfoServerVersion
+GetStockItemOptions.readonly asOf?: Date | undefined
+GoneError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+HeadMemoResponseHeaders.readonly xRevision: number | undefined
+HeadMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): HeadMemoResponseHeaders
+HttpAwareAuthenticator.setApiClient(apiClient: ApiClient): void
+InternalApiKeyAuthenticator.constructor(host: string, apiKey?: string)
+InternalServerError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+JsonLinesStream.close(): Promise<void>
+JsonLinesStream.constructor<T>(source: ByteStream, decoder: (line: string) => T, maxLineBytes: number, method: string, path: string)
+JsonLinesStream.get headers: Readonly<Record<string, string>>
+JsonLinesStream.get statusCode: number
+JsonLinesStream.next(): Promise<IteratorResult<T>>
+JsonLinesStream.return(): Promise<IteratorResult<T>>
+JsonLinesStream.toJSON(): Record<string, unknown>
+JsonLinesStream.toString(): string
+Ledger.__validate(): void
+Ledger.constructor(data?: Partial<Ledger>)
+Ledger.equals(other: unknown): boolean
+Ledger.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Ledger.readonly entryId: number
+Ledger.readonly entryIds?: number[] | undefined
+Ledger.static readonly __decimalFields: ReadonlySet<string>
+Ledger.static readonly __requiredNullableFields: ReadonlySet<string>
+Ledger.static readonly __stringDecimalFields: ReadonlySet<string>
+Ledger.static readonly __uuidFields: ReadonlySet<string>
+Ledger.with(patch: Partial<Ledger>): Ledger
+LegacyAuthPasswordAuthenticator.constructor(host: string, clientId?: string, clientSecret?: string, username?: string, password?: string)
+Letter.__validate(): void
+Letter.constructor(data?: Partial<Letter>)
+Letter.equals(other: unknown): boolean
+Letter.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Letter.readonly kind: string
+Letter.readonly pages?: number | undefined
+Letter.static readonly __decimalFields: ReadonlySet<string>
+Letter.static readonly __requiredNullableFields: ReadonlySet<string>
+Letter.static readonly __stringDecimalFields: ReadonlySet<string>
+Letter.static readonly __uuidFields: ReadonlySet<string>
+Letter.with(patch: Partial<Letter>): Letter
+ListPetArchiveOptions.readonly cursor?: string | undefined
+ListPetCatalogOptions.readonly cursor?: string | undefined
+ListPetCatalogOptions.readonly limit?: number | undefined
+ListPetEventsOptions.readonly since?: string | undefined
+ListPetFeedOptions.readonly limit?: number | undefined
+ListPetFeedResponseHeaders.readonly link: string | undefined
+ListPetFeedResponseHeaders.static from(headers: Readonly<Record<string, string>>): ListPetFeedResponseHeaders
+ListPetMatchesOptions.readonly cursor?: string | undefined
+ListPetNextUrlOptions.readonly limit?: number | undefined
+ListPetNotesOptions.readonly pos?: string | undefined
+ListPetOffsetsOptions.readonly limit?: number | undefined
+ListPetOffsetsOptions.readonly offset?: number | undefined
+ListPetPageNumbersOptions.readonly page?: number | undefined
+ListPetPageNumbersOptions.readonly perPage?: number | undefined
+ListPetsAfterOptions.readonly limit?: number | undefined
+ListPetsAfterOptions.readonly startingAfter?: string | undefined
+LockedError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+MachineAuthClientCredentialsAuthenticator.constructor(host: string, clientId?: string, clientSecret?: string)
+MachineAuthClientCredentialsAuthenticator.static readonly METADATA_URL: "https://auth.example.com/.well-known/oauth-authorization-server"
+Medication.__validate(): void
+Medication.constructor(data?: Partial<Medication>)
+Medication.equals(other: unknown): boolean
+Medication.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Medication.readonly dosage?: string | undefined
+Medication.readonly drugName: string
+Medication.readonly notes?: string | undefined
+Medication.static readonly __decimalFields: ReadonlySet<string>
+Medication.static readonly __requiredNullableFields: ReadonlySet<string>
+Medication.static readonly __stringDecimalFields: ReadonlySet<string>
+Medication.static readonly __uuidFields: ReadonlySet<string>
+Medication.with(patch: Partial<Medication>): Medication
+MemberNotFound.__validate(): void
+MemberNotFound.constructor(data?: Partial<MemberNotFound>)
+MemberNotFound.equals(other: unknown): boolean
+MemberNotFound.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+MemberNotFound.readonly code?: number | undefined
+MemberNotFound.readonly detail?: string | undefined
+MemberNotFound.static readonly __decimalFields: ReadonlySet<string>
+MemberNotFound.static readonly __requiredNullableFields: ReadonlySet<string>
+MemberNotFound.static readonly __stringDecimalFields: ReadonlySet<string>
+MemberNotFound.static readonly __uuidFields: ReadonlySet<string>
+MemberNotFound.with(patch: Partial<MemberNotFound>): MemberNotFound
+MemberNotFoundError.constructor(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: MemberNotFound | null, options?: ApiErrorOptions)
+MemberNotFoundError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+Memo.__validate(): void
+Memo.constructor(data?: Partial<Memo>)
+Memo.equals(other: unknown): boolean
+Memo.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Memo.readonly memoId: string
+Memo.readonly text?: string | undefined
+Memo.static readonly __decimalFields: ReadonlySet<string>
+Memo.static readonly __requiredNullableFields: ReadonlySet<string>
+Memo.static readonly __stringDecimalFields: ReadonlySet<string>
+Memo.static readonly __uuidFields: ReadonlySet<string>
+Memo.with(patch: Partial<Memo>): Memo
+Metadata.[key: string]: unknown
+Metadata.__validate(): void
+Metadata.constructor(data?: Partial<Metadata>)
+Metadata.equals(other: unknown): boolean
+Metadata.get additionalProperties: Record<string, string>
+Metadata.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Metadata.readonly createdAt?: Date | undefined
+Metadata.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Metadata.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Metadata.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Metadata.static readonly __decimalFields: ReadonlySet<string>
+Metadata.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, string>
+Metadata.static readonly __requiredNullableFields: ReadonlySet<string>
+Metadata.static readonly __stringDecimalFields: ReadonlySet<string>
+Metadata.static readonly __uuidFields: ReadonlySet<string>
+Metadata.with(patch: Partial<Metadata>): Metadata
+MethodNotAllowedError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+ModelError.__validate(): void
+ModelError.constructor(data?: Partial<ModelError>)
+ModelError.equals(other: unknown): boolean
+ModelError.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+ModelError.readonly code?: number | undefined
+ModelError.readonly message?: string | undefined
+ModelError.static readonly __decimalFields: ReadonlySet<string>
+ModelError.static readonly __requiredNullableFields: ReadonlySet<string>
+ModelError.static readonly __stringDecimalFields: ReadonlySet<string>
+ModelError.static readonly __uuidFields: ReadonlySet<string>
+ModelError.with(patch: Partial<ModelError>): ModelError
+ModelResult.__validate(): void
+ModelResult.constructor(data?: Partial<ModelResult>)
+ModelResult.equals(other: unknown): boolean
+ModelResult.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+ModelResult.readonly ok?: boolean | undefined
+ModelResult.static readonly __decimalFields: ReadonlySet<string>
+ModelResult.static readonly __requiredNullableFields: ReadonlySet<string>
+ModelResult.static readonly __stringDecimalFields: ReadonlySet<string>
+ModelResult.static readonly __uuidFields: ReadonlySet<string>
+ModelResult.with(patch: Partial<ModelResult>): ModelResult
+Moments.[key: string]: unknown
+Moments.__validate(): void
+Moments.constructor(data?: Partial<Moments>)
+Moments.equals(other: unknown): boolean
+Moments.get additionalProperties: Record<string, Date>
+Moments.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Moments.readonly label?: string | undefined
+Moments.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Moments.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Moments.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Moments.static readonly __decimalFields: ReadonlySet<string>
+Moments.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, Date>
+Moments.static readonly __requiredNullableFields: ReadonlySet<string>
+Moments.static readonly __stringDecimalFields: ReadonlySet<string>
+Moments.static readonly __uuidFields: ReadonlySet<string>
+Moments.with(patch: Partial<Moments>): Moments
+NativeValues.__validate(): void
+NativeValues.constructor(data?: Partial<NativeValues>)
+NativeValues.equals(other: unknown): boolean
+NativeValues.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+NativeValues.readonly address4?: string | undefined
+NativeValues.readonly address6?: string | undefined
+NativeValues.readonly addresses?: string[] | undefined
+NativeValues.readonly amount?: Decimal | undefined [uses decimal.js:Decimal]
+NativeValues.readonly amounts?: Decimal[] | undefined [uses decimal.js:Decimal]
+NativeValues.readonly contact?: Email | undefined
+NativeValues.readonly homepage?: URI | undefined
+NativeValues.readonly host?: string | undefined
+NativeValues.readonly ledger?: Decimal | undefined [uses decimal.js:Decimal]
+NativeValues.readonly since?: string | undefined
+NativeValues.readonly wait?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration]
+NativeValues.static readonly __decimalFields: ReadonlySet<string>
+NativeValues.static readonly __requiredNullableFields: ReadonlySet<string>
+NativeValues.static readonly __stringDecimalFields: ReadonlySet<string>
+NativeValues.static readonly __uuidFields: ReadonlySet<string>
+NativeValues.with(patch: Partial<NativeValues>): NativeValues
+NetworkError.constructor(message: string, options?: ApiErrorOptions)
+NetworkTimeoutError.constructor(message: string, options?: ApiErrorOptions)
+NotFoundError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+NotImplementedError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+OAuth2AuthorizationCodeAuthenticator.buildAuthorizationUrl(state?: string): string
+OAuth2AuthorizationCodeAuthenticator.constructor(host: string, clientId: string, clientSecret: string, authorizationUrl: string, tokenUrl: string, redirectUri: string, scopes: string[], refreshUrl?: string | null, tokenManager?: OAuth2TokenManager, pkce?: PkceState)
+OAuth2AuthorizationCodeAuthenticator.exchangeCode(code: string): Promise<void>
+OAuth2AuthorizationCodeAuthenticator.getAuthHeaders(): Record<string, string>
+OAuth2AuthorizationCodeAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OAuth2AuthorizationCodeAuthenticator.getCookieParams(): Record<string, string>
+OAuth2AuthorizationCodeAuthenticator.getHost(): string
+OAuth2AuthorizationCodeAuthenticator.getQueryParams(): Record<string, string>
+OAuth2AuthorizationCodeAuthenticator.invalidateAccessToken(): void
+OAuth2AuthorizationCodeAuthenticator.setApiClient(apiClient: ApiClient): void
+OAuth2AuthorizationCodeAuthenticator.toJSON(): Record<string, string>
+OAuth2ClientCredentialsAuthenticator.constructor(host: string, clientId: string, clientSecret: string, tokenUrl: string, scopes: string[], clientAuthMethod?: ClientAuthMethod)
+OAuth2ClientCredentialsAuthenticator.getAuthHeaders(): Record<string, string>
+OAuth2ClientCredentialsAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OAuth2ClientCredentialsAuthenticator.getCookieParams(): Record<string, string>
+OAuth2ClientCredentialsAuthenticator.getHost(): string
+OAuth2ClientCredentialsAuthenticator.getQueryParams(): Record<string, string>
+OAuth2ClientCredentialsAuthenticator.invalidateAccessToken(): void
+OAuth2ClientCredentialsAuthenticator.setApiClient(apiClient: ApiClient): void
+OAuth2ClientCredentialsAuthenticator.toJSON(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.constructor(host: string, clientId: string, deviceAuthorizationUrl: string, tokenUrl: string, scopes: string[], refreshUrl?: string | null)
+OAuth2DeviceAuthorizationAuthenticator.getAuthHeaders(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OAuth2DeviceAuthorizationAuthenticator.getCookieParams(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.getHost(): string
+OAuth2DeviceAuthorizationAuthenticator.getQueryParams(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.invalidateAccessToken(): void
+OAuth2DeviceAuthorizationAuthenticator.pollForToken(authorization: DeviceAuthorization): Promise<void>
+OAuth2DeviceAuthorizationAuthenticator.requestDeviceAuthorization(): Promise<DeviceAuthorization>
+OAuth2DeviceAuthorizationAuthenticator.setApiClient(apiClient: ApiClient): void
+OAuth2DeviceAuthorizationAuthenticator.toJSON(): Record<string, string>
+OAuth2ImplicitAuthenticator.buildAuthorizationUrl(state?: string): string
+OAuth2ImplicitAuthenticator.constructor(host: string, clientId: string, authorizationUrl: string, scopes: string[])
+OAuth2ImplicitAuthenticator.getAuthHeaders(): Record<string, string>
+OAuth2ImplicitAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OAuth2ImplicitAuthenticator.getCookieParams(): Record<string, string>
+OAuth2ImplicitAuthenticator.getHost(): string
+OAuth2ImplicitAuthenticator.getQueryParams(): Record<string, string>
+OAuth2ImplicitAuthenticator.setAccessToken(token: string): void
+OAuth2ImplicitAuthenticator.setApiClient(_apiClient: ApiClient): void
+OAuth2ImplicitAuthenticator.toJSON(): Record<string, unknown>
+OAuth2PasswordAuthenticator.constructor(host: string, clientId: string, clientSecret: string, tokenUrl: string, username: string, password: string, scopes: string[], refreshUrl?: string | null, clientAuthMethod?: ClientAuthMethod)
+OAuth2PasswordAuthenticator.getAuthHeaders(): Record<string, string>
+OAuth2PasswordAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OAuth2PasswordAuthenticator.getCookieParams(): Record<string, string>
+OAuth2PasswordAuthenticator.getHost(): string
+OAuth2PasswordAuthenticator.getQueryParams(): Record<string, string>
+OAuth2PasswordAuthenticator.invalidateAccessToken(): void
+OAuth2PasswordAuthenticator.setApiClient(apiClient: ApiClient): void
+OAuth2PasswordAuthenticator.toJSON(): Record<string, string>
+OAuth2ServerError.constructor(statusCode: number, code: string | null, description: string | null, uri: string | null, rawBody: string)
+OAuth2ServerError.readonly code: string | null
+OAuth2ServerError.readonly description: string | null
+OAuth2ServerError.readonly rawBody: string
+OAuth2ServerError.readonly statusCode: number
+OAuth2ServerError.readonly uri: string | null
+OAuth2TokenError.constructor(message: string)
+OpenAPIError.constructor(message: string, options?: { cause?: unknown; })
+OpenIdConnectAuthenticator.buildAuthorizationUrl(state?: string): Promise<string>
+OpenIdConnectAuthenticator.constructor(host: string, openIdConnectUrl: string, clientId: string, clientSecret: string, redirectUri: string, scopes: string[])
+OpenIdConnectAuthenticator.exchangeCode(code: string): Promise<void>
+OpenIdConnectAuthenticator.getAuthHeaders(): Record<string, string>
+OpenIdConnectAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OpenIdConnectAuthenticator.getCookieParams(): Record<string, string>
+OpenIdConnectAuthenticator.getHost(): string
+OpenIdConnectAuthenticator.getQueryParams(): Record<string, string>
+OpenIdConnectAuthenticator.invalidateAccessToken(): void
+OpenIdConnectAuthenticator.setApiClient(apiClient: ApiClient): void
+OpenIdConnectAuthenticator.toJSON(): Record<string, string>
+OpenedBody.close(): Promise<void>
+OpenedBody.readonly content: Uint8Array<ArrayBufferLike> | ReadableStream<Uint8Array<ArrayBufferLike>>
+OpenedBody.readonly length: number | null
+OptionsMemoResponseHeaders.readonly allow: string | undefined
+OptionsMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): OptionsMemoResponseHeaders
+Order.__validate(): void
+Order.constructor(data?: Partial<Order>)
+Order.equals(other: unknown): boolean
+Order.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Order.readonly complete?: boolean | undefined
+Order.readonly id?: number | undefined
+Order.readonly petId?: number | undefined
+Order.readonly quantity?: number | undefined
+Order.readonly shipDate?: Date | undefined
+Order.readonly status?: OrderStatusEnum | undefined
+Order.readonly trackingId?: UUID | undefined
+Order.static readonly __decimalFields: ReadonlySet<string>
+Order.static readonly __requiredNullableFields: ReadonlySet<string>
+Order.static readonly __stringDecimalFields: ReadonlySet<string>
+Order.static readonly __uuidFields: ReadonlySet<string>
+Order.with(patch: Partial<Order>): Order
+Packet.__validate(): void
+Packet.constructor(data?: Partial<Packet>)
+Packet.equals(other: unknown): boolean
+Packet.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Packet.readonly kind: string
+Packet.readonly weightKg?: number | undefined
+Packet.static readonly __decimalFields: ReadonlySet<string>
+Packet.static readonly __requiredNullableFields: ReadonlySet<string>
+Packet.static readonly __stringDecimalFields: ReadonlySet<string>
+Packet.static readonly __uuidFields: ReadonlySet<string>
+Packet.with(patch: Partial<Packet>): Packet
+Page.readonly items: readonly T[]
+Page.readonly nextCursor: C | null
+Page.readonly result: ApiResult<unknown>
+PaginationError.constructor(message: string, options?: { requestPath?: string | null; cause?: unknown; })
+PaginationError.readonly requestPath: string | null
+Paginator.items(): AsyncGenerator<T, void, undefined>
+Paginator.pages(): AsyncGenerator<Page<T, C>, void, undefined>
+Paginator.static ofCursor<T, C extends string | number, B>(start: C | undefined, fetch: (cursor: C | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, next: (page: B) => C | null | undefined, requestPath: string): Paginator<T, C>
+Paginator.static ofId<T, C extends string | number, B>(start: C | undefined, fetch: (cursor: C | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, next: (page: B) => C | null | undefined, hasMore: ((page: B) => boolean | null | undefined) | undefined, requestPath: string): Paginator<T, C>
+Paginator.static ofLink<T, B>(baseUrl: string, fetch: (url: string | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, requestPath: string): Paginator<T, never>
+Paginator.static ofNextUrl<T, B>(baseUrl: string, fetch: (url: string | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, next: (page: B) => string | null | undefined, requestPath: string): Paginator<T, never>
+Paginator.static ofOffset<T, B>(start: number | undefined, fetch: (offset: number | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, hasMore: ((page: B) => boolean | null | undefined) | undefined, requestPath: string): Paginator<T, number>
+Paginator.static ofPage<T, B>(start: number | undefined, fetch: (page: number | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, hasMore: ((page: B) => boolean | null | undefined) | undefined, requestPath: string): Paginator<T, number>
+Parcel.asLetter(): Letter | null
+Parcel.asPacket(): Packet | null
+Parcel.constructor(instance: ParcelType)
+Parcel.equals(other: unknown): boolean
+Parcel.getActualInstance(): ParcelType
+Parcel.isLetter(): boolean
+Parcel.isPacket(): boolean
+Parcel.static readonly DISCRIMINATOR_DEFAULT: "Letter"
+Parcel.static readonly DISCRIMINATOR_MAPPING: Record<string, string>
+Parcel.static readonly DISCRIMINATOR_PROPERTY: "kind"
+Parcel.static readonly ONE_OF_SCHEMAS: string[]
+PatchMemoResponseHeaders.readonly xArchived: boolean | undefined
+PatchMemoResponseHeaders.readonly xLabels: string[] | undefined
+PatchMemoResponseHeaders.readonly xRevision: number | undefined
+PatchMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): PatchMemoResponseHeaders
+PayloadTooLargeError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+PaymentRequiredError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+Pet.__validate(): void
+Pet.constructor(data?: Partial<Pet>)
+Pet.equals(other: unknown): boolean
+Pet.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Pet.readonly category?: Category | undefined
+Pet.readonly homepageUrl?: URI | undefined
+Pet.readonly id?: number | undefined
+Pet.readonly linkTemplate?: string | undefined
+Pet.readonly location?: unknown[] | undefined
+Pet.readonly name: string
+Pet.readonly nickname?: string | undefined
+Pet.readonly ownerEmail?: Email | undefined
+Pet.readonly photoUrls: Set<string>
+Pet.readonly status?: PetStatusEnum | undefined
+Pet.readonly tags?: Tag[] | undefined
+Pet.readonly thumbnailRef?: string | undefined
+Pet.readonly weightKg?: Decimal | undefined [uses decimal.js:Decimal]
+Pet.static readonly __decimalFields: ReadonlySet<string>
+Pet.static readonly __requiredNullableFields: ReadonlySet<string>
+Pet.static readonly __stringDecimalFields: ReadonlySet<string>
+Pet.static readonly __uuidFields: ReadonlySet<string>
+Pet.with(patch: Partial<Pet>): Pet
+PetAfterPage.__validate(): void
+PetAfterPage.constructor(data?: Partial<PetAfterPage>)
+PetAfterPage.equals(other: unknown): boolean
+PetAfterPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetAfterPage.readonly data?: Pet[] | undefined
+PetAfterPage.readonly has_more?: boolean | undefined
+PetAfterPage.readonly last_id?: string | undefined
+PetAfterPage.static readonly __decimalFields: ReadonlySet<string>
+PetAfterPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetAfterPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetAfterPage.static readonly __uuidFields: ReadonlySet<string>
+PetAfterPage.with(patch: Partial<PetAfterPage>): PetAfterPage
+PetApi.addPet(pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.addPetPhotos(petId: number, options: AddPetPhotosOptions, requestOptions?: RequestOptions): Promise<Array<Photo>>
+PetApi.addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Photo>>>
+PetApi.addPetTreatment(petId: number, petTreatment: DeepInput<PetTreatment>, requestOptions?: RequestOptions): Promise<PetTreatment>
+PetApi.addPetTreatmentWithHttpInfo(petId: number, petTreatment: DeepInput<PetTreatment>, requestOptions?: RequestOptions): Promise<ApiResult<PetTreatment>>
+PetApi.addPetWithHttpInfo(pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.attachPetFiles(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApi.attachPetFilesWithHttpInfo(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApi.constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null, schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null)
+PetApi.deletePet(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions): Promise<void>
+PetApi.deletePetWithHttpInfo(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+PetApi.downloadPetDocument(petId: number, documentId: number, requestOptions?: RequestOptions): Promise<ByteStream>
+PetApi.downloadPetDocumentWithHttpInfo(petId: number, documentId: number, requestOptions?: RequestOptions): Promise<ApiResult<ByteStream>>
+PetApi.findPetsBornOn(bornOn: string | Date, requestOptions?: RequestOptions): Promise<Array<Pet>>
+PetApi.findPetsBornOnWithHttpInfo(bornOn: string | Date, requestOptions?: RequestOptions): Promise<ApiResult<Array<Pet>>>
+PetApi.findPetsByStatus(options?: FindPetsByStatusOptions, requestOptions?: RequestOptions): Promise<Array<Pet>>
+PetApi.findPetsByStatusWithHttpInfo(options?: FindPetsByStatusOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Pet>>>
+PetApi.getExternalPetInfo(petId: number, server?: GetExternalPetInfoServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getExternalPetInfoWithHttpInfo(petId: number, server?: GetExternalPetInfoServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.getMultiServerPetInfo(petId: number, server?: GetMultiServerPetInfoServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getMultiServerPetInfoWithHttpInfo(petId: number, server?: GetMultiServerPetInfoServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.getPetAvatar(petId: number, requestOptions?: RequestOptions): Promise<ByteStream>
+PetApi.getPetAvatarThumbnail(petId: number, requestOptions?: RequestOptions): Promise<Buffer>
+PetApi.getPetAvatarThumbnailWithHttpInfo(petId: number, requestOptions?: RequestOptions): Promise<ApiResult<Buffer>>
+PetApi.getPetAvatarWithHttpInfo(petId: number, requestOptions?: RequestOptions): Promise<ApiResult<ByteStream>>
+PetApi.getPetById(petId: number, server?: GetPetByIdServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getPetByIdWithHttpInfo(petId: number, server?: GetPetByIdServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.getPetByName(name: string, options: GetPetByNameOptions, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getPetByNameWithHttpInfo(name: string, options: GetPetByNameOptions, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.getPetByNote(options: GetPetByNoteOptions, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getPetByNoteWithHttpInfo(options: GetPetByNoteOptions, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.getPetPassport(petId: number, requestOptions?: RequestOptions): Promise<PetPassport>
+PetApi.getPetPassportWithHttpInfo(petId: number, requestOptions?: RequestOptions): Promise<ApiResult<PetPassport>>
+PetApi.getPetPhoto(petId: number, photoId: number, requestOptions?: RequestOptions): Promise<ByteStream>
+PetApi.getPetPhotoWithHttpInfo(petId: number, photoId: number, requestOptions?: RequestOptions): Promise<ApiResult<ByteStream>>
+PetApi.getPetSummary(petId: number, asOf: string | Date, options: GetPetSummaryOptions, requestOptions?: RequestOptions): Promise<string>
+PetApi.getPetSummaryWithHttpInfo(petId: number, asOf: string | Date, options: GetPetSummaryOptions, requestOptions?: RequestOptions): Promise<ApiResult<string>>
+PetApi.getPetTag(petId: number, tagName: string, options?: GetPetTagOptions, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getPetTagWithHttpInfo(petId: number, tagName: string, options?: GetPetTagOptions, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.getStagingPetInfo(petId: number, server?: GetStagingPetInfoServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.getStagingPetInfoWithHttpInfo(petId: number, server?: GetStagingPetInfoServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.listPetArchive(options?: ListPetArchiveOptions, requestOptions?: RequestOptions): Promise<PetArchivePage>
+PetApi.listPetArchiveWithHttpInfo(options?: ListPetArchiveOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetArchivePage>>
+PetApi.listPetCatalog(options?: ListPetCatalogOptions, requestOptions?: RequestOptions): Promise<PetCatalogPage>
+PetApi.listPetCatalogPages(options?: ListPetCatalogOptions, requestOptions?: RequestOptions): Paginator<Pet, string>
+PetApi.listPetCatalogWithHttpInfo(options?: ListPetCatalogOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetCatalogPage>>
+PetApi.listPetEvents(options?: ListPetEventsOptions, requestOptions?: RequestOptions): Promise<PetEventPage>
+PetApi.listPetEventsPages(options?: ListPetEventsOptions, requestOptions?: RequestOptions): Paginator<string, string>
+PetApi.listPetEventsWithHttpInfo(options?: ListPetEventsOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetEventPage>>
+PetApi.listPetFeed(options?: ListPetFeedOptions, requestOptions?: RequestOptions): Promise<Array<Pet>>
+PetApi.listPetFeedPages(options?: ListPetFeedOptions, requestOptions?: RequestOptions): Paginator<Pet, never>
+PetApi.listPetFeedWithHttpInfo(options?: ListPetFeedOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Pet>>>
+PetApi.listPetMatches(options?: ListPetMatchesOptions, requestOptions?: RequestOptions): Promise<PetMatchPage>
+PetApi.listPetMatchesWithHttpInfo(options?: ListPetMatchesOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetMatchPage>>
+PetApi.listPetNextUrl(options?: ListPetNextUrlOptions, requestOptions?: RequestOptions): Promise<PetNextUrlPage>
+PetApi.listPetNextUrlPages(options?: ListPetNextUrlOptions, requestOptions?: RequestOptions): Paginator<Pet, never>
+PetApi.listPetNextUrlWithHttpInfo(options?: ListPetNextUrlOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetNextUrlPage>>
+PetApi.listPetNotes(options?: ListPetNotesOptions, requestOptions?: RequestOptions): Promise<PetNotePage>
+PetApi.listPetNotesPages(options?: ListPetNotesOptions, requestOptions?: RequestOptions): Paginator<string, string>
+PetApi.listPetNotesWithHttpInfo(options?: ListPetNotesOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetNotePage>>
+PetApi.listPetOffsets(options?: ListPetOffsetsOptions, requestOptions?: RequestOptions): Promise<PetOffsetPage>
+PetApi.listPetOffsetsPages(options?: ListPetOffsetsOptions, requestOptions?: RequestOptions): Paginator<Pet, number>
+PetApi.listPetOffsetsWithHttpInfo(options?: ListPetOffsetsOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetOffsetPage>>
+PetApi.listPetPageNumbers(options?: ListPetPageNumbersOptions, requestOptions?: RequestOptions): Promise<PetPageNumberPage>
+PetApi.listPetPageNumbersPages(options?: ListPetPageNumbersOptions, requestOptions?: RequestOptions): Paginator<Pet, number>
+PetApi.listPetPageNumbersWithHttpInfo(options?: ListPetPageNumbersOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetPageNumberPage>>
+PetApi.listPetsAfter(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Promise<PetAfterPage>
+PetApi.listPetsAfterPages(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Paginator<Pet, string>
+PetApi.listPetsAfterWithHttpInfo(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetAfterPage>>
+PetApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<T | void>
+PetApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<JsonLinesStream<T>>
+PetApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<T>>
+PetApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<SseStream<T>>
+PetApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<ByteStream>>
+PetApi.protected readonly apiClient: ApiClient
+PetApi.protected readonly authenticator: Authenticator | null
+PetApi.protected readonly config: Configuration
+PetApi.protected readonly headerSelector: HeaderSelector
+PetApi.protected readonly schemeAuthenticators: Readonly<Record<string, Authenticator>>
+PetApi.protected resolveRequirementAuth(groups: ReadonlyArray<readonly string[]>): Authenticator | undefined
+PetApi.protected resolveSchemeAuth(schemes: readonly string[]): Authenticator | undefined
+PetApi.setPetAvatar(petId: number, body: BodySource, requestContentType?: "image/jpeg" | "image/png" | "application/json", requestOptions?: RequestOptions): Promise<void>
+PetApi.setPetAvatarThumbnail(petId: number, setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null, requestOptions?: RequestOptions): Promise<void>
+PetApi.setPetAvatarThumbnailWithHttpInfo(petId: number, setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+PetApi.setPetAvatarWithHttpInfo(petId: number, body: BodySource, requestContentType?: "image/jpeg" | "image/png" | "application/json", requestOptions?: RequestOptions): Promise<ApiResult<void>>
+PetApi.setPetPreferences(petId: number, options: SetPetPreferencesOptions, requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApi.setPetPreferencesWithHttpInfo(petId: number, options: SetPetPreferencesOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApi.updatePet(petId: number, pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<Pet>
+PetApi.updatePetWithHttpInfo(petId: number, pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApi.uploadPetCertificate(petId: number, options: UploadPetCertificateOptions, requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApi.uploadPetCertificateWithHttpInfo(petId: number, options: UploadPetCertificateOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApi.uploadPetDocument(petId: number, options: UploadPetDocumentOptions, requestContentType?: "multipart/form-data" | "application/octet-stream", requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApi.uploadPetDocumentWithHttpInfo(petId: number, options: UploadPetDocumentOptions, requestContentType?: "multipart/form-data" | "application/octet-stream", requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApiInterface.addPet(pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.addPetPhotos(petId: number, options: AddPetPhotosOptions, requestOptions?: RequestOptions): Promise<Array<Photo>>
+PetApiInterface.addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Photo>>>
+PetApiInterface.addPetTreatment(petId: number, petTreatment: DeepInput<PetTreatment>, requestOptions?: RequestOptions): Promise<PetTreatment>
+PetApiInterface.addPetTreatmentWithHttpInfo(petId: number, petTreatment: DeepInput<PetTreatment>, requestOptions?: RequestOptions): Promise<ApiResult<PetTreatment>>
+PetApiInterface.addPetWithHttpInfo(pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.attachPetFiles(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApiInterface.attachPetFilesWithHttpInfo(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApiInterface.deletePet(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions): Promise<void>
+PetApiInterface.deletePetWithHttpInfo(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+PetApiInterface.downloadPetDocument(petId: number, documentId: number, requestOptions?: RequestOptions): Promise<ByteStream>
+PetApiInterface.downloadPetDocumentWithHttpInfo(petId: number, documentId: number, requestOptions?: RequestOptions): Promise<ApiResult<ByteStream>>
+PetApiInterface.findPetsBornOn(bornOn: string | Date, requestOptions?: RequestOptions): Promise<Array<Pet>>
+PetApiInterface.findPetsBornOnWithHttpInfo(bornOn: string | Date, requestOptions?: RequestOptions): Promise<ApiResult<Array<Pet>>>
+PetApiInterface.findPetsByStatus(options?: FindPetsByStatusOptions, requestOptions?: RequestOptions): Promise<Array<Pet>>
+PetApiInterface.findPetsByStatusWithHttpInfo(options?: FindPetsByStatusOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Pet>>>
+PetApiInterface.getExternalPetInfo(petId: number, server?: GetExternalPetInfoServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getExternalPetInfoWithHttpInfo(petId: number, server?: GetExternalPetInfoServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.getMultiServerPetInfo(petId: number, server?: GetMultiServerPetInfoServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getMultiServerPetInfoWithHttpInfo(petId: number, server?: GetMultiServerPetInfoServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.getPetAvatar(petId: number, requestOptions?: RequestOptions): Promise<ByteStream>
+PetApiInterface.getPetAvatarThumbnail(petId: number, requestOptions?: RequestOptions): Promise<Buffer>
+PetApiInterface.getPetAvatarThumbnailWithHttpInfo(petId: number, requestOptions?: RequestOptions): Promise<ApiResult<Buffer>>
+PetApiInterface.getPetAvatarWithHttpInfo(petId: number, requestOptions?: RequestOptions): Promise<ApiResult<ByteStream>>
+PetApiInterface.getPetById(petId: number, server?: GetPetByIdServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getPetByIdWithHttpInfo(petId: number, server?: GetPetByIdServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.getPetByName(name: string, options: GetPetByNameOptions, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getPetByNameWithHttpInfo(name: string, options: GetPetByNameOptions, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.getPetByNote(options: GetPetByNoteOptions, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getPetByNoteWithHttpInfo(options: GetPetByNoteOptions, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.getPetPassport(petId: number, requestOptions?: RequestOptions): Promise<PetPassport>
+PetApiInterface.getPetPassportWithHttpInfo(petId: number, requestOptions?: RequestOptions): Promise<ApiResult<PetPassport>>
+PetApiInterface.getPetPhoto(petId: number, photoId: number, requestOptions?: RequestOptions): Promise<ByteStream>
+PetApiInterface.getPetPhotoWithHttpInfo(petId: number, photoId: number, requestOptions?: RequestOptions): Promise<ApiResult<ByteStream>>
+PetApiInterface.getPetSummary(petId: number, asOf: string | Date, options: GetPetSummaryOptions, requestOptions?: RequestOptions): Promise<string>
+PetApiInterface.getPetSummaryWithHttpInfo(petId: number, asOf: string | Date, options: GetPetSummaryOptions, requestOptions?: RequestOptions): Promise<ApiResult<string>>
+PetApiInterface.getPetTag(petId: number, tagName: string, options?: GetPetTagOptions, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getPetTagWithHttpInfo(petId: number, tagName: string, options?: GetPetTagOptions, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.getStagingPetInfo(petId: number, server?: GetStagingPetInfoServer, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.getStagingPetInfoWithHttpInfo(petId: number, server?: GetStagingPetInfoServer, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.listPetArchive(options?: ListPetArchiveOptions, requestOptions?: RequestOptions): Promise<PetArchivePage>
+PetApiInterface.listPetArchiveWithHttpInfo(options?: ListPetArchiveOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetArchivePage>>
+PetApiInterface.listPetCatalog(options?: ListPetCatalogOptions, requestOptions?: RequestOptions): Promise<PetCatalogPage>
+PetApiInterface.listPetCatalogPages(options?: ListPetCatalogOptions, requestOptions?: RequestOptions): Paginator<Pet, string>
+PetApiInterface.listPetCatalogWithHttpInfo(options?: ListPetCatalogOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetCatalogPage>>
+PetApiInterface.listPetEvents(options?: ListPetEventsOptions, requestOptions?: RequestOptions): Promise<PetEventPage>
+PetApiInterface.listPetEventsPages(options?: ListPetEventsOptions, requestOptions?: RequestOptions): Paginator<string, string>
+PetApiInterface.listPetEventsWithHttpInfo(options?: ListPetEventsOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetEventPage>>
+PetApiInterface.listPetFeed(options?: ListPetFeedOptions, requestOptions?: RequestOptions): Promise<Array<Pet>>
+PetApiInterface.listPetFeedPages(options?: ListPetFeedOptions, requestOptions?: RequestOptions): Paginator<Pet, never>
+PetApiInterface.listPetFeedWithHttpInfo(options?: ListPetFeedOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Pet>>>
+PetApiInterface.listPetMatches(options?: ListPetMatchesOptions, requestOptions?: RequestOptions): Promise<PetMatchPage>
+PetApiInterface.listPetMatchesWithHttpInfo(options?: ListPetMatchesOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetMatchPage>>
+PetApiInterface.listPetNextUrl(options?: ListPetNextUrlOptions, requestOptions?: RequestOptions): Promise<PetNextUrlPage>
+PetApiInterface.listPetNextUrlPages(options?: ListPetNextUrlOptions, requestOptions?: RequestOptions): Paginator<Pet, never>
+PetApiInterface.listPetNextUrlWithHttpInfo(options?: ListPetNextUrlOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetNextUrlPage>>
+PetApiInterface.listPetNotes(options?: ListPetNotesOptions, requestOptions?: RequestOptions): Promise<PetNotePage>
+PetApiInterface.listPetNotesPages(options?: ListPetNotesOptions, requestOptions?: RequestOptions): Paginator<string, string>
+PetApiInterface.listPetNotesWithHttpInfo(options?: ListPetNotesOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetNotePage>>
+PetApiInterface.listPetOffsets(options?: ListPetOffsetsOptions, requestOptions?: RequestOptions): Promise<PetOffsetPage>
+PetApiInterface.listPetOffsetsPages(options?: ListPetOffsetsOptions, requestOptions?: RequestOptions): Paginator<Pet, number>
+PetApiInterface.listPetOffsetsWithHttpInfo(options?: ListPetOffsetsOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetOffsetPage>>
+PetApiInterface.listPetPageNumbers(options?: ListPetPageNumbersOptions, requestOptions?: RequestOptions): Promise<PetPageNumberPage>
+PetApiInterface.listPetPageNumbersPages(options?: ListPetPageNumbersOptions, requestOptions?: RequestOptions): Paginator<Pet, number>
+PetApiInterface.listPetPageNumbersWithHttpInfo(options?: ListPetPageNumbersOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetPageNumberPage>>
+PetApiInterface.listPetsAfter(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Promise<PetAfterPage>
+PetApiInterface.listPetsAfterPages(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Paginator<Pet, string>
+PetApiInterface.listPetsAfterWithHttpInfo(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetAfterPage>>
+PetApiInterface.setPetAvatar(petId: number, body: BodySource, requestContentType?: "image/jpeg" | "image/png" | "application/json", requestOptions?: RequestOptions): Promise<void>
+PetApiInterface.setPetAvatarThumbnail(petId: number, setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null, requestOptions?: RequestOptions): Promise<void>
+PetApiInterface.setPetAvatarThumbnailWithHttpInfo(petId: number, setPetAvatarThumbnailRequest: DeepInput<SetPetAvatarThumbnailRequest> | null, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+PetApiInterface.setPetAvatarWithHttpInfo(petId: number, body: BodySource, requestContentType?: "image/jpeg" | "image/png" | "application/json", requestOptions?: RequestOptions): Promise<ApiResult<void>>
+PetApiInterface.setPetPreferences(petId: number, options: SetPetPreferencesOptions, requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApiInterface.setPetPreferencesWithHttpInfo(petId: number, options: SetPetPreferencesOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApiInterface.updatePet(petId: number, pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<Pet>
+PetApiInterface.updatePetWithHttpInfo(petId: number, pet: DeepInput<Pet>, requestOptions?: RequestOptions): Promise<ApiResult<Pet>>
+PetApiInterface.uploadPetCertificate(petId: number, options: UploadPetCertificateOptions, requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApiInterface.uploadPetCertificateWithHttpInfo(petId: number, options: UploadPetCertificateOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetApiInterface.uploadPetDocument(petId: number, options: UploadPetDocumentOptions, requestContentType?: "multipart/form-data" | "application/octet-stream", requestOptions?: RequestOptions): Promise<ApiResponse>
+PetApiInterface.uploadPetDocumentWithHttpInfo(petId: number, options: UploadPetDocumentOptions, requestContentType?: "multipart/form-data" | "application/octet-stream", requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+PetArchivePage.__validate(): void
+PetArchivePage.constructor(data?: Partial<PetArchivePage>)
+PetArchivePage.equals(other: unknown): boolean
+PetArchivePage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetArchivePage.readonly items?: Pet[] | undefined
+PetArchivePage.readonly next_cursor?: string | undefined
+PetArchivePage.static readonly __decimalFields: ReadonlySet<string>
+PetArchivePage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetArchivePage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetArchivePage.static readonly __uuidFields: ReadonlySet<string>
+PetArchivePage.with(patch: Partial<PetArchivePage>): PetArchivePage
+PetCatalogPage.__validate(): void
+PetCatalogPage.constructor(data?: Partial<PetCatalogPage>)
+PetCatalogPage.equals(other: unknown): boolean
+PetCatalogPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetCatalogPage.readonly items?: Pet[] | undefined
+PetCatalogPage.readonly next_cursor?: string | undefined
+PetCatalogPage.static readonly __decimalFields: ReadonlySet<string>
+PetCatalogPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetCatalogPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetCatalogPage.static readonly __uuidFields: ReadonlySet<string>
+PetCatalogPage.with(patch: Partial<PetCatalogPage>): PetCatalogPage
+PetCriteria.__validate(): void
+PetCriteria.constructor(data?: Partial<PetCriteria>)
+PetCriteria.equals(other: unknown): boolean
+PetCriteria.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetCriteria.readonly breed?: string | undefined
+PetCriteria.readonly min_age?: number | undefined
+PetCriteria.static readonly __decimalFields: ReadonlySet<string>
+PetCriteria.static readonly __requiredNullableFields: ReadonlySet<string>
+PetCriteria.static readonly __stringDecimalFields: ReadonlySet<string>
+PetCriteria.static readonly __uuidFields: ReadonlySet<string>
+PetCriteria.with(patch: Partial<PetCriteria>): PetCriteria
+PetEventPage.__validate(): void
+PetEventPage.constructor(data?: Partial<PetEventPage>)
+PetEventPage.equals(other: unknown): boolean
+PetEventPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetEventPage.readonly events?: string[] | undefined
+PetEventPage.readonly upto?: string | undefined
+PetEventPage.static readonly __decimalFields: ReadonlySet<string>
+PetEventPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetEventPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetEventPage.static readonly __uuidFields: ReadonlySet<string>
+PetEventPage.with(patch: Partial<PetEventPage>): PetEventPage
+PetFood.asDryFood(): DryFood | null
+PetFood.asWetFood(): WetFood | null
+PetFood.constructor(instance: PetFoodType)
+PetFood.equals(other: unknown): boolean
+PetFood.getActualInstance(): PetFoodType
+PetFood.isDryFood(): boolean
+PetFood.isWetFood(): boolean
+PetFood.static readonly DISCRIMINATOR_MAPPING: Record<string, string>
+PetFood.static readonly DISCRIMINATOR_PROPERTY: "foodType"
+PetFood.static readonly ONE_OF_SCHEMAS: string[]
+PetMatchPage.__validate(): void
+PetMatchPage.constructor(data?: Partial<PetMatchPage>)
+PetMatchPage.equals(other: unknown): boolean
+PetMatchPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetMatchPage.readonly next_cursor?: string | undefined
+PetMatchPage.readonly owners?: string[] | undefined
+PetMatchPage.readonly pets?: Pet[] | undefined
+PetMatchPage.static readonly __decimalFields: ReadonlySet<string>
+PetMatchPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetMatchPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetMatchPage.static readonly __uuidFields: ReadonlySet<string>
+PetMatchPage.with(patch: Partial<PetMatchPage>): PetMatchPage
+PetNextUrlPage.__validate(): void
+PetNextUrlPage.constructor(data?: Partial<PetNextUrlPage>)
+PetNextUrlPage.equals(other: unknown): boolean
+PetNextUrlPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetNextUrlPage.readonly items?: Pet[] | undefined
+PetNextUrlPage.readonly next_url?: URI | undefined
+PetNextUrlPage.static readonly __decimalFields: ReadonlySet<string>
+PetNextUrlPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetNextUrlPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetNextUrlPage.static readonly __uuidFields: ReadonlySet<string>
+PetNextUrlPage.with(patch: Partial<PetNextUrlPage>): PetNextUrlPage
+PetNotePage.__validate(): void
+PetNotePage.constructor(data?: Partial<PetNotePage>)
+PetNotePage.equals(other: unknown): boolean
+PetNotePage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetNotePage.readonly following?: string | undefined
+PetNotePage.readonly rows?: string[] | undefined
+PetNotePage.static readonly __decimalFields: ReadonlySet<string>
+PetNotePage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetNotePage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetNotePage.static readonly __uuidFields: ReadonlySet<string>
+PetNotePage.with(patch: Partial<PetNotePage>): PetNotePage
+PetOffsetPage.__validate(): void
+PetOffsetPage.constructor(data?: Partial<PetOffsetPage>)
+PetOffsetPage.equals(other: unknown): boolean
+PetOffsetPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetOffsetPage.readonly has_more?: boolean | undefined
+PetOffsetPage.readonly items?: Pet[] | undefined
+PetOffsetPage.static readonly __decimalFields: ReadonlySet<string>
+PetOffsetPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetOffsetPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetOffsetPage.static readonly __uuidFields: ReadonlySet<string>
+PetOffsetPage.with(patch: Partial<PetOffsetPage>): PetOffsetPage
+PetPageNumberPage.__validate(): void
+PetPageNumberPage.constructor(data?: Partial<PetPageNumberPage>)
+PetPageNumberPage.equals(other: unknown): boolean
+PetPageNumberPage.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetPageNumberPage.readonly has_more?: boolean | undefined
+PetPageNumberPage.readonly items?: Pet[] | undefined
+PetPageNumberPage.static readonly __decimalFields: ReadonlySet<string>
+PetPageNumberPage.static readonly __requiredNullableFields: ReadonlySet<string>
+PetPageNumberPage.static readonly __stringDecimalFields: ReadonlySet<string>
+PetPageNumberPage.static readonly __uuidFields: ReadonlySet<string>
+PetPageNumberPage.with(patch: Partial<PetPageNumberPage>): PetPageNumberPage
+PetPassport.__validate(): void
+PetPassport.constructor(data?: Partial<PetPassport>)
+PetPassport.equals(other: unknown): boolean
+PetPassport.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetPassport.readonly biometricChip?: Buffer<ArrayBufferLike> | undefined
+PetPassport.readonly issuedAt?: Date | undefined
+PetPassport.readonly pet?: Pet | undefined
+PetPassport.readonly scans?: Buffer<ArrayBufferLike>[] | undefined
+PetPassport.readonly thumbnail?: Buffer<ArrayBufferLike> | undefined
+PetPassport.static readonly __decimalFields: ReadonlySet<string>
+PetPassport.static readonly __requiredNullableFields: ReadonlySet<string>
+PetPassport.static readonly __stringDecimalFields: ReadonlySet<string>
+PetPassport.static readonly __uuidFields: ReadonlySet<string>
+PetPassport.with(patch: Partial<PetPassport>): PetPassport
+PetStoreBasicAuthenticator.constructor(host: string, username?: string, password?: string)
+PetStoreBearerAuthenticator.constructor(host: string, token?: string | CredentialProvider)
+PetTreatment.asMedication(): Medication | null
+PetTreatment.asSurgery(): Surgery | null
+PetTreatment.constructor(instance: PetTreatmentType | PetTreatmentType[])
+PetTreatment.equals(other: unknown): boolean
+PetTreatment.getActualInstance(): PetTreatmentType
+PetTreatment.getMatchedInstances(): PetTreatmentType[]
+PetTreatment.isMedication(): boolean
+PetTreatment.isSurgery(): boolean
+PetTreatment.readonly __isAnyOfComposite: true
+PetTreatment.static readonly ANY_OF_SCHEMAS: string[]
+PetTreatment.toJSON(): unknown
+PetWithOwner.__validate(): void
+PetWithOwner.constructor(data?: Partial<PetWithOwner>)
+PetWithOwner.equals(other: unknown): boolean
+PetWithOwner.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PetWithOwner.readonly category?: Category | undefined
+PetWithOwner.readonly homepageUrl?: URI | undefined
+PetWithOwner.readonly id?: number | undefined
+PetWithOwner.readonly linkTemplate?: string | undefined
+PetWithOwner.readonly location?: unknown[] | undefined
+PetWithOwner.readonly name: string
+PetWithOwner.readonly nickname?: string | undefined
+PetWithOwner.readonly ownerEmail?: Email | undefined
+PetWithOwner.readonly ownerName: string
+PetWithOwner.readonly photoUrls: Set<string>
+PetWithOwner.readonly status?: PetWithOwnerStatusEnum | undefined
+PetWithOwner.readonly tags?: Tag[] | undefined
+PetWithOwner.readonly thumbnailRef?: string | undefined
+PetWithOwner.readonly weightKg?: Decimal | undefined [uses decimal.js:Decimal]
+PetWithOwner.static readonly __decimalFields: ReadonlySet<string>
+PetWithOwner.static readonly __requiredNullableFields: ReadonlySet<string>
+PetWithOwner.static readonly __stringDecimalFields: ReadonlySet<string>
+PetWithOwner.static readonly __uuidFields: ReadonlySet<string>
+PetWithOwner.with(patch: Partial<PetWithOwner>): PetWithOwner
+Photo.__validate(): void
+Photo.constructor(data?: Partial<Photo>)
+Photo.equals(other: unknown): boolean
+Photo.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Photo.readonly caption?: string | undefined
+Photo.readonly id?: number | undefined
+Photo.readonly isPrimary?: boolean | undefined
+Photo.readonly url?: string | undefined
+Photo.static readonly __decimalFields: ReadonlySet<string>
+Photo.static readonly __requiredNullableFields: ReadonlySet<string>
+Photo.static readonly __stringDecimalFields: ReadonlySet<string>
+Photo.static readonly __uuidFields: ReadonlySet<string>
+Photo.with(patch: Partial<Photo>): Photo
+PhotoMetadata.__validate(): void
+PhotoMetadata.constructor(data?: Partial<PhotoMetadata>)
+PhotoMetadata.equals(other: unknown): boolean
+PhotoMetadata.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PhotoMetadata.readonly caption?: string | undefined
+PhotoMetadata.readonly isPrimary?: boolean | undefined
+PhotoMetadata.readonly location?: PhotoMetadataLocation | undefined
+PhotoMetadata.readonly takenAt?: Date | undefined
+PhotoMetadata.static readonly __decimalFields: ReadonlySet<string>
+PhotoMetadata.static readonly __requiredNullableFields: ReadonlySet<string>
+PhotoMetadata.static readonly __stringDecimalFields: ReadonlySet<string>
+PhotoMetadata.static readonly __uuidFields: ReadonlySet<string>
+PhotoMetadata.with(patch: Partial<PhotoMetadata>): PhotoMetadata
+PhotoMetadataLocation.__validate(): void
+PhotoMetadataLocation.constructor(data?: Partial<PhotoMetadataLocation>)
+PhotoMetadataLocation.equals(other: unknown): boolean
+PhotoMetadataLocation.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+PhotoMetadataLocation.readonly lat?: number | undefined
+PhotoMetadataLocation.readonly lng?: number | undefined
+PhotoMetadataLocation.static readonly __decimalFields: ReadonlySet<string>
+PhotoMetadataLocation.static readonly __requiredNullableFields: ReadonlySet<string>
+PhotoMetadataLocation.static readonly __stringDecimalFields: ReadonlySet<string>
+PhotoMetadataLocation.static readonly __uuidFields: ReadonlySet<string>
+PhotoMetadataLocation.with(patch: Partial<PhotoMetadataLocation>): PhotoMetadataLocation
+ProblemsApi.constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null, schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null)
+ProblemsApi.getFallback(fallbackId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApi.getFallbackWithHttpInfo(fallbackId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApi.getMember(memberId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApi.getMemberWithHttpInfo(memberId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApi.getProject(projectId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApi.getProjectWithHttpInfo(projectId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApi.getRange(rangeId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApi.getRangeWithHttpInfo(rangeId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApi.getUpstream(upstreamId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApi.getUpstreamWithHttpInfo(upstreamId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<T | void>
+ProblemsApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<JsonLinesStream<T>>
+ProblemsApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<T>>
+ProblemsApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<SseStream<T>>
+ProblemsApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<ByteStream>>
+ProblemsApi.protected readonly apiClient: ApiClient
+ProblemsApi.protected readonly authenticator: Authenticator | null
+ProblemsApi.protected readonly config: Configuration
+ProblemsApi.protected readonly headerSelector: HeaderSelector
+ProblemsApi.protected readonly schemeAuthenticators: Readonly<Record<string, Authenticator>>
+ProblemsApi.protected resolveRequirementAuth(groups: ReadonlyArray<readonly string[]>): Authenticator | undefined
+ProblemsApi.protected resolveSchemeAuth(schemes: readonly string[]): Authenticator | undefined
+ProblemsApi.takeLock(lockId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApi.takeLockWithHttpInfo(lockId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApiInterface.getFallback(fallbackId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApiInterface.getFallbackWithHttpInfo(fallbackId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApiInterface.getMember(memberId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApiInterface.getMemberWithHttpInfo(memberId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApiInterface.getProject(projectId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApiInterface.getProjectWithHttpInfo(projectId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApiInterface.getRange(rangeId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApiInterface.getRangeWithHttpInfo(rangeId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApiInterface.getUpstream(upstreamId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApiInterface.getUpstreamWithHttpInfo(upstreamId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProblemsApiInterface.takeLock(lockId: string, requestOptions?: RequestOptions): Promise<ModelResult>
+ProblemsApiInterface.takeLockWithHttpInfo(lockId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
+ProjectNotFound.__validate(): void
+ProjectNotFound.constructor(data?: Partial<ProjectNotFound>)
+ProjectNotFound.equals(other: unknown): boolean
+ProjectNotFound.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+ProjectNotFound.readonly code?: number | undefined
+ProjectNotFound.readonly message?: string | undefined
+ProjectNotFound.static readonly __decimalFields: ReadonlySet<string>
+ProjectNotFound.static readonly __requiredNullableFields: ReadonlySet<string>
+ProjectNotFound.static readonly __stringDecimalFields: ReadonlySet<string>
+ProjectNotFound.static readonly __uuidFields: ReadonlySet<string>
+ProjectNotFound.with(patch: Partial<ProjectNotFound>): ProjectNotFound
+ProjectNotFoundError.constructor(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: ProjectNotFound | null, options?: ApiErrorOptions)
+ProjectNotFoundError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+Reading.__validate(): void
+Reading.constructor(data?: Partial<Reading>)
+Reading.equals(other: unknown): boolean
+Reading.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Reading.readonly inlineLevel?: ReadingInlineLevel | undefined
+Reading.readonly level: ReadingLevel
+Reading.readonly nothing?: unknown
+Reading.readonly shape?: ReadingShape | undefined
+Reading.static readonly __decimalFields: ReadonlySet<string>
+Reading.static readonly __requiredNullableFields: ReadonlySet<string>
+Reading.static readonly __stringDecimalFields: ReadonlySet<string>
+Reading.static readonly __uuidFields: ReadonlySet<string>
+Reading.with(patch: Partial<Reading>): Reading
+ReadingInlineLevel.constructor(instance: ReadingInlineLevelType | ReadingInlineLevelType[])
+ReadingInlineLevel.equals(other: unknown): boolean
+ReadingInlineLevel.getActualInstance(): ReadingInlineLevelType
+ReadingInlineLevel.getMatchedInstances(): ReadingInlineLevelType[]
+ReadingInlineLevel.readonly __isAnyOfComposite: true
+ReadingInlineLevel.static readonly ANY_OF_SCHEMAS: string[]
+ReadingInlineLevel.toJSON(): unknown
+ReadingLevel.constructor(instance: ReadingLevelType | ReadingLevelType[])
+ReadingLevel.equals(other: unknown): boolean
+ReadingLevel.getActualInstance(): ReadingLevelType
+ReadingLevel.getMatchedInstances(): ReadingLevelType[]
+ReadingLevel.readonly __isAnyOfComposite: true
+ReadingLevel.static readonly ANY_OF_SCHEMAS: string[]
+ReadingLevel.toJSON(): unknown
+ReadingShape.constructor(instance: ReadingShapeType | ReadingShapeType[])
+ReadingShape.equals(other: unknown): boolean
+ReadingShape.getActualInstance(): ReadingShapeType
+ReadingShape.getMatchedInstances(): ReadingShapeType[]
+ReadingShape.readonly __isAnyOfComposite: true
+ReadingShape.static readonly ANY_OF_SCHEMAS: string[]
+ReadingShape.toJSON(): unknown
+RejectedRequest.__validate(): void
+RejectedRequest.constructor(data?: Partial<RejectedRequest>)
+RejectedRequest.equals(other: unknown): boolean
+RejectedRequest.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+RejectedRequest.readonly code?: number | undefined
+RejectedRequest.readonly message?: string | undefined
+RejectedRequest.static readonly __decimalFields: ReadonlySet<string>
+RejectedRequest.static readonly __requiredNullableFields: ReadonlySet<string>
+RejectedRequest.static readonly __stringDecimalFields: ReadonlySet<string>
+RejectedRequest.static readonly __uuidFields: ReadonlySet<string>
+RejectedRequest.with(patch: Partial<RejectedRequest>): RejectedRequest
+RejectedRequestError.constructor(statusCode: number, message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: RejectedRequest | null, options?: ApiErrorOptions)
+RejectedRequestError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+RequestOptions.readonly headers?: Readonly<Record<string, string>> | undefined
+RequestOptions.readonly maxRetries?: number | undefined
+RequestOptions.readonly signal?: AbortSignal | undefined
+RequestOptions.readonly timeout?: number | null | undefined
+RequestTimeoutError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+RequiredNullable.__validate(): void
+RequiredNullable.constructor(data?: Partial<RequiredNullable>)
+RequiredNullable.equals(other: unknown): boolean
+RequiredNullable.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+RequiredNullable.readonly note: string | null
+RequiredNullable.static readonly __decimalFields: ReadonlySet<string>
+RequiredNullable.static readonly __requiredNullableFields: ReadonlySet<string>
+RequiredNullable.static readonly __stringDecimalFields: ReadonlySet<string>
+RequiredNullable.static readonly __uuidFields: ReadonlySet<string>
+RequiredNullable.with(patch: Partial<RequiredNullable>): RequiredNullable
+Reservation.__validate(): void
+Reservation.constructor(data?: Partial<Reservation>)
+Reservation.equals(other: unknown): boolean
+Reservation.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Reservation.readonly quantity: number
+Reservation.readonly reservationId: number
+Reservation.static readonly __decimalFields: ReadonlySet<string>
+Reservation.static readonly __requiredNullableFields: ReadonlySet<string>
+Reservation.static readonly __stringDecimalFields: ReadonlySet<string>
+Reservation.static readonly __uuidFields: ReadonlySet<string>
+Reservation.with(patch: Partial<Reservation>): Reservation
+ReservationReceipt.__validate(): void
+ReservationReceipt.constructor(data?: Partial<ReservationReceipt>)
+ReservationReceipt.equals(other: unknown): boolean
+ReservationReceipt.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+ReservationReceipt.readonly expiresAt: Date
+ReservationReceipt.readonly receiptCode: string
+ReservationReceipt.static readonly __decimalFields: ReadonlySet<string>
+ReservationReceipt.static readonly __requiredNullableFields: ReadonlySet<string>
+ReservationReceipt.static readonly __stringDecimalFields: ReadonlySet<string>
+ReservationReceipt.static readonly __uuidFields: ReadonlySet<string>
+ReservationReceipt.with(patch: Partial<ReservationReceipt>): ReservationReceipt
+ResponseTooLargeError.constructor(limit: number, statusCode: number, responseHeaders?: Record<string, string> | null, options?: ApiErrorOptions)
+ResponseTooLargeError.get isRetryable: boolean
+ResponseTooLargeError.readonly limit: number
+Roster.[key: string]: unknown
+Roster.__validate(): void
+Roster.constructor(data?: Partial<Roster>)
+Roster.equals(other: unknown): boolean
+Roster.get additionalProperties: Record<string, Category>
+Roster.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Roster.readonly label?: string | undefined
+Roster.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Roster.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Roster.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Roster.static readonly __decimalFields: ReadonlySet<string>
+Roster.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, Category>
+Roster.static readonly __requiredNullableFields: ReadonlySet<string>
+Roster.static readonly __stringDecimalFields: ReadonlySet<string>
+Roster.static readonly __uuidFields: ReadonlySet<string>
+Roster.with(patch: Partial<Roster>): Roster
+SearchStoreOptions.readonly at?: Temporal.PlainTime | undefined [uses temporal-spec:Temporal.PlainTime]
+SearchStoreOptions.readonly labels?: Set<string> | undefined
+SearchStoreOptions.readonly q?: PhotoMetadata | undefined
+SearchStoreOptions.readonly xFilter?: { [key: string]: string; } | undefined
+SendRequestOptions.readonly credentialHeaderNames?: readonly string[] | undefined
+SendRequestOptions.readonly maxRetries?: number | undefined
+SendRequestOptions.readonly noDefaultHeaders?: boolean | undefined
+SendRequestOptions.readonly noRedirect?: boolean | undefined
+SendRequestOptions.readonly refreshAuthHeaders?: (() => Promise<Record<string, string>>) | undefined
+SendRequestOptions.readonly signal?: AbortSignal | undefined
+SendRequestOptions.readonly timeout?: number | null | undefined
+SendStreamingOptions.readonly idleTimeout?: number | null | undefined
+Sensors.[key: string]: unknown
+Sensors.__validate(): void
+Sensors.constructor(data?: Partial<Sensors>)
+Sensors.equals(other: unknown): boolean
+Sensors.get additionalProperties: Record<string, number>
+Sensors.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Sensors.readonly site?: string | undefined
+Sensors.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Sensors.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Sensors.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Sensors.static readonly __decimalFields: ReadonlySet<string>
+Sensors.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, number>
+Sensors.static readonly __requiredNullableFields: ReadonlySet<string>
+Sensors.static readonly __stringDecimalFields: ReadonlySet<string>
+Sensors.static readonly __uuidFields: ReadonlySet<string>
+Sensors.with(patch: Partial<Sensors>): Sensors
+SerializationError.constructor(message: string, cause?: Error, response?: SerializationErrorResponse)
+SerializationError.readonly cause?: Error | undefined
+SerializationError.readonly requestMethod: string | null
+SerializationError.readonly requestPath: string | null
+SerializationError.readonly responseBody: string | null
+SerializationError.readonly responseHeaders: Record<string, string> | null
+SerializationError.readonly statusCode: number | null
+SerializationError.withResponse(response: SerializationErrorResponse): SerializationError
+SerializationErrorResponse.readonly requestMethod: string
+SerializationErrorResponse.readonly requestPath: string
+SerializationErrorResponse.readonly responseBody: string | null
+SerializationErrorResponse.readonly responseHeaders: Record<string, string> | null
+SerializationErrorResponse.readonly statusCode: number
+ServerConfiguration.constructor(urlTemplate: string, description?: string | null, variables?: Record<string, ServerVariable>, name?: string | null)
+ServerConfiguration.getUrl(overrides?: Record<string, string>): string
+ServerConfiguration.readonly description: string | null
+ServerConfiguration.readonly name: string | null
+ServerConfiguration.readonly urlTemplate: string
+ServerConfiguration.readonly variables: Readonly<Record<string, ServerVariable>>
+ServerError.constructor<T = unknown>(statusCode: number, message: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+ServerSentEvent.readonly data: T
+ServerSentEvent.readonly event: string
+ServerSentEvent.readonly id: string | null
+ServerSentEvent.readonly raw: string
+ServerSentEvent.readonly retry: number | null
+ServerVariable.constructor(defaultValue: string, description?: string | null, enumValues?: string[])
+ServerVariable.readonly defaultValue: string
+ServerVariable.readonly description: string | null
+ServerVariable.readonly enumValues: readonly string[]
+Servers.static byName(name: string): ServerConfiguration
+Servers.static readonly ALL: readonly ServerConfiguration[]
+Servers.static readonly SERVER_0: ServerConfiguration
+Servers.static readonly SERVER_1: ServerConfiguration
+Servers.static readonly SERVER_2: ServerConfiguration
+ServiceTokenAuthenticator.constructor(host: string, token?: string | CredentialProvider)
+ServiceUnavailableError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+SessionCookieAuthenticator.constructor(host: string, apiKey?: string)
+SetPetAvatarRequest.__validate(): void
+SetPetAvatarRequest.constructor(data?: Partial<SetPetAvatarRequest>)
+SetPetAvatarRequest.equals(other: unknown): boolean
+SetPetAvatarRequest.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+SetPetAvatarRequest.readonly data: Buffer<ArrayBufferLike>
+SetPetAvatarRequest.readonly mimeType: string
+SetPetAvatarRequest.static readonly __decimalFields: ReadonlySet<string>
+SetPetAvatarRequest.static readonly __requiredNullableFields: ReadonlySet<string>
+SetPetAvatarRequest.static readonly __stringDecimalFields: ReadonlySet<string>
+SetPetAvatarRequest.static readonly __uuidFields: ReadonlySet<string>
+SetPetAvatarRequest.with(patch: Partial<SetPetAvatarRequest>): SetPetAvatarRequest
+SetPetPreferencesOptions.readonly aliases?: string[] | undefined
+SetPetPreferencesOptions.readonly intervalDays?: number | undefined
+SetPetPreferencesOptions.readonly nickname: string
+SetPetPreferencesOptions.readonly note?: string | undefined
+SetPetPreferencesOptions.readonly ratio?: number | undefined
+SetPetPreferencesOptions.readonly reminder?: Date | undefined
+SetPetPreferencesOptions.readonly renewalDate?: string | Date | undefined
+SetPetPreferencesOptions.readonly route?: string | undefined
+SetPetPreferencesOptions.readonly snooze?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration]
+SetPetPreferencesOptions.readonly tags?: string[] | undefined
+SetPetPreferencesOptions.readonly urgent?: boolean | undefined
+Shape.__validate(): void
+Shape.constructor(data?: Partial<Shape>)
+Shape.equals(other: unknown): boolean
+Shape.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Shape.readonly label?: string | undefined
+Shape.readonly shapeType: string
+Shape.static readonly DISCRIMINATOR_MAPPING: Record<string, string>
+Shape.static readonly DISCRIMINATOR_PROPERTY: "shapeType"
+Shape.static readonly __decimalFields: ReadonlySet<string>
+Shape.static readonly __requiredNullableFields: ReadonlySet<string>
+Shape.static readonly __stringDecimalFields: ReadonlySet<string>
+Shape.static readonly __uuidFields: ReadonlySet<string>
+Shape.with(patch: Partial<Shape>): Shape
+Shipment.__validate(): void
+Shipment.constructor(data?: Partial<Shipment>)
+Shipment.equals(other: unknown): boolean
+Shipment.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Shipment.readonly customsCode?: string | undefined
+Shipment.readonly kind: string
+Shipment.readonly postcode?: string | undefined
+Shipment.static readonly __decimalFields: ReadonlySet<string>
+Shipment.static readonly __requiredNullableFields: ReadonlySet<string>
+Shipment.static readonly __stringDecimalFields: ReadonlySet<string>
+Shipment.static readonly __uuidFields: ReadonlySet<string>
+Shipment.with(patch: Partial<Shipment>): Shipment
+Sparse.[key: string]: unknown
+Sparse.__validate(): void
+Sparse.constructor(data?: Partial<Sparse>)
+Sparse.equals(other: unknown): boolean
+Sparse.get additionalProperties: Record<string, string | null>
+Sparse.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Sparse.readonly label?: string | undefined
+Sparse.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Sparse.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Sparse.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Sparse.static readonly __decimalFields: ReadonlySet<string>
+Sparse.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, string | null>
+Sparse.static readonly __requiredNullableFields: ReadonlySet<string>
+Sparse.static readonly __stringDecimalFields: ReadonlySet<string>
+Sparse.static readonly __uuidFields: ReadonlySet<string>
+Sparse.with(patch: Partial<Sparse>): Sparse
+Square.__validate(): void
+Square.constructor(data?: Partial<Square>)
+Square.equals(other: unknown): boolean
+Square.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Square.readonly shapeType: string
+Square.readonly side: number
+Square.static readonly __decimalFields: ReadonlySet<string>
+Square.static readonly __requiredNullableFields: ReadonlySet<string>
+Square.static readonly __stringDecimalFields: ReadonlySet<string>
+Square.static readonly __uuidFields: ReadonlySet<string>
+Square.with(patch: Partial<Square>): Square
+SseStream.close(): Promise<void>
+SseStream.get headers: Readonly<Record<string, string>>
+SseStream.get statusCode: number
+SseStream.next(): Promise<IteratorResult<ServerSentEvent<T>>>
+SseStream.return(): Promise<IteratorResult<ServerSentEvent<T>>>
+SseStream.static open<T>(opener: (lastEventId: string) => Promise<ByteStream>, decoder: ((data: string) => T) | null, terminator: string | null, options: StreamOptions | undefined, hasBody: boolean, singleUseBody: boolean, method: string, path: string, signal?: AbortSignal): Promise<SseStream<T>>
+SseStream.toJSON(): Record<string, unknown>
+SseStream.toString(): string
+SsoAuthAuthenticator.constructor(host: string, clientId?: string, clientSecret?: string, redirectUri?: string)
+StateConflict.__validate(): void
+StateConflict.constructor(data?: Partial<StateConflict>)
+StateConflict.equals(other: unknown): boolean
+StateConflict.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+StateConflict.readonly code?: number | undefined
+StateConflict.readonly message?: string | undefined
+StateConflict.static readonly __decimalFields: ReadonlySet<string>
+StateConflict.static readonly __requiredNullableFields: ReadonlySet<string>
+StateConflict.static readonly __stringDecimalFields: ReadonlySet<string>
+StateConflict.static readonly __uuidFields: ReadonlySet<string>
+StateConflict.with(patch: Partial<StateConflict>): StateConflict
+StateConflictError.constructor(statusCode: number, message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: StateConflict | null, options?: ApiErrorOptions)
+StateConflictError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+StockItem.__validate(): void
+StockItem.constructor(data?: Partial<StockItem>)
+StockItem.equals(other: unknown): boolean
+StockItem.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+StockItem.readonly availability?: Availability | undefined
+StockItem.readonly matrix?: number[][] | undefined
+StockItem.readonly priority: Priority
+StockItem.static readonly __decimalFields: ReadonlySet<string>
+StockItem.static readonly __requiredNullableFields: ReadonlySet<string>
+StockItem.static readonly __stringDecimalFields: ReadonlySet<string>
+StockItem.static readonly __uuidFields: ReadonlySet<string>
+StockItem.with(patch: Partial<StockItem>): StockItem
+StoreApi.constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null, schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null)
+StoreApi.createAccount(account: DeepInput<Account>, requestOptions?: RequestOptions): Promise<Account>
+StoreApi.createAccountWithHttpInfo(account: DeepInput<Account>, requestOptions?: RequestOptions): Promise<ApiResult<Account>>
+StoreApi.deleteOrder(orderId: number, requestOptions?: RequestOptions): Promise<void>
+StoreApi.deleteOrderWithHttpInfo(orderId: number, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApi.exportOrdersStream(streamOptions?: StreamOptions): Promise<JsonLinesStream<Order>>
+StoreApi.getAuditTrail(requestOptions?: RequestOptions): Promise<ApiResponse>
+StoreApi.getAuditTrailWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+StoreApi.getBySwatch(pathSwatch: Swatch, options?: GetBySwatchOptions, requestOptions?: RequestOptions): Promise<Category>
+StoreApi.getBySwatchWithHttpInfo(pathSwatch: Swatch, options?: GetBySwatchOptions, requestOptions?: RequestOptions): Promise<ApiResult<Category>>
+StoreApi.getDefaults(requestOptions?: RequestOptions): Promise<Defaults>
+StoreApi.getDefaultsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Defaults>>
+StoreApi.getDepartment(requestOptions?: RequestOptions): Promise<Department>
+StoreApi.getDepartmentWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Department>>
+StoreApi.getGroupedCategories(requestOptions?: RequestOptions): Promise<Array<{ [key: string]: Category; }>>
+StoreApi.getGroupedCategoriesWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<{ [key: string]: Category; }>>>
+StoreApi.getInventory(requestOptions?: RequestOptions): Promise<{ [key: string]: number; }>
+StoreApi.getInventoryWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<{ [key: string]: number; }>>
+StoreApi.getMatrix(requestOptions?: RequestOptions): Promise<Array<Array<number>>>
+StoreApi.getMatrixWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Array<number>>>>
+StoreApi.getMemo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<Memo>
+StoreApi.getMemoWithHttpInfo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
+StoreApi.getNativeAmount(requestOptions?: RequestOptions): Promise<Decimal> [uses decimal.js:Decimal]
+StoreApi.getNativeAmountWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Decimal>> [uses decimal.js:Decimal]
+StoreApi.getNativeValues(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<NativeValues>
+StoreApi.getNativeValuesWithHttpInfo(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<ApiResult<NativeValues>>
+StoreApi.getOrderById(orderId: number, requestOptions?: RequestOptions): Promise<Order>
+StoreApi.getOrderByIdWithHttpInfo(orderId: number, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
+StoreApi.getOrderByTrackingId(trackingId: UUID, requestOptions?: RequestOptions): Promise<Order>
+StoreApi.getOrderByTrackingIdWithHttpInfo(trackingId: UUID, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
+StoreApi.getStockItem(options?: GetStockItemOptions, requestOptions?: RequestOptions): Promise<StockItem>
+StoreApi.getStockItemWithHttpInfo(options?: GetStockItemOptions, requestOptions?: RequestOptions): Promise<ApiResult<StockItem>>
+StoreApi.getSwatch(requestOptions?: RequestOptions): Promise<Swatch>
+StoreApi.getSwatchGroups(requestOptions?: RequestOptions): Promise<Array<{ [key: string]: Swatch; }>>
+StoreApi.getSwatchGroupsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<{ [key: string]: Swatch; }>>>
+StoreApi.getSwatchWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Swatch>>
+StoreApi.getTimestampGroups(requestOptions?: RequestOptions): Promise<Array<{ [key: string]: Date; }>>
+StoreApi.getTimestampGroupsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<{ [key: string]: Date; }>>>
+StoreApi.getTree(requestOptions?: RequestOptions): Promise<TreeNode>
+StoreApi.getTreeWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<TreeNode>>
+StoreApi.headMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
+StoreApi.headMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApi.listNativeAmounts(requestOptions?: RequestOptions): Promise<Array<Decimal>> [uses decimal.js:Decimal]
+StoreApi.listNativeAmountsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Decimal>>> [uses decimal.js:Decimal]
+StoreApi.optionsMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
+StoreApi.optionsMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApi.patchMemo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<Memo>
+StoreApi.patchMemoWithHttpInfo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
+StoreApi.placeOrder(order?: DeepInput<Order>, requestOptions?: RequestOptions): Promise<Order>
+StoreApi.placeOrderWithHttpInfo(order?: DeepInput<Order>, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
+StoreApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<T | void>
+StoreApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<JsonLinesStream<T>>
+StoreApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<T>>
+StoreApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<SseStream<T>>
+StoreApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<ByteStream>>
+StoreApi.protected readonly apiClient: ApiClient
+StoreApi.protected readonly authenticator: Authenticator | null
+StoreApi.protected readonly config: Configuration
+StoreApi.protected readonly headerSelector: HeaderSelector
+StoreApi.protected readonly schemeAuthenticators: Readonly<Record<string, Authenticator>>
+StoreApi.protected resolveRequirementAuth(groups: ReadonlyArray<readonly string[]>): Authenticator | undefined
+StoreApi.protected resolveSchemeAuth(schemes: readonly string[]): Authenticator | undefined
+StoreApi.reserveStock(requestOptions?: RequestOptions): Promise<ReserveStockResponse>
+StoreApi.reserveStockWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ReserveStockResponse>>
+StoreApi.searchStore(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<Array<Order>>
+StoreApi.searchStoreWithHttpInfo(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Order>>>
+StoreApi.submitAllowance(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<void>
+StoreApi.submitAllowanceWithHttpInfo(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApi.traceMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
+StoreApi.traceMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApi.watchNoticesStream(streamOptions?: StreamOptions): Promise<SseStream<string>>
+StoreApi.watchOrdersStream(options?: WatchOrdersOptions, streamOptions?: StreamOptions): Promise<SseStream<Order>>
+StoreApiInterface.createAccount(account: DeepInput<Account>, requestOptions?: RequestOptions): Promise<Account>
+StoreApiInterface.createAccountWithHttpInfo(account: DeepInput<Account>, requestOptions?: RequestOptions): Promise<ApiResult<Account>>
+StoreApiInterface.deleteOrder(orderId: number, requestOptions?: RequestOptions): Promise<void>
+StoreApiInterface.deleteOrderWithHttpInfo(orderId: number, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApiInterface.exportOrdersStream(streamOptions?: StreamOptions): Promise<JsonLinesStream<Order>>
+StoreApiInterface.getAuditTrail(requestOptions?: RequestOptions): Promise<ApiResponse>
+StoreApiInterface.getAuditTrailWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>
+StoreApiInterface.getBySwatch(pathSwatch: Swatch, options?: GetBySwatchOptions, requestOptions?: RequestOptions): Promise<Category>
+StoreApiInterface.getBySwatchWithHttpInfo(pathSwatch: Swatch, options?: GetBySwatchOptions, requestOptions?: RequestOptions): Promise<ApiResult<Category>>
+StoreApiInterface.getDefaults(requestOptions?: RequestOptions): Promise<Defaults>
+StoreApiInterface.getDefaultsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Defaults>>
+StoreApiInterface.getDepartment(requestOptions?: RequestOptions): Promise<Department>
+StoreApiInterface.getDepartmentWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Department>>
+StoreApiInterface.getGroupedCategories(requestOptions?: RequestOptions): Promise<Array<{ [key: string]: Category; }>>
+StoreApiInterface.getGroupedCategoriesWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<{ [key: string]: Category; }>>>
+StoreApiInterface.getInventory(requestOptions?: RequestOptions): Promise<{ [key: string]: number; }>
+StoreApiInterface.getInventoryWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<{ [key: string]: number; }>>
+StoreApiInterface.getMatrix(requestOptions?: RequestOptions): Promise<Array<Array<number>>>
+StoreApiInterface.getMatrixWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Array<number>>>>
+StoreApiInterface.getMemo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<Memo>
+StoreApiInterface.getMemoWithHttpInfo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
+StoreApiInterface.getNativeAmount(requestOptions?: RequestOptions): Promise<Decimal> [uses decimal.js:Decimal]
+StoreApiInterface.getNativeAmountWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Decimal>> [uses decimal.js:Decimal]
+StoreApiInterface.getNativeValues(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<NativeValues>
+StoreApiInterface.getNativeValuesWithHttpInfo(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<ApiResult<NativeValues>>
+StoreApiInterface.getOrderById(orderId: number, requestOptions?: RequestOptions): Promise<Order>
+StoreApiInterface.getOrderByIdWithHttpInfo(orderId: number, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
+StoreApiInterface.getOrderByTrackingId(trackingId: UUID, requestOptions?: RequestOptions): Promise<Order>
+StoreApiInterface.getOrderByTrackingIdWithHttpInfo(trackingId: UUID, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
+StoreApiInterface.getStockItem(options?: GetStockItemOptions, requestOptions?: RequestOptions): Promise<StockItem>
+StoreApiInterface.getStockItemWithHttpInfo(options?: GetStockItemOptions, requestOptions?: RequestOptions): Promise<ApiResult<StockItem>>
+StoreApiInterface.getSwatch(requestOptions?: RequestOptions): Promise<Swatch>
+StoreApiInterface.getSwatchGroups(requestOptions?: RequestOptions): Promise<Array<{ [key: string]: Swatch; }>>
+StoreApiInterface.getSwatchGroupsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<{ [key: string]: Swatch; }>>>
+StoreApiInterface.getSwatchWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Swatch>>
+StoreApiInterface.getTimestampGroups(requestOptions?: RequestOptions): Promise<Array<{ [key: string]: Date; }>>
+StoreApiInterface.getTimestampGroupsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<{ [key: string]: Date; }>>>
+StoreApiInterface.getTree(requestOptions?: RequestOptions): Promise<TreeNode>
+StoreApiInterface.getTreeWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<TreeNode>>
+StoreApiInterface.headMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
+StoreApiInterface.headMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApiInterface.listNativeAmounts(requestOptions?: RequestOptions): Promise<Array<Decimal>> [uses decimal.js:Decimal]
+StoreApiInterface.listNativeAmountsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Decimal>>> [uses decimal.js:Decimal]
+StoreApiInterface.optionsMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
+StoreApiInterface.optionsMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApiInterface.patchMemo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<Memo>
+StoreApiInterface.patchMemoWithHttpInfo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
+StoreApiInterface.placeOrder(order?: DeepInput<Order>, requestOptions?: RequestOptions): Promise<Order>
+StoreApiInterface.placeOrderWithHttpInfo(order?: DeepInput<Order>, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
+StoreApiInterface.reserveStock(requestOptions?: RequestOptions): Promise<ReserveStockResponse>
+StoreApiInterface.reserveStockWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ReserveStockResponse>>
+StoreApiInterface.searchStore(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<Array<Order>>
+StoreApiInterface.searchStoreWithHttpInfo(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Order>>>
+StoreApiInterface.submitAllowance(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<void>
+StoreApiInterface.submitAllowanceWithHttpInfo(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApiInterface.traceMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
+StoreApiInterface.traceMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApiInterface.watchNoticesStream(streamOptions?: StreamOptions): Promise<SseStream<string>>
+StoreApiInterface.watchOrdersStream(options?: WatchOrdersOptions, streamOptions?: StreamOptions): Promise<SseStream<Order>>
+StreamError.constructor(message: string, options?: ApiErrorOptions)
+StreamOptions.readonly idleTimeout?: number | null | undefined
+StreamOptions.readonly lastEventId?: string | undefined
+StreamOptions.readonly maxEventBytes?: number | undefined
+StreamOptions.readonly maxReconnects?: number | undefined
+StreamOptions.readonly reconnectDelay?: number | undefined
+StrictTag.__validate(): void
+StrictTag.constructor(data?: Partial<StrictTag>)
+StrictTag.equals(other: unknown): boolean
+StrictTag.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+StrictTag.readonly id?: number | undefined
+StrictTag.readonly name?: string | undefined
+StrictTag.static readonly __decimalFields: ReadonlySet<string>
+StrictTag.static readonly __requiredNullableFields: ReadonlySet<string>
+StrictTag.static readonly __strictDeclaredKeys: ReadonlySet<string>
+StrictTag.static readonly __stringDecimalFields: ReadonlySet<string>
+StrictTag.static readonly __uuidFields: ReadonlySet<string>
+StrictTag.with(patch: Partial<StrictTag>): StrictTag
+Subscription.__validate(): void
+Subscription.constructor(data?: Partial<Subscription>)
+Subscription.equals(other: unknown): boolean
+Subscription.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Subscription.readonly interval?: SubscriptionIntervalEnum | undefined
+Subscription.readonly rank: Rank
+Subscription.readonly stage?: Stage | undefined
+Subscription.readonly tier?: Tier | undefined
+Subscription.static readonly __decimalFields: ReadonlySet<string>
+Subscription.static readonly __requiredNullableFields: ReadonlySet<string>
+Subscription.static readonly __stringDecimalFields: ReadonlySet<string>
+Subscription.static readonly __uuidFields: ReadonlySet<string>
+Subscription.with(patch: Partial<Subscription>): Subscription
+Surgery.__validate(): void
+Surgery.constructor(data?: Partial<Surgery>)
+Surgery.equals(other: unknown): boolean
+Surgery.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Surgery.readonly durationMinutes?: number | undefined
+Surgery.readonly notes?: string | undefined
+Surgery.readonly procedureName: string
+Surgery.static readonly __decimalFields: ReadonlySet<string>
+Surgery.static readonly __requiredNullableFields: ReadonlySet<string>
+Surgery.static readonly __stringDecimalFields: ReadonlySet<string>
+Surgery.static readonly __uuidFields: ReadonlySet<string>
+Surgery.with(patch: Partial<Surgery>): Surgery
+Tag.__validate(): void
+Tag.constructor(data?: Partial<Tag>)
+Tag.equals(other: unknown): boolean
+Tag.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Tag.readonly id?: number | undefined
+Tag.readonly name?: string | undefined
+Tag.static readonly __decimalFields: ReadonlySet<string>
+Tag.static readonly __requiredNullableFields: ReadonlySet<string>
+Tag.static readonly __stringDecimalFields: ReadonlySet<string>
+Tag.static readonly __uuidFields: ReadonlySet<string>
+Tag.with(patch: Partial<Tag>): Tag
+TooManyRequestsError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+TooManyRequestsError.get retryAfter: number | null
+TransportOptions.constructor(options: { verifySsl: boolean; caCertPath: string | null; proxy: string | null; timeout: number | null; followRedirects: boolean; maxRedirects: number | null; maxRetries?: number; idleTimeout?: number | null; maxResponseBytes?: number | null; userAgent: string | null; defaultHeaders: Record<string, string>; injectRequestId: boolean; fetch?: typeof fetch | null; fetchOptions?: Record<string, unknown> | null; })
+TransportOptions.readonly caCertPath: string | null
+TransportOptions.readonly defaultHeaders: Readonly<Record<string, string>>
+TransportOptions.readonly fetch: ((input: string | URL | Request, init?: RequestInit) => Promise<Response>) | null
+TransportOptions.readonly fetchOptions: Readonly<Record<string, unknown>> | null
+TransportOptions.readonly followRedirects: boolean
+TransportOptions.readonly idleTimeout: number | null
+TransportOptions.readonly injectRequestId: boolean
+TransportOptions.readonly maxRedirects: number | null
+TransportOptions.readonly maxResponseBytes: number | null
+TransportOptions.readonly maxRetries: number
+TransportOptions.readonly proxy: string | null
+TransportOptions.readonly timeout: number | null
+TransportOptions.readonly userAgent: string | null
+TransportOptions.readonly verifySsl: boolean
+TransportOptions.static builder(): TransportOptionsBuilder
+TransportOptions.toJSON(): Record<string, unknown>
+TransportOptions.toString(): string
+TransportOptionsBuilder.build(): TransportOptions
+TransportOptionsBuilder.caCertPath(caCertPath: string | null): this
+TransportOptionsBuilder.defaultHeader(name: string, value: string): this
+TransportOptionsBuilder.defaultHeaders(headers: Record<string, string>): this
+TransportOptionsBuilder.fetch(fetchFunction: typeof fetch | null): this
+TransportOptionsBuilder.fetchOptions(fetchOptions: Record<string, unknown> | null): this
+TransportOptionsBuilder.followRedirects(followRedirects: boolean): this
+TransportOptionsBuilder.idleTimeout(idleTimeout: number | null): this
+TransportOptionsBuilder.injectRequestId(injectRequestId: boolean): this
+TransportOptionsBuilder.maxRedirects(maxRedirects: number | null): this
+TransportOptionsBuilder.maxResponseBytes(maxResponseBytes: number | null): this
+TransportOptionsBuilder.maxRetries(maxRetries: number): this
+TransportOptionsBuilder.proxy(proxy: string | null): this
+TransportOptionsBuilder.timeout(timeout: number | null): this
+TransportOptionsBuilder.userAgent(userAgent: string | null): this
+TransportOptionsBuilder.verifySsl(verifySsl: boolean): this
+TreatmentRecord.asMedication(): Medication | null
+TreatmentRecord.asSurgery(): Surgery | null
+TreatmentRecord.constructor(instance: TreatmentRecordType | TreatmentRecordType[])
+TreatmentRecord.equals(other: unknown): boolean
+TreatmentRecord.getActualInstance(): TreatmentRecordType
+TreatmentRecord.getMatchedInstances(): TreatmentRecordType[]
+TreatmentRecord.isMedication(): boolean
+TreatmentRecord.isSurgery(): boolean
+TreatmentRecord.readonly __isAnyOfComposite: true
+TreatmentRecord.static readonly ANY_OF_SCHEMAS: string[]
+TreatmentRecord.toJSON(): unknown
+TreeNode.__validate(): void
+TreeNode.constructor(data?: Partial<TreeNode>)
+TreeNode.equals(other: unknown): boolean
+TreeNode.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+TreeNode.readonly child?: TreeNode | undefined
+TreeNode.readonly value: string
+TreeNode.static readonly __decimalFields: ReadonlySet<string>
+TreeNode.static readonly __requiredNullableFields: ReadonlySet<string>
+TreeNode.static readonly __stringDecimalFields: ReadonlySet<string>
+TreeNode.static readonly __uuidFields: ReadonlySet<string>
+TreeNode.with(patch: Partial<TreeNode>): TreeNode
+Truck.__validate(): void
+Truck.constructor(data?: Partial<Truck>)
+Truck.equals(other: unknown): boolean
+Truck.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Truck.readonly payloadKg?: number | undefined
+Truck.readonly vehicleType: string
+Truck.static readonly __decimalFields: ReadonlySet<string>
+Truck.static readonly __requiredNullableFields: ReadonlySet<string>
+Truck.static readonly __stringDecimalFields: ReadonlySet<string>
+Truck.static readonly __uuidFields: ReadonlySet<string>
+Truck.with(patch: Partial<Truck>): Truck
+UnauthorizedError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+UnexpectedFailure.__validate(): void
+UnexpectedFailure.constructor(data?: Partial<UnexpectedFailure>)
+UnexpectedFailure.equals(other: unknown): boolean
+UnexpectedFailure.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+UnexpectedFailure.readonly code?: number | undefined
+UnexpectedFailure.readonly message?: string | undefined
+UnexpectedFailure.static readonly __decimalFields: ReadonlySet<string>
+UnexpectedFailure.static readonly __requiredNullableFields: ReadonlySet<string>
+UnexpectedFailure.static readonly __stringDecimalFields: ReadonlySet<string>
+UnexpectedFailure.static readonly __uuidFields: ReadonlySet<string>
+UnexpectedFailure.with(patch: Partial<UnexpectedFailure>): UnexpectedFailure
+UnexpectedFailureError.constructor(statusCode: number, message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: UnexpectedFailure | null, options?: ApiErrorOptions)
+UnexpectedFailureError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+UnprocessableEntityError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+UnsupportedMediaTypeError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+UploadPetCertificateOptions.readonly file: Buffer<ArrayBufferLike> | Blob
+UploadPetDocumentOptions.readonly documentType?: string | undefined
+UploadPetDocumentOptions.readonly file: Buffer<ArrayBufferLike> | Blob
+UploadPetDocumentOptions.readonly isPrimary?: boolean | undefined
+UploadPetDocumentOptions.readonly notes?: string | undefined
+UploadPetDocumentOptions.readonly pageCount?: number | undefined
+UploadPetDocumentOptions.readonly swatch?: Swatch | undefined
+UploadPetDocumentOptions.readonly takenAt?: Date | undefined
+UpstreamFailure.__validate(): void
+UpstreamFailure.constructor(data?: Partial<UpstreamFailure>)
+UpstreamFailure.equals(other: unknown): boolean
+UpstreamFailure.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+UpstreamFailure.readonly code?: number | undefined
+UpstreamFailure.readonly message?: string | undefined
+UpstreamFailure.static readonly __decimalFields: ReadonlySet<string>
+UpstreamFailure.static readonly __requiredNullableFields: ReadonlySet<string>
+UpstreamFailure.static readonly __stringDecimalFields: ReadonlySet<string>
+UpstreamFailure.static readonly __uuidFields: ReadonlySet<string>
+UpstreamFailure.with(patch: Partial<UpstreamFailure>): UpstreamFailure
+UpstreamFailureError.constructor(statusCode: number, message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: UpstreamFailure | null, options?: ApiErrorOptions)
+UpstreamFailureError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+UserAuthAuthorizationCodeAuthenticator.constructor(host: string, clientId?: string, clientSecret?: string, redirectUri?: string)
+Vehicle.__validate(): void
+Vehicle.constructor(data?: Partial<Vehicle>)
+Vehicle.equals(other: unknown): boolean
+Vehicle.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Vehicle.readonly plate: string
+Vehicle.readonly vehicleType: string
+Vehicle.static readonly DISCRIMINATOR_MAPPING: Record<string, string>
+Vehicle.static readonly DISCRIMINATOR_PROPERTY: "vehicleType"
+Vehicle.static readonly __decimalFields: ReadonlySet<string>
+Vehicle.static readonly __requiredNullableFields: ReadonlySet<string>
+Vehicle.static readonly __stringDecimalFields: ReadonlySet<string>
+Vehicle.static readonly __uuidFields: ReadonlySet<string>
+Vehicle.with(patch: Partial<Vehicle>): Vehicle
+WatchOrdersOptions.readonly status?: string | undefined
+WetFood.__validate(): void
+WetFood.constructor(data?: Partial<WetFood>)
+WetFood.equals(other: unknown): boolean
+WetFood.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+WetFood.readonly foodType: string
+WetFood.readonly volumeMl: number
+WetFood.static readonly __decimalFields: ReadonlySet<string>
+WetFood.static readonly __requiredNullableFields: ReadonlySet<string>
+WetFood.static readonly __stringDecimalFields: ReadonlySet<string>
+WetFood.static readonly __uuidFields: ReadonlySet<string>
+WetFood.with(patch: Partial<WetFood>): WetFood
+abstract class GetExternalPetInfoServer
+abstract class GetMemoServer
+abstract class GetMultiServerPetInfoServer
+abstract class GetPetByIdServer
+abstract class GetStagingPetInfoServer
+class Account
+class AdminBasicAuthenticator extends BasicAuthenticator
+class Allowance
+class AllowanceTier
+class ApiError<T = unknown> extends OpenAPIError
+class ApiKeyAuthenticator extends BaseAuthenticator
+class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator
+class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator
+class ApiResponse
+class ApiStreamResponse
+class ArchiveDigestAuthenticator extends DigestAuthenticator
+class AttachPetFilesRequest
+class Audit
+class BadGatewayError<T = unknown> extends ServerError<T>
+class BadRequestError<T = unknown> extends ClientError<T>
+class BasicAuthenticator extends BaseAuthenticator
+class BearerAuthenticator extends BaseAuthenticator
+class BinaryVault
+class Blobs
+class BodySource
+class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator
+class ByteStream extends ReadableStream<Uint8Array>
+class Car extends Vehicle
+class Category
+class Circle extends Shape
+class Client implements ClientInterface
+class ClientError<T = unknown> extends ApiError<T>
+class Configuration
+class ConfigurationBuilder
+class ConflictError<T = unknown> extends ClientError<T>
+class Counters
+class DefaultApiClient extends AbstractApiClient
+class Defaults
+class Department
+class DeviceAuthDeviceAuthorizationAuthenticator extends OAuth2DeviceAuthorizationAuthenticator
+class DigestAuthenticator extends BaseAuthenticator implements ChallengeAuthenticator
+class DryFood
+class EdgeCases
+class Employee
+class ForbiddenError<T = unknown> extends ClientError<T>
+class Freeform
+class GatewayTimeoutError<T = unknown> extends ServerError<T>
+class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer
+class GetMemoResponseHeaders
+class GetMemoServerMemos extends GetMemoServer
+class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer
+class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer
+class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
+class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer
+class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer
+class GoneError<T = unknown> extends ClientError<T>
+class HeadMemoResponseHeaders
+class InternalApiKeyAuthenticator extends ApiKeyAuthenticator
+class InternalServerError<T = unknown> extends ServerError<T>
+class JsonLinesStream<T> implements AsyncIterableIterator<T>, AsyncDisposable
+class Ledger
+class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
+class Letter
+class ListPetFeedResponseHeaders
+class LockedError<T = unknown> extends ClientError<T>
+class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
+class Medication
+class MemberNotFound
+class MemberNotFoundError extends NotFoundError<MemberNotFound>
+class Memo
+class Metadata
+class MethodNotAllowedError<T = unknown> extends ClientError<T>
+class ModelError
+class ModelResult
+class Moments
+class NativeValues
+class NetworkError extends ApiError
+class NetworkTimeoutError extends NetworkError
+class NotFoundError<T = unknown> extends ClientError<T>
+class NotImplementedError<T = unknown> extends ServerError<T>
+class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthenticator
+class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthenticator
+class OAuth2DeviceAuthorizationAuthenticator implements HttpAwareAuthenticator
+class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator
+class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator
+class OAuth2ServerError extends OpenAPIError
+class OAuth2TokenError extends OpenAPIError
+class OpenAPIError extends Error
+class OpenIdConnectAuthenticator implements HttpAwareAuthenticator
+class OptionsMemoResponseHeaders
+class Order
+class Packet
+class PaginationError extends OpenAPIError
+class Paginator<T, C = never> implements AsyncIterable<T>
+class Parcel
+class PatchMemoResponseHeaders
+class PayloadTooLargeError<T = unknown> extends ClientError<T>
+class PaymentRequiredError<T = unknown> extends ClientError<T>
+class Pet
+class PetAfterPage
+class PetApi extends BaseApi implements PetApiInterface
+class PetArchivePage
+class PetCatalogPage
+class PetCriteria
+class PetEventPage
+class PetFood
+class PetMatchPage
+class PetNextUrlPage
+class PetNotePage
+class PetOffsetPage
+class PetPageNumberPage
+class PetPassport
+class PetStoreBasicAuthenticator extends BasicAuthenticator
+class PetStoreBearerAuthenticator extends BearerAuthenticator
+class PetTreatment
+class PetWithOwner
+class Photo
+class PhotoMetadata
+class PhotoMetadataLocation
+class ProblemsApi extends BaseApi implements ProblemsApiInterface
+class ProjectNotFound
+class ProjectNotFoundError extends NotFoundError<ProjectNotFound>
+class Reading
+class ReadingInlineLevel
+class ReadingLevel
+class ReadingShape
+class RejectedRequest
+class RejectedRequestError extends ClientError<RejectedRequest>
+class RequestTimeoutError<T = unknown> extends ClientError<T>
+class RequiredNullable
+class Reservation
+class ReservationReceipt
+class ResponseTooLargeError extends ApiError
+class Roster
+class Sensors
+class SerializationError extends OpenAPIError
+class ServerConfiguration
+class ServerError<T = unknown> extends ApiError<T>
+class ServerVariable
+class Servers
+class ServiceTokenAuthenticator extends BearerAuthenticator
+class ServiceUnavailableError<T = unknown> extends ServerError<T>
+class SessionCookieAuthenticator extends ApiKeyAuthenticator
+class SetPetAvatarRequest
+class Shape
+class Shipment
+class Sparse
+class Square extends Shape
+class SseStream<T> implements AsyncIterableIterator<ServerSentEvent<T>>, AsyncDisposable
+class SsoAuthAuthenticator extends OpenIdConnectAuthenticator
+class StateConflict
+class StateConflictError extends ClientError<StateConflict>
+class StockItem
+class StoreApi extends BaseApi implements StoreApiInterface
+class StreamError extends NetworkError
+class StrictTag
+class Subscription
+class Surgery
+class Tag
+class TooManyRequestsError<T = unknown> extends ClientError<T>
+class TransportOptions
+class TransportOptionsBuilder
+class TreatmentRecord
+class TreeNode
+class Truck extends Vehicle
+class UnauthorizedError<T = unknown> extends ClientError<T>
+class UnexpectedFailure
+class UnexpectedFailureError extends ApiError<UnexpectedFailure>
+class UnprocessableEntityError<T = unknown> extends ClientError<T>
+class UnsupportedMediaTypeError<T = unknown> extends ClientError<T>
+class UpstreamFailure
+class UpstreamFailureError extends ServerError<UpstreamFailure>
+class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator
+class Vehicle
+class WetFood
+const Availability: { readonly Available: "Available"; readonly Sold: "Sold"; readonly OnHold: "on-hold"; readonly Oclock: "o'clock"; readonly AB: "a\\b"; readonly Eq: "$eq"; readonly X: "#{x}"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const Color: { readonly Red: "red"; readonly Green: "green"; readonly Blue: "blue"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const DefaultsModeEnum: { readonly Low: "low"; readonly Medium: "medium"; readonly High: "high"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const EdgeCasesPhaseEnum: { readonly InStock: "In-Stock"; readonly OnHold: "on-hold"; readonly OUTOFSTOCK: "OUT_OF_STOCK"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const FindPetsByStatusStatusEnum: { readonly Available: "available"; readonly Pending: "pending"; readonly Sold: "sold"; readonly UnknownDefaultOpenApi: "11184809"; }
+const GetMultiServerPetInfoServerChannel: { readonly A_B: "a&b"; readonly IT_S: "it's"; }
+const GetMultiServerPetInfoServerMirrorRegion: { readonly US: "us"; readonly EU: "eu"; }
+const GetMultiServerPetInfoServerRegionalRegion: { readonly US: "us"; readonly EU: "eu"; readonly AP: "ap"; }
+const GetStagingPetInfoServerEnvironment: { readonly STAGING: "staging"; readonly SANDBOX: "sandbox"; }
+const GetStagingPetInfoServerVersion: { readonly V2: "v2"; readonly V3: "v3"; }
+const OrderStatusEnum: { readonly Placed: "placed"; readonly Approved: "approved"; readonly Delivered: "delivered"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const PetStatusEnum: { readonly Available: "available"; readonly Pending: "pending"; readonly Sold: "sold"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const PetWithOwnerStatusEnum: { readonly Available: "available"; readonly Pending: "pending"; readonly Sold: "sold"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const Priority: { readonly Number1: 1; readonly Number2: 2; readonly Number3: 3; readonly UNKNOWN_DEFAULT_OPEN_API: -9007199254740991; }
+const Rank: { readonly LOW: 1; readonly MEDIUM: 2; readonly HIGH: 3; readonly UNKNOWN_DEFAULT_OPEN_API: -9007199254740991; }
+const Separator: { readonly SPACE1: " "; readonly VALUE00400040: "@@"; readonly AB: "a-b"; readonly AB2: "a_b"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const Stage: { readonly OnHold: "paused"; readonly Active: "active"; readonly Active2: "live"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const SubscriptionIntervalEnum: { readonly MONTHLY: "month"; readonly YEARLY: "year"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const Swatch: { readonly Red: "red"; readonly Green: "green"; readonly Blue: "blue"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const Tier: { readonly Small: "s"; readonly Medium: "m"; readonly Large: "l"; readonly UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__"; }
+const UploadPetDocumentDocumentTypeEnum: { readonly HealthCertificate: "health_certificate"; readonly VaccinationRecord: "vaccination_record"; readonly MicrochipRecord: "microchip_record"; readonly UnknownDefaultOpenApi: "11184809"; }
+enum ApiKeyLocation
+enum ClientAuthMethod
+export Decimal from decimal.js
+function chain(...hooks: CallHook[]): CallHook
+function isHttpAwareAuthenticator(auth: Authenticator): auth is HttpAwareAuthenticator
+function isUuid(value: unknown): value is UUID
+function opentelemetry/createOpenTelemetryCallHook(options?: OpenTelemetryCallHookOptions): CallHook
+function uuid(value: string): UUID
+interface AddPetPhotosOptions
+interface ApiClient
+interface ApiErrorOptions
+interface ApiResult<T>
+interface AttachPetFilesOptions
+interface Authenticator
+interface CallHook
+interface CallInfo
+interface CallObserver
+interface CallOutcome
+interface ChallengeAuthenticator extends Authenticator
+interface ClientInterface
+interface ClientOptions
+interface DeletePetOptions
+interface DeviceAuthorization
+interface FindPetsByStatusOptions
+interface GetBySwatchOptions
+interface GetNativeValuesOptions
+interface GetPetByNameOptions
+interface GetPetByNoteOptions
+interface GetPetSummaryOptions
+interface GetPetTagOptions
+interface GetStockItemOptions
+interface HttpAwareAuthenticator extends Authenticator
+interface ListPetArchiveOptions
+interface ListPetCatalogOptions
+interface ListPetEventsOptions
+interface ListPetFeedOptions
+interface ListPetMatchesOptions
+interface ListPetNextUrlOptions
+interface ListPetNotesOptions
+interface ListPetOffsetsOptions
+interface ListPetPageNumbersOptions
+interface ListPetsAfterOptions
+interface OpenedBody
+interface Page<T, C>
+interface PetApiInterface
+interface ProblemsApiInterface
+interface RequestOptions
+interface SearchStoreOptions
+interface SendRequestOptions
+interface SendStreamingOptions extends SendRequestOptions
+interface SerializationErrorResponse
+interface ServerSentEvent<T>
+interface SetPetPreferencesOptions
+interface StoreApiInterface
+interface StreamOptions extends RequestOptions
+interface UploadPetCertificateOptions
+interface UploadPetDocumentOptions
+interface WatchOrdersOptions
+interface opentelemetry/OpenTelemetryCallHookOptions
+opentelemetry/OpenTelemetryCallHookOptions.readonly meterProvider?: MeterProvider | undefined [uses @opentelemetry/api:MeterProvider]
+opentelemetry/OpenTelemetryCallHookOptions.readonly propagator?: TextMapPropagator<any> | undefined [uses @opentelemetry/api:TextMapPropagator]
+opentelemetry/OpenTelemetryCallHookOptions.readonly tracerProvider?: TracerProvider | undefined [uses @opentelemetry/api:TracerProvider]
+type Availability = (typeof Availability)[keyof typeof Availability]
+type BodyStream = ReadableStream<Uint8Array> | AsyncIterable<Uint8Array | string>
+type BodyStreamFactory = () => BodyStream | Promise<BodyStream>
+type Color = (typeof Color)[keyof typeof Color]
+type CredentialProvider = () => string | Promise<string>
+type DefaultsModeEnum = (typeof DefaultsModeEnum)[keyof typeof DefaultsModeEnum]
+type EdgeCasesPhaseEnum = (typeof EdgeCasesPhaseEnum)[keyof typeof EdgeCasesPhaseEnum]
+type Email = string & { readonly __brand: "Email" }
+type ErrorSchemaFactory = (statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string },) => ApiError
+type ErrorSchemas = Readonly< Partial<Record<string, ErrorSchemaFactory>> >
+type FindPetsByStatusStatusEnum = (typeof FindPetsByStatusStatusEnum)[keyof typeof FindPetsByStatusStatusEnum]
+type GetMultiServerPetInfoServerChannel = (typeof GetMultiServerPetInfoServerChannel)[keyof typeof GetMultiServerPetInfoServerChannel]
+type GetMultiServerPetInfoServerMirrorRegion = (typeof GetMultiServerPetInfoServerMirrorRegion)[keyof typeof GetMultiServerPetInfoServerMirrorRegion]
+type GetMultiServerPetInfoServerRegionalRegion = (typeof GetMultiServerPetInfoServerRegionalRegion)[keyof typeof GetMultiServerPetInfoServerRegionalRegion]
+type GetStagingPetInfoServerEnvironment = (typeof GetStagingPetInfoServerEnvironment)[keyof typeof GetStagingPetInfoServerEnvironment]
+type GetStagingPetInfoServerVersion = (typeof GetStagingPetInfoServerVersion)[keyof typeof GetStagingPetInfoServerVersion]
+type OrderStatusEnum = (typeof OrderStatusEnum)[keyof typeof OrderStatusEnum]
+type ParcelType = Letter | Packet
+type PetFoodType = DryFood | WetFood
+type PetStatusEnum = (typeof PetStatusEnum)[keyof typeof PetStatusEnum]
+type PetTreatmentType = Medication | Surgery
+type PetWithOwnerStatusEnum = (typeof PetWithOwnerStatusEnum)[keyof typeof PetWithOwnerStatusEnum]
+type Priority = (typeof Priority)[keyof typeof Priority]
+type Rank = (typeof Rank)[keyof typeof Rank]
+type ReadingInlineLevelType = number | string
+type ReadingLevelType = number | string
+type ReadingShapeType = Array<string> | { [key: string]: string }
+type ReserveStockResponse = Reservation | ReservationReceipt
+type Separator = (typeof Separator)[keyof typeof Separator]
+type SetPetAvatarThumbnailRequest = Array<Buffer> | Buffer
+type Stage = (typeof Stage)[keyof typeof Stage]
+type StatusErrorFactory = (statusCode: number, message: string, responseHeaders: Record<string, string> | null, responseBody: string | null, errorBody: unknown, options?: ApiErrorOptions,) => ApiError
+type SubscriptionIntervalEnum = (typeof SubscriptionIntervalEnum)[keyof typeof SubscriptionIntervalEnum]
+type Swatch = (typeof Swatch)[keyof typeof Swatch]
+type Tier = (typeof Tier)[keyof typeof Tier]
+type TreatmentRecordType = Medication | Surgery
+type URI = string & { readonly __brand: "URI" }
+type UUID = string & { readonly __brand: "UUID" }
+type UploadPetDocumentDocumentTypeEnum = (typeof UploadPetDocumentDocumentTypeEnum)[keyof typeof UploadPetDocumentDocumentTypeEnum]

@@ -241,16 +241,23 @@ export class OAuth2TokenManager {
   }
 
   /**
-   * Fetch a new token from the token endpoint using the injected ApiClient.
+   * POST a form-encoded body to an OAuth2 endpoint through the injected
+   * ApiClient and return the body of a 2xx answer. The device authorization
+   * request (RFC 8628 section 3.1) uses it too, so both requests share the
+   * encoding, the transport and the server error.
    *
-   * @param tokenUrl the OAuth2 token endpoint URL
-   * @param params the token request parameters
+   * @internal
+   * @param url the endpoint URL
+   * @param params the form parameters, in order
+   * @param extraHeaders headers sent with the request
+   * @returns the response body
+   * @throws OAuth2ServerError if the endpoint answers with a non-2xx status
    */
-  private async fetchToken(
-    tokenUrl: string,
+  async postForm(
+    url: string,
     params: Record<string, string>,
     extraHeaders: Record<string, string> = {}
-  ): Promise<void> {
+  ): Promise<string> {
     if (this.stopped) {
       throw new ApiError(0, 'The token manager has been stopped.', null, null, null);
     }
@@ -280,7 +287,7 @@ export class OAuth2TokenManager {
      * rather than a mysterious "missing access_token" parse error. */
     const response = await this.apiClient.sendRequest(
       'POST',
-      tokenUrl,
+      url,
       {
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
@@ -298,11 +305,26 @@ export class OAuth2TokenManager {
        * a valid error object. */
       throw OAuth2TokenManager.parseOAuth2ServerError(response.statusCode, response.body);
     }
+    return response.body;
+  }
+
+  /**
+   * Fetch a new token from the token endpoint using the injected ApiClient.
+   *
+   * @param tokenUrl the OAuth2 token endpoint URL
+   * @param params the token request parameters
+   */
+  private async fetchToken(
+    tokenUrl: string,
+    params: Record<string, string>,
+    extraHeaders: Record<string, string> = {}
+  ): Promise<void> {
+    const responseBody = await this.postForm(tokenUrl, params, extraHeaders);
     /* A 2xx body that is not a JSON object cannot yield a token: surface it
      * as OAuth2TokenError rather than a raw SyntaxError. */
     let parsed: unknown;
     try {
-      parsed = JSON.parse(response.body);
+      parsed = JSON.parse(responseBody);
     } catch {
       /* The parser's message quotes part of the body, which may be a token:
        * report the failure without echoing it. */
@@ -401,8 +423,10 @@ export class OAuth2TokenManager {
    * Returns `0` (caller skips caching) when the value is missing,
    * unparseable, or non-positive. Accepts integers, floors floats,
    * and parses digit strings (e.g. `"3600"` from Salesforce).
+   *
+   * @internal
    */
-  private static parseExpiresIn(raw: unknown): number {
+  static parseExpiresIn(raw: unknown): number {
     if (raw === null || raw === undefined) {
       return 0;
     }

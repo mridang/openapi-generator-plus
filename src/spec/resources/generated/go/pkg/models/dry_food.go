@@ -14,12 +14,17 @@ import (
 	"fmt"
 
 	"github.com/go-json-experiment/json/jsontext"
+
+	"petstore/pkg/internal/exactdecimal"
+
+	"github.com/shopspring/decimal"
 )
 
 // DryFood is a model class generated from the OpenAPI schema.
 type DryFood struct {
-	FoodType string  `json:"foodType"`
-	WeightKg float64 `json:"weightKg"`
+	FoodType   string           `json:"foodType"`
+	WeightKg   float64          `json:"weightKg"`
+	PricePerKg *decimal.Decimal `json:"pricePerKg,omitempty"`
 }
 
 // Equal reports whether this DryFood is value-equal to other.
@@ -62,6 +67,18 @@ func (o DryFood) WithWeightKg(value float64) DryFood {
 	return o
 }
 
+// WithPricePerKg returns a copy of the model with PricePerKg replaced; the receiver is unchanged.
+func (o DryFood) WithPricePerKg(value decimal.Decimal) DryFood {
+	o.PricePerKg = &value
+	return o
+}
+
+// WithoutPricePerKg returns a copy of the model with PricePerKg left unset; the receiver is unchanged.
+func (o DryFood) WithoutPricePerKg() DryFood {
+	o.PricePerKg = nil
+	return o
+}
+
 // NewDryFood creates a new DryFood instance.
 func NewDryFood(weightKg float64) *DryFood {
 	var defaultFoodType string = "dry"
@@ -74,7 +91,15 @@ func NewDryFood(weightKg float64) *DryFood {
 // MarshalJSON implements the json.Marshaler interface.
 func (o DryFood) MarshalJSON() ([]byte, error) {
 	type Alias DryFood
-	return marshalJSON((Alias)(o))
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	/* shopspring writes a decimal as a quoted string without its trailing zeros; the wire form keeps every digit. */
+	if b, err = exactdecimal.EncodeFields(b, exactdecimal.Field{Key: "pricePerKg", Value: o.PricePerKg}); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 // UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
@@ -108,6 +133,8 @@ func (o *DryFood) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 			}
 			seenWeightKg = true
 			return decodeValue(dec, &out.WeightKg)
+		case "pricePerKg":
+			return decodeChecked(dec, &out.PricePerKg, key, checkDecimalNumber)
 		}
 		return dec.SkipValue()
 	})

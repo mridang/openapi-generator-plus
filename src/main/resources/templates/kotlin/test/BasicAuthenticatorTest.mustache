@@ -251,4 +251,115 @@ class BasicAuthenticatorTest {
         }
         assertTrue(ex.message!!.contains("':'"), ex.message)
     }
+{{#hasDigestAuth}}
+
+    private val digestRealm = "http-auth@example.org"
+    private val digestNonce = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"
+    private val digestOpaque = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"
+    private val digestCnonce = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
+
+    /* The RFC 7616 example credential, built at run time so no secret literal is committed. */
+    private fun rfcDigest(): DigestAuthenticator =
+        DigestAuthenticator("https://api.example.com", "Mufasa", listOf("Circle", "of", "Life").joinToString(" "))
+            .also { it.cnonceSource = { digestCnonce } }
+
+    private fun rfcChallenge(algorithm: String): String =
+        "Digest realm=\"$digestRealm\", qop=\"auth, auth-int\", algorithm=$algorithm, " +
+            "nonce=\"$digestNonce\", opaque=\"$digestOpaque\""
+
+    private fun rfcAnswer(algorithm: String, response: String): String =
+        "Digest username=\"Mufasa\", realm=\"$digestRealm\", nonce=\"$digestNonce\", uri=\"/dir/index.html\", " +
+            "algorithm=$algorithm, response=\"$response\", qop=auth, nc=00000001, cnonce=\"$digestCnonce\", " +
+            "opaque=\"$digestOpaque\""
+
+    @Test
+    fun bhvAuthdigest700AnswersTheRfcMd5ChallengeWithTheFieldsInOrder() = runBlocking {
+        val auth = rfcDigest()
+        assertNull(auth.authorization("GET", "/dir/index.html"))
+        assertTrue(auth.acceptChallenge(rfcChallenge("MD5")))
+        assertEquals(rfcAnswer("MD5", "8ca523f5e9506fed4657c9700eebdbec"), auth.authorization("GET", "/dir/index.html"))
+        assertEquals(emptyMap<String, String>(), auth.getAuthHeaders())
+    }
+
+    @Test
+    fun bhvAuthdigest701AnswersTheRfcSha256ChallengeAndTheSessVariants() {
+        val sha256 = rfcDigest()
+        assertTrue(sha256.acceptChallenge(rfcChallenge("SHA-256")))
+        assertEquals(
+            rfcAnswer("SHA-256", "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1"),
+            sha256.authorization("GET", "/dir/index.html"),
+        )
+        val sha256Sess = rfcDigest()
+        assertTrue(sha256Sess.acceptChallenge(rfcChallenge("SHA-256-sess")))
+        assertEquals(
+            rfcAnswer("SHA-256-sess", "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7"),
+            sha256Sess.authorization("GET", "/dir/index.html"),
+        )
+        val md5Sess = rfcDigest()
+        assertTrue(md5Sess.acceptChallenge(rfcChallenge("MD5-sess")))
+        assertEquals(
+            rfcAnswer("MD5-sess", "e783283f46242139c486a698fec7211d"),
+            md5Sess.authorization("GET", "/dir/index.html"),
+        )
+    }
+
+    @Test
+    fun bhvAuthdigest704AnswersAChallengeWithoutQopInTheRfc2069Form() {
+        val plain = rfcDigest()
+        assertTrue(plain.acceptChallenge("Basic realm=\"other\", Digest realm=\"$digestRealm\", nonce=\"$digestNonce\""))
+        assertEquals(
+            "Digest username=\"Mufasa\", realm=\"$digestRealm\", nonce=\"$digestNonce\", uri=\"/dir/index.html\", " +
+                "response=\"7b2cc3b30e75b4777ea31027084363fd\"",
+            plain.authorization("GET", "/dir/index.html"),
+        )
+        val withOpaque = rfcDigest()
+        assertTrue(
+            withOpaque.acceptChallenge(
+                "digest REALM=\"$digestRealm\", nonce=\"$digestNonce\", opaque=\"$digestOpaque\"",
+            ),
+        )
+        assertEquals(
+            "Digest username=\"Mufasa\", realm=\"$digestRealm\", nonce=\"$digestNonce\", uri=\"/dir/index.html\", " +
+                "response=\"7b2cc3b30e75b4777ea31027084363fd\", opaque=\"$digestOpaque\"",
+            withOpaque.authorization("GET", "/dir/index.html"),
+        )
+    }
+
+    @Test
+    fun bhvAuthdigest705DoesNotAnswerAuthIntOnlyOrAnUnknownAlgorithm() {
+        val authInt = rfcDigest()
+        assertFalse(authInt.acceptChallenge("Digest realm=\"$digestRealm\", qop=\"auth-int\", nonce=\"$digestNonce\""))
+        assertNull(authInt.authorization("GET", "/dir/index.html"))
+        val unknown = rfcDigest()
+        assertFalse(unknown.acceptChallenge(rfcChallenge("SHA-512-256")))
+        assertNull(unknown.authorization("GET", "/dir/index.html"))
+    }
+
+    @Test
+    fun bhvAuthdigest706RefusesBadCredentialsAtConstructionAndMasksThePassword() {
+        val secret = listOf("s3", "cret").joinToString("")
+        val empty = assertThrows(IllegalArgumentException::class.java) {
+            DigestAuthenticator("https://api.example.com", "", secret)
+        }
+        assertEquals("Digest username must not be empty", empty.message)
+        val bad = listOf(
+            "ali\rce" to secret, "ali\nce" to secret, "ali\u0000ce" to secret,
+            "alice" to "s3\r$secret", "alice" to "s3\n$secret", "alice" to "s3\u0000$secret",
+        )
+        for ((user, pass) in bad) {
+            val refused = assertThrows(IllegalArgumentException::class.java) {
+                DigestAuthenticator("https://api.example.com", user, pass)
+            }
+            assertEquals("Digest credentials must not contain a line break or NUL", refused.message)
+        }
+        val quote = assertThrows(IllegalArgumentException::class.java) {
+            DigestAuthenticator("https://api.example.com", "ali\"ce", secret)
+        }
+        assertEquals("Digest username must not contain a double quote", quote.message)
+        assertEquals(
+            "DigestAuthenticator(host=https://api.example.com, username=alice, password=***)",
+            DigestAuthenticator("https://api.example.com", "alice", secret).toString(),
+        )
+    }
+{{/hasDigestAuth}}
 }

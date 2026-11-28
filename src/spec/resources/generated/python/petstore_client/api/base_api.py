@@ -53,6 +53,7 @@ from ..default_api_client import (
 )
 from ..call_hook import CallInfo, CallObserver, CallOutcome
 from ..configuration import Configuration
+from .._constraint_validator import validate_request_body
 from ..object_serializer import ObjectSerializer
 from ..value_serializer import ValueSerializer, AllowReservedValue, EncodedPart
 from ..header_selector import HeaderSelector
@@ -67,6 +68,7 @@ from ..errors import (
 from ..errors.serialization_exception import SerializationException
 from ..auth.authenticator import Authenticator
 from ..auth.http_aware_authenticator import HttpAwareAuthenticator
+from ..auth.digest_authenticator import ChallengeAuthenticator
 
 T = TypeVar("T")
 _P = ParamSpec("_P")
@@ -115,6 +117,12 @@ def _is_replayable(body: Any) -> bool:
     if isinstance(body, (list, tuple)):
         return all(_is_replayable(v) for v in body)
     return True
+
+
+def _request_target(url: str) -> str:
+    """The path and query of a URL, without the scheme and host."""
+    split = urlsplit(url)
+    return split.path + ("?" + split.query if split.query else "")
 
 
 def _multipart_value(value: Any) -> Any:
@@ -396,6 +404,10 @@ class BaseApi:
                 "implement send_streaming, so an operation that returns a stream cannot be "
                 "called through it"
             )
+        # The opt-in constraint check runs before anything is built or sent, so
+        # a refused body never reaches the call hook or the transport.
+        if self._config.validate_constraints and body is not None:
+            validate_request_body(body)
         if path.startswith("http://") or path.startswith("https://"):
             url = path
         else:
@@ -561,6 +573,14 @@ class BaseApi:
                         headers["Cookie"] = existing + "; " + cookie_str
                     else:
                         headers["Cookie"] = cookie_str
+                # A challenge authenticator answers the challenge it remembers (D192).
+                if isinstance(effective_auth, ChallengeAuthenticator):
+                    answer = effective_auth.authorization(
+                        method.upper(), _request_target(url)
+                    )
+                    if answer is not None:
+                        auth_names.add("authorization")
+                        _merge_headers(headers, {"Authorization": answer})
             inject_trace_context(headers)
             if hook_set or hook_removed:
                 for name in hook_removed:
@@ -1037,6 +1057,34 @@ class BaseApi:
                 deadline,
                 send,
             )
+        if (
+            response.status_code == 401
+            and replayable
+            and isinstance(auth, ChallengeAuthenticator)
+            and (deadline is None or time.monotonic() < deadline)
+        ):
+            # HTTP Digest (D192): a challenge the authenticator accepts is
+            # answered and the request replayed once; a second 401 stands.
+            challenge = next(
+                (
+                    v
+                    for k, v in response.headers.items()
+                    if k.lower() == "www-authenticate"
+                ),
+                None,
+            )
+            if challenge is not None and auth.accept_challenge(challenge):
+                fresh_headers = await rebuild_headers(True)
+                self._discard(response)
+                return await self._send_with_retries(
+                    method,
+                    fresh_headers,
+                    body,
+                    rebuild_headers,
+                    max_retries,
+                    deadline,
+                    send,
+                )
         return response
 
     @staticmethod

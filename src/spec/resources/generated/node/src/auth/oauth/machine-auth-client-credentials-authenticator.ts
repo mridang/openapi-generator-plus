@@ -12,6 +12,10 @@ import { resolveOAuthCredential } from "../credentials.js";
  * Scheme-specific authenticator for the machineAuth security scheme.
  */
 export class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {
+  /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
+  static readonly METADATA_URL =
+    "https://auth.example.com/.well-known/oauth-authorization-server";
+
   constructor(host: string, clientId?: string, clientSecret?: string) {
     super(
       host,

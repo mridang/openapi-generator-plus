@@ -194,7 +194,20 @@ public sealed class SchemeAuthenticatorTest
 {{#isOAuth}}
             Assert.Contains("ClientId=" + ExplicitValue("clientId"), auth.ToString(), StringComparison.Ordinal);
 {{/isOAuth}}
+{{#isDigest}}
+            Assert.Contains("Username=" + ExplicitValue("username"), auth.ToString(), StringComparison.Ordinal);
+{{/isDigest}}
         });
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
+    public void BhvAuthscheme700ASchemeExposesItsDeclaredMetadataUrlAsAConstant()
+    {
+{{#schemeAuthTests}}
+{{#hasOAuth2MetadataUrl}}
+        Assert.Equal("{{{oauth2MetadataUrlLiteral}}}", {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}.MetadataUrl);
+{{/hasOAuth2MetadataUrl}}
 {{/schemeAuthTests}}
     }
 
@@ -256,6 +269,9 @@ public sealed class SchemeAuthenticatorTest
 {{#isOAuth}}
                 Assert.Contains("ClientId=" + EnvValue("clientId"), auth.ToString(), StringComparison.Ordinal);
 {{/isOAuth}}
+{{#isDigest}}
+                Assert.Contains("Username=" + EnvValue("username"), auth.ToString(), StringComparison.Ordinal);
+{{/isDigest}}
             });
         }
 {{/isBasic}}

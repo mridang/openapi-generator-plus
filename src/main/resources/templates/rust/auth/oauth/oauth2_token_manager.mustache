@@ -27,7 +27,7 @@ const EXPIRY_SAFETY_MARGIN_SECONDS: u64 = 60;
 
 /// Ceiling applied to a server-supplied `expires_in`, in seconds (one year), so
 /// an absurd lifetime cannot overflow the expiry arithmetic.
-const MAX_EXPIRES_IN_SECONDS: u64 = 31_536_000;
+pub(crate) const MAX_EXPIRES_IN_SECONDS: u64 = 31_536_000;
 
 pub struct OAuth2TokenManager {
     /* api_client lives outside the tokio mutex so injection from the
@@ -345,6 +345,58 @@ impl OAuth2TokenManager {
         }
     }
 
+    /// POSTs `params` as a form in the token-request key order to `url`
+    /// through the injected client, with redirects refused, and returns the
+    /// body of a 2xx answer. A non-2xx answer is an [`OAuth2ServerError`].
+    /// The device authorization request uses it; it leaves the session alone.
+    pub(crate) async fn post_form(
+        &self,
+        url: &str,
+        params: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let client = self
+            .api_client
+            .read()
+            .unwrap()
+            .as_ref()
+            .ok_or_else(|| {
+                Box::new(ConfigurationError::InvalidState(
+                    "ApiClient has not been injected. \
+                     Ensure the {{clientClassName}} constructor calls set_api_client \
+                     on HttpAwareAuthenticator before making API requests"
+                        .to_string(),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?
+            .clone();
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Content-Type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+        headers.insert("Accept".to_string(), "application/json".to_string());
+        let body: String = ordered_params(params)
+            .into_iter()
+            .map(|(k, v)| format!("{}={}", form_url_encode(k), form_url_encode(v)))
+            .collect::<Vec<_>>()
+            .join("&");
+        let response = client
+            .send_request_with_options(
+                "POST",
+                url,
+                &headers,
+                Some(&RequestBody::Bytes(body.into_bytes())),
+                &RequestOptions::new().no_redirect(true),
+            )
+            .await?;
+        if response.status_code() < 200 || response.status_code() >= 300 {
+            return Err(Box::new(parse_oauth2_server_error(
+                response.status_code(),
+                response.body(),
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
+        Ok(response.body().to_string())
+    }
+
     /// Performs the token exchange while the caller already holds the
     /// `inner` mutex. The lock guarantees single-flight refresh.
     async fn fetch_token_locked(
@@ -560,7 +612,7 @@ fn parse_oauth2_server_error(status_code: u16, body: &str) -> OAuth2ServerError 
 /// Returns `0` (caller skips caching) when the value is missing, unparseable,
 /// or non-positive. Accepts integers, floors floats, and parses digit strings
 /// (e.g. `"3600"` from Salesforce).
-fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
+pub(crate) fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
     let value = match value {
         Some(v) => v,
         None => return 0,

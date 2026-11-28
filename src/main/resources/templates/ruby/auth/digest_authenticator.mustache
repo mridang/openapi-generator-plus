@@ -1,0 +1,207 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'digest'
+require 'securerandom'
+require 'strscan'
+
+module {{moduleName}}
+  module Auth
+    # Authenticator for HTTP Digest authentication (RFC 7616).
+    #
+    # Nothing is sent until the server answers 401 with a
+    # +WWW-Authenticate: Digest+ challenge; the SDK then hands the challenge to
+    # {#accept_challenge} and replays the request once with the answer. Later
+    # requests answer the remembered challenge up front, with the nonce count
+    # incremented. MD5, MD5-sess, SHA-256 and SHA-256-sess are answered, with
+    # +qop=auth+ or without qop; a challenge that offers only +auth-int+ or
+    # names another algorithm is not.
+    class DigestAuthenticator < BaseAuthenticator
+      # The hash of each algorithm the authenticator answers, by upper-case name.
+      HASHES = {
+        'MD5' => Digest::MD5,
+        'MD5-SESS' => Digest::MD5,
+        'SHA-256' => Digest::SHA256,
+        'SHA-256-SESS' => Digest::SHA256
+      }.freeze
+
+      # An RFC 9110 token: a scheme or parameter name, or an unquoted value.
+      TOKEN = /[!#$%&'*+\-.^_`|~0-9A-Za-z]+/
+
+      attr_reader :host
+
+      # @api private
+      # Where each answer's client nonce comes from; a test fixes it.
+      attr_writer :cnonce_source
+
+      # A credential left out comes from its environment variable, read once,
+      # here (an empty value counts as unset); one that is still missing fails
+      # here.
+      #
+      # @param host [String] API base URL
+      # @param username [String, nil]
+      # @param password [String, nil]
+      # @param env [#[]] where the variables are read from
+      # @param username_env [String] the name of the environment variable of the username
+      # @param password_env [String] the name of the environment variable of the password
+      # @raise [ArgumentError] when a credential is missing, the username is empty,
+      #   either credential holds a line break or NUL, or the username holds a double quote
+      def initialize(host, username = nil, password = nil, env: ENV,
+                     username_env: "#{ENV_PREFIX}_USERNAME", password_env: "#{ENV_PREFIX}_PASSWORD")
+        super()
+        username = credential_from(username, username_env, env)
+        password = credential_from(password, password_env, env)
+        if username.nil?
+          raise ArgumentError, "Missing Digest auth username: pass it or set the environment variable #{username_env}"
+        end
+        if password.nil?
+          raise ArgumentError, "Missing Digest auth password: pass it or set the environment variable #{password_env}"
+        end
+        raise ArgumentError, 'Digest username must not be empty' if username.empty?
+        if username.match?(/[\r\n\x00]/) || password.match?(/[\r\n\x00]/)
+          raise ArgumentError, 'Digest credentials must not contain a line break or NUL'
+        end
+        raise ArgumentError, 'Digest username must not contain a double quote' if username.include?('"')
+
+        @host = host
+        @username = username
+        @password = password
+        @cnonce_source = -> { SecureRandom.hex(16) }
+        @mutex = Mutex.new
+        @challenge = nil
+        @nonce_count = 0
+      end
+
+      # Redact the password from the default object representation so logging
+      # or inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} username=#{@username.inspect} password=\"***\">"
+      end
+      alias to_s inspect
+
+      # A digest credential is never sent as a plain header: the SDK asks
+      # {#authorization} for each request instead.
+      #
+      # @return [Hash{String => String}]
+      def auth_headers
+        {}
+      end
+
+      # The +Authorization+ value answering the remembered challenge for one
+      # request, or nil before any challenge was accepted. Each answer counts
+      # the nonce up by one and draws a fresh client nonce.
+      #
+      # @param method [String] the request method
+      # @param request_target [String] the path and query of the request URL
+      # @return [String, nil]
+      def authorization(method, request_target)
+        @mutex.synchronize do
+          challenge = @challenge
+          return nil if challenge.nil?
+
+          @nonce_count += 1
+          answer(challenge, method.to_s.upcase, request_target, format('%08x', @nonce_count))
+        end
+      end
+
+      # Reads every Digest challenge of a +WWW-Authenticate+ value (one string,
+      # or one per header line) and remembers the first one this authenticator
+      # can answer, resetting the nonce count.
+      #
+      # @param www_authenticate [String, Array<String>]
+      # @return [Boolean] whether a challenge was accepted
+      def accept_challenge(www_authenticate)
+        text = Array(www_authenticate).join(', ')
+        chosen = parse_challenges(text).find do |scheme, params|
+          scheme.casecmp?('Digest') && acceptable?(params)
+        end
+        return false if chosen.nil?
+
+        params = chosen.last
+        @mutex.synchronize do
+          @challenge = {
+            realm: params['realm'].to_s, nonce: params['nonce'].to_s, opaque: params['opaque'],
+            algorithm: params['algorithm'], qop: params.key?('qop')
+          }
+          @nonce_count = 0
+        end
+        true
+      end
+
+      private
+
+      def acceptable?(params)
+        algorithm = params['algorithm']
+        return false unless algorithm.nil? || HASHES.key?(algorithm.upcase)
+
+        qop = params['qop']
+        qop.nil? || qop.split(',').any? { |option| option.strip.casecmp?('auth') }
+      end
+
+      def answer(challenge, method, request_target, nonce_count)
+        algorithm = challenge[:algorithm]
+        name = (algorithm || 'MD5').upcase
+        hash = HASHES.fetch(name)
+        cnonce = @cnonce_source.call
+        nonce = challenge[:nonce]
+        ha1 = hash.hexdigest("#{@username}:#{challenge[:realm]}:#{@password}")
+        ha1 = hash.hexdigest("#{ha1}:#{nonce}:#{cnonce}") if name.end_with?('-SESS')
+        ha2 = hash.hexdigest("#{method}:#{request_target}")
+        response = if challenge[:qop]
+                     hash.hexdigest("#{ha1}:#{nonce}:#{nonce_count}:#{cnonce}:auth:#{ha2}")
+                   else
+                     hash.hexdigest("#{ha1}:#{nonce}:#{ha2}")
+                   end
+        fields = [
+          "username=#{quoted(@username)}", "realm=#{quoted(challenge[:realm])}",
+          "nonce=#{quoted(nonce)}", "uri=#{quoted(request_target)}"
+        ]
+        fields << "algorithm=#{algorithm}" unless algorithm.nil?
+        fields << "response=#{quoted(response)}"
+        fields.push('qop=auth', "nc=#{nonce_count}", "cnonce=#{quoted(cnonce)}") if challenge[:qop]
+        fields << "opaque=#{quoted(challenge[:opaque])}" unless challenge[:opaque].nil?
+        "Digest #{fields.join(', ')}"
+      end
+
+      def quoted(value)
+        "\"#{value.to_s.gsub(/[\\"]/) { |char| "\\#{char}" }}\""
+      end
+
+      # The challenges of a header value as [scheme, params] pairs; parameter
+      # names are lower-cased and quoted values unescaped.
+      def parse_challenges(text)
+        challenges = [] # : Array[[String, Hash[String, String]]]
+        scanner = StringScanner.new(text)
+        until scanner.eos?
+          next if scanner.skip(/[\s,]+/)
+
+          token = scanner.scan(TOKEN)
+          if token.nil?
+            scanner.getch
+            next
+          end
+          if scanner.skip(/[ \t]*=[ \t]*/)
+            value = scanner.peek(1) == '"' ? quoted_value(scanner) : scanner.scan(TOKEN).to_s
+            challenges.last&.last&.store(token.downcase, value)
+          else
+            challenges << [token, {}]
+          end
+        end
+        challenges
+      end
+
+      def quoted_value(scanner)
+        scanner.getch
+        value = +''
+        until scanner.eos?
+          char = scanner.getch
+          break if char == '"'
+
+          value << (char == '\\' && !scanner.eos? ? scanner.getch.to_s : char.to_s)
+        end
+        value
+      end
+    end
+  end
+end

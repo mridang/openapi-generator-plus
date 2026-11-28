@@ -8,6 +8,7 @@
 import pytest
 
 from petstore_client.auth.basic_authenticator import BasicAuthenticator
+from petstore_client.auth.digest_authenticator import DigestAuthenticator
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
@@ -247,3 +248,148 @@ class TestBasicBehaviours:
             BasicAuthenticator(
                 host="https://api.example.com", username="alice", password="s3c\x00ret"
             )
+
+
+_DIGEST_HOST = "https://api.example.com"
+_DIGEST_REALM = "http-auth@example.org"
+_DIGEST_NONCE = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"
+_DIGEST_OPAQUE = "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"
+_DIGEST_CNONCE = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
+_DIGEST_SECRET = " ".join(["Circle", "of", "Life"])
+
+
+def _mufasa() -> DigestAuthenticator:
+    auth = DigestAuthenticator(_DIGEST_HOST, "Mufasa", _DIGEST_SECRET)
+    auth._cnonce_source = lambda: _DIGEST_CNONCE
+    return auth
+
+
+def _rfc_challenge(algorithm: str) -> str:
+    return (
+        f'Digest realm="{_DIGEST_REALM}", qop="auth, auth-int", algorithm={algorithm}, '
+        f'nonce="{_DIGEST_NONCE}", opaque="{_DIGEST_OPAQUE}"'
+    )
+
+
+def _rfc_answer(algorithm: str, response: str) -> str:
+    return (
+        f'Digest username="Mufasa", realm="{_DIGEST_REALM}", nonce="{_DIGEST_NONCE}", '
+        f'uri="/dir/index.html", algorithm={algorithm}, response="{response}", qop=auth, '
+        f'nc=00000001, cnonce="{_DIGEST_CNONCE}", opaque="{_DIGEST_OPAQUE}"'
+    )
+
+
+class TestDigestAuthenticator:
+    def test_bhv_authdigest_700_the_md5_answer_to_the_rfc_7616_example_has_the_rfc_response_and_the_fields_in_order(
+        self,
+    ) -> None:
+        auth = _mufasa()
+        assert auth.authorization("GET", "/dir/index.html") is None
+        assert auth.accept_challenge(_rfc_challenge("MD5")) is True
+        assert auth.authorization("GET", "/dir/index.html") == _rfc_answer(
+            "MD5", "8ca523f5e9506fed4657c9700eebdbec"
+        )
+        assert auth.get_auth_headers() == {}
+
+    @pytest.mark.parametrize(
+        "algorithm,response",
+        [
+            (
+                "SHA-256",
+                "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1",
+            ),
+            ("MD5-sess", "e783283f46242139c486a698fec7211d"),
+            (
+                "SHA-256-sess",
+                "2fd51b3a77ad75bad6afad6003e818d767133c46d9e2749e7f5232ae1ea3efd7",
+            ),
+        ],
+    )
+    def test_bhv_authdigest_701_the_sha_256_answer_has_the_rfc_response_and_the_sess_variants_hash_the_nonce_and_cnonce(
+        self, algorithm: str, response: str
+    ) -> None:
+        auth = _mufasa()
+        assert auth.accept_challenge(_rfc_challenge(algorithm)) is True
+        assert auth.authorization("GET", "/dir/index.html") == _rfc_answer(
+            algorithm, response
+        )
+
+    def test_bhv_authdigest_704_a_challenge_without_qop_is_answered_in_the_rfc_2069_form(
+        self,
+    ) -> None:
+        auth = _mufasa()
+        assert (
+            auth.accept_challenge(
+                f'Basic realm="other", digest realm="{_DIGEST_REALM}", nonce="{_DIGEST_NONCE}"'
+            )
+            is True
+        )
+        assert auth.authorization("GET", "/dir/index.html") == (
+            f'Digest username="Mufasa", realm="{_DIGEST_REALM}", nonce="{_DIGEST_NONCE}", '
+            'uri="/dir/index.html", response="7b2cc3b30e75b4777ea31027084363fd"'
+        )
+
+    def test_bhv_authdigest_705_a_challenge_with_only_auth_int_or_an_unknown_algorithm_is_not_answered(
+        self,
+    ) -> None:
+        auth = _mufasa()
+        assert (
+            auth.accept_challenge(
+                f'Digest realm="{_DIGEST_REALM}", nonce="{_DIGEST_NONCE}", qop="auth-int"'
+            )
+            is False
+        )
+        assert (
+            auth.accept_challenge(
+                f'Digest realm="{_DIGEST_REALM}", nonce="{_DIGEST_NONCE}", algorithm=SHA-512-256'
+            )
+            is False
+        )
+        assert auth.authorization("GET", "/dir/index.html") is None
+
+    def test_bhv_authdigest_706_a_malformed_credential_fails_at_construction_and_the_string_form_masks_the_password(
+        self,
+    ) -> None:
+        refusals = [
+            ("", _DIGEST_SECRET, "Digest username must not be empty"),
+            (
+                "Muf\rasa",
+                _DIGEST_SECRET,
+                "Digest credentials must not contain a line break or NUL",
+            ),
+            (
+                "Muf\nasa",
+                _DIGEST_SECRET,
+                "Digest credentials must not contain a line break or NUL",
+            ),
+            (
+                "Muf\x00asa",
+                _DIGEST_SECRET,
+                "Digest credentials must not contain a line break or NUL",
+            ),
+            (
+                "Mufasa",
+                "Circle\r\nof Life",
+                "Digest credentials must not contain a line break or NUL",
+            ),
+            (
+                "Mufasa",
+                "Circle\x00of Life",
+                "Digest credentials must not contain a line break or NUL",
+            ),
+            (
+                'Muf"asa',
+                _DIGEST_SECRET,
+                "Digest username must not contain a double quote",
+            ),
+        ]
+        for username, password, message in refusals:
+            with pytest.raises(ValueError) as refused:
+                DigestAuthenticator(_DIGEST_HOST, username, password)
+            assert str(refused.value) == message
+        auth = DigestAuthenticator(_DIGEST_HOST, "Mufasa", _DIGEST_SECRET)
+        assert (
+            repr(auth)
+            == "DigestAuthenticator(host='https://api.example.com', username='Mufasa', password='***')"
+        )
+        assert _DIGEST_SECRET not in str(auth)

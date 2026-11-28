@@ -15,7 +15,16 @@ import {{{.}}}
 {{#envVars}}
 /// - `{{field}}`: `{{envName}}`
 {{/envVars}}
+{{#schemeDeprecated}}
+///
+/// Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
 public final class {{className}}: {{baseClass}}, @unchecked Sendable {
+{{#hasOAuth2MetadataUrl}}
+    /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+    public static let metadataUrl = "{{{oauth2MetadataUrl}}}"
+
+{{/hasOAuth2MetadataUrl}}
     /// Creates the authenticator from explicit credentials and the process environment.
     {{#needsOverride}}override {{/needsOverride}}public convenience init({{{constructorSignature}}}) throws {
         try self.init({{{forwardArguments}}}, environment: ProcessInfo.processInfo.environment)
@@ -41,7 +50,17 @@ public final class {{className}}: {{baseClass}}, @unchecked Sendable {
 }
 {{/hasEnvVars}}
 {{^hasEnvVars}}
+{{#schemeDeprecated}}
+/// The `{{schemeName}}` security scheme.
+///
+/// Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
 public final class {{className}}: {{baseClass}}, @unchecked Sendable {
+{{#hasOAuth2MetadataUrl}}
+    /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+    public static let metadataUrl = "{{{oauth2MetadataUrl}}}"
+
+{{/hasOAuth2MetadataUrl}}
     {{#needsOverride}}override {{/needsOverride}}public init({{{constructorSignature}}}){{#throwing}} throws{{/throwing}} {
         {{#fallible}}try {{/fallible}}super.init({{{superCall}}})
     }

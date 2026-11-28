@@ -3,6 +3,8 @@ package com.example.petstore.auth
 
 /**
  * Authenticator for the `adminBasic` security scheme.
+ *
+ * Deprecated: the API marks the security scheme 'adminBasic' as deprecated.
  */
 class AdminBasicAuthenticator : BasicAuthenticator {
     /**

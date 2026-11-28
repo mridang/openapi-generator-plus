@@ -15,6 +15,15 @@ from {{packageName}}.transport_options import TransportOptions
 from {{packageName}}.errors import OAuth2ServerException, OAuth2TokenException
 from {{packageName}}.api_http_response import ApiHttpResponse
 from {{packageName}}.errors import {{errorPrefix}}Exception
+{{#hasOAuth2DeviceAuthorization}}
+from typing import List, Tuple
+from urllib.parse import parse_qs
+
+from {{packageName}}.auth.oauth.oauth2_device_authorization_authenticator import (
+    DeviceAuthorization,
+    OAuth2DeviceAuthorizationAuthenticator,
+)
+{{/hasOAuth2DeviceAuthorization}}
 
 
 class TestOAuth2TokenManager:
@@ -1366,3 +1375,181 @@ class TestTokenTransportFailure:
             manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
 
         assert excinfo.value is grant_failure
+{{#hasOAuth2DeviceAuthorization}}
+
+
+_DEVICE_URL = 'https://auth.example.com/device'
+_PENDING = (400, '{"error":"authorization_pending"}')
+_GRANTED = (200, '{"access_token":"device-token","token_type":"Bearer","expires_in":3600}')
+
+
+def _replies(*answers: Tuple[int, str]) -> MagicMock:
+    client = MagicMock()
+    client.send_request.side_effect = [
+        ApiHttpResponse(status_code=status, body=body, headers={'content-type': 'application/json'})
+        for status, body in answers
+    ]
+    return client
+
+
+def _device_authenticator(client: MagicMock) -> OAuth2DeviceAuthorizationAuthenticator:
+    auth = OAuth2DeviceAuthorizationAuthenticator(
+        'https://api.example.com', 'device-client', _DEVICE_URL, 'https://auth.example.com/token', ['read', 'write']
+    )
+    auth.set_api_client(client)
+    return auth
+
+
+def _fake_time(auth: Any) -> List[float]:
+    slept: List[float] = []
+    clock = [0.0]
+
+    def sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock[0] += seconds
+
+    auth._sleep = sleep
+    auth._monotonic = lambda: clock[0]
+    return slept
+
+
+def _authorization(interval: int, expires_in: int = 600) -> DeviceAuthorization:
+    return DeviceAuthorization(
+        device_code='dev-code',
+        user_code='USER-CODE',
+        verification_uri='https://auth.example.com/activate',
+        verification_uri_complete=None,
+        expires_in=expires_in,
+        interval=interval,
+    )
+
+
+class TestOAuth2DeviceAuthorizationAuthenticator:
+    def test_bhv_authoauthtwodevice_700_request_device_authorization_posts_the_client_id_and_scopes_and_returns_the_device_authorization(self) -> None:
+        client = _replies(
+            (200, '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate",'
+                  '"verification_uri_complete":"https://auth.example.com/activate?user_code=USER-CODE","expires_in":600,"interval":7}'),
+            (200, '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","expires_in":"900"}'),
+        )
+        auth = _device_authenticator(client)
+
+        first = auth.request_device_authorization()
+        second = auth.request_device_authorization()
+
+        assert [call[0][1] for call in client.send_request.call_args_list] == [_DEVICE_URL, _DEVICE_URL]
+        assert client.send_request.call_args_list[0][0][3] == 'client_id=device-client&scope=read+write'
+        assert first == DeviceAuthorization(
+            device_code='dev-code',
+            user_code='USER-CODE',
+            verification_uri='https://auth.example.com/activate',
+            verification_uri_complete='https://auth.example.com/activate?user_code=USER-CODE',
+            expires_in=600,
+            interval=7,
+        )
+        assert second.verification_uri_complete is None
+        assert second.expires_in == 900
+        assert second.interval == 5
+
+    @pytest.mark.parametrize(
+        ('body', 'message'),
+        [
+            ('<html>', 'Device authorization response is not valid JSON'),
+            ('["device_code"]', 'Device authorization response is not a JSON object'),
+            ('{"user_code":"U","verification_uri":"https://v"}', 'Device authorization response missing or empty device_code field'),
+            ('{"device_code":"D","user_code":"","verification_uri":"https://v"}', 'Device authorization response missing or empty user_code field'),
+            ('{"device_code":"D","user_code":"U","verification_uri":7}', 'Device authorization response missing or empty verification_uri field'),
+        ],
+    )
+    def test_bhv_authoauthtwodevice_701_an_unusable_device_authorization_response_fails_with_the_exact_oauth2_token_error(self, body: str, message: str) -> None:
+        auth = _device_authenticator(_replies((200, body)))
+
+        with pytest.raises(OAuth2TokenException) as excinfo:
+            auth.request_device_authorization()
+
+        assert type(excinfo.value) is OAuth2TokenException
+        assert str(excinfo.value) == message
+
+    def test_bhv_authoauthtwodevice_701_a_non_2xx_device_authorization_answer_fails_with_the_oauth2_server_error(self) -> None:
+        auth = _device_authenticator(_replies((400, '{"error":"invalid_client"}')))
+
+        with pytest.raises(OAuth2ServerException) as excinfo:
+            auth.request_device_authorization()
+
+        assert type(excinfo.value) is OAuth2ServerException
+        assert excinfo.value.code == 'invalid_client'
+
+    def test_bhv_authoauthtwodevice_702_poll_for_token_posts_the_device_code_grant_and_keeps_polling_while_pending(self) -> None:
+        client = _replies(_PENDING, _PENDING, _GRANTED)
+        auth = _device_authenticator(client)
+        _fake_time(auth)
+
+        auth.poll_for_token(_authorization(5))
+
+        assert [call[0][1] for call in client.send_request.call_args_list] == ['https://auth.example.com/token'] * 3
+        assert client.send_request.call_args_list[2][0][3] == (
+            'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code&client_id=device-client&device_code=dev-code'
+        )
+        assert auth.get_auth_headers() == {'Authorization': 'Bearer device-token'}
+
+    def test_bhv_authoauthtwodevice_703_a_slow_down_answer_adds_five_seconds_to_the_interval(self) -> None:
+        auth = _device_authenticator(_replies((400, '{"error":"slow_down"}'), _PENDING, _GRANTED))
+        slept = _fake_time(auth)
+
+        auth.poll_for_token(_authorization(5))
+
+        assert slept == [5, 10, 10]
+
+    @pytest.mark.parametrize('code', ['access_denied', 'expired_token'])
+    def test_bhv_authoauthtwodevice_704_a_refused_grant_ends_polling_with_the_oauth2_server_error(self, code: str) -> None:
+        auth = _device_authenticator(_replies(_PENDING, (400, json.dumps({'error': code}))))
+        _fake_time(auth)
+
+        with pytest.raises(OAuth2ServerException) as excinfo:
+            auth.poll_for_token(_authorization(5))
+
+        assert type(excinfo.value) is OAuth2ServerException
+        assert excinfo.value.code == code
+
+    def test_bhv_authoauthtwodevice_704_polling_past_expires_in_ends_with_the_oauth2_token_error(self) -> None:
+        client = _replies(_PENDING, _PENDING, _PENDING)
+        auth = _device_authenticator(client)
+        _fake_time(auth)
+
+        with pytest.raises(OAuth2TokenException) as excinfo:
+            auth.poll_for_token(_authorization(5, 12))
+
+        assert type(excinfo.value) is OAuth2TokenException
+        assert str(excinfo.value) == 'Device authorization expired before the user approved it'
+        assert client.send_request.call_count == 2
+
+    def test_bhv_authoauthtwodevice_705_the_authenticator_refuses_before_a_token_is_polled_and_sends_the_bearer_token_after(self) -> None:
+        auth = _device_authenticator(_replies(_GRANTED))
+        _fake_time(auth)
+
+        with pytest.raises(RuntimeError) as excinfo:
+            auth.get_auth_headers()
+        assert str(excinfo.value) == 'Must call poll_for_token() before making API requests'
+
+        auth.poll_for_token(_authorization(5))
+
+        assert auth.get_auth_headers() == {'Authorization': 'Bearer device-token'}
+        assert 'device-token' not in repr(auth)
+{{#deviceAuthorizationSchemes}}
+
+    def test_bhv_authoauthtwodevice_706_the_{{className}}_wrapper_passes_the_spec_urls_and_scopes(self) -> None:
+        from {{module}} import {{className}}
+
+        client = _replies(
+            (200, '{"device_code":"dev-code","user_code":"USER-CODE","verification_uri":"https://auth.example.com/activate","expires_in":600}'),
+            _GRANTED,
+        )
+        auth = {{className}}('https://api.example.com', 'device-client')
+        auth.set_api_client(client)
+        _fake_time(auth)
+
+        auth.poll_for_token(auth.request_device_authorization())
+
+        assert [call[0][1] for call in client.send_request.call_args_list] == ["{{{deviceAuthorizationUrlLiteral}}}", "{{{tokenUrlLiteral}}}"]
+        assert parse_qs(client.send_request.call_args_list[0][0][3])['scope'] == ["{{{scopeLiteral}}}"]
+{{/deviceAuthorizationSchemes}}
+{{/hasOAuth2DeviceAuthorization}}

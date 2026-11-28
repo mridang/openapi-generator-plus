@@ -21,6 +21,12 @@ defmodule PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator do
   """
 
   @doc """
+  The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+  """
+  @spec metadata_url() :: String.t()
+  def metadata_url, do: "https://auth.example.com/.well-known/oauth-authorization-server"
+
+  @doc """
   Creates an authenticator for the `machineAuth` security scheme.
   """
   def new(host, client_id \\ nil, client_secret \\ nil) do

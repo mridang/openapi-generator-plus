@@ -23,6 +23,7 @@ import com.example.petstore.api.options.GetGroupedCategoriesOptions;
 import com.example.petstore.api.options.GetInventoryOptions;
 import com.example.petstore.api.options.GetMatrixOptions;
 import com.example.petstore.api.options.GetMemoOptions;
+import com.example.petstore.api.options.GetNativeAmountOptions;
 import com.example.petstore.api.options.GetNativeValuesOptions;
 import com.example.petstore.api.options.GetOrderByIdOptions;
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions;
@@ -32,16 +33,19 @@ import com.example.petstore.api.options.GetSwatchOptions;
 import com.example.petstore.api.options.GetTimestampGroupsOptions;
 import com.example.petstore.api.options.GetTreeOptions;
 import com.example.petstore.api.options.HeadMemoOptions;
+import com.example.petstore.api.options.ListNativeAmountsOptions;
 import com.example.petstore.api.options.OptionsMemoOptions;
 import com.example.petstore.api.options.PatchMemoOptions;
 import com.example.petstore.api.options.PlaceOrderOptions;
 import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
+import com.example.petstore.api.options.SubmitAllowanceOptions;
 import com.example.petstore.api.options.TraceMemoOptions;
 import com.example.petstore.api.options.WatchNoticesOptions;
 import com.example.petstore.api.options.WatchOrdersOptions;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Account;
+import com.example.petstore.models.Allowance;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
@@ -53,6 +57,7 @@ import com.example.petstore.models.ReserveStockResponse;
 import com.example.petstore.models.StockItem;
 import com.example.petstore.models.Swatch;
 import com.example.petstore.models.TreeNode;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -623,6 +628,52 @@ public interface StoreApiInterface {
       String memoId, @Nullable StoreApi.GetMemoServer server, @Nullable GetMemoOptions options);
 
   /**
+   * Reads one exact decimal as the whole response body.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code BigDecimal}
+   * @throws ApiException if fails to make API call
+   */
+  default BigDecimal getNativeAmount() {
+    return getNativeAmount(null);
+  }
+
+  /**
+   * Reads one exact decimal as the whole response body.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code BigDecimal}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<BigDecimal> getNativeAmountWithHttpInfo() {
+    return getNativeAmountWithHttpInfo(null);
+  }
+
+  /**
+   * Reads one exact decimal as the whole response body.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code BigDecimal}
+   * @throws ApiException if fails to make API call
+   */
+  BigDecimal getNativeAmount(@Nullable GetNativeAmountOptions options);
+
+  /**
+   * Reads one exact decimal as the whole response body.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code BigDecimal}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<BigDecimal> getNativeAmountWithHttpInfo(@Nullable GetNativeAmountOptions options);
+
+  /**
    * Reads values of the formats the SDKs type natively.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -1064,6 +1115,53 @@ public interface StoreApiInterface {
   ApiResult<Void> headMemoWithHttpInfo(String memoId, @Nullable HeadMemoOptions options);
 
   /**
+   * Reads a list of exact decimals as the whole response body.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<BigDecimal>}
+   * @throws ApiException if fails to make API call
+   */
+  default List<BigDecimal> listNativeAmounts() {
+    return listNativeAmounts(null);
+  }
+
+  /**
+   * Reads a list of exact decimals as the whole response body.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<BigDecimal>}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<List<BigDecimal>> listNativeAmountsWithHttpInfo() {
+    return listNativeAmountsWithHttpInfo(null);
+  }
+
+  /**
+   * Reads a list of exact decimals as the whole response body.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code List<BigDecimal>}
+   * @throws ApiException if fails to make API call
+   */
+  List<BigDecimal> listNativeAmounts(@Nullable ListNativeAmountsOptions options);
+
+  /**
+   * Reads a list of exact decimals as the whole response body.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code List<BigDecimal>}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<List<BigDecimal>> listNativeAmountsWithHttpInfo(
+      @Nullable ListNativeAmountsOptions options);
+
+  /**
    * Lists the methods a memo accepts with an OPTIONS request
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -1366,6 +1464,55 @@ public interface StoreApiInterface {
    * @throws ApiException if fails to make API call
    */
   ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options);
+
+  /**
+   * Submit an allowance whose schema uses every validation keyword
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param allowance (required)
+   * @throws ApiException if fails to make API call
+   */
+  default void submitAllowance(Allowance allowance) {
+    submitAllowance(allowance, null);
+  }
+
+  /**
+   * Submit an allowance whose schema uses every validation keyword
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @param allowance (required)
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Void> submitAllowanceWithHttpInfo(Allowance allowance) {
+    return submitAllowanceWithHttpInfo(allowance, null);
+  }
+
+  /**
+   * Submit an allowance whose schema uses every validation keyword
+   *
+   * @param allowance (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @throws ApiException if fails to make API call
+   */
+  void submitAllowance(Allowance allowance, @Nullable SubmitAllowanceOptions options);
+
+  /**
+   * Submit an allowance whose schema uses every validation keyword
+   *
+   * @param allowance (required)
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping no body
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Void> submitAllowanceWithHttpInfo(
+      Allowance allowance, @Nullable SubmitAllowanceOptions options);
 
   /**
    * Echoes a memo request with a TRACE request

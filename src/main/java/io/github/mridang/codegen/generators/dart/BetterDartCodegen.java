@@ -474,6 +474,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("object_serializer.mustache", srcDir, "object_serializer.dart"),
             new SupportingFileSpec("iso8601_duration.mustache", srcDir, "iso8601_duration.dart"),
             new SupportingFileSpec("value_serializer.mustache", srcDir, "value_serializer.dart"),
+            new SupportingFileSpec("constraint_validator.mustache", srcDir, "constraint_validator.dart"),
             new SupportingFileSpec("trace_context_util.mustache", srcDir, "trace_context_util.dart"),
             new SupportingFileSpec("call_hook.mustache", srcDir, "call_hook.dart"),
             new SupportingFileSpec("call_info.mustache", srcDir, "call_info.dart"),
@@ -762,6 +763,54 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Marks each property the constraint validator checks (D189) with {@code dartNonNull} when its
+     * field is typed non-nullable (required and not nullable, the model template's
+     * {@code strictRequired}), so the validator reads it without a null check the analyzer would
+     * flag as unnecessary, and reports which helper kinds the checks use (pattern, multipleOf, a
+     * minimum length or size, a maximum one), so the validator emits each private helper only
+     * when it is called (the analyzer rejects an unused private function).
+     *
+     * @param constraintModels the {@code constraintModels} additional property, a list of models
+     * @return whether a pattern, a multipleOf, a minLength/minItems/minProperties and a
+     *     maxLength/maxItems/maxProperties check exists, in that order
+     */
+    @SuppressWarnings("unchecked")
+    static boolean[] tagConstraintNullability(@Nullable final Object constraintModels) {
+        final boolean[] kinds = new boolean[4];
+        if (!(constraintModels instanceof List)) {
+            return kinds;
+        }
+        for (final Object item : (List<Object>) constraintModels) {
+            final Object props = ((CodegenModel) item).vendorExtensions.get("constraintProps");
+            if (!(props instanceof List)) {
+                continue;
+            }
+            for (final Object entry : (List<Object>) props) {
+                final Map<String, Object> view = (Map<String, Object>) entry;
+                final Object prop = view.get("prop");
+                view.put("dartNonNull", prop instanceof CodegenProperty
+                        && ((CodegenProperty) prop).required && !((CodegenProperty) prop).isNullable);
+                final Object checks = view.get("checks");
+                if (!(checks instanceof List)) {
+                    continue;
+                }
+                for (final Object check : (List<Object>) checks) {
+                    final Map<String, Object> c = (Map<String, Object>) check;
+                    kinds[0] |= Boolean.TRUE.equals(c.get("isPattern"));
+                    kinds[1] |= Boolean.TRUE.equals(c.get("isMultipleOf"));
+                    kinds[2] |= Boolean.TRUE.equals(c.get("isMinLength"))
+                            || Boolean.TRUE.equals(c.get("isMinItems"))
+                            || Boolean.TRUE.equals(c.get("isMinProperties"));
+                    kinds[3] |= Boolean.TRUE.equals(c.get("isMaxLength"))
+                            || Boolean.TRUE.equals(c.get("isMaxItems"))
+                            || Boolean.TRUE.equals(c.get("isMaxProperties"));
+                }
+            }
+        }
+        return kinds;
+    }
+
+    /**
      * Splits the {@code required} flag for the model template: a property that is both required
      * and nullable keeps its key mandatory on the wire but accepts and writes an explicit null,
      * so it is typed {@code T?}, decoded through the nullable branch, and always written. Every
@@ -930,6 +979,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 }
             }
         }
+        final boolean[] constraintKinds = tagConstraintNullability(additionalProperties.get("constraintModels"));
+        additionalProperties.put("dartConstraintHasPattern", constraintKinds[0]);
+        additionalProperties.put("dartConstraintHasMultipleOf", constraintKinds[1]);
+        additionalProperties.put("dartConstraintHasMinSize", constraintKinds[2]);
+        additionalProperties.put("dartConstraintHasMaxSize", constraintKinds[3]);
         return result;
     }
 
@@ -1179,7 +1233,15 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         additionalProperties.put("hasCredentialEnvVars", !read.isEmpty());
         additionalProperties.put("credentialSchemes", credentialSchemes(read));
         additionalProperties.put("clientSchemes", clientSchemes(openAPI));
+        additionalProperties.put("metadataUrlSchemes", metadataUrlSchemes);
+        additionalProperties.put("deviceSchemes", deviceSchemes);
     }
+
+    /** The first per-scheme device authorization authenticator, for authoauthtwodevice706 (D191). */
+    private final List<Map<String, Object>> deviceSchemes = new ArrayList<>();
+
+    /** The first per-scheme authenticator that declares an oauth2MetadataUrl, for authscheme700. */
+    private final List<Map<String, Object>> metadataUrlSchemes = new ArrayList<>();
 
     /**
      * Lists the credentials the client accepts (F857): one per distinct security scheme, named
@@ -1257,6 +1319,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 break;
             case "OAuth2ImplicitAuthenticator":
                 flow = "Implicit";
+                break;
+            case "OAuth2DeviceAuthorizationAuthenticator":
+                flow = "DeviceAuthorization";
                 break;
             default:
                 flow = "";
@@ -1703,6 +1768,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             superCall =
                     "host: host, username: username, password: password, "
                             + "credentialsProvider: credentialsProvider, environment: environment";
+        } else if ("DigestAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("digest_authenticator.dart");
+            constructorSig =
+                    "required String host, String? username, String? password, "
+                            + "Map<String, String>? environment";
+            superCall = "host: host, username: username, password: password, environment: environment";
         } else if ("BearerAuthenticator".equals(spec.baseClass())) {
             imports = List.of("dart:async", "bearer_authenticator.dart");
             constructorSig =
@@ -1782,6 +1853,31 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             + "', scopes: "
                             + scopes
                             + ", environment: environment";
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_device_authorization_authenticator.dart");
+            constructorSig = "required String host, String? clientId, "
+                    + "Map<String, String>? environment";
+            superCall =
+                    "host: host, clientId: clientId, deviceAuthorizationUrl: '"
+                            + spec.authorizationUrl()
+                            + "', tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', scopes: "
+                            + scopes
+                            + ", refreshUrl: "
+                            + refreshArg
+                            + ", environment: environment";
+            /* D191: authoauthtwodevice706 builds the first device authorization wrapper. */
+            if (deviceSchemes.isEmpty()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("className", baseSchemeContext(spec).get("className"));
+                entry.put("deviceAuthorizationUrlLiteral", "'" + escapeDartString(java.util.Objects.toString(spec.authorizationUrl(), "")) + "'");
+                entry.put("tokenUrlLiteral", "'" + escapeDartString(java.util.Objects.toString(spec.tokenUrl(), "")) + "'");
+                entry.put("scopesLiteral", scopes);
+                deviceSchemes.add(entry);
+            }
         } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             imports = List.of("openid_connect_authenticator.dart");
             constructorSig =
@@ -1798,6 +1894,18 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         }
 
         final Map<String, Object> ctx = baseSchemeContext(spec);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            final String literal = "'" + escapeDartString(String.valueOf(metadataUrl)) + "'";
+            ctx.put("metadataUrlLiteral", literal);
+            /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+            if (metadataUrlSchemes.isEmpty()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("className", ctx.get("className"));
+                entry.put("metadataUrlLiteral", literal);
+                metadataUrlSchemes.add(entry);
+            }
+        }
         ctx.put("envVars", environmentArguments(spec.baseClass(), ctx.get("envVars")));
         ctx.put("imports", imports);
         ctx.put("constructorSignature", constructorSig);
@@ -1826,9 +1934,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             final Map<String, Object> entry = (Map<String, Object>) item;
             final String field = String.valueOf(entry.get("field"));
             final String arg;
-            if ("BasicAuthenticator".equals(baseClass) && "username".equals(field)) {
+            final boolean credentialPair =
+                    "BasicAuthenticator".equals(baseClass) || "DigestAuthenticator".equals(baseClass);
+            if (credentialPair && "username".equals(field)) {
                 arg = "usernameVariable";
-            } else if ("BasicAuthenticator".equals(baseClass) && "password".equals(field)) {
+            } else if (credentialPair && "password".equals(field)) {
                 arg = "passwordVariable";
             } else if (("BearerAuthenticator".equals(baseClass) && "token".equals(field))
                     || ("ApiKeyAuthenticator".equals(baseClass) && "apiKey".equals(field))) {

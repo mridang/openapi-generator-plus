@@ -117,6 +117,23 @@ public abstract record {{classname}}
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
+            {{#vendorExtensions.discriminatorDefault}}
+            /* defaultMapping (D187): a missing or unlisted value is the default variant. */
+            string? found = doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out JsonElement probe)
+                && probe.ValueKind == JsonValueKind.String ? probe.GetString() : null;
+            bool listed = found switch
+            {
+                {{#mappedModels}}
+                "{{mappingName}}" => true,
+                {{/mappedModels}}
+                _ => false,
+            };
+            if (!listed)
+            {
+                return JsonSerializer.Deserialize<{{vendorExtensions.discriminatorDefault}}>(raw, options);
+            }
+            {{/vendorExtensions.discriminatorDefault}}
             if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out JsonElement disc))
             {
                 if (disc.ValueKind == JsonValueKind.Null)

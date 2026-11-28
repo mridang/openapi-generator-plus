@@ -1,0 +1,195 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'json'
+require_relative 'device_authorization'
+require_relative '../../errors/oauth2_token_error'
+require_relative '../../errors/oauth2_server_error'
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Authenticator for the OAuth2 device authorization flow (RFC 8628), for
+      # a client that cannot open a browser itself. The client is public: no
+      # client secret is sent.
+      #
+      # Includes {HttpAwareAuthenticator} so that the device authorization and
+      # token requests use the shared {ApiClient} with the same transport
+      # configuration (proxy, TLS, timeouts) as regular API calls.
+      #
+      # Usage:
+      # 1. Call {#request_device_authorization} to get a {DeviceAuthorization}
+      # 2. Show its user code and verification URI to the user
+      # 3. Call {#poll_for_token} with it; it returns once the user approved
+      # 4. Use the authenticator normally -- tokens are managed automatically
+      #
+      # The authenticator never prints anything or opens a browser: showing
+      # the code is the caller's job.
+      class OAuth2DeviceAuthorizationAuthenticator < BaseAuthenticator
+        include HttpAwareAuthenticator
+
+        # The grant type of a device access token request (RFC 8628 section 3.4).
+        DEVICE_CODE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
+
+        # The polling interval, in seconds, when the server sends none.
+        DEFAULT_INTERVAL_S = 5
+
+        # The seconds a slow_down answer adds to the polling interval.
+        SLOW_DOWN_S = 5
+
+        private_constant :DEVICE_CODE_GRANT_TYPE, :DEFAULT_INTERVAL_S, :SLOW_DOWN_S
+
+        # @return [String]
+        attr_reader :host
+
+        # Create a new device authorization authenticator.
+        #
+        # @param host [String] API base URL
+        # @param client_id [String] OAuth2 client ID
+        # @param device_authorization_url [String] device authorization endpoint URL
+        # @param token_url [String] token endpoint URL
+        # @param scopes [Array<String>] requested scopes
+        # @param refresh_url [String, nil] refresh endpoint URL (defaults to token_url)
+        def initialize(host, client_id, device_authorization_url, token_url, scopes, refresh_url: nil)
+          super()
+          @host = host
+          @client_id = client_id
+          @device_authorization_url = device_authorization_url
+          @token_url = token_url
+          @refresh_url = refresh_url || token_url
+          @scopes = scopes.freeze
+          @token_manager = OAuth2TokenManager.new
+        end
+
+        # Drop the cached access token so the next request obtains a new one
+        # (a refresh grant first). The refresh token is kept. The API classes
+        # call this when a request answers 401 before replaying it once.
+        #
+        # @return [void]
+        def invalidate_access_token
+          @token_manager.invalidate_access_token
+        end
+
+        # Inject the shared API client for making token requests.
+        #
+        # @param client [ApiClient] the shared API client instance
+        # @return [void]
+        def api_client=(client)
+          @token_manager.api_client = client
+        end
+
+        # Ask the device authorization endpoint for a device code and a user
+        # code (RFC 8628 section 3.1).
+        #
+        # @return [DeviceAuthorization] the codes and where the user enters them
+        # @raise [::{{moduleName}}::Errors::OAuth2ServerError] if the endpoint answers with a non-2xx status
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the endpoint answers 2xx with an unusable body
+        def request_device_authorization
+          params = { 'client_id' => @client_id }
+          params['scope'] = @scopes.join(' ') unless @scopes.empty?
+          parse_device_authorization(@token_manager.post_form(@device_authorization_url, params))
+        end
+
+        # Poll the token endpoint until the user approves the device
+        # authorization (RFC 8628 section 3.4), then replace the session with
+        # the token it issued. +authorization_pending+ keeps polling and
+        # +slow_down+ adds five seconds to the interval.
+        #
+        # @param authorization [DeviceAuthorization] the value {#request_device_authorization} returned
+        # @return [void]
+        # @raise [::{{moduleName}}::Errors::OAuth2ServerError] if the server ends the flow with any other error
+        # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the device code expires before the user approves it
+        def poll_for_token(authorization)
+          interval = authorization.interval
+          started = monotonic_now
+          params = {
+            'grant_type' => DEVICE_CODE_GRANT_TYPE,
+            'client_id' => @client_id,
+            'device_code' => authorization.device_code
+          }
+          loop do
+            if monotonic_now - started + interval > authorization.expires_in
+              raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Device authorization expired before the user approved it'
+            end
+
+            pause(interval)
+            begin
+              @token_manager.exchange(@token_url, params)
+              @token_manager.mark_exchanged
+              return
+            rescue ::{{moduleName}}::Errors::OAuth2ServerError => e
+              case e.code
+              when 'authorization_pending' then next
+              when 'slow_down' then interval += SLOW_DOWN_S
+              else raise
+              end
+            end
+          end
+        end
+
+        # @return [Hash{String => String}]
+        def auth_headers
+          raise 'Must call poll_for_token() before making API requests' unless @token_manager.exchanged?
+
+          params = {
+            'grant_type' => 'refresh_token',
+            'refresh_token' => @token_manager.refresh_token.to_s,
+            'client_id' => @client_id
+          }
+          token = @token_manager.get_access_token(@refresh_url, params)
+          { 'Authorization' => "Bearer #{token}" }
+        end
+
+        # @return [String]
+        def inspect
+          "#<#{self.class.name} host=#{@host.inspect} client_id=#{@client_id.inspect}>"
+        end
+        alias to_s inspect
+
+        private
+
+        # Wait +seconds+ between two polls. The tests replace it.
+        def pause(seconds)
+          sleep(seconds)
+        end
+
+        # A monotonic clock reading in seconds. The tests replace it.
+        def monotonic_now
+          Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        end
+
+        # A device authorization response that is not a JSON object, or lacks
+        # a code or the verification URI, cannot be shown to the user. The
+        # parser's message quotes the input, so it is not kept as the cause.
+        def parse_device_authorization(body)
+          parsed = begin
+            JSON.parse(body.to_s)
+          rescue JSON::ParserError
+            raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Device authorization response is not valid JSON', cause: nil
+          end
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Device authorization response is not a JSON object' unless parsed.is_a?(Hash)
+
+          codes = %w[device_code user_code verification_uri].map do |field|
+            value = parsed[field]
+            unless value.is_a?(String) && !value.empty?
+              raise ::{{moduleName}}::Errors::OAuth2TokenError, "Device authorization response missing or empty #{field} field"
+            end
+
+            value
+          end
+          complete = parsed['verification_uri_complete']
+          interval = parsed['interval']
+          DeviceAuthorization.new(
+            device_code: codes[0],
+            user_code: codes[1],
+            verification_uri: codes[2],
+            verification_uri_complete: complete.is_a?(String) && !complete.empty? ? complete : nil,
+            expires_in: @token_manager.lifetime_seconds(parsed['expires_in']),
+            interval: interval.nil? ? DEFAULT_INTERVAL_S : @token_manager.lifetime_seconds(interval)
+          )
+        end
+      end
+    end
+  end
+end

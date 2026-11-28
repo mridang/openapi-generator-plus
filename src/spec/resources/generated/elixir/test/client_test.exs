@@ -959,6 +959,9 @@ defmodule PetstoreClient.ClientTest do
     assert :get_memo in store_listed
     assert :get_memo! in store_listed
     assert :get_memo_with_http_info in store_listed
+    assert :get_native_amount in store_listed
+    assert :get_native_amount! in store_listed
+    assert :get_native_amount_with_http_info in store_listed
     assert :get_native_values in store_listed
     assert :get_native_values! in store_listed
     assert :get_native_values_with_http_info in store_listed
@@ -986,6 +989,9 @@ defmodule PetstoreClient.ClientTest do
     assert :head_memo in store_listed
     assert :head_memo! in store_listed
     assert :head_memo_with_http_info in store_listed
+    assert :list_native_amounts in store_listed
+    assert :list_native_amounts! in store_listed
+    assert :list_native_amounts_with_http_info in store_listed
     assert :options_memo in store_listed
     assert :options_memo! in store_listed
     assert :options_memo_with_http_info in store_listed
@@ -1001,6 +1007,9 @@ defmodule PetstoreClient.ClientTest do
     assert :search_store in store_listed
     assert :search_store! in store_listed
     assert :search_store_with_http_info in store_listed
+    assert :submit_allowance in store_listed
+    assert :submit_allowance! in store_listed
+    assert :submit_allowance_with_http_info in store_listed
     assert :trace_memo in store_listed
     assert :trace_memo! in store_listed
     assert :trace_memo_with_http_info in store_listed

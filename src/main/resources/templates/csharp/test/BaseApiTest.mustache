@@ -9,6 +9,8 @@ using {{packageName}}.Api.Options;
 using {{packageName}}.Auth;
 using {{packageName}}.Errors;
 using Xunit;
+using Allowance = {{packageName}}.Models.Allowance;
+using AllowanceTier = {{packageName}}.Models.AllowanceTier;
 using Pet = {{packageName}}.Models.Pet;
 
 /* These tests exercise the SDK without a test-runner cancellation token on purpose. */
@@ -2225,6 +2227,69 @@ public class BaseApiTest
         Assert.Equal(1, auth.Invalidations);
         Assert.Equal(2, client.Authorizations.Count);
     }
+{{#hasDigestAuth}}
+
+    /* Answers with the given statuses in turn (the last one repeats); a 401 carries a Digest challenge. */
+    private sealed class DigestChallengeApiClient(params int[] statuses) : IApiClient
+    {
+        public List<string?> Authorizations { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Authorizations.Add(headers.GetValueOrDefault("Authorization"));
+            int status = statuses[Math.Min(Authorizations.Count, statuses.Length) - 1];
+            Dictionary<string, string> responseHeaders = new() { { "Content-Type", "application/json" } };
+            if (status == 401)
+            {
+                responseHeaders["WWW-Authenticate"] =
+                    "Basic realm=\"test\", Digest realm=\"test\", qop=\"auth\", nonce=\"abc\"";
+            }
+            return Task.FromResult(new ApiHttpResponse(status, "{}", responseHeaders));
+        }
+    }
+
+    private static Task<object?> CallWithDigest(DigestChallengeApiClient client, DigestAuthenticator auth)
+    {
+        return new TestableApi(client, "http://localhost").CallAsync<object>(
+            "POST", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "{}", ["application/json"], "application/json", auth);
+    }
+
+    [Fact]
+    public async Task BhvAuthdigest702AChallengeIsAnsweredAndTheRequestReplayedOnceAndASecond401Stands()
+    {
+        var client = new DigestChallengeApiClient(401, 200);
+        var auth = new DigestAuthenticator("http://localhost", "alice", string.Concat("s3", "cret"));
+
+        _ = await CallWithDigest(client, auth);
+
+        Assert.Equal(2, client.Authorizations.Count);
+        Assert.Null(client.Authorizations[0]);
+        Assert.Matches(
+            "^Digest username=\"alice\", realm=\"test\", nonce=\"abc\", uri=\"/test/echo\", "
+                + "response=\"[0-9a-f]{32}\", qop=auth, nc=00000001, cnonce=\"[0-9a-f]{32}\"$",
+            client.Authorizations[1]);
+        var refused = new DigestChallengeApiClient(401);
+        _ = await Assert.ThrowsAsync<UnauthorizedException>(() => CallWithDigest(refused, auth));
+        Assert.Equal(2, refused.Authorizations.Count);
+    }
+
+    [Fact]
+    public async Task BhvAuthdigest703ALaterRequestAnswersTheRememberedChallengeWithTheNextNonceCount()
+    {
+        var client = new DigestChallengeApiClient(401, 200, 200);
+        var auth = new DigestAuthenticator("http://localhost", "alice", string.Concat("s3", "cret"));
+
+        _ = await CallWithDigest(client, auth);
+        _ = await CallWithDigest(client, auth);
+
+        Assert.Equal(3, client.Authorizations.Count);
+        Assert.Contains(", nc=00000002, ", client.Authorizations[2], StringComparison.Ordinal);
+    }
+{{/hasDigestAuth}}
 
     [Fact]
     public async Task BhvSerializationwire001AllowEmptyValueParamOmittedWithDefaultOptions()
@@ -3924,6 +3989,114 @@ public class BaseApiTest
     {
         Assert.DoesNotContain(typeof(StoreApi).GetMethods(), m => m.Name.EndsWith("PagesAsync", StringComparison.Ordinal));
         Assert.Contains(typeof(StoreApi).GetMethods(), m => m.Name == "ExportOrdersStreamAsync");
+    }
+
+    /* D189: the opt-in check of a request body against the validation keywords of its schema. */
+    private static readonly AllowanceTier ValidTier = new() { Level = 0, Name = "ab" };
+
+    private static readonly Allowance ValidAllowance = new()
+    {
+        Label = "abc",
+        Count = 5,
+        Ratio = 0.5,
+        Step = 10,
+        Codes = ["a"],
+        Limits = new() { ["a"] = 1 },
+        Tier = ValidTier,
+        Parts = [ValidTier],
+    };
+
+    private static readonly (string Keyword, Allowance Body, string Message)[] ConstraintViolations =
+    [
+        ("minLength", ValidAllowance with { Label = "a" }, "Invalid request body: label must be at least 2 characters long"),
+        ("maxLength", ValidAllowance with { Label = "abcdef" }, "Invalid request body: label must be at most 5 characters long"),
+        ("pattern", ValidAllowance with { Label = "ab1" }, "Invalid request body: label must match the pattern ^[a-z]+$"),
+        ("minimum", ValidAllowance with { Count = 0 }, "Invalid request body: count must be greater than or equal to 1"),
+        ("maximum", ValidAllowance with { Count = 11 }, "Invalid request body: count must be less than or equal to 10"),
+        ("exclusiveMinimum", ValidAllowance with { Ratio = 0.0 }, "Invalid request body: ratio must be greater than 0"),
+        ("exclusiveMaximum", ValidAllowance with { Ratio = 1.0 }, "Invalid request body: ratio must be less than 1"),
+        ("multipleOf", ValidAllowance with { Step = 7 }, "Invalid request body: step must be a multiple of 5"),
+        ("minItems", ValidAllowance with { Codes = [] }, "Invalid request body: codes must have at least 1 items"),
+        ("maxItems", ValidAllowance with { Codes = ["a", "b", "c", "d"] }, "Invalid request body: codes must have at most 3 items"),
+        ("minProperties", ValidAllowance with { Limits = [] }, "Invalid request body: limits must have at least 1 properties"),
+        (
+            "maxProperties",
+            ValidAllowance with { Limits = new() { ["a"] = 1, ["b"] = 2, ["c"] = 3 } },
+            "Invalid request body: limits must have at most 2 properties"
+        ),
+    ];
+
+    private static StoreApi ConstraintApi(ScriptedApiClient client, bool validateConstraints)
+    {
+        return new StoreApi(
+            client,
+            Configuration.Builder().BaseUrl("http://localhost").ValidateConstraints(validateConstraints).Build()
+        );
+    }
+
+    [Fact]
+    public async Task BhvModels706ConstraintValidationIsOffByDefault()
+    {
+        var client = new ScriptedApiClient(204);
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SubmitAllowanceAsync(ValidAllowance with { Label = "a", Count = 0 });
+
+        Assert.False(Configuration.DefaultConfiguration().ValidateConstraints);
+        Assert.Single(client.Sent);
+    }
+
+    [Fact]
+    public async Task BhvModels707ABodyThatBreaksOneKeywordIsRefusedBeforeItIsSent()
+    {
+        foreach (var (_, body, message) in ConstraintViolations)
+        {
+            var client = new ScriptedApiClient(204);
+
+            ArgumentException refused = await Assert.ThrowsAsync<ArgumentException>(
+                () => ConstraintApi(client, true).SubmitAllowanceAsync(body)
+            );
+
+            Assert.Equal(message, refused.Message);
+            Assert.Empty(client.Sent);
+        }
+    }
+
+    [Fact]
+    public async Task BhvModels708AViolationInsideAHeldModelOrAListNamesItsPath()
+    {
+        var client = new ScriptedApiClient(204);
+        AllowanceTier ok = new() { Level = 1, Name = "ab" };
+        AllowanceTier negative = new() { Level = -1 };
+
+        ArgumentException held = await Assert.ThrowsAsync<ArgumentException>(
+            () => ConstraintApi(client, true).SubmitAllowanceAsync(ValidAllowance with { Tier = negative })
+        );
+        ArgumentException listed = await Assert.ThrowsAsync<ArgumentException>(
+            () => ConstraintApi(client, true).SubmitAllowanceAsync(ValidAllowance with { Parts = [ok, negative] })
+        );
+        ArgumentException named = await Assert.ThrowsAsync<ArgumentException>(
+            () => ConstraintApi(client, true).SubmitAllowanceAsync(ValidAllowance with { Tier = ok with { Name = "abcd" } })
+        );
+
+        Assert.Equal("Invalid request body: tier.level must be greater than or equal to 0", held.Message);
+        Assert.Equal("Invalid request body: parts[1].level must be greater than or equal to 0", listed.Message);
+        Assert.Equal("Invalid request body: tier.name must be at most 3 characters long", named.Message);
+        Assert.Empty(client.Sent);
+    }
+
+    [Fact]
+    public async Task BhvModels709ABodyWithinEveryConstraintIsSentAndANullValueIsNotChecked()
+    {
+        var client = new ScriptedApiClient(204);
+        StoreApi api = ConstraintApi(client, true);
+
+        await api.SubmitAllowanceAsync(ValidAllowance);
+        Assert.Single(client.Sent);
+        await api.SubmitAllowanceAsync(new Allowance());
+        await api.SubmitAllowanceAsync(new Allowance { Tier = new AllowanceTier() });
+
+        Assert.Equal(3, client.Sent.Count);
     }
 
 }

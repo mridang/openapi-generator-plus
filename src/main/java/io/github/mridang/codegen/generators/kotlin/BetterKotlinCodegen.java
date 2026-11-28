@@ -579,6 +579,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.kt"),
             new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.kt"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.kt"),
+            new SupportingFileSpec("constraint_validator.mustache", invokerFolder, "ConstraintValidator.kt"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.kt"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.kt"),
             new SupportingFileSpec("open_telemetry_call_hook.mustache", jvmInvokerFolder, "OpenTelemetryCallHook.kt"),
@@ -999,7 +1000,28 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildKotlinSuperArgs(spec, envNames));
+        recordOAuth2MetadataUrl(ctx);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
+    private final List<Map<String, Object>> oauth2MetadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Adds the escaped {@code oauth2MetadataUrlLiteral} to a scheme context that declares a metadata
+     * URL and lists the scheme under {@code oauth2MetadataUrlSchemes} for the generated test (D190).
+     */
+    private void recordOAuth2MetadataUrl(final Map<String, Object> ctx) {
+        if (!Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))) {
+            return;
+        }
+        final String literal = escapeKotlinString((String) ctx.get("oauth2MetadataUrl"));
+        ctx.put("oauth2MetadataUrlLiteral", literal);
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("qualifiedClassName", ctx.get("package") + "." + ctx.get("className"));
+        entry.put("oauth2MetadataUrlLiteral", literal);
+        oauth2MetadataUrlSchemes.add(entry);
+        additionalProperties.put("oauth2MetadataUrlSchemes", oauth2MetadataUrlSchemes);
     }
 
     private static Map<String, String> providerParam(final String name) {
@@ -1046,7 +1068,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     private List<String> buildKotlinSuperArgs(SchemeAuthSpec spec, Map<String, String> env) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "username", "password",
                     "\"" + env.get("username") + "\"", "\"" + env.get("password") + "\"");
         }
@@ -1084,6 +1107,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", resolvedCredential("clientId", env),
                     "\"" + spec.authorizationUrl() + "\"", formatKotlinScopes(spec.scopes()));
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", resolvedCredential("clientId", env),
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    formatKotlinScopes(spec.scopes()), refreshArg);
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
@@ -1389,6 +1419,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         // SerializersModule.
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
         property.vendorExtensions.put("isLocalTime", "LocalTime".equals(property.dataType));
+        if (property.isContainer && property.dataType != null) {
+            property.dataType = annotateContextualElements(property.dataType);
+        }
     }
 
     /**
@@ -1749,6 +1782,18 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return result;
     }
 
+    /** The java.time classes the JDK marks value-based, by simple name. */
+    private static final java.util.Set<String> VALUE_BASED_TIME_TYPES =
+            java.util.Set.of(
+                    "Duration",
+                    "Instant",
+                    "LocalDate",
+                    "LocalDateTime",
+                    "LocalTime",
+                    "OffsetDateTime",
+                    "OffsetTime",
+                    "ZonedDateTime");
+
     /**
      * Records the per-property equality strategy on {@code prop} and reports
      * whether the property forces hand-written {@code equals}/{@code hashCode}.
@@ -1786,6 +1831,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         prop.vendorExtensions.put("eqDecimalMap", decimalMap);
         prop.vendorExtensions.put("eqDecimalContainer", decimalList || decimalSet || decimalMap);
         prop.vendorExtensions.put("eqDecimalNullable", !prop.required || prop.isNullable);
+        // java.time types are value-based: Kotlin 2.2 warns that `==` on a nullable one is an
+        // identity-sensitive operation, so a nullable field is compared with an explicit null
+        // check and equals() instead (#124).
+        final String simple = bare.startsWith("java.time.") ? bare.substring("java.time.".length()) : bare;
+        prop.vendorExtensions.put(
+                "eqValueBased",
+                VALUE_BASED_TIME_TYPES.contains(simple) && (!prop.required || prop.isNullable));
         return byteArray
                 || array
                 || listByteArray
@@ -1933,6 +1985,20 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             property.dataType = annotateAnyAsContextual(property.dataType);
         }
         return property;
+    }
+
+    /**
+     * Annotates the element types of a container that kotlinx.serialization can only
+     * serialize through a contextual serializer ({@code BigDecimal}, the {@code java.time}
+     * types, {@code Uuid} and {@code URI}) in a model property. A scalar property gets
+     * {@code @Contextual} on the property itself; inside {@code List<...>} or
+     * {@code Map<..., ...>} the annotation has to sit on the type argument, or the
+     * compiler fails with "Serializer has not been found". Idempotent.
+     */
+    private static String annotateContextualElements(String dataType) {
+        return dataType.replaceAll(
+                "(?<=[<,]\\s{0,1})(BigDecimal|OffsetDateTime|LocalDate|LocalTime|Duration|Uuid|URI)(?![A-Za-z0-9_])",
+                "@Contextual $1");
     }
 
     /**

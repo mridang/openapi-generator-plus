@@ -11,23 +11,30 @@ import Foundation
 public struct DryFood: Codable, Sendable, Equatable, Hashable {
   public let foodType: String
   public let weightKg: Double
+  public let pricePerKg: Decimal?
 
   enum CodingKeys: String, CodingKey, CaseIterable {
     case foodType = "foodType"
     case weightKg = "weightKg"
+    case pricePerKg = "pricePerKg"
   }
 
   /// Creates a new DryFood instance.
-  public init(foodType: String = "dry", weightKg: Double) {
+  public init(foodType: String = "dry", weightKg: Double, pricePerKg: Decimal? = nil) {
     self.foodType = foodType
     self.weightKg = weightKg
+    self.pricePerKg = pricePerKg
   }
 
   /// Returns a copy of this instance with the given properties replaced. A
   /// property left out keeps its value; to clear an optional property pass
   /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(foodType: String? = nil, weightKg: Double? = nil) -> DryFood {
-    return DryFood(foodType: foodType ?? self.foodType, weightKg: weightKg ?? self.weightKg)
+  public func copy(foodType: String? = nil, weightKg: Double? = nil, pricePerKg: Decimal?? = .none)
+    -> DryFood
+  {
+    return DryFood(
+      foodType: foodType ?? self.foodType, weightKg: weightKg ?? self.weightKg,
+      pricePerKg: pricePerKg ?? self.pricePerKg)
   }
 
   /// Decodes this instance from the given decoder.
@@ -49,6 +56,8 @@ public struct DryFood: Codable, Sendable, Equatable, Hashable {
       ? try container.decode(String.self, forKey: .foodType)
       : "dry"
     self.weightKg = try container.decode(Double.self, forKey: .weightKg)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.pricePerKg = try container.decodeDecimalNumberIfPresent(forKey: .pricePerKg)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -60,5 +69,6 @@ public struct DryFood: Codable, Sendable, Equatable, Hashable {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(ObjectSerializer.ordered(foodType), forKey: .foodType)
     try container.encode(ObjectSerializer.ordered(weightKg), forKey: .weightKg)
+    try container.encodeIfPresent(ObjectSerializer.ordered(pricePerKg), forKey: .pricePerKg)
   }
 }

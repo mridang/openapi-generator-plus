@@ -355,6 +355,14 @@ func newClient() (*{{packageName}}.Client, error) {
 }
 ```
 
+{{#hasOAuth2DeviceAuthorization}}
+The device authorization flow (RFC 8628) gets an OAuth2DeviceAuthorizationAuthenticator: call RequestDeviceAuthorization() to get the user code and verification URI to show to the user, then PollForToken() to wait for the approval.
+
+{{/hasOAuth2DeviceAuthorization}}
+{{#hasDigestAuth}}
+HTTP Digest schemes get a DigestAuthenticator built from a username and a password: the first request goes without credentials, and the SDK answers the server's 401 challenge and replays the request once. The Negotiate scheme is not supported, because it needs a native Kerberos library.
+
+{{/hasDigestAuth}}
 ### Per-call options
 
 Every operation takes any number of `RequestOption` values as its last arguments, including an operation with no parameters and no security, which has no options struct of its own: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.
@@ -468,6 +476,14 @@ go build ./...
 go test ./...
 ```
 
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a dependency has a known vulnerability (`govulncheck`, only the vulnerable code the module actually calls).
+
 ## Module
 
 - Module: `{{packageName}}`
@@ -524,6 +540,8 @@ validator library.
 
 `uniqueItems` arrays are sent in the order the slice holds them, which is
 Go's natural collection order: they are not sorted.
+
+Constraint validation can be turned on with the `ValidateConstraints` configuration option, which is off by default. The SDK then checks every request body against the `minLength`, `maxLength`, `pattern`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `minItems`, `maxItems`, `minProperties` and `maxProperties` keywords of its schema and of the models it holds before the request is sent, and refuses a body that breaks one with an argument error such as `Invalid request body: label must be at least 2 characters long`. Responses are never checked, and a pattern the regular expression engine cannot compile is not enforced.
 
 ## Not supported
 

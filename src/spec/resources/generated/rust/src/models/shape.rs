@@ -36,18 +36,19 @@ impl<'de> serde::Deserialize<'de> for Shape {
         D: serde::Deserializer<'de>,
     {
         use serde::de::Error;
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let discriminator = value
-            .get("shapeType")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                D::Error::custom("missing discriminator field `shapeType` for Shape".to_string())
-            })?;
+        /* The variant is decoded from the exact JSON text, never from a
+         * serde_json::Value, so a decimal inside it keeps every digit. */
+        let text = crate::object_serializer::json_text(deserializer)?;
+        let value: serde_json::Value = serde_json::from_str(&text).map_err(D::Error::custom)?;
+        let found = value.get("shapeType").and_then(|v| v.as_str());
+        let discriminator = found.ok_or_else(|| {
+            D::Error::custom("missing discriminator field `shapeType` for Shape".to_string())
+        })?;
         match discriminator {
-            "Circle" => serde_json::from_value::<Circle>(value)
+            "Circle" => crate::object_serializer::from_json_text::<Circle>(&text)
                 .map(Shape::Circle)
                 .map_err(D::Error::custom),
-            "Square" => serde_json::from_value::<Square>(value)
+            "Square" => crate::object_serializer::from_json_text::<Square>(&text)
                 .map(Shape::Square)
                 .map_err(D::Error::custom),
             other => Err(D::Error::custom(format!(

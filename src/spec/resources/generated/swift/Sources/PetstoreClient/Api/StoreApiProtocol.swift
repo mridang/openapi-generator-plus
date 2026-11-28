@@ -47,6 +47,10 @@ public protocol StoreApiProtocol: Sendable {
     -> Memo
   func getMemoWithHTTPInfo(memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?)
     async throws -> ApiResult<Memo>
+  func getNativeAmount(options: GetNativeAmountOptions?) async throws -> Decimal
+  func getNativeAmountWithHTTPInfo(options: GetNativeAmountOptions?) async throws -> ApiResult<
+    Decimal
+  >
   func getNativeValues(options: GetNativeValuesOptions?) async throws -> NativeValues
   func getNativeValuesWithHTTPInfo(options: GetNativeValuesOptions?) async throws -> ApiResult<
     NativeValues
@@ -75,6 +79,10 @@ public protocol StoreApiProtocol: Sendable {
   func headMemoWithHTTPInfo(memoId: String, options: HeadMemoOptions?) async throws -> ApiResult<
     Void
   >
+  func listNativeAmounts(options: ListNativeAmountsOptions?) async throws -> [Decimal]
+  func listNativeAmountsWithHTTPInfo(options: ListNativeAmountsOptions?) async throws -> ApiResult<
+    [Decimal]
+  >
   func optionsMemo(memoId: String, options: OptionsMemoOptions?) async throws
   func optionsMemoWithHTTPInfo(memoId: String, options: OptionsMemoOptions?) async throws
     -> ApiResult<Void>
@@ -91,6 +99,9 @@ public protocol StoreApiProtocol: Sendable {
   >
   func searchStore(options: SearchStoreOptions?) async throws -> [Order]
   func searchStoreWithHTTPInfo(options: SearchStoreOptions?) async throws -> ApiResult<[Order]>
+  func submitAllowance(allowance: Allowance, options: SubmitAllowanceOptions?) async throws
+  func submitAllowanceWithHTTPInfo(allowance: Allowance, options: SubmitAllowanceOptions?)
+    async throws -> ApiResult<Void>
   func traceMemo(memoId: String, options: TraceMemoOptions?) async throws
   func traceMemoWithHTTPInfo(memoId: String, options: TraceMemoOptions?) async throws -> ApiResult<
     Void
@@ -208,6 +219,16 @@ extension StoreApiProtocol {
     try await getMemoWithHTTPInfo(memoId: memoId, server: nil, options: nil)
   }
 
+  /// The `getNativeAmount` operation with every optional parameter left out.
+  public func getNativeAmount() async throws -> Decimal {
+    try await getNativeAmount(options: nil)
+  }
+
+  /// The `getNativeAmountWithHTTPInfo` operation with every optional parameter left out.
+  public func getNativeAmountWithHTTPInfo() async throws -> ApiResult<Decimal> {
+    try await getNativeAmountWithHTTPInfo(options: nil)
+  }
+
   /// The `getNativeValues` operation with every optional parameter left out.
   public func getNativeValues() async throws -> NativeValues {
     try await getNativeValues(options: nil)
@@ -298,6 +319,16 @@ extension StoreApiProtocol {
     try await headMemoWithHTTPInfo(memoId: memoId, options: nil)
   }
 
+  /// The `listNativeAmounts` operation with every optional parameter left out.
+  public func listNativeAmounts() async throws -> [Decimal] {
+    try await listNativeAmounts(options: nil)
+  }
+
+  /// The `listNativeAmountsWithHTTPInfo` operation with every optional parameter left out.
+  public func listNativeAmountsWithHTTPInfo() async throws -> ApiResult<[Decimal]> {
+    try await listNativeAmountsWithHTTPInfo(options: nil)
+  }
+
   /// The `optionsMemo` operation with every optional parameter left out.
   public func optionsMemo(memoId: String) async throws {
     try await optionsMemo(memoId: memoId, options: nil)
@@ -346,6 +377,16 @@ extension StoreApiProtocol {
   /// The `searchStoreWithHTTPInfo` operation with every optional parameter left out.
   public func searchStoreWithHTTPInfo() async throws -> ApiResult<[Order]> {
     try await searchStoreWithHTTPInfo(options: nil)
+  }
+
+  /// The `submitAllowance` operation with every optional parameter left out.
+  public func submitAllowance(allowance: Allowance) async throws {
+    try await submitAllowance(allowance: allowance, options: nil)
+  }
+
+  /// The `submitAllowanceWithHTTPInfo` operation with every optional parameter left out.
+  public func submitAllowanceWithHTTPInfo(allowance: Allowance) async throws -> ApiResult<Void> {
+    try await submitAllowanceWithHTTPInfo(allowance: allowance, options: nil)
   }
 
   /// The `traceMemo` operation with every optional parameter left out.

@@ -243,6 +243,8 @@ public sealed class ClientTest : IDisposable
         Assert.Null(parameters["petStoreBasic"].DefaultValue);
         Assert.True(parameters["adminBasic"].IsOptional);
         Assert.Null(parameters["adminBasic"].DefaultValue);
+        Assert.True(parameters["archiveDigest"].IsOptional);
+        Assert.Null(parameters["archiveDigest"].DefaultValue);
         Assert.True(parameters["petStoreBearer"].IsOptional);
         Assert.Null(parameters["petStoreBearer"].DefaultValue);
         Assert.True(parameters["serviceToken"].IsOptional);
@@ -263,12 +265,15 @@ public sealed class ClientTest : IDisposable
         Assert.Null(parameters["userAuth"].DefaultValue);
         Assert.True(parameters["browserAuth"].IsOptional);
         Assert.Null(parameters["browserAuth"].DefaultValue);
+        Assert.True(parameters["deviceAuth"].IsOptional);
+        Assert.Null(parameters["deviceAuth"].DefaultValue);
         Assert.True(parameters["ssoAuth"].IsOptional);
         Assert.Null(parameters["ssoAuth"].DefaultValue);
         var expected = new List<string>
         {
             "petStoreBasic",
             "adminBasic",
+            "archiveDigest",
             "petStoreBearer",
             "serviceToken",
             "apiKeyHeader",
@@ -279,6 +284,7 @@ public sealed class ClientTest : IDisposable
             "legacyAuth",
             "userAuth",
             "browserAuth",
+            "deviceAuth",
             "ssoAuth",
             "transportOptions",
             "callHook",
@@ -742,6 +748,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("GetMatrixWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetMemoAsync", StoreListed);
         Assert.Contains("GetMemoWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetNativeAmountAsync", StoreListed);
+        Assert.Contains("GetNativeAmountWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetNativeValuesAsync", StoreListed);
         Assert.Contains("GetNativeValuesWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetOrderByIdAsync", StoreListed);
@@ -760,6 +768,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("GetTreeWithHttpInfoAsync", StoreListed);
         Assert.Contains("HeadMemoAsync", StoreListed);
         Assert.Contains("HeadMemoWithHttpInfoAsync", StoreListed);
+        Assert.Contains("ListNativeAmountsAsync", StoreListed);
+        Assert.Contains("ListNativeAmountsWithHttpInfoAsync", StoreListed);
         Assert.Contains("OptionsMemoAsync", StoreListed);
         Assert.Contains("OptionsMemoWithHttpInfoAsync", StoreListed);
         Assert.Contains("PatchMemoAsync", StoreListed);
@@ -770,6 +780,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("ReserveStockWithHttpInfoAsync", StoreListed);
         Assert.Contains("SearchStoreAsync", StoreListed);
         Assert.Contains("SearchStoreWithHttpInfoAsync", StoreListed);
+        Assert.Contains("SubmitAllowanceAsync", StoreListed);
+        Assert.Contains("SubmitAllowanceWithHttpInfoAsync", StoreListed);
         Assert.Contains("TraceMemoAsync", StoreListed);
         Assert.Contains("TraceMemoWithHttpInfoAsync", StoreListed);
         Assert.Contains("WatchNoticesStreamAsync", StoreListed);
@@ -1616,6 +1628,7 @@ public sealed class ClientTest : IDisposable
     {
         Assert.NotNull(typeof(PetstoreClient.Auth.PetStoreBasicAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.AdminBasicAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ArchiveDigestAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.PetStoreBearerAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.ServiceTokenAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.ApiKeyHeaderAuthenticator));
@@ -1626,6 +1639,9 @@ public sealed class ClientTest : IDisposable
         Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator));
         Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator));
+        Assert.NotNull(
+            typeof(PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator)
+        );
         Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator));
     }
 

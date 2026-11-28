@@ -43,16 +43,25 @@ public sealed class Configuration
     public ICallHook? CallHook { get; }
 
     /// <summary>
+    /// Whether every request body is checked against the validation keywords of its schema
+    /// before it is sent. Off by default; when on, a body that breaks one is refused with an
+    /// <see cref="ArgumentException"/> and nothing is sent.
+    /// </summary>
+    public bool ValidateConstraints { get; }
+
+    /// <summary>
     /// Creates a new Configuration with the specified values.
     /// </summary>
     public Configuration(
         string baseUrl = "{{{basePath}}}",
         Dictionary<string, string>? defaultHeaders = null,
-        ICallHook? callHook = null
+        ICallHook? callHook = null,
+        bool validateConstraints = false
     )
     {
         BaseUrl = baseUrl;
         CallHook = callHook;
+        ValidateConstraints = validateConstraints;
         DefaultHeaders = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(defaultHeaders ?? [])
         );
@@ -95,6 +104,7 @@ public sealed class ConfigurationBuilder
     private string _baseUrl = "{{{basePath}}}";
     private readonly Dictionary<string, string> _defaultHeaders = [];
     private ICallHook? _callHook;
+    private bool _validateConstraints;
 
     /// <summary>Set the base URL for all API requests.</summary>
     /// <param name="baseUrl">The base URL.</param>
@@ -160,6 +170,22 @@ public sealed class ConfigurationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Check every request body against the <c>minLength</c>, <c>maxLength</c>, <c>pattern</c>,
+    /// <c>minimum</c>, <c>maximum</c>, <c>exclusiveMinimum</c>, <c>exclusiveMaximum</c>,
+    /// <c>multipleOf</c>, <c>minItems</c>, <c>maxItems</c>, <c>minProperties</c> and
+    /// <c>maxProperties</c> keywords of its schema, and of the models it holds, before it is sent.
+    /// Off by default. A body that breaks one is refused with an <see cref="ArgumentException"/>
+    /// such as <c>Invalid request body: label must be at least 2 characters long</c>.
+    /// </summary>
+    /// <param name="validateConstraints">True to check request bodies.</param>
+    /// <returns>This builder.</returns>
+    public ConfigurationBuilder ValidateConstraints(bool validateConstraints)
+    {
+        _validateConstraints = validateConstraints;
+        return this;
+    }
+
     /// <summary>Build and return an immutable Configuration instance.</summary>
     /// <returns>The configured instance.</returns>
     public Configuration Build()
@@ -167,7 +193,8 @@ public sealed class ConfigurationBuilder
         return new Configuration(
             baseUrl: _baseUrl,
             defaultHeaders: new Dictionary<string, string>(_defaultHeaders),
-            callHook: _callHook
+            callHook: _callHook,
+            validateConstraints: _validateConstraints
         );
     }
 }

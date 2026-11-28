@@ -22,7 +22,8 @@ module Petstore::Client
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         food_type: 'foodType',
-        weight_kg: 'weightKg'
+        weight_kg: 'weightKg',
+        price_per_kg: 'pricePerKg'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -33,7 +34,8 @@ module Petstore::Client
       # unknown one; a model never checks it when it is built.
       OPENAPI_TYPES = {
         food_type: 'String',
-        weight_kg: 'Float'
+        weight_kg: 'Float',
+        price_per_kg: 'BigDecimal'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -105,6 +107,7 @@ module Petstore::Client
 
       attribute :food_type, Types::Required.default('dry')
       attribute :weight_kg, Types::Required
+      attribute :price_per_kg, Types::Any.optional.meta(omittable: true)
     end
   end
 end

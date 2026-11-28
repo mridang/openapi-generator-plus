@@ -9,6 +9,8 @@ import {
   PetStoreBasicAuthenticator,
   BasicAuthenticator,
   AdminBasicAuthenticator,
+  ArchiveDigestAuthenticator,
+  DigestAuthenticator,
   PetStoreBearerAuthenticator,
   BearerAuthenticator,
   ServiceTokenAuthenticator,
@@ -25,6 +27,8 @@ import {
   OAuth2AuthorizationCodeAuthenticator,
   BrowserAuthImplicitAuthenticator,
   OAuth2ImplicitAuthenticator,
+  DeviceAuthDeviceAuthorizationAuthenticator,
+  OAuth2DeviceAuthorizationAuthenticator,
   SsoAuthAuthenticator,
   OpenIdConnectAuthenticator,
 } from "../src/index.js";
@@ -40,6 +44,11 @@ describe("SchemeAuthenticators", () => {
         BasicAuthenticator,
       ],
       ["AdminBasicAuthenticator", AdminBasicAuthenticator, BasicAuthenticator],
+      [
+        "ArchiveDigestAuthenticator",
+        ArchiveDigestAuthenticator,
+        DigestAuthenticator,
+      ],
       [
         "PetStoreBearerAuthenticator",
         PetStoreBearerAuthenticator,
@@ -91,6 +100,11 @@ describe("SchemeAuthenticators", () => {
         OAuth2ImplicitAuthenticator,
       ],
       [
+        "DeviceAuthDeviceAuthorizationAuthenticator",
+        DeviceAuthDeviceAuthorizationAuthenticator,
+        OAuth2DeviceAuthorizationAuthenticator,
+      ],
+      [
         "SsoAuthAuthenticator",
         SsoAuthAuthenticator,
         OpenIdConnectAuthenticator,
@@ -101,10 +115,17 @@ describe("SchemeAuthenticators", () => {
     }
   });
 
+  it("bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant", () => {
+    expect(MachineAuthClientCredentialsAuthenticator.METADATA_URL).toBe(
+      "https://auth.example.com/.well-known/oauth-authorization-server",
+    );
+  });
+
   it("bhv misc 073 a wrapper class exists for every declared scheme", () => {
     const wrappers: unknown[] = [
       PetStoreBasicAuthenticator,
       AdminBasicAuthenticator,
+      ArchiveDigestAuthenticator,
       PetStoreBearerAuthenticator,
       ServiceTokenAuthenticator,
       ApiKeyHeaderAuthenticator,
@@ -115,6 +136,7 @@ describe("SchemeAuthenticators", () => {
       LegacyAuthPasswordAuthenticator,
       UserAuthAuthorizationCodeAuthenticator,
       BrowserAuthImplicitAuthenticator,
+      DeviceAuthDeviceAuthorizationAuthenticator,
       SsoAuthAuthenticator,
     ];
     for (const wrapper of wrappers) {
@@ -139,6 +161,14 @@ describe("SchemeAuthenticators", () => {
       [
         "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME",
         "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD",
+      ],
+    ],
+    [
+      "ArchiveDigestAuthenticator",
+      ArchiveDigestAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD",
       ],
     ],
     [
@@ -202,6 +232,11 @@ describe("SchemeAuthenticators", () => {
       "BrowserAuthImplicitAuthenticator",
       BrowserAuthImplicitAuthenticator,
       ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"],
+    ],
+    [
+      "DeviceAuthDeviceAuthorizationAuthenticator",
+      DeviceAuthDeviceAuthorizationAuthenticator,
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID"],
     ],
     [
       "SsoAuthAuthenticator",
@@ -330,6 +365,11 @@ describe("SchemeAuthenticators", () => {
     ],
     ["AdminBasicAuthenticator", AdminBasicAuthenticator, BasicAuthenticator],
     [
+      "ArchiveDigestAuthenticator",
+      ArchiveDigestAuthenticator,
+      DigestAuthenticator,
+    ],
+    [
       "PetStoreBearerAuthenticator",
       PetStoreBearerAuthenticator,
       BearerAuthenticator,
@@ -374,6 +414,11 @@ describe("SchemeAuthenticators", () => {
       "BrowserAuthImplicitAuthenticator",
       BrowserAuthImplicitAuthenticator,
       OAuth2ImplicitAuthenticator,
+    ],
+    [
+      "DeviceAuthDeviceAuthorizationAuthenticator",
+      DeviceAuthDeviceAuthorizationAuthenticator,
+      OAuth2DeviceAuthorizationAuthenticator,
     ],
     ["SsoAuthAuthenticator", SsoAuthAuthenticator, OpenIdConnectAuthenticator],
   ];

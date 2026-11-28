@@ -93,6 +93,8 @@ export type { HttpAwareAuthenticator } from "./auth/http-aware-authenticator.js"
 export { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
 export type { CredentialProvider } from "./auth/credentials.js";
 export { BasicAuthenticator } from "./auth/basic-authenticator.js";
+export { DigestAuthenticator } from "./auth/digest-authenticator.js";
+export type { ChallengeAuthenticator } from "./auth/digest-authenticator.js";
 export { BearerAuthenticator } from "./auth/bearer-authenticator.js";
 export { ApiKeyAuthenticator } from "./auth/api-key-authenticator.js";
 export { ApiKeyLocation } from "./auth/api-key-location.js";
@@ -100,9 +102,12 @@ export { OAuth2ClientCredentialsAuthenticator } from "./auth/oauth/oauth2-client
 export { OAuth2PasswordAuthenticator } from "./auth/oauth/oauth2-password-authenticator.js";
 export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-authorization-code-authenticator.js";
 export { OAuth2ImplicitAuthenticator } from "./auth/oauth/oauth2-implicit-authenticator.js";
+export { OAuth2DeviceAuthorizationAuthenticator } from "./auth/oauth/oauth2-device-authorization-authenticator.js";
+export type { DeviceAuthorization } from "./auth/oauth/oauth2-device-authorization-authenticator.js";
 export { OpenIdConnectAuthenticator } from "./auth/oauth/openid-connect-authenticator.js";
 export { PetStoreBasicAuthenticator } from "./auth/pet-store-basic-authenticator.js";
 export { AdminBasicAuthenticator } from "./auth/admin-basic-authenticator.js";
+export { ArchiveDigestAuthenticator } from "./auth/archive-digest-authenticator.js";
 export { PetStoreBearerAuthenticator } from "./auth/pet-store-bearer-authenticator.js";
 export { ServiceTokenAuthenticator } from "./auth/service-token-authenticator.js";
 export { ApiKeyHeaderAuthenticator } from "./auth/api-key-header-authenticator.js";
@@ -113,5 +118,6 @@ export { MachineAuthClientCredentialsAuthenticator } from "./auth/oauth/machine-
 export { LegacyAuthPasswordAuthenticator } from "./auth/oauth/legacy-auth-password-authenticator.js";
 export { UserAuthAuthorizationCodeAuthenticator } from "./auth/oauth/user-auth-authorization-code-authenticator.js";
 export { BrowserAuthImplicitAuthenticator } from "./auth/oauth/browser-auth-implicit-authenticator.js";
+export { DeviceAuthDeviceAuthorizationAuthenticator } from "./auth/oauth/device-auth-device-authorization-authenticator.js";
 export { SsoAuthAuthenticator } from "./auth/oauth/sso-auth-authenticator.js";
 export { ClientAuthMethod } from "./auth/oauth/client-auth-method.js";

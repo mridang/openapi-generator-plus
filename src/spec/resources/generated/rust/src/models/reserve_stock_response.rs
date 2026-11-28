@@ -10,9 +10,28 @@
 use super::*;
 
 /// ReserveStockResponse One of the success responses of reserveStock.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum ReserveStockResponse {
     Reservation(Reservation),
     ReservationReceipt(ReservationReceipt),
+}
+
+impl<'de> serde::Deserialize<'de> for ReserveStockResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let text = crate::object_serializer::json_text(deserializer)?;
+        if let Ok(value) = crate::object_serializer::from_json_text::<Reservation>(&text) {
+            return Ok(ReserveStockResponse::Reservation(value));
+        }
+        if let Ok(value) = crate::object_serializer::from_json_text::<ReservationReceipt>(&text) {
+            return Ok(ReserveStockResponse::ReservationReceipt(value));
+        }
+        Err(D::Error::custom(
+            "data did not match any variant of untagged enum ReserveStockResponse",
+        ))
+    }
 }

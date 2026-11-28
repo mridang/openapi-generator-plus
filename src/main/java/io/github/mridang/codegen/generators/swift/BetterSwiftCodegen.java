@@ -911,6 +911,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),
             new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"),
+            new SupportingFileSpec(
+                    "constraint_validator.mustache", Path.of(srcDir, "Api").toString(), "ConstraintValidator.swift"),
             new SupportingFileSpec("authenticator.mustache", Path.of(srcDir, "Auth").toString(), "Authenticator.swift"),
             new SupportingFileSpec("any_codable.mustache", srcDir, "AnyCodable.swift"),
             new SupportingFileSpec("package_swift.mustache", "", "Package.swift"),
@@ -1261,21 +1263,22 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("imports", List.of());
         final boolean hasEnvVars = Boolean.TRUE.equals(ctx.get("hasEnvVars"));
-        /* Basic and Bearer take the same argument labels as their base class, so the
+        /* Basic, Bearer and Digest take the same argument labels as their base class, so the
            initializer of the scheme class overrides the base one. */
         final boolean needsOverride =
                 "BasicAuthenticator".equals(spec.baseClass())
-                        || "BearerAuthenticator".equals(spec.baseClass());
+                        || "BearerAuthenticator".equals(spec.baseClass())
+                        || "DigestAuthenticator".equals(spec.baseClass());
         ctx.put("needsOverride", needsOverride);
         ctx.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
         ctx.put("constructorSignature", buildSwiftConstructorSignature(spec, hasEnvVars, true));
         ctx.put("environmentSignature", buildSwiftConstructorSignature(spec, hasEnvVars, false));
         ctx.put("forwardArguments", buildSwiftForwardArguments(spec));
         ctx.put("superCall", buildSwiftSuperCall(spec));
-        // Basic, Bearer and API-key initializers validate their credentials and
+        // Basic, Bearer, API-key and Digest initializers validate their credentials and
         // throw ConfigurationError; the scheme subclass rethrows.
         final boolean superThrows = java.util.Set.of(
-                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator")
                 .contains(spec.baseClass());
         ctx.put("fallible", superThrows);
         // A credential that can come from the environment can be missing, which throws.
@@ -1305,11 +1308,18 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         entry.put("isApiKeyScheme", apiKey);
         /* One catalogue id per behaviour: the id-carrying tests name only the first scheme of
          * their kind, and the empty-variable failure carries the id of the scheme it is named for. */
+        /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+        entry.put("metadataUrlTest", Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))
+                && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+        entry.put("oauth2MetadataUrl", ctx.get("oauth2MetadataUrl"));
         entry.put("isFirstApiKeyScheme", apiKey && perSchemeAuthEntries.stream()
                 .noneMatch(e -> Boolean.TRUE.equals(e.get("isApiKeyScheme"))));
         entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())
                 && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("isBearerScheme"))));
         entry.put("emptyVariableBhv", EMPTY_VARIABLE_BHV.getOrDefault(className, ""));
+        /* A scheme without its own empty-variable id (the device flow) gets no such test: a
+         * test without a catalogue id fails the parity check. */
+        entry.put("hasEmptyVariableBhv", EMPTY_VARIABLE_BHV.containsKey(className));
         entry.put("envVars", ctx.get("envVars"));
         perSchemeAuthEntries.add(entry);
         additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
@@ -1516,7 +1526,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
                     + " — toLowerCase(Locale.ROOT) is intentional and safe here")
     private static String buildSwiftSuperCall(SchemeAuthSpec spec) {
-        if ("BasicAuthenticator".equals(spec.baseClass())) {
+        if ("BasicAuthenticator".equals(spec.baseClass())
+                || "DigestAuthenticator".equals(spec.baseClass())) {
             return "host: host, username: username, password: password";
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
@@ -1547,6 +1558,13 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     + spec.authorizationUrl() + "\", tokenURL: \"" + spec.tokenUrl()
                     + "\", redirectURI: redirectUri, scopes: "
                     + formatSwiftScopes(spec.scopes()) + refreshArg;
+        }
+        if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? ", refreshURL: \"" + spec.refreshUrl() + "\"" : "";
+            return "host: host, clientID: clientId, deviceAuthorizationURL: \""
+                    + spec.authorizationUrl() + "\", tokenURL: \"" + spec.tokenUrl()
+                    + "\", scopes: " + formatSwiftScopes(spec.scopes()) + refreshArg;
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return "host: host, clientID: clientId, authorizationURL: \""

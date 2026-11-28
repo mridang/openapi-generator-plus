@@ -176,11 +176,11 @@
           {Credo.Check.Refactor.CyclomaticComplexity, []},
           {Credo.Check.Refactor.FunctionArity, []},
           {Credo.Check.Refactor.Nesting, []},
-          # Apply: the three `apply/3` calls left in the SDK target optional
-          # dependencies (`:brotli`, `:opentelemetry`). Spelling them as a call
-          # on a variable module is constant-folded by the compiler, which then
-          # warns that the module is undefined and fails
-          # `mix compile --warnings-as-errors`.
+          # Apply: the `apply/3` calls left in the SDK target optional
+          # dependencies (`:brotli`, `:opentelemetry`) and OTP 28's `:zstd`.
+          # Spelling them as a call on a variable module is constant-folded
+          # by the compiler, which then warns that the module is undefined
+          # and fails `mix compile --warnings-as-errors`.
           {Credo.Check.Refactor.Apply, []},
           #
           # Checks scheduled for next check update (opt-in for now)

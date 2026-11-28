@@ -24,6 +24,13 @@ pub struct DryFood {
     pub food_type: String,
     #[serde(rename = "weightKg")]
     pub weight_kg: f64,
+    #[serde(
+        rename = "pricePerKg",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::decimal_number::option"
+    )]
+    pub price_per_kg: Option<rust_decimal::Decimal>,
 }
 
 impl DryFood {
@@ -31,6 +38,7 @@ impl DryFood {
     pub fn new(weight_kg: f64) -> Self {
         Self {
             weight_kg,
+            price_per_kg: None,
             /* Auto-set discriminator from oneOf mapping. */
             food_type: "dry".to_string(),
         }
@@ -41,6 +49,14 @@ impl DryFood {
     /// clone to keep the original.
     pub fn with_weight_kg(mut self, weight_kg: f64) -> Self {
         self.weight_kg = weight_kg;
+        self
+    }
+
+    /// Returns this value with `price_per_kg` replaced, every other field kept.
+    /// A model is not changed in place: bind the result, or call it on a
+    /// clone to keep the original.
+    pub fn with_price_per_kg(mut self, price_per_kg: rust_decimal::Decimal) -> Self {
+        self.price_per_kg = Some(price_per_kg);
         self
     }
 }
@@ -56,6 +72,7 @@ impl Default for DryFood {
     fn default() -> Self {
         Self {
             weight_kg: Default::default(),
+            price_per_kg: None,
             /* Auto-set discriminator from oneOf mapping. */
             food_type: "dry".to_string(),
         }

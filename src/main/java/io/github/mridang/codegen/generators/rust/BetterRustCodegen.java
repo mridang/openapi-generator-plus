@@ -692,6 +692,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("json_value.mustache", "src", "json_value.rs"),
                 new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
                 new SupportingFileSpec(
+                        "constraint_validator.mustache", "src", "constraint_validator.rs"),
+                new SupportingFileSpec(
                         "object_serializer.mustache", "src", "object_serializer.rs"),
                 new SupportingFileSpec("value_serializer.mustache", "src", "value_serializer.rs"),
                 new SupportingFileSpec("utils/mod.mustache", "src/utils", "mod.rs"),
@@ -1690,6 +1692,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         } else if ("BearerAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("token", "&str"));
             superArgs = List.of("host", "token");
+        } else if ("DigestAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("username", "&str"), p("password", "&str"));
+            superArgs = List.of("host", "username", "password");
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = "ApiKeyLocation::" + NamingConvention.PASCAL_CASE.apply(
                     spec.keyIn() != null
@@ -1727,6 +1732,17 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     List.of("host", "client_id", "client_secret",
                             toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
                             "redirect_uri", formatRustScopes(spec.scopes()), refreshArg);
+        } else if ("OAuth2DeviceAuthorizationAuthenticator".equals(spec.baseClass())) {
+            // refresh_url is &str — empty string means "fall back to token_url"
+            final String refreshArg =
+                    spec.refreshUrl() != null ? toRustStringLiteral(spec.refreshUrl()) : "\"\"";
+            constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
+            // Signature: (host, client_id, device_authorization_url, token_url, scopes, refresh_url)
+            superArgs =
+                    List.of("host", "client_id",
+                            toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")),
+                            toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
+                            formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
             superArgs =
@@ -1771,6 +1787,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         ctx.put("constructorParams", credentialParams);
         ctx.put("envParams", envParams);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            ctx.put("metadataUrlLiteral", toRustStringLiteral(String.valueOf(metadataUrl)));
+        }
         final boolean bearer = "BearerAuthenticator".equals(spec.baseClass());
         ctx.put("isBearer", bearer);
         final String stem =
@@ -1794,6 +1814,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         /* The scheme-independent env tests (catalogue authbasic001, authbasic003, authscheme001 and
          * authscheme002) are rendered by every scheme, so only the first scheme carries their ids. */
         entry.put("commonBhvOnce", bhvIdsClaimed.add("common_env"));
+        /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+        entry.put("metadataUrlTest", metadataUrl != null && bhvIdsClaimed.add("metadata_url"));
+        entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
         /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
         final boolean explicitWins = bhvIdsClaimed.add("explicit_wins");
         entry.put("explicitWinsOnce", explicitWins);
@@ -1843,6 +1866,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             entry.put("restEnvParams", new ArrayList<>(envParams.subList(1, envParams.size())));
             entry.put("secondEnvName", envParams.get(1).get("envName"));
         }
+        /* A scheme whose every test id is claimed by an earlier scheme (the device flow, which
+         * has no empty-variable id of its own) gets no test module: one without a test would
+         * leave its imports unused. */
+        entry.put(
+                "hasSchemeTests",
+                java.util.stream.Stream.of(
+                                "commonBhvOnce", "metadataUrlTest", "explicitWinsOnce", "explicitNotOverriddenOnce",
+                                "mixedOnce", "bearerIdOnce", "emptyVariableBhv", "isBasic", "isApiKey")
+                        .anyMatch(key -> Boolean.TRUE.equals(entry.get(key))));
         perSchemeAuthEntries.add(entry);
         ctx.put("superArgs", superArgs);
         // API-key schemes name an ApiKeyLocation variant in their superArgs, so
@@ -1850,9 +1882,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // (an unconditional import would be dead under -D warnings).
         ctx.put("needsApiKeyLocation", "ApiKeyAuthenticator".equals(spec.baseClass()));
         // The wrapper always returns Result: a missing credential is a ConfigurationError.
-        // Basic, Bearer and API-key bases are themselves fallible; the OAuth bases are not.
+        // Basic, Bearer, API-key and Digest bases are themselves fallible; the OAuth bases are not.
         ctx.put("fallible", java.util.Set.of(
-                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator", "DigestAuthenticator")
                 .contains(spec.baseClass()));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }

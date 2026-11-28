@@ -361,6 +361,10 @@ test('bhv authoauthtwoclientcred 005 invalidate access token drops the cached to
     expect($client->capturedRequests)->toHaveCount(2);
 });
 
+test('bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant', function (): void {
+    expect(\PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::METADATA_URL)->toBe('https://auth.example.com/.well-known/oauth-authorization-server');
+});
+
 test('bhv authoauthtwoclientcred 009 scheme wrapper sends the spec scopes to the spec token url', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([

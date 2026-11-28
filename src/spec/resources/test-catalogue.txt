@@ -335,6 +335,16 @@ models026 | An additional property whose value type is a model decodes to that m
 models027 | A null additional property value is rejected unless the value schema is nullable
 models028 | A typed additional property is written back at the top level in its wire form after the declared properties
 models029 | A free-form additionalProperties keeps accepting and returning any JSON value
+models700 | The union an OAS 3.1 type array of scalar types becomes (an anyOf of string and integer), held by a model property, decodes each of its types and writes the value back unchanged
+models701 | The union an OAS 3.1 type array of array and object becomes, held by a model property, decodes both an array and an object and writes each back unchanged
+models702 | A property of the OAS 3.1 null type (type: 'null') accepts null
+models703 | The validation-only JSON Schema 2020-12 keywords (contains, minContains, maxContains, unevaluatedItems, not, contentSchema) are not enforced: a value they would refuse decodes as given and is written back
+models704 | A schema's patternProperties value schema types its extra properties: matching keys decode as a string-keyed map of that type and a value of the wrong type fails the decode
+models705 | The properties of a schema's then and else branches are optional properties of its model: each decodes and is written back, and the if condition is not enforced
+models706 | Constraint validation is off by default: a request body that breaks the validation keywords of its schema is sent unchanged
+models707 | With constraint validation on, a request body that breaks one validation keyword (minLength, maxLength, pattern, minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, minItems, maxItems, minProperties, maxProperties) is refused before it is sent with the argument error and the message Invalid request body: <path> <rule>, one row per keyword | multi
+models708 | With constraint validation on, a violation inside a held model or a list of models names its path (tier.level, parts[0].level) | multi
+models709 | With constraint validation on, a request body within every constraint is sent and a null or absent value is not checked | multi
 operations001 | A per-call header replaces a default header of the same name
 operations002 | All headers from selector flow through
 operations003 | AllowEmptyValue param included when value is empty string
@@ -1080,6 +1090,13 @@ authoauthtwoauthcode030 | Auth headers before the code exchange fail naming the 
 errors049 | An OAuth2 server error message names the status and the error code
 authoauthtwoauthcode032 | The authorization code exchange body uses a fixed parameter order
 authoauthtwoclientcred016 | The client credentials token request body uses a fixed parameter order
+authoauthtwodevice700 | requestDeviceAuthorization posts client_id and the scopes, space separated in declared order, form encoded to the device authorization URL and returns the device code, user code, verification URI, complete verification URI, expires_in and interval, with interval 5 when the server omits it
+authoauthtwodevice701 | A device authorization response that is not JSON, not a JSON object, or lacks device_code, user_code or verification_uri fails with the OAuth2 token error and the exact message, and a non-2xx answer with the OAuth2 server error | multi
+authoauthtwodevice702 | pollForToken posts grant_type urn:ietf:params:oauth:grant-type:device_code, client_id and device_code in that order to the token URL and keeps polling while the server answers authorization_pending
+authoauthtwodevice703 | A slow_down answer adds five seconds to the polling interval
+authoauthtwodevice704 | access_denied, expired_token or any other token error ends polling with the OAuth2 server error, and polling past expires_in ends with the OAuth2 token error Device authorization expired before the user approved it | multi
+authoauthtwodevice705 | Before a token is obtained the authenticator refuses to authenticate with Must call pollForToken() before making API requests; after it, the bearer header carries the polled access token
+authoauthtwodevice706 | The generated per-scheme wrapper of a deviceAuthorization flow passes the spec device authorization URL, token URL and scopes in declared order
 authoauthtwoimplicit016 | An implicit access token may contain a tab
 authoauthtwopassword021 | The password grant token request body uses a fixed parameter order
 authoauthtwopassword022 | The generated password scheme wrapper sends the first grant to the declared token URL and the refresh grant to the declared refresh URL
@@ -1107,6 +1124,7 @@ authscheme013 | An empty environment variable for the client credentials scheme 
 authscheme014 | An empty environment variable for the password scheme credential is treated as unset and fails naming the variable
 authscheme015 | An empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable
 authscheme016 | An empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable
+authscheme700 | A scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator
 config018 | A default constructed or built configuration uses the base URL from the spec
 config019 | The default configuration factory returns the spec base URL
 config020 | A configuration builder chain sets the base URL and default headers in one configuration
@@ -1140,6 +1158,13 @@ lifecycle028 | An explicit host and token win over the environment
 lifecycle030 | The base URL comes from the default authenticator first, then from the first scheme credential
 lifecycle032 | A token passed to the client is preferred to the one in the environment
 authbearer028 | A bearer token containing CRLF is rejected at construction
+authdigest700 | The MD5 answer to the RFC 7616 example challenge (Mufasa, http-auth@example.org, GET /dir/index.html, the example nonce, cnonce and opaque) has the response 8ca523f5e9506fed4657c9700eebdbec and the header fields in the fixed order
+authdigest701 | The SHA-256 answer to the RFC 7616 example challenge has the response 753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1, and the -sess variants hash the first value with the nonce and cnonce
+authdigest702 | A request is sent without credentials, a 401 with a Digest challenge is answered and the request replayed once with the Authorization header, and a second 401 is returned as is
+authdigest703 | A later request answers the remembered challenge up front with the nonce count incremented to 00000002
+authdigest704 | A challenge without qop is answered in the RFC 2069 form (no qop, nc or cnonce), opaque is echoed only when sent and algorithm only when named
+authdigest705 | A challenge that offers only qop=auth-int or an unknown algorithm is not answered and the 401 stands
+authdigest706 | An empty username, a line break or NUL in the username or password, or a double quote in the username fails at construction, and the string form masks the password | multi
 lifecycle035 | A request issued after close fails with the one closed-client error and never reaches the transport
 serializationobject188 | An empty object serializes to an empty JSON object
 operations127 | A malformed 2xx body fails loud with a serialization error instead of returning the raw string
@@ -1955,6 +1980,7 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+unions700 | A discriminated union with a defaultMapping decodes a payload whose discriminator is missing or not in the mapping as the default variant, and a listed value still picks its own variant
 langswift001 | An API error conforms to the platform error protocol and reports a non-empty description
 langswift002 | An OAuth2 token error's localized description is exactly its message
 langswift003 | A refused loopback connection with no response raises a network error with status zero that keeps the transport error

@@ -20,6 +20,8 @@ type Credentials struct {
 	PetStoreBasic Authenticator
 	/* AdminBasic authenticates the adminBasic security scheme. */
 	AdminBasic Authenticator
+	/* ArchiveDigest authenticates the archiveDigest security scheme. */
+	ArchiveDigest Authenticator
 	/* PetStoreBearer authenticates the petStoreBearer security scheme. */
 	PetStoreBearer Authenticator
 	/* ServiceToken authenticates the serviceToken security scheme. */
@@ -40,6 +42,8 @@ type Credentials struct {
 	UserAuth Authenticator
 	/* BrowserAuth authenticates the browserAuth security scheme. */
 	BrowserAuth Authenticator
+	/* DeviceAuth authenticates the deviceAuth security scheme. */
+	DeviceAuth Authenticator
 	/* SsoAuth authenticates the ssoAuth security scheme. */
 	SsoAuth Authenticator
 }
@@ -52,6 +56,9 @@ func (c Credentials) bySchemeId() map[string]Authenticator {
 	}
 	if c.AdminBasic != nil {
 		set["adminBasic"] = c.AdminBasic
+	}
+	if c.ArchiveDigest != nil {
+		set["archiveDigest"] = c.ArchiveDigest
 	}
 	if c.PetStoreBearer != nil {
 		set["petStoreBearer"] = c.PetStoreBearer
@@ -82,6 +89,9 @@ func (c Credentials) bySchemeId() map[string]Authenticator {
 	}
 	if c.BrowserAuth != nil {
 		set["browserAuth"] = c.BrowserAuth
+	}
+	if c.DeviceAuth != nil {
+		set["deviceAuth"] = c.DeviceAuth
 	}
 	if c.SsoAuth != nil {
 		set["ssoAuth"] = c.SsoAuth
