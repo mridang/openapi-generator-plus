@@ -1,0 +1,67 @@
+# Public Ruby signatures allowed to name a third-party type: <signature> | <reason>
+Petstore::Client::Models::EdgeCases#attribute cutoff?: Tod::TimeOfDay | format: time maps to the tod gem's TimeOfDay; Ruby has no time-of-day type
+Petstore::Client::Models::EdgeCases#attribute retry_after?: ISO8601::Duration | format: duration maps to the iso8601 gem's Duration; Ruby has no duration type
+Petstore::Client::Models::NativeValues#attribute wait?: ISO8601::Duration | format: duration maps to the iso8601 gem's Duration; Ruby has no duration type
+Petstore::Client::TransportOptions#connection() [doc return: Faraday::Connection, nil] | the caller may supply its own Faraday connection as the transport
+Petstore::Client::TransportOptions::Builder#connection(val) [doc param val: Faraday::Connection, nil; return: self] | the caller may supply its own Faraday connection as the transport
+Petstore::Client::Types::Builder = Dry::Types::Module Petstore::Client::Types::Builder | the Types module the models declare their attributes with is the dry-types builder, assigned to a constant so the models can include it
+Petstore::Client::Types::Required = Dry::Types::Constructor | Types::Required is a dry-types constructor the models use to refuse nil for a required attribute
+class Petstore::Client::Models::Account < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::ApiResponse < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::AttachPetFilesRequest < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::BinaryVault < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Blobs < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Category < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Counters < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Defaults < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Department < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::DryFood < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::EdgeCases < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Employee < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Error < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Freeform < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Ledger < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Medication < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::MemberNotFound < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Memo < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Metadata < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Moments < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::NativeValues < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Order < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Pet < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetAfterPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetArchivePage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetCatalogPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetCriteria < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetEventPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetMatchPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetNextUrlPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetNotePage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetOffsetPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetPageNumberPage < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetPassport < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PetWithOwner < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Photo < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PhotoMetadata < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::PhotoMetadataLocation < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::ProjectNotFound < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::RejectedRequest < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::RequiredNullable < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Reservation < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::ReservationReceipt < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Result < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Roster < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::SetPetAvatarRequest < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Shape < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Sparse < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::StateConflict < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::StockItem < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::StrictTag < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Subscription < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Surgery < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Tag < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::TreeNode < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::UnexpectedFailure < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::UpstreamFailure < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Vehicle < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::WetFood < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model

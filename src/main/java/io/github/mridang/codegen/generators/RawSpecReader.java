@@ -171,6 +171,9 @@ public final class RawSpecReader {
         }
 
         /** The device flow's scopes in declaration order. */
+        @SuppressFBWarnings(
+                value = "EI_EXPOSE_REP",
+                justification = "The map is an unmodifiable view built by securitySchemes")
         public Map<String, String> deviceScopes() {
             return deviceScopes;
         }

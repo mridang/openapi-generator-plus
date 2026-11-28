@@ -1,0 +1,2 @@
+# Public Dart types allowed to be unreachable or internal-but-exported: <type> | <reason>
+BaseApi | superclass of PetApi, StoreApi and ProblemsApi in lib/src, not exported by the barrel; callers see it and cannot name it

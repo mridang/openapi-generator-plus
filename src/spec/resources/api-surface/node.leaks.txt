@@ -1,0 +1,19 @@
+# Public Node signatures allowed to name a third-party type: <signature> | <reason>
+ApiError.getTypedErrorBody<U>(clazz: ClassConstructor<U>): U | null [uses class-transformer:ClassConstructor] | ApiError.getTypedErrorBody takes class-transformer's ClassConstructor; should take the SDK's own constructor type
+DefaultApiClient.static buildDispatcher(transportOptions: TransportOptions): ProxyAgent | Agent | undefined [uses undici:Agent, undici:ProxyAgent] | DefaultApiClient.buildDispatcher is a public static that returns undici's ProxyAgent or Agent; should be private or @internal
+Defaults.readonly ratio?: Decimal | undefined [uses decimal.js:Decimal] | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency
+EdgeCases.readonly cutoff?: Temporal.PlainTime | undefined [uses temporal-spec:Temporal.PlainTime] | format: time and duration map to the Temporal types of temporal-polyfill; JavaScript has no built-in Temporal yet
+EdgeCases.readonly retryAfter?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration] | format: time and duration map to the Temporal types of temporal-polyfill; JavaScript has no built-in Temporal yet
+GetNativeValuesOptions.readonly amount?: Decimal | undefined [uses decimal.js:Decimal] | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency
+GetNativeValuesOptions.readonly delay?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration] | format: time and duration map to the Temporal types of temporal-polyfill; JavaScript has no built-in Temporal yet
+NativeValues.readonly amount?: Decimal | undefined [uses decimal.js:Decimal] | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency
+NativeValues.readonly ledger?: Decimal | undefined [uses decimal.js:Decimal] | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency
+NativeValues.readonly wait?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration] | format: time and duration map to the Temporal types of temporal-polyfill; JavaScript has no built-in Temporal yet
+Pet.readonly weightKg?: Decimal | undefined [uses decimal.js:Decimal] | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency
+PetWithOwner.readonly weightKg?: Decimal | undefined [uses decimal.js:Decimal] | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency
+SearchStoreOptions.readonly at?: Temporal.PlainTime | undefined [uses temporal-spec:Temporal.PlainTime] | format: time and duration map to the Temporal types of temporal-polyfill; JavaScript has no built-in Temporal yet
+SetPetPreferencesOptions.readonly snooze?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration] | format: time and duration map to the Temporal types of temporal-polyfill; JavaScript has no built-in Temporal yet
+opentelemetry/OpenTelemetryCallHookOptions.readonly meterProvider?: MeterProvider | undefined [uses @opentelemetry/api:MeterProvider] | the opt-in ./opentelemetry entry point is configured with the caller's OpenTelemetry providers by design
+opentelemetry/OpenTelemetryCallHookOptions.readonly propagator?: TextMapPropagator<any> | undefined [uses @opentelemetry/api:TextMapPropagator] | the opt-in ./opentelemetry entry point is configured with the caller's OpenTelemetry providers by design
+opentelemetry/OpenTelemetryCallHookOptions.readonly tracerProvider?: TracerProvider | undefined [uses @opentelemetry/api:TracerProvider] | the opt-in ./opentelemetry entry point is configured with the caller's OpenTelemetry providers by design
+export Decimal from decimal.js | format: decimal maps to decimal.js's Decimal, which the barrel re-exports so callers need no direct dependency

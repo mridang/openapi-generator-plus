@@ -1,0 +1,2040 @@
+Petstore::Client::Api::BaseApi#config() [doc return: Configuration]
+Petstore::Client::Api::BaseApi.new(api_client = ?, config = ?, authenticator = ?, scheme_authenticators = ?) [doc param api_client: ApiClient, nil; param config: Configuration; param authenticator: Authenticator, nil; param scheme_authenticators: Hash{String => Authenticator}; return: BaseApi]
+Petstore::Client::Api::BaseApi::NO_AUTH = Object
+Petstore::Client::Api::BaseApi::STREAM_ERROR_BODY_LIMIT = 65536
+Petstore::Client::Api::GetExternalPetInfoServer#url() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Api::GetExternalPetInfoServerServer0#url()
+Petstore::Client::Api::GetMemoServer#url() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Api::GetMemoServerMemos#url()
+Petstore::Client::Api::GetMultiServerPetInfoServer#url() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Api::GetMultiServerPetInfoServerChannel::A_B = "a&b"
+Petstore::Client::Api::GetMultiServerPetInfoServerChannel::IT_S = "it's"
+Petstore::Client::Api::GetMultiServerPetInfoServerMirror#channel()
+Petstore::Client::Api::GetMultiServerPetInfoServerMirror#region()
+Petstore::Client::Api::GetMultiServerPetInfoServerMirror#url()
+Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(region:, channel:) [doc raise: ArgumentError; return: GetMultiServerPetInfoServerMirror]
+Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU = "eu"
+Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::US = "us"
+Petstore::Client::Api::GetMultiServerPetInfoServerPrimary#url()
+Petstore::Client::Api::GetMultiServerPetInfoServerRegional#region()
+Petstore::Client::Api::GetMultiServerPetInfoServerRegional#url()
+Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(region:) [doc raise: ArgumentError; return: GetMultiServerPetInfoServerRegional]
+Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion::AP = "ap"
+Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion::EU = "eu"
+Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion::US = "us"
+Petstore::Client::Api::GetPetByIdServer#url() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Api::GetPetByIdServerCDNBackedReadEndpointForPetDetails#url()
+Petstore::Client::Api::GetStagingPetInfoServer#url() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX = "sandbox"
+Petstore::Client::Api::GetStagingPetInfoServerEnvironment::STAGING = "staging"
+Petstore::Client::Api::GetStagingPetInfoServerStagingServer#environment()
+Petstore::Client::Api::GetStagingPetInfoServerStagingServer#url()
+Petstore::Client::Api::GetStagingPetInfoServerStagingServer#version()
+Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment:, version:) [doc raise: ArgumentError; return: GetStagingPetInfoServerStagingServer]
+Petstore::Client::Api::GetStagingPetInfoServerVersion::V2 = "v2"
+Petstore::Client::Api::GetStagingPetInfoServerVersion::V3 = "v3"
+Petstore::Client::Api::Options::AddPetOptions#headers()
+Petstore::Client::Api::Options::AddPetOptions#max_retries()
+Petstore::Client::Api::Options::AddPetOptions#timeout()
+Petstore::Client::Api::Options::AddPetOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: AddPetOptions]
+Petstore::Client::Api::Options::AddPetPhotosOptions#files()
+Petstore::Client::Api::Options::AddPetPhotosOptions#headers()
+Petstore::Client::Api::Options::AddPetPhotosOptions#max_retries()
+Petstore::Client::Api::Options::AddPetPhotosOptions#metadata()
+Petstore::Client::Api::Options::AddPetPhotosOptions#timeout()
+Petstore::Client::Api::Options::AddPetPhotosOptions.new(files:, metadata:, timeout: ?, headers: ?, max_retries: ?) [doc return: AddPetPhotosOptions]
+Petstore::Client::Api::Options::AddPetTreatmentOptions#headers()
+Petstore::Client::Api::Options::AddPetTreatmentOptions#max_retries()
+Petstore::Client::Api::Options::AddPetTreatmentOptions#timeout()
+Petstore::Client::Api::Options::AddPetTreatmentOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: AddPetTreatmentOptions]
+Petstore::Client::Api::Options::AttachPetFilesOptions#caption()
+Petstore::Client::Api::Options::AttachPetFilesOptions#file()
+Petstore::Client::Api::Options::AttachPetFilesOptions#headers()
+Petstore::Client::Api::Options::AttachPetFilesOptions#max_retries()
+Petstore::Client::Api::Options::AttachPetFilesOptions#timeout()
+Petstore::Client::Api::Options::AttachPetFilesOptions.new(file:, caption: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: AttachPetFilesOptions]
+Petstore::Client::Api::Options::CreateAccountOptions#headers()
+Petstore::Client::Api::Options::CreateAccountOptions#max_retries()
+Petstore::Client::Api::Options::CreateAccountOptions#timeout()
+Petstore::Client::Api::Options::CreateAccountOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: CreateAccountOptions]
+Petstore::Client::Api::Options::DeleteOrderOptions#headers()
+Petstore::Client::Api::Options::DeleteOrderOptions#max_retries()
+Petstore::Client::Api::Options::DeleteOrderOptions#timeout()
+Petstore::Client::Api::Options::DeleteOrderOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: DeleteOrderOptions]
+Petstore::Client::Api::Options::DeletePetOptions#api_key()
+Petstore::Client::Api::Options::DeletePetOptions#headers()
+Petstore::Client::Api::Options::DeletePetOptions#max_retries()
+Petstore::Client::Api::Options::DeletePetOptions#timeout()
+Petstore::Client::Api::Options::DeletePetOptions.new(api_key: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: DeletePetOptions]
+Petstore::Client::Api::Options::DownloadPetDocumentOptions#headers()
+Petstore::Client::Api::Options::DownloadPetDocumentOptions#max_retries()
+Petstore::Client::Api::Options::DownloadPetDocumentOptions#timeout()
+Petstore::Client::Api::Options::DownloadPetDocumentOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: DownloadPetDocumentOptions]
+Petstore::Client::Api::Options::ExportOrdersOptions#headers()
+Petstore::Client::Api::Options::ExportOrdersOptions#max_retries()
+Petstore::Client::Api::Options::ExportOrdersOptions#timeout()
+Petstore::Client::Api::Options::ExportOrdersOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: ExportOrdersOptions]
+Petstore::Client::Api::Options::FindPetsBornOnOptions#headers()
+Petstore::Client::Api::Options::FindPetsBornOnOptions#max_retries()
+Petstore::Client::Api::Options::FindPetsBornOnOptions#timeout()
+Petstore::Client::Api::Options::FindPetsBornOnOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: FindPetsBornOnOptions]
+Petstore::Client::Api::Options::FindPetsByStatusOptions#born_after()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#filter()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#headers()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#max_retries()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#n2nd_page()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#report_date()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#status()
+Petstore::Client::Api::Options::FindPetsByStatusOptions#timeout()
+Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: ?, filter: ?, born_after: ?, n2nd_page: ?, report_date: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: FindPetsByStatusOptions]
+Petstore::Client::Api::Options::GetAuditTrailOptions#headers()
+Petstore::Client::Api::Options::GetAuditTrailOptions#max_retries()
+Petstore::Client::Api::Options::GetAuditTrailOptions#timeout()
+Petstore::Client::Api::Options::GetAuditTrailOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetAuditTrailOptions]
+Petstore::Client::Api::Options::GetBySwatchOptions#headers()
+Petstore::Client::Api::Options::GetBySwatchOptions#max_retries()
+Petstore::Client::Api::Options::GetBySwatchOptions#preferred_swatch()
+Petstore::Client::Api::Options::GetBySwatchOptions#query_swatch()
+Petstore::Client::Api::Options::GetBySwatchOptions#timeout()
+Petstore::Client::Api::Options::GetBySwatchOptions.new(query_swatch: ?, preferred_swatch: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: GetBySwatchOptions]
+Petstore::Client::Api::Options::GetDefaultsOptions#headers()
+Petstore::Client::Api::Options::GetDefaultsOptions#max_retries()
+Petstore::Client::Api::Options::GetDefaultsOptions#timeout()
+Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetDefaultsOptions]
+Petstore::Client::Api::Options::GetDepartmentOptions#headers()
+Petstore::Client::Api::Options::GetDepartmentOptions#max_retries()
+Petstore::Client::Api::Options::GetDepartmentOptions#timeout()
+Petstore::Client::Api::Options::GetDepartmentOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetDepartmentOptions]
+Petstore::Client::Api::Options::GetExternalPetInfoOptions#headers()
+Petstore::Client::Api::Options::GetExternalPetInfoOptions#max_retries()
+Petstore::Client::Api::Options::GetExternalPetInfoOptions#timeout()
+Petstore::Client::Api::Options::GetExternalPetInfoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetExternalPetInfoOptions]
+Petstore::Client::Api::Options::GetFallbackOptions#headers()
+Petstore::Client::Api::Options::GetFallbackOptions#max_retries()
+Petstore::Client::Api::Options::GetFallbackOptions#timeout()
+Petstore::Client::Api::Options::GetFallbackOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetFallbackOptions]
+Petstore::Client::Api::Options::GetGroupedCategoriesOptions#headers()
+Petstore::Client::Api::Options::GetGroupedCategoriesOptions#max_retries()
+Petstore::Client::Api::Options::GetGroupedCategoriesOptions#timeout()
+Petstore::Client::Api::Options::GetGroupedCategoriesOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetGroupedCategoriesOptions]
+Petstore::Client::Api::Options::GetInventoryOptions#headers()
+Petstore::Client::Api::Options::GetInventoryOptions#max_retries()
+Petstore::Client::Api::Options::GetInventoryOptions#timeout()
+Petstore::Client::Api::Options::GetInventoryOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetInventoryOptions]
+Petstore::Client::Api::Options::GetMatrixOptions#headers()
+Petstore::Client::Api::Options::GetMatrixOptions#max_retries()
+Petstore::Client::Api::Options::GetMatrixOptions#timeout()
+Petstore::Client::Api::Options::GetMatrixOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetMatrixOptions]
+Petstore::Client::Api::Options::GetMemberOptions#headers()
+Petstore::Client::Api::Options::GetMemberOptions#max_retries()
+Petstore::Client::Api::Options::GetMemberOptions#timeout()
+Petstore::Client::Api::Options::GetMemberOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetMemberOptions]
+Petstore::Client::Api::Options::GetMemoOptions#headers()
+Petstore::Client::Api::Options::GetMemoOptions#max_retries()
+Petstore::Client::Api::Options::GetMemoOptions#timeout()
+Petstore::Client::Api::Options::GetMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetMemoOptions]
+Petstore::Client::Api::Options::GetMultiServerPetInfoOptions#headers()
+Petstore::Client::Api::Options::GetMultiServerPetInfoOptions#max_retries()
+Petstore::Client::Api::Options::GetMultiServerPetInfoOptions#timeout()
+Petstore::Client::Api::Options::GetMultiServerPetInfoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetMultiServerPetInfoOptions]
+Petstore::Client::Api::Options::GetNativeValuesOptions#address4()
+Petstore::Client::Api::Options::GetNativeValuesOptions#amount()
+Petstore::Client::Api::Options::GetNativeValuesOptions#delay()
+Petstore::Client::Api::Options::GetNativeValuesOptions#headers()
+Petstore::Client::Api::Options::GetNativeValuesOptions#max_retries()
+Petstore::Client::Api::Options::GetNativeValuesOptions#timeout()
+Petstore::Client::Api::Options::GetNativeValuesOptions#x_address6()
+Petstore::Client::Api::Options::GetNativeValuesOptions.new(address4: ?, delay: ?, amount: ?, x_address6: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: GetNativeValuesOptions]
+Petstore::Client::Api::Options::GetOrderByIdOptions#headers()
+Petstore::Client::Api::Options::GetOrderByIdOptions#max_retries()
+Petstore::Client::Api::Options::GetOrderByIdOptions#timeout()
+Petstore::Client::Api::Options::GetOrderByIdOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetOrderByIdOptions]
+Petstore::Client::Api::Options::GetOrderByTrackingIdOptions#headers()
+Petstore::Client::Api::Options::GetOrderByTrackingIdOptions#max_retries()
+Petstore::Client::Api::Options::GetOrderByTrackingIdOptions#timeout()
+Petstore::Client::Api::Options::GetOrderByTrackingIdOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetOrderByTrackingIdOptions]
+Petstore::Client::Api::Options::GetPetAvatarOptions#headers()
+Petstore::Client::Api::Options::GetPetAvatarOptions#max_retries()
+Petstore::Client::Api::Options::GetPetAvatarOptions#timeout()
+Petstore::Client::Api::Options::GetPetAvatarOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetAvatarOptions]
+Petstore::Client::Api::Options::GetPetAvatarThumbnailOptions#headers()
+Petstore::Client::Api::Options::GetPetAvatarThumbnailOptions#max_retries()
+Petstore::Client::Api::Options::GetPetAvatarThumbnailOptions#timeout()
+Petstore::Client::Api::Options::GetPetAvatarThumbnailOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetAvatarThumbnailOptions]
+Petstore::Client::Api::Options::GetPetByIdOptions#headers()
+Petstore::Client::Api::Options::GetPetByIdOptions#max_retries()
+Petstore::Client::Api::Options::GetPetByIdOptions#timeout()
+Petstore::Client::Api::Options::GetPetByIdOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetByIdOptions]
+Petstore::Client::Api::Options::GetPetByNameOptions#category()
+Petstore::Client::Api::Options::GetPetByNameOptions#headers()
+Petstore::Client::Api::Options::GetPetByNameOptions#max_retries()
+Petstore::Client::Api::Options::GetPetByNameOptions#timeout()
+Petstore::Client::Api::Options::GetPetByNameOptions#x_correlation_id()
+Petstore::Client::Api::Options::GetPetByNameOptions.new(category:, x_correlation_id:, timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetByNameOptions]
+Petstore::Client::Api::Options::GetPetByNoteOptions#headers()
+Petstore::Client::Api::Options::GetPetByNoteOptions#max_retries()
+Petstore::Client::Api::Options::GetPetByNoteOptions#note()
+Petstore::Client::Api::Options::GetPetByNoteOptions#rank()
+Petstore::Client::Api::Options::GetPetByNoteOptions#timeout()
+Petstore::Client::Api::Options::GetPetByNoteOptions.new(note:, rank:, timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetByNoteOptions]
+Petstore::Client::Api::Options::GetPetPassportOptions#headers()
+Petstore::Client::Api::Options::GetPetPassportOptions#max_retries()
+Petstore::Client::Api::Options::GetPetPassportOptions#timeout()
+Petstore::Client::Api::Options::GetPetPassportOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetPassportOptions]
+Petstore::Client::Api::Options::GetPetPhotoOptions#headers()
+Petstore::Client::Api::Options::GetPetPhotoOptions#max_retries()
+Petstore::Client::Api::Options::GetPetPhotoOptions#timeout()
+Petstore::Client::Api::Options::GetPetPhotoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetPhotoOptions]
+Petstore::Client::Api::Options::GetPetSummaryOptions#days()
+Petstore::Client::Api::Options::GetPetSummaryOptions#headers()
+Petstore::Client::Api::Options::GetPetSummaryOptions#max_retries()
+Petstore::Client::Api::Options::GetPetSummaryOptions#session()
+Petstore::Client::Api::Options::GetPetSummaryOptions#timeout()
+Petstore::Client::Api::Options::GetPetSummaryOptions.new(session:, days: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetSummaryOptions]
+Petstore::Client::Api::Options::GetPetTagOptions#colors()
+Petstore::Client::Api::Options::GetPetTagOptions#criteria()
+Petstore::Client::Api::Options::GetPetTagOptions#criteria_csv()
+Petstore::Client::Api::Options::GetPetTagOptions#criteria_deep()
+Petstore::Client::Api::Options::GetPetTagOptions#filter()
+Petstore::Client::Api::Options::GetPetTagOptions#fingerprint()
+Petstore::Client::Api::Options::GetPetTagOptions#headers()
+Petstore::Client::Api::Options::GetPetTagOptions#max_retries()
+Petstore::Client::Api::Options::GetPetTagOptions#revision()
+Petstore::Client::Api::Options::GetPetTagOptions#sizes()
+Petstore::Client::Api::Options::GetPetTagOptions#timeout()
+Petstore::Client::Api::Options::GetPetTagOptions#x_criteria()
+Petstore::Client::Api::Options::GetPetTagOptions#x_fingerprint()
+Petstore::Client::Api::Options::GetPetTagOptions.new(colors: ?, sizes: ?, filter: ?, revision: ?, criteria: ?, criteria_csv: ?, criteria_deep: ?, fingerprint: ?, x_criteria: ?, x_fingerprint: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: GetPetTagOptions]
+Petstore::Client::Api::Options::GetProjectOptions#headers()
+Petstore::Client::Api::Options::GetProjectOptions#max_retries()
+Petstore::Client::Api::Options::GetProjectOptions#timeout()
+Petstore::Client::Api::Options::GetProjectOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetProjectOptions]
+Petstore::Client::Api::Options::GetRangeOptions#headers()
+Petstore::Client::Api::Options::GetRangeOptions#max_retries()
+Petstore::Client::Api::Options::GetRangeOptions#timeout()
+Petstore::Client::Api::Options::GetRangeOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetRangeOptions]
+Petstore::Client::Api::Options::GetStagingPetInfoOptions#headers()
+Petstore::Client::Api::Options::GetStagingPetInfoOptions#max_retries()
+Petstore::Client::Api::Options::GetStagingPetInfoOptions#timeout()
+Petstore::Client::Api::Options::GetStagingPetInfoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetStagingPetInfoOptions]
+Petstore::Client::Api::Options::GetStockItemOptions#as_of()
+Petstore::Client::Api::Options::GetStockItemOptions#headers()
+Petstore::Client::Api::Options::GetStockItemOptions#max_retries()
+Petstore::Client::Api::Options::GetStockItemOptions#timeout()
+Petstore::Client::Api::Options::GetStockItemOptions.new(as_of: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: GetStockItemOptions]
+Petstore::Client::Api::Options::GetSwatchGroupsOptions#headers()
+Petstore::Client::Api::Options::GetSwatchGroupsOptions#max_retries()
+Petstore::Client::Api::Options::GetSwatchGroupsOptions#timeout()
+Petstore::Client::Api::Options::GetSwatchGroupsOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetSwatchGroupsOptions]
+Petstore::Client::Api::Options::GetSwatchOptions#headers()
+Petstore::Client::Api::Options::GetSwatchOptions#max_retries()
+Petstore::Client::Api::Options::GetSwatchOptions#timeout()
+Petstore::Client::Api::Options::GetSwatchOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetSwatchOptions]
+Petstore::Client::Api::Options::GetTimestampGroupsOptions#headers()
+Petstore::Client::Api::Options::GetTimestampGroupsOptions#max_retries()
+Petstore::Client::Api::Options::GetTimestampGroupsOptions#timeout()
+Petstore::Client::Api::Options::GetTimestampGroupsOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetTimestampGroupsOptions]
+Petstore::Client::Api::Options::GetTreeOptions#headers()
+Petstore::Client::Api::Options::GetTreeOptions#max_retries()
+Petstore::Client::Api::Options::GetTreeOptions#timeout()
+Petstore::Client::Api::Options::GetTreeOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetTreeOptions]
+Petstore::Client::Api::Options::GetUpstreamOptions#headers()
+Petstore::Client::Api::Options::GetUpstreamOptions#max_retries()
+Petstore::Client::Api::Options::GetUpstreamOptions#timeout()
+Petstore::Client::Api::Options::GetUpstreamOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetUpstreamOptions]
+Petstore::Client::Api::Options::HeadMemoOptions#headers()
+Petstore::Client::Api::Options::HeadMemoOptions#max_retries()
+Petstore::Client::Api::Options::HeadMemoOptions#timeout()
+Petstore::Client::Api::Options::HeadMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: HeadMemoOptions]
+Petstore::Client::Api::Options::ListPetArchiveOptions#cursor()
+Petstore::Client::Api::Options::ListPetArchiveOptions#headers()
+Petstore::Client::Api::Options::ListPetArchiveOptions#max_retries()
+Petstore::Client::Api::Options::ListPetArchiveOptions#timeout()
+Petstore::Client::Api::Options::ListPetArchiveOptions.new(cursor: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetArchiveOptions]
+Petstore::Client::Api::Options::ListPetCatalogOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetCatalogOptions]
+Petstore::Client::Api::Options::ListPetCatalogOptions#cursor()
+Petstore::Client::Api::Options::ListPetCatalogOptions#headers()
+Petstore::Client::Api::Options::ListPetCatalogOptions#limit()
+Petstore::Client::Api::Options::ListPetCatalogOptions#max_retries()
+Petstore::Client::Api::Options::ListPetCatalogOptions#timeout()
+Petstore::Client::Api::Options::ListPetCatalogOptions.new(limit: ?, cursor: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetCatalogOptions]
+Petstore::Client::Api::Options::ListPetEventsOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetEventsOptions]
+Petstore::Client::Api::Options::ListPetEventsOptions#headers()
+Petstore::Client::Api::Options::ListPetEventsOptions#max_retries()
+Petstore::Client::Api::Options::ListPetEventsOptions#since()
+Petstore::Client::Api::Options::ListPetEventsOptions#timeout()
+Petstore::Client::Api::Options::ListPetEventsOptions.new(since: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetEventsOptions]
+Petstore::Client::Api::Options::ListPetFeedOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetFeedOptions]
+Petstore::Client::Api::Options::ListPetFeedOptions#headers()
+Petstore::Client::Api::Options::ListPetFeedOptions#limit()
+Petstore::Client::Api::Options::ListPetFeedOptions#max_retries()
+Petstore::Client::Api::Options::ListPetFeedOptions#timeout()
+Petstore::Client::Api::Options::ListPetFeedOptions.new(limit: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetFeedOptions]
+Petstore::Client::Api::Options::ListPetMatchesOptions#cursor()
+Petstore::Client::Api::Options::ListPetMatchesOptions#headers()
+Petstore::Client::Api::Options::ListPetMatchesOptions#max_retries()
+Petstore::Client::Api::Options::ListPetMatchesOptions#timeout()
+Petstore::Client::Api::Options::ListPetMatchesOptions.new(cursor: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetMatchesOptions]
+Petstore::Client::Api::Options::ListPetNextUrlOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetNextUrlOptions]
+Petstore::Client::Api::Options::ListPetNextUrlOptions#headers()
+Petstore::Client::Api::Options::ListPetNextUrlOptions#limit()
+Petstore::Client::Api::Options::ListPetNextUrlOptions#max_retries()
+Petstore::Client::Api::Options::ListPetNextUrlOptions#timeout()
+Petstore::Client::Api::Options::ListPetNextUrlOptions.new(limit: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetNextUrlOptions]
+Petstore::Client::Api::Options::ListPetNotesOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetNotesOptions]
+Petstore::Client::Api::Options::ListPetNotesOptions#headers()
+Petstore::Client::Api::Options::ListPetNotesOptions#max_retries()
+Petstore::Client::Api::Options::ListPetNotesOptions#pos()
+Petstore::Client::Api::Options::ListPetNotesOptions#timeout()
+Petstore::Client::Api::Options::ListPetNotesOptions.new(pos: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetNotesOptions]
+Petstore::Client::Api::Options::ListPetOffsetsOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetOffsetsOptions]
+Petstore::Client::Api::Options::ListPetOffsetsOptions#headers()
+Petstore::Client::Api::Options::ListPetOffsetsOptions#limit()
+Petstore::Client::Api::Options::ListPetOffsetsOptions#max_retries()
+Petstore::Client::Api::Options::ListPetOffsetsOptions#offset()
+Petstore::Client::Api::Options::ListPetOffsetsOptions#timeout()
+Petstore::Client::Api::Options::ListPetOffsetsOptions.new(offset: ?, limit: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetOffsetsOptions]
+Petstore::Client::Api::Options::ListPetPageNumbersOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetPageNumbersOptions]
+Petstore::Client::Api::Options::ListPetPageNumbersOptions#headers()
+Petstore::Client::Api::Options::ListPetPageNumbersOptions#max_retries()
+Petstore::Client::Api::Options::ListPetPageNumbersOptions#page()
+Petstore::Client::Api::Options::ListPetPageNumbersOptions#per_page()
+Petstore::Client::Api::Options::ListPetPageNumbersOptions#timeout()
+Petstore::Client::Api::Options::ListPetPageNumbersOptions.new(page: ?, per_page: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetPageNumbersOptions]
+Petstore::Client::Api::Options::ListPetsAfterOptions#copy_with(**changes) [doc param changes: Hash{Symbol => Object}; return: ListPetsAfterOptions]
+Petstore::Client::Api::Options::ListPetsAfterOptions#headers()
+Petstore::Client::Api::Options::ListPetsAfterOptions#limit()
+Petstore::Client::Api::Options::ListPetsAfterOptions#max_retries()
+Petstore::Client::Api::Options::ListPetsAfterOptions#starting_after()
+Petstore::Client::Api::Options::ListPetsAfterOptions#timeout()
+Petstore::Client::Api::Options::ListPetsAfterOptions.new(starting_after: ?, limit: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetsAfterOptions]
+Petstore::Client::Api::Options::OptionsMemoOptions#headers()
+Petstore::Client::Api::Options::OptionsMemoOptions#max_retries()
+Petstore::Client::Api::Options::OptionsMemoOptions#timeout()
+Petstore::Client::Api::Options::OptionsMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: OptionsMemoOptions]
+Petstore::Client::Api::Options::PatchMemoOptions#headers()
+Petstore::Client::Api::Options::PatchMemoOptions#max_retries()
+Petstore::Client::Api::Options::PatchMemoOptions#timeout()
+Petstore::Client::Api::Options::PatchMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: PatchMemoOptions]
+Petstore::Client::Api::Options::PlaceOrderOptions#headers()
+Petstore::Client::Api::Options::PlaceOrderOptions#max_retries()
+Petstore::Client::Api::Options::PlaceOrderOptions#timeout()
+Petstore::Client::Api::Options::PlaceOrderOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: PlaceOrderOptions]
+Petstore::Client::Api::Options::ReserveStockOptions#headers()
+Petstore::Client::Api::Options::ReserveStockOptions#max_retries()
+Petstore::Client::Api::Options::ReserveStockOptions#timeout()
+Petstore::Client::Api::Options::ReserveStockOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: ReserveStockOptions]
+Petstore::Client::Api::Options::SearchStoreOptions#at()
+Petstore::Client::Api::Options::SearchStoreOptions#headers()
+Petstore::Client::Api::Options::SearchStoreOptions#labels()
+Petstore::Client::Api::Options::SearchStoreOptions#max_retries()
+Petstore::Client::Api::Options::SearchStoreOptions#q()
+Petstore::Client::Api::Options::SearchStoreOptions#timeout()
+Petstore::Client::Api::Options::SearchStoreOptions#x_filter()
+Petstore::Client::Api::Options::SearchStoreOptions.new(q: ?, labels: ?, at: ?, x_filter: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: SearchStoreOptions]
+Petstore::Client::Api::Options::SetPetAvatarOptions#headers()
+Petstore::Client::Api::Options::SetPetAvatarOptions#max_retries()
+Petstore::Client::Api::Options::SetPetAvatarOptions#timeout()
+Petstore::Client::Api::Options::SetPetAvatarOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: SetPetAvatarOptions]
+Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions#headers()
+Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions#max_retries()
+Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions#timeout()
+Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: SetPetAvatarThumbnailOptions]
+Petstore::Client::Api::Options::SetPetPreferencesOptions#headers()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#interval_days()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#max_retries()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#nickname()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#note()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#ratio()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#reminder()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#renewal_date()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#snooze()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#tags()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#timeout()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#urgent()
+Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname:, tags: ?, note: ?, renewal_date: ?, reminder: ?, interval_days: ?, ratio: ?, urgent: ?, snooze: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: SetPetPreferencesOptions]
+Petstore::Client::Api::Options::TakeLockOptions#headers()
+Petstore::Client::Api::Options::TakeLockOptions#max_retries()
+Petstore::Client::Api::Options::TakeLockOptions#timeout()
+Petstore::Client::Api::Options::TakeLockOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: TakeLockOptions]
+Petstore::Client::Api::Options::TraceMemoOptions#headers()
+Petstore::Client::Api::Options::TraceMemoOptions#max_retries()
+Petstore::Client::Api::Options::TraceMemoOptions#timeout()
+Petstore::Client::Api::Options::TraceMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: TraceMemoOptions]
+Petstore::Client::Api::Options::UpdatePetOptions#headers()
+Petstore::Client::Api::Options::UpdatePetOptions#max_retries()
+Petstore::Client::Api::Options::UpdatePetOptions#timeout()
+Petstore::Client::Api::Options::UpdatePetOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: UpdatePetOptions]
+Petstore::Client::Api::Options::UploadPetCertificateOptions#file()
+Petstore::Client::Api::Options::UploadPetCertificateOptions#headers()
+Petstore::Client::Api::Options::UploadPetCertificateOptions#max_retries()
+Petstore::Client::Api::Options::UploadPetCertificateOptions#timeout()
+Petstore::Client::Api::Options::UploadPetCertificateOptions.new(file:, timeout: ?, headers: ?, max_retries: ?) [doc return: UploadPetCertificateOptions]
+Petstore::Client::Api::Options::UploadPetDocumentOptions#document_type()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#file()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#headers()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#is_primary()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#max_retries()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#notes()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#page_count()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#swatch()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#taken_at()
+Petstore::Client::Api::Options::UploadPetDocumentOptions#timeout()
+Petstore::Client::Api::Options::UploadPetDocumentOptions.new(file:, document_type: ?, notes: ?, is_primary: ?, page_count: ?, taken_at: ?, swatch: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: UploadPetDocumentOptions]
+Petstore::Client::Api::Options::WatchNoticesOptions#headers()
+Petstore::Client::Api::Options::WatchNoticesOptions#max_retries()
+Petstore::Client::Api::Options::WatchNoticesOptions#timeout()
+Petstore::Client::Api::Options::WatchNoticesOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: WatchNoticesOptions]
+Petstore::Client::Api::Options::WatchOrdersOptions#headers()
+Petstore::Client::Api::Options::WatchOrdersOptions#max_retries()
+Petstore::Client::Api::Options::WatchOrdersOptions#status()
+Petstore::Client::Api::Options::WatchOrdersOptions#timeout()
+Petstore::Client::Api::Options::WatchOrdersOptions.new(status: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: WatchOrdersOptions]
+Petstore::Client::Api::PetApi#add_pet(pet, options = ?) [doc param pet: Pet; param options: AddPetOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: Pet]
+Petstore::Client::Api::PetApi#add_pet_photos(pet_id, options) [doc param pet_id: Integer; param options: AddPetPhotosOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: Array<Photo>]
+Petstore::Client::Api::PetApi#add_pet_photos_with_http_info(pet_id, options) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#add_pet_treatment(pet_id, pet_treatment, options = ?) [doc param pet_id: Integer; param pet_treatment: PetTreatment; param options: AddPetTreatmentOptions; raise: ApiError; return: PetTreatment]
+Petstore::Client::Api::PetApi#add_pet_treatment_with_http_info(pet_id, pet_treatment, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#add_pet_with_http_info(pet, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: ApiResult]
+Petstore::Client::Api::PetApi#attach_pet_files(pet_id, options) [doc param pet_id: Integer; param options: AttachPetFilesOptions; raise: ApiError; return: ApiResponse]
+Petstore::Client::Api::PetApi#attach_pet_files_with_http_info(pet_id, options) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#delete_pet(pet_id, options = ?) [doc param pet_id: Integer; param options: DeletePetOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: nil]
+Petstore::Client::Api::PetApi#delete_pet_with_http_info(pet_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: ApiResult]
+Petstore::Client::Api::PetApi#download_pet_document(pet_id, document_id, options = ?) [doc param pet_id: Integer; param document_id: Integer; param options: DownloadPetDocumentOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ByteStream]
+Petstore::Client::Api::PetApi#download_pet_document_with_http_info(pet_id, document_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#find_pets_born_on(born_on, options = ?) [doc param born_on: Date; param options: FindPetsBornOnOptions; raise: ApiError; return: Array<Pet>]
+Petstore::Client::Api::PetApi#find_pets_born_on_with_http_info(born_on, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#find_pets_by_status(options = ?) [doc param options: FindPetsByStatusOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: Array<Pet>]
+Petstore::Client::Api::PetApi#find_pets_by_status_with_http_info(options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_external_pet_info(pet_id, options = ?, server: ?) [doc param pet_id: Integer; param options: GetExternalPetInfoOptions; raise: ApiError; return: Pet]
+Petstore::Client::Api::PetApi#get_external_pet_info_with_http_info(pet_id, options = ?, server: ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_multi_server_pet_info(pet_id, options = ?, server: ?) [doc param pet_id: Integer; param options: GetMultiServerPetInfoOptions; raise: ApiError; return: Pet]
+Petstore::Client::Api::PetApi#get_multi_server_pet_info_with_http_info(pet_id, options = ?, server: ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_avatar(pet_id, options = ?) [doc param pet_id: Integer; param options: GetPetAvatarOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ByteStream]
+Petstore::Client::Api::PetApi#get_pet_avatar_thumbnail(pet_id, options = ?) [doc param pet_id: Integer; param options: GetPetAvatarThumbnailOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: String]
+Petstore::Client::Api::PetApi#get_pet_avatar_thumbnail_with_http_info(pet_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_avatar_with_http_info(pet_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_by_id(pet_id, options = ?, server: ?) [doc param pet_id: Integer; param options: GetPetByIdOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: Pet]
+Petstore::Client::Api::PetApi#get_pet_by_id_with_http_info(pet_id, options = ?, server: ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_by_name(name, options) [doc param name: String; param options: GetPetByNameOptions; raise: ApiError; return: Pet]
+Petstore::Client::Api::PetApi#get_pet_by_name_with_http_info(name, options) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_by_note(options) [doc param options: GetPetByNoteOptions; raise: ApiError; return: Pet]
+Petstore::Client::Api::PetApi#get_pet_by_note_with_http_info(options) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_passport(pet_id, options = ?) [doc param pet_id: Integer; param options: GetPetPassportOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: PetPassport]
+Petstore::Client::Api::PetApi#get_pet_passport_with_http_info(pet_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_photo(pet_id, photo_id, options = ?) [doc param pet_id: Integer; param photo_id: Integer; param options: GetPetPhotoOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ByteStream]
+Petstore::Client::Api::PetApi#get_pet_photo_with_http_info(pet_id, photo_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_summary(pet_id, as_of, options) [doc param pet_id: Integer; param as_of: Date; param options: GetPetSummaryOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: String]
+Petstore::Client::Api::PetApi#get_pet_summary_with_http_info(pet_id, as_of, options) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_pet_tag(pet_id, tag_name, options = ?) [doc param pet_id: Integer; param tag_name: String; param options: GetPetTagOptions; raise: ApiError; return: Pet]
+Petstore::Client::Api::PetApi#get_pet_tag_with_http_info(pet_id, tag_name, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#get_staging_pet_info(pet_id, options = ?, server: ?) [doc param pet_id: Integer; param options: GetStagingPetInfoOptions; raise: ApiError; return: Pet]
+Petstore::Client::Api::PetApi#get_staging_pet_info_with_http_info(pet_id, options = ?, server: ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_archive(options = ?) [doc param options: ListPetArchiveOptions; raise: ApiError; return: PetArchivePage]
+Petstore::Client::Api::PetApi#list_pet_archive_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_catalog(options = ?) [doc param options: ListPetCatalogOptions; raise: ApiError; return: PetCatalogPage]
+Petstore::Client::Api::PetApi#list_pet_catalog_pages(options = ?) [doc param options: ListPetCatalogOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_catalog_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_events(options = ?) [doc param options: ListPetEventsOptions; raise: ApiError; return: PetEventPage]
+Petstore::Client::Api::PetApi#list_pet_events_pages(options = ?) [doc param options: ListPetEventsOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_events_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_feed(options = ?) [doc param options: ListPetFeedOptions; raise: ApiError; return: Array<Pet>]
+Petstore::Client::Api::PetApi#list_pet_feed_pages(options = ?) [doc param options: ListPetFeedOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_feed_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_matches(options = ?) [doc param options: ListPetMatchesOptions; raise: ApiError; return: PetMatchPage]
+Petstore::Client::Api::PetApi#list_pet_matches_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_next_url(options = ?) [doc param options: ListPetNextUrlOptions; raise: ApiError; return: PetNextUrlPage]
+Petstore::Client::Api::PetApi#list_pet_next_url_pages(options = ?) [doc param options: ListPetNextUrlOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_next_url_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_notes(options = ?) [doc param options: ListPetNotesOptions; raise: ApiError; return: PetNotePage]
+Petstore::Client::Api::PetApi#list_pet_notes_pages(options = ?) [doc param options: ListPetNotesOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_notes_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_offsets(options = ?) [doc param options: ListPetOffsetsOptions; raise: ApiError; return: PetOffsetPage]
+Petstore::Client::Api::PetApi#list_pet_offsets_pages(options = ?) [doc param options: ListPetOffsetsOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_offsets_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pet_page_numbers(options = ?) [doc param options: ListPetPageNumbersOptions; raise: ApiError; return: PetPageNumberPage]
+Petstore::Client::Api::PetApi#list_pet_page_numbers_pages(options = ?) [doc param options: ListPetPageNumbersOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pet_page_numbers_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#list_pets_after(options = ?) [doc param options: ListPetsAfterOptions; raise: ApiError; return: PetAfterPage]
+Petstore::Client::Api::PetApi#list_pets_after_pages(options = ?) [doc param options: ListPetsAfterOptions; return: Paginator]
+Petstore::Client::Api::PetApi#list_pets_after_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::PetApi#set_pet_avatar(pet_id, body, options = ?, request_content_type: ?) [doc param pet_id: Integer; param body: BodySource; param options: SetPetAvatarOptions; param request_content_type: String, nil; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: nil]
+Petstore::Client::Api::PetApi#set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request, options = ?) [doc param pet_id: Integer; param set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest; param options: SetPetAvatarThumbnailOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: nil]
+Petstore::Client::Api::PetApi#set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#set_pet_avatar_with_http_info(pet_id, body, options = ?, request_content_type: ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#set_pet_preferences(pet_id, options) [doc param pet_id: Integer; param options: SetPetPreferencesOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResponse]
+Petstore::Client::Api::PetApi#set_pet_preferences_with_http_info(pet_id, options) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#update_pet(pet_id, pet, options = ?) [doc param pet_id: Integer; param pet: Pet; param options: UpdatePetOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: Pet]
+Petstore::Client::Api::PetApi#update_pet_with_http_info(pet_id, pet, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#upload_pet_certificate(pet_id, options) [doc param pet_id: Integer; param options: UploadPetCertificateOptions; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResponse]
+Petstore::Client::Api::PetApi#upload_pet_certificate_with_http_info(pet_id, options) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi#upload_pet_document(pet_id, options, request_content_type: ?) [doc param pet_id: Integer; param options: UploadPetDocumentOptions; param request_content_type: String, nil; raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResponse]
+Petstore::Client::Api::PetApi#upload_pet_document_with_http_info(pet_id, options, request_content_type: ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::PetApi.new(api_client = ?, config = ?, authenticator = ?, scheme_authenticators = ?) [doc return: PetApi]
+Petstore::Client::Api::ProblemsApi#get_fallback(fallback_id, options = ?) [doc param fallback_id: String; param options: GetFallbackOptions; raise: ApiError; raise: ::Petstore::Client::Errors::UnexpectedFailureError; return: Result]
+Petstore::Client::Api::ProblemsApi#get_fallback_with_http_info(fallback_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::UnexpectedFailureError; return: ApiResult]
+Petstore::Client::Api::ProblemsApi#get_member(member_id, options = ?) [doc param member_id: String; param options: GetMemberOptions; raise: ApiError; raise: ::Petstore::Client::Errors::MemberNotFoundError; return: Result]
+Petstore::Client::Api::ProblemsApi#get_member_with_http_info(member_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::MemberNotFoundError; return: ApiResult]
+Petstore::Client::Api::ProblemsApi#get_project(project_id, options = ?) [doc param project_id: String; param options: GetProjectOptions; raise: ApiError; raise: ::Petstore::Client::Errors::ProjectNotFoundError; return: Result]
+Petstore::Client::Api::ProblemsApi#get_project_with_http_info(project_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::ProjectNotFoundError; return: ApiResult]
+Petstore::Client::Api::ProblemsApi#get_range(range_id, options = ?) [doc param range_id: String; param options: GetRangeOptions; raise: ApiError; raise: ::Petstore::Client::Errors::RejectedRequestError; return: Result]
+Petstore::Client::Api::ProblemsApi#get_range_with_http_info(range_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::RejectedRequestError; return: ApiResult]
+Petstore::Client::Api::ProblemsApi#get_upstream(upstream_id, options = ?) [doc param upstream_id: String; param options: GetUpstreamOptions; raise: ApiError; raise: ::Petstore::Client::Errors::UpstreamFailureError; return: Result]
+Petstore::Client::Api::ProblemsApi#get_upstream_with_http_info(upstream_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::UpstreamFailureError; return: ApiResult]
+Petstore::Client::Api::ProblemsApi#take_lock(lock_id, options = ?) [doc param lock_id: String; param options: TakeLockOptions; raise: ApiError; raise: ::Petstore::Client::Errors::StateConflictError; raise: ::Petstore::Client::Errors::StateConflictError; return: Result]
+Petstore::Client::Api::ProblemsApi#take_lock_with_http_info(lock_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::StateConflictError; raise: ::Petstore::Client::Errors::StateConflictError; return: ApiResult]
+Petstore::Client::Api::ProblemsApi.new(api_client = ?, config = ?, authenticator = ?, scheme_authenticators = ?) [doc return: ProblemsApi]
+Petstore::Client::Api::StoreApi#create_account(account, options = ?) [doc param account: Account; param options: CreateAccountOptions; raise: ApiError; return: Account]
+Petstore::Client::Api::StoreApi#create_account_with_http_info(account, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#delete_order(order_id, options = ?) [doc param order_id: Integer; param options: DeleteOrderOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: nil]
+Petstore::Client::Api::StoreApi#delete_order_with_http_info(order_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::StoreApi#export_orders_stream(options = ?, stream_options = ?) [doc param options: ExportOrdersOptions; param stream_options: StreamOptions, nil; raise: ApiError; return: JsonLinesStream]
+Petstore::Client::Api::StoreApi#get_audit_trail(options = ?) [doc param options: GetAuditTrailOptions; raise: ApiError; return: ApiResponse]
+Petstore::Client::Api::StoreApi#get_audit_trail_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_by_swatch(path_swatch, options = ?) [doc param path_swatch: Swatch; param options: GetBySwatchOptions; raise: ApiError; return: Category]
+Petstore::Client::Api::StoreApi#get_by_swatch_with_http_info(path_swatch, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_defaults(options = ?) [doc param options: GetDefaultsOptions; raise: ApiError; return: Defaults]
+Petstore::Client::Api::StoreApi#get_defaults_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_department(options = ?) [doc param options: GetDepartmentOptions; raise: ApiError; return: Department]
+Petstore::Client::Api::StoreApi#get_department_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_grouped_categories(options = ?) [doc param options: GetGroupedCategoriesOptions; raise: ApiError; return: Array<Hash<String, Category>>]
+Petstore::Client::Api::StoreApi#get_grouped_categories_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_inventory(options = ?) [doc param options: GetInventoryOptions; raise: ApiError; return: Hash<String, Integer>]
+Petstore::Client::Api::StoreApi#get_inventory_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_matrix(options = ?) [doc param options: GetMatrixOptions; raise: ApiError; return: Array<Array<Integer>>]
+Petstore::Client::Api::StoreApi#get_matrix_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_memo(memo_id, options = ?, server: ?) [doc param memo_id: String; param options: GetMemoOptions; raise: ApiError; return: Memo]
+Petstore::Client::Api::StoreApi#get_memo_with_http_info(memo_id, options = ?, server: ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_native_values(options = ?) [doc param options: GetNativeValuesOptions; raise: ApiError; return: NativeValues]
+Petstore::Client::Api::StoreApi#get_native_values_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_order_by_id(order_id, options = ?) [doc param order_id: Integer; param options: GetOrderByIdOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: Order]
+Petstore::Client::Api::StoreApi#get_order_by_id_with_http_info(order_id, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; raise: ::Petstore::Client::Errors::NotFoundError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_order_by_tracking_id(tracking_id, options = ?) [doc param tracking_id: String; param options: GetOrderByTrackingIdOptions; raise: ApiError; return: Order]
+Petstore::Client::Api::StoreApi#get_order_by_tracking_id_with_http_info(tracking_id, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_stock_item(options = ?) [doc param options: GetStockItemOptions; raise: ApiError; return: StockItem]
+Petstore::Client::Api::StoreApi#get_stock_item_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_swatch(options = ?) [doc param options: GetSwatchOptions; raise: ApiError; return: Swatch]
+Petstore::Client::Api::StoreApi#get_swatch_groups(options = ?) [doc param options: GetSwatchGroupsOptions; raise: ApiError; return: Array<Hash<String, Swatch>>]
+Petstore::Client::Api::StoreApi#get_swatch_groups_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_swatch_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_timestamp_groups(options = ?) [doc param options: GetTimestampGroupsOptions; raise: ApiError; return: Array<Hash<String, Time>>]
+Petstore::Client::Api::StoreApi#get_timestamp_groups_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#get_tree(options = ?) [doc param options: GetTreeOptions; raise: ApiError; return: TreeNode]
+Petstore::Client::Api::StoreApi#get_tree_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#head_memo(memo_id, options = ?) [doc param memo_id: String; param options: HeadMemoOptions; raise: ApiError; return: nil]
+Petstore::Client::Api::StoreApi#head_memo_with_http_info(memo_id, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#options_memo(memo_id, options = ?) [doc param memo_id: String; param options: OptionsMemoOptions; raise: ApiError; return: nil]
+Petstore::Client::Api::StoreApi#options_memo_with_http_info(memo_id, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#patch_memo(memo_id, memo, options = ?) [doc param memo_id: String; param memo: Memo; param options: PatchMemoOptions; raise: ApiError; return: Memo]
+Petstore::Client::Api::StoreApi#patch_memo_with_http_info(memo_id, memo, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#place_order(order = ?, options = ?) [doc param order: Order; param options: PlaceOrderOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: Order]
+Petstore::Client::Api::StoreApi#place_order_with_http_info(order = ?, options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: ApiResult]
+Petstore::Client::Api::StoreApi#reserve_stock(options = ?) [doc param options: ReserveStockOptions; raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: ReserveStockResponse]
+Petstore::Client::Api::StoreApi#reserve_stock_with_http_info(options = ?) [doc raise: ApiError; raise: ::Petstore::Client::Errors::BadRequestError; return: ApiResult]
+Petstore::Client::Api::StoreApi#search_store(options = ?) [doc param options: SearchStoreOptions; raise: ApiError; return: Array<Order>]
+Petstore::Client::Api::StoreApi#search_store_with_http_info(options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#trace_memo(memo_id, options = ?) [doc param memo_id: String; param options: TraceMemoOptions; raise: ApiError; return: nil]
+Petstore::Client::Api::StoreApi#trace_memo_with_http_info(memo_id, options = ?) [doc raise: ApiError; return: ApiResult]
+Petstore::Client::Api::StoreApi#watch_notices_stream(options = ?, stream_options = ?) [doc param options: WatchNoticesOptions; param stream_options: StreamOptions, nil; raise: ApiError; return: SseStream]
+Petstore::Client::Api::StoreApi#watch_orders_stream(options = ?, stream_options = ?) [doc param options: WatchOrdersOptions; param stream_options: StreamOptions, nil; raise: ApiError; return: SseStream]
+Petstore::Client::Api::StoreApi.new(api_client = ?, config = ?, authenticator = ?, scheme_authenticators = ?) [doc return: StoreApi]
+Petstore::Client::ApiClient#close() [doc return: void]
+Petstore::Client::ApiClient#send_request(method, url, headers, body, no_redirect: ?) [doc param method: String; param url: String; param headers: Hash; param body: Object, nil; param no_redirect: Boolean; raise: NotImplementedError; return: ApiHttpResponse]
+Petstore::Client::ApiClient#send_streaming(method, url, headers, body, timeout: ?, max_retries: ?, idle_timeout: ?) [doc param method: String; param url: String; param headers: Hash; param body: Object, nil; param timeout: Numeric, nil; param max_retries: Integer, nil; param idle_timeout: Numeric, nil; raise: NotImplementedError; return: ApiStreamResponse]
+Petstore::Client::ApiHttpResponse#body()
+Petstore::Client::ApiHttpResponse#headers()
+Petstore::Client::ApiHttpResponse#status_code()
+Petstore::Client::ApiHttpResponse.new(status_code:, body:, headers:) [doc return: ApiHttpResponse]
+Petstore::Client::ApiResult#data() [doc return: Object, nil]
+Petstore::Client::ApiResult#headers() [doc return: Hash{String => String}]
+Petstore::Client::ApiResult#raw_body() [doc return: String]
+Petstore::Client::ApiResult#status_code() [doc return: Integer]
+Petstore::Client::ApiResult.new(status_code:, data:, raw_body:, headers:) [doc param status_code: Integer; param data: Object, nil; param raw_body: String; param headers: Hash{String => String}; return: ApiResult]
+Petstore::Client::ApiStreamResponse#body() [doc return: #read, #close]
+Petstore::Client::ApiStreamResponse#close() [doc return: void]
+Petstore::Client::ApiStreamResponse#headers() [doc return: Hash{String => String}]
+Petstore::Client::ApiStreamResponse#inspect() [doc return: String]
+Petstore::Client::ApiStreamResponse#read_bounded(max_bytes) [doc param max_bytes: Integer; return: ApiHttpResponse]
+Petstore::Client::ApiStreamResponse#status_code() [doc return: Integer]
+Petstore::Client::ApiStreamResponse#to_s() [doc return: String]
+Petstore::Client::ApiStreamResponse.new(status_code:, headers:, body:) [doc param status_code: Integer; param headers: Hash{String => String}; param body: #read, #close; return: ApiStreamResponse]
+Petstore::Client::Auth::AllOfAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::AllOfAuthenticator#cookie_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::AllOfAuthenticator#host() [doc return: String]
+Petstore::Client::Auth::AllOfAuthenticator#query_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::AllOfAuthenticator.new(parts) [doc param parts: Array<Authenticator>; return: AllOfAuthenticator]
+Petstore::Client::Auth::AllOfAuthenticator.of(parts) [doc param parts: Array<Authenticator>; return: Authenticator]
+Petstore::Client::Auth::AllOfHttpAwareAuthenticator#api_client=(client) [doc param client: ApiClient; return: void]
+Petstore::Client::Auth::AllOfHttpAwareAuthenticator#invalidate_access_token() [doc return: void]
+Petstore::Client::Auth::ApiKeyAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::ApiKeyAuthenticator#cookie_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::ApiKeyAuthenticator#host()
+Petstore::Client::Auth::ApiKeyAuthenticator#inspect()
+Petstore::Client::Auth::ApiKeyAuthenticator#query_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::ApiKeyAuthenticator#to_s()
+Petstore::Client::Auth::ApiKeyAuthenticator.new(host, key_param_name, api_key, location, env: ?, api_key_env: ?) [doc param host: String; param key_param_name: String; param api_key: String, nil; param location: Symbol; param env: #[]; param api_key_env: String; return: ApiKeyAuthenticator]
+Petstore::Client::Auth::ApiKeyLocation::COOKIE = :cookie
+Petstore::Client::Auth::ApiKeyLocation::HEADER = :header
+Petstore::Client::Auth::ApiKeyLocation::QUERY = :query
+Petstore::Client::Auth::Authenticator#auth_headers() [doc raise: NotImplementedError; return: Hash{String => String}]
+Petstore::Client::Auth::Authenticator#cookie_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::Authenticator#host() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Auth::Authenticator#query_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::BaseAuthenticator#auth_headers() [doc raise: NotImplementedError; return: Hash{String => String}]
+Petstore::Client::Auth::BaseAuthenticator#cookie_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::BaseAuthenticator#host() [doc raise: NotImplementedError; return: String]
+Petstore::Client::Auth::BaseAuthenticator#query_params() [doc return: Hash{String => String}]
+Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX = "SWAGGER_PETSTORE_OPEN_API_3_0"
+Petstore::Client::Auth::BasicAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::BasicAuthenticator#host()
+Petstore::Client::Auth::BasicAuthenticator#inspect()
+Petstore::Client::Auth::BasicAuthenticator#to_s()
+Petstore::Client::Auth::BasicAuthenticator.new(host, username = ?, password = ?, env: ?, username_env: ?, password_env: ?) [doc param host: String; param username: String, nil; param password: String, nil; param env: #[]; param username_env: String; param password_env: String; raise: ArgumentError; return: BasicAuthenticator]
+Petstore::Client::Auth::BearerAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::BearerAuthenticator#host()
+Petstore::Client::Auth::BearerAuthenticator#inspect()
+Petstore::Client::Auth::BearerAuthenticator#to_s()
+Petstore::Client::Auth::BearerAuthenticator.new(host, token = ?, token_provider: ?, env: ?, token_env: ?) [doc param host: String; param token: String, nil; param token_provider: #call, nil; param env: #[]; param token_env: String; raise: ArgumentError; return: BearerAuthenticator]
+Petstore::Client::Auth::HttpAwareAuthenticator#api_client=(client) [doc param client: ApiClient; raise: NotImplementedError; return: void]
+Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC = :basic
+Petstore::Client::Auth::OAuth::ClientAuthMethod::BODY = :body
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#api_client=(client) [doc param client: ApiClient; return: void]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#build_authorization_url(state = ?) [doc param state: String, nil; return: String]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#exchange_code(code) [doc param code: String; return: void]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#host() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#inspect() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#invalidate_access_token() [doc return: void]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator#to_s() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes, refresh_url: ?, token_manager: ?, pkce_verifier: ?) [doc param host: String; param client_id: String; param client_secret: String; param authorization_url: String; param token_url: String; param redirect_uri: String; param scopes: Array<String>; param refresh_url: String, nil; param token_manager: OAuth2TokenManager, nil; param pkce_verifier: String, nil; return: OAuth2AuthorizationCodeAuthenticator]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator#api_client=(client) [doc param client: ApiClient; return: void]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator#host() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator#inspect() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator#invalidate_access_token() [doc return: void]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator#to_s() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(host, client_id, client_secret, token_url, scopes, client_auth_method: ?) [doc param host: String; param client_id: String; param client_secret: String; param token_url: String; param scopes: Array<String>; param client_auth_method: Symbol; return: OAuth2ClientCredentialsAuthenticator]
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#access_token=(token) [doc param token: String; raise: ArgumentError; return: String]
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#api_client=(_client) [doc param _client: ApiClient; return: void]
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#build_authorization_url(state = ?) [doc param state: String, nil; return: String]
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#host() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#inspect()
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator#to_s()
+Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new(host, client_id, authorization_url, scopes) [doc param host: String; param client_id: String; param authorization_url: String; param scopes: Array<String>; return: OAuth2ImplicitAuthenticator]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator#api_client=(client) [doc param client: ApiClient; return: void]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator#host() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator#inspect() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator#invalidate_access_token() [doc return: void]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator#to_s() [doc return: String]
+Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(host, client_id, client_secret, token_url, username, password, scopes, refresh_url: ?, client_auth_method: ?) [doc param host: String; param client_id: String; param client_secret: String; param token_url: String; param username: String; param password: String; param scopes: Array<String>; param refresh_url: String, nil; param client_auth_method: Symbol; return: OAuth2PasswordAuthenticator]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#access_token=(token) [doc param token: String; return: void]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#api_client=() [doc param value: ApiClient; return: void]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#exchange(token_url, params, extra_headers = ?, &id_token_check) [doc param token_url: String; param params: Hash{String => String}; return: String; yieldparam id_token: String, nil]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#exchanged?() [doc return: Boolean]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#get_access_token(token_url, params, extra_headers = ?, refresh_url: ?) [doc param token_url: String; param params: Hash{String => String}; param refresh_url: String, nil; raise: RuntimeError; raise: ::Petstore::Client::Errors::OAuth2ServerError; raise: ::Petstore::Client::Errors::OAuth2TokenError; return: String]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#invalidate_access_token() [doc return: void]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#mark_exchanged() [doc return: void]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#refresh_token() [doc return: String, nil]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager#stop() [doc return: void]
+Petstore::Client::Auth::OAuth::OAuth2TokenManager.new() [doc return: OAuth2TokenManager]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#api_client=() [doc param value: ApiClient; return: void]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#auth_headers() [doc return: Hash{String => String}]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#build_authorization_url(state = ?) [doc param state: String, nil; return: String]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#exchange_code(code) [doc param code: String; return: void]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#host() [doc return: String]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#inspect() [doc return: String]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#invalidate_access_token() [doc return: void]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator#to_s() [doc return: String]
+Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes) [doc param host: String; param openid_connect_url: String; param client_id: String; param client_secret: String; param redirect_uri: String; param scopes: Array<String>; return: OpenIdConnectAuthenticator]
+Petstore::Client::BodySource#inspect() [doc return: String]
+Petstore::Client::BodySource#length() [doc raise: ArgumentError; return: Integer, nil]
+Petstore::Client::BodySource#replayable?() [doc return: Boolean]
+Petstore::Client::BodySource#to_s() [doc return: String]
+Petstore::Client::BodySource.from(value, length: ?) [doc param value: BodySource, String, Pathname, #call, #read; param length: Integer, nil; raise: ArgumentError; return: BodySource]
+Petstore::Client::BodySource.from_factory(factory = ?, length: ?, &block) [doc param factory: #call, nil; param length: Integer, nil; raise: ArgumentError; return: BodySource; yieldreturn: #read]
+Petstore::Client::BodySource.of(bytes) [doc param bytes: String; raise: ArgumentError; return: BodySource]
+Petstore::Client::BodySource.of_file(path) [doc param path: String, Pathname; raise: ArgumentError; return: BodySource]
+Petstore::Client::BodySource.once(stream, length: ?) [doc param stream: #read; param length: Integer, nil; raise: ArgumentError; return: BodySource]
+Petstore::Client::ByteStream#bytes_delivered() [doc return: Integer]
+Petstore::Client::ByteStream#close() [doc return: void]
+Petstore::Client::ByteStream#closed?() [doc return: Boolean]
+Petstore::Client::ByteStream#each(chunk_size = ?) [doc param chunk_size: Integer; return: Enumerator, self; yieldparam chunk: String]
+Petstore::Client::ByteStream#headers() [doc return: Hash{String => String}]
+Petstore::Client::ByteStream#inspect() [doc return: String]
+Petstore::Client::ByteStream#read(length = ?, outbuf = ?) [doc param length: Integer, nil; param outbuf: String, nil; raise: IOError; raise: Errors::StreamError; raise: Errors::NetworkTimeoutError; return: String, nil]
+Petstore::Client::ByteStream#read_all() [doc raise: IOError; return: String]
+Petstore::Client::ByteStream#read_partial(max = ?) [doc param max: Integer; raise: IOError; return: String, nil]
+Petstore::Client::ByteStream#status_code() [doc return: Integer]
+Petstore::Client::ByteStream#to_s() [doc return: String]
+Petstore::Client::ByteStream.new(status_code:, headers:, source:) [doc param status_code: Integer; param headers: Hash{String => String}; param source: #read, #close; return: ByteStream]
+Petstore::Client::ByteStream::CHUNK_SIZE = 16384
+Petstore::Client::CallHook.chain(*hooks) [doc param hooks: Array<#start>; return: #start]
+Petstore::Client::CallInfo#http_method() [doc return: String]
+Petstore::Client::CallInfo#operation_id() [doc return: String]
+Petstore::Client::CallInfo#server_address() [doc return: String]
+Petstore::Client::CallInfo#url() [doc return: String]
+Petstore::Client::CallInfo#url_template() [doc return: String]
+Petstore::Client::CallInfo.[](*)
+Petstore::Client::CallInfo.inspect()
+Petstore::Client::CallInfo.members()
+Petstore::Client::CallInfo.new(*)
+Petstore::Client::CallOutcome#error() [doc return: Exception, nil]
+Petstore::Client::CallOutcome#headers() [doc return: Hash{String => String}, nil]
+Petstore::Client::CallOutcome#status_code() [doc return: Integer]
+Petstore::Client::CallOutcome.[](*)
+Petstore::Client::CallOutcome.inspect()
+Petstore::Client::CallOutcome.members()
+Petstore::Client::CallOutcome.new(*)
+Petstore::Client::Configuration#base_url() [doc return: String]
+Petstore::Client::Configuration#call_hook() [doc return: #start, nil]
+Petstore::Client::Configuration#default_headers() [doc return: Hash{String => String}]
+Petstore::Client::Configuration#inspect() [doc return: String]
+Petstore::Client::Configuration#to_s() [doc return: String]
+Petstore::Client::Configuration.builder() [doc return: Builder]
+Petstore::Client::Configuration.default_configuration() [doc return: Configuration]
+Petstore::Client::Configuration::Builder#base_url(val) [doc param val: String; return: self]
+Petstore::Client::Configuration::Builder#build() [doc return: Configuration]
+Petstore::Client::Configuration::Builder#call_hook(hook) [doc param hook: #start, nil; raise: ArgumentError; return: self]
+Petstore::Client::Configuration::Builder#default_header(name, value) [doc param name: String; param value: String; return: self]
+Petstore::Client::Configuration::Builder#default_headers(headers) [doc param headers: Hash{String => String}; return: self]
+Petstore::Client::Configuration::Builder#server(server_config, variables = ?) [doc param server_config: ServerConfiguration; param variables: Hash{String => String}; raise: ArgumentError; return: self]
+Petstore::Client::Configuration::Builder.new() [doc return: Builder]
+Petstore::Client::DefaultApiClient#close()
+Petstore::Client::DefaultApiClient#send_request(method, url, headers, body, no_redirect: ?, retry_headers: ?, no_default_headers: ?, timeout: ?, max_retries: ?) [doc param method: Symbol; param url: String; param headers: Hash{String => String}; param body: Object, nil; param no_redirect: Boolean; param retry_headers: Proc, nil; param timeout: Numeric, nil; param max_retries: Integer, nil; param no_default_headers: Boolean; return: ApiHttpResponse]
+Petstore::Client::DefaultApiClient#send_streaming(method, url, headers, body, no_redirect: ?, retry_headers: ?, no_default_headers: ?, timeout: ?, max_retries: ?, idle_timeout: ?) [doc param method: Symbol, String; param url: String; param headers: Hash{String => String}; param body: Object, nil; param no_redirect: Boolean; param retry_headers: Proc, nil; param no_default_headers: Boolean; param timeout: Numeric, false, nil; param max_retries: Integer, nil; param idle_timeout: Numeric, nil; raise: Errors::NetworkError; return: ApiStreamResponse]
+Petstore::Client::DefaultApiClient.new(transport_options = ?) [doc return: DefaultApiClient]
+Petstore::Client::DefaultApiClient.supported_encodings() [doc return: String]
+Petstore::Client::DefaultApiClient::EXTRA_SENSITIVE_HEADER_NAMES = ["x-api-key", "x-internal-key"]
+Petstore::Client::DefaultApiClient::IDEMPOTENT_METHODS = ["GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY"]
+Petstore::Client::DefaultApiClient::QueryParamsEncoder.decode(query)
+Petstore::Client::DefaultApiClient::QueryParamsEncoder.encode(params)
+Petstore::Client::DefaultApiClient::QueryParamsEncoder::RAW_QUERY_KEY = "__raw_query__"
+Petstore::Client::DefaultApiClient::STANDARD_METHODS = [:get, :post, :put, :delete, :head, :patch, :options, :trace]
+Petstore::Client::Errors::ApiError#detail_message() [doc return: String]
+Petstore::Client::Errors::ApiError#error_body()
+Petstore::Client::Errors::ApiError#message()
+Petstore::Client::Errors::ApiError#request_id() [doc return: String, nil]
+Petstore::Client::Errors::ApiError#request_method()
+Petstore::Client::Errors::ApiError#request_path()
+Petstore::Client::Errors::ApiError#response_body()
+Petstore::Client::Errors::ApiError#response_headers()
+Petstore::Client::Errors::ApiError#retryable?() [doc return: Boolean]
+Petstore::Client::Errors::ApiError#status_code()
+Petstore::Client::Errors::ApiError#to_s()
+Petstore::Client::Errors::ApiError#typed_error_body(klass) [doc param klass: String; return: Object, nil]
+Petstore::Client::Errors::ApiError.from_response(status_code, headers, body, request_method: ?, request_path: ?, error_schemas: ?) [doc param status_code: Integer; param headers: Hash{String => String}; param body: String, nil; param request_method: String, nil; param request_path: String, nil; param error_schemas: Hash{String => Class}, nil; return: ApiError]
+Petstore::Client::Errors::ApiError.new(arg = ?) [doc return: ApiError]
+Petstore::Client::Errors::ApiError.status_fallback(status_code, headers, body, cause, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param cause: Exception; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::Errors::BadGatewayError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: BadGatewayError]
+Petstore::Client::Errors::BadRequestError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: BadRequestError]
+Petstore::Client::Errors::ConflictError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: ConflictError]
+Petstore::Client::Errors::ForbiddenError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: ForbiddenError]
+Petstore::Client::Errors::GatewayTimeoutError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: GatewayTimeoutError]
+Petstore::Client::Errors::GoneError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: GoneError]
+Petstore::Client::Errors::InternalServerError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: InternalServerError]
+Petstore::Client::Errors::LockedError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: LockedError]
+Petstore::Client::Errors::MemberNotFoundError.from_error_response(status_code, headers, body, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::Errors::MethodNotAllowedError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: MethodNotAllowedError]
+Petstore::Client::Errors::NetworkError.new(message: ?, request_method: ?, request_path: ?) [doc return: NetworkError]
+Petstore::Client::Errors::NotFoundError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: NotFoundError]
+Petstore::Client::Errors::NotImplementedError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: NotImplementedError]
+Petstore::Client::Errors::OAuth2ServerError#code()
+Petstore::Client::Errors::OAuth2ServerError#description()
+Petstore::Client::Errors::OAuth2ServerError#raw_body()
+Petstore::Client::Errors::OAuth2ServerError#status_code()
+Petstore::Client::Errors::OAuth2ServerError#uri()
+Petstore::Client::Errors::OAuth2ServerError.new(status_code, code, description, uri, raw_body) [doc return: OAuth2ServerError]
+Petstore::Client::Errors::PaginationError#request_path() [doc return: String, nil]
+Petstore::Client::Errors::PaginationError.new(message, request_path = ?) [doc param message: String; param request_path: String, nil; return: PaginationError]
+Petstore::Client::Errors::PayloadTooLargeError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: PayloadTooLargeError]
+Petstore::Client::Errors::PaymentRequiredError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: PaymentRequiredError]
+Petstore::Client::Errors::ProjectNotFoundError.from_error_response(status_code, headers, body, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::Errors::RejectedRequestError.from_error_response(status_code, headers, body, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::Errors::RequestTimeoutError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: RequestTimeoutError]
+Petstore::Client::Errors::ResponseTooLargeError#limit() [doc return: Integer]
+Petstore::Client::Errors::ResponseTooLargeError#retryable?() [doc return: Boolean]
+Petstore::Client::Errors::ResponseTooLargeError.new(limit:, status_code: ?, response_headers: ?, request_method: ?, request_path: ?) [doc param limit: Integer; param status_code: Integer; param response_headers: Hash{String => String}, nil; param request_method: String, nil; param request_path: String, nil; return: ResponseTooLargeError]
+Petstore::Client::Errors::SerializationError#cause()
+Petstore::Client::Errors::SerializationError#request_method()
+Petstore::Client::Errors::SerializationError#request_path()
+Petstore::Client::Errors::SerializationError#response_body()
+Petstore::Client::Errors::SerializationError#response_headers()
+Petstore::Client::Errors::SerializationError#status_code()
+Petstore::Client::Errors::SerializationError#with_response(status_code:, headers:, body:, request_method:, request_path:) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: SerializationError]
+Petstore::Client::Errors::SerializationError.new(message, cause = ?) [doc return: SerializationError]
+Petstore::Client::Errors::ServiceUnavailableError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: ServiceUnavailableError]
+Petstore::Client::Errors::StateConflictError.from_error_response(status_code, headers, body, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::Errors::TooManyRequestsError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: TooManyRequestsError]
+Petstore::Client::Errors::UnauthorizedError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: UnauthorizedError]
+Petstore::Client::Errors::UnexpectedFailureError.from_error_response(status_code, headers, body, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::Errors::UnprocessableEntityError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: UnprocessableEntityError]
+Petstore::Client::Errors::UnsupportedMediaTypeError.new(message: ?, response_body: ?, response_headers: ?, error_body: ?, request_method: ?, request_path: ?) [doc return: UnsupportedMediaTypeError]
+Petstore::Client::Errors::UpstreamFailureError.from_error_response(status_code, headers, body, request_method: ?, request_path: ?) [doc param status_code: Integer; param headers: Hash{String => String}, nil; param body: String, nil; param request_method: String, nil; param request_path: String, nil; return: ApiError]
+Petstore::Client::JsonLinesStream#close() [doc return: void]
+Petstore::Client::JsonLinesStream#each() [doc raise: Errors::SerializationError; raise: Errors::StreamError; raise: Errors::NetworkTimeoutError; return: Enumerator, self; yieldparam item: Object]
+Petstore::Client::JsonLinesStream#headers() [doc return: Hash{String => String}]
+Petstore::Client::JsonLinesStream#inspect() [doc return: String]
+Petstore::Client::JsonLinesStream#status_code() [doc return: Integer]
+Petstore::Client::JsonLinesStream#to_s() [doc return: String]
+Petstore::Client::JsonLinesStream.new(source:, decoder:, max_line_bytes:, method:, path:) [doc param source: ByteStream; param decoder: #call, nil; param max_line_bytes: Integer; param method: String; param path: String; return: JsonLinesStream]
+Petstore::Client::Models::Account#attribute id?: Integer
+Petstore::Client::Models::Account#attribute password?: String
+Petstore::Client::Models::Account#attribute username: String
+Petstore::Client::Models::Account#inspect() [doc return: String]
+Petstore::Client::Models::Account#to_s()
+Petstore::Client::Models::Account#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Account]
+Petstore::Client::Models::Account::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Account::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Account::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Account::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Account::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::ApiResponse#attribute code?: Integer
+Petstore::Client::Models::ApiResponse#attribute message?: String
+Petstore::Client::Models::ApiResponse#attribute type?: String
+Petstore::Client::Models::ApiResponse#inspect() [doc return: String]
+Petstore::Client::Models::ApiResponse#to_s()
+Petstore::Client::Models::ApiResponse#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: ApiResponse]
+Petstore::Client::Models::ApiResponse::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::ApiResponse::JSON_KEY_MAP = Hash
+Petstore::Client::Models::ApiResponse::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::ApiResponse::OPENAPI_TYPES = Hash
+Petstore::Client::Models::ApiResponse::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::AttachPetFilesRequest#attribute caption?: String
+Petstore::Client::Models::AttachPetFilesRequest#attribute file: File
+Petstore::Client::Models::AttachPetFilesRequest#inspect() [doc return: String]
+Petstore::Client::Models::AttachPetFilesRequest#to_s()
+Petstore::Client::Models::AttachPetFilesRequest#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: AttachPetFilesRequest]
+Petstore::Client::Models::AttachPetFilesRequest::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::AttachPetFilesRequest::JSON_KEY_MAP = Hash
+Petstore::Client::Models::AttachPetFilesRequest::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::AttachPetFilesRequest::OPENAPI_TYPES = Hash
+Petstore::Client::Models::AttachPetFilesRequest::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Availability.all_vars()
+Petstore::Client::Models::Availability.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Availability::AVAILABLE = "Available"
+Petstore::Client::Models::Availability::A_B = "a\\b"
+Petstore::Client::Models::Availability::EQ = "$eq"
+Petstore::Client::Models::Availability::OCLOCK = "o'clock"
+Petstore::Client::Models::Availability::ON_HOLD = "on-hold"
+Petstore::Client::Models::Availability::SOLD = "Sold"
+Petstore::Client::Models::Availability::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Availability::VALUES = ["Available", "Sold", "on-hold", "o'clock", "a\\b", "$eq", "\#{x}"]
+Petstore::Client::Models::Availability::X = "\#{x}"
+Petstore::Client::Models::BinaryVault#attribute labels?: Hash<String, String>
+Petstore::Client::Models::BinaryVault#attribute seal?: String
+Petstore::Client::Models::BinaryVault#attribute shards?: Array<String>
+Petstore::Client::Models::BinaryVault#inspect() [doc return: String]
+Petstore::Client::Models::BinaryVault#to_s()
+Petstore::Client::Models::BinaryVault#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: BinaryVault]
+Petstore::Client::Models::BinaryVault::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::BinaryVault::JSON_KEY_MAP = Hash
+Petstore::Client::Models::BinaryVault::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::BinaryVault::OPENAPI_TYPES = Hash
+Petstore::Client::Models::BinaryVault::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Blobs#attribute additional_properties?: untyped
+Petstore::Client::Models::Blobs#attribute label?: String
+Petstore::Client::Models::Blobs#inspect() [doc return: String]
+Petstore::Client::Models::Blobs#to_s()
+Petstore::Client::Models::Blobs#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Blobs]
+Petstore::Client::Models::Blobs::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Blobs::ADDITIONAL_PROPERTIES_FORMAT = "byte"
+Petstore::Client::Models::Blobs::ADDITIONAL_PROPERTIES_TYPE = "String"
+Petstore::Client::Models::Blobs::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Blobs::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Blobs::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Blobs::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Blobs::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Car#attribute door_count: Integer
+Petstore::Client::Models::Car#attribute plate: String
+Petstore::Client::Models::Car#attribute vehicle_type: String
+Petstore::Client::Models::Car#inspect() [doc return: String]
+Petstore::Client::Models::Car#to_s()
+Petstore::Client::Models::Car#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Car]
+Petstore::Client::Models::Car::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Car::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Car::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Car::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Car::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Category#attribute id?: Integer
+Petstore::Client::Models::Category#attribute name?: String
+Petstore::Client::Models::Category#inspect() [doc return: String]
+Petstore::Client::Models::Category#to_s()
+Petstore::Client::Models::Category#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Category]
+Petstore::Client::Models::Category::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Category::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Category::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Category::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Category::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Circle#attribute label?: String
+Petstore::Client::Models::Circle#attribute radius: Float
+Petstore::Client::Models::Circle#attribute shape_type: String
+Petstore::Client::Models::Circle#inspect() [doc return: String]
+Petstore::Client::Models::Circle#to_s()
+Petstore::Client::Models::Circle#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Circle]
+Petstore::Client::Models::Circle::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Circle::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Circle::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Circle::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Circle::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Color.all_vars()
+Petstore::Client::Models::Color.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Color::BLUE = "blue"
+Petstore::Client::Models::Color::GREEN = "green"
+Petstore::Client::Models::Color::RED = "red"
+Petstore::Client::Models::Color::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Color::VALUES = ["red", "green", "blue"]
+Petstore::Client::Models::Counters#attribute additional_properties?: untyped
+Petstore::Client::Models::Counters#attribute label?: String
+Petstore::Client::Models::Counters#inspect() [doc return: String]
+Petstore::Client::Models::Counters#to_s()
+Petstore::Client::Models::Counters#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Counters]
+Petstore::Client::Models::Counters::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Counters::ADDITIONAL_PROPERTIES_TYPE = "Integer"
+Petstore::Client::Models::Counters::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Counters::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Counters::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Counters::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Counters::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Defaults#attribute ceiling?: Integer
+Petstore::Client::Models::Defaults#attribute greeting?: String
+Petstore::Client::Models::Defaults#attribute label?: String
+Petstore::Client::Models::Defaults#attribute mode?: Defaults::ModeEnum
+Petstore::Client::Models::Defaults#attribute ratio?: BigDecimal
+Petstore::Client::Models::Defaults#attribute retries?: Integer
+Petstore::Client::Models::Defaults#attribute scale?: Float
+Petstore::Client::Models::Defaults#attribute swatch?: Swatch
+Petstore::Client::Models::Defaults#attribute weight?: Float
+Petstore::Client::Models::Defaults#inspect() [doc return: String]
+Petstore::Client::Models::Defaults#to_s()
+Petstore::Client::Models::Defaults#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Defaults]
+Petstore::Client::Models::Defaults::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Defaults::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Defaults::ModeEnum.all_vars()
+Petstore::Client::Models::Defaults::ModeEnum.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Defaults::ModeEnum::HIGH = "high"
+Petstore::Client::Models::Defaults::ModeEnum::LOW = "low"
+Petstore::Client::Models::Defaults::ModeEnum::MEDIUM = "medium"
+Petstore::Client::Models::Defaults::ModeEnum::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Defaults::ModeEnum::VALUES = ["low", "medium", "high"]
+Petstore::Client::Models::Defaults::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Defaults::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Defaults::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Department#attribute lead?: Employee
+Petstore::Client::Models::Department#attribute name: String
+Petstore::Client::Models::Department#inspect() [doc return: String]
+Petstore::Client::Models::Department#to_s()
+Petstore::Client::Models::Department#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Department]
+Petstore::Client::Models::Department::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Department::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Department::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Department::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Department::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::DryFood#attribute food_type: String
+Petstore::Client::Models::DryFood#attribute weight_kg: Float
+Petstore::Client::Models::DryFood#inspect() [doc return: String]
+Petstore::Client::Models::DryFood#to_s()
+Petstore::Client::Models::DryFood#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: DryFood]
+Petstore::Client::Models::DryFood::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::DryFood::JSON_KEY_MAP = Hash
+Petstore::Client::Models::DryFood::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::DryFood::OPENAPI_TYPES = Hash
+Petstore::Client::Models::DryFood::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::EdgeCases#attribute _class?: String
+Petstore::Client::Models::EdgeCases#attribute _false?: Boolean
+Petstore::Client::Models::EdgeCases#attribute _true?: Boolean
+Petstore::Client::Models::EdgeCases#attribute and?: Boolean
+Petstore::Client::Models::EdgeCases#attribute cutoff?: Tod::TimeOfDay
+Petstore::Client::Models::EdgeCases#attribute expires_at?: Time
+Petstore::Client::Models::EdgeCases#attribute favorite_color?: Color
+Petstore::Client::Models::EdgeCases#attribute free_form_any?: Object
+Petstore::Client::Models::EdgeCases#attribute last_error?: Error
+Petstore::Client::Models::EdgeCases#attribute n2fa?: Boolean
+Petstore::Client::Models::EdgeCases#attribute not?: Boolean
+Petstore::Client::Models::EdgeCases#attribute null?: String
+Petstore::Client::Models::EdgeCases#attribute or?: Boolean
+Petstore::Client::Models::EdgeCases#attribute outcome?: Result
+Petstore::Client::Models::EdgeCases#attribute permissions_note?: String
+Petstore::Client::Models::EdgeCases#attribute phase?: EdgeCases::PhaseEnum
+Petstore::Client::Models::EdgeCases#attribute retry_after?: ISO8601::Duration
+Petstore::Client::Models::EdgeCases#attribute return?: String
+Petstore::Client::Models::EdgeCases#attribute separator?: Separator
+Petstore::Client::Models::EdgeCases#attribute slug?: String
+Petstore::Client::Models::EdgeCases#inspect() [doc return: String]
+Petstore::Client::Models::EdgeCases#to_s()
+Petstore::Client::Models::EdgeCases#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: EdgeCases]
+Petstore::Client::Models::EdgeCases::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::EdgeCases::JSON_KEY_MAP = Hash
+Petstore::Client::Models::EdgeCases::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::EdgeCases::OPENAPI_TYPES = Hash
+Petstore::Client::Models::EdgeCases::PhaseEnum.all_vars()
+Petstore::Client::Models::EdgeCases::PhaseEnum.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::EdgeCases::PhaseEnum::IN_STOCK = "In-Stock"
+Petstore::Client::Models::EdgeCases::PhaseEnum::ON_HOLD = "on-hold"
+Petstore::Client::Models::EdgeCases::PhaseEnum::OUT_OF_STOCK = "OUT_OF_STOCK"
+Petstore::Client::Models::EdgeCases::PhaseEnum::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::EdgeCases::PhaseEnum::VALUES = ["In-Stock", "on-hold", "OUT_OF_STOCK"]
+Petstore::Client::Models::EdgeCases::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Employee#attribute department?: Department
+Petstore::Client::Models::Employee#attribute name: String
+Petstore::Client::Models::Employee#inspect() [doc return: String]
+Petstore::Client::Models::Employee#to_s()
+Petstore::Client::Models::Employee#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Employee]
+Petstore::Client::Models::Employee::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Employee::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Employee::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Employee::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Employee::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Error#attribute code?: Integer
+Petstore::Client::Models::Error#attribute message?: String
+Petstore::Client::Models::Error#inspect() [doc return: String]
+Petstore::Client::Models::Error#to_s()
+Petstore::Client::Models::Error#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Error]
+Petstore::Client::Models::Error::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Error::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Error::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Error::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Error::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Freeform#attribute additional_properties?: untyped
+Petstore::Client::Models::Freeform#attribute label?: String
+Petstore::Client::Models::Freeform#inspect() [doc return: String]
+Petstore::Client::Models::Freeform#to_s()
+Petstore::Client::Models::Freeform#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Freeform]
+Petstore::Client::Models::Freeform::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Freeform::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Freeform::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Freeform::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Freeform::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Freeform::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Ledger#attribute entry_id: Integer
+Petstore::Client::Models::Ledger#attribute entry_ids?: Array<Integer>
+Petstore::Client::Models::Ledger#inspect() [doc return: String]
+Petstore::Client::Models::Ledger#to_s()
+Petstore::Client::Models::Ledger#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Ledger]
+Petstore::Client::Models::Ledger::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Ledger::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Ledger::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Ledger::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Ledger::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Medication#attribute dosage?: String
+Petstore::Client::Models::Medication#attribute drug_name: String
+Petstore::Client::Models::Medication#attribute notes?: String
+Petstore::Client::Models::Medication#inspect() [doc return: String]
+Petstore::Client::Models::Medication#to_s()
+Petstore::Client::Models::Medication#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Medication]
+Petstore::Client::Models::Medication::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Medication::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Medication::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Medication::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Medication::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::MemberNotFound#attribute code?: Integer
+Petstore::Client::Models::MemberNotFound#attribute detail?: String
+Petstore::Client::Models::MemberNotFound#inspect() [doc return: String]
+Petstore::Client::Models::MemberNotFound#to_s()
+Petstore::Client::Models::MemberNotFound#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: MemberNotFound]
+Petstore::Client::Models::MemberNotFound::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::MemberNotFound::JSON_KEY_MAP = Hash
+Petstore::Client::Models::MemberNotFound::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::MemberNotFound::OPENAPI_TYPES = Hash
+Petstore::Client::Models::MemberNotFound::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Memo#attribute memo_id: String
+Petstore::Client::Models::Memo#attribute text?: String
+Petstore::Client::Models::Memo#inspect() [doc return: String]
+Petstore::Client::Models::Memo#to_s()
+Petstore::Client::Models::Memo#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Memo]
+Petstore::Client::Models::Memo::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Memo::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Memo::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Memo::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Memo::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Metadata#attribute additional_properties?: untyped
+Petstore::Client::Models::Metadata#attribute created_at?: Time
+Petstore::Client::Models::Metadata#inspect() [doc return: String]
+Petstore::Client::Models::Metadata#to_s()
+Petstore::Client::Models::Metadata#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Metadata]
+Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES_TYPE = "String"
+Petstore::Client::Models::Metadata::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Metadata::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Metadata::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Metadata::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Metadata::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Moments#attribute additional_properties?: untyped
+Petstore::Client::Models::Moments#attribute label?: String
+Petstore::Client::Models::Moments#inspect() [doc return: String]
+Petstore::Client::Models::Moments#to_s()
+Petstore::Client::Models::Moments#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Moments]
+Petstore::Client::Models::Moments::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Moments::ADDITIONAL_PROPERTIES_TYPE = "Time"
+Petstore::Client::Models::Moments::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Moments::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Moments::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Moments::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Moments::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::NativeValues#attribute address4?: IPAddr
+Petstore::Client::Models::NativeValues#attribute address6?: IPAddr
+Petstore::Client::Models::NativeValues#attribute addresses?: Array<IPAddr>
+Petstore::Client::Models::NativeValues#attribute amount?: BigDecimal
+Petstore::Client::Models::NativeValues#attribute contact?: String
+Petstore::Client::Models::NativeValues#attribute homepage?: String
+Petstore::Client::Models::NativeValues#attribute host?: String
+Petstore::Client::Models::NativeValues#attribute ledger?: BigDecimal
+Petstore::Client::Models::NativeValues#attribute since?: Date
+Petstore::Client::Models::NativeValues#attribute wait?: ISO8601::Duration
+Petstore::Client::Models::NativeValues#inspect() [doc return: String]
+Petstore::Client::Models::NativeValues#to_s()
+Petstore::Client::Models::NativeValues#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: NativeValues]
+Petstore::Client::Models::NativeValues::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::NativeValues::JSON_KEY_MAP = Hash
+Petstore::Client::Models::NativeValues::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::NativeValues::OPENAPI_TYPES = Hash
+Petstore::Client::Models::NativeValues::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Order#attribute complete?: Boolean
+Petstore::Client::Models::Order#attribute id?: Integer
+Petstore::Client::Models::Order#attribute pet_id?: Integer
+Petstore::Client::Models::Order#attribute quantity?: Integer
+Petstore::Client::Models::Order#attribute ship_date?: Time
+Petstore::Client::Models::Order#attribute status?: Order::StatusEnum
+Petstore::Client::Models::Order#attribute tracking_id?: String
+Petstore::Client::Models::Order#inspect() [doc return: String]
+Petstore::Client::Models::Order#to_s()
+Petstore::Client::Models::Order#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Order]
+Petstore::Client::Models::Order::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Order::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Order::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Order::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Order::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Order::StatusEnum.all_vars()
+Petstore::Client::Models::Order::StatusEnum.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Order::StatusEnum::APPROVED = "approved"
+Petstore::Client::Models::Order::StatusEnum::DELIVERED = "delivered"
+Petstore::Client::Models::Order::StatusEnum::PLACED = "placed"
+Petstore::Client::Models::Order::StatusEnum::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Order::StatusEnum::VALUES = ["placed", "approved", "delivered"]
+Petstore::Client::Models::Pet#attribute category?: Category
+Petstore::Client::Models::Pet#attribute homepage_url?: String
+Petstore::Client::Models::Pet#attribute id?: Integer
+Petstore::Client::Models::Pet#attribute link_template?: String
+Petstore::Client::Models::Pet#attribute location?: Array<Object>
+Petstore::Client::Models::Pet#attribute name: String
+Petstore::Client::Models::Pet#attribute nickname?: String
+Petstore::Client::Models::Pet#attribute owner_email?: String
+Petstore::Client::Models::Pet#attribute photo_urls: Set<String>
+Petstore::Client::Models::Pet#attribute status?: Pet::StatusEnum
+Petstore::Client::Models::Pet#attribute tags?: Array<Tag>
+Petstore::Client::Models::Pet#attribute thumbnail_ref?: String
+Petstore::Client::Models::Pet#attribute weight_kg?: BigDecimal
+Petstore::Client::Models::Pet#inspect() [doc return: String]
+Petstore::Client::Models::Pet#to_s()
+Petstore::Client::Models::Pet#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Pet]
+Petstore::Client::Models::Pet::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Pet::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Pet::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Pet::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Pet::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Pet::StatusEnum.all_vars()
+Petstore::Client::Models::Pet::StatusEnum.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Pet::StatusEnum::AVAILABLE = "available"
+Petstore::Client::Models::Pet::StatusEnum::PENDING = "pending"
+Petstore::Client::Models::Pet::StatusEnum::SOLD = "sold"
+Petstore::Client::Models::Pet::StatusEnum::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Pet::StatusEnum::VALUES = ["available", "pending", "sold"]
+Petstore::Client::Models::PetAfterPage#attribute data?: Array<Pet>
+Petstore::Client::Models::PetAfterPage#attribute has_more?: Boolean
+Petstore::Client::Models::PetAfterPage#attribute last_id?: String
+Petstore::Client::Models::PetAfterPage#inspect() [doc return: String]
+Petstore::Client::Models::PetAfterPage#to_s()
+Petstore::Client::Models::PetAfterPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetAfterPage]
+Petstore::Client::Models::PetAfterPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetAfterPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetAfterPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetAfterPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetAfterPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetArchivePage#attribute items?: Array<Pet>
+Petstore::Client::Models::PetArchivePage#attribute next_cursor?: String
+Petstore::Client::Models::PetArchivePage#inspect() [doc return: String]
+Petstore::Client::Models::PetArchivePage#to_s()
+Petstore::Client::Models::PetArchivePage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetArchivePage]
+Petstore::Client::Models::PetArchivePage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetArchivePage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetArchivePage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetArchivePage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetArchivePage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetCatalogPage#attribute items?: Array<Pet>
+Petstore::Client::Models::PetCatalogPage#attribute next_cursor?: String
+Petstore::Client::Models::PetCatalogPage#inspect() [doc return: String]
+Petstore::Client::Models::PetCatalogPage#to_s()
+Petstore::Client::Models::PetCatalogPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetCatalogPage]
+Petstore::Client::Models::PetCatalogPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetCatalogPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetCatalogPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetCatalogPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetCatalogPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetCriteria#attribute breed?: String
+Petstore::Client::Models::PetCriteria#attribute min_age?: Integer
+Petstore::Client::Models::PetCriteria#inspect() [doc return: String]
+Petstore::Client::Models::PetCriteria#to_s()
+Petstore::Client::Models::PetCriteria#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetCriteria]
+Petstore::Client::Models::PetCriteria::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetCriteria::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetCriteria::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetCriteria::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetCriteria::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetEventPage#attribute events?: Array<String>
+Petstore::Client::Models::PetEventPage#attribute upto?: String
+Petstore::Client::Models::PetEventPage#inspect() [doc return: String]
+Petstore::Client::Models::PetEventPage#to_s()
+Petstore::Client::Models::PetEventPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetEventPage]
+Petstore::Client::Models::PetEventPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetEventPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetEventPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetEventPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetEventPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetFood.as_dry_food(value) [doc param value: Object; return: DryFood, nil]
+Petstore::Client::Models::PetFood.as_wet_food(value) [doc param value: Object; return: WetFood, nil]
+Petstore::Client::Models::PetFood.build(data) [doc param data: Object; return: Object]
+Petstore::Client::Models::PetFood.dry_food_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::PetFood.from_dry_food(variant) [doc param variant: DryFood; raise: ArgumentError; return: DryFood]
+Petstore::Client::Models::PetFood.from_wet_food(variant) [doc param variant: WetFood; raise: ArgumentError; return: WetFood]
+Petstore::Client::Models::PetFood.openapi_discriminator_mapping()
+Petstore::Client::Models::PetFood.openapi_discriminator_name()
+Petstore::Client::Models::PetFood.openapi_one_of()
+Petstore::Client::Models::PetFood.serialize_oneof(value)
+Petstore::Client::Models::PetFood.wet_food_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::PetMatchPage#attribute next_cursor?: String
+Petstore::Client::Models::PetMatchPage#attribute owners?: Array<String>
+Petstore::Client::Models::PetMatchPage#attribute pets?: Array<Pet>
+Petstore::Client::Models::PetMatchPage#inspect() [doc return: String]
+Petstore::Client::Models::PetMatchPage#to_s()
+Petstore::Client::Models::PetMatchPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetMatchPage]
+Petstore::Client::Models::PetMatchPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetMatchPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetMatchPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetMatchPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetMatchPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetNextUrlPage#attribute items?: Array<Pet>
+Petstore::Client::Models::PetNextUrlPage#attribute next_url?: String
+Petstore::Client::Models::PetNextUrlPage#inspect() [doc return: String]
+Petstore::Client::Models::PetNextUrlPage#to_s()
+Petstore::Client::Models::PetNextUrlPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetNextUrlPage]
+Petstore::Client::Models::PetNextUrlPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetNextUrlPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetNextUrlPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetNextUrlPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetNextUrlPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetNotePage#attribute following?: String
+Petstore::Client::Models::PetNotePage#attribute rows?: Array<String>
+Petstore::Client::Models::PetNotePage#inspect() [doc return: String]
+Petstore::Client::Models::PetNotePage#to_s()
+Petstore::Client::Models::PetNotePage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetNotePage]
+Petstore::Client::Models::PetNotePage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetNotePage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetNotePage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetNotePage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetNotePage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetOffsetPage#attribute has_more?: Boolean
+Petstore::Client::Models::PetOffsetPage#attribute items?: Array<Pet>
+Petstore::Client::Models::PetOffsetPage#inspect() [doc return: String]
+Petstore::Client::Models::PetOffsetPage#to_s()
+Petstore::Client::Models::PetOffsetPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetOffsetPage]
+Petstore::Client::Models::PetOffsetPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetOffsetPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetOffsetPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetOffsetPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetOffsetPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetPageNumberPage#attribute has_more?: Boolean
+Petstore::Client::Models::PetPageNumberPage#attribute items?: Array<Pet>
+Petstore::Client::Models::PetPageNumberPage#inspect() [doc return: String]
+Petstore::Client::Models::PetPageNumberPage#to_s()
+Petstore::Client::Models::PetPageNumberPage#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetPageNumberPage]
+Petstore::Client::Models::PetPageNumberPage::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetPageNumberPage::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetPageNumberPage::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetPageNumberPage::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetPageNumberPage::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetPassport#attribute biometric_chip?: String
+Petstore::Client::Models::PetPassport#attribute issued_at?: Time
+Petstore::Client::Models::PetPassport#attribute pet?: Pet
+Petstore::Client::Models::PetPassport#attribute scans?: Array<String>
+Petstore::Client::Models::PetPassport#attribute thumbnail?: String
+Petstore::Client::Models::PetPassport#inspect() [doc return: String]
+Petstore::Client::Models::PetPassport#to_s()
+Petstore::Client::Models::PetPassport#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetPassport]
+Petstore::Client::Models::PetPassport::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetPassport::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetPassport::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetPassport::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetPassport::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetTreatment.actual_instance(value) [doc param value: Object; return: Object, nil]
+Petstore::Client::Models::PetTreatment.as_medication(value) [doc param value: Object; return: Medication, nil]
+Petstore::Client::Models::PetTreatment.as_surgery(value) [doc param value: Object; return: Surgery, nil]
+Petstore::Client::Models::PetTreatment.build(data) [doc param data: Object; raise: ::Petstore::Client::Errors::SerializationError; return: Object]
+Petstore::Client::Models::PetTreatment.from_medication(variant) [doc param variant: Medication; raise: ArgumentError; return: Medication]
+Petstore::Client::Models::PetTreatment.from_surgery(variant) [doc param variant: Surgery; raise: ArgumentError; return: Surgery]
+Petstore::Client::Models::PetTreatment.matched_instances(value) [doc param value: Object; return: Array<Object>]
+Petstore::Client::Models::PetTreatment.medication_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::PetTreatment.openapi_any_of()
+Petstore::Client::Models::PetTreatment.surgery_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::PetTreatment::Composite#==(other)
+Petstore::Client::Models::PetTreatment::Composite#anyof_matched_instances()
+Petstore::Client::Models::PetTreatment::Composite#eql?(other)
+Petstore::Client::Models::PetTreatment::Composite#hash()
+Petstore::Client::Models::PetTreatment::Composite#method_missing(name, *args, &&)
+Petstore::Client::Models::PetTreatment::Composite.new(instances) [doc param instances: Array<Object>; return: Composite]
+Petstore::Client::Models::PetWithOwner#attribute category?: Category
+Petstore::Client::Models::PetWithOwner#attribute homepage_url?: String
+Petstore::Client::Models::PetWithOwner#attribute id?: Integer
+Petstore::Client::Models::PetWithOwner#attribute link_template?: String
+Petstore::Client::Models::PetWithOwner#attribute location?: Array<Object>
+Petstore::Client::Models::PetWithOwner#attribute name: String
+Petstore::Client::Models::PetWithOwner#attribute nickname?: String
+Petstore::Client::Models::PetWithOwner#attribute owner_email?: String
+Petstore::Client::Models::PetWithOwner#attribute owner_name: String
+Petstore::Client::Models::PetWithOwner#attribute photo_urls: Set<String>
+Petstore::Client::Models::PetWithOwner#attribute status?: PetWithOwner::StatusEnum
+Petstore::Client::Models::PetWithOwner#attribute tags?: Array<Tag>
+Petstore::Client::Models::PetWithOwner#attribute thumbnail_ref?: String
+Petstore::Client::Models::PetWithOwner#attribute weight_kg?: BigDecimal
+Petstore::Client::Models::PetWithOwner#inspect() [doc return: String]
+Petstore::Client::Models::PetWithOwner#to_s()
+Petstore::Client::Models::PetWithOwner#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PetWithOwner]
+Petstore::Client::Models::PetWithOwner::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PetWithOwner::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PetWithOwner::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PetWithOwner::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PetWithOwner::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PetWithOwner::StatusEnum.all_vars()
+Petstore::Client::Models::PetWithOwner::StatusEnum.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::PetWithOwner::StatusEnum::AVAILABLE = "available"
+Petstore::Client::Models::PetWithOwner::StatusEnum::PENDING = "pending"
+Petstore::Client::Models::PetWithOwner::StatusEnum::SOLD = "sold"
+Petstore::Client::Models::PetWithOwner::StatusEnum::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::PetWithOwner::StatusEnum::VALUES = ["available", "pending", "sold"]
+Petstore::Client::Models::Photo#attribute caption?: String
+Petstore::Client::Models::Photo#attribute id?: Integer
+Petstore::Client::Models::Photo#attribute is_primary?: Boolean
+Petstore::Client::Models::Photo#attribute url?: String
+Petstore::Client::Models::Photo#inspect() [doc return: String]
+Petstore::Client::Models::Photo#to_s()
+Petstore::Client::Models::Photo#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Photo]
+Petstore::Client::Models::Photo::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Photo::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Photo::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Photo::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Photo::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PhotoMetadata#attribute caption?: String
+Petstore::Client::Models::PhotoMetadata#attribute is_primary?: Boolean
+Petstore::Client::Models::PhotoMetadata#attribute location?: PhotoMetadataLocation
+Petstore::Client::Models::PhotoMetadata#attribute taken_at?: Time
+Petstore::Client::Models::PhotoMetadata#inspect() [doc return: String]
+Petstore::Client::Models::PhotoMetadata#to_s()
+Petstore::Client::Models::PhotoMetadata#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PhotoMetadata]
+Petstore::Client::Models::PhotoMetadata::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PhotoMetadata::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PhotoMetadata::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PhotoMetadata::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PhotoMetadata::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::PhotoMetadataLocation#attribute lat?: Float
+Petstore::Client::Models::PhotoMetadataLocation#attribute lng?: Float
+Petstore::Client::Models::PhotoMetadataLocation#inspect() [doc return: String]
+Petstore::Client::Models::PhotoMetadataLocation#to_s()
+Petstore::Client::Models::PhotoMetadataLocation#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: PhotoMetadataLocation]
+Petstore::Client::Models::PhotoMetadataLocation::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::PhotoMetadataLocation::JSON_KEY_MAP = Hash
+Petstore::Client::Models::PhotoMetadataLocation::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::PhotoMetadataLocation::OPENAPI_TYPES = Hash
+Petstore::Client::Models::PhotoMetadataLocation::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Priority.all_vars()
+Petstore::Client::Models::Priority.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Priority::NUMBER_1 = 1
+Petstore::Client::Models::Priority::NUMBER_2 = 2
+Petstore::Client::Models::Priority::NUMBER_3 = 3
+Petstore::Client::Models::Priority::UNKNOWN_DEFAULT_OPEN_API = -9223372036854775808
+Petstore::Client::Models::Priority::VALUES = [1, 2, 3]
+Petstore::Client::Models::ProjectNotFound#attribute code?: Integer
+Petstore::Client::Models::ProjectNotFound#attribute message?: String
+Petstore::Client::Models::ProjectNotFound#inspect() [doc return: String]
+Petstore::Client::Models::ProjectNotFound#to_s()
+Petstore::Client::Models::ProjectNotFound#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: ProjectNotFound]
+Petstore::Client::Models::ProjectNotFound::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::ProjectNotFound::JSON_KEY_MAP = Hash
+Petstore::Client::Models::ProjectNotFound::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::ProjectNotFound::OPENAPI_TYPES = Hash
+Petstore::Client::Models::ProjectNotFound::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Rank.all_vars()
+Petstore::Client::Models::Rank.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Rank::HIGH = 3
+Petstore::Client::Models::Rank::LOW = 1
+Petstore::Client::Models::Rank::MEDIUM = 2
+Petstore::Client::Models::Rank::UNKNOWN_DEFAULT_OPEN_API = -9223372036854775808
+Petstore::Client::Models::Rank::VALUES = [1, 2, 3]
+Petstore::Client::Models::RejectedRequest#attribute code?: Integer
+Petstore::Client::Models::RejectedRequest#attribute message?: String
+Petstore::Client::Models::RejectedRequest#inspect() [doc return: String]
+Petstore::Client::Models::RejectedRequest#to_s()
+Petstore::Client::Models::RejectedRequest#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: RejectedRequest]
+Petstore::Client::Models::RejectedRequest::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::RejectedRequest::JSON_KEY_MAP = Hash
+Petstore::Client::Models::RejectedRequest::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::RejectedRequest::OPENAPI_TYPES = Hash
+Petstore::Client::Models::RejectedRequest::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::RequiredNullable#attribute note: String
+Petstore::Client::Models::RequiredNullable#inspect() [doc return: String]
+Petstore::Client::Models::RequiredNullable#to_s()
+Petstore::Client::Models::RequiredNullable#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: RequiredNullable]
+Petstore::Client::Models::RequiredNullable::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::RequiredNullable::JSON_KEY_MAP = Hash
+Petstore::Client::Models::RequiredNullable::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::RequiredNullable::OPENAPI_TYPES = Hash
+Petstore::Client::Models::RequiredNullable::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Reservation#attribute quantity: Integer
+Petstore::Client::Models::Reservation#attribute reservation_id: Integer
+Petstore::Client::Models::Reservation#inspect() [doc return: String]
+Petstore::Client::Models::Reservation#to_s()
+Petstore::Client::Models::Reservation#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Reservation]
+Petstore::Client::Models::Reservation::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Reservation::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Reservation::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Reservation::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Reservation::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::ReservationReceipt#attribute expires_at: Time
+Petstore::Client::Models::ReservationReceipt#attribute receipt_code: String
+Petstore::Client::Models::ReservationReceipt#inspect() [doc return: String]
+Petstore::Client::Models::ReservationReceipt#to_s()
+Petstore::Client::Models::ReservationReceipt#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: ReservationReceipt]
+Petstore::Client::Models::ReservationReceipt::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::ReservationReceipt::JSON_KEY_MAP = Hash
+Petstore::Client::Models::ReservationReceipt::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::ReservationReceipt::OPENAPI_TYPES = Hash
+Petstore::Client::Models::ReservationReceipt::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::ReserveStockResponse.as_reservation(value) [doc param value: Object; return: Reservation, nil]
+Petstore::Client::Models::ReserveStockResponse.as_reservation_receipt(value) [doc param value: Object; return: ReservationReceipt, nil]
+Petstore::Client::Models::ReserveStockResponse.build(data) [doc param data: Object; raise: ::Petstore::Client::Errors::SerializationError; return: Object]
+Petstore::Client::Models::ReserveStockResponse.from_reservation(variant) [doc param variant: Reservation; raise: ArgumentError; return: Reservation]
+Petstore::Client::Models::ReserveStockResponse.from_reservation_receipt(variant) [doc param variant: ReservationReceipt; raise: ArgumentError; return: ReservationReceipt]
+Petstore::Client::Models::ReserveStockResponse.openapi_one_of()
+Petstore::Client::Models::ReserveStockResponse.reservation_receipt_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::ReserveStockResponse.reservation_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::ReserveStockResponse.serialize_oneof(value)
+Petstore::Client::Models::Result#attribute ok?: Boolean
+Petstore::Client::Models::Result#inspect() [doc return: String]
+Petstore::Client::Models::Result#to_s()
+Petstore::Client::Models::Result#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Result]
+Petstore::Client::Models::Result::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Result::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Result::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Result::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Result::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Roster#attribute additional_properties?: untyped
+Petstore::Client::Models::Roster#attribute label?: String
+Petstore::Client::Models::Roster#inspect() [doc return: String]
+Petstore::Client::Models::Roster#to_s()
+Petstore::Client::Models::Roster#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Roster]
+Petstore::Client::Models::Roster::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Roster::ADDITIONAL_PROPERTIES_TYPE = "Category"
+Petstore::Client::Models::Roster::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Roster::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Roster::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Roster::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Roster::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Separator.all_vars()
+Petstore::Client::Models::Separator.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Separator::A_B = "a-b"
+Petstore::Client::Models::Separator::A_B_2 = "a_b"
+Petstore::Client::Models::Separator::SPACE_1 = " "
+Petstore::Client::Models::Separator::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Separator::VALUES = [" ", "@@", "a-b", "a_b"]
+Petstore::Client::Models::Separator::VALUE_0040_0040 = "@@"
+Petstore::Client::Models::SetPetAvatarRequest#attribute data: String
+Petstore::Client::Models::SetPetAvatarRequest#attribute mime_type: String
+Petstore::Client::Models::SetPetAvatarRequest#inspect() [doc return: String]
+Petstore::Client::Models::SetPetAvatarRequest#to_s()
+Petstore::Client::Models::SetPetAvatarRequest#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: SetPetAvatarRequest]
+Petstore::Client::Models::SetPetAvatarRequest::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::SetPetAvatarRequest::JSON_KEY_MAP = Hash
+Petstore::Client::Models::SetPetAvatarRequest::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::SetPetAvatarRequest::OPENAPI_TYPES = Hash
+Petstore::Client::Models::SetPetAvatarRequest::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::SetPetAvatarThumbnailRequest.build(data) [doc param data: Object; raise: ::Petstore::Client::Errors::SerializationError; return: Object]
+Petstore::Client::Models::SetPetAvatarThumbnailRequest.openapi_one_of()
+Petstore::Client::Models::SetPetAvatarThumbnailRequest.serialize_oneof(value)
+Petstore::Client::Models::Shape#attribute label?: String
+Petstore::Client::Models::Shape#attribute shape_type: String
+Petstore::Client::Models::Shape#inspect() [doc return: String]
+Petstore::Client::Models::Shape#to_s()
+Petstore::Client::Models::Shape#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Shape]
+Petstore::Client::Models::Shape.build_subtype(data) [doc param data: Object; raise: Errors::SerializationError; return: Shape]
+Petstore::Client::Models::Shape::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Shape::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Shape::OPENAPI_DISCRIMINATOR_MAPPING = Hash
+Petstore::Client::Models::Shape::OPENAPI_DISCRIMINATOR_NAME = "shapeType"
+Petstore::Client::Models::Shape::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Shape::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Shape::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Sparse#attribute additional_properties?: untyped
+Petstore::Client::Models::Sparse#attribute label?: String
+Petstore::Client::Models::Sparse#inspect() [doc return: String]
+Petstore::Client::Models::Sparse#to_s()
+Petstore::Client::Models::Sparse#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Sparse]
+Petstore::Client::Models::Sparse::ADDITIONAL_PROPERTIES = true
+Petstore::Client::Models::Sparse::ADDITIONAL_PROPERTIES_NULLABLE = true
+Petstore::Client::Models::Sparse::ADDITIONAL_PROPERTIES_TYPE = "String"
+Petstore::Client::Models::Sparse::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Sparse::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Sparse::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Sparse::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Sparse::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Square#attribute label?: String
+Petstore::Client::Models::Square#attribute shape_type: String
+Petstore::Client::Models::Square#attribute side: Float
+Petstore::Client::Models::Square#inspect() [doc return: String]
+Petstore::Client::Models::Square#to_s()
+Petstore::Client::Models::Square#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Square]
+Petstore::Client::Models::Square::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Square::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Square::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Square::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Square::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Stage.all_vars()
+Petstore::Client::Models::Stage.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Stage::ACTIVE = "active"
+Petstore::Client::Models::Stage::ACTIVE2 = "live"
+Petstore::Client::Models::Stage::ON_HOLD = "paused"
+Petstore::Client::Models::Stage::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Stage::VALUES = ["paused", "active", "live"]
+Petstore::Client::Models::StateConflict#attribute code?: Integer
+Petstore::Client::Models::StateConflict#attribute message?: String
+Petstore::Client::Models::StateConflict#inspect() [doc return: String]
+Petstore::Client::Models::StateConflict#to_s()
+Petstore::Client::Models::StateConflict#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: StateConflict]
+Petstore::Client::Models::StateConflict::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::StateConflict::JSON_KEY_MAP = Hash
+Petstore::Client::Models::StateConflict::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::StateConflict::OPENAPI_TYPES = Hash
+Petstore::Client::Models::StateConflict::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::StockItem#attribute availability?: Availability
+Petstore::Client::Models::StockItem#attribute matrix?: Array<Array<Integer>>
+Petstore::Client::Models::StockItem#attribute priority: Priority
+Petstore::Client::Models::StockItem#inspect() [doc return: String]
+Petstore::Client::Models::StockItem#to_s()
+Petstore::Client::Models::StockItem#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: StockItem]
+Petstore::Client::Models::StockItem::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::StockItem::JSON_KEY_MAP = Hash
+Petstore::Client::Models::StockItem::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::StockItem::OPENAPI_TYPES = Hash
+Petstore::Client::Models::StockItem::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::StrictTag#attribute id?: Integer
+Petstore::Client::Models::StrictTag#attribute name?: String
+Petstore::Client::Models::StrictTag#inspect() [doc return: String]
+Petstore::Client::Models::StrictTag#to_s()
+Petstore::Client::Models::StrictTag#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: StrictTag]
+Petstore::Client::Models::StrictTag::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::StrictTag::JSON_KEY_MAP = Hash
+Petstore::Client::Models::StrictTag::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::StrictTag::OPENAPI_TYPES = Hash
+Petstore::Client::Models::StrictTag::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Subscription#attribute interval?: Subscription::IntervalEnum
+Petstore::Client::Models::Subscription#attribute rank: Rank
+Petstore::Client::Models::Subscription#attribute stage?: Stage
+Petstore::Client::Models::Subscription#attribute tier?: Tier
+Petstore::Client::Models::Subscription#inspect() [doc return: String]
+Petstore::Client::Models::Subscription#to_s()
+Petstore::Client::Models::Subscription#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Subscription]
+Petstore::Client::Models::Subscription::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Subscription::IntervalEnum.all_vars()
+Petstore::Client::Models::Subscription::IntervalEnum.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Subscription::IntervalEnum::MONTHLY = "month"
+Petstore::Client::Models::Subscription::IntervalEnum::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Subscription::IntervalEnum::VALUES = ["month", "year"]
+Petstore::Client::Models::Subscription::IntervalEnum::YEARLY = "year"
+Petstore::Client::Models::Subscription::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Subscription::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Subscription::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Subscription::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Surgery#attribute duration_minutes?: Integer
+Petstore::Client::Models::Surgery#attribute notes?: String
+Petstore::Client::Models::Surgery#attribute procedure_name: String
+Petstore::Client::Models::Surgery#inspect() [doc return: String]
+Petstore::Client::Models::Surgery#to_s()
+Petstore::Client::Models::Surgery#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Surgery]
+Petstore::Client::Models::Surgery::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Surgery::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Surgery::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Surgery::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Surgery::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Swatch.all_vars()
+Petstore::Client::Models::Swatch.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Swatch::BLUE = "blue"
+Petstore::Client::Models::Swatch::GREEN = "green"
+Petstore::Client::Models::Swatch::RED = "red"
+Petstore::Client::Models::Swatch::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Swatch::VALUES = ["red", "green", "blue"]
+Petstore::Client::Models::Tag#attribute id?: Integer
+Petstore::Client::Models::Tag#attribute name?: String
+Petstore::Client::Models::Tag#inspect() [doc return: String]
+Petstore::Client::Models::Tag#to_s()
+Petstore::Client::Models::Tag#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Tag]
+Petstore::Client::Models::Tag::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Tag::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Tag::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Tag::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Tag::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Tier.all_vars()
+Petstore::Client::Models::Tier.validate!(value) [doc param value: Object; raise: ArgumentError; return: Object]
+Petstore::Client::Models::Tier::LARGE = "l"
+Petstore::Client::Models::Tier::MEDIUM = "m"
+Petstore::Client::Models::Tier::SMALL = "s"
+Petstore::Client::Models::Tier::UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
+Petstore::Client::Models::Tier::VALUES = ["s", "m", "l"]
+Petstore::Client::Models::TreatmentRecord.actual_instance(value) [doc param value: Object; return: Object, nil]
+Petstore::Client::Models::TreatmentRecord.as_medication(value) [doc param value: Object; return: Medication, nil]
+Petstore::Client::Models::TreatmentRecord.as_surgery(value) [doc param value: Object; return: Surgery, nil]
+Petstore::Client::Models::TreatmentRecord.build(data) [doc param data: Object; raise: ::Petstore::Client::Errors::SerializationError; return: Object]
+Petstore::Client::Models::TreatmentRecord.from_medication(variant) [doc param variant: Medication; raise: ArgumentError; return: Medication]
+Petstore::Client::Models::TreatmentRecord.from_surgery(variant) [doc param variant: Surgery; raise: ArgumentError; return: Surgery]
+Petstore::Client::Models::TreatmentRecord.matched_instances(value) [doc param value: Object; return: Array<Object>]
+Petstore::Client::Models::TreatmentRecord.medication_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::TreatmentRecord.openapi_any_of()
+Petstore::Client::Models::TreatmentRecord.surgery_variant?(value) [doc param value: Object; return: Boolean]
+Petstore::Client::Models::TreatmentRecord::Composite#==(other)
+Petstore::Client::Models::TreatmentRecord::Composite#anyof_matched_instances()
+Petstore::Client::Models::TreatmentRecord::Composite#eql?(other)
+Petstore::Client::Models::TreatmentRecord::Composite#hash()
+Petstore::Client::Models::TreatmentRecord::Composite#method_missing(name, *args, &&)
+Petstore::Client::Models::TreatmentRecord::Composite.new(instances) [doc param instances: Array<Object>; return: Composite]
+Petstore::Client::Models::TreeNode#attribute child?: TreeNode
+Petstore::Client::Models::TreeNode#attribute value: String
+Petstore::Client::Models::TreeNode#inspect() [doc return: String]
+Petstore::Client::Models::TreeNode#to_s()
+Petstore::Client::Models::TreeNode#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: TreeNode]
+Petstore::Client::Models::TreeNode::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::TreeNode::JSON_KEY_MAP = Hash
+Petstore::Client::Models::TreeNode::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::TreeNode::OPENAPI_TYPES = Hash
+Petstore::Client::Models::TreeNode::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Truck#attribute payload_kg?: Integer
+Petstore::Client::Models::Truck#attribute plate: String
+Petstore::Client::Models::Truck#attribute vehicle_type: String
+Petstore::Client::Models::Truck#inspect() [doc return: String]
+Petstore::Client::Models::Truck#to_s()
+Petstore::Client::Models::Truck#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Truck]
+Petstore::Client::Models::Truck::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Truck::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Truck::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Truck::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Truck::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::UnexpectedFailure#attribute code?: Integer
+Petstore::Client::Models::UnexpectedFailure#attribute message?: String
+Petstore::Client::Models::UnexpectedFailure#inspect() [doc return: String]
+Petstore::Client::Models::UnexpectedFailure#to_s()
+Petstore::Client::Models::UnexpectedFailure#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: UnexpectedFailure]
+Petstore::Client::Models::UnexpectedFailure::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::UnexpectedFailure::JSON_KEY_MAP = Hash
+Petstore::Client::Models::UnexpectedFailure::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::UnexpectedFailure::OPENAPI_TYPES = Hash
+Petstore::Client::Models::UnexpectedFailure::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::UpstreamFailure#attribute code?: Integer
+Petstore::Client::Models::UpstreamFailure#attribute message?: String
+Petstore::Client::Models::UpstreamFailure#inspect() [doc return: String]
+Petstore::Client::Models::UpstreamFailure#to_s()
+Petstore::Client::Models::UpstreamFailure#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: UpstreamFailure]
+Petstore::Client::Models::UpstreamFailure::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::UpstreamFailure::JSON_KEY_MAP = Hash
+Petstore::Client::Models::UpstreamFailure::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::UpstreamFailure::OPENAPI_TYPES = Hash
+Petstore::Client::Models::UpstreamFailure::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::Vehicle#attribute plate: String
+Petstore::Client::Models::Vehicle#attribute vehicle_type: String
+Petstore::Client::Models::Vehicle#inspect() [doc return: String]
+Petstore::Client::Models::Vehicle#to_s()
+Petstore::Client::Models::Vehicle#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: Vehicle]
+Petstore::Client::Models::Vehicle.build_subtype(data) [doc param data: Object; raise: Errors::SerializationError; return: Vehicle]
+Petstore::Client::Models::Vehicle::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::Vehicle::JSON_KEY_MAP = Hash
+Petstore::Client::Models::Vehicle::OPENAPI_DISCRIMINATOR_MAPPING = Hash
+Petstore::Client::Models::Vehicle::OPENAPI_DISCRIMINATOR_NAME = "vehicleType"
+Petstore::Client::Models::Vehicle::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::Vehicle::OPENAPI_TYPES = Hash
+Petstore::Client::Models::Vehicle::REQUIRED_NULLABLE = Hash
+Petstore::Client::Models::WetFood#attribute food_type: String
+Petstore::Client::Models::WetFood#attribute volume_ml: Integer
+Petstore::Client::Models::WetFood#inspect() [doc return: String]
+Petstore::Client::Models::WetFood#to_s()
+Petstore::Client::Models::WetFood#with(**changes) [doc param changes: Hash{Symbol => Object}; raise: ArgumentError; return: WetFood]
+Petstore::Client::Models::WetFood::ATTRIBUTE_MAP = Hash
+Petstore::Client::Models::WetFood::JSON_KEY_MAP = Hash
+Petstore::Client::Models::WetFood::OPENAPI_FORMATS = Hash
+Petstore::Client::Models::WetFood::OPENAPI_TYPES = Hash
+Petstore::Client::Models::WetFood::REQUIRED_NULLABLE = Hash
+Petstore::Client::Page#items() [doc return: Array]
+Petstore::Client::Page#next_cursor() [doc return: Object, nil]
+Petstore::Client::Page#result() [doc return: ApiResult]
+Petstore::Client::Page.new(items:, next_cursor:, result:) [doc param items: Array; param next_cursor: Object, nil; param result: ApiResult; return: Page]
+Petstore::Client::Paginator#each(&block) [doc return: Paginator, Enumerator; yieldparam item: Object]
+Petstore::Client::Paginator#items() [doc return: Enumerator]
+Petstore::Client::Paginator#pages() [doc return: Enumerator<Page>]
+Petstore::Client::Paginator.of_cursor(start:, fetch:, items:, next_cursor:, request_path:, has_more: ?) [doc param start: Object, nil; param fetch: #call; param items: #call; param next_cursor: #call; param request_path: String; param has_more: #call, nil; return: Paginator]
+Petstore::Client::Paginator.of_link(base_url:, fetch:, items:, request_path:) [doc param base_url: String; param fetch: #call; param items: #call; param request_path: String; return: Paginator]
+Petstore::Client::Paginator.of_next_url(base_url:, fetch:, items:, next_url:, request_path:) [doc param base_url: String; param fetch: #call; param items: #call; param next_url: #call; param request_path: String; return: Paginator]
+Petstore::Client::Paginator.of_offset(start:, fetch:, items:, request_path:, has_more: ?) [doc param start: Integer, nil; param fetch: #call; param items: #call; param request_path: String; param has_more: #call, nil; return: Paginator]
+Petstore::Client::Paginator.of_page(start:, fetch:, items:, request_path:, has_more: ?) [doc param start: Integer, nil; param fetch: #call; param items: #call; param request_path: String; param has_more: #call, nil; return: Paginator]
+Petstore::Client::Petstore#close() [doc return: void]
+Petstore::Client::Petstore#pet() [doc return: ::Petstore::Client::Api::PetApi]
+Petstore::Client::Petstore#problems() [doc return: ::Petstore::Client::Api::ProblemsApi]
+Petstore::Client::Petstore#store() [doc return: ::Petstore::Client::Api::StoreApi]
+Petstore::Client::Petstore.new(authenticator = ?, transport_options = ?, pet_store_basic: ?, admin_basic: ?, pet_store_bearer: ?, service_token: ?, api_key_header: ?, internal_api_key: ?, api_key_query: ?, session_cookie: ?, machine_auth: ?, legacy_auth: ?, user_auth: ?, browser_auth: ?, sso_auth: ?, call_hook: ?) [doc param authenticator: Auth::Authenticator, nil; param transport_options: TransportOptions, nil; param pet_store_basic: Auth::Authenticator, nil; param admin_basic: Auth::Authenticator, nil; param pet_store_bearer: Auth::Authenticator, nil; param service_token: Auth::Authenticator, nil; param api_key_header: Auth::Authenticator, nil; param internal_api_key: Auth::Authenticator, nil; param api_key_query: Auth::Authenticator, nil; param session_cookie: Auth::Authenticator, nil; param machine_auth: Auth::Authenticator, nil; param legacy_auth: Auth::Authenticator, nil; param user_auth: Auth::Authenticator, nil; param browser_auth: Auth::Authenticator, nil; param sso_auth: Auth::Authenticator, nil; param call_hook: #start, nil; raise: ArgumentError; return: Petstore]
+Petstore::Client::Petstore.with_authenticator(authenticator, transport_options = ?, call_hook: ?) [doc param authenticator: Auth::Authenticator; param transport_options: TransportOptions, nil; param call_hook: #start, nil; return: Petstore]
+Petstore::Client::Petstore.with_token(host, access_token = ?, transport_options = ?, token_provider: ?, call_hook: ?) [doc param host: String; param access_token: String, nil; param transport_options: TransportOptions, nil; param token_provider: #call, nil; param call_hook: #start, nil; return: Petstore]
+Petstore::Client::ServerConfiguration#description() [doc return: String, nil]
+Petstore::Client::ServerConfiguration#url(overrides = ?) [doc param overrides: Hash{String => String}; raise: ArgumentError; return: String]
+Petstore::Client::ServerConfiguration#url_template() [doc return: String]
+Petstore::Client::ServerConfiguration#variables() [doc return: Hash{String => ServerVariable}]
+Petstore::Client::ServerConfiguration.new(url_template:, description: ?, variables: ?) [doc param url_template: String; param description: String, nil; param variables: Hash{String => ServerVariable}; return: ServerConfiguration]
+Petstore::Client::ServerSentEvent#data() [doc return: Object, nil]
+Petstore::Client::ServerSentEvent#event() [doc return: String]
+Petstore::Client::ServerSentEvent#id() [doc return: String, nil]
+Petstore::Client::ServerSentEvent#inspect() [doc return: String]
+Petstore::Client::ServerSentEvent#raw() [doc return: String]
+Petstore::Client::ServerSentEvent#retry() [doc return: Integer, nil]
+Petstore::Client::ServerSentEvent#to_s() [doc return: String]
+Petstore::Client::ServerSentEvent.[](*)
+Petstore::Client::ServerSentEvent.inspect()
+Petstore::Client::ServerSentEvent.members()
+Petstore::Client::ServerSentEvent.new(*)
+Petstore::Client::ServerVariable#==(other) [doc param other: Object; return: Boolean]
+Petstore::Client::ServerVariable#default_value() [doc return: String]
+Petstore::Client::ServerVariable#description() [doc return: String, nil]
+Petstore::Client::ServerVariable#enum_values() [doc return: Array<String>]
+Petstore::Client::ServerVariable#eql?(other) [doc param other: Object; return: Boolean]
+Petstore::Client::ServerVariable#hash() [doc return: Integer]
+Petstore::Client::ServerVariable.new(default_value:, description: ?, enum_values: ?) [doc param default_value: String; param description: String, nil; param enum_values: Array<String>; return: ServerVariable]
+Petstore::Client::Servers::ALL = Array
+Petstore::Client::Servers::SERVER_0 = Petstore::Client::ServerConfiguration
+Petstore::Client::Servers::SERVER_1 = Petstore::Client::ServerConfiguration
+Petstore::Client::Servers::SERVER_2 = Petstore::Client::ServerConfiguration
+Petstore::Client::SseStream#close() [doc return: void]
+Petstore::Client::SseStream#each() [doc raise: Errors::SerializationError; raise: Errors::ApiError; raise: Errors::NetworkError; return: Enumerator, self; yieldparam event: ServerSentEvent]
+Petstore::Client::SseStream#headers() [doc return: Hash{String => String}]
+Petstore::Client::SseStream#inspect() [doc return: String]
+Petstore::Client::SseStream#status_code() [doc return: Integer]
+Petstore::Client::SseStream#to_s() [doc return: String]
+Petstore::Client::SseStream.open(opener:, decoder:, terminator:, options:, has_body:, method:, path:, single_use_body: ?) [doc param opener: #call; param decoder: #call, nil; param terminator: String, nil; param options: StreamOptions, nil; param has_body: Boolean; param single_use_body: Boolean; param method: String; param path: String; return: SseStream]
+Petstore::Client::SseStream.reconnect_wait_ms(attempt, base, server_retry, retry_after, jitter_sample) [doc param attempt: Integer; param base: Integer; param server_retry: Integer, nil; param retry_after: Integer, nil; param jitter_sample: Float; return: Integer]
+Petstore::Client::SseStream::MAX_RECONNECT_DELAY_MS = 30000
+Petstore::Client::SseStream::RECONNECTABLE_STATUSES = [408, 429, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599]
+Petstore::Client::SseStream::RETRY_AFTER_CAP_MS = 60000
+Petstore::Client::StreamOptions#idle_timeout() [doc return: Integer, nil]
+Petstore::Client::StreamOptions#inspect() [doc return: String]
+Petstore::Client::StreamOptions#last_event_id() [doc return: String, nil]
+Petstore::Client::StreamOptions#max_event_bytes() [doc return: Integer, nil]
+Petstore::Client::StreamOptions#max_reconnects() [doc return: Integer, nil]
+Petstore::Client::StreamOptions#reconnect_delay() [doc return: Integer, nil]
+Petstore::Client::StreamOptions#to_s() [doc return: String]
+Petstore::Client::StreamOptions.new(idle_timeout: ?, max_reconnects: ?, reconnect_delay: ?, last_event_id: ?, max_event_bytes: ?) [doc param idle_timeout: Integer, nil; param max_reconnects: Integer, nil; param reconnect_delay: Integer, nil; param last_event_id: String, nil; param max_event_bytes: Integer, nil; raise: ArgumentError; return: StreamOptions]
+Petstore::Client::TraceContextUtil.inject_trace_context(headers) [doc param headers: Hash<String, String>]
+Petstore::Client::TransportOptions#ca_cert_path() [doc return: String, nil]
+Petstore::Client::TransportOptions#connection() [doc return: Faraday::Connection, nil]
+Petstore::Client::TransportOptions#default_headers() [doc return: Hash{String => String}]
+Petstore::Client::TransportOptions#follow_redirects() [doc return: Boolean]
+Petstore::Client::TransportOptions#idle_timeout() [doc return: Integer, nil]
+Petstore::Client::TransportOptions#inject_request_id() [doc return: Boolean]
+Petstore::Client::TransportOptions#inspect() [doc return: String]
+Petstore::Client::TransportOptions#max_redirects() [doc return: Integer, nil]
+Petstore::Client::TransportOptions#max_response_bytes() [doc return: Integer, nil]
+Petstore::Client::TransportOptions#max_retries() [doc return: Integer]
+Petstore::Client::TransportOptions#proxy() [doc return: String, nil]
+Petstore::Client::TransportOptions#timeout() [doc return: Integer, nil]
+Petstore::Client::TransportOptions#to_s() [doc return: String]
+Petstore::Client::TransportOptions#user_agent() [doc return: String, nil]
+Petstore::Client::TransportOptions#verify_ssl() [doc return: Boolean]
+Petstore::Client::TransportOptions.builder() [doc return: Builder]
+Petstore::Client::TransportOptions::Builder#build() [doc return: TransportOptions]
+Petstore::Client::TransportOptions::Builder#ca_cert_path(val) [doc param val: String, nil; return: self]
+Petstore::Client::TransportOptions::Builder#connection(val) [doc param val: Faraday::Connection, nil; return: self]
+Petstore::Client::TransportOptions::Builder#default_header(name, value) [doc param name: String; param value: String; return: self]
+Petstore::Client::TransportOptions::Builder#default_headers(headers) [doc param headers: Hash{String => String}; return: self]
+Petstore::Client::TransportOptions::Builder#follow_redirects(val) [doc param val: Boolean; return: self]
+Petstore::Client::TransportOptions::Builder#idle_timeout(val) [doc param val: Numeric, nil; raise: ArgumentError; return: self]
+Petstore::Client::TransportOptions::Builder#inject_request_id(val) [doc param val: Boolean; return: self]
+Petstore::Client::TransportOptions::Builder#max_redirects(val) [doc param val: Integer, nil; return: self]
+Petstore::Client::TransportOptions::Builder#max_response_bytes(val) [doc param val: Integer, nil; raise: ArgumentError; return: self]
+Petstore::Client::TransportOptions::Builder#max_retries(val) [doc param val: Integer; raise: ArgumentError; return: self]
+Petstore::Client::TransportOptions::Builder#proxy(val) [doc param val: String, nil; raise: ArgumentError; return: self]
+Petstore::Client::TransportOptions::Builder#timeout(val) [doc param val: Numeric, nil; raise: ArgumentError; return: self]
+Petstore::Client::TransportOptions::Builder#user_agent(val) [doc param val: String, nil; return: self]
+Petstore::Client::TransportOptions::Builder#verify_ssl(val) [doc param val: Boolean; return: self]
+Petstore::Client::TransportOptions::Builder.new() [doc return: Builder]
+Petstore::Client::Types::Builder = Dry::Types::Module Petstore::Client::Types::Builder
+Petstore::Client::Types::Required = Dry::Types::Constructor
+Petstore::Client::VERSION = "1.0.0"
+class Petstore::Client::Api::BaseApi
+class Petstore::Client::Api::GetExternalPetInfoServer
+class Petstore::Client::Api::GetExternalPetInfoServerServer0 < Petstore::Client::Api::GetExternalPetInfoServer
+class Petstore::Client::Api::GetMemoServer
+class Petstore::Client::Api::GetMemoServerMemos < Petstore::Client::Api::GetMemoServer
+class Petstore::Client::Api::GetMultiServerPetInfoServer
+class Petstore::Client::Api::GetMultiServerPetInfoServerMirror < Petstore::Client::Api::GetMultiServerPetInfoServer
+class Petstore::Client::Api::GetMultiServerPetInfoServerPrimary < Petstore::Client::Api::GetMultiServerPetInfoServer
+class Petstore::Client::Api::GetMultiServerPetInfoServerRegional < Petstore::Client::Api::GetMultiServerPetInfoServer
+class Petstore::Client::Api::GetPetByIdServer
+class Petstore::Client::Api::GetPetByIdServerCDNBackedReadEndpointForPetDetails < Petstore::Client::Api::GetPetByIdServer
+class Petstore::Client::Api::GetStagingPetInfoServer
+class Petstore::Client::Api::GetStagingPetInfoServerStagingServer < Petstore::Client::Api::GetStagingPetInfoServer
+class Petstore::Client::Api::Options::AddPetOptions
+class Petstore::Client::Api::Options::AddPetPhotosOptions
+class Petstore::Client::Api::Options::AddPetTreatmentOptions
+class Petstore::Client::Api::Options::AttachPetFilesOptions
+class Petstore::Client::Api::Options::CreateAccountOptions
+class Petstore::Client::Api::Options::DeleteOrderOptions
+class Petstore::Client::Api::Options::DeletePetOptions
+class Petstore::Client::Api::Options::DownloadPetDocumentOptions
+class Petstore::Client::Api::Options::ExportOrdersOptions
+class Petstore::Client::Api::Options::FindPetsBornOnOptions
+class Petstore::Client::Api::Options::FindPetsByStatusOptions
+class Petstore::Client::Api::Options::GetAuditTrailOptions
+class Petstore::Client::Api::Options::GetBySwatchOptions
+class Petstore::Client::Api::Options::GetDefaultsOptions
+class Petstore::Client::Api::Options::GetDepartmentOptions
+class Petstore::Client::Api::Options::GetExternalPetInfoOptions
+class Petstore::Client::Api::Options::GetFallbackOptions
+class Petstore::Client::Api::Options::GetGroupedCategoriesOptions
+class Petstore::Client::Api::Options::GetInventoryOptions
+class Petstore::Client::Api::Options::GetMatrixOptions
+class Petstore::Client::Api::Options::GetMemberOptions
+class Petstore::Client::Api::Options::GetMemoOptions
+class Petstore::Client::Api::Options::GetMultiServerPetInfoOptions
+class Petstore::Client::Api::Options::GetNativeValuesOptions
+class Petstore::Client::Api::Options::GetOrderByIdOptions
+class Petstore::Client::Api::Options::GetOrderByTrackingIdOptions
+class Petstore::Client::Api::Options::GetPetAvatarOptions
+class Petstore::Client::Api::Options::GetPetAvatarThumbnailOptions
+class Petstore::Client::Api::Options::GetPetByIdOptions
+class Petstore::Client::Api::Options::GetPetByNameOptions
+class Petstore::Client::Api::Options::GetPetByNoteOptions
+class Petstore::Client::Api::Options::GetPetPassportOptions
+class Petstore::Client::Api::Options::GetPetPhotoOptions
+class Petstore::Client::Api::Options::GetPetSummaryOptions
+class Petstore::Client::Api::Options::GetPetTagOptions
+class Petstore::Client::Api::Options::GetProjectOptions
+class Petstore::Client::Api::Options::GetRangeOptions
+class Petstore::Client::Api::Options::GetStagingPetInfoOptions
+class Petstore::Client::Api::Options::GetStockItemOptions
+class Petstore::Client::Api::Options::GetSwatchGroupsOptions
+class Petstore::Client::Api::Options::GetSwatchOptions
+class Petstore::Client::Api::Options::GetTimestampGroupsOptions
+class Petstore::Client::Api::Options::GetTreeOptions
+class Petstore::Client::Api::Options::GetUpstreamOptions
+class Petstore::Client::Api::Options::HeadMemoOptions
+class Petstore::Client::Api::Options::ListPetArchiveOptions
+class Petstore::Client::Api::Options::ListPetCatalogOptions
+class Petstore::Client::Api::Options::ListPetEventsOptions
+class Petstore::Client::Api::Options::ListPetFeedOptions
+class Petstore::Client::Api::Options::ListPetMatchesOptions
+class Petstore::Client::Api::Options::ListPetNextUrlOptions
+class Petstore::Client::Api::Options::ListPetNotesOptions
+class Petstore::Client::Api::Options::ListPetOffsetsOptions
+class Petstore::Client::Api::Options::ListPetPageNumbersOptions
+class Petstore::Client::Api::Options::ListPetsAfterOptions
+class Petstore::Client::Api::Options::OptionsMemoOptions
+class Petstore::Client::Api::Options::PatchMemoOptions
+class Petstore::Client::Api::Options::PlaceOrderOptions
+class Petstore::Client::Api::Options::ReserveStockOptions
+class Petstore::Client::Api::Options::SearchStoreOptions
+class Petstore::Client::Api::Options::SetPetAvatarOptions
+class Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions
+class Petstore::Client::Api::Options::SetPetPreferencesOptions
+class Petstore::Client::Api::Options::TakeLockOptions
+class Petstore::Client::Api::Options::TraceMemoOptions
+class Petstore::Client::Api::Options::UpdatePetOptions
+class Petstore::Client::Api::Options::UploadPetCertificateOptions
+class Petstore::Client::Api::Options::UploadPetDocumentOptions
+class Petstore::Client::Api::Options::WatchNoticesOptions
+class Petstore::Client::Api::Options::WatchOrdersOptions
+class Petstore::Client::Api::PetApi < Petstore::Client::Api::BaseApi
+class Petstore::Client::Api::ProblemsApi < Petstore::Client::Api::BaseApi
+class Petstore::Client::Api::StoreApi < Petstore::Client::Api::BaseApi
+class Petstore::Client::ApiClient
+class Petstore::Client::ApiHttpResponse
+class Petstore::Client::ApiResult
+class Petstore::Client::ApiStreamResponse
+class Petstore::Client::Auth::AllOfAuthenticator < Petstore::Client::Auth::Authenticator
+class Petstore::Client::Auth::AllOfHttpAwareAuthenticator < Petstore::Client::Auth::AllOfAuthenticator include Petstore::Client::Auth::HttpAwareAuthenticator
+class Petstore::Client::Auth::ApiKeyAuthenticator < Petstore::Client::Auth::BaseAuthenticator
+class Petstore::Client::Auth::Authenticator
+class Petstore::Client::Auth::BaseAuthenticator < Petstore::Client::Auth::Authenticator
+class Petstore::Client::Auth::BasicAuthenticator < Petstore::Client::Auth::BaseAuthenticator
+class Petstore::Client::Auth::BearerAuthenticator < Petstore::Client::Auth::BaseAuthenticator
+class Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator < Petstore::Client::Auth::BaseAuthenticator include Petstore::Client::Auth::HttpAwareAuthenticator
+class Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator < Petstore::Client::Auth::BaseAuthenticator include Petstore::Client::Auth::HttpAwareAuthenticator
+class Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator < Petstore::Client::Auth::BaseAuthenticator include Petstore::Client::Auth::HttpAwareAuthenticator
+class Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator < Petstore::Client::Auth::BaseAuthenticator include Petstore::Client::Auth::HttpAwareAuthenticator
+class Petstore::Client::Auth::OAuth::OAuth2TokenManager
+class Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator < Petstore::Client::Auth::BaseAuthenticator include Petstore::Client::Auth::HttpAwareAuthenticator
+class Petstore::Client::BodySource
+class Petstore::Client::ByteStream
+class Petstore::Client::CallInfo < Data
+class Petstore::Client::CallOutcome < Data
+class Petstore::Client::Configuration
+class Petstore::Client::Configuration::Builder
+class Petstore::Client::DefaultApiClient < Petstore::Client::ApiClient
+class Petstore::Client::Errors::ApiError < Petstore::Client::Errors::OpenAPIError
+class Petstore::Client::Errors::BadGatewayError < Petstore::Client::Errors::ServerError
+class Petstore::Client::Errors::BadRequestError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::ClientError < Petstore::Client::Errors::ApiError
+class Petstore::Client::Errors::ConflictError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::ForbiddenError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::GatewayTimeoutError < Petstore::Client::Errors::ServerError
+class Petstore::Client::Errors::GoneError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::InternalServerError < Petstore::Client::Errors::ServerError
+class Petstore::Client::Errors::LockedError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::MemberNotFoundError < Petstore::Client::Errors::NotFoundError
+class Petstore::Client::Errors::MethodNotAllowedError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::NetworkError < Petstore::Client::Errors::ApiError
+class Petstore::Client::Errors::NetworkTimeoutError < Petstore::Client::Errors::NetworkError
+class Petstore::Client::Errors::NotFoundError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::NotImplementedError < Petstore::Client::Errors::ServerError
+class Petstore::Client::Errors::OAuth2ServerError < Petstore::Client::Errors::OpenAPIError
+class Petstore::Client::Errors::OAuth2TokenError < Petstore::Client::Errors::OpenAPIError
+class Petstore::Client::Errors::OpenAPIError < StandardError
+class Petstore::Client::Errors::PaginationError < Petstore::Client::Errors::OpenAPIError
+class Petstore::Client::Errors::PayloadTooLargeError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::PaymentRequiredError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::ProjectNotFoundError < Petstore::Client::Errors::NotFoundError
+class Petstore::Client::Errors::RejectedRequestError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::RequestTimeoutError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::ResponseTooLargeError < Petstore::Client::Errors::ApiError
+class Petstore::Client::Errors::SerializationError < Petstore::Client::Errors::OpenAPIError
+class Petstore::Client::Errors::ServerError < Petstore::Client::Errors::ApiError
+class Petstore::Client::Errors::ServiceUnavailableError < Petstore::Client::Errors::ServerError
+class Petstore::Client::Errors::StateConflictError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::StreamError < Petstore::Client::Errors::NetworkError
+class Petstore::Client::Errors::TooManyRequestsError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::UnauthorizedError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::UnexpectedFailureError < Petstore::Client::Errors::ApiError
+class Petstore::Client::Errors::UnprocessableEntityError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::UnsupportedMediaTypeError < Petstore::Client::Errors::ClientError
+class Petstore::Client::Errors::UpstreamFailureError < Petstore::Client::Errors::ServerError
+class Petstore::Client::JsonLinesStream include Enumerable
+class Petstore::Client::Models::Account < Dry::Struct
+class Petstore::Client::Models::ApiResponse < Dry::Struct
+class Petstore::Client::Models::AttachPetFilesRequest < Dry::Struct
+class Petstore::Client::Models::Availability
+class Petstore::Client::Models::BinaryVault < Dry::Struct
+class Petstore::Client::Models::Blobs < Dry::Struct
+class Petstore::Client::Models::Car < Petstore::Client::Models::Vehicle
+class Petstore::Client::Models::Category < Dry::Struct
+class Petstore::Client::Models::Circle < Petstore::Client::Models::Shape
+class Petstore::Client::Models::Color
+class Petstore::Client::Models::Counters < Dry::Struct
+class Petstore::Client::Models::Defaults < Dry::Struct
+class Petstore::Client::Models::Defaults::ModeEnum
+class Petstore::Client::Models::Department < Dry::Struct
+class Petstore::Client::Models::DryFood < Dry::Struct
+class Petstore::Client::Models::EdgeCases < Dry::Struct
+class Petstore::Client::Models::EdgeCases::PhaseEnum
+class Petstore::Client::Models::Employee < Dry::Struct
+class Petstore::Client::Models::Error < Dry::Struct
+class Petstore::Client::Models::Freeform < Dry::Struct
+class Petstore::Client::Models::Ledger < Dry::Struct
+class Petstore::Client::Models::Medication < Dry::Struct
+class Petstore::Client::Models::MemberNotFound < Dry::Struct
+class Petstore::Client::Models::Memo < Dry::Struct
+class Petstore::Client::Models::Metadata < Dry::Struct
+class Petstore::Client::Models::Moments < Dry::Struct
+class Petstore::Client::Models::NativeValues < Dry::Struct
+class Petstore::Client::Models::Order < Dry::Struct
+class Petstore::Client::Models::Order::StatusEnum
+class Petstore::Client::Models::Pet < Dry::Struct
+class Petstore::Client::Models::Pet::StatusEnum
+class Petstore::Client::Models::PetAfterPage < Dry::Struct
+class Petstore::Client::Models::PetArchivePage < Dry::Struct
+class Petstore::Client::Models::PetCatalogPage < Dry::Struct
+class Petstore::Client::Models::PetCriteria < Dry::Struct
+class Petstore::Client::Models::PetEventPage < Dry::Struct
+class Petstore::Client::Models::PetMatchPage < Dry::Struct
+class Petstore::Client::Models::PetNextUrlPage < Dry::Struct
+class Petstore::Client::Models::PetNotePage < Dry::Struct
+class Petstore::Client::Models::PetOffsetPage < Dry::Struct
+class Petstore::Client::Models::PetPageNumberPage < Dry::Struct
+class Petstore::Client::Models::PetPassport < Dry::Struct
+class Petstore::Client::Models::PetTreatment::Composite
+class Petstore::Client::Models::PetWithOwner < Dry::Struct
+class Petstore::Client::Models::PetWithOwner::StatusEnum
+class Petstore::Client::Models::Photo < Dry::Struct
+class Petstore::Client::Models::PhotoMetadata < Dry::Struct
+class Petstore::Client::Models::PhotoMetadataLocation < Dry::Struct
+class Petstore::Client::Models::Priority
+class Petstore::Client::Models::ProjectNotFound < Dry::Struct
+class Petstore::Client::Models::Rank
+class Petstore::Client::Models::RejectedRequest < Dry::Struct
+class Petstore::Client::Models::RequiredNullable < Dry::Struct
+class Petstore::Client::Models::Reservation < Dry::Struct
+class Petstore::Client::Models::ReservationReceipt < Dry::Struct
+class Petstore::Client::Models::Result < Dry::Struct
+class Petstore::Client::Models::Roster < Dry::Struct
+class Petstore::Client::Models::Separator
+class Petstore::Client::Models::SetPetAvatarRequest < Dry::Struct
+class Petstore::Client::Models::Shape < Dry::Struct
+class Petstore::Client::Models::Sparse < Dry::Struct
+class Petstore::Client::Models::Square < Petstore::Client::Models::Shape
+class Petstore::Client::Models::Stage
+class Petstore::Client::Models::StateConflict < Dry::Struct
+class Petstore::Client::Models::StockItem < Dry::Struct
+class Petstore::Client::Models::StrictTag < Dry::Struct
+class Petstore::Client::Models::Subscription < Dry::Struct
+class Petstore::Client::Models::Subscription::IntervalEnum
+class Petstore::Client::Models::Surgery < Dry::Struct
+class Petstore::Client::Models::Swatch
+class Petstore::Client::Models::Tag < Dry::Struct
+class Petstore::Client::Models::Tier
+class Petstore::Client::Models::TreatmentRecord::Composite
+class Petstore::Client::Models::TreeNode < Dry::Struct
+class Petstore::Client::Models::Truck < Petstore::Client::Models::Vehicle
+class Petstore::Client::Models::UnexpectedFailure < Dry::Struct
+class Petstore::Client::Models::UpstreamFailure < Dry::Struct
+class Petstore::Client::Models::Vehicle < Dry::Struct
+class Petstore::Client::Models::WetFood < Dry::Struct
+class Petstore::Client::Page
+class Petstore::Client::Paginator include Enumerable
+class Petstore::Client::Petstore
+class Petstore::Client::ServerConfiguration
+class Petstore::Client::ServerSentEvent < Data
+class Petstore::Client::ServerVariable
+class Petstore::Client::SseStream include Enumerable
+class Petstore::Client::StreamOptions
+class Petstore::Client::TraceContextUtil
+class Petstore::Client::TransportOptions
+class Petstore::Client::TransportOptions::Builder
+module Petstore::Client
+module Petstore::Client::Api
+module Petstore::Client::Api::GetMultiServerPetInfoServerChannel
+module Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion
+module Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion
+module Petstore::Client::Api::GetStagingPetInfoServerEnvironment
+module Petstore::Client::Api::GetStagingPetInfoServerVersion
+module Petstore::Client::Api::Options
+module Petstore::Client::Auth
+module Petstore::Client::Auth::ApiKeyLocation
+module Petstore::Client::Auth::HttpAwareAuthenticator
+module Petstore::Client::Auth::OAuth
+module Petstore::Client::Auth::OAuth::ClientAuthMethod
+module Petstore::Client::CallHook
+module Petstore::Client::DefaultApiClient::QueryParamsEncoder
+module Petstore::Client::Errors
+module Petstore::Client::Models
+module Petstore::Client::Models::PetFood
+module Petstore::Client::Models::PetTreatment
+module Petstore::Client::Models::ReserveStockResponse
+module Petstore::Client::Models::SetPetAvatarThumbnailRequest
+module Petstore::Client::Models::TreatmentRecord
+module Petstore::Client::Servers
+module Petstore::Client::Types include Petstore::Client::Types::Builder
+protected Petstore::Client::Api::BaseApi#invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type, auth = ?, operation_id: ?) [doc param method: String; param path: String; param query_params: Hash; param header_params: Hash; param body: Object, nil; param accepts: Array<String>; param content_type: String, nil; param return_type: String, nil; param auth: Object, nil; param operation_id: String, nil; raise: Errors::ApiError; return: Object, nil]
+protected Petstore::Client::Api::BaseApi#invoke_api_for_json_lines(method, path, query_params, header_params, body, accepts, content_type, auth = ?, item_type: ?, stream_options: ?, raw_body: ?, operation_id: ?, request_options: ?, error_schemas: ?, spec_operation_id: ?, url_template: ?) [doc param method: String; param path: String; param query_params: Hash; param header_params: Hash; param body: Object, nil; param accepts: Array<String>; param content_type: String, nil; param auth: Object, nil; param item_type: String, nil; param stream_options: StreamOptions, nil; param operation_id: String, nil; param request_options: Object, nil; param error_schemas: Hash{String => Class}, nil; param spec_operation_id: String, nil; param url_template: String, nil; raise: Errors::ApiError; return: JsonLinesStream]
+protected Petstore::Client::Api::BaseApi#invoke_api_for_result(method, path, query_params, header_params, body, accepts, content_type, return_type, auth = ?, raw_body: ?, operation_id: ?, request_options: ?, error_schemas: ?, spec_operation_id: ?, url_template: ?, stream: ?, idle_timeout: ?) [doc param method: String; param path: String; param query_params: Hash; param header_params: Hash; param body: Object, nil; param accepts: Array<String>; param content_type: String, nil; param return_type: String, Hash{Integer, String => String}, nil; param auth: Object, nil; param operation_id: String, nil; param request_options: Object, nil; param error_schemas: Hash{String => Class}, nil; param spec_operation_id: String, nil; param url_template: String, nil; param stream: Boolean; param idle_timeout: Numeric, nil; raise: Errors::ApiError; raise: Errors::SerializationError; return: ApiResult]
+protected Petstore::Client::Api::BaseApi#invoke_api_for_sse(method, path, query_params, header_params, body, accepts, content_type, auth = ?, item_type: ?, terminator: ?, stream_options: ?, raw_body: ?, operation_id: ?, request_options: ?, error_schemas: ?, spec_operation_id: ?, url_template: ?) [doc param method: String; param path: String; param query_params: Hash; param header_params: Hash; param body: Object, nil; param accepts: Array<String>; param content_type: String, nil; param auth: Object, nil; param item_type: String, nil; param terminator: String, nil; param stream_options: StreamOptions, nil; param operation_id: String, nil; param request_options: Object, nil; param error_schemas: Hash{String => Class}, nil; param spec_operation_id: String, nil; param url_template: String, nil; raise: Errors::ApiError; return: SseStream]
+protected Petstore::Client::Api::BaseApi#invoke_api_for_stream(method, path, query_params, header_params, body, accepts, content_type, auth = ?, raw_body: ?, operation_id: ?, request_options: ?, error_schemas: ?, spec_operation_id: ?, url_template: ?) [doc param method: String; param path: String; param query_params: Hash; param header_params: Hash; param body: Object, nil; param accepts: Array<String>; param content_type: String, nil; param auth: Object, nil; param operation_id: String, nil; param request_options: Object, nil; param error_schemas: Hash{String => Class}, nil; param spec_operation_id: String, nil; param url_template: String, nil; raise: Errors::ApiError; return: ApiResult]
+protected Petstore::Client::Api::BaseApi#requirement_authenticator(*groups) [doc param groups: Array<Array<String>>; return: Authenticator, nil]
+protected Petstore::Client::Api::BaseApi#scheme_authenticator(*names) [doc param names: Array<String>; return: Authenticator, nil]
+protected Petstore::Client::Auth::AllOfAuthenticator#parts()

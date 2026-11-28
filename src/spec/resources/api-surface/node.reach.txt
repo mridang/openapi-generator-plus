@@ -1,0 +1,9 @@
+# Node types allowed to be unreachable or internal-but-exported: <type> | <reason>
+src/abstract-api-client.ts:AbstractApiClient | superclass of the exported DefaultApiClient, not exported by the barrel; its members are listed under DefaultApiClient
+src/api-http-response.ts:ApiHttpResponse | return type of ApiClient.sendRequest, kept out of the barrel by name so it cannot collide with a spec model named ApiResponse; callers see it structurally
+src/api/base-api.ts:BaseApi | superclass of PetApi, StoreApi and ProblemsApi, not exported by the barrel; its protected members are listed under each API class
+src/auth/base-authenticator.ts:BaseAuthenticator | superclass of the concrete authenticators, not exported by the barrel; its members are listed under each subclass
+src/auth/oauth/oauth2-authorization-code-authenticator.ts:PkceState | optional constructor parameter of OAuth2AuthorizationCodeAuthenticator that callers cannot name
+src/auth/oauth/oauth2-token-manager.ts:OAuth2TokenManager | optional constructor parameter of OAuth2AuthorizationCodeAuthenticator that callers cannot name
+src/client.ts:ClientCredentials | parameter type of the Client constructors, not exported by the barrel; callers pass its members without naming it
+src/header-selector.ts:HeaderSelector | type of the protected headerSelector field of the API classes (inherited from BaseApi); internal plumbing a subclass would see

@@ -1,0 +1,6 @@
+# Rust types allowed to be unreachable or internal-but-exported: <type> | <reason>
+petstore::paginator::CursorOf | #[doc(hidden)] pub helper trait the generated pages implement for the paginator; should be pub(crate) or sealed
+petstore::paginator::CursorValue | #[doc(hidden)] pub helper trait the generated pages implement for the paginator; should be pub(crate) or sealed
+petstore::paginator::ItemsOf | #[doc(hidden)] pub helper trait the generated pages implement for the paginator; should be pub(crate) or sealed
+petstore::paginator::MoreOf | #[doc(hidden)] pub helper trait the generated pages implement for the paginator; should be pub(crate) or sealed
+petstore::paginator::UrlOf | #[doc(hidden)] pub helper trait the generated pages implement for the paginator; should be pub(crate) or sealed

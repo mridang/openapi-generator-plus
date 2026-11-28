@@ -354,6 +354,8 @@
                  specs at the same time, and a cleanup that matched every
                  container killed the other runs' containers mid-test. -->
             <openapi.workdir>${project.basedir}</openapi.workdir>
+            <!-- -DupdateApiSurface=true rewrites the API surface snapshots (D180). -->
+            <updateApiSurface>${updateApiSurface}</updateApiSurface>
           </systemPropertyVariables>
           <testSourceDirectory>src/spec/java</testSourceDirectory>
           <includes>
@@ -637,6 +639,7 @@
     </dependency>
   </dependencies>
   <properties>
+    <updateApiSurface>false</updateApiSurface>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jacoco.agent></jacoco.agent>
     <skipUnitTests>false</skipUnitTests>

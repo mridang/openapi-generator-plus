@@ -1,0 +1,10 @@
+# Public Dart signatures allowed to name a third-party type: <signature> | <reason>
+AbstractApiClient::AbstractApiClient(TransportOptions _transportOptions, Client _httpClient, String? _proxyAuthHeader, [bool _ownsClient = true]) [uses http:Client] | the caller may supply its own package:http Client as the transport
+TransportOptions::final Client? httpClient [uses http:Client] | the caller may supply its own package:http Client as the transport
+TransportOptionsBuilder::TransportOptionsBuilder httpClient(Client? val) [uses http:Client] | the caller may supply its own package:http Client as the transport
+export Decimal from package:decimal/decimal.dart | format: decimal maps to package:decimal's Decimal, which the barrel re-exports so callers need no direct dependency
+GetNativeValuesOptions::GetNativeValuesOptions({String? address4, Duration? delay, Decimal? amount, String? xAddress6, int? timeout, Map<String, String>? headers, int? maxRetries}) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+GetNativeValuesOptions::final Decimal? amount [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+NativeValues::NativeValues({String? address4, String? address6, List<String>? addresses, String? homepage, Decimal? amount, Decimal? ledger, Duration? wait, DateTime? since, String? host, String? contact}) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+NativeValues::final Decimal? amount [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+NativeValues::final Decimal? ledger [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
