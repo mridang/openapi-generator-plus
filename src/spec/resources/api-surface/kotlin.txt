@@ -97,7 +97,7 @@ com/example/petstore/Client$Companion: public final fun withAuthenticator (Lcom/
 com/example/petstore/Client$Companion: public final fun withToken (Ljava/lang/String;Ljava/lang/String;Lcom/example/petstore/TransportOptions;Lcom/example/petstore/CallHook;)Lcom/example/petstore/Client;
 com/example/petstore/Client: public fun <init> (Lcom/example/petstore/auth/Authenticator;)V
 com/example/petstore/Client: public fun <init> (Lcom/example/petstore/auth/Authenticator;Lcom/example/petstore/TransportOptions;Lcom/example/petstore/CallHook;)V
-com/example/petstore/Client: public fun <init> (Ljava/lang/String;Lcom/example/petstore/auth/PetStoreBasicAuthenticator;Lcom/example/petstore/auth/AdminBasicAuthenticator;Lcom/example/petstore/auth/PetStoreBearerAuthenticator;Lcom/example/petstore/auth/ServiceTokenAuthenticator;Lcom/example/petstore/auth/ApiKeyHeaderAuthenticator;Lcom/example/petstore/auth/InternalApiKeyAuthenticator;Lcom/example/petstore/auth/ApiKeyQueryAuthenticator;Lcom/example/petstore/auth/SessionCookieAuthenticator;Lcom/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator;Lcom/example/petstore/auth/oauth/LegacyAuthPasswordAuthenticator;Lcom/example/petstore/auth/oauth/UserAuthAuthorizationCodeAuthenticator;Lcom/example/petstore/auth/oauth/BrowserAuthImplicitAuthenticator;Lcom/example/petstore/auth/oauth/SsoAuthAuthenticator;Lcom/example/petstore/TransportOptions;Lcom/example/petstore/CallHook;)V
+com/example/petstore/Client: public fun <init> (Ljava/lang/String;Lcom/example/petstore/auth/PetStoreBasicAuthenticator;Lcom/example/petstore/auth/AdminBasicAuthenticator;Lcom/example/petstore/auth/ArchiveDigestAuthenticator;Lcom/example/petstore/auth/PetStoreBearerAuthenticator;Lcom/example/petstore/auth/ServiceTokenAuthenticator;Lcom/example/petstore/auth/ApiKeyHeaderAuthenticator;Lcom/example/petstore/auth/InternalApiKeyAuthenticator;Lcom/example/petstore/auth/ApiKeyQueryAuthenticator;Lcom/example/petstore/auth/SessionCookieAuthenticator;Lcom/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator;Lcom/example/petstore/auth/oauth/LegacyAuthPasswordAuthenticator;Lcom/example/petstore/auth/oauth/UserAuthAuthorizationCodeAuthenticator;Lcom/example/petstore/auth/oauth/BrowserAuthImplicitAuthenticator;Lcom/example/petstore/auth/oauth/DeviceAuthDeviceAuthorizationAuthenticator;Lcom/example/petstore/auth/oauth/SsoAuthAuthenticator;Lcom/example/petstore/TransportOptions;Lcom/example/petstore/CallHook;)V
 com/example/petstore/Client: public fun close ()V
 com/example/petstore/Client: public fun getPet ()Lcom/example/petstore/api/PetApi;
 com/example/petstore/Client: public fun getProblems ()Lcom/example/petstore/api/ProblemsApi;
@@ -113,12 +113,14 @@ com/example/petstore/Configuration$Builder: public final fun callHook (Lcom/exam
 com/example/petstore/Configuration$Builder: public final fun defaultHeader (Ljava/lang/String;Ljava/lang/String;)Lcom/example/petstore/Configuration$Builder;
 com/example/petstore/Configuration$Builder: public final fun defaultHeaders (Ljava/util/Map;)Lcom/example/petstore/Configuration$Builder;
 com/example/petstore/Configuration$Builder: public final fun server (Lcom/example/petstore/ServerConfiguration;Ljava/util/Map;)Lcom/example/petstore/Configuration$Builder;
+com/example/petstore/Configuration$Builder: public final fun validateConstraints (Z)Lcom/example/petstore/Configuration$Builder;
 com/example/petstore/Configuration$Builder: public fun <init> ()V
 com/example/petstore/Configuration$Companion: public final fun builder ()Lcom/example/petstore/Configuration$Builder;
 com/example/petstore/Configuration$Companion: public final fun defaultConfiguration ()Lcom/example/petstore/Configuration;
 com/example/petstore/Configuration: public final fun getBaseUrl ()Ljava/lang/String;
 com/example/petstore/Configuration: public final fun getCallHook ()Lcom/example/petstore/CallHook;
 com/example/petstore/Configuration: public final fun getDefaultHeaders ()Ljava/util/Map;
+com/example/petstore/Configuration: public final fun getValidateConstraints ()Z
 com/example/petstore/Configuration: public fun toString ()Ljava/lang/String;
 com/example/petstore/Configuration: public static final field Companion Lcom/example/petstore/Configuration$Companion;
 com/example/petstore/DefaultApiClient: public fun <init> ()V
@@ -140,6 +142,7 @@ com/example/petstore/JsonLinesStream: public fun close ()V
 com/example/petstore/JsonLinesStream: public fun toString ()Ljava/lang/String;
 com/example/petstore/ObjectSerializer$Companion: public final fun getContextualSerializersModule ()Lkotlinx/serialization/modules/SerializersModule;
 com/example/petstore/ObjectSerializer$Companion: public final fun jsonMaxDepth (Ljava/lang/String;)I
+com/example/petstore/ObjectSerializer: public final fun contextualSerializer (Lkotlin/reflect/KClass;)Lkotlinx/serialization/KSerializer;
 com/example/petstore/ObjectSerializer: public final fun getJson ()Lkotlinx/serialization/json/Json;
 com/example/petstore/ObjectSerializer: public final fun parseToJsonElement (Ljava/lang/String;)Lkotlinx/serialization/json/JsonElement;
 com/example/petstore/ObjectSerializer: public final fun populateAdditionalProperties (Ljava/lang/Object;Ljava/lang/String;)V
@@ -597,6 +600,8 @@ com/example/petstore/api/StoreApi: public fun getMemo (Ljava/lang/String;Lcom/ex
 com/example/petstore/api/StoreApi: public fun getMemo (Ljava/lang/String;Lcom/example/petstore/api/options/GetMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun getMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/StoreApi$GetMemoServer;Lcom/example/petstore/api/options/GetMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun getMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/GetMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApi: public fun getNativeAmount (Lcom/example/petstore/api/options/GetNativeAmountOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApi: public fun getNativeAmountWithHttpInfo (Lcom/example/petstore/api/options/GetNativeAmountOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun getNativeValues (Lcom/example/petstore/api/options/GetNativeValuesOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun getNativeValuesWithHttpInfo (Lcom/example/petstore/api/options/GetNativeValuesOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun getOrderById (JLcom/example/petstore/api/options/GetOrderByIdOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -615,6 +620,8 @@ com/example/petstore/api/StoreApi: public fun getTree (Lcom/example/petstore/api
 com/example/petstore/api/StoreApi: public fun getTreeWithHttpInfo (Lcom/example/petstore/api/options/GetTreeOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun headMemo (Ljava/lang/String;Lcom/example/petstore/api/options/HeadMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun headMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/HeadMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApi: public fun listNativeAmounts (Lcom/example/petstore/api/options/ListNativeAmountsOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApi: public fun listNativeAmountsWithHttpInfo (Lcom/example/petstore/api/options/ListNativeAmountsOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun optionsMemo (Ljava/lang/String;Lcom/example/petstore/api/options/OptionsMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun optionsMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/OptionsMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun patchMemo (Ljava/lang/String;Lcom/example/petstore/models/Memo;Lcom/example/petstore/api/options/PatchMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -625,6 +632,8 @@ com/example/petstore/api/StoreApi: public fun reserveStock (Lcom/example/petstor
 com/example/petstore/api/StoreApi: public fun reserveStockWithHttpInfo (Lcom/example/petstore/api/options/ReserveStockOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun searchStore (Lcom/example/petstore/api/options/SearchStoreOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun searchStoreWithHttpInfo (Lcom/example/petstore/api/options/SearchStoreOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApi: public fun submitAllowance (Lcom/example/petstore/models/Allowance;Lcom/example/petstore/api/options/SubmitAllowanceOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApi: public fun submitAllowanceWithHttpInfo (Lcom/example/petstore/models/Allowance;Lcom/example/petstore/api/options/SubmitAllowanceOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun traceMemo (Ljava/lang/String;Lcom/example/petstore/api/options/TraceMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun traceMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/TraceMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApi: public fun watchNoticesStream (Lcom/example/petstore/api/options/WatchNoticesOptions;Lcom/example/petstore/StreamOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -652,6 +661,8 @@ com/example/petstore/api/StoreApiInterface: public abstract fun getMatrix (Lcom/
 com/example/petstore/api/StoreApiInterface: public abstract fun getMatrixWithHttpInfo (Lcom/example/petstore/api/options/GetMatrixOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun getMemo (Ljava/lang/String;Lcom/example/petstore/api/StoreApi$GetMemoServer;Lcom/example/petstore/api/options/GetMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun getMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/StoreApi$GetMemoServer;Lcom/example/petstore/api/options/GetMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApiInterface: public abstract fun getNativeAmount (Lcom/example/petstore/api/options/GetNativeAmountOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApiInterface: public abstract fun getNativeAmountWithHttpInfo (Lcom/example/petstore/api/options/GetNativeAmountOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun getNativeValues (Lcom/example/petstore/api/options/GetNativeValuesOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun getNativeValuesWithHttpInfo (Lcom/example/petstore/api/options/GetNativeValuesOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun getOrderById (JLcom/example/petstore/api/options/GetOrderByIdOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -670,6 +681,8 @@ com/example/petstore/api/StoreApiInterface: public abstract fun getTree (Lcom/ex
 com/example/petstore/api/StoreApiInterface: public abstract fun getTreeWithHttpInfo (Lcom/example/petstore/api/options/GetTreeOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun headMemo (Ljava/lang/String;Lcom/example/petstore/api/options/HeadMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun headMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/HeadMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApiInterface: public abstract fun listNativeAmounts (Lcom/example/petstore/api/options/ListNativeAmountsOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApiInterface: public abstract fun listNativeAmountsWithHttpInfo (Lcom/example/petstore/api/options/ListNativeAmountsOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun optionsMemo (Ljava/lang/String;Lcom/example/petstore/api/options/OptionsMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun optionsMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/OptionsMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun patchMemo (Ljava/lang/String;Lcom/example/petstore/models/Memo;Lcom/example/petstore/api/options/PatchMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -680,6 +693,8 @@ com/example/petstore/api/StoreApiInterface: public abstract fun reserveStock (Lc
 com/example/petstore/api/StoreApiInterface: public abstract fun reserveStockWithHttpInfo (Lcom/example/petstore/api/options/ReserveStockOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun searchStore (Lcom/example/petstore/api/options/SearchStoreOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun searchStoreWithHttpInfo (Lcom/example/petstore/api/options/SearchStoreOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApiInterface: public abstract fun submitAllowance (Lcom/example/petstore/models/Allowance;Lcom/example/petstore/api/options/SubmitAllowanceOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/api/StoreApiInterface: public abstract fun submitAllowanceWithHttpInfo (Lcom/example/petstore/models/Allowance;Lcom/example/petstore/api/options/SubmitAllowanceOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun traceMemo (Ljava/lang/String;Lcom/example/petstore/api/options/TraceMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun traceMemoWithHttpInfo (Ljava/lang/String;Lcom/example/petstore/api/options/TraceMemoOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/api/StoreApiInterface: public abstract fun watchNoticesStream (Lcom/example/petstore/api/options/WatchNoticesOptions;Lcom/example/petstore/StreamOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -811,6 +826,11 @@ com/example/petstore/api/options/GetMultiServerPetInfoOptions: public final fun 
 com/example/petstore/api/options/GetMultiServerPetInfoOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/GetMultiServerPetInfoOptions: public fun <init> ()V
 com/example/petstore/api/options/GetMultiServerPetInfoOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/GetNativeAmountOptions: public final fun getHeaders ()Ljava/util/Map;
+com/example/petstore/api/options/GetNativeAmountOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
+com/example/petstore/api/options/GetNativeAmountOptions: public final fun getTimeout ()Ljava/lang/Long;
+com/example/petstore/api/options/GetNativeAmountOptions: public fun <init> ()V
+com/example/petstore/api/options/GetNativeAmountOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
 com/example/petstore/api/options/GetNativeValuesOptions: public final fun getAddress4 ()Ljava/lang/String;
 com/example/petstore/api/options/GetNativeValuesOptions: public final fun getAmount ()Ljava/math/BigDecimal;
 com/example/petstore/api/options/GetNativeValuesOptions: public final fun getDelay ()Ljava/time/Duration;
@@ -939,6 +959,11 @@ com/example/petstore/api/options/HeadMemoOptions: public final fun getMaxRetries
 com/example/petstore/api/options/HeadMemoOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/HeadMemoOptions: public fun <init> ()V
 com/example/petstore/api/options/HeadMemoOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/ListNativeAmountsOptions: public final fun getHeaders ()Ljava/util/Map;
+com/example/petstore/api/options/ListNativeAmountsOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
+com/example/petstore/api/options/ListNativeAmountsOptions: public final fun getTimeout ()Ljava/lang/Long;
+com/example/petstore/api/options/ListNativeAmountsOptions: public fun <init> ()V
+com/example/petstore/api/options/ListNativeAmountsOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
 com/example/petstore/api/options/ListPetArchiveOptions: public final fun getCursor ()Ljava/lang/String;
 com/example/petstore/api/options/ListPetArchiveOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/ListPetArchiveOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
@@ -1055,6 +1080,11 @@ com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getT
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getUrgent ()Ljava/lang/Boolean;
 com/example/petstore/api/options/SetPetPreferencesOptions: public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/time/LocalDate;Ljava/time/OffsetDateTime;Ljava/lang/Integer;Ljava/lang/Double;Ljava/lang/Boolean;Ljava/time/Duration;Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/SubmitAllowanceOptions: public final fun getHeaders ()Ljava/util/Map;
+com/example/petstore/api/options/SubmitAllowanceOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
+com/example/petstore/api/options/SubmitAllowanceOptions: public final fun getTimeout ()Ljava/lang/Long;
+com/example/petstore/api/options/SubmitAllowanceOptions: public fun <init> ()V
+com/example/petstore/api/options/SubmitAllowanceOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
 com/example/petstore/api/options/TakeLockOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/TakeLockOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
 com/example/petstore/api/options/TakeLockOptions: public final fun getTimeout ()Ljava/lang/Long;
@@ -1112,6 +1142,7 @@ com/example/petstore/auth/ApiKeyLocation: public static fun getEntries ()Lkotlin
 com/example/petstore/auth/ApiKeyLocation: public static fun valueOf (Ljava/lang/String;)Lcom/example/petstore/auth/ApiKeyLocation;
 com/example/petstore/auth/ApiKeyLocation: public static fun values ()[Lcom/example/petstore/auth/ApiKeyLocation;
 com/example/petstore/auth/ApiKeyQueryAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+com/example/petstore/auth/ArchiveDigestAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 com/example/petstore/auth/Authenticator$DefaultImpls: public static fun getCookieParams (Lcom/example/petstore/auth/Authenticator;)Ljava/util/Map;
 com/example/petstore/auth/Authenticator$DefaultImpls: public static fun getQueryParams (Lcom/example/petstore/auth/Authenticator;)Ljava/util/Map;
 com/example/petstore/auth/Authenticator: public abstract fun getAuthHeaders (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1131,6 +1162,10 @@ com/example/petstore/auth/BearerAuthenticator: public fun <init> (Ljava/lang/Str
 com/example/petstore/auth/BearerAuthenticator: public fun getAuthHeaders (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/auth/BearerAuthenticator: public fun getHost ()Ljava/lang/String;
 com/example/petstore/auth/BearerAuthenticator: public fun toString ()Ljava/lang/String;
+com/example/petstore/auth/DigestAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+com/example/petstore/auth/DigestAuthenticator: public fun getAuthHeaders (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/auth/DigestAuthenticator: public fun getHost ()Ljava/lang/String;
+com/example/petstore/auth/DigestAuthenticator: public fun toString ()Ljava/lang/String;
 com/example/petstore/auth/HttpAwareAuthenticator$DefaultImpls: public static fun getCookieParams (Lcom/example/petstore/auth/HttpAwareAuthenticator;)Ljava/util/Map;
 com/example/petstore/auth/HttpAwareAuthenticator$DefaultImpls: public static fun getQueryParams (Lcom/example/petstore/auth/HttpAwareAuthenticator;)Ljava/util/Map;
 com/example/petstore/auth/HttpAwareAuthenticator$DefaultImpls: public static fun invalidateAccessToken (Lcom/example/petstore/auth/HttpAwareAuthenticator;)V
@@ -1147,8 +1182,11 @@ com/example/petstore/auth/oauth/ClientAuthMethod: public static final field BODY
 com/example/petstore/auth/oauth/ClientAuthMethod: public static fun getEntries ()Lkotlin/enums/EnumEntries;
 com/example/petstore/auth/oauth/ClientAuthMethod: public static fun valueOf (Ljava/lang/String;)Lcom/example/petstore/auth/oauth/ClientAuthMethod;
 com/example/petstore/auth/oauth/ClientAuthMethod: public static fun values ()[Lcom/example/petstore/auth/oauth/ClientAuthMethod;
+com/example/petstore/auth/oauth/DeviceAuthDeviceAuthorizationAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 com/example/petstore/auth/oauth/LegacyAuthPasswordAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 com/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+com/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator: public static final field Companion Lcom/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator$Companion;
+com/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator: public static final field METADATA_URL Ljava/lang/String;
 com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator: public final fun buildAuthorizationUrl (Ljava/lang/String;)Ljava/lang/String;
 com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator: public final fun exchangeCode (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;)V
@@ -1167,6 +1205,38 @@ com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator: public fun
 com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator: public fun invalidateAccessToken ()V
 com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator: public fun setApiClient (Lcom/example/petstore/ApiClient;)V
 com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator: public fun toString ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun component1 ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun component2 ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun component3 ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun component4 ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun component5 ()J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun component6 ()J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJ)Lcom/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun getDeviceCode ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun getExpiresIn ()J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun getInterval ()J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun getUserCode ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun getVerificationUri ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final fun getVerificationUriComplete ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJ)V
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public fun hashCode ()I
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public fun toString ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public final fun pollForToken (Lcom/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public final fun requestDeviceAuthorization (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;)V
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun getAuthHeaders (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun getCookieParams ()Ljava/util/Map;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun getHost ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun getQueryParams ()Ljava/util/Map;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun invalidateAccessToken ()V
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun setApiClient (Lcom/example/petstore/ApiClient;)V
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public fun toString ()Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public static final field DEFAULT_INTERVAL_SECONDS J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public static final field DEVICE_CODE_GRANT Ljava/lang/String;
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public static final field MILLIS_PER_SECOND J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public static final field NANOS_PER_SECOND J
+com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator: public static final field SLOW_DOWN_SECONDS J
 com/example/petstore/auth/oauth/OAuth2ImplicitAuthenticator: public final fun buildAuthorizationUrl (Ljava/lang/String;)Ljava/lang/String;
 com/example/petstore/auth/oauth/OAuth2ImplicitAuthenticator: public final fun setAccessToken (Ljava/lang/String;)V
 com/example/petstore/auth/oauth/OAuth2ImplicitAuthenticator: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
@@ -1340,6 +1410,42 @@ com/example/petstore/models/Account: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/models/Account: public fun hashCode ()I
 com/example/petstore/models/Account: public fun toString ()Ljava/lang/String;
 com/example/petstore/models/Account: public static final field Companion Lcom/example/petstore/models/Account$Companion;
+com/example/petstore/models/Allowance$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Allowance: public final fun component1 ()Ljava/lang/String;
+com/example/petstore/models/Allowance: public final fun component2 ()Ljava/lang/Integer;
+com/example/petstore/models/Allowance: public final fun component3 ()Ljava/lang/Double;
+com/example/petstore/models/Allowance: public final fun component4 ()Ljava/lang/Integer;
+com/example/petstore/models/Allowance: public final fun component5 ()Ljava/util/List;
+com/example/petstore/models/Allowance: public final fun component6 ()Ljava/util/Map;
+com/example/petstore/models/Allowance: public final fun component7 ()Lcom/example/petstore/models/AllowanceTier;
+com/example/petstore/models/Allowance: public final fun component8 ()Ljava/util/List;
+com/example/petstore/models/Allowance: public final fun copy (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Double;Ljava/lang/Integer;Ljava/util/List;Ljava/util/Map;Lcom/example/petstore/models/AllowanceTier;Ljava/util/List;)Lcom/example/petstore/models/Allowance;
+com/example/petstore/models/Allowance: public final fun getCodes ()Ljava/util/List;
+com/example/petstore/models/Allowance: public final fun getCount ()Ljava/lang/Integer;
+com/example/petstore/models/Allowance: public final fun getLabel ()Ljava/lang/String;
+com/example/petstore/models/Allowance: public final fun getLimits ()Ljava/util/Map;
+com/example/petstore/models/Allowance: public final fun getParts ()Ljava/util/List;
+com/example/petstore/models/Allowance: public final fun getRatio ()Ljava/lang/Double;
+com/example/petstore/models/Allowance: public final fun getStep ()Ljava/lang/Integer;
+com/example/petstore/models/Allowance: public final fun getTier ()Lcom/example/petstore/models/AllowanceTier;
+com/example/petstore/models/Allowance: public fun <init> ()V
+com/example/petstore/models/Allowance: public fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Double;Ljava/lang/Integer;Ljava/util/List;Ljava/util/Map;Lcom/example/petstore/models/AllowanceTier;Ljava/util/List;)V
+com/example/petstore/models/Allowance: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Allowance: public fun hashCode ()I
+com/example/petstore/models/Allowance: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Allowance: public static final field Companion Lcom/example/petstore/models/Allowance$Companion;
+com/example/petstore/models/AllowanceTier$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/AllowanceTier: public final fun component1 ()Ljava/lang/Integer;
+com/example/petstore/models/AllowanceTier: public final fun component2 ()Ljava/lang/String;
+com/example/petstore/models/AllowanceTier: public final fun copy (Ljava/lang/Integer;Ljava/lang/String;)Lcom/example/petstore/models/AllowanceTier;
+com/example/petstore/models/AllowanceTier: public final fun getLevel ()Ljava/lang/Integer;
+com/example/petstore/models/AllowanceTier: public final fun getName ()Ljava/lang/String;
+com/example/petstore/models/AllowanceTier: public fun <init> ()V
+com/example/petstore/models/AllowanceTier: public fun <init> (Ljava/lang/Integer;Ljava/lang/String;)V
+com/example/petstore/models/AllowanceTier: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/AllowanceTier: public fun hashCode ()I
+com/example/petstore/models/AllowanceTier: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/AllowanceTier: public static final field Companion Lcom/example/petstore/models/AllowanceTier$Companion;
 com/example/petstore/models/ApiResponse$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/ApiResponse: public final fun component1 ()Ljava/lang/Integer;
 com/example/petstore/models/ApiResponse: public final fun component2 ()Ljava/lang/String;
@@ -1365,6 +1471,20 @@ com/example/petstore/models/AttachPetFilesRequest: public fun equals (Ljava/lang
 com/example/petstore/models/AttachPetFilesRequest: public fun hashCode ()I
 com/example/petstore/models/AttachPetFilesRequest: public fun toString ()Ljava/lang/String;
 com/example/petstore/models/AttachPetFilesRequest: public static final field Companion Lcom/example/petstore/models/AttachPetFilesRequest$Companion;
+com/example/petstore/models/Audit$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Audit: public final fun component1 ()Ljava/util/List;
+com/example/petstore/models/Audit: public final fun component2 ()Ljava/lang/Integer;
+com/example/petstore/models/Audit: public final fun component3 ()Ljava/lang/String;
+com/example/petstore/models/Audit: public final fun copy (Ljava/util/List;Ljava/lang/Integer;Ljava/lang/String;)Lcom/example/petstore/models/Audit;
+com/example/petstore/models/Audit: public final fun getPayload ()Ljava/lang/String;
+com/example/petstore/models/Audit: public final fun getScore ()Ljava/lang/Integer;
+com/example/petstore/models/Audit: public final fun getTags ()Ljava/util/List;
+com/example/petstore/models/Audit: public fun <init> ()V
+com/example/petstore/models/Audit: public fun <init> (Ljava/util/List;Ljava/lang/Integer;Ljava/lang/String;)V
+com/example/petstore/models/Audit: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Audit: public fun hashCode ()I
+com/example/petstore/models/Audit: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Audit: public static final field Companion Lcom/example/petstore/models/Audit$Companion;
 com/example/petstore/models/Availability$Companion: public final fun fromValue (Ljava/lang/String;)Lcom/example/petstore/models/Availability;
 com/example/petstore/models/Availability$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/Availability: public final fun getValue ()Ljava/lang/String;
@@ -1521,10 +1641,12 @@ com/example/petstore/models/Department: public static final field Companion Lcom
 com/example/petstore/models/DryFood$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/DryFood: public final fun component1 ()Ljava/lang/String;
 com/example/petstore/models/DryFood: public final fun component2 ()D
-com/example/petstore/models/DryFood: public final fun copy (Ljava/lang/String;D)Lcom/example/petstore/models/DryFood;
+com/example/petstore/models/DryFood: public final fun component3 ()Ljava/math/BigDecimal;
+com/example/petstore/models/DryFood: public final fun copy (Ljava/lang/String;DLjava/math/BigDecimal;)Lcom/example/petstore/models/DryFood;
 com/example/petstore/models/DryFood: public final fun getFoodType ()Ljava/lang/String;
+com/example/petstore/models/DryFood: public final fun getPricePerKg ()Ljava/math/BigDecimal;
 com/example/petstore/models/DryFood: public final fun getWeightKg ()D
-com/example/petstore/models/DryFood: public fun <init> (Ljava/lang/String;D)V
+com/example/petstore/models/DryFood: public fun <init> (Ljava/lang/String;DLjava/math/BigDecimal;)V
 com/example/petstore/models/DryFood: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/models/DryFood: public fun hashCode ()I
 com/example/petstore/models/DryFood: public fun toString ()Ljava/lang/String;
@@ -1623,6 +1745,18 @@ com/example/petstore/models/Ledger: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/models/Ledger: public fun hashCode ()I
 com/example/petstore/models/Ledger: public fun toString ()Ljava/lang/String;
 com/example/petstore/models/Ledger: public static final field Companion Lcom/example/petstore/models/Ledger$Companion;
+com/example/petstore/models/Letter$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Letter: public final fun component1 ()Ljava/lang/String;
+com/example/petstore/models/Letter: public final fun component2 ()Ljava/lang/Integer;
+com/example/petstore/models/Letter: public final fun copy (Ljava/lang/String;Ljava/lang/Integer;)Lcom/example/petstore/models/Letter;
+com/example/petstore/models/Letter: public final fun getKind ()Ljava/lang/String;
+com/example/petstore/models/Letter: public final fun getPages ()Ljava/lang/Integer;
+com/example/petstore/models/Letter: public fun <init> ()V
+com/example/petstore/models/Letter: public fun <init> (Ljava/lang/String;Ljava/lang/Integer;)V
+com/example/petstore/models/Letter: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Letter: public fun hashCode ()I
+com/example/petstore/models/Letter: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Letter: public static final field Companion Lcom/example/petstore/models/Letter$Companion;
 com/example/petstore/models/Medication$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/Medication: public final fun component1 ()Ljava/lang/String;
 com/example/petstore/models/Medication: public final fun component2 ()Ljava/lang/String;
@@ -1708,19 +1842,21 @@ com/example/petstore/models/Moments: public static final field Companion Lcom/ex
 com/example/petstore/models/NativeValues$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/NativeValues: public final fun component1 ()Ljava/lang/String;
 com/example/petstore/models/NativeValues: public final fun component10 ()Ljava/lang/String;
+com/example/petstore/models/NativeValues: public final fun component11 ()Ljava/lang/String;
 com/example/petstore/models/NativeValues: public final fun component2 ()Ljava/lang/String;
 com/example/petstore/models/NativeValues: public final fun component3 ()Ljava/util/List;
 com/example/petstore/models/NativeValues: public final fun component4 ()Ljava/net/URI;
 com/example/petstore/models/NativeValues: public final fun component5 ()Ljava/math/BigDecimal;
-com/example/petstore/models/NativeValues: public final fun component6 ()Ljava/math/BigDecimal;
-com/example/petstore/models/NativeValues: public final fun component7 ()Ljava/time/Duration;
-com/example/petstore/models/NativeValues: public final fun component8 ()Ljava/time/LocalDate;
-com/example/petstore/models/NativeValues: public final fun component9 ()Ljava/lang/String;
-com/example/petstore/models/NativeValues: public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/net/URI;Ljava/math/BigDecimal;Ljava/math/BigDecimal;Ljava/time/Duration;Ljava/time/LocalDate;Ljava/lang/String;Ljava/lang/String;)Lcom/example/petstore/models/NativeValues;
+com/example/petstore/models/NativeValues: public final fun component6 ()Ljava/util/List;
+com/example/petstore/models/NativeValues: public final fun component7 ()Ljava/math/BigDecimal;
+com/example/petstore/models/NativeValues: public final fun component8 ()Ljava/time/Duration;
+com/example/petstore/models/NativeValues: public final fun component9 ()Ljava/time/LocalDate;
+com/example/petstore/models/NativeValues: public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/net/URI;Ljava/math/BigDecimal;Ljava/util/List;Ljava/math/BigDecimal;Ljava/time/Duration;Ljava/time/LocalDate;Ljava/lang/String;Ljava/lang/String;)Lcom/example/petstore/models/NativeValues;
 com/example/petstore/models/NativeValues: public final fun getAddress4 ()Ljava/lang/String;
 com/example/petstore/models/NativeValues: public final fun getAddress6 ()Ljava/lang/String;
 com/example/petstore/models/NativeValues: public final fun getAddresses ()Ljava/util/List;
 com/example/petstore/models/NativeValues: public final fun getAmount ()Ljava/math/BigDecimal;
+com/example/petstore/models/NativeValues: public final fun getAmounts ()Ljava/util/List;
 com/example/petstore/models/NativeValues: public final fun getContact ()Ljava/lang/String;
 com/example/petstore/models/NativeValues: public final fun getHomepage ()Ljava/net/URI;
 com/example/petstore/models/NativeValues: public final fun getHost ()Ljava/lang/String;
@@ -1728,7 +1864,7 @@ com/example/petstore/models/NativeValues: public final fun getLedger ()Ljava/mat
 com/example/petstore/models/NativeValues: public final fun getSince ()Ljava/time/LocalDate;
 com/example/petstore/models/NativeValues: public final fun getWait ()Ljava/time/Duration;
 com/example/petstore/models/NativeValues: public fun <init> ()V
-com/example/petstore/models/NativeValues: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/net/URI;Ljava/math/BigDecimal;Ljava/math/BigDecimal;Ljava/time/Duration;Ljava/time/LocalDate;Ljava/lang/String;Ljava/lang/String;)V
+com/example/petstore/models/NativeValues: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/net/URI;Ljava/math/BigDecimal;Ljava/util/List;Ljava/math/BigDecimal;Ljava/time/Duration;Ljava/time/LocalDate;Ljava/lang/String;Ljava/lang/String;)V
 com/example/petstore/models/NativeValues: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/models/NativeValues: public fun hashCode ()I
 com/example/petstore/models/NativeValues: public fun toString ()Ljava/lang/String;
@@ -1767,6 +1903,31 @@ com/example/petstore/models/Order: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/models/Order: public fun hashCode ()I
 com/example/petstore/models/Order: public fun toString ()Ljava/lang/String;
 com/example/petstore/models/Order: public static final field Companion Lcom/example/petstore/models/Order$Companion;
+com/example/petstore/models/Packet$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Packet: public final fun component1 ()Ljava/lang/String;
+com/example/petstore/models/Packet: public final fun component2 ()Ljava/lang/Double;
+com/example/petstore/models/Packet: public final fun copy (Ljava/lang/String;Ljava/lang/Double;)Lcom/example/petstore/models/Packet;
+com/example/petstore/models/Packet: public final fun getKind ()Ljava/lang/String;
+com/example/petstore/models/Packet: public final fun getWeightKg ()Ljava/lang/Double;
+com/example/petstore/models/Packet: public fun <init> ()V
+com/example/petstore/models/Packet: public fun <init> (Ljava/lang/String;Ljava/lang/Double;)V
+com/example/petstore/models/Packet: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Packet: public fun hashCode ()I
+com/example/petstore/models/Packet: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Packet: public static final field Companion Lcom/example/petstore/models/Packet$Companion;
+com/example/petstore/models/Parcel$Companion: public final fun fromLetter (Lcom/example/petstore/models/Letter;)Lcom/example/petstore/models/Parcel;
+com/example/petstore/models/Parcel$Companion: public final fun fromPacket (Lcom/example/petstore/models/Packet;)Lcom/example/petstore/models/Parcel;
+com/example/petstore/models/Parcel$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Parcel: public final fun asLetter ()Lcom/example/petstore/models/Letter;
+com/example/petstore/models/Parcel: public final fun asPacket ()Lcom/example/petstore/models/Packet;
+com/example/petstore/models/Parcel: public final fun getActualInstance ()Ljava/lang/Object;
+com/example/petstore/models/Parcel: public final fun isLetter ()Z
+com/example/petstore/models/Parcel: public final fun isPacket ()Z
+com/example/petstore/models/Parcel: public fun <init> ()V
+com/example/petstore/models/Parcel: public fun <init> (Ljava/lang/Object;)V
+com/example/petstore/models/Parcel: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Parcel: public fun hashCode ()I
+com/example/petstore/models/Parcel: public static final field Companion Lcom/example/petstore/models/Parcel$Companion;
 com/example/petstore/models/Pet$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/Pet$StatusEnum$Companion: public final fun fromValue (Ljava/lang/String;)Lcom/example/petstore/models/Pet$StatusEnum;
 com/example/petstore/models/Pet$StatusEnum$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
@@ -2109,6 +2270,62 @@ com/example/petstore/models/Rank: public static final field UNKNOWN_DEFAULT_OPEN
 com/example/petstore/models/Rank: public static fun getEntries ()Lkotlin/enums/EnumEntries;
 com/example/petstore/models/Rank: public static fun valueOf (Ljava/lang/String;)Lcom/example/petstore/models/Rank;
 com/example/petstore/models/Rank: public static fun values ()[Lcom/example/petstore/models/Rank;
+com/example/petstore/models/Reading$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Reading: public final fun component1 ()Lcom/example/petstore/models/ReadingLevel;
+com/example/petstore/models/Reading: public final fun component2 ()Lcom/example/petstore/models/ReadingShape;
+com/example/petstore/models/Reading: public final fun component3 ()Lcom/example/petstore/models/ReadingInlineLevel;
+com/example/petstore/models/Reading: public final fun component4 ()Ljava/lang/Object;
+com/example/petstore/models/Reading: public final fun copy (Lcom/example/petstore/models/ReadingLevel;Lcom/example/petstore/models/ReadingShape;Lcom/example/petstore/models/ReadingInlineLevel;Ljava/lang/Object;)Lcom/example/petstore/models/Reading;
+com/example/petstore/models/Reading: public final fun getInlineLevel ()Lcom/example/petstore/models/ReadingInlineLevel;
+com/example/petstore/models/Reading: public final fun getLevel ()Lcom/example/petstore/models/ReadingLevel;
+com/example/petstore/models/Reading: public final fun getNothing ()Ljava/lang/Object;
+com/example/petstore/models/Reading: public final fun getShape ()Lcom/example/petstore/models/ReadingShape;
+com/example/petstore/models/Reading: public fun <init> (Lcom/example/petstore/models/ReadingLevel;Lcom/example/petstore/models/ReadingShape;Lcom/example/petstore/models/ReadingInlineLevel;Ljava/lang/Object;)V
+com/example/petstore/models/Reading: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Reading: public fun hashCode ()I
+com/example/petstore/models/Reading: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Reading: public static final field Companion Lcom/example/petstore/models/Reading$Companion;
+com/example/petstore/models/ReadingInlineLevel$Companion: public final fun fromLong (J)Lcom/example/petstore/models/ReadingInlineLevel;
+com/example/petstore/models/ReadingInlineLevel$Companion: public final fun fromString (Ljava/lang/String;)Lcom/example/petstore/models/ReadingInlineLevel;
+com/example/petstore/models/ReadingInlineLevel$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/ReadingInlineLevel: public final fun asLong ()Ljava/lang/Long;
+com/example/petstore/models/ReadingInlineLevel: public final fun asString ()Ljava/lang/String;
+com/example/petstore/models/ReadingInlineLevel: public final fun getActualInstance ()Ljava/lang/Object;
+com/example/petstore/models/ReadingInlineLevel: public final fun getMatchedInstances ()Ljava/util/List;
+com/example/petstore/models/ReadingInlineLevel: public final fun isLong ()Z
+com/example/petstore/models/ReadingInlineLevel: public final fun isString ()Z
+com/example/petstore/models/ReadingInlineLevel: public fun <init> ()V
+com/example/petstore/models/ReadingInlineLevel: public fun <init> (Ljava/lang/Object;)V
+com/example/petstore/models/ReadingInlineLevel: public fun <init> (Ljava/util/List;)V
+com/example/petstore/models/ReadingInlineLevel: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/ReadingInlineLevel: public fun hashCode ()I
+com/example/petstore/models/ReadingInlineLevel: public static final field Companion Lcom/example/petstore/models/ReadingInlineLevel$Companion;
+com/example/petstore/models/ReadingLevel$Companion: public final fun fromLong (J)Lcom/example/petstore/models/ReadingLevel;
+com/example/petstore/models/ReadingLevel$Companion: public final fun fromString (Ljava/lang/String;)Lcom/example/petstore/models/ReadingLevel;
+com/example/petstore/models/ReadingLevel$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/ReadingLevel: public final fun asLong ()Ljava/lang/Long;
+com/example/petstore/models/ReadingLevel: public final fun asString ()Ljava/lang/String;
+com/example/petstore/models/ReadingLevel: public final fun getActualInstance ()Ljava/lang/Object;
+com/example/petstore/models/ReadingLevel: public final fun getMatchedInstances ()Ljava/util/List;
+com/example/petstore/models/ReadingLevel: public final fun isLong ()Z
+com/example/petstore/models/ReadingLevel: public final fun isString ()Z
+com/example/petstore/models/ReadingLevel: public fun <init> ()V
+com/example/petstore/models/ReadingLevel: public fun <init> (Ljava/lang/Object;)V
+com/example/petstore/models/ReadingLevel: public fun <init> (Ljava/util/List;)V
+com/example/petstore/models/ReadingLevel: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/ReadingLevel: public fun hashCode ()I
+com/example/petstore/models/ReadingLevel: public static final field Companion Lcom/example/petstore/models/ReadingLevel$Companion;
+com/example/petstore/models/ReadingShape$Companion: public final fun fromListOfString (Ljava/util/List;)Lcom/example/petstore/models/ReadingShape;
+com/example/petstore/models/ReadingShape$Companion: public final fun fromMapOfStringString (Ljava/util/Map;)Lcom/example/petstore/models/ReadingShape;
+com/example/petstore/models/ReadingShape$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/ReadingShape: public final fun getActualInstance ()Ljava/lang/Object;
+com/example/petstore/models/ReadingShape: public final fun getMatchedInstances ()Ljava/util/List;
+com/example/petstore/models/ReadingShape: public fun <init> ()V
+com/example/petstore/models/ReadingShape: public fun <init> (Ljava/lang/Object;)V
+com/example/petstore/models/ReadingShape: public fun <init> (Ljava/util/List;)V
+com/example/petstore/models/ReadingShape: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/ReadingShape: public fun hashCode ()I
+com/example/petstore/models/ReadingShape: public static final field Companion Lcom/example/petstore/models/ReadingShape$Companion;
 com/example/petstore/models/RejectedRequest$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/RejectedRequest: public final fun component1 ()Ljava/lang/Integer;
 com/example/petstore/models/RejectedRequest: public final fun component2 ()Ljava/lang/String;
@@ -2177,6 +2394,18 @@ com/example/petstore/models/Roster: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/models/Roster: public fun hashCode ()I
 com/example/petstore/models/Roster: public fun toString ()Ljava/lang/String;
 com/example/petstore/models/Roster: public static final field Companion Lcom/example/petstore/models/Roster$Companion;
+com/example/petstore/models/Sensors$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Sensors: public final fun component1 ()Ljava/lang/String;
+com/example/petstore/models/Sensors: public final fun component2 ()Ljava/util/Map;
+com/example/petstore/models/Sensors: public final fun copy (Ljava/lang/String;Ljava/util/Map;)Lcom/example/petstore/models/Sensors;
+com/example/petstore/models/Sensors: public final fun getAdditionalProperties ()Ljava/util/Map;
+com/example/petstore/models/Sensors: public final fun getSite ()Ljava/lang/String;
+com/example/petstore/models/Sensors: public fun <init> ()V
+com/example/petstore/models/Sensors: public fun <init> (Ljava/lang/String;Ljava/util/Map;)V
+com/example/petstore/models/Sensors: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Sensors: public fun hashCode ()I
+com/example/petstore/models/Sensors: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Sensors: public static final field Companion Lcom/example/petstore/models/Sensors$Companion;
 com/example/petstore/models/Separator$Companion: public final fun fromValue (Ljava/lang/String;)Lcom/example/petstore/models/Separator;
 com/example/petstore/models/Separator$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/Separator: public final fun getValue ()Ljava/lang/String;
@@ -2220,6 +2449,19 @@ com/example/petstore/models/Shape$Serializer: public static final field INSTANCE
 com/example/petstore/models/Shape: public abstract fun getLabel ()Ljava/lang/String;
 com/example/petstore/models/Shape: public abstract fun getShapeType ()Ljava/lang/String;
 com/example/petstore/models/Shape: public static final field Companion Lcom/example/petstore/models/Shape$Companion;
+com/example/petstore/models/Shipment$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
+com/example/petstore/models/Shipment: public final fun component1 ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public final fun component2 ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public final fun component3 ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/example/petstore/models/Shipment;
+com/example/petstore/models/Shipment: public final fun getCustomsCode ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public final fun getKind ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public final fun getPostcode ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+com/example/petstore/models/Shipment: public fun equals (Ljava/lang/Object;)Z
+com/example/petstore/models/Shipment: public fun hashCode ()I
+com/example/petstore/models/Shipment: public fun toString ()Ljava/lang/String;
+com/example/petstore/models/Shipment: public static final field Companion Lcom/example/petstore/models/Shipment$Companion;
 com/example/petstore/models/Sparse$Companion: public final fun serializer ()Lkotlinx/serialization/KSerializer;
 com/example/petstore/models/Sparse: public final fun component1 ()Ljava/lang/String;
 com/example/petstore/models/Sparse: public final fun component2 ()Ljava/util/Map;
@@ -2475,8 +2717,10 @@ public abstract interface class com/example/petstore/models/Vehicle
 public class com/example/petstore/auth/ApiKeyAuthenticator : com/example/petstore/auth/BaseAuthenticator
 public class com/example/petstore/auth/BasicAuthenticator : com/example/petstore/auth/BaseAuthenticator
 public class com/example/petstore/auth/BearerAuthenticator : com/example/petstore/auth/BaseAuthenticator
+public class com/example/petstore/auth/DigestAuthenticator : com/example/petstore/auth/BaseAuthenticator
 public class com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator : com/example/petstore/auth/HttpAwareAuthenticator
 public class com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator : com/example/petstore/auth/HttpAwareAuthenticator
+public class com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator : com/example/petstore/auth/HttpAwareAuthenticator
 public class com/example/petstore/auth/oauth/OAuth2ImplicitAuthenticator : com/example/petstore/auth/HttpAwareAuthenticator
 public class com/example/petstore/auth/oauth/OAuth2PasswordAuthenticator : com/example/petstore/auth/HttpAwareAuthenticator
 public class com/example/petstore/auth/oauth/OpenIdConnectAuthenticator : com/example/petstore/auth/HttpAwareAuthenticator
@@ -2588,6 +2832,7 @@ public final class com/example/petstore/api/options/GetMatrixOptions
 public final class com/example/petstore/api/options/GetMemberOptions
 public final class com/example/petstore/api/options/GetMemoOptions
 public final class com/example/petstore/api/options/GetMultiServerPetInfoOptions
+public final class com/example/petstore/api/options/GetNativeAmountOptions
 public final class com/example/petstore/api/options/GetNativeValuesOptions
 public final class com/example/petstore/api/options/GetOrderByIdOptions
 public final class com/example/petstore/api/options/GetOrderByTrackingIdOptions
@@ -2610,6 +2855,7 @@ public final class com/example/petstore/api/options/GetTimestampGroupsOptions
 public final class com/example/petstore/api/options/GetTreeOptions
 public final class com/example/petstore/api/options/GetUpstreamOptions
 public final class com/example/petstore/api/options/HeadMemoOptions
+public final class com/example/petstore/api/options/ListNativeAmountsOptions
 public final class com/example/petstore/api/options/ListPetArchiveOptions
 public final class com/example/petstore/api/options/ListPetCatalogOptions
 public final class com/example/petstore/api/options/ListPetEventsOptions
@@ -2628,6 +2874,7 @@ public final class com/example/petstore/api/options/SearchStoreOptions
 public final class com/example/petstore/api/options/SetPetAvatarOptions
 public final class com/example/petstore/api/options/SetPetAvatarThumbnailOptions
 public final class com/example/petstore/api/options/SetPetPreferencesOptions
+public final class com/example/petstore/api/options/SubmitAllowanceOptions
 public final class com/example/petstore/api/options/TakeLockOptions
 public final class com/example/petstore/api/options/TraceMemoOptions
 public final class com/example/petstore/api/options/UpdatePetOptions
@@ -2639,6 +2886,7 @@ public final class com/example/petstore/auth/AdminBasicAuthenticator : com/examp
 public final class com/example/petstore/auth/ApiKeyHeaderAuthenticator : com/example/petstore/auth/ApiKeyAuthenticator
 public final class com/example/petstore/auth/ApiKeyLocation : java/lang/Enum
 public final class com/example/petstore/auth/ApiKeyQueryAuthenticator : com/example/petstore/auth/ApiKeyAuthenticator
+public final class com/example/petstore/auth/ArchiveDigestAuthenticator : com/example/petstore/auth/DigestAuthenticator
 public final class com/example/petstore/auth/Authenticator$DefaultImpls
 public final class com/example/petstore/auth/HttpAwareAuthenticator$DefaultImpls
 public final class com/example/petstore/auth/InternalApiKeyAuthenticator : com/example/petstore/auth/ApiKeyAuthenticator
@@ -2648,8 +2896,11 @@ public final class com/example/petstore/auth/ServiceTokenAuthenticator : com/exa
 public final class com/example/petstore/auth/SessionCookieAuthenticator : com/example/petstore/auth/ApiKeyAuthenticator
 public final class com/example/petstore/auth/oauth/BrowserAuthImplicitAuthenticator : com/example/petstore/auth/oauth/OAuth2ImplicitAuthenticator
 public final class com/example/petstore/auth/oauth/ClientAuthMethod : java/lang/Enum
+public final class com/example/petstore/auth/oauth/DeviceAuthDeviceAuthorizationAuthenticator : com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator
 public final class com/example/petstore/auth/oauth/LegacyAuthPasswordAuthenticator : com/example/petstore/auth/oauth/OAuth2PasswordAuthenticator
 public final class com/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator : com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticator
+public final class com/example/petstore/auth/oauth/MachineAuthClientCredentialsAuthenticator$Companion
+public final class com/example/petstore/auth/oauth/OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization
 public final class com/example/petstore/auth/oauth/OAuth2TokenManager
 public final class com/example/petstore/auth/oauth/SsoAuthAuthenticator : com/example/petstore/auth/oauth/OpenIdConnectAuthenticator
 public final class com/example/petstore/auth/oauth/UserAuthAuthorizationCodeAuthenticator : com/example/petstore/auth/oauth/OAuth2AuthorizationCodeAuthenticator
@@ -2669,10 +2920,16 @@ public final class com/example/petstore/errors/UnexpectedFailureException$Compan
 public final class com/example/petstore/errors/UpstreamFailureException$Companion
 public final class com/example/petstore/models/Account
 public final class com/example/petstore/models/Account$Companion
+public final class com/example/petstore/models/Allowance
+public final class com/example/petstore/models/Allowance$Companion
+public final class com/example/petstore/models/AllowanceTier
+public final class com/example/petstore/models/AllowanceTier$Companion
 public final class com/example/petstore/models/ApiResponse
 public final class com/example/petstore/models/ApiResponse$Companion
 public final class com/example/petstore/models/AttachPetFilesRequest
 public final class com/example/petstore/models/AttachPetFilesRequest$Companion
+public final class com/example/petstore/models/Audit
+public final class com/example/petstore/models/Audit$Companion
 public final class com/example/petstore/models/Availability : java/lang/Enum
 public final class com/example/petstore/models/Availability$Companion
 public final class com/example/petstore/models/BinaryVault
@@ -2707,6 +2964,8 @@ public final class com/example/petstore/models/Freeform
 public final class com/example/petstore/models/Freeform$Companion
 public final class com/example/petstore/models/Ledger
 public final class com/example/petstore/models/Ledger$Companion
+public final class com/example/petstore/models/Letter
+public final class com/example/petstore/models/Letter$Companion
 public final class com/example/petstore/models/Medication
 public final class com/example/petstore/models/Medication$Companion
 public final class com/example/petstore/models/MemberNotFound
@@ -2727,6 +2986,10 @@ public final class com/example/petstore/models/Order
 public final class com/example/petstore/models/Order$Companion
 public final class com/example/petstore/models/Order$StatusEnum : java/lang/Enum
 public final class com/example/petstore/models/Order$StatusEnum$Companion
+public final class com/example/petstore/models/Packet
+public final class com/example/petstore/models/Packet$Companion
+public final class com/example/petstore/models/Parcel
+public final class com/example/petstore/models/Parcel$Companion
 public final class com/example/petstore/models/Pet
 public final class com/example/petstore/models/Pet$Companion
 public final class com/example/petstore/models/Pet$StatusEnum : java/lang/Enum
@@ -2773,6 +3036,14 @@ public final class com/example/petstore/models/ProjectNotFound
 public final class com/example/petstore/models/ProjectNotFound$Companion
 public final class com/example/petstore/models/Rank : java/lang/Enum
 public final class com/example/petstore/models/Rank$Companion
+public final class com/example/petstore/models/Reading
+public final class com/example/petstore/models/Reading$Companion
+public final class com/example/petstore/models/ReadingInlineLevel
+public final class com/example/petstore/models/ReadingInlineLevel$Companion
+public final class com/example/petstore/models/ReadingLevel
+public final class com/example/petstore/models/ReadingLevel$Companion
+public final class com/example/petstore/models/ReadingShape
+public final class com/example/petstore/models/ReadingShape$Companion
 public final class com/example/petstore/models/RejectedRequest
 public final class com/example/petstore/models/RejectedRequest$Companion
 public final class com/example/petstore/models/RequiredNullable
@@ -2785,6 +3056,8 @@ public final class com/example/petstore/models/ReserveStockResponse
 public final class com/example/petstore/models/ReserveStockResponse$Companion
 public final class com/example/petstore/models/Roster
 public final class com/example/petstore/models/Roster$Companion
+public final class com/example/petstore/models/Sensors
+public final class com/example/petstore/models/Sensors$Companion
 public final class com/example/petstore/models/Separator : java/lang/Enum
 public final class com/example/petstore/models/Separator$Companion
 public final class com/example/petstore/models/SetPetAvatarRequest
@@ -2793,6 +3066,8 @@ public final class com/example/petstore/models/SetPetAvatarThumbnailRequest
 public final class com/example/petstore/models/SetPetAvatarThumbnailRequest$Companion
 public final class com/example/petstore/models/Shape$Companion
 public final class com/example/petstore/models/Shape$Serializer : kotlinx/serialization/KSerializer
+public final class com/example/petstore/models/Shipment
+public final class com/example/petstore/models/Shipment$Companion
 public final class com/example/petstore/models/Sparse
 public final class com/example/petstore/models/Sparse$Companion
 public final class com/example/petstore/models/Square : com/example/petstore/models/Shape

@@ -70,8 +70,10 @@ com.example.petstore.Client$Builder: public com.example.petstore.Client build()
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder adminBasic(com.example.petstore.auth.AdminBasicAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder apiKeyHeader(com.example.petstore.auth.ApiKeyHeaderAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder apiKeyQuery(com.example.petstore.auth.ApiKeyQueryAuthenticator)
+com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder archiveDigest(com.example.petstore.auth.ArchiveDigestAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder browserAuth(com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder callHook(com.example.petstore.CallHook)
+com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder deviceAuth(com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder internalApiKey(com.example.petstore.auth.InternalApiKeyAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder legacyAuth(com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator)
 com.example.petstore.Client$Builder: public com.example.petstore.Client$Builder machineAuth(com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator)
@@ -110,6 +112,8 @@ com.example.petstore.Configuration$Builder: public com.example.petstore.Configur
 com.example.petstore.Configuration$Builder: public com.example.petstore.Configuration$Builder defaultHeaders(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.Configuration$Builder: public com.example.petstore.Configuration$Builder server(com.example.petstore.ServerConfiguration)
 com.example.petstore.Configuration$Builder: public com.example.petstore.Configuration$Builder server(com.example.petstore.ServerConfiguration, java.util.Map<java.lang.String, java.lang.String>)
+com.example.petstore.Configuration$Builder: public com.example.petstore.Configuration$Builder validateConstraints(boolean)
+com.example.petstore.Configuration: public boolean isValidateConstraints()
 com.example.petstore.Configuration: public com.example.petstore.CallHook getCallHook()
 com.example.petstore.Configuration: public java.lang.String getBaseUrl()
 com.example.petstore.Configuration: public java.lang.String toString()
@@ -764,10 +768,16 @@ com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.la
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> headMemoWithHttpInfo(java.lang.String, com.example.petstore.api.options.HeadMemoOptions)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> optionsMemoWithHttpInfo(java.lang.String)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> optionsMemoWithHttpInfo(java.lang.String, com.example.petstore.api.options.OptionsMemoOptions)
+com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> submitAllowanceWithHttpInfo(com.example.petstore.models.Allowance)
+com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> submitAllowanceWithHttpInfo(com.example.petstore.models.Allowance, com.example.petstore.api.options.SubmitAllowanceOptions)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> traceMemoWithHttpInfo(java.lang.String)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.lang.Void> traceMemoWithHttpInfo(java.lang.String, com.example.petstore.api.options.TraceMemoOptions)
+com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.math.BigDecimal> getNativeAmountWithHttpInfo()
+com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.math.BigDecimal> getNativeAmountWithHttpInfo(com.example.petstore.api.options.GetNativeAmountOptions)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<com.example.petstore.models.Order>> searchStoreWithHttpInfo()
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<com.example.petstore.models.Order>> searchStoreWithHttpInfo(com.example.petstore.api.options.SearchStoreOptions)
+com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<java.math.BigDecimal>> listNativeAmountsWithHttpInfo()
+com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<java.math.BigDecimal>> listNativeAmountsWithHttpInfo(com.example.petstore.api.options.ListNativeAmountsOptions)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<java.util.List<java.lang.Integer>>> getMatrixWithHttpInfo()
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<java.util.List<java.lang.Integer>>> getMatrixWithHttpInfo(com.example.petstore.api.options.GetMatrixOptions)
 com.example.petstore.api.StoreApi: public com.example.petstore.ApiResult<java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Category>>> getGroupedCategoriesWithHttpInfo()
@@ -817,8 +827,12 @@ com.example.petstore.api.StoreApi: public com.example.petstore.models.Swatch get
 com.example.petstore.api.StoreApi: public com.example.petstore.models.Swatch getSwatch(com.example.petstore.api.options.GetSwatchOptions)
 com.example.petstore.api.StoreApi: public com.example.petstore.models.TreeNode getTree()
 com.example.petstore.api.StoreApi: public com.example.petstore.models.TreeNode getTree(com.example.petstore.api.options.GetTreeOptions)
+com.example.petstore.api.StoreApi: public java.math.BigDecimal getNativeAmount()
+com.example.petstore.api.StoreApi: public java.math.BigDecimal getNativeAmount(com.example.petstore.api.options.GetNativeAmountOptions)
 com.example.petstore.api.StoreApi: public java.util.List<com.example.petstore.models.Order> searchStore()
 com.example.petstore.api.StoreApi: public java.util.List<com.example.petstore.models.Order> searchStore(com.example.petstore.api.options.SearchStoreOptions)
+com.example.petstore.api.StoreApi: public java.util.List<java.math.BigDecimal> listNativeAmounts()
+com.example.petstore.api.StoreApi: public java.util.List<java.math.BigDecimal> listNativeAmounts(com.example.petstore.api.options.ListNativeAmountsOptions)
 com.example.petstore.api.StoreApi: public java.util.List<java.util.List<java.lang.Integer>> getMatrix()
 com.example.petstore.api.StoreApi: public java.util.List<java.util.List<java.lang.Integer>> getMatrix(com.example.petstore.api.options.GetMatrixOptions)
 com.example.petstore.api.StoreApi: public java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Category>> getGroupedCategories()
@@ -835,6 +849,8 @@ com.example.petstore.api.StoreApi: public void headMemo(java.lang.String)
 com.example.petstore.api.StoreApi: public void headMemo(java.lang.String, com.example.petstore.api.options.HeadMemoOptions)
 com.example.petstore.api.StoreApi: public void optionsMemo(java.lang.String)
 com.example.petstore.api.StoreApi: public void optionsMemo(java.lang.String, com.example.petstore.api.options.OptionsMemoOptions)
+com.example.petstore.api.StoreApi: public void submitAllowance(com.example.petstore.models.Allowance)
+com.example.petstore.api.StoreApi: public void submitAllowance(com.example.petstore.models.Allowance, com.example.petstore.api.options.SubmitAllowanceOptions)
 com.example.petstore.api.StoreApi: public void traceMemo(java.lang.String)
 com.example.petstore.api.StoreApi: public void traceMemo(java.lang.String, com.example.petstore.api.options.TraceMemoOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<com.example.petstore.models.Account> createAccountWithHttpInfo(com.example.petstore.models.Account, com.example.petstore.api.options.CreateAccountOptions)
@@ -855,8 +871,11 @@ com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.lang.Void> deleteOrderWithHttpInfo(java.lang.Long, com.example.petstore.api.options.DeleteOrderOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.lang.Void> headMemoWithHttpInfo(java.lang.String, com.example.petstore.api.options.HeadMemoOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.lang.Void> optionsMemoWithHttpInfo(java.lang.String, com.example.petstore.api.options.OptionsMemoOptions)
+com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.lang.Void> submitAllowanceWithHttpInfo(com.example.petstore.models.Allowance, com.example.petstore.api.options.SubmitAllowanceOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.lang.Void> traceMemoWithHttpInfo(java.lang.String, com.example.petstore.api.options.TraceMemoOptions)
+com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.math.BigDecimal> getNativeAmountWithHttpInfo(com.example.petstore.api.options.GetNativeAmountOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.util.List<com.example.petstore.models.Order>> searchStoreWithHttpInfo(com.example.petstore.api.options.SearchStoreOptions)
+com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.util.List<java.math.BigDecimal>> listNativeAmountsWithHttpInfo(com.example.petstore.api.options.ListNativeAmountsOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.util.List<java.util.List<java.lang.Integer>>> getMatrixWithHttpInfo(com.example.petstore.api.options.GetMatrixOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Category>>> getGroupedCategoriesWithHttpInfo(com.example.petstore.api.options.GetGroupedCategoriesOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.ApiResult<java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Swatch>>> getSwatchGroupsWithHttpInfo(com.example.petstore.api.options.GetSwatchGroupsOptions)
@@ -880,7 +899,9 @@ com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.models.StockItem getStockItem(com.example.petstore.api.options.GetStockItemOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.models.Swatch getSwatch(com.example.petstore.api.options.GetSwatchOptions)
 com.example.petstore.api.StoreApiInterface: public abstract com.example.petstore.models.TreeNode getTree(com.example.petstore.api.options.GetTreeOptions)
+com.example.petstore.api.StoreApiInterface: public abstract java.math.BigDecimal getNativeAmount(com.example.petstore.api.options.GetNativeAmountOptions)
 com.example.petstore.api.StoreApiInterface: public abstract java.util.List<com.example.petstore.models.Order> searchStore(com.example.petstore.api.options.SearchStoreOptions)
+com.example.petstore.api.StoreApiInterface: public abstract java.util.List<java.math.BigDecimal> listNativeAmounts(com.example.petstore.api.options.ListNativeAmountsOptions)
 com.example.petstore.api.StoreApiInterface: public abstract java.util.List<java.util.List<java.lang.Integer>> getMatrix(com.example.petstore.api.options.GetMatrixOptions)
 com.example.petstore.api.StoreApiInterface: public abstract java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Category>> getGroupedCategories(com.example.petstore.api.options.GetGroupedCategoriesOptions)
 com.example.petstore.api.StoreApiInterface: public abstract java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Swatch>> getSwatchGroups(com.example.petstore.api.options.GetSwatchGroupsOptions)
@@ -889,6 +910,7 @@ com.example.petstore.api.StoreApiInterface: public abstract java.util.Map<java.l
 com.example.petstore.api.StoreApiInterface: public abstract void deleteOrder(java.lang.Long, com.example.petstore.api.options.DeleteOrderOptions)
 com.example.petstore.api.StoreApiInterface: public abstract void headMemo(java.lang.String, com.example.petstore.api.options.HeadMemoOptions)
 com.example.petstore.api.StoreApiInterface: public abstract void optionsMemo(java.lang.String, com.example.petstore.api.options.OptionsMemoOptions)
+com.example.petstore.api.StoreApiInterface: public abstract void submitAllowance(com.example.petstore.models.Allowance, com.example.petstore.api.options.SubmitAllowanceOptions)
 com.example.petstore.api.StoreApiInterface: public abstract void traceMemo(java.lang.String, com.example.petstore.api.options.TraceMemoOptions)
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<com.example.petstore.models.Account> createAccountWithHttpInfo(com.example.petstore.models.Account)
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<com.example.petstore.models.ApiResponse> getAuditTrailWithHttpInfo()
@@ -910,8 +932,11 @@ com.example.petstore.api.StoreApiInterface: public default com.example.petstore.
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.lang.Void> deleteOrderWithHttpInfo(java.lang.Long)
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.lang.Void> headMemoWithHttpInfo(java.lang.String)
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.lang.Void> optionsMemoWithHttpInfo(java.lang.String)
+com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.lang.Void> submitAllowanceWithHttpInfo(com.example.petstore.models.Allowance)
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.lang.Void> traceMemoWithHttpInfo(java.lang.String)
+com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.math.BigDecimal> getNativeAmountWithHttpInfo()
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.util.List<com.example.petstore.models.Order>> searchStoreWithHttpInfo()
+com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.util.List<java.math.BigDecimal>> listNativeAmountsWithHttpInfo()
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.util.List<java.util.List<java.lang.Integer>>> getMatrixWithHttpInfo()
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Category>>> getGroupedCategoriesWithHttpInfo()
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.ApiResult<java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Swatch>>> getSwatchGroupsWithHttpInfo()
@@ -937,7 +962,9 @@ com.example.petstore.api.StoreApiInterface: public default com.example.petstore.
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.models.StockItem getStockItem()
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.models.Swatch getSwatch()
 com.example.petstore.api.StoreApiInterface: public default com.example.petstore.models.TreeNode getTree()
+com.example.petstore.api.StoreApiInterface: public default java.math.BigDecimal getNativeAmount()
 com.example.petstore.api.StoreApiInterface: public default java.util.List<com.example.petstore.models.Order> searchStore()
+com.example.petstore.api.StoreApiInterface: public default java.util.List<java.math.BigDecimal> listNativeAmounts()
 com.example.petstore.api.StoreApiInterface: public default java.util.List<java.util.List<java.lang.Integer>> getMatrix()
 com.example.petstore.api.StoreApiInterface: public default java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Category>> getGroupedCategories()
 com.example.petstore.api.StoreApiInterface: public default java.util.List<java.util.Map<java.lang.String, com.example.petstore.models.Swatch>> getSwatchGroups()
@@ -946,6 +973,7 @@ com.example.petstore.api.StoreApiInterface: public default java.util.Map<java.la
 com.example.petstore.api.StoreApiInterface: public default void deleteOrder(java.lang.Long)
 com.example.petstore.api.StoreApiInterface: public default void headMemo(java.lang.String)
 com.example.petstore.api.StoreApiInterface: public default void optionsMemo(java.lang.String)
+com.example.petstore.api.StoreApiInterface: public default void submitAllowance(com.example.petstore.models.Allowance)
 com.example.petstore.api.StoreApiInterface: public default void traceMemo(java.lang.String)
 com.example.petstore.api.options.AddPetOptions: public com.example.petstore.api.options.AddPetOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.AddPetOptions: public com.example.petstore.api.options.AddPetOptions maxRetries(java.lang.Integer)
@@ -1129,6 +1157,13 @@ com.example.petstore.api.options.GetMultiServerPetInfoOptions: public com.exampl
 com.example.petstore.api.options.GetMultiServerPetInfoOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.GetMultiServerPetInfoOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.GetMultiServerPetInfoOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.GetNativeAmountOptions: public com.example.petstore.api.options.GetNativeAmountOptions headers(java.util.Map<java.lang.String, java.lang.String>)
+com.example.petstore.api.options.GetNativeAmountOptions: public com.example.petstore.api.options.GetNativeAmountOptions maxRetries(java.lang.Integer)
+com.example.petstore.api.options.GetNativeAmountOptions: public com.example.petstore.api.options.GetNativeAmountOptions timeout(java.lang.Integer)
+com.example.petstore.api.options.GetNativeAmountOptions: public com.example.petstore.api.options.GetNativeAmountOptions()
+com.example.petstore.api.options.GetNativeAmountOptions: public java.lang.Integer maxRetries()
+com.example.petstore.api.options.GetNativeAmountOptions: public java.lang.Integer timeout()
+com.example.petstore.api.options.GetNativeAmountOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
 com.example.petstore.api.options.GetNativeValuesOptions: public com.example.petstore.api.options.GetNativeValuesOptions address4(java.lang.String)
 com.example.petstore.api.options.GetNativeValuesOptions: public com.example.petstore.api.options.GetNativeValuesOptions amount(java.math.BigDecimal)
 com.example.petstore.api.options.GetNativeValuesOptions: public com.example.petstore.api.options.GetNativeValuesOptions delay(java.time.Duration)
@@ -1320,6 +1355,13 @@ com.example.petstore.api.options.HeadMemoOptions: public com.example.petstore.ap
 com.example.petstore.api.options.HeadMemoOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.HeadMemoOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.HeadMemoOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions headers(java.util.Map<java.lang.String, java.lang.String>)
+com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions maxRetries(java.lang.Integer)
+com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions timeout(java.lang.Integer)
+com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions()
+com.example.petstore.api.options.ListNativeAmountsOptions: public java.lang.Integer maxRetries()
+com.example.petstore.api.options.ListNativeAmountsOptions: public java.lang.Integer timeout()
+com.example.petstore.api.options.ListNativeAmountsOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
 com.example.petstore.api.options.ListPetArchiveOptions: public com.example.petstore.api.options.ListPetArchiveOptions cursor(java.lang.String)
 com.example.petstore.api.options.ListPetArchiveOptions: public com.example.petstore.api.options.ListPetArchiveOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.ListPetArchiveOptions: public com.example.petstore.api.options.ListPetArchiveOptions maxRetries(java.lang.Integer)
@@ -1507,6 +1549,13 @@ com.example.petstore.api.options.SetPetPreferencesOptions: public java.time.Loca
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.time.OffsetDateTime reminder()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.util.List<java.lang.String> tags()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.SubmitAllowanceOptions: public com.example.petstore.api.options.SubmitAllowanceOptions headers(java.util.Map<java.lang.String, java.lang.String>)
+com.example.petstore.api.options.SubmitAllowanceOptions: public com.example.petstore.api.options.SubmitAllowanceOptions maxRetries(java.lang.Integer)
+com.example.petstore.api.options.SubmitAllowanceOptions: public com.example.petstore.api.options.SubmitAllowanceOptions timeout(java.lang.Integer)
+com.example.petstore.api.options.SubmitAllowanceOptions: public com.example.petstore.api.options.SubmitAllowanceOptions()
+com.example.petstore.api.options.SubmitAllowanceOptions: public java.lang.Integer maxRetries()
+com.example.petstore.api.options.SubmitAllowanceOptions: public java.lang.Integer timeout()
+com.example.petstore.api.options.SubmitAllowanceOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
 com.example.petstore.api.options.TakeLockOptions: public com.example.petstore.api.options.TakeLockOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.TakeLockOptions: public com.example.petstore.api.options.TakeLockOptions maxRetries(java.lang.Integer)
 com.example.petstore.api.options.TakeLockOptions: public com.example.petstore.api.options.TakeLockOptions timeout(java.lang.Integer)
@@ -1604,6 +1653,15 @@ com.example.petstore.auth.ApiKeyQueryAuthenticator: public java.lang.String toSt
 com.example.petstore.auth.ApiKeyQueryAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
 com.example.petstore.auth.ApiKeyQueryAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getCookieParams()
 com.example.petstore.auth.ApiKeyQueryAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getQueryParams()
+com.example.petstore.auth.ArchiveDigestAuthenticator: public boolean acceptChallenge(java.lang.String)
+com.example.petstore.auth.ArchiveDigestAuthenticator: public com.example.petstore.auth.ArchiveDigestAuthenticator(java.lang.String)
+com.example.petstore.auth.ArchiveDigestAuthenticator: public com.example.petstore.auth.ArchiveDigestAuthenticator(java.lang.String, java.lang.String, java.lang.String)
+com.example.petstore.auth.ArchiveDigestAuthenticator: public java.lang.String authorization(java.lang.String, java.lang.String)
+com.example.petstore.auth.ArchiveDigestAuthenticator: public java.lang.String getHost()
+com.example.petstore.auth.ArchiveDigestAuthenticator: public java.lang.String toString()
+com.example.petstore.auth.ArchiveDigestAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
+com.example.petstore.auth.ArchiveDigestAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getCookieParams()
+com.example.petstore.auth.ArchiveDigestAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getQueryParams()
 com.example.petstore.auth.Authenticator: public abstract java.lang.String getHost()
 com.example.petstore.auth.Authenticator: public abstract java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
 com.example.petstore.auth.Authenticator: public default java.util.Map<java.lang.String, java.lang.String> getCookieParams()
@@ -1621,6 +1679,14 @@ com.example.petstore.auth.BearerAuthenticator: public com.example.petstore.auth.
 com.example.petstore.auth.BearerAuthenticator: public java.lang.String getHost()
 com.example.petstore.auth.BearerAuthenticator: public java.lang.String toString()
 com.example.petstore.auth.BearerAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
+com.example.petstore.auth.ChallengeAuthenticator: public abstract boolean acceptChallenge(java.lang.String)
+com.example.petstore.auth.ChallengeAuthenticator: public abstract java.lang.String authorization(java.lang.String, java.lang.String)
+com.example.petstore.auth.DigestAuthenticator: public boolean acceptChallenge(java.lang.String)
+com.example.petstore.auth.DigestAuthenticator: public com.example.petstore.auth.DigestAuthenticator(java.lang.String, java.lang.String, java.lang.String)
+com.example.petstore.auth.DigestAuthenticator: public java.lang.String authorization(java.lang.String, java.lang.String)
+com.example.petstore.auth.DigestAuthenticator: public java.lang.String getHost()
+com.example.petstore.auth.DigestAuthenticator: public java.lang.String toString()
+com.example.petstore.auth.DigestAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
 com.example.petstore.auth.HttpAwareAuthenticator: public abstract void setApiClient(com.example.petstore.ApiClient)
 com.example.petstore.auth.HttpAwareAuthenticator: public default void invalidateAccessToken()
 com.example.petstore.auth.InternalApiKeyAuthenticator: public com.example.petstore.auth.InternalApiKeyAuthenticator(java.lang.String)
@@ -1666,10 +1732,13 @@ com.example.petstore.auth.oauth.ClientAuthMethod: public static com.example.pets
 com.example.petstore.auth.oauth.ClientAuthMethod: public static com.example.petstore.auth.oauth.ClientAuthMethod[] values()
 com.example.petstore.auth.oauth.ClientAuthMethod: public static final com.example.petstore.auth.oauth.ClientAuthMethod BASIC
 com.example.petstore.auth.oauth.ClientAuthMethod: public static final com.example.petstore.auth.oauth.ClientAuthMethod BODY
+com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator: public com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator(java.lang.String)
+com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator: public com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator(java.lang.String, java.lang.String)
 com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator: public com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator(java.lang.String)
 com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator: public com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String)
 com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator: public com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator(java.lang.String)
 com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator: public com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator(java.lang.String, java.lang.String, java.lang.String)
+com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator: public static final java.lang.String METADATA_URL
 com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator: public com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.List<java.lang.String>)
 com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator: public com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.List<java.lang.String>, java.lang.String)
 com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator: public java.lang.String buildAuthorizationUrl(java.lang.String)
@@ -1686,6 +1755,25 @@ com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator: public jav
 com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
 com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator: public void invalidateAccessToken()
 com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator: public void setApiClient(com.example.petstore.ApiClient)
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization(java.lang.String, java.lang.String, java.lang.String, java.lang.String, long, long)
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final boolean equals(java.lang.Object)
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final int hashCode()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public final java.lang.String toString()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public java.lang.String deviceCode()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public java.lang.String userCode()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public java.lang.String verificationUri()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public java.lang.String verificationUriComplete()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public long expiresIn()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization: public long interval()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization requestDeviceAuthorization()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.List<java.lang.String>)
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.List<java.lang.String>, java.lang.String)
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public java.lang.String getHost()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public java.lang.String toString()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public java.util.Map<java.lang.String, java.lang.String> getAuthHeaders()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public void invalidateAccessToken()
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public void pollForToken(com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization)
+com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator: public void setApiClient(com.example.petstore.ApiClient)
 com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator: public com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator(java.lang.String, java.lang.String, java.lang.String, java.util.List<java.lang.String>)
 com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator: public java.lang.String buildAuthorizationUrl(java.lang.String)
 com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator: public java.lang.String getHost()
@@ -1916,6 +2004,40 @@ com.example.petstore.models.Account: public final java.lang.String username
 com.example.petstore.models.Account: public int hashCode()
 com.example.petstore.models.Account: public java.lang.String toString()
 com.example.petstore.models.Account: public static com.example.petstore.models.Account$Builder builder()
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance build()
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder codes(java.util.List<java.lang.String>)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder count(java.lang.Integer)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder label(java.lang.String)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder limits(java.util.Map<java.lang.String, java.lang.Integer>)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder parts(java.util.List<com.example.petstore.models.AllowanceTier>)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder ratio(java.lang.Double)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder step(java.lang.Integer)
+com.example.petstore.models.Allowance$Builder: public com.example.petstore.models.Allowance$Builder tier(com.example.petstore.models.AllowanceTier)
+com.example.petstore.models.Allowance: public boolean equals(java.lang.Object)
+com.example.petstore.models.Allowance: public com.example.petstore.models.Allowance$Builder toBuilder()
+com.example.petstore.models.Allowance: public com.example.petstore.models.Allowance()
+com.example.petstore.models.Allowance: public final com.example.petstore.models.AllowanceTier tier
+com.example.petstore.models.Allowance: public final java.lang.Double ratio
+com.example.petstore.models.Allowance: public final java.lang.Integer count
+com.example.petstore.models.Allowance: public final java.lang.Integer step
+com.example.petstore.models.Allowance: public final java.lang.String label
+com.example.petstore.models.Allowance: public final java.util.List<com.example.petstore.models.AllowanceTier> parts
+com.example.petstore.models.Allowance: public final java.util.List<java.lang.String> codes
+com.example.petstore.models.Allowance: public final java.util.Map<java.lang.String, java.lang.Integer> limits
+com.example.petstore.models.Allowance: public int hashCode()
+com.example.petstore.models.Allowance: public java.lang.String toString()
+com.example.petstore.models.Allowance: public static com.example.petstore.models.Allowance$Builder builder()
+com.example.petstore.models.AllowanceTier$Builder: public com.example.petstore.models.AllowanceTier build()
+com.example.petstore.models.AllowanceTier$Builder: public com.example.petstore.models.AllowanceTier$Builder level(java.lang.Integer)
+com.example.petstore.models.AllowanceTier$Builder: public com.example.petstore.models.AllowanceTier$Builder name(java.lang.String)
+com.example.petstore.models.AllowanceTier: public boolean equals(java.lang.Object)
+com.example.petstore.models.AllowanceTier: public com.example.petstore.models.AllowanceTier$Builder toBuilder()
+com.example.petstore.models.AllowanceTier: public com.example.petstore.models.AllowanceTier()
+com.example.petstore.models.AllowanceTier: public final java.lang.Integer level
+com.example.petstore.models.AllowanceTier: public final java.lang.String name
+com.example.petstore.models.AllowanceTier: public int hashCode()
+com.example.petstore.models.AllowanceTier: public java.lang.String toString()
+com.example.petstore.models.AllowanceTier: public static com.example.petstore.models.AllowanceTier$Builder builder()
 com.example.petstore.models.ApiResponse$Builder: public com.example.petstore.models.ApiResponse build()
 com.example.petstore.models.ApiResponse$Builder: public com.example.petstore.models.ApiResponse$Builder code(java.lang.Integer)
 com.example.petstore.models.ApiResponse$Builder: public com.example.petstore.models.ApiResponse$Builder message(java.lang.String)
@@ -1940,6 +2062,19 @@ com.example.petstore.models.AttachPetFilesRequest: public final java.lang.String
 com.example.petstore.models.AttachPetFilesRequest: public int hashCode()
 com.example.petstore.models.AttachPetFilesRequest: public java.lang.String toString()
 com.example.petstore.models.AttachPetFilesRequest: public static com.example.petstore.models.AttachPetFilesRequest$Builder builder()
+com.example.petstore.models.Audit$Builder: public com.example.petstore.models.Audit build()
+com.example.petstore.models.Audit$Builder: public com.example.petstore.models.Audit$Builder payload(java.lang.String)
+com.example.petstore.models.Audit$Builder: public com.example.petstore.models.Audit$Builder score(java.lang.Integer)
+com.example.petstore.models.Audit$Builder: public com.example.petstore.models.Audit$Builder tags(java.util.List<java.lang.String>)
+com.example.petstore.models.Audit: public boolean equals(java.lang.Object)
+com.example.petstore.models.Audit: public com.example.petstore.models.Audit$Builder toBuilder()
+com.example.petstore.models.Audit: public com.example.petstore.models.Audit()
+com.example.petstore.models.Audit: public final java.lang.Integer score
+com.example.petstore.models.Audit: public final java.lang.String payload
+com.example.petstore.models.Audit: public final java.util.List<java.lang.String> tags
+com.example.petstore.models.Audit: public int hashCode()
+com.example.petstore.models.Audit: public java.lang.String toString()
+com.example.petstore.models.Audit: public static com.example.petstore.models.Audit$Builder builder()
 com.example.petstore.models.Availability: public java.lang.String getValue()
 com.example.petstore.models.Availability: public java.lang.String toString()
 com.example.petstore.models.Availability: public static com.example.petstore.models.Availability fromValue(java.lang.String)
@@ -2083,12 +2218,14 @@ com.example.petstore.models.Department: public java.lang.String toString()
 com.example.petstore.models.Department: public static com.example.petstore.models.Department$Builder builder()
 com.example.petstore.models.DryFood$Builder: public com.example.petstore.models.DryFood build()
 com.example.petstore.models.DryFood$Builder: public com.example.petstore.models.DryFood$Builder foodType(java.lang.String)
+com.example.petstore.models.DryFood$Builder: public com.example.petstore.models.DryFood$Builder pricePerKg(java.math.BigDecimal)
 com.example.petstore.models.DryFood$Builder: public com.example.petstore.models.DryFood$Builder weightKg(java.lang.Double)
 com.example.petstore.models.DryFood: public boolean equals(java.lang.Object)
 com.example.petstore.models.DryFood: public com.example.petstore.models.DryFood$Builder toBuilder()
 com.example.petstore.models.DryFood: public com.example.petstore.models.DryFood(java.lang.Double)
 com.example.petstore.models.DryFood: public final java.lang.Double weightKg
 com.example.petstore.models.DryFood: public final java.lang.String foodType
+com.example.petstore.models.DryFood: public final java.math.BigDecimal pricePerKg
 com.example.petstore.models.DryFood: public int hashCode()
 com.example.petstore.models.DryFood: public java.lang.String toString()
 com.example.petstore.models.DryFood: public static com.example.petstore.models.DryFood$Builder builder()
@@ -2184,6 +2321,17 @@ com.example.petstore.models.Ledger: public final java.util.List<java.lang.Long> 
 com.example.petstore.models.Ledger: public int hashCode()
 com.example.petstore.models.Ledger: public java.lang.String toString()
 com.example.petstore.models.Ledger: public static com.example.petstore.models.Ledger$Builder builder()
+com.example.petstore.models.Letter$Builder: public com.example.petstore.models.Letter build()
+com.example.petstore.models.Letter$Builder: public com.example.petstore.models.Letter$Builder kind(java.lang.String)
+com.example.petstore.models.Letter$Builder: public com.example.petstore.models.Letter$Builder pages(java.lang.Integer)
+com.example.petstore.models.Letter: public boolean equals(java.lang.Object)
+com.example.petstore.models.Letter: public com.example.petstore.models.Letter$Builder toBuilder()
+com.example.petstore.models.Letter: public com.example.petstore.models.Letter()
+com.example.petstore.models.Letter: public final java.lang.Integer pages
+com.example.petstore.models.Letter: public final java.lang.String kind
+com.example.petstore.models.Letter: public int hashCode()
+com.example.petstore.models.Letter: public java.lang.String toString()
+com.example.petstore.models.Letter: public static com.example.petstore.models.Letter$Builder builder()
 com.example.petstore.models.Medication$Builder: public com.example.petstore.models.Medication build()
 com.example.petstore.models.Medication$Builder: public com.example.petstore.models.Medication$Builder dosage(java.lang.String)
 com.example.petstore.models.Medication$Builder: public com.example.petstore.models.Medication$Builder drugName(java.lang.String)
@@ -2263,6 +2411,7 @@ com.example.petstore.models.NativeValues$Builder: public com.example.petstore.mo
 com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder address6(java.lang.String)
 com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder addresses(java.util.List<java.lang.String>)
 com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder amount(java.math.BigDecimal)
+com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder amounts(java.util.List<java.math.BigDecimal>)
 com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder contact(java.lang.String)
 com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder homepage(java.net.URI)
 com.example.petstore.models.NativeValues$Builder: public com.example.petstore.models.NativeValues$Builder host(java.lang.String)
@@ -2282,6 +2431,7 @@ com.example.petstore.models.NativeValues: public final java.net.URI homepage
 com.example.petstore.models.NativeValues: public final java.time.Duration wait
 com.example.petstore.models.NativeValues: public final java.time.LocalDate since
 com.example.petstore.models.NativeValues: public final java.util.List<java.lang.String> addresses
+com.example.petstore.models.NativeValues: public final java.util.List<java.math.BigDecimal> amounts
 com.example.petstore.models.NativeValues: public int hashCode()
 com.example.petstore.models.NativeValues: public java.lang.String toString()
 com.example.petstore.models.NativeValues: public static com.example.petstore.models.NativeValues$Builder builder()
@@ -2315,6 +2465,18 @@ com.example.petstore.models.Order: public final java.util.UUID trackingId
 com.example.petstore.models.Order: public int hashCode()
 com.example.petstore.models.Order: public java.lang.String toString()
 com.example.petstore.models.Order: public static com.example.petstore.models.Order$Builder builder()
+com.example.petstore.models.Packet$Builder: public com.example.petstore.models.Packet build()
+com.example.petstore.models.Packet$Builder: public com.example.petstore.models.Packet$Builder kind(java.lang.String)
+com.example.petstore.models.Packet$Builder: public com.example.petstore.models.Packet$Builder weightKg(java.lang.Double)
+com.example.petstore.models.Packet: public boolean equals(java.lang.Object)
+com.example.petstore.models.Packet: public com.example.petstore.models.Packet$Builder toBuilder()
+com.example.petstore.models.Packet: public com.example.petstore.models.Packet()
+com.example.petstore.models.Packet: public final java.lang.Double weightKg
+com.example.petstore.models.Packet: public final java.lang.String kind
+com.example.petstore.models.Packet: public int hashCode()
+com.example.petstore.models.Packet: public java.lang.String toString()
+com.example.petstore.models.Packet: public static com.example.petstore.models.Packet$Builder builder()
+com.example.petstore.models.Parcel: protected com.example.petstore.models.Parcel()
 com.example.petstore.models.Pet$Builder: public com.example.petstore.models.Pet build()
 com.example.petstore.models.Pet$Builder: public com.example.petstore.models.Pet$Builder category(com.example.petstore.models.Category)
 com.example.petstore.models.Pet$Builder: public com.example.petstore.models.Pet$Builder homepageUrl(java.net.URI)
@@ -2615,6 +2777,53 @@ com.example.petstore.models.Rank: public static final com.example.petstore.model
 com.example.petstore.models.Rank: public static final com.example.petstore.models.Rank LOW
 com.example.petstore.models.Rank: public static final com.example.petstore.models.Rank MEDIUM
 com.example.petstore.models.Rank: public static final com.example.petstore.models.Rank UNKNOWN_DEFAULT_OPEN_API
+com.example.petstore.models.Reading$Builder: public com.example.petstore.models.Reading build()
+com.example.petstore.models.Reading$Builder: public com.example.petstore.models.Reading$Builder inlineLevel(com.example.petstore.models.ReadingInlineLevel)
+com.example.petstore.models.Reading$Builder: public com.example.petstore.models.Reading$Builder level(com.example.petstore.models.ReadingLevel)
+com.example.petstore.models.Reading$Builder: public com.example.petstore.models.Reading$Builder nothing(java.lang.Object)
+com.example.petstore.models.Reading$Builder: public com.example.petstore.models.Reading$Builder shape(com.example.petstore.models.ReadingShape)
+com.example.petstore.models.Reading: public boolean equals(java.lang.Object)
+com.example.petstore.models.Reading: public com.example.petstore.models.Reading$Builder toBuilder()
+com.example.petstore.models.Reading: public com.example.petstore.models.Reading(com.example.petstore.models.ReadingLevel)
+com.example.petstore.models.Reading: public final com.example.petstore.models.ReadingInlineLevel inlineLevel
+com.example.petstore.models.Reading: public final com.example.petstore.models.ReadingLevel level
+com.example.petstore.models.Reading: public final com.example.petstore.models.ReadingShape shape
+com.example.petstore.models.Reading: public final java.lang.Object nothing
+com.example.petstore.models.Reading: public int hashCode()
+com.example.petstore.models.Reading: public java.lang.String toString()
+com.example.petstore.models.Reading: public static com.example.petstore.models.Reading$Builder builder()
+com.example.petstore.models.ReadingInlineLevel: public boolean equals(java.lang.Object)
+com.example.petstore.models.ReadingInlineLevel: public boolean isLong()
+com.example.petstore.models.ReadingInlineLevel: public boolean isString()
+com.example.petstore.models.ReadingInlineLevel: public com.example.petstore.models.ReadingInlineLevel(java.lang.Object)
+com.example.petstore.models.ReadingInlineLevel: public com.example.petstore.models.ReadingInlineLevel(java.util.List<java.lang.Object>)
+com.example.petstore.models.ReadingInlineLevel: public int hashCode()
+com.example.petstore.models.ReadingInlineLevel: public java.lang.Object getActualInstance()
+com.example.petstore.models.ReadingInlineLevel: public java.util.List<java.lang.Object> getMatchedInstances()
+com.example.petstore.models.ReadingInlineLevel: public java.util.Optional<java.lang.Long> asLong()
+com.example.petstore.models.ReadingInlineLevel: public java.util.Optional<java.lang.String> asString()
+com.example.petstore.models.ReadingInlineLevel: public static com.example.petstore.models.ReadingInlineLevel ofLong(java.lang.Long)
+com.example.petstore.models.ReadingInlineLevel: public static com.example.petstore.models.ReadingInlineLevel ofString(java.lang.String)
+com.example.petstore.models.ReadingLevel: public boolean equals(java.lang.Object)
+com.example.petstore.models.ReadingLevel: public boolean isLong()
+com.example.petstore.models.ReadingLevel: public boolean isString()
+com.example.petstore.models.ReadingLevel: public com.example.petstore.models.ReadingLevel(java.lang.Object)
+com.example.petstore.models.ReadingLevel: public com.example.petstore.models.ReadingLevel(java.util.List<java.lang.Object>)
+com.example.petstore.models.ReadingLevel: public int hashCode()
+com.example.petstore.models.ReadingLevel: public java.lang.Object getActualInstance()
+com.example.petstore.models.ReadingLevel: public java.util.List<java.lang.Object> getMatchedInstances()
+com.example.petstore.models.ReadingLevel: public java.util.Optional<java.lang.Long> asLong()
+com.example.petstore.models.ReadingLevel: public java.util.Optional<java.lang.String> asString()
+com.example.petstore.models.ReadingLevel: public static com.example.petstore.models.ReadingLevel ofLong(java.lang.Long)
+com.example.petstore.models.ReadingLevel: public static com.example.petstore.models.ReadingLevel ofString(java.lang.String)
+com.example.petstore.models.ReadingShape: public boolean equals(java.lang.Object)
+com.example.petstore.models.ReadingShape: public com.example.petstore.models.ReadingShape(java.lang.Object)
+com.example.petstore.models.ReadingShape: public com.example.petstore.models.ReadingShape(java.util.List<java.lang.Object>)
+com.example.petstore.models.ReadingShape: public int hashCode()
+com.example.petstore.models.ReadingShape: public java.lang.Object getActualInstance()
+com.example.petstore.models.ReadingShape: public java.util.List<java.lang.Object> getMatchedInstances()
+com.example.petstore.models.ReadingShape: public static com.example.petstore.models.ReadingShape ofListOfString(java.util.List<java.lang.String>)
+com.example.petstore.models.ReadingShape: public static com.example.petstore.models.ReadingShape ofMapOfStringString(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.models.RejectedRequest$Builder: public com.example.petstore.models.RejectedRequest build()
 com.example.petstore.models.RejectedRequest$Builder: public com.example.petstore.models.RejectedRequest$Builder code(java.lang.Integer)
 com.example.petstore.models.RejectedRequest$Builder: public com.example.petstore.models.RejectedRequest$Builder message(java.lang.String)
@@ -2690,6 +2899,20 @@ com.example.petstore.models.Roster: public int hashCode()
 com.example.petstore.models.Roster: public java.lang.String toString()
 com.example.petstore.models.Roster: public java.util.Map<java.lang.String, com.example.petstore.models.Category> getAdditionalProperties()
 com.example.petstore.models.Roster: public static com.example.petstore.models.Roster$Builder builder()
+com.example.petstore.models.Sensors$Builder: public com.example.petstore.models.Sensors build()
+com.example.petstore.models.Sensors$Builder: public com.example.petstore.models.Sensors$Builder additionalProperties(java.util.Map<java.lang.String, java.lang.Integer>)
+com.example.petstore.models.Sensors$Builder: public com.example.petstore.models.Sensors$Builder putAdditionalProperty(java.lang.String, java.lang.Integer)
+com.example.petstore.models.Sensors$Builder: public com.example.petstore.models.Sensors$Builder putAllAdditionalProperties(java.util.Map<java.lang.String, java.lang.Integer>)
+com.example.petstore.models.Sensors$Builder: public com.example.petstore.models.Sensors$Builder removeAdditionalProperty(java.lang.String)
+com.example.petstore.models.Sensors$Builder: public com.example.petstore.models.Sensors$Builder site(java.lang.String)
+com.example.petstore.models.Sensors: public boolean equals(java.lang.Object)
+com.example.petstore.models.Sensors: public com.example.petstore.models.Sensors$Builder toBuilder()
+com.example.petstore.models.Sensors: public com.example.petstore.models.Sensors()
+com.example.petstore.models.Sensors: public final java.lang.String site
+com.example.petstore.models.Sensors: public int hashCode()
+com.example.petstore.models.Sensors: public java.lang.String toString()
+com.example.petstore.models.Sensors: public java.util.Map<java.lang.String, java.lang.Integer> getAdditionalProperties()
+com.example.petstore.models.Sensors: public static com.example.petstore.models.Sensors$Builder builder()
 com.example.petstore.models.Separator: public java.lang.String getValue()
 com.example.petstore.models.Separator: public java.lang.String toString()
 com.example.petstore.models.Separator: public static com.example.petstore.models.Separator fromValue(java.lang.String)
@@ -2720,6 +2943,19 @@ com.example.petstore.models.SetPetAvatarThumbnailRequest: public static com.exam
 com.example.petstore.models.Shape: protected com.example.petstore.models.Shape(java.lang.String, java.lang.String)
 com.example.petstore.models.Shape: public final java.lang.String label
 com.example.petstore.models.Shape: public final java.lang.String shapeType
+com.example.petstore.models.Shipment$Builder: public com.example.petstore.models.Shipment build()
+com.example.petstore.models.Shipment$Builder: public com.example.petstore.models.Shipment$Builder customsCode(java.lang.String)
+com.example.petstore.models.Shipment$Builder: public com.example.petstore.models.Shipment$Builder kind(java.lang.String)
+com.example.petstore.models.Shipment$Builder: public com.example.petstore.models.Shipment$Builder postcode(java.lang.String)
+com.example.petstore.models.Shipment: public boolean equals(java.lang.Object)
+com.example.petstore.models.Shipment: public com.example.petstore.models.Shipment$Builder toBuilder()
+com.example.petstore.models.Shipment: public com.example.petstore.models.Shipment(java.lang.String)
+com.example.petstore.models.Shipment: public final java.lang.String customsCode
+com.example.petstore.models.Shipment: public final java.lang.String kind
+com.example.petstore.models.Shipment: public final java.lang.String postcode
+com.example.petstore.models.Shipment: public int hashCode()
+com.example.petstore.models.Shipment: public java.lang.String toString()
+com.example.petstore.models.Shipment: public static com.example.petstore.models.Shipment$Builder builder()
 com.example.petstore.models.Sparse$Builder: public com.example.petstore.models.Sparse build()
 com.example.petstore.models.Sparse$Builder: public com.example.petstore.models.Sparse$Builder additionalProperties(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.models.Sparse$Builder: public com.example.petstore.models.Sparse$Builder label(java.lang.String)
@@ -2926,6 +3162,7 @@ com.example.petstore.models.WetFood: public java.lang.String toString()
 com.example.petstore.models.WetFood: public static com.example.petstore.models.WetFood$Builder builder()
 public abstract class com.example.petstore.api.BaseApi
 public abstract class com.example.petstore.auth.BaseAuthenticator implements com.example.petstore.auth.Authenticator
+public abstract class com.example.petstore.models.Parcel
 public abstract class com.example.petstore.models.PetFood
 public abstract class com.example.petstore.models.Shape
 public abstract class com.example.petstore.models.Vehicle
@@ -2934,6 +3171,7 @@ public class com.example.petstore.api.ProblemsApi extends com.example.petstore.a
 public class com.example.petstore.api.StoreApi extends com.example.petstore.api.BaseApi implements com.example.petstore.api.StoreApiInterface
 public class com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator implements com.example.petstore.auth.HttpAwareAuthenticator
 public class com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator implements com.example.petstore.auth.HttpAwareAuthenticator
+public class com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator implements com.example.petstore.auth.HttpAwareAuthenticator
 public class com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator implements com.example.petstore.auth.HttpAwareAuthenticator
 public class com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator implements com.example.petstore.auth.HttpAwareAuthenticator
 public class com.example.petstore.auth.oauth.OAuth2TokenManager
@@ -2976,8 +3214,11 @@ public class com.example.petstore.errors.UnprocessableEntityException extends co
 public class com.example.petstore.errors.UnsupportedMediaTypeException extends com.example.petstore.errors.ClientException
 public class com.example.petstore.errors.UpstreamFailureException extends com.example.petstore.errors.ServerException
 public class com.example.petstore.models.Account
+public class com.example.petstore.models.Allowance
+public class com.example.petstore.models.AllowanceTier
 public class com.example.petstore.models.ApiResponse
 public class com.example.petstore.models.AttachPetFilesRequest
+public class com.example.petstore.models.Audit
 public class com.example.petstore.models.BinaryVault
 public class com.example.petstore.models.Blobs
 public class com.example.petstore.models.Car extends com.example.petstore.models.Vehicle
@@ -2991,6 +3232,7 @@ public class com.example.petstore.models.EdgeCases
 public class com.example.petstore.models.Employee
 public class com.example.petstore.models.Freeform
 public class com.example.petstore.models.Ledger
+public class com.example.petstore.models.Letter extends com.example.petstore.models.Parcel
 public class com.example.petstore.models.Medication
 public class com.example.petstore.models.MemberNotFound
 public class com.example.petstore.models.Memo
@@ -2999,6 +3241,7 @@ public class com.example.petstore.models.ModelError
 public class com.example.petstore.models.Moments
 public class com.example.petstore.models.NativeValues
 public class com.example.petstore.models.Order
+public class com.example.petstore.models.Packet extends com.example.petstore.models.Parcel
 public class com.example.petstore.models.Pet
 public class com.example.petstore.models.PetAfterPage
 public class com.example.petstore.models.PetArchivePage
@@ -3017,6 +3260,10 @@ public class com.example.petstore.models.Photo
 public class com.example.petstore.models.PhotoMetadata
 public class com.example.petstore.models.PhotoMetadataLocation
 public class com.example.petstore.models.ProjectNotFound
+public class com.example.petstore.models.Reading
+public class com.example.petstore.models.ReadingInlineLevel
+public class com.example.petstore.models.ReadingLevel
+public class com.example.petstore.models.ReadingShape
 public class com.example.petstore.models.RejectedRequest
 public class com.example.petstore.models.RequiredNullable
 public class com.example.petstore.models.Reservation
@@ -3024,8 +3271,10 @@ public class com.example.petstore.models.ReservationReceipt
 public class com.example.petstore.models.ReserveStockResponse
 public class com.example.petstore.models.Result
 public class com.example.petstore.models.Roster
+public class com.example.petstore.models.Sensors
 public class com.example.petstore.models.SetPetAvatarRequest
 public class com.example.petstore.models.SetPetAvatarThumbnailRequest
+public class com.example.petstore.models.Shipment
 public class com.example.petstore.models.Sparse
 public class com.example.petstore.models.Square extends com.example.petstore.models.Shape
 public class com.example.petstore.models.StateConflict
@@ -3105,6 +3354,7 @@ public final class com.example.petstore.api.options.GetMatrixOptions
 public final class com.example.petstore.api.options.GetMemberOptions
 public final class com.example.petstore.api.options.GetMemoOptions
 public final class com.example.petstore.api.options.GetMultiServerPetInfoOptions
+public final class com.example.petstore.api.options.GetNativeAmountOptions
 public final class com.example.petstore.api.options.GetNativeValuesOptions
 public final class com.example.petstore.api.options.GetOrderByIdOptions
 public final class com.example.petstore.api.options.GetOrderByTrackingIdOptions
@@ -3127,6 +3377,7 @@ public final class com.example.petstore.api.options.GetTimestampGroupsOptions
 public final class com.example.petstore.api.options.GetTreeOptions
 public final class com.example.petstore.api.options.GetUpstreamOptions
 public final class com.example.petstore.api.options.HeadMemoOptions
+public final class com.example.petstore.api.options.ListNativeAmountsOptions
 public final class com.example.petstore.api.options.ListPetArchiveOptions
 public final class com.example.petstore.api.options.ListPetCatalogOptions
 public final class com.example.petstore.api.options.ListPetEventsOptions
@@ -3145,6 +3396,7 @@ public final class com.example.petstore.api.options.SearchStoreOptions
 public final class com.example.petstore.api.options.SetPetAvatarOptions
 public final class com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 public final class com.example.petstore.api.options.SetPetPreferencesOptions
+public final class com.example.petstore.api.options.SubmitAllowanceOptions
 public final class com.example.petstore.api.options.TakeLockOptions
 public final class com.example.petstore.api.options.TraceMemoOptions
 public final class com.example.petstore.api.options.UpdatePetOptions
@@ -3157,8 +3409,10 @@ public final class com.example.petstore.auth.ApiKeyAuthenticator extends com.exa
 public final class com.example.petstore.auth.ApiKeyHeaderAuthenticator extends com.example.petstore.auth.BaseAuthenticator
 public final class com.example.petstore.auth.ApiKeyLocation extends java.lang.Enum<com.example.petstore.auth.ApiKeyLocation>
 public final class com.example.petstore.auth.ApiKeyQueryAuthenticator extends com.example.petstore.auth.BaseAuthenticator
+public final class com.example.petstore.auth.ArchiveDigestAuthenticator extends com.example.petstore.auth.BaseAuthenticator implements com.example.petstore.auth.ChallengeAuthenticator
 public final class com.example.petstore.auth.BasicAuthenticator extends com.example.petstore.auth.BaseAuthenticator
 public final class com.example.petstore.auth.BearerAuthenticator extends com.example.petstore.auth.BaseAuthenticator
+public final class com.example.petstore.auth.DigestAuthenticator extends com.example.petstore.auth.BaseAuthenticator implements com.example.petstore.auth.ChallengeAuthenticator
 public final class com.example.petstore.auth.InternalApiKeyAuthenticator extends com.example.petstore.auth.BaseAuthenticator
 public final class com.example.petstore.auth.PetStoreBasicAuthenticator extends com.example.petstore.auth.BaseAuthenticator
 public final class com.example.petstore.auth.PetStoreBearerAuthenticator extends com.example.petstore.auth.BaseAuthenticator
@@ -3166,13 +3420,18 @@ public final class com.example.petstore.auth.ServiceTokenAuthenticator extends c
 public final class com.example.petstore.auth.SessionCookieAuthenticator extends com.example.petstore.auth.BaseAuthenticator
 public final class com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator extends com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator
 public final class com.example.petstore.auth.oauth.ClientAuthMethod extends java.lang.Enum<com.example.petstore.auth.oauth.ClientAuthMethod>
+public final class com.example.petstore.auth.oauth.DeviceAuthDeviceAuthorizationAuthenticator extends com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator
 public final class com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator extends com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator
 public final class com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator extends com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
+public final class com.example.petstore.auth.oauth.OAuth2DeviceAuthorizationAuthenticator$DeviceAuthorization extends java.lang.Record
 public final class com.example.petstore.auth.oauth.SsoAuthAuthenticator extends com.example.petstore.auth.oauth.OpenIdConnectAuthenticator
 public final class com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator extends com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator
 public final class com.example.petstore.models.Account$Builder
+public final class com.example.petstore.models.Allowance$Builder
+public final class com.example.petstore.models.AllowanceTier$Builder
 public final class com.example.petstore.models.ApiResponse$Builder
 public final class com.example.petstore.models.AttachPetFilesRequest$Builder
+public final class com.example.petstore.models.Audit$Builder
 public final class com.example.petstore.models.Availability extends java.lang.Enum<com.example.petstore.models.Availability>
 public final class com.example.petstore.models.BinaryVault$Builder
 public final class com.example.petstore.models.Blobs$Builder
@@ -3190,6 +3449,7 @@ public final class com.example.petstore.models.EdgeCases$PhaseEnum extends java.
 public final class com.example.petstore.models.Employee$Builder
 public final class com.example.petstore.models.Freeform$Builder
 public final class com.example.petstore.models.Ledger$Builder
+public final class com.example.petstore.models.Letter$Builder
 public final class com.example.petstore.models.Medication$Builder
 public final class com.example.petstore.models.MemberNotFound$Builder
 public final class com.example.petstore.models.Memo$Builder
@@ -3199,6 +3459,7 @@ public final class com.example.petstore.models.Moments$Builder
 public final class com.example.petstore.models.NativeValues$Builder
 public final class com.example.petstore.models.Order$Builder
 public final class com.example.petstore.models.Order$StatusEnum extends java.lang.Enum<com.example.petstore.models.Order$StatusEnum>
+public final class com.example.petstore.models.Packet$Builder
 public final class com.example.petstore.models.Pet$Builder
 public final class com.example.petstore.models.Pet$StatusEnum extends java.lang.Enum<com.example.petstore.models.Pet$StatusEnum>
 public final class com.example.petstore.models.PetAfterPage$Builder
@@ -3220,14 +3481,17 @@ public final class com.example.petstore.models.PhotoMetadataLocation$Builder
 public final class com.example.petstore.models.Priority extends java.lang.Enum<com.example.petstore.models.Priority>
 public final class com.example.petstore.models.ProjectNotFound$Builder
 public final class com.example.petstore.models.Rank extends java.lang.Enum<com.example.petstore.models.Rank>
+public final class com.example.petstore.models.Reading$Builder
 public final class com.example.petstore.models.RejectedRequest$Builder
 public final class com.example.petstore.models.RequiredNullable$Builder
 public final class com.example.petstore.models.Reservation$Builder
 public final class com.example.petstore.models.ReservationReceipt$Builder
 public final class com.example.petstore.models.Result$Builder
 public final class com.example.petstore.models.Roster$Builder
+public final class com.example.petstore.models.Sensors$Builder
 public final class com.example.petstore.models.Separator extends java.lang.Enum<com.example.petstore.models.Separator>
 public final class com.example.petstore.models.SetPetAvatarRequest$Builder
+public final class com.example.petstore.models.Shipment$Builder
 public final class com.example.petstore.models.Sparse$Builder
 public final class com.example.petstore.models.Square$Builder
 public final class com.example.petstore.models.Stage extends java.lang.Enum<com.example.petstore.models.Stage>
@@ -3258,5 +3522,6 @@ public interface com.example.petstore.api.ProblemsApiInterface
 public interface com.example.petstore.api.StoreApi$GetMemoServer
 public interface com.example.petstore.api.StoreApiInterface
 public interface com.example.petstore.auth.Authenticator
+public interface com.example.petstore.auth.ChallengeAuthenticator extends com.example.petstore.auth.Authenticator
 public interface com.example.petstore.auth.HttpAwareAuthenticator extends com.example.petstore.auth.Authenticator
 public interface com.example.petstore.errors.ErrorFactory
