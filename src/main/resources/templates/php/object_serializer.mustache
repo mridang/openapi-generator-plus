@@ -2609,7 +2609,8 @@ class ObjectSerializer
         /* A discriminated oneOf names its variant the same way, so the decimals of a union held
          * in a model are read from their digits before the union is built from them. */
         if (
-            method_exists($class, 'getActualInstance')
+            class_exists($class)
+            && method_exists($class, 'getActualInstance')
             && (new \ReflectionClass($class))->hasConstant('DISCRIMINATOR_MAPPING')
         ) {
             $property = (new \ReflectionClassConstant($class, 'DISCRIMINATOR_PROPERTY'))->getValue();

@@ -730,7 +730,7 @@ module Petstore::Client
       # lines are joined with a comma.
       def header_value(headers, name)
         values = headers.select { |key, _value| key.to_s.casecmp?(name) }.values.flatten
-        values.empty? ? nil : values.map(&:to_s).join(', ')
+        values.empty? ? nil : values.join(', ')
       end
 
       def build_query_string(query_params)

@@ -363,7 +363,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("authdigest702 a Digest challenge is answered and the request replayed once; a second 401 stands")
+    @DisplayName("bhvAuthdigest702 a Digest challenge is answered and the request replayed once; a second 401 stands")
     fun bhvAuthdigest702ChallengeIsAnsweredAndReplayedOnce() {
         val client = DigestChallengeApiClient(listOf(401, 200))
         val auth = {{invokerPackage}}.auth.DigestAuthenticator("http://localhost", "alice", listOf("s3", "cret").joinToString(""))
@@ -384,7 +384,7 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("authdigest703 a later request answers the remembered challenge up front with nc 00000002")
+    @DisplayName("bhvAuthdigest703 a later request answers the remembered challenge up front with nc 00000002")
     fun bhvAuthdigest703LaterRequestAnswersUpFrontWithTheNextNonceCount() {
         val client = DigestChallengeApiClient(listOf(401, 200, 200))
         val auth = {{invokerPackage}}.auth.DigestAuthenticator("http://localhost", "alice", listOf("s3", "cret").joinToString(""))

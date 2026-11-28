@@ -24,6 +24,7 @@ from petstore_client.models.reserve_stock_response import ReserveStockResponse
 from petstore_client.models.stock_item import StockItem
 from petstore_client.models.swatch import Swatch
 from petstore_client.models.tree_node import TreeNode
+from petstore_client._types import JsonNumber
 from petstore_client.json_lines_stream import JsonLinesStream
 from petstore_client.sse_stream import SseStream
 from petstore_client.stream_options import StreamOptions

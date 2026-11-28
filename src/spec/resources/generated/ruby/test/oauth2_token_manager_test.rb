@@ -952,7 +952,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2DeviceAuthorizationAuthenticator d
     auth.define_singleton_method(:monotonic_now) { clock[0] }
     auth.define_singleton_method(:pause) do |seconds|
       pauses << seconds
-      clock[0] += seconds
+      clock[0] = (clock[0] + seconds).to_f
     end
     [auth, pauses]
   end

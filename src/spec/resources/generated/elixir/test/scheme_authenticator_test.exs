@@ -63,8 +63,15 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
      ]}
   ]
 
-  # The basic schemes are the ones whose credentials are exactly a username and a password.
+  # The modules of the schemes that send HTTP Basic credentials; a Digest scheme also takes a
+  # username and a password but answers a challenge instead.
+  Module.register_attribute(__MODULE__, :basic_modules, accumulate: true)
+  @basic_modules PetstoreClient.Auth.PetStoreBasicAuthenticator
+  @basic_modules PetstoreClient.Auth.AdminBasicAuthenticator
+
+  # The basic schemes are the Basic ones whose credentials are a username and a password.
   @basic_schemes for {module, [{"username", user_env}, {"password", pass_env}]} <- @schemes,
+                     module in @basic_modules,
                      do: {module, user_env, pass_env}
 
   @bearer_schemes for {module, [{"token", env}]} <- @schemes, do: {module, env}

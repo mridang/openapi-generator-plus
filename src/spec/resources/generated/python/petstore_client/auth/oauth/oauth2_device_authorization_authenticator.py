@@ -33,14 +33,12 @@ class DeviceAuthorization:
     Show :attr:`user_code` and :attr:`verification_uri` to the user, then pass
     the whole value to :meth:`OAuth2DeviceAuthorizationAuthenticator.poll_for_token`.
 
-    Attributes:
-        device_code: The device verification code, sent back while polling.
-        user_code: The code the user enters at the verification URI.
-        verification_uri: The page where the user enters the code.
-        verification_uri_complete: The verification URI with the user code
-            included, when the server sends one.
-        expires_in: The lifetime of the device code and user code, in seconds.
-        interval: The seconds to wait between polls (5 when the server names none).
+    ``device_code`` is the device verification code, sent back while polling,
+    ``user_code`` the code the user enters at ``verification_uri``, the page
+    where the user enters it, and ``verification_uri_complete`` that page with
+    the user code included, when the server sends one. ``expires_in`` is the
+    lifetime of both codes in seconds and ``interval`` the seconds to wait
+    between polls (5 when the server names none).
     """
 
     device_code: str

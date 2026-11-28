@@ -428,9 +428,29 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
             if (ops != null) {
+                final Map<String, String> packageAliases = getPropertyTypeImportMap();
                 for (final CodegenOperation op : ops) {
                     if (op.vendorExtensions == null) {
                         op.vendorExtensions = new HashMap<>();
+                    }
+                    /* A package-qualified alias (JsonNumber, LaxFloat, ...) in a return type or
+                     * a body is never a model import, so the api file imports it here. */
+                    final List<String> signatureTypes = new ArrayList<>();
+                    signatureTypes.add(op.returnType);
+                    if (op.bodyParam != null) {
+                        signatureTypes.add(op.bodyParam.dataType);
+                    }
+                    for (final String signatureType : signatureTypes) {
+                        if (signatureType == null) {
+                            continue;
+                        }
+                        final java.util.regex.Matcher tokens = TYPE_NAME_TOKEN.matcher(signatureType);
+                        while (tokens.find()) {
+                            final String alias = packageAliases.get(tokens.group());
+                            if (alias != null && alias.startsWith("from " + packageName + ".")) {
+                                scalarImports.add(alias);
+                            }
+                        }
                     }
                     addSchemeLiterals(op);
                     final boolean hasMultipleConsumes =

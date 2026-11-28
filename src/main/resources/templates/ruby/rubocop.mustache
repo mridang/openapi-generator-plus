@@ -44,6 +44,10 @@ Metrics/CyclomaticComplexity:
   Enabled: false
 Metrics/MethodLength:
   Enabled: false
+# The constraint validator holds one check per model that declares a
+# validation keyword, so its length is likewise a property of the spec.
+Metrics/ModuleLength:
+  Enabled: false
 Metrics/ParameterLists:
   Enabled: false
 Metrics/PerceivedComplexity:
@@ -70,6 +74,14 @@ Minitest/EmptyLineBeforeAssertionMethods:
 # name a reader moving between two of these SDKs can rely on.
 Naming/AccessorMethodName:
   Enabled: false
+
+# `accept_challenge` remembers a Digest challenge and reports whether it took
+# one. It changes the authenticator's state, so it is a command rather than a
+# predicate, and it keeps the name the other eleven SDKs give it.
+Naming/PredicateMethod:
+  AllowedMethods:
+    - call
+    - accept_challenge
 
 # Spec text (descriptions, defaults, enum values) is emitted verbatim inside
 # single-quoted literals, where a literal `#{x}` is data the spec chose, not a
