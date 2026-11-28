@@ -136,9 +136,15 @@ export interface {{classname}}Interface {
 
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
+{{/tagSummary}}
 {{#tagDescription}}
  * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
 {{/tagDescription}}
+{{#tagParent}}
+ * {{#lambda.tsComment}}It belongs to the {{{.}}} API group.{{/lambda.tsComment}}
+{{/tagParent}}
 {{#tagExternalDocs}}
  * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/tagExternalDocs}}
@@ -165,26 +171,45 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#vendorExtensions.op.responseSummaries}}
    * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
 {{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
 {{#pathParams}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example {{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
    * @param options options for query, header, form, and cookie parameters
 {{/vendorExtensions.op.hasOptionsParam}}
 {{#queryParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.pluralExamples}}
 {{/queryParams}}
 {{#headerParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.pluralExamples}}
 {{/headerParams}}
 {{#formParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.pluralExamples}}
 {{/formParams}}
 {{#cookieParams}}
    * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+   * @example options.{{paramName}}: {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
+{{/vendorExtensions.pluralExamples}}
 {{/cookieParams}}
 {{#vendorExtensions.op.hasContentTypeSelector}}
    * @param requestContentType optional request Content-Type; one of {{#vendorExtensions.op.contentTypeOptions}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}. Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when omitted.
@@ -247,6 +272,7 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#vendorExtensions.op.responseSummaries}}
    * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
 {{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
 {{#pathParams}}
    * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}

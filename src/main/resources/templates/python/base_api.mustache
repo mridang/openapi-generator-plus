@@ -22,7 +22,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import quote, urlencode, urlsplit, urlunsplit
+from urllib.parse import quote, quote_plus, urlencode, urlsplit, urlunsplit
 
 import urllib3
 from pydantic import BaseModel
@@ -50,7 +50,7 @@ from ..call_hook import CallInfo, CallObserver, CallOutcome
 from ..configuration import Configuration
 from .._constraint_validator import validate_request_body
 from ..object_serializer import ObjectSerializer
-from ..value_serializer import ValueSerializer, AllowReservedValue
+from ..value_serializer import ValueSerializer, AllowReservedValue, EncodedPart
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
 from ..errors import ApiException, ErrorFactory, NetworkException, NetworkTimeoutException, {{errorPrefix}}Exception
@@ -97,6 +97,8 @@ def _is_replayable(body: Any) -> bool:
     """A body can be sent again only if no part of it is a one-shot stream."""
     if isinstance(body, BodySource):
         return body.replayable
+    if isinstance(body, (EncodedPart, AllowReservedValue)):
+        return _is_replayable(body.value)
     if hasattr(body, 'read'):
         return False
     if isinstance(body, dict):
@@ -114,6 +116,33 @@ def _request_target(url: str) -> str:
 
 
 {{/hasDigestAuth}}
+
+def _multipart_value(value: Any) -> Any:
+    """A form field as the multipart encoder takes it.
+
+    allowReserved has no effect on a multipart body, so an
+    :class:`AllowReservedValue` is unwrapped. An :class:`EncodedPart` is kept
+    for the encoder, and a list inside it becomes one :class:`EncodedPart` per
+    item, so each item carries the declared Content-Type and part headers.
+    """
+    if isinstance(value, EncodedPart):
+        inner = value.value.value if isinstance(value.value, AllowReservedValue) else value.value
+        if isinstance(inner, list):
+            return [
+                None if item is None else EncodedPart(item, value.content_type, value.headers)
+                for item in inner
+            ]
+        return EncodedPart(inner, value.content_type, value.headers)
+    if isinstance(value, AllowReservedValue):
+        return value.value
+    return value
+
+
+def _without_encoded_part(value: Any) -> Any:
+    """A form field with its :class:`EncodedPart` wrapper removed, for every
+    consumer other than the multipart encoder."""
+    return value.value if isinstance(value, EncodedPart) else value
+
 def _is_tls_failure(error: NetworkException) -> bool:
     """A certificate or handshake failure will fail the same way again."""
     cause = error.__cause__
@@ -560,7 +589,17 @@ class BaseApi:
             serialized_body = None
             if body is not None:
                 if is_multipart:
-                    serialized_body = body
+                    # allowReserved has no effect on a multipart body: a value
+                    # wrapped for the form-urlencoded encoder is sent unchanged.
+                    # A part with a declared Content-Type or part headers stays
+                    # wrapped in EncodedPart for the multipart encoder.
+                    # A body with no wrapped field is handed on as it is.
+                    serialized_body = (
+                        {part_name: _multipart_value(part_value) for part_name, part_value in body.items()}
+                        if isinstance(body, dict)
+                        and any(isinstance(part_value, (AllowReservedValue, EncodedPart)) for part_value in body.values())
+                        else body
+                    )
                 elif raw_body:
                     # The operation's body is format: binary. Whatever declared
                     # Content-Type the caller selected (application/json included),
@@ -583,7 +622,8 @@ class BaseApi:
                     # through unchanged.
                     if isinstance(body, dict):
                         binary_part = None
-                        for _part_value in body.values():
+                        for _wrapped_part in body.values():
+                            _part_value = _without_encoded_part(_wrapped_part)
                             if isinstance(_part_value, (bytes, bytearray, BodySource)) or hasattr(_part_value, 'read'):
                                 binary_part = _part_value
                                 break
@@ -599,14 +639,22 @@ class BaseApi:
                     # through ObjectSerializer so bools render as `true`/`false`
                     # and enums/dates use their wire form, matching the other
                     # SDKs. None-valued fields are omitted, and None elements
-                    # inside an array are skipped. urlencode(..., doseq=True)
-                    # then percent-encodes with `quote_plus`, so a space becomes
+                    # inside an array are skipped. Each key and value is then
+                    # percent-encoded with `quote_plus`, so a space becomes
                     # `+` (HTML form encoding), not `%20`.
                     # A model, map or array of objects has no defined form encoding
                     # (no OAS encoding style is emitted), so it is rejected rather
                     # than sent as its Python repr.
-                    form_pairs: List[tuple[str, str]] = []
+                    # A field wrapped in AllowReservedValue (its Encoding Object
+                    # sets allowReserved: true) keeps the RFC 3986 reserved
+                    # characters literal, like an allowReserved query value; its
+                    # key and every other field are encoded as above.
+                    form_pairs: List[tuple[str, str, bool]] = []
                     for form_key, form_value in body.items():
+                        form_value = _without_encoded_part(form_value)
+                        form_reserved = isinstance(form_value, AllowReservedValue)
+                        if isinstance(form_value, AllowReservedValue):
+                            form_value = form_value.value
                         if form_value is None:
                             continue
                         if isinstance(form_value, (BaseModel, dict)) or (
@@ -620,10 +668,23 @@ class BaseApi:
                             for form_item in form_value:
                                 if form_item is None:
                                     continue
-                                form_pairs.append((form_key, self._object_serializer.stringify(form_item)))
+                                form_pairs.append(
+                                    (form_key, self._object_serializer.stringify(form_item), form_reserved)
+                                )
                         else:
-                            form_pairs.append((form_key, self._object_serializer.stringify(form_value)))
-                    serialized_body = urlencode(form_pairs, doseq=True)
+                            form_pairs.append(
+                                (form_key, self._object_serializer.stringify(form_value), form_reserved)
+                            )
+                    serialized_body = '&'.join(
+                        quote_plus(pair_key)
+                        + '='
+                        + (
+                            ValueSerializer.encode_query_allowing_reserved(pair_text)
+                            if pair_reserved
+                            else quote_plus(pair_text)
+                        )
+                        for pair_key, pair_text, pair_reserved in form_pairs
+                    )
                 else:
                     serialized_body = self._object_serializer.serialize(body)
             if isinstance(serialized_body, BodySource):

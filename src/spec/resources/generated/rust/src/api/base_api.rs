@@ -1555,10 +1555,26 @@ pub(crate) fn serialize_body(
          * Encoding uses the shared `form_url_encode` helper so the byte-level
          * escape set matches the OAuth2 token-endpoint helper exactly: a space
          * becomes `+` (the application/x-www-form-urlencoded convention), not
-         * `%20`, and every other non-unreserved byte becomes `%XX`. */
-        let pairs: Vec<(String, serde_json::Value)> = serde_json::from_slice(&body)?;
+         * `%20`, and every other non-unreserved byte becomes `%XX`.
+         * A pair may carry a third element, `true` when the field's Encoding
+         * Object sets allowReserved: its value (each element of an array) is
+         * then encoded with the query allow-reserved encoder, which keeps
+         * `: / ? @ ! $ & ' ( ) * + , ; =` literal and writes a space as `%20`.
+         * The key is encoded as usual. */
+        let pairs: Vec<FormPair> = serde_json::from_slice(&body)?;
         let mut encoded: Vec<String> = Vec::new();
-        for (key, value) in pairs {
+        for pair in pairs {
+            let (key, value, allow_reserved) = match pair {
+                FormPair::Flagged(key, value, allow_reserved) => (key, value, allow_reserved),
+                FormPair::Plain(key, value) => (key, value, false),
+            };
+            let encode_value = |text: &str| {
+                if allow_reserved {
+                    crate::value_serializer::encode_query_allowing_reserved(text)
+                } else {
+                    form_url_encode(text)
+                }
+            };
             match value {
                 serde_json::Value::Null => {}
                 serde_json::Value::Array(items) => {
@@ -1569,7 +1585,7 @@ pub(crate) fn serialize_body(
                         encoded.push(format!(
                             "{}={}",
                             form_url_encode(&key),
-                            form_url_encode(&form_scalar_to_string(&key, &item)?)
+                            encode_value(&form_scalar_to_string(&key, &item)?)
                         ));
                     }
                 }
@@ -1577,7 +1593,7 @@ pub(crate) fn serialize_body(
                     encoded.push(format!(
                         "{}={}",
                         form_url_encode(&key),
-                        form_url_encode(&form_scalar_to_string(&key, &scalar)?)
+                        encode_value(&form_scalar_to_string(&key, &scalar)?)
                     ));
                 }
             }
@@ -1587,6 +1603,16 @@ pub(crate) fn serialize_body(
 
     /* Default: JSON -- body is already serialized by the caller */
     Ok(Some(body))
+}
+
+/// One entry of a form-urlencoded body as the operation template writes it:
+/// `[key, value]`, or `[key, value, allow_reserved]` where the flag marks a
+/// field whose Encoding Object sets `allowReserved`.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum FormPair {
+    Flagged(String, serde_json::Value, bool),
+    Plain(String, serde_json::Value),
 }
 
 /// Renders a single JSON scalar as the string form used on the wire for a

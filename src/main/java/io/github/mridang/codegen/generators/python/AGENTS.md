@@ -138,7 +138,7 @@ Test: none that pins an order.
 
 ### Out of scope (S11, S12, 2026-11-16)
 Rule: callbacks and webhooks, XML bodies and nodeType, Link Objects and mutual TLS are not generated and the README says so; OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49.
-Why: closed backlog issues #53, #70, #78, #88, #90; 3.2 loading is #50.
+Why: closed backlog issues #53, #70, #78, #88, #90; 3.2 documents load through the shared parser extension (D150).
 Where: `readme.mustache`.
 Test: none.
 
@@ -312,7 +312,9 @@ Test: `test_default_api_client.mustache` (`TestHttpCompression`), `test_default_
 
 ### multipart/* bodies
 Rule: every `multipart/*` content type builds the parts envelope; the transport writes `<declared type>; boundary=...` (only a token matching `multipart/[a-z0-9!#$&^_.+-]+` is taken over from the caller header, anything else falls back to `multipart/form-data`). The header selector passes a non-form-data multipart subtype through to the transport.
-Where: `base_api.mustache`, `header_selector.mustache`, `default_api_client.mustache`.
+D165: a form-urlencoded field whose Encoding Object sets `style` or `explode` (`formStyled`) is written by the operation prelude through `serialize_styled(..., 'query', ...)` and `query_entries`, so a joined value is one field encoded with the form rules and an exploded list repeats the key.
+D166: a multipart field whose Encoding Object declares a Content-Type or fixed part headers (`partEncoded`) is wrapped in `EncodedPart` (`value_serializer`, beside `AllowReservedValue`); `DefaultApiClient._apply_part_encoding` writes the declared Content-Type in place of the part's own and then each header, a list applies it per item, and the form-urlencoded encoder, the binary-part extraction and `_is_replayable` see the plain value.
+Where: `base_api.mustache`, `header_selector.mustache`, `default_api_client.mustache`, `api/operation_prelude.mustache`, `value_serializer.mustache`.
 Test: `test_base_api.mustache`, `test_header_selector.mustache`, `test_default_api_client_unit.mustache`.
 
 ### File header
@@ -379,8 +381,8 @@ Test: `BetterPythonCodegenTest` (new), `test_object_serializer.mustache` (`TestE
 Rule: `postProcessModels` puts `model.oneOf` and `model.anyOf` back in spec order (the parent keeps them sorted), so `one_of_schemas`, `any_of_schemas` and the union annotations follow declaration order and a payload that fits several variants resolves to the first declared one. Test: `test_composed_schema.mustache` (`TestAnyOfTreatmentRecord`).
 
 ### Docs and layout
-Rule: the README opens with Installation and Usage (linking SKILLS.md), then Configuration (timeouts, proxy, request id, Custom HTTP client, retries, OAuth2, response compression, raw responses, cancellation), Package, type mapping, Caveats, Not supported (now also XML bodies, Link Objects, mutual TLS) and a final Development section; the SKILLS model sample passes the required fields and its Configuration has Custom Transport Options, Custom HTTP client, retries, timeouts, request id, compression and cancellation at `###`; an options class keeps the examples of its parameters as comments; `make lint` also runs `ruff format --check .`.
-Where: `readme.mustache`, `skills.mustache`, `api/options.mustache`, `makefile.mustache`. Test: `test_metadata.mustache`, `PythonFormattingSpec` (`pluralExamplesShouldBeAttributedToParameter`, `optionalParameterExamplesShouldBeKept`).
+Rule: the README opens with Installation and Usage (linking SKILLS.md), then Configuration (timeouts, proxy, request id, Custom HTTP client, retries, OAuth2, response compression, raw responses, cancellation), Package, type mapping, Caveats, Not supported (now also XML bodies, Link Objects, mutual TLS) and a final Development section; the SKILLS model sample passes the required fields and its Configuration has Custom Transport Options, Custom HTTP client, retries, timeouts, request id, compression and cancellation at `###`; an options class keeps the examples of its parameters as comments; the operation docstring (the main method and the stream-only method, not `_with_http_info`, through `api/operation_doc_examples.mustache`) ends with one `<heading> example: <summary>` line, the description and a `# >>> <value>` line per request-body and 2xx response example (D169), then one `Extension <name>: <value>` line per extension the `exposedExtensions` option names (D170), and a typed response-headers field doc adds `Example: >>> <value>`; `make lint` also runs `ruff format --check .`.
+Where: `readme.mustache`, `skills.mustache`, `api/options.mustache`, `api/operation_doc_examples.mustache`, `api/response_headers.mustache`, `makefile.mustache`. Test: `test_metadata.mustache`, `PythonFormattingSpec` (`pluralExamplesShouldBeAttributedToParameter`, `optionalParameterExamplesShouldBeKept`).
 
 ### Tests only
 `test_store_api.mustache` (lowercase uuid in the `getOrderByTrackingId` path), `test_bearer_authenticator.mustache` (`Bearer Bearer xyz` and `bearerxyz`), `test_object_serializer.mustache` (byte-array equality), `test_default_api_client_unit.mustache` (identity encoding passes through), `test_base_api.mustache` (a null body is not sent).
@@ -559,6 +561,13 @@ Test: `TestPagedLists` (`pagination004`, `005`, `006`, `007`, `008`, `023`, `027
 Rule: `TransportOptions.max_response_bytes` (builder `max_response_bytes(n)`, default `None`) is `None` or a positive `int`, checked in `__post_init__` and the builder by `_assert_valid_max_response_bytes` with `Invalid maxResponseBytes: must be a positive number of bytes (got N)`; it is in the `repr`. `DefaultApiClient._read_within` reads at most `limit + 1` raw bytes through `read1` and `_decompress_body` decodes through `_decompress_capped` (zlib `max_length` for gzip and deflate, brotli's `output_buffer_limit` or 256-byte input pieces, zstd in 256-byte input pieces); passing the limit aborts the response and raises `ResponseTooLargeException` (`errors/response_too_large_exception.mustache`, a direct `ApiException` with the real status, lower-cased headers, an empty body, `limit`, and `is_retryable` always `False`). A drained redirect body is bounded the same way. Streamed calls are not bounded.
 Where: `transport_options.mustache`, `default_api_client.mustache`, `errors/response_too_large_exception.mustache`, `errors.mustache`, `__init__.mustache`, `BetterPythonCodegen`.
 Test: `test_transport_options.mustache` (`options069`), `test_default_api_client_unit.mustache` (`transport095`, `transport096`), `test_api_error.mustache` (`ERROR_TREE`).
+
+## Response media type and typed response headers (D167, D168)
+
+- D167: a per-call `Accept` in `<Operation>Options.headers` replaces the selector's declared list through `_merge_headers` (case-insensitive), so exactly one `Accept` goes on the wire; decoding still follows the declared return type. Test: `operations501` in `test/api/test_pet_api.mustache`.
+- D168: `BetterPythonCodegen.writeResponseHeadersFile` renders `api/response_headers.mustache` to `api/options/<operation>_response_headers.py` for every operation with `vendorExtensions.op.hasResponseHeaders`, exported by the options barrel; fields are typed by the parsed builtin (`str`, `int`, `float`, `bool`, `List[...]`) rather than the pydantic `dataType`, and `from_headers` raises `SerializationException` for a value that does not parse. Tests: `headers501`, `headers502` in `test/api/test_store_api.mustache`.
+
+## Deprecated security schemes, device authorization and HTTP Digest (D190-D192)
 
 - **D190 (security scheme 3.2 fields).** `auth/scheme_authenticator.mustache` adds a plain sentence to the doc comment of a scheme marked `deprecated: true` (`schemeDeprecated`; never a deprecation attribute) and exposes a declared `oauth2MetadataUrl` as `METADATA_URL: ClassVar[str]` (`oauth2MetadataUrlLiteral`, escaped in `renderSchemeAuthenticator`). Test: `test/test_scheme_authenticators.mustache` (`test_bhv_authscheme_700`).
 - **D191 (device authorization flow).** `auth/oauth/oauth2_device_authorization_authenticator.mustache` holds the authenticator and the frozen `DeviceAuthorization` dataclass (both re-exported from `auth/oauth/__init__`); the device request goes through `OAuth2TokenManager._post_form` (shared with the token request) and the poll through `exchange`; `_sleep`/`_monotonic` are the test seam. `recordDeviceAuthorizationScheme` feeds `deviceAuthorizationSchemes` to the test. Test: `test/test_oauth2_token_manager.mustache` (`TestOAuth2DeviceAuthorizationAuthenticator`, bhv authoauthtwodevice 700-706).

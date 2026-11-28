@@ -189,7 +189,7 @@ func makeAuthenticator() -> OAuth2ClientCredentialsAuthenticator {
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `Servers` enum exposes each as a `ServerConfiguration` static property (e.g., `Servers.server0`, `Servers.server1`, ...) plus a `Servers.all` array. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Servers` enum exposes each as a `ServerConfiguration` static property (e.g., `Servers.server0`, `Servers.server1`, ...) plus a `Servers.all` array. A server the spec gives a name is also found by that name with `Servers.byName("name")`, which fails with `ConfigurationError.invalidArgument` when no server has the name. Pass the desired server's URL to the client:
 
 ```swift file
 import PetstoreClient

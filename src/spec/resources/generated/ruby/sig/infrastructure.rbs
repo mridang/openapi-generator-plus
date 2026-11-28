@@ -138,7 +138,8 @@ module Petstore::Client
     attr_reader url_template: String
     attr_reader description: String?
     attr_reader variables: Hash[String, ServerVariable]
-    def initialize: (url_template: String, ?description: String?, ?variables: Hash[String, ServerVariable]) -> void
+    attr_reader name: String?
+    def initialize: (url_template: String, ?description: String?, ?variables: Hash[String, ServerVariable], ?name: String?) -> void
     def url: (?Hash[String, String]) -> String
   end
 
@@ -147,6 +148,7 @@ module Petstore::Client
     SERVER_1: ServerConfiguration
     SERVER_2: ServerConfiguration
     ALL: Array[ServerConfiguration]
+    def self.by_name: (String) -> ServerConfiguration
   end
 
   class ApiHttpResponse
@@ -704,7 +706,8 @@ module Petstore::Client
     def build_connection: () -> untyped
     def proxy_settings: (String?) -> (String | Hash[Symbol, untyped])?
     def build_multipart_body: (Hash[String, untyped], String) -> String
-    def multipart_part: (String, untyped, String) -> String
+    def multipart_part: (String, untyped, String, ?ValueSerializer::EncodedPart?) -> String
+    def encoded_part_headers: (ValueSerializer::EncodedPart?) -> String
     def sanitize_multipart_field_name: (String | Symbol) -> String
     def build_content_disposition: (String | Symbol, String?) -> String
     def escape_quoted: (String) -> String
@@ -724,15 +727,26 @@ module Petstore::Client
     def self.query_entries: (String, untyped, String, Symbol?, String?, bool, bool) -> Hash[String, untyped]
     def self.encode_query_allowing_reserved: (String?) -> String
     def self.maybe_allow_reserved: (untyped, bool) -> untyped
+    def self.encoded_part: (untyped, String?, Array[[String, String]]) -> untyped
     def self.encode_path_segment: (String str) -> String
     def self.encode_content_cookie: (String?) -> String
+    def self.cookie_pairs: (String, untyped, bool) -> String
+    def self.allow_reserved_in_path: (String) -> String
 
     PRESERVE_ENCODED: Hash[String, String]
     RESERVED_PRESERVED: Hash[String, String]
+    COOKIE_OCTETS: Regexp
 
     class AllowReservedValue
       attr_reader value: untyped
       def initialize: (untyped) -> void
+    end
+
+    class EncodedPart
+      attr_reader value: untyped
+      attr_reader content_type: String?
+      attr_reader headers: Hash[String, String]
+      def initialize: (untyped, String?, Hash[String, String]) -> void
     end
 
     private
@@ -745,6 +759,7 @@ module Petstore::Client
     def self.object_fields: (untyped) -> Hash[untyped, untyped]?
     def self.serialize_object: (String, Hash[untyped, untyped], Symbol, String?, bool) -> String
     def self.object_field_text: (untyped, untyped) -> String
+    def self.cookie_octets: (String, String) -> String
   end
 
   class ObjectSerializer
@@ -1132,6 +1147,10 @@ module Petstore::Client
       def encode_query_value: (untyped, bool) -> String
       def serialize_body: (untyped, String?, ?raw_body: bool) -> untyped
       def binary_part_from_form_body: (Hash[String, untyped]) -> untyped
+      def encode_form_component: (String) -> String
+      def unwrap_allow_reserved: (untyped) -> untyped
+      def unwrap_encoded_part: (untyped) -> untyped
+      def unwrap_multipart_value: (untyped) -> untyped
       def return_type_for_status: ((String | Hash[Integer | String, String])?, Integer) -> String?
       def decode_success_data: (ApiHttpResponse, (String | Hash[Integer | String, String])?, String?) -> untyped
       def binary_return_type?: (String?) -> bool

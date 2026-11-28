@@ -71,6 +71,8 @@ import org.openapitools.codegen.meta.features.SecurityFeature;
 import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
 
+import io.github.mridang.codegen.OpenApi32ParserExtension;
+import io.github.mridang.codegen.rules.ApplyReferenceOverridesRule;
 import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
@@ -256,6 +258,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "clients enable this to ship a harmonized unit-test suite "
                         + "without the petstore-coupled tests (default: false).")
                 .defaultValue("false"));
+        cliOptions.add(new CliOption("exposedExtensions",
+                "Comma-separated vendor extension names (each starting with x-) of an operation "
+                        + "that the SDK documents on the operation (default: none)."));
         cliOptions.add(CliOption.newBoolean("generateExamples",
                 "Whether to generate examples/quickstart, one complete program that "
                         + "builds a client, calls one operation and closes the client, "
@@ -830,6 +835,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         io.github.mridang.codegen.SpecPreChecks.clear(openAPI);
         new InlinePathItemReferencesRule()
                 .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        // D156: the summary and description written beside a $ref override the target's text.
+        new ApplyReferenceOverridesRule()
+                .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new io.github.mridang.codegen.rules.NormalizePatternPropertiesRule()
@@ -923,6 +931,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             serverMap.put("serverIndex", String.valueOf(i));
             serverMap.put("serverUrl", Optional.ofNullable(server.getUrl()).orElse(""));
             serverMap.put("serverDescription", server.getDescription());
+            // OpenAPI 3.2 Server `name` (D153), carried by the 3.2 loader because the model has
+            // no field for it; null for a server without one and for every 3.0 or 3.1 document.
+            final Object name = server.getExtensions() == null
+                    ? null
+                    : server.getExtensions().get(OpenApi32ParserExtension.SERVER_NAME);
+            serverMap.put("serverName",
+                    name instanceof String && !((String) name).isBlank() ? name : null);
 
             final boolean hasVariables =
                     Optional.ofNullable(server.getVariables())
@@ -4054,6 +4069,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
                 description = ex.getDescription();
                 value = ex.getValue();
+                // D169: an example kept in another document is shown by its URL.
+                if (value == null && ex.getExternalValue() != null) {
+                    value = ex.getExternalValue();
+                }
             } else if (exObj instanceof Map) {
                 final Map<String, Object> ex = (Map<String, Object>) exObj;
                 if (ex.get("summary") != null) {
@@ -4062,7 +4081,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 if (ex.get("description") != null) {
                     description = String.valueOf(ex.get("description"));
                 }
-                value = ex.get("value");
+                value = ex.get("value") != null ? ex.get("value") : ex.get("externalValue");
             } else {
                 value = exObj;
             }
@@ -5080,6 +5099,85 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             new java.util.LinkedHashMap<>();
 
     /**
+     * D168: the response headers the operation's 2xx responses declare, merged in status order
+     * (the first declaration of a name wins, names compared without case; Content-Type is left
+     * out). Each row gives the wire name ({@code wireName}), the language's field name
+     * ({@code varName}), the language's type ({@code dataType}, and {@code itemDataType} for an
+     * array), the value kind ({@code kind}: string, integer, long, number or boolean, the
+     * array's item kind for an array, any other schema read as string), {@code isArray} and
+     * {@code description}. {@code hasResponseHeaders} and {@code responseHeadersClassName}
+     * ({@code <OperationId>ResponseHeaders}) go with it.
+     */
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
+    private void populateResponseHeaders(CodegenOperation op, Map<String, Object> d, String pascal) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        final Set<String> seen = new HashSet<>();
+        final Object rawDeclared =
+                op.vendorExtensions == null ? null : op.vendorExtensions.get("declaredResponseHeaders");
+        @SuppressWarnings("unchecked")
+        final Map<String, Map<String, String>> declaredHeaders = rawDeclared instanceof Map
+                ? (Map<String, Map<String, String>>) rawDeclared
+                : Collections.emptyMap();
+        if (op.responses != null) {
+            for (final CodegenResponse response : op.responses) {
+                if (response == null || !response.is2xx || response.headers == null) {
+                    continue;
+                }
+                for (final CodegenProperty header : response.headers) {
+                    if (header == null || header.baseName == null) {
+                        continue;
+                    }
+                    final String lower = header.baseName.toLowerCase(Locale.ROOT);
+                    if ("content-type".equals(lower) || !seen.add(lower)) {
+                        continue;
+                    }
+                    final CodegenProperty value = header.isArray && header.items != null
+                            ? header.items : header;
+                    final String kind;
+                    if (value.isBoolean) {
+                        kind = "boolean";
+                    } else if (value.isLong) {
+                        kind = "long";
+                    } else if (value.isInteger) {
+                        kind = "integer";
+                    } else if (value.isNumber || value.isFloat || value.isDouble) {
+                        kind = "number";
+                    } else {
+                        kind = "string";
+                    }
+                    final Map<String, Object> row = new HashMap<>();
+                    row.put("wireName", header.baseName);
+                    row.put("varName", header.name);
+                    row.put("dataType", header.dataType);
+                    row.put("itemDataType", header.isArray && header.items != null
+                            ? header.items.dataType : header.dataType);
+                    row.put("kind", kind);
+                    row.put("isString", "string".equals(kind));
+                    row.put("isInteger", "integer".equals(kind));
+                    row.put("isLong", "long".equals(kind));
+                    row.put("isNumber", "number".equals(kind));
+                    row.put("isBoolean", "boolean".equals(kind));
+                    row.put("isArray", header.isArray);
+                    final Map<String, String> declared = declaredHeaders.get(lower);
+                    String description = header.description == null ? "" : header.description;
+                    if (description.isEmpty() && declared != null) {
+                        description = declared.getOrDefault("description", "");
+                    }
+                    final String example = declared == null ? "" : declared.getOrDefault("example", "");
+                    row.put("description", description);
+                    row.put("hasDescription", !description.isEmpty());
+                    row.put("example", example);
+                    row.put("hasExample", !example.isEmpty());
+                    rows.add(row);
+                }
+            }
+        }
+        d.put("responseHeaders", rows);
+        d.put("hasResponseHeaders", !rows.isEmpty());
+        d.put("responseHeadersClassName", pascal + "ResponseHeaders");
+    }
+
+    /**
      * Exposes the error responses an operation declares on its decorator map:
      * {@code errorResponses} (one row per distinct status, a default response
      * last: {@code status}, {@code statusClass}, {@code statusClassName},
@@ -5308,6 +5406,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // Declared error responses: the status class and schema of each non-2xx response.
         populateErrorResponses(op, d);
 
+        // D168: the headers the success responses declare, read through a typed headers type.
+        populateResponseHeaders(op, d, pascal);
+
         // O10 — Return kind classification
         d.put("returnKind", deriveReturnKind(op));
         d.put("hasReturnType", op.returnType != null);
@@ -5500,13 +5601,225 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public CodegenParameter fromParameter(Parameter parameter, Set<String> imports) {
         final CodegenParameter cp = super.fromParameter(parameter, imports);
-        if (parameter != null && Boolean.TRUE.equals(parameter.getAllowReserved())) {
+        final Parameter resolved = parameter == null
+                ? null
+                : org.openapitools.codegen.utils.ModelUtils.getReferencedParameter(openAPI, parameter);
+        // D169: a parameter's single `example` (with no `examples`) is shown like a named one.
+        if (resolved != null && resolved.getExample() != null
+                && (resolved.getExamples() == null || resolved.getExamples().isEmpty())) {
+            if (cp.vendorExtensions == null) {
+                cp.vendorExtensions = new HashMap<>();
+            }
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("summary", "Example");
+            entry.put("description", "");
+            entry.put("value", renderExampleValue(resolved.getExample()));
+            cp.vendorExtensions.put("pluralExamples", new ArrayList<>(List.of(entry)));
+        }
+        if (resolved != null && Boolean.TRUE.equals(resolved.getAllowReserved())) {
             if (cp.vendorExtensions == null) {
                 cp.vendorExtensions = new HashMap<>();
             }
             cp.vendorExtensions.put("allowReserved", true);
         }
+        // D163: OpenAPI 3.2 `style: cookie`, carried by the 3.2 loader because the parser's
+        // style enum has no such value.
+        if (cp.isCookieParam && resolved != null && resolved.getExtensions() != null
+                && OpenApi32ParserExtension.COOKIE_STYLE.equals(
+                        resolved.getExtensions().get(OpenApi32ParserExtension.PARAMETER_STYLE))) {
+            cp.style = OpenApi32ParserExtension.COOKIE_STYLE;
+            if (cp.vendorExtensions == null) {
+                cp.vendorExtensions = new HashMap<>();
+            }
+            cp.vendorExtensions.put("cookieStyle", true);
+            cp.vendorExtensions.remove(OpenApi32ParserExtension.PARAMETER_STYLE);
+        }
         return cp;
+    }
+
+    /**
+     * Marks each form field whose Encoding Object declares {@code allowReserved: true} (D164), so
+     * the form encoder keeps the reserved characters of that field literal. Only an
+     * {@code application/x-www-form-urlencoded} body is affected: the specification gives
+     * {@code allowReserved} no effect in a multipart body.
+     */
+    @Override
+    public List<CodegenParameter> fromRequestBodyToFormParameters(
+            io.swagger.v3.oas.models.parameters.RequestBody body, Set<String> imports) {
+        final List<CodegenParameter> params = super.fromRequestBodyToFormParameters(body, imports);
+        final io.swagger.v3.oas.models.parameters.RequestBody resolved =
+                org.openapitools.codegen.utils.ModelUtils.getReferencedRequestBody(openAPI, body);
+        if (resolved == null || resolved.getContent() == null) {
+            return params;
+        }
+        applyMultipartEncoding(resolved, params);
+        final io.swagger.v3.oas.models.media.MediaType form =
+                resolved.getContent().get("application/x-www-form-urlencoded");
+        if (form == null || form.getEncoding() == null) {
+            return params;
+        }
+        final boolean alsoMultipart = multipartMediaType(resolved) != null;
+        for (final CodegenParameter param : params) {
+            final io.swagger.v3.oas.models.media.Encoding encoding =
+                    form.getEncoding().get(param.baseName);
+            if (encoding == null) {
+                continue;
+            }
+            if (param.vendorExtensions == null) {
+                param.vendorExtensions = new HashMap<>();
+            }
+            if (Boolean.TRUE.equals(encoding.getAllowReserved())) {
+                param.vendorExtensions.put("allowReserved", true);
+            }
+            // D165: style and explode of the Encoding Object write the field with the query
+            // rules. deepObject is not applied (the field keeps the default form style), and a
+            // body that may also be sent as multipart keeps the plain value, which the
+            // multipart encoder needs. The parser fills a missing style with form, which with
+            // no explode is the default form encoding, so only a different style or an
+            // explicit explode changes the field.
+            final boolean styled = encoding.getExplode() != null
+                    || (encoding.getStyle() != null
+                            && encoding.getStyle() != io.swagger.v3.oas.models.media.Encoding.StyleEnum.FORM);
+            if (styled && !alsoMultipart) {
+                final String style =
+                        encoding.getStyle() == null ? "form" : encoding.getStyle().toString();
+                if (!"deepObject".equals(style)) {
+                    param.style = style;
+                    param.isExplode = encoding.getExplode() != null
+                            ? encoding.getExplode()
+                            : "form".equals(style);
+                    param.vendorExtensions.put("formStyled", true);
+                }
+            }
+        }
+        return params;
+    }
+
+    /** The first {@code multipart/*} media type of a request body, or null. */
+    @Nullable
+    private static io.swagger.v3.oas.models.media.MediaType multipartMediaType(
+            io.swagger.v3.oas.models.parameters.RequestBody body) {
+        if (body.getContent() == null) {
+            return null;
+        }
+        for (final Map.Entry<String, io.swagger.v3.oas.models.media.MediaType> entry
+                : body.getContent().entrySet()) {
+            if (entry.getKey().toLowerCase(Locale.ROOT).startsWith("multipart/")) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * D166: the Encoding Object of a multipart part. A single concrete {@code contentType}
+     * (no list, no wildcard) becomes the part's Content-Type ({@code partContentType}), and
+     * each declared part header with a value the document fixes (its schema's
+     * {@code default}, {@code const} or single {@code enum} value) is sent with that value
+     * ({@code partHeaders}). Content-Type and Content-Disposition in {@code headers} are
+     * ignored (the specification describes them elsewhere), and a header without a fixed
+     * value, or with a name or value that cannot be written as a header, is not sent.
+     */
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "HTTP header and identifier names are ASCII")
+    private void applyMultipartEncoding(
+            io.swagger.v3.oas.models.parameters.RequestBody body, List<CodegenParameter> params) {
+        final io.swagger.v3.oas.models.media.MediaType multipart = multipartMediaType(body);
+        if (multipart == null || multipart.getEncoding() == null) {
+            return;
+        }
+        for (final CodegenParameter param : params) {
+            final io.swagger.v3.oas.models.media.Encoding encoding =
+                    multipart.getEncoding().get(param.baseName);
+            if (encoding == null) {
+                continue;
+            }
+            String contentType = null;
+            if (encoding.getContentType() != null) {
+                final String declared = encoding.getContentType().trim();
+                if (!declared.isEmpty() && !declared.contains(",") && !declared.contains("*")
+                        && isHeaderValue(declared)) {
+                    contentType = declared;
+                }
+            }
+            final List<Map<String, Object>> headers = new ArrayList<>();
+            if (encoding.getHeaders() != null) {
+                for (final Map.Entry<String, io.swagger.v3.oas.models.headers.Header> entry
+                        : encoding.getHeaders().entrySet()) {
+                    final String name = entry.getKey();
+                    if ("content-type".equalsIgnoreCase(name)
+                            || "content-disposition".equalsIgnoreCase(name)
+                            || !name.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) {
+                        continue;
+                    }
+                    final String value = fixedHeaderValue(entry.getValue());
+                    if (value == null || !isHeaderValue(value)) {
+                        continue;
+                    }
+                    final Map<String, Object> header = new LinkedHashMap<>();
+                    header.put("name", name);
+                    header.put("value", value);
+                    headers.add(header);
+                }
+            }
+            if (contentType == null && headers.isEmpty()) {
+                continue;
+            }
+            if (param.vendorExtensions == null) {
+                param.vendorExtensions = new HashMap<>();
+            }
+            param.vendorExtensions.put("partEncoded", true);
+            if (contentType != null) {
+                param.vendorExtensions.put("partContentType", contentType);
+            }
+            param.vendorExtensions.put("partHeaders", headers);
+        }
+    }
+
+    /** The value a header's schema fixes: its default, const or single enum value. */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    private String fixedHeaderValue(io.swagger.v3.oas.models.headers.Header header) {
+        io.swagger.v3.oas.models.headers.Header resolved = header;
+        if (header.get$ref() != null) {
+            resolved = org.openapitools.codegen.utils.ModelUtils.getReferencedHeader(openAPI, header);
+        }
+        if (resolved == null || resolved.getSchema() == null) {
+            return null;
+        }
+        final Schema schema = org.openapitools.codegen.utils.ModelUtils.getReferencedSchema(
+                openAPI, resolved.getSchema());
+        if (schema == null) {
+            return null;
+        }
+        Object value = schema.getDefault();
+        if (value == null) {
+            value = schema.getConst();
+        }
+        if (value == null && schema.getEnum() != null && schema.getEnum().size() == 1) {
+            value = schema.getEnum().get(0);
+        }
+        if (value == null || value instanceof Map || value instanceof List) {
+            return null;
+        }
+        return String.valueOf(value);
+    }
+
+    /**
+     * Whether a string can be written as a header value and as a string literal of every SDK:
+     * visible ASCII, space and tab, without a quote, backslash, dollar, hash, backtick or brace
+     * (which start an escape or an interpolation in one of the twelve languages).
+     */
+    private static boolean isHeaderValue(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c != '\t' && (c < 0x20 || c > 0x7e)) {
+                return false;
+            }
+            if ("\"'\\$#`{}".indexOf(c) >= 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -5519,6 +5832,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 p.vendorExtensions == null ? null : p.vendorExtensions.get("param");
         return decorator instanceof Map
                 && Boolean.TRUE.equals(((Map<?, ?>) decorator).get("queryRequiredNullable"));
+    }
+
+    /** Whether the document under generation declares OpenAPI 3.2. */
+    private boolean isOpenApi32Document() {
+        return openAPI != null && openAPI.getOpenapi() != null
+                && openAPI.getOpenapi().trim().startsWith("3.2.");
     }
 
     /** Runs {@link #populateParameterDecorators} over every entry of a list. */
@@ -5616,6 +5935,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put(
                 "allowReserved",
                 Boolean.TRUE.equals(param.vendorExtensions.get("allowReserved")));
+        // D163: a cookie parameter written with the OpenAPI 3.2 `style: cookie`.
+        d.put("cookieStyle", Boolean.TRUE.equals(param.vendorExtensions.get("cookieStyle")));
+        // D164: allowReserved on a path parameter (OpenAPI 3.2 only; 3.0 and 3.1 restrict it to
+        // query parameters) and on a form-urlencoded field through its Encoding Object.
+        final boolean allowReserved = Boolean.TRUE.equals(param.vendorExtensions.get("allowReserved"));
+        d.put("pathAllowReserved", allowReserved && param.isPathParam && isOpenApi32Document());
+        d.put("formAllowReserved", allowReserved && param.isFormParam);
+        // D165: a form-urlencoded field whose Encoding Object sets style or explode is written
+        // with the query rules ({{style}} and {{isExplode}} hold the encoding's values).
+        d.put("formStyled", param.isFormParam
+                && Boolean.TRUE.equals(param.vendorExtensions.get("formStyled")));
+        // D166: a multipart part with a declared Content-Type or fixed part headers.
+        final boolean partEncoded = param.isFormParam
+                && Boolean.TRUE.equals(param.vendorExtensions.get("partEncoded"));
+        d.put("partEncoded", partEncoded);
+        d.put("partContentType", partEncoded ? param.vendorExtensions.get("partContentType") : null);
+        d.put("partHeaders", partEncoded
+                ? param.vendorExtensions.get("partHeaders")
+                : Collections.emptyList());
 
         // P2 / P3 — Path serialisation kind + encoding requirement
         d.put("pathSerialisationKind", derivePathSerialisationKind(param));
@@ -6185,6 +6523,47 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * A security scheme in {@code components} that is a {@code $ref} to another one is replaced
+     * by a copy of the scheme it names (following a chain, stopping at a cycle), keeping a
+     * {@code description} written beside the reference. The parser keeps such an entry with no
+     * type, which every generator would otherwise fail on (#67, {@code sec.ref}).
+     */
+    static void inlineSecuritySchemeReferences(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+        final Map<String, SecurityScheme> schemes = openAPI.getComponents().getSecuritySchemes();
+        final String prefix = "#/components/securitySchemes/";
+        for (final Map.Entry<String, SecurityScheme> entry : schemes.entrySet()) {
+            final SecurityScheme reference = entry.getValue();
+            if (reference == null || reference.get$ref() == null) {
+                continue;
+            }
+            SecurityScheme target = reference;
+            final Set<String> visited = new HashSet<>();
+            while (target != null && target.get$ref() != null && target.get$ref().startsWith(prefix)
+                    && visited.add(target.get$ref())) {
+                target = schemes.get(target.get$ref().substring(prefix.length()));
+            }
+            if (target == null || target.get$ref() != null) {
+                continue;
+            }
+            final SecurityScheme copy = new SecurityScheme()
+                    .type(target.getType())
+                    .description(reference.getDescription() != null
+                            ? reference.getDescription() : target.getDescription())
+                    .name(target.getName())
+                    .in(target.getIn())
+                    .scheme(target.getScheme())
+                    .bearerFormat(target.getBearerFormat())
+                    .flows(target.getFlows())
+                    .openIdConnectUrl(target.getOpenIdConnectUrl());
+            copy.setExtensions(target.getExtensions());
+            entry.setValue(copy);
+        }
+    }
+
+    /**
      * Decodes HTML entities in human-facing doc text across the whole spec,
      * after any normalizer has run and before models/operations are built.
      *
@@ -6207,6 +6586,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     @Override
     public void preprocessOpenAPI(OpenAPI openAPI) {
+        if (openAPI != null) {
+            inlineSecuritySchemeReferences(openAPI);
+        }
         super.preprocessOpenAPI(openAPI);
         if (openAPI == null) {
             return;
@@ -7143,13 +7525,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return name.isEmpty() ? getVarCasing().apply("api") : getVarCasing().apply(name);
     }
 
+    /** Puts a non-blank tag carrier value under {@code key}, HTML entities decoded. */
+    private static void putTagCarrier(
+            final Tag tag, final String carrier, final String key, final Map<String, Object> operations) {
+        final Object value = tag.getExtensions() == null ? null : tag.getExtensions().get(carrier);
+        if (value instanceof String && !((String) value).isBlank()) {
+            operations.put(key, htmlUnescape(((String) value).trim()));
+        }
+    }
+
     /**
      * Injects tag description and external documentation into
      * the operations template context so API class-level
      * Javadoc or docstrings can render the tag metadata from
      * the OpenAPI spec. All operations in a group share the
      * same tag, so the first operation's tag is used to look
-     * up the description and external docs.
+     * up the description and external docs, and the OpenAPI 3.2
+     * tag summary, parent and kind (D157).
      */
     @SuppressWarnings("unchecked")
     private void injectTagMetadata(Map<String, Object> operations) {
@@ -7173,6 +7565,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (tagName.equals(tag.getName())) {
                 Optional.ofNullable(tag.getDescription())
                         .ifPresent(desc -> operations.put("tagDescription", desc));
+                // OpenAPI 3.2 nested tags (D157), carried by the 3.2 loader: the summary and
+                // the parent are documentation; the kind is handed on for templates as is.
+                putTagCarrier(tag, OpenApi32ParserExtension.TAG_SUMMARY, "tagSummary", operations);
+                putTagCarrier(tag, OpenApi32ParserExtension.TAG_PARENT, "tagParent", operations);
+                putTagCarrier(tag, OpenApi32ParserExtension.TAG_KIND, "tagKind", operations);
                 Optional.ofNullable(tag.getExternalDocs())
                         .ifPresent(
                                 extDocs -> {
@@ -7196,12 +7593,24 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public CodegenOperation fromOperation(
             String path, String httpMethod, Operation operation, List<Server> servers) {
-        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        // D159, D160: a QUERY operation or one of additionalOperations sits in a path item of its
+        // own, keyed "<path> <METHOD>", with its method carried on the operation.
+        final String declaredMethod = OpenApi32ParserExtension.declaredMethod(operation);
+        final String resourcePath =
+                declaredMethod == null ? path : OpenApi32ParserExtension.resourcePath(path);
+        final String method = declaredMethod == null ? httpMethod : declaredMethod;
+        final CodegenOperation op = super.fromOperation(resourcePath, method, operation, servers);
+        if (declaredMethod != null) {
+            op.httpMethod = declaredMethod;
+            if (op.vendorExtensions != null) {
+                op.vendorExtensions.remove(OpenApi32ParserExtension.OPERATION_METHOD);
+            }
+        }
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
         }
         final Map<String, String> summaries =
-                responseSummaries.get(httpMethod.toUpperCase(Locale.ROOT) + " " + path);
+                responseSummaries.get(method.toUpperCase(Locale.ROOT) + " " + resourcePath);
         if (summaries != null) {
             if (op.vendorExtensions == null) {
                 op.vendorExtensions = new HashMap<>();
@@ -7241,7 +7650,179 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         opDecorator.put("hasAllOfGroup", allOf);
+        // D169: the request body and success response examples.
+        final List<Map<String, Object>> examples = operationExamples(operation);
+        opDecorator.put("operationExamples", examples);
+        opDecorator.put("hasOperationExamples", !examples.isEmpty());
+        // D168, D169: description and example of each declared success response header, read
+        // from the document so a header reached through $ref keeps them.
+        op.vendorExtensions.put("declaredResponseHeaders", declaredResponseHeaders(operation));
+        // D170: the vendor extensions the exposedExtensions option names.
+        final List<Map<String, Object>> exposed = exposedExtensionsOf(operation);
+        opDecorator.put("exposedExtensions", exposed);
+        opDecorator.put("hasExposedExtensions", !exposed.isEmpty());
         return op;
+    }
+
+    /**
+     * D169: the examples of an operation, as rows of {@code heading} ("Request body" or
+     * "Response <status>"), {@code summary}, {@code description} and {@code value} (compact
+     * JSON or the plain value; an external example's URL). Read from the first media type of
+     * the request body and of each 2xx response, from its {@code examples} or else its
+     * {@code example}.
+     */
+    private List<Map<String, Object>> operationExamples(Operation operation) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        if (operation.getRequestBody() != null) {
+            final io.swagger.v3.oas.models.parameters.RequestBody body =
+                    org.openapitools.codegen.utils.ModelUtils.getReferencedRequestBody(
+                            openAPI, operation.getRequestBody());
+            if (body != null) {
+                addMediaTypeExamples(rows, "Request body", body.getContent());
+            }
+        }
+        if (operation.getResponses() != null) {
+            for (final Map.Entry<String, io.swagger.v3.oas.models.responses.ApiResponse> entry
+                    : operation.getResponses().entrySet()) {
+                if (!entry.getKey().startsWith("2")) {
+                    continue;
+                }
+                final io.swagger.v3.oas.models.responses.ApiResponse response =
+                        org.openapitools.codegen.utils.ModelUtils.getReferencedApiResponse(
+                                openAPI, entry.getValue());
+                if (response != null) {
+                    addMediaTypeExamples(rows, "Response " + entry.getKey(), response.getContent());
+                }
+            }
+        }
+        return rows;
+    }
+
+    private void addMediaTypeExamples(
+            List<Map<String, Object>> rows,
+            String heading,
+            @Nullable io.swagger.v3.oas.models.media.Content content) {
+        if (content == null || content.isEmpty()) {
+            return;
+        }
+        final io.swagger.v3.oas.models.media.MediaType media = content.values().iterator().next();
+        if (media == null) {
+            return;
+        }
+        List<Map<String, Object>> found = new ArrayList<>();
+        if (media.getExamples() != null && !media.getExamples().isEmpty()) {
+            final Map<String, Object> resolved = new LinkedHashMap<>();
+            for (final Map.Entry<String, io.swagger.v3.oas.models.examples.Example> e
+                    : media.getExamples().entrySet()) {
+                io.swagger.v3.oas.models.examples.Example ex = e.getValue();
+                if (ex != null && ex.get$ref() != null && openAPI != null
+                        && openAPI.getComponents() != null
+                        && openAPI.getComponents().getExamples() != null) {
+                    final String ref = ex.get$ref();
+                    final io.swagger.v3.oas.models.examples.Example target = openAPI.getComponents()
+                            .getExamples().get(ref.substring(ref.lastIndexOf('/') + 1));
+                    if (target != null) {
+                        ex = target;
+                    }
+                }
+                resolved.put(e.getKey(), ex);
+            }
+            found = buildPluralExamplesList(resolved);
+        } else if (media.getExample() != null) {
+            final Map<String, Object> entry = new HashMap<>();
+            entry.put("summary", "Example");
+            entry.put("description", "");
+            entry.put("value", renderExampleValue(media.getExample()));
+            found.add(entry);
+        }
+        for (final Map<String, Object> entry : found) {
+            if (String.valueOf(entry.get("value")).isEmpty()) {
+                continue;
+            }
+            entry.put("heading", heading);
+            entry.put("hasDescription", !String.valueOf(entry.get("description")).isEmpty());
+            rows.add(entry);
+        }
+    }
+
+    /**
+     * The description and example of every header the 2xx responses declare, keyed by the
+     * lower-cased name (first declaration wins), with header references resolved.
+     */
+    private Map<String, Map<String, String>> declaredResponseHeaders(Operation operation) {
+        final Map<String, Map<String, String>> out = new HashMap<>();
+        if (operation.getResponses() == null) {
+            return out;
+        }
+        for (final Map.Entry<String, io.swagger.v3.oas.models.responses.ApiResponse> entry
+                : operation.getResponses().entrySet()) {
+            if (!entry.getKey().startsWith("2")) {
+                continue;
+            }
+            final io.swagger.v3.oas.models.responses.ApiResponse response =
+                    org.openapitools.codegen.utils.ModelUtils.getReferencedApiResponse(
+                            openAPI, entry.getValue());
+            if (response == null || response.getHeaders() == null) {
+                continue;
+            }
+            for (final Map.Entry<String, io.swagger.v3.oas.models.headers.Header> h
+                    : response.getHeaders().entrySet()) {
+                io.swagger.v3.oas.models.headers.Header header = h.getValue();
+                if (header != null && header.get$ref() != null) {
+                    header = org.openapitools.codegen.utils.ModelUtils.getReferencedHeader(openAPI, header);
+                }
+                if (header == null) {
+                    continue;
+                }
+                final Map<String, String> info = new HashMap<>();
+                info.put("description", header.getDescription() == null ? "" : header.getDescription());
+                Object example = header.getExample();
+                if (example == null && header.getSchema() != null) {
+                    example = header.getSchema().getExample();
+                }
+                info.put("example", example == null ? "" : renderExampleValue(example));
+                out.putIfAbsent(h.getKey().toLowerCase(Locale.ROOT), info);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * D170: the operation's vendor extensions named by the {@code exposedExtensions} option,
+     * in the option's order, as rows of {@code name} and {@code value} (the plain value or
+     * compact JSON).
+     */
+    private List<Map<String, Object>> exposedExtensionsOf(Operation operation) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        if (operation.getExtensions() == null) {
+            return rows;
+        }
+        for (final String name : exposedExtensionNames()) {
+            if (!operation.getExtensions().containsKey(name)) {
+                continue;
+            }
+            final Map<String, Object> row = new HashMap<>();
+            row.put("name", name);
+            row.put("value", renderExampleValue(operation.getExtensions().get(name)));
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    /** The names listed in the {@code exposedExtensions} option, each starting with {@code x-}. */
+    private List<String> exposedExtensionNames() {
+        final Object raw = additionalProperties.get("exposedExtensions");
+        final List<String> names = new ArrayList<>();
+        if (raw == null) {
+            return names;
+        }
+        for (final String part : java.util.regex.Pattern.compile(",").split(String.valueOf(raw), -1)) {
+            final String name = part.trim();
+            if (name.startsWith("x-") && !names.contains(name)) {
+                names.add(name);
+            }
+        }
+        return names;
     }
 
     /**

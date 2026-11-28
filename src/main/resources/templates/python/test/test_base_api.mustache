@@ -19,6 +19,7 @@ from {{packageName}}.api.base_api import BaseApi, NO_AUTH, _NoAuth
 from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from {{packageName}}.api.options.attach_pet_files_options import AttachPetFilesOptions
 from {{packageName}}.api.options.set_pet_preferences_options import SetPetPreferencesOptions
 from {{packageName}}.api.options.list_pet_catalog_options import ListPetCatalogOptions
 from {{packageName}}.api.options.list_pet_feed_options import ListPetFeedOptions
@@ -1783,6 +1784,43 @@ class TestDateOnlyParamsSerializeWithoutTime:
         assert 'renewalDate=2024-01-01' in body, body
         assert 'renewalDate=2024-01-01T' not in body, body
 
+    async def test_bhv_serializationwire_501_an_allow_reserved_form_field_keeps_reserved_characters(self) -> None:
+        client = CapturingApiClient()
+        api = PetApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        try:
+            await api.set_pet_preferences(1, SetPetPreferencesOptions(nickname='rex', route='v1.0/beta:rc1 a#b'))
+        except Exception:
+            pass  # Response handling may fail; we only care about the captured request
+        assert str(client.captured_body) == 'nickname=rex&route=v1.0/beta:rc1%20a%23b'
+
+    async def test_bhv_serializationwire_502_a_styled_form_field_is_written_with_the_query_rules(self) -> None:
+        client = CapturingApiClient()
+        api = PetApi(api_client=client, config=Configuration(base_url='http://localhost'))
+        try:
+            await api.set_pet_preferences(1, SetPetPreferencesOptions(nickname='rex', aliases=['a b', 'c']))
+        except Exception:
+            pass  # Response handling may fail; we only care about the captured request
+        assert str(client.captured_body) == 'nickname=rex&aliases=a+b%7Cc'
+
+    async def test_bhv_serializationwire_503_a_multipart_part_carries_its_declared_content_type_and_headers(
+        self,
+    ) -> None:
+        pool = _ScriptedPool(_FakeResponse(200, {'content-type': 'application/json'}, b'{}'))
+        api = PetApi(
+            api_client=DefaultApiClient(TransportOptions.builder().max_retries(0).build(), pool_manager=pool),
+            config=Configuration(base_url='https://example.test'),
+        )
+        await api.attach_pet_files(1, AttachPetFilesOptions(file=b'\x89PNG', caption='hello'))
+        wire = pool.seen_bodies[0]
+        assert (
+            b'Content-Disposition: form-data; name="caption"\r\n'
+            b'Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello'
+        ) in wire
+        assert (
+            b'Content-Disposition: form-data; name="file"; filename="file"\r\n'
+            b'Content-Type: application/octet-stream\r\n\r\n\x89PNG\r\n'
+        ) in wire
+
 
 class TestHeaderFlowThrough:
 
@@ -3304,10 +3342,12 @@ class _ScriptedPool:
         self.replies = list(replies)
         self.calls = 0
         self.seen_headers: list[Any] = []
+        self.seen_bodies: list[Any] = []
 
     def request(self, *args: Any, **kwargs: Any) -> Any:
         self.calls += 1
         self.seen_headers.append(kwargs.get('headers'))
+        self.seen_bodies.append(kwargs.get('body'))
         reply = self.replies.pop(0)
         if isinstance(reply, BaseException):
             raise reply

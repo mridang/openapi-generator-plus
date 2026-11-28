@@ -130,6 +130,31 @@ module Petstore::Client
       AllowReservedValue.new(value)
     end
 
+    # Wraps a multipart part value whose Encoding Object declares the part
+    # Content-Type and/or part headers. The multipart encoder unwraps it: the
+    # declared Content-Type replaces the one the SDK would choose, and each
+    # header is written after it in declaration order. A list value applies
+    # the encoding to each item.
+    class EncodedPart
+      attr_reader :value, :content_type, :headers
+
+      def initialize(value, content_type, headers)
+        @value = value
+        @content_type = content_type
+        @headers = headers
+      end
+    end
+
+    # Wrap +value+ in an {EncodedPart} carrying the declared part
+    # Content-Type (or nil) and the ordered part headers, given as
+    # +[name, value]+ pairs. A nil value is never wrapped so the body
+    # builder still omits it.
+    def self.encoded_part(value, content_type, headers)
+      return value if value.nil?
+
+      EncodedPart.new(value, content_type, headers.to_h)
+    end
+
     # Percent-encode a query value while leaving RFC 3986 reserved characters
     # literal (OAS +allowReserved: true+). A space is illegal in a URL and is
     # still encoded as +%20+; only the reserved set is restored.
@@ -138,6 +163,62 @@ module Petstore::Client
 
       encoded = URI.encode_www_form_component(value).gsub('+', '%20')
       RESERVED_PRESERVED.reduce(encoded) { |s, (from, to)| s.gsub(from, to) }
+    end
+
+    # The RFC 6265 cookie-octet set an operation cookie value may carry.
+    COOKIE_OCTETS = /\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/
+
+    # The Cookie header fragment of one OAS 3.2 +style: cookie+ parameter.
+    #
+    # A scalar is +name=value+; an array is +name=a,b+ (explode false) or
+    # +name=a; name=b+ (explode true); an object is +name=k1,v1,k2,v2+
+    # (explode false) or +k1=v1; k2=v2+ (explode true). Nothing is
+    # percent-encoded: every item, key and value must already be RFC 6265
+    # cookie-octets.
+    #
+    # @param name [String] the parameter name
+    # @param value [Object, nil] the parameter value
+    # @param explode [Boolean] whether the value is exploded
+    # @return [String] the fragment, or an empty string when nothing is sent
+    # @raise [ArgumentError] when a piece holds a character outside the cookie-octet set
+    def self.cookie_pairs(name, value, explode)
+      return '' if value.nil?
+
+      value = value.to_a if value.is_a?(Set)
+      fields = object_fields(value)
+      if fields
+        pairs = fields.compact.map do |key, field|
+          [cookie_octets(name, key.to_s), cookie_octets(name, object_field_text(key, field))]
+        end
+        return '' if pairs.empty?
+
+        return explode ? pairs.map { |key, text| "#{key}=#{text}" }.join('; ') : "#{name}=#{pairs.flatten.join(',')}"
+      end
+      if value.is_a?(Array)
+        return '' if value.empty?
+
+        items = value.map { |item| cookie_octets(name, ObjectSerializer.stringify(item)) }
+        return explode ? items.map { |item| "#{name}=#{item}" }.join('; ') : "#{name}=#{items.join(',')}"
+      end
+      "#{name}=#{cookie_octets(name, ObjectSerializer.stringify(value))}"
+    end
+
+    # Return +text+ when it holds only RFC 6265 cookie-octets; raise otherwise.
+    def self.cookie_octets(name, text)
+      raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265" unless text.match?(COOKIE_OCTETS)
+
+      text
+    end
+
+    # Turn the percent-encoded RFC 3986 reserved characters a path segment
+    # may carry (OAS +allowReserved: true+ on a path parameter) back into
+    # their literal form: / : @ ! $ & ' ( ) * + , ; =. Takes the value after
+    # path encoding, so ? # [ ] a space and a literal % (as %25) stay encoded.
+    #
+    # @param encoded [String] the path-encoded value
+    # @return [String] the value with the reserved characters literal
+    def self.allow_reserved_in_path(encoded)
+      encoded.gsub(/%(?:2[146-9A-CF]|3[ABD]|40)/i) { |match| match[1, 2].to_s.hex.chr }
     end
 
     # Serialize a parameter value according to OAS 3.0 style and explode rules.
@@ -370,6 +451,6 @@ module Petstore::Client
     end
 
     private_class_method :date_only, :serialize_nil, :serialize_array, :serialize_query_array, :encode_item,
-                         :object_fields, :serialize_object, :object_field_text
+                         :object_fields, :serialize_object, :object_field_text, :cookie_octets
   end
 end

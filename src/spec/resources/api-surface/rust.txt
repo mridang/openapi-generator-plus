@@ -456,6 +456,7 @@ field petstore::api::options::SetPetAvatarOptions::timeout: Option<Duration>
 field petstore::api::options::SetPetAvatarThumbnailOptions::headers: HashMap<String, String>
 field petstore::api::options::SetPetAvatarThumbnailOptions::max_retries: Option<u32>
 field petstore::api::options::SetPetAvatarThumbnailOptions::timeout: Option<Duration>
+field petstore::api::options::SetPetPreferencesOptions::aliases: Option<Vec<String>>
 field petstore::api::options::SetPetPreferencesOptions::headers: HashMap<String, String>
 field petstore::api::options::SetPetPreferencesOptions::interval_days: Option<i32>
 field petstore::api::options::SetPetPreferencesOptions::max_retries: Option<u32>
@@ -464,6 +465,7 @@ field petstore::api::options::SetPetPreferencesOptions::note: Option<String>
 field petstore::api::options::SetPetPreferencesOptions::ratio: Option<f64>
 field petstore::api::options::SetPetPreferencesOptions::reminder: Option<petstore::date_time::DateTime>
 field petstore::api::options::SetPetPreferencesOptions::renewal_date: Option<chrono::NaiveDate>
+field petstore::api::options::SetPetPreferencesOptions::route: Option<String>
 field petstore::api::options::SetPetPreferencesOptions::snooze: Option<chrono::TimeDelta>
 field petstore::api::options::SetPetPreferencesOptions::tags: Option<Vec<String>>
 field petstore::api::options::SetPetPreferencesOptions::timeout: Option<Duration>
@@ -871,10 +873,12 @@ fn petstore::Paginator<T, C, B>::items(&self) -> impl futures_core::Stream<Item 
 fn petstore::Paginator<T, C, B>::of_cursor<F, I, N, M>(Option<C>, F, I, N, M, String) -> Self where F: Fn(Option<C>) -> petstore::paginator::PageFuture<B> + Send + Sync + 'static, I: Fn(&B) -> Vec<T> + Send + Sync + 'static, N: Fn(&B, Option<&C>, usize) -> Option<C> + Send + Sync + 'static, M: Fn(&B) -> bool + Send + Sync + 'static
 fn petstore::Paginator<T, C, B>::pages(&self) -> impl futures_core::Stream<Item = Result<petstore::Page<T, C, B>, petstore::errors::Error>> + Send + Unpin + 'static
 fn petstore::ServerConfiguration::description(&self) -> &str
+fn petstore::ServerConfiguration::name(&self) -> &str
 fn petstore::ServerConfiguration::new(String, String, HashMap<String, petstore::ServerVariable>) -> Self
 fn petstore::ServerConfiguration::url(&self, &HashMap<String, String>) -> Result<String, petstore::errors::ConfigurationError>
 fn petstore::ServerConfiguration::url_template(&self) -> &str
 fn petstore::ServerConfiguration::variables(&self) -> &HashMap<String, petstore::ServerVariable>
+fn petstore::ServerConfiguration::with_name(self, String) -> Self
 fn petstore::ServerSentEvent<T>::new(Option<String>, String, T, Option<u64>, String) -> Self
 fn petstore::ServerVariable::default_value(&self) -> &str
 fn petstore::ServerVariable::description(&self) -> &str
@@ -1193,6 +1197,10 @@ fn petstore::api::options::GetMemoOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::GetMemoOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::GetMemoOptions::new() -> Self
 fn petstore::api::options::GetMemoOptions::timeout(self, Duration) -> Self
+fn petstore::api::options::GetMemoResponseHeaders::from_headers(&HashMap<String, String>) -> Result<Self, petstore::errors::SerializationError>
+fn petstore::api::options::GetMemoResponseHeaders::x_archived(&self) -> Option<bool>
+fn petstore::api::options::GetMemoResponseHeaders::x_labels(&self) -> Option<&[String]>
+fn petstore::api::options::GetMemoResponseHeaders::x_revision(&self) -> Option<i32>
 fn petstore::api::options::GetMultiServerPetInfoOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::GetMultiServerPetInfoOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::GetMultiServerPetInfoOptions::new() -> Self
@@ -1305,6 +1313,8 @@ fn petstore::api::options::HeadMemoOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::HeadMemoOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::HeadMemoOptions::new() -> Self
 fn petstore::api::options::HeadMemoOptions::timeout(self, Duration) -> Self
+fn petstore::api::options::HeadMemoResponseHeaders::from_headers(&HashMap<String, String>) -> Result<Self, petstore::errors::SerializationError>
+fn petstore::api::options::HeadMemoResponseHeaders::x_revision(&self) -> Option<i32>
 fn petstore::api::options::ListNativeAmountsOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::ListNativeAmountsOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::ListNativeAmountsOptions::new() -> Self
@@ -1330,6 +1340,8 @@ fn petstore::api::options::ListPetFeedOptions::limit(self, i32) -> Self
 fn petstore::api::options::ListPetFeedOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::ListPetFeedOptions::new() -> Self
 fn petstore::api::options::ListPetFeedOptions::timeout(self, Duration) -> Self
+fn petstore::api::options::ListPetFeedResponseHeaders::from_headers(&HashMap<String, String>) -> Result<Self, petstore::errors::SerializationError>
+fn petstore::api::options::ListPetFeedResponseHeaders::link(&self) -> Option<&str>
 fn petstore::api::options::ListPetMatchesOptions::cursor(self, String) -> Self
 fn petstore::api::options::ListPetMatchesOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::ListPetMatchesOptions::max_retries(self, u32) -> Self
@@ -1367,10 +1379,16 @@ fn petstore::api::options::OptionsMemoOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::OptionsMemoOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::OptionsMemoOptions::new() -> Self
 fn petstore::api::options::OptionsMemoOptions::timeout(self, Duration) -> Self
+fn petstore::api::options::OptionsMemoResponseHeaders::allow(&self) -> Option<&str>
+fn petstore::api::options::OptionsMemoResponseHeaders::from_headers(&HashMap<String, String>) -> Result<Self, petstore::errors::SerializationError>
 fn petstore::api::options::PatchMemoOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::PatchMemoOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::PatchMemoOptions::new() -> Self
 fn petstore::api::options::PatchMemoOptions::timeout(self, Duration) -> Self
+fn petstore::api::options::PatchMemoResponseHeaders::from_headers(&HashMap<String, String>) -> Result<Self, petstore::errors::SerializationError>
+fn petstore::api::options::PatchMemoResponseHeaders::x_archived(&self) -> Option<bool>
+fn petstore::api::options::PatchMemoResponseHeaders::x_labels(&self) -> Option<&[String]>
+fn petstore::api::options::PatchMemoResponseHeaders::x_revision(&self) -> Option<i32>
 fn petstore::api::options::PlaceOrderOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::PlaceOrderOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::PlaceOrderOptions::new() -> Self
@@ -1395,6 +1413,7 @@ fn petstore::api::options::SetPetAvatarThumbnailOptions::header(self, &str, &str
 fn petstore::api::options::SetPetAvatarThumbnailOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::SetPetAvatarThumbnailOptions::new() -> Self
 fn petstore::api::options::SetPetAvatarThumbnailOptions::timeout(self, Duration) -> Self
+fn petstore::api::options::SetPetPreferencesOptions::aliases(self, Vec<String>) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::header(self, &str, &str) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::interval_days(self, i32) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::max_retries(self, u32) -> Self
@@ -1403,6 +1422,7 @@ fn petstore::api::options::SetPetPreferencesOptions::note(self, String) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::ratio(self, f64) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::reminder(self, petstore::date_time::DateTime) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::renewal_date(self, chrono::NaiveDate) -> Self
+fn petstore::api::options::SetPetPreferencesOptions::route(self, String) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::snooze(self, chrono::TimeDelta) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::tags(self, Vec<String>) -> Self
 fn petstore::api::options::SetPetPreferencesOptions::timeout(self, Duration) -> Self
@@ -1446,6 +1466,7 @@ fn petstore::api::options::WatchOrdersOptions::max_retries(self, u32) -> Self
 fn petstore::api::options::WatchOrdersOptions::new() -> Self
 fn petstore::api::options::WatchOrdersOptions::status(self, String) -> Self
 fn petstore::api::options::WatchOrdersOptions::timeout(self, Duration) -> Self
+fn petstore::api_client::MultipartValue::encoded(petstore::api_client::MultipartValue, Option<&str>, &[(&str, &str)]) -> Self
 fn petstore::api_client::RequestOptions::deadline(self, Option<Instant>) -> Self
 fn petstore::api_client::RequestOptions::idle_timeout(self, Option<Duration>) -> Self
 fn petstore::api_client::RequestOptions::new() -> Self
@@ -1925,6 +1946,7 @@ fn petstore::proto_duration::option::serialize<S: serde::Serializer>(&Option<chr
 fn petstore::proto_duration::parse(&str) -> Result<chrono::TimeDelta, petstore::errors::SerializationError>
 fn petstore::proto_duration::serialize<S: serde::Serializer>(&chrono::TimeDelta, S) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
 fn petstore::servers::all_servers() -> Vec<petstore::ServerConfiguration>
+fn petstore::servers::by_name(&str) -> Result<petstore::ServerConfiguration, petstore::errors::ConfigurationError>
 fn petstore::servers::server_0() -> petstore::ServerConfiguration
 fn petstore::servers::server_1() -> petstore::ServerConfiguration
 fn petstore::servers::server_2() -> petstore::ServerConfiguration
@@ -1978,6 +2000,7 @@ impl Clone for petstore::api::options::GetInventoryOptions
 impl Clone for petstore::api::options::GetMatrixOptions
 impl Clone for petstore::api::options::GetMemberOptions
 impl Clone for petstore::api::options::GetMemoOptions
+impl Clone for petstore::api::options::GetMemoResponseHeaders
 impl Clone for petstore::api::options::GetMultiServerPetInfoOptions
 impl Clone for petstore::api::options::GetNativeAmountOptions
 impl Clone for petstore::api::options::GetNativeValuesOptions
@@ -2002,11 +2025,13 @@ impl Clone for petstore::api::options::GetTimestampGroupsOptions
 impl Clone for petstore::api::options::GetTreeOptions
 impl Clone for petstore::api::options::GetUpstreamOptions
 impl Clone for petstore::api::options::HeadMemoOptions
+impl Clone for petstore::api::options::HeadMemoResponseHeaders
 impl Clone for petstore::api::options::ListNativeAmountsOptions
 impl Clone for petstore::api::options::ListPetArchiveOptions
 impl Clone for petstore::api::options::ListPetCatalogOptions
 impl Clone for petstore::api::options::ListPetEventsOptions
 impl Clone for petstore::api::options::ListPetFeedOptions
+impl Clone for petstore::api::options::ListPetFeedResponseHeaders
 impl Clone for petstore::api::options::ListPetMatchesOptions
 impl Clone for petstore::api::options::ListPetNextUrlOptions
 impl Clone for petstore::api::options::ListPetNotesOptions
@@ -2014,7 +2039,9 @@ impl Clone for petstore::api::options::ListPetOffsetsOptions
 impl Clone for petstore::api::options::ListPetPageNumbersOptions
 impl Clone for petstore::api::options::ListPetsAfterOptions
 impl Clone for petstore::api::options::OptionsMemoOptions
+impl Clone for petstore::api::options::OptionsMemoResponseHeaders
 impl Clone for petstore::api::options::PatchMemoOptions
+impl Clone for petstore::api::options::PatchMemoResponseHeaders
 impl Clone for petstore::api::options::PlaceOrderOptions
 impl Clone for petstore::api::options::ReserveStockOptions
 impl Clone for petstore::api::options::SearchStoreOptions
@@ -2219,6 +2246,7 @@ impl Debug for petstore::api::options::GetInventoryOptions
 impl Debug for petstore::api::options::GetMatrixOptions
 impl Debug for petstore::api::options::GetMemberOptions
 impl Debug for petstore::api::options::GetMemoOptions
+impl Debug for petstore::api::options::GetMemoResponseHeaders
 impl Debug for petstore::api::options::GetMultiServerPetInfoOptions
 impl Debug for petstore::api::options::GetNativeAmountOptions
 impl Debug for petstore::api::options::GetNativeValuesOptions
@@ -2243,11 +2271,13 @@ impl Debug for petstore::api::options::GetTimestampGroupsOptions
 impl Debug for petstore::api::options::GetTreeOptions
 impl Debug for petstore::api::options::GetUpstreamOptions
 impl Debug for petstore::api::options::HeadMemoOptions
+impl Debug for petstore::api::options::HeadMemoResponseHeaders
 impl Debug for petstore::api::options::ListNativeAmountsOptions
 impl Debug for petstore::api::options::ListPetArchiveOptions
 impl Debug for petstore::api::options::ListPetCatalogOptions
 impl Debug for petstore::api::options::ListPetEventsOptions
 impl Debug for petstore::api::options::ListPetFeedOptions
+impl Debug for petstore::api::options::ListPetFeedResponseHeaders
 impl Debug for petstore::api::options::ListPetMatchesOptions
 impl Debug for petstore::api::options::ListPetNextUrlOptions
 impl Debug for petstore::api::options::ListPetNotesOptions
@@ -2255,7 +2285,9 @@ impl Debug for petstore::api::options::ListPetOffsetsOptions
 impl Debug for petstore::api::options::ListPetPageNumbersOptions
 impl Debug for petstore::api::options::ListPetsAfterOptions
 impl Debug for petstore::api::options::OptionsMemoOptions
+impl Debug for petstore::api::options::OptionsMemoResponseHeaders
 impl Debug for petstore::api::options::PatchMemoOptions
+impl Debug for petstore::api::options::PatchMemoResponseHeaders
 impl Debug for petstore::api::options::PlaceOrderOptions
 impl Debug for petstore::api::options::ReserveStockOptions
 impl Debug for petstore::api::options::SearchStoreOptions
@@ -2468,6 +2500,7 @@ impl Default for petstore::api::options::GetInventoryOptions
 impl Default for petstore::api::options::GetMatrixOptions
 impl Default for petstore::api::options::GetMemberOptions
 impl Default for petstore::api::options::GetMemoOptions
+impl Default for petstore::api::options::GetMemoResponseHeaders
 impl Default for petstore::api::options::GetMultiServerPetInfoOptions
 impl Default for petstore::api::options::GetNativeAmountOptions
 impl Default for petstore::api::options::GetNativeValuesOptions
@@ -2489,11 +2522,13 @@ impl Default for petstore::api::options::GetTimestampGroupsOptions
 impl Default for petstore::api::options::GetTreeOptions
 impl Default for petstore::api::options::GetUpstreamOptions
 impl Default for petstore::api::options::HeadMemoOptions
+impl Default for petstore::api::options::HeadMemoResponseHeaders
 impl Default for petstore::api::options::ListNativeAmountsOptions
 impl Default for petstore::api::options::ListPetArchiveOptions
 impl Default for petstore::api::options::ListPetCatalogOptions
 impl Default for petstore::api::options::ListPetEventsOptions
 impl Default for petstore::api::options::ListPetFeedOptions
+impl Default for petstore::api::options::ListPetFeedResponseHeaders
 impl Default for petstore::api::options::ListPetMatchesOptions
 impl Default for petstore::api::options::ListPetNextUrlOptions
 impl Default for petstore::api::options::ListPetNotesOptions
@@ -2501,7 +2536,9 @@ impl Default for petstore::api::options::ListPetOffsetsOptions
 impl Default for petstore::api::options::ListPetPageNumbersOptions
 impl Default for petstore::api::options::ListPetsAfterOptions
 impl Default for petstore::api::options::OptionsMemoOptions
+impl Default for petstore::api::options::OptionsMemoResponseHeaders
 impl Default for petstore::api::options::PatchMemoOptions
+impl Default for petstore::api::options::PatchMemoResponseHeaders
 impl Default for petstore::api::options::PlaceOrderOptions
 impl Default for petstore::api::options::ReserveStockOptions
 impl Default for petstore::api::options::SearchStoreOptions
@@ -2801,6 +2838,11 @@ impl PartialEq for petstore::CallInfo
 impl PartialEq for petstore::JsonValue
 impl PartialEq for petstore::ServerVariable
 impl PartialEq for petstore::StreamOptions
+impl PartialEq for petstore::api::options::GetMemoResponseHeaders
+impl PartialEq for petstore::api::options::HeadMemoResponseHeaders
+impl PartialEq for petstore::api::options::ListPetFeedResponseHeaders
+impl PartialEq for petstore::api::options::OptionsMemoResponseHeaders
+impl PartialEq for petstore::api::options::PatchMemoResponseHeaders
 impl PartialEq for petstore::auth::ApiKeyLocation
 impl PartialEq for petstore::auth::oauth::ClientAuthMethod
 impl PartialEq for petstore::auth::oauth::DeviceAuthorization
@@ -2908,6 +2950,11 @@ impl StructuralPartialEq for petstore::CallInfo
 impl StructuralPartialEq for petstore::JsonValue
 impl StructuralPartialEq for petstore::ServerVariable
 impl StructuralPartialEq for petstore::StreamOptions
+impl StructuralPartialEq for petstore::api::options::GetMemoResponseHeaders
+impl StructuralPartialEq for petstore::api::options::HeadMemoResponseHeaders
+impl StructuralPartialEq for petstore::api::options::ListPetFeedResponseHeaders
+impl StructuralPartialEq for petstore::api::options::OptionsMemoResponseHeaders
+impl StructuralPartialEq for petstore::api::options::PatchMemoResponseHeaders
 impl StructuralPartialEq for petstore::auth::ApiKeyLocation
 impl StructuralPartialEq for petstore::auth::oauth::ClientAuthMethod
 impl StructuralPartialEq for petstore::auth::oauth::DeviceAuthorization
@@ -3527,6 +3574,7 @@ struct petstore::api::options::GetInventoryOptions
 struct petstore::api::options::GetMatrixOptions
 struct petstore::api::options::GetMemberOptions
 struct petstore::api::options::GetMemoOptions
+struct petstore::api::options::GetMemoResponseHeaders
 struct petstore::api::options::GetMultiServerPetInfoOptions
 struct petstore::api::options::GetNativeAmountOptions
 struct petstore::api::options::GetNativeValuesOptions
@@ -3551,11 +3599,13 @@ struct petstore::api::options::GetTimestampGroupsOptions
 struct petstore::api::options::GetTreeOptions
 struct petstore::api::options::GetUpstreamOptions
 struct petstore::api::options::HeadMemoOptions
+struct petstore::api::options::HeadMemoResponseHeaders
 struct petstore::api::options::ListNativeAmountsOptions
 struct petstore::api::options::ListPetArchiveOptions
 struct petstore::api::options::ListPetCatalogOptions
 struct petstore::api::options::ListPetEventsOptions
 struct petstore::api::options::ListPetFeedOptions
+struct petstore::api::options::ListPetFeedResponseHeaders
 struct petstore::api::options::ListPetMatchesOptions
 struct petstore::api::options::ListPetNextUrlOptions
 struct petstore::api::options::ListPetNotesOptions
@@ -3563,7 +3613,9 @@ struct petstore::api::options::ListPetOffsetsOptions
 struct petstore::api::options::ListPetPageNumbersOptions
 struct petstore::api::options::ListPetsAfterOptions
 struct petstore::api::options::OptionsMemoOptions
+struct petstore::api::options::OptionsMemoResponseHeaders
 struct petstore::api::options::PatchMemoOptions
+struct petstore::api::options::PatchMemoResponseHeaders
 struct petstore::api::options::PlaceOrderOptions
 struct petstore::api::options::ReserveStockOptions
 struct petstore::api::options::SearchStoreOptions
@@ -3759,6 +3811,7 @@ variant petstore::api::GetStagingPetInfoServerEnvironment::STAGING
 variant petstore::api::GetStagingPetInfoServerVersion::V2
 variant petstore::api::GetStagingPetInfoServerVersion::V3
 variant petstore::api_client::MultipartValue::Bytes(Vec<u8>)
+variant petstore::api_client::MultipartValue::Encoded { value: Box<petstore::api_client::MultipartValue>, content_type: Option<String>, headers: Vec<(String, String)> }
 variant petstore::api_client::MultipartValue::Json(String)
 variant petstore::api_client::MultipartValue::List(Vec<petstore::api_client::MultipartValue>)
 variant petstore::api_client::MultipartValue::Text(String)

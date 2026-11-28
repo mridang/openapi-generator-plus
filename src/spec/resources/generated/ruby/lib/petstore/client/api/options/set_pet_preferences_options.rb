@@ -26,10 +26,12 @@ module Petstore::Client
       # @param ratio [Float]
       # @param urgent [Boolean]
       # @param snooze [ISO8601::Duration]
+      # @param route [String]
+      # @param aliases [Array<String>]
       class SetPetPreferencesOptions
-        attr_reader :nickname, :tags, :note, :renewal_date, :reminder, :interval_days, :ratio, :urgent, :snooze, :timeout, :headers, :max_retries
+        attr_reader :nickname, :tags, :note, :renewal_date, :reminder, :interval_days, :ratio, :urgent, :snooze, :route, :aliases, :timeout, :headers, :max_retries
 
-        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil, reminder: nil, interval_days: nil, ratio: nil, urgent: nil, snooze: nil, timeout: nil, headers: nil, max_retries: nil)
+        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil, reminder: nil, interval_days: nil, ratio: nil, urgent: nil, snooze: nil, route: nil, aliases: nil, timeout: nil, headers: nil, max_retries: nil)
           @nickname = nickname
           @tags = tags
           @note = note
@@ -39,6 +41,8 @@ module Petstore::Client
           @ratio = ratio
           @urgent = urgent
           @snooze = snooze
+          @route = route
+          @aliases = aliases
           @timeout = timeout
           @headers = headers&.dup&.freeze
           @max_retries = max_retries

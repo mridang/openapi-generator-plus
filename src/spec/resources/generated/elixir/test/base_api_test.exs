@@ -3926,6 +3926,62 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serializationwire 501 a form field whose encoding allows reserved keeps them literal" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SetPetPreferencesOptions{
+      nickname: "rex",
+      route: "v1.0/beta:rc1 a#b"
+    }
+
+    _result = PetstoreClient.Api.PetApi.set_pet_preferences(api, 1, options)
+
+    assert BodyCapturingApiClient.captured_body(name) ==
+             "nickname=rex&route=v1.0/beta:rc1%20a%23b"
+
+    Agent.stop(name)
+  end
+
+  test "bhv serializationwire 502 a form field whose encoding declares a style is written with that style" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SetPetPreferencesOptions{
+      nickname: "rex",
+      aliases: ["a b", "c"]
+    }
+
+    _result = PetstoreClient.Api.PetApi.set_pet_preferences(api, 1, options)
+
+    assert BodyCapturingApiClient.captured_body(name) == "nickname=rex&aliases=a+b%7Cc"
+
+    Agent.stop(name)
+  end
+
+  test "bhv serializationwire 503 a multipart part carries the content type and headers its encoding declares" do
+    state = capture_state()
+    api = PetstoreClient.Api.PetApi.new(state.api_client, state.config)
+
+    options = %PetstoreClient.Api.Options.AttachPetFilesOptions{
+      file: <<1, 2, 3>>,
+      caption: "hello"
+    }
+
+    _result = PetstoreClient.Api.PetApi.attach_pet_files(api, 1, options)
+    wire = captured_body()
+
+    assert wire =~
+             ~s(Content-Disposition: form-data; name="caption"\r\n) <>
+               "Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello"
+
+    assert wire =~
+             ~s(Content-Disposition: form-data; name="file"; filename="file"\r\n) <>
+               "Content-Type: application/octet-stream\r\n\r\n" <> <<1, 2, 3>>
+  end
+
   # Behavior #3: a space in a form-body value encodes as `+`, not %20
   # (form-urlencoded media type).
   test "bhv serializationwire 012 form body encodes space as plus, not percent-20" do

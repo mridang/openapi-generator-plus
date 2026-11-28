@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.rules;
 
+import io.github.mridang.codegen.OpenApi32ParserExtension;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -54,6 +55,17 @@ class FilterOperationsRuleTest {
         assertNull(item(openAPI, "/items").getGet());
         assertThat(openAPI).forOperation(SpecAssertions.HttpMethod.POST, "/items");
         assertNull(item(openAPI, "/items/{id}").getGet());
+    }
+
+    @Test
+    @DisplayName("FILTER_METHODS matches a QUERY operation by its declared method, not its post field")
+    void shouldMatchTheDeclaredMethodOfAnOpenApi32Operation() {
+        Operation query = op("items");
+        query.addExtension(OpenApi32ParserExtension.OPERATION_METHOD, "QUERY");
+        OpenAPI openAPI = spec().path("/items QUERY", new PathItem().post(query));
+        run("FILTER_METHODS", FilterOperationsRule.Target.METHODS, false, "query", openAPI);
+
+        assertThat(openAPI).hasPaths("/items QUERY");
     }
 
     @Test

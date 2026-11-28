@@ -846,5 +846,34 @@ defmodule {{moduleName}}.ValueSerializerTest do
     end
   end
 
+  describe "cookie style and allowReserved in a path" do
+    test "bhv serializationparam 501 a style cookie parameter is written as name and value pairs" do
+      vs = {{moduleName}}.ValueSerializer
+      assert vs.cookie_pairs("region", "eu", true) == "region=eu"
+      assert vs.cookie_pairs("region", ["a", "b"], false) == "region=a,b"
+      assert vs.cookie_pairs("region", ["a", "b"], true) == "region=a; region=b"
+      assert vs.cookie_pairs("region", %{"k1" => "v1", "k2" => "v2"}, false) == "region=k1,v1,k2,v2"
+      assert vs.cookie_pairs("region", %{"k1" => "v1", "k2" => "v2"}, true) == "k1=v1; k2=v2"
+      assert vs.cookie_pairs("region", "a%2Cb", true) == "region=a%2Cb"
+      assert vs.cookie_pairs("region", nil, true) == ""
+    end
+
+    test "bhv serializationparam 502 a style cookie value outside the cookie octets is refused" do
+      vs = {{moduleName}}.ValueSerializer
+
+      for {value, explode} <- [{["a b"], false}, {"a;b", true}, {["a,b"], true}] do
+        error = assert_raise ArgumentError, fn -> vs.cookie_pairs("region", value, explode) end
+        assert error.message =~ "'region'"
+      end
+    end
+
+    test "bhv serializationparam 503 allow reserved in a path keeps the reserved characters literal" do
+      vs = {{moduleName}}.ValueSerializer
+      assert vs.allow_reserved_in_path(vs.encode_path_segment("v1.0/beta:rc1@x")) == "v1.0/beta:rc1@x"
+      assert vs.allow_reserved_in_path(vs.encode_path_segment("a?b#c[d]e%f g")) == "a%3Fb%23c%5Bd%5De%25f%20g"
+      assert vs.allow_reserved_in_path("%2f") == "/"
+    end
+  end
+
 end
 {{/generateTests}}

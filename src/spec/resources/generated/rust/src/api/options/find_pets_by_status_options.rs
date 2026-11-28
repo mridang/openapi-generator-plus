@@ -5,6 +5,16 @@ use std::time::Duration;
 #[derive(Debug, Clone, Default)]
 pub struct FindPetsByStatusOptions {
     /// Status values that need to be considered for filter
+    /// ## Available only
+    /// Show only pets currently in stock
+    /// ```json
+    /// available
+    /// ```
+    /// ## Sold pets
+    /// Show pets that have been sold
+    /// ```json
+    /// sold
+    /// ```
     #[deprecated]
     pub status: Option<String>,
     /// Filter criteria as key-value pairs

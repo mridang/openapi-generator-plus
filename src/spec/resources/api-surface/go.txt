@@ -488,12 +488,14 @@ field petstore/pkg/options.SearchStoreOptions.At *string
 field petstore/pkg/options.SearchStoreOptions.Labels *[]string
 field petstore/pkg/options.SearchStoreOptions.Q *petstore/pkg/models.PhotoMetadata
 field petstore/pkg/options.SearchStoreOptions.XFilter *map[string]string
+field petstore/pkg/options.SetPetPreferencesOptions.Aliases *[]string
 field petstore/pkg/options.SetPetPreferencesOptions.IntervalDays *int32
 field petstore/pkg/options.SetPetPreferencesOptions.Nickname string
 field petstore/pkg/options.SetPetPreferencesOptions.Note *string
 field petstore/pkg/options.SetPetPreferencesOptions.Ratio *float64
 field petstore/pkg/options.SetPetPreferencesOptions.Reminder *petstore/pkg/models.DateTime
 field petstore/pkg/options.SetPetPreferencesOptions.RenewalDate *cloud.google.com/go/civil.Date
+field petstore/pkg/options.SetPetPreferencesOptions.Route *string
 field petstore/pkg/options.SetPetPreferencesOptions.Snooze *time.Duration
 field petstore/pkg/options.SetPetPreferencesOptions.Tags *[]string
 field petstore/pkg/options.SetPetPreferencesOptions.Urgent *bool
@@ -526,6 +528,7 @@ func petstore/pkg.NewClientWithToken(string, string, *petstore/pkg.TransportOpti
 func petstore/pkg.NewClientWithTokenProvider(string, petstore/pkg/auth.TokenProvider, *petstore/pkg.TransportOptions, ...petstore/pkg.ClientOption) (*petstore/pkg.Client, error)
 func petstore/pkg.NewConfigurationBuilder() *petstore/pkg.ConfigurationBuilder
 func petstore/pkg.NewDefaultApiClient(*petstore/pkg.TransportOptions) *petstore/pkg.DefaultApiClient
+func petstore/pkg.NewNamedServerConfiguration(string, string, string, map[string]petstore/pkg.ServerVariable) *petstore/pkg.ServerConfiguration
 func petstore/pkg.NewPetApi(petstore/pkg.ApiClient, *petstore/pkg.Configuration, petstore/pkg.Authenticator, petstore/pkg.Credentials) *petstore/pkg.PetApi
 func petstore/pkg.NewProblemsApi(petstore/pkg.ApiClient, *petstore/pkg.Configuration, petstore/pkg.Authenticator, petstore/pkg.Credentials) *petstore/pkg.ProblemsApi
 func petstore/pkg.NewServerConfiguration(string, string, map[string]petstore/pkg.ServerVariable) *petstore/pkg.ServerConfiguration
@@ -533,6 +536,7 @@ func petstore/pkg.NewServerVariable(string, string, []string) petstore/pkg.Serve
 func petstore/pkg.NewStoreApi(petstore/pkg.ApiClient, *petstore/pkg.Configuration, petstore/pkg.Authenticator, petstore/pkg.Credentials) *petstore/pkg.StoreApi
 func petstore/pkg.NewTransportOptionsBuilder() *petstore/pkg.TransportOptionsBuilder
 func petstore/pkg.ParseTimeOfDay(string) (time.Time, error)
+func petstore/pkg.ServerByName(string) (*petstore/pkg.ServerConfiguration, error)
 func petstore/pkg.SetTraceContextPropagator(petstore/pkg.TraceContextPropagatorFunc)
 func petstore/pkg.UnmarshalDurationProtoJSON(string) (time.Duration, error)
 func petstore/pkg.WithCallHook(petstore/pkg.CallHook) petstore/pkg.ClientOption
@@ -710,6 +714,11 @@ func petstore/pkg/models.NewUpstreamFailure() *petstore/pkg/models.UpstreamFailu
 func petstore/pkg/models.NewVehicle(any) petstore/pkg/models.Vehicle
 func petstore/pkg/models.NewWetFood(int32) *petstore/pkg/models.WetFood
 func petstore/pkg/models.NewWetFoodPetFood(petstore/pkg/models.WetFood) petstore/pkg/models.PetFood
+func petstore/pkg/options.NewGetMemoResponseHeadersFrom(map[string]string) (*petstore/pkg/options.GetMemoResponseHeaders, error)
+func petstore/pkg/options.NewHeadMemoResponseHeadersFrom(map[string]string) (*petstore/pkg/options.HeadMemoResponseHeaders, error)
+func petstore/pkg/options.NewListPetFeedResponseHeadersFrom(map[string]string) (*petstore/pkg/options.ListPetFeedResponseHeaders, error)
+func petstore/pkg/options.NewOptionsMemoResponseHeadersFrom(map[string]string) (*petstore/pkg/options.OptionsMemoResponseHeaders, error)
+func petstore/pkg/options.NewPatchMemoResponseHeadersFrom(map[string]string) (*petstore/pkg/options.PatchMemoResponseHeaders, error)
 func petstore/pkg/otelhook.New(...petstore/pkg/otelhook.Option) *petstore/pkg/otelhook.Hook
 func petstore/pkg/otelhook.WithMeterProvider(go.opentelemetry.io/otel/metric.MeterProvider) petstore/pkg/otelhook.Option
 func petstore/pkg/otelhook.WithPropagator(go.opentelemetry.io/otel/propagation.TextMapPropagator) petstore/pkg/otelhook.Option
@@ -844,6 +853,7 @@ method (*petstore/pkg.ProblemsApi).GetUpstreamWithHTTPInfo(context.Context, stri
 method (*petstore/pkg.ProblemsApi).TakeLock(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Result, error)
 method (*petstore/pkg.ProblemsApi).TakeLockWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.Result], error)
 method (*petstore/pkg.ServerConfiguration).Description() string
+method (*petstore/pkg.ServerConfiguration).Name() string
 method (*petstore/pkg.ServerConfiguration).URL(map[string]string) (string, error)
 method (*petstore/pkg.ServerConfiguration).URLTemplate() string
 method (*petstore/pkg.ServerConfiguration).Variables() map[string]petstore/pkg.ServerVariable
@@ -1324,6 +1334,15 @@ method (*petstore/pkg/models.Vehicle).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.WetFood).Equal(*petstore/pkg/models.WetFood) bool
 method (*petstore/pkg/models.WetFood).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.WetFood).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/options.GetMemoResponseHeaders).XArchived() *bool
+method (*petstore/pkg/options.GetMemoResponseHeaders).XLabels() []string
+method (*petstore/pkg/options.GetMemoResponseHeaders).XRevision() *int32
+method (*petstore/pkg/options.HeadMemoResponseHeaders).XRevision() *int32
+method (*petstore/pkg/options.ListPetFeedResponseHeaders).Link() *string
+method (*petstore/pkg/options.OptionsMemoResponseHeaders).Allow() *string
+method (*petstore/pkg/options.PatchMemoResponseHeaders).XArchived() *bool
+method (*petstore/pkg/options.PatchMemoResponseHeaders).XLabels() []string
+method (*petstore/pkg/options.PatchMemoResponseHeaders).XRevision() *int32
 method (*petstore/pkg/otelhook.Hook).Start(context.Context, petstore/pkg.CallInfo, map[string]string) (petstore/pkg.CallObserver, error)
 method (petstore/pkg.ApiStreamResponse).GoString() string
 method (petstore/pkg.ApiStreamResponse).String() string
@@ -2520,22 +2539,27 @@ type petstore/pkg/options.FindPetsByStatusOptions struct
 type petstore/pkg/options.FindPetsByStatusStatus string
 type petstore/pkg/options.GetAuditTrailOptions struct
 type petstore/pkg/options.GetBySwatchOptions struct
+type petstore/pkg/options.GetMemoResponseHeaders struct
 type petstore/pkg/options.GetNativeValuesOptions struct
 type petstore/pkg/options.GetPetByNameOptions struct
 type petstore/pkg/options.GetPetByNoteOptions struct
 type petstore/pkg/options.GetPetSummaryOptions struct
 type petstore/pkg/options.GetPetTagOptions struct
 type petstore/pkg/options.GetStockItemOptions struct
+type petstore/pkg/options.HeadMemoResponseHeaders struct
 type petstore/pkg/options.ListPetArchiveOptions struct
 type petstore/pkg/options.ListPetCatalogOptions struct
 type petstore/pkg/options.ListPetEventsOptions struct
 type petstore/pkg/options.ListPetFeedOptions struct
+type petstore/pkg/options.ListPetFeedResponseHeaders struct
 type petstore/pkg/options.ListPetMatchesOptions struct
 type petstore/pkg/options.ListPetNextUrlOptions struct
 type petstore/pkg/options.ListPetNotesOptions struct
 type petstore/pkg/options.ListPetOffsetsOptions struct
 type petstore/pkg/options.ListPetPageNumbersOptions struct
 type petstore/pkg/options.ListPetsAfterOptions struct
+type petstore/pkg/options.OptionsMemoResponseHeaders struct
+type petstore/pkg/options.PatchMemoResponseHeaders struct
 type petstore/pkg/options.SearchStoreOptions struct
 type petstore/pkg/options.SetPetPreferencesOptions struct
 type petstore/pkg/options.UploadPetCertificateOptions struct
@@ -2563,6 +2587,7 @@ var petstore/pkg.ErrMissingCredential error
 var petstore/pkg.ErrMissingRequiredParameter error
 var petstore/pkg.ErrStreamingUnsupported error
 var petstore/pkg.ErrTransportConflict error
+var petstore/pkg.ErrUnknownServer error
 var petstore/pkg.FromResponse func(statusCode int, headers map[string]string, body string) error
 var petstore/pkg.FromResponseWith func(method string, path string, statusCode int, headers map[string]string, body string, factories map[string]petstore/pkg/errors.ErrorFactory) error
 var petstore/pkg.NewMemberNotFoundErrorFromResponse func(method string, path string, statusCode int, headers map[string]string, body string) error

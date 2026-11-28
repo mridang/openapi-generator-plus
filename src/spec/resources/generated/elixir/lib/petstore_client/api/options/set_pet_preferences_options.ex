@@ -21,6 +21,8 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
           ratio: float() | nil,
           urgent: boolean() | nil,
           snooze: Duration.t() | nil,
+          route: String.t() | nil,
+          aliases: list(String.t()) | nil,
           timeout: pos_integer() | nil,
           headers: %{optional(String.t()) => String.t()} | nil,
           max_retries: non_neg_integer() | nil
@@ -35,6 +37,8 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
             ratio: nil,
             urgent: nil,
             snooze: nil,
+            route: nil,
+            aliases: nil,
             # Per-call settings: milliseconds for this call (replacing the transport's
             # timeout), headers added to this call, and how many times it is retried
             # (0 for none, replacing the transport's `max_retries`). nil keeps the

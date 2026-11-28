@@ -1517,6 +1517,14 @@ defmodule PetstoreClient.Api.BaseApi do
   # verbatim under any selected content-type, application/json included.
   defp serialize_body({:raw_body, bytes}, _content_type), do: bytes
 
+  # An Encoding Object's allowReserved has no effect on a multipart part, so a
+  # field the operation tagged for it is sent as its plain value. A part
+  # encoding (ValueSerializer.encoded_part/3) stays for the multipart encoder.
+  # Every declared multipart subtype is an ordered list of parts.
+  defp serialize_body(body, "multipart/" <> _) when is_list(body) do
+    Enum.map(body, fn {key, value} -> {key, strip_allow_reserved(value)} end)
+  end
+
   defp serialize_body(body, "multipart/form-data"), do: body
 
   defp serialize_body(body, "application/octet-stream"), do: body
@@ -1540,28 +1548,64 @@ defmodule PetstoreClient.Api.BaseApi do
 
   defp serialize_body(body, _content_type), do: PetstoreClient.ObjectSerializer.serialize(body)
 
-  defp encode_form_pair({key, values}) when is_list(values) do
+  defp strip_allow_reserved({:encoded_part, value, content_type, headers}),
+    do: {:encoded_part, strip_allow_reserved(value), content_type, headers}
+
+  defp strip_allow_reserved(value), do: elem(unwrap_allow_reserved(value), 1)
+
+  # A multipart part encoding (ValueSerializer.encoded_part/3) has no effect on
+  # a form-urlencoded body. A field whose Encoding Object sets allowReserved
+  # (tagged by ValueSerializer.maybe_allow_reserved/2) keeps the RFC 3986
+  # reserved characters literal and writes a space as %20, like an
+  # allowReserved query value; the key is encoded as usual.
+  defp encode_form_pair({key, {:encoded_part, value, _content_type, _headers}}),
+    do: encode_form_pair({key, value})
+
+  defp encode_form_pair({key, {:allow_reserved, value}}),
+    do: form_pairs(key, value, &allow_reserved_form_value/1)
+
+  defp encode_form_pair({key, value}), do: form_pairs(key, value, &form_value/1)
+
+  # A field styled by its Encoding Object (style and explode) arrives already
+  # serialized: a joined string is one field, an exploded list repeats the
+  # key and an exploded object writes each property as its own field.
+  defp form_pairs(_key, {:exploded_object, pairs}, encode) do
+    pairs
+    |> Enum.reject(fn {_name, val} -> is_nil(val) end)
+    |> Enum.map(fn {name, val} ->
+      ensure_form_scalar!(name, val)
+      "#{URI.encode_www_form(to_string(name))}=#{encode.(val)}"
+    end)
+  end
+
+  defp form_pairs(key, values, encode) when is_list(values) do
     encoded_key = URI.encode_www_form(to_string(key))
 
     values
     |> Enum.reject(&is_nil/1)
     |> Enum.map(fn val ->
       ensure_form_scalar!(key, val)
-      "#{encoded_key}=#{URI.encode_www_form(PetstoreClient.ObjectSerializer.stringify(val))}"
+      "#{encoded_key}=#{encode.(val)}"
     end)
   end
 
-  defp encode_form_pair({key, value}) do
+  defp form_pairs(key, value, encode) do
     ensure_form_scalar!(key, value)
-
-    [
-      "#{URI.encode_www_form(to_string(key))}=#{URI.encode_www_form(PetstoreClient.ObjectSerializer.stringify(value))}"
-    ]
+    ["#{URI.encode_www_form(to_string(key))}=#{encode.(value)}"]
   end
 
-  # A model, map or array-of-objects has no defined form-urlencoded encoding
-  # (the generator does not surface the OAS encoding style/explode), so it is
-  # rejected rather than sent as the language's string conversion.
+  defp form_value(value),
+    do: URI.encode_www_form(PetstoreClient.ObjectSerializer.stringify(value))
+
+  defp allow_reserved_form_value(value) do
+    PetstoreClient.ValueSerializer.encode_query_allowing_reserved(
+      PetstoreClient.ObjectSerializer.stringify(value)
+    )
+  end
+
+  # A model, map or array-of-objects whose Encoding Object declares no style
+  # has no defined form-urlencoded encoding, so it is rejected rather than
+  # sent as the language's string conversion.
   defp ensure_form_scalar!(_key, %struct{})
        when struct in [DateTime, NaiveDateTime, Date, Time, Duration], do: :ok
 

@@ -146,16 +146,20 @@ Where: `oauth2_token_manager.mustache`, `openid_connect_authenticator.mustache`.
 Test: `OAuth2TokenManagerTests` template.
 
 ### Request body, multipart and form encoding (D35, D36, D39, D48,  partial)
-Rule: a `format: binary` body (`rawBody`) is sent verbatim whatever the Content-Type; multipart primitives (Bool, numbers, Date, UUID, enums) are plain text parts using `ObjectSerializer.stringify` and only models become JSON parts; a form-urlencoded field that is a model, map or array of objects throws `SerializationError`; a simple-style path value of `.` or `..` throws `ConfigurationError.invalidArgument`.
+Rule: a `format: binary` body (`rawBody`) is sent verbatim whatever the Content-Type; multipart primitives (Bool, numbers, Date, UUID, enums) are plain text parts using `ObjectSerializer.stringify` and only models become JSON parts; a form-urlencoded field that is a model, map or array of objects throws `SerializationError`; a simple-style path value of `.` or `..` throws `ConfigurationError.invalidArgument`. D165: a form-urlencoded field whose Encoding Object sets `style` or `explode` (`formStyled`) is styled in the operation prelude by `ValueSerializer.serializeStyled` as for a query parameter, then form-encoded (a joined value is one field, an exploded list repeats the key). D166: a multipart field whose Encoding Object declares a part Content-Type or part headers (`partEncoded`) is wrapped in `ValueSerializer.EncodedPart`, and `BaseApi.appendMultipartField` writes the declared Content-Type in place of the chosen one and then each header in declaration order; every other reader of the form map unwraps it through `ValueSerializer.unwrapFormField`.
 Why: one rule in all twelve.
 Where: `base_api.mustache` (`isMultipartPrimitive`, `buildContentDisposition`), `value_serializer.mustache` (`requirePathParam`), `api/api.mustache`.
-Test: `BaseApiTests`, `ValueSerializerTests` templates.
+Test: `BaseApiTests`, `ValueSerializerTests` templates; D165 and D166 in `PetApiTests` (`serializationwire502`, `serializationwire503`).
 
 ### Per-operation servers and request headers (D21, D42)
 Rule: a server variable name used by two or more variants of one operation is prefixed with the variant name (petstore: `RegionalRegion`, `MirrorRegion`, `Channel`); a caller's `User-Agent` or `X-Request-ID` in any case suppresses injection.
 Why: unique types; the caller's header wins.
 Where: `api/api.mustache`, `BetterSwiftCodegen`/`AbstractBetterCodegen.enrichOperationServers`, `default_api_client.mustache` (`caseInsensitiveCompare`).
 Test: `DefaultApiClientUnitTests` template (the proxy and TLS tests that need Apple's URLSession sit in `DefaultApiClientAppleStubTests`, `#if !os(Linux)`).
+
+### Response media type and typed response headers (D167, D168)
+Rule (D167): a per-call `Accept` header replaces the declared media types through `BaseApi.mergeHeaders` (case-insensitive, per-call layer last), so exactly one `Accept` goes out. Test: `PetApiTests` `operations501`.
+Rule (D168): `BetterSwiftCodegen.writeResponseHeadersFile` renders `api/response_headers.mustache` into `Api/Options/<Operation>ResponseHeaders.swift` after the shared decorator pass, a struct with optional `let` properties and `static func from(_ headers: [String: String]) throws`. Test: `StoreApiTests` `headers501`, `headers502`.
 
 ### Redirect rules are the SDK's on every platform (swift-corelibs differences)
 Rule: the SDK follows only 301, 302, 303, 307 and 308 (a 300 or 305 is the response), resolves the `Location` itself against the URL of the response (RFC 3986) instead of taking the request URLSession proposes, and drops the transport default headers on a cross-origin hop together with the credential headers. The body of each request is kept per task, so a redirect that keeps its method sends it again. On Linux a 307 or 308 that keeps its method and has a body is not followed by URLSession: the delegate records the follow-up and `sendOnce` sends it as a new task that carries the hop count.
@@ -182,7 +186,7 @@ Where: `models/model.mustache`.
 Test: `MetadataTests`, `ComposedSchemaTests` templates.
 
 ### Deprecation, required-parameter text, field examples
-Rule: every public variant of a deprecated operation carries `@available(*, deprecated, ...)`; the missing-parameter message reads `Missing the required parameter '...'`; model field docs carry `/// Example:` and descriptions go through `unescapeDocComment`.
+Rule: every public variant of a deprecated operation carries `@available(*, deprecated, ...)`; the missing-parameter message reads `Missing the required parameter '...'`; model field docs carry `/// Example:` and descriptions go through `unescapeDocComment`. The operation doc of `api.mustache` ends, after the parameter examples, with each `operationExamples` row (`<heading> example: <summary>`, its description, the value in a ```` ```json ```` fence) and then each `exposedExtensions` row as `Extension <name>: <value>`, every value through `lambda.singleLine` so it cannot leave the `///` comment, and a typed response header documents its `Example:` in `api/response_headers.mustache` (D169, D170).
 Why: R6 and R7 harmonisation; the synthesised `"null"` example is nulled in the shared base, so do not re-add a guard.
 Where: `api/api.mustache`, `value_serializer.mustache`, `models/model.mustache`.
 Test: `ValueSerializerTests`, `SwiftFormattingSpec`.
@@ -418,7 +422,7 @@ Where the id, offset and page-number runtime lives: `ofCursor(..., hasMore:)`, `
 - Declared-charset decoding is lenient UTF-8 with a fallback; windows-1252, shift_jis and iso-8859-x bodies can decode as mojibake (open for swift).
 - The required date parameter guard has no petstore fixture (needs a spec change). Generated tests no longer compare non-optional values to `nil` or test always-true casts. `swift build -strict-concurrency=complete` (`make analyse`) is run by no spec; test sources get weaker strictness than sources (deferred).
 - The API surface harmonisation of `ConfigurationError` is parked.
-- Out of scope: webhooks, callbacks, XML, Link Objects, mutual TLS (S11). OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49; loading 3.2 is #50.
+- Out of scope: webhooks, callbacks, XML, Link Objects, mutual TLS (S11). OpenAPI 3.1 and 3.2 are tracked by epics #96 and #49; 3.2 documents load through the shared parser extension (D150).
 
 ## Build-breaking rules
 

@@ -775,4 +775,32 @@ test('bhv misc 250 array items containing a comma keep the literal comma across 
 test('bhv misc 253 an allowReserved query value still percent encodes hash and bracket characters', function (): void {
     expect(ValueSerializer::encodeQueryAllowingReserved('a#b[c]'))->toBe('a%23b%5Bc%5D');
 });
+
+test('bhv serializationparam 501 a cookie style parameter is written as cookie pairs', function (): void {
+    $entries = new \Ds\Map(['k1' => 'v1', 'k2' => 'v2']);
+    expect(ValueSerializer::cookiePairs('region', 'eu', true))->toBe('region=eu');
+    expect(ValueSerializer::cookiePairs('region', ['a', 'b'], false))->toBe('region=a,b');
+    expect(ValueSerializer::cookiePairs('region', ['a', 'b'], true))->toBe('region=a; region=b');
+    expect(ValueSerializer::cookiePairs('region', $entries, false))->toBe('region=k1,v1,k2,v2');
+    expect(ValueSerializer::cookiePairs('region', $entries, true))->toBe('k1=v1; k2=v2');
+    expect(ValueSerializer::cookiePairs('region', 'a%2Cb', true))->toBe('region=a%2Cb');
+    expect(ValueSerializer::cookiePairs('region', null, true))->toBe('');
+});
+
+test('bhv serializationparam 502 a cookie style value outside the cookie octets is refused', function (): void {
+    expect(static fn (): string => ValueSerializer::cookiePairs('region', ['a b'], false))
+        ->toThrow(\InvalidArgumentException::class, "Cookie value for 'region'");
+    expect(static fn (): string => ValueSerializer::cookiePairs('region', 'a;b', true))
+        ->toThrow(\InvalidArgumentException::class, "Cookie value for 'region'");
+    expect(static fn (): string => ValueSerializer::cookiePairs('region', ['a,b'], true))
+        ->toThrow(\InvalidArgumentException::class, "Cookie value for 'region'");
+});
+
+test('bhv serializationparam 503 an allowReserved path value keeps its reserved characters literal', function (): void {
+    expect(ValueSerializer::allowReservedInPath(ValueSerializer::encodePathSegment('v1.0/beta:rc1@x')))
+        ->toBe('v1.0/beta:rc1@x');
+    expect(ValueSerializer::allowReservedInPath(ValueSerializer::encodePathSegment('a?b#c[d]e%f g')))
+        ->toBe('a%3Fb%23c%5Bd%5De%25f%20g');
+    expect(ValueSerializer::allowReservedInPath('%2f'))->toBe('/');
+});
 }

@@ -21,6 +21,7 @@ class petstore_client.api.options.get_inventory_options.GetInventoryOptions
 class petstore_client.api.options.get_matrix_options.GetMatrixOptions
 class petstore_client.api.options.get_member_options.GetMemberOptions
 class petstore_client.api.options.get_memo_options.GetMemoOptions
+class petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders
 class petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions
 class petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions
 class petstore_client.api.options.get_native_values_options.GetNativeValuesOptions
@@ -45,11 +46,13 @@ class petstore_client.api.options.get_timestamp_groups_options.GetTimestampGroup
 class petstore_client.api.options.get_tree_options.GetTreeOptions
 class petstore_client.api.options.get_upstream_options.GetUpstreamOptions
 class petstore_client.api.options.head_memo_options.HeadMemoOptions
+class petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders
 class petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions
 class petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions
 class petstore_client.api.options.list_pet_catalog_options.ListPetCatalogOptions
 class petstore_client.api.options.list_pet_events_options.ListPetEventsOptions
 class petstore_client.api.options.list_pet_feed_options.ListPetFeedOptions
+class petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders
 class petstore_client.api.options.list_pet_matches_options.ListPetMatchesOptions
 class petstore_client.api.options.list_pet_next_url_options.ListPetNextUrlOptions
 class petstore_client.api.options.list_pet_notes_options.ListPetNotesOptions
@@ -57,7 +60,9 @@ class petstore_client.api.options.list_pet_offsets_options.ListPetOffsetsOptions
 class petstore_client.api.options.list_pet_page_numbers_options.ListPetPageNumbersOptions
 class petstore_client.api.options.list_pets_after_options.ListPetsAfterOptions
 class petstore_client.api.options.options_memo_options.OptionsMemoOptions
+class petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders
 class petstore_client.api.options.patch_memo_options.PatchMemoOptions
+class petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders
 class petstore_client.api.options.place_order_options.PlaceOrderOptions
 class petstore_client.api.options.reserve_stock_options.ReserveStockOptions
 class petstore_client.api.options.search_store_options.SearchStoreOptions
@@ -404,6 +409,7 @@ export petstore_client.api.options.GetInventoryOptions = petstore_client.api.opt
 export petstore_client.api.options.GetMatrixOptions = petstore_client.api.options.get_matrix_options.GetMatrixOptions
 export petstore_client.api.options.GetMemberOptions = petstore_client.api.options.get_member_options.GetMemberOptions
 export petstore_client.api.options.GetMemoOptions = petstore_client.api.options.get_memo_options.GetMemoOptions
+export petstore_client.api.options.GetMemoResponseHeaders = petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders
 export petstore_client.api.options.GetMultiServerPetInfoOptions = petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions
 export petstore_client.api.options.GetNativeAmountOptions = petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions
 export petstore_client.api.options.GetNativeValuesOptions = petstore_client.api.options.get_native_values_options.GetNativeValuesOptions
@@ -428,11 +434,13 @@ export petstore_client.api.options.GetTimestampGroupsOptions = petstore_client.a
 export petstore_client.api.options.GetTreeOptions = petstore_client.api.options.get_tree_options.GetTreeOptions
 export petstore_client.api.options.GetUpstreamOptions = petstore_client.api.options.get_upstream_options.GetUpstreamOptions
 export petstore_client.api.options.HeadMemoOptions = petstore_client.api.options.head_memo_options.HeadMemoOptions
+export petstore_client.api.options.HeadMemoResponseHeaders = petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders
 export petstore_client.api.options.ListNativeAmountsOptions = petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions
 export petstore_client.api.options.ListPetArchiveOptions = petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions
 export petstore_client.api.options.ListPetCatalogOptions = petstore_client.api.options.list_pet_catalog_options.ListPetCatalogOptions
 export petstore_client.api.options.ListPetEventsOptions = petstore_client.api.options.list_pet_events_options.ListPetEventsOptions
 export petstore_client.api.options.ListPetFeedOptions = petstore_client.api.options.list_pet_feed_options.ListPetFeedOptions
+export petstore_client.api.options.ListPetFeedResponseHeaders = petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders
 export petstore_client.api.options.ListPetMatchesOptions = petstore_client.api.options.list_pet_matches_options.ListPetMatchesOptions
 export petstore_client.api.options.ListPetNextUrlOptions = petstore_client.api.options.list_pet_next_url_options.ListPetNextUrlOptions
 export petstore_client.api.options.ListPetNotesOptions = petstore_client.api.options.list_pet_notes_options.ListPetNotesOptions
@@ -440,7 +448,9 @@ export petstore_client.api.options.ListPetOffsetsOptions = petstore_client.api.o
 export petstore_client.api.options.ListPetPageNumbersOptions = petstore_client.api.options.list_pet_page_numbers_options.ListPetPageNumbersOptions
 export petstore_client.api.options.ListPetsAfterOptions = petstore_client.api.options.list_pets_after_options.ListPetsAfterOptions
 export petstore_client.api.options.OptionsMemoOptions = petstore_client.api.options.options_memo_options.OptionsMemoOptions
+export petstore_client.api.options.OptionsMemoResponseHeaders = petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders
 export petstore_client.api.options.PatchMemoOptions = petstore_client.api.options.patch_memo_options.PatchMemoOptions
+export petstore_client.api.options.PatchMemoResponseHeaders = petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders
 export petstore_client.api.options.PlaceOrderOptions = petstore_client.api.options.place_order_options.PlaceOrderOptions
 export petstore_client.api.options.ReserveStockOptions = petstore_client.api.options.reserve_stock_options.ReserveStockOptions
 export petstore_client.api.options.SearchStoreOptions = petstore_client.api.options.search_store_options.SearchStoreOptions
@@ -810,6 +820,15 @@ petstore_client.api.options.get_memo_options.GetMemoOptions.__setattr__(self, na
 petstore_client.api.options.get_memo_options.GetMemoOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.get_memo_options.GetMemoOptions.max_retries: int | None
 petstore_client.api.options.get_memo_options.GetMemoOptions.timeout: int | None
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.__delattr__(self, name)
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.__eq__(self, other)
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.__init__(self, x_revision: int | None = None, x_labels: list[str] | None = None, x_archived: bool | None = None) -> None
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.__repr__(self)
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.__setattr__(self, name, value)
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.classmethod from_headers(cls, headers: collections.abc.Mapping[str, str]) -> petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.x_archived: bool | None
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.x_labels: list[str] | None
+petstore_client.api.options.get_memo_response_headers.GetMemoResponseHeaders.x_revision: int | None
 petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions.__delattr__(self, name)
 petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions.__eq__(self, other)
 petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1047,6 +1066,13 @@ petstore_client.api.options.head_memo_options.HeadMemoOptions.__setattr__(self, 
 petstore_client.api.options.head_memo_options.HeadMemoOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.head_memo_options.HeadMemoOptions.max_retries: int | None
 petstore_client.api.options.head_memo_options.HeadMemoOptions.timeout: int | None
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.__delattr__(self, name)
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.__eq__(self, other)
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.__init__(self, x_revision: int | None = None) -> None
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.__repr__(self)
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.__setattr__(self, name, value)
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.classmethod from_headers(cls, headers: collections.abc.Mapping[str, str]) -> petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders
+petstore_client.api.options.head_memo_response_headers.HeadMemoResponseHeaders.x_revision: int | None
 petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__delattr__(self, name)
 petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__eq__(self, other)
 petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1097,6 +1123,13 @@ petstore_client.api.options.list_pet_feed_options.ListPetFeedOptions.headers: co
 petstore_client.api.options.list_pet_feed_options.ListPetFeedOptions.limit: int | None
 petstore_client.api.options.list_pet_feed_options.ListPetFeedOptions.max_retries: int | None
 petstore_client.api.options.list_pet_feed_options.ListPetFeedOptions.timeout: int | None
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.__delattr__(self, name)
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.__eq__(self, other)
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.__init__(self, link: str | None = None) -> None
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.__repr__(self)
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.__setattr__(self, name, value)
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.classmethod from_headers(cls, headers: collections.abc.Mapping[str, str]) -> petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders
+petstore_client.api.options.list_pet_feed_response_headers.ListPetFeedResponseHeaders.link: str | None
 petstore_client.api.options.list_pet_matches_options.ListPetMatchesOptions.__delattr__(self, name)
 petstore_client.api.options.list_pet_matches_options.ListPetMatchesOptions.__eq__(self, other)
 petstore_client.api.options.list_pet_matches_options.ListPetMatchesOptions.__init__(self, cursor: str | None = None, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1169,6 +1202,13 @@ petstore_client.api.options.options_memo_options.OptionsMemoOptions.__setattr__(
 petstore_client.api.options.options_memo_options.OptionsMemoOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.options_memo_options.OptionsMemoOptions.max_retries: int | None
 petstore_client.api.options.options_memo_options.OptionsMemoOptions.timeout: int | None
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.__delattr__(self, name)
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.__eq__(self, other)
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.__init__(self, allow: str | None = None) -> None
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.__repr__(self)
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.__setattr__(self, name, value)
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.allow: str | None
+petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders.classmethod from_headers(cls, headers: collections.abc.Mapping[str, str]) -> petstore_client.api.options.options_memo_response_headers.OptionsMemoResponseHeaders
 petstore_client.api.options.patch_memo_options.PatchMemoOptions.__delattr__(self, name)
 petstore_client.api.options.patch_memo_options.PatchMemoOptions.__eq__(self, other)
 petstore_client.api.options.patch_memo_options.PatchMemoOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1178,6 +1218,15 @@ petstore_client.api.options.patch_memo_options.PatchMemoOptions.__setattr__(self
 petstore_client.api.options.patch_memo_options.PatchMemoOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.patch_memo_options.PatchMemoOptions.max_retries: int | None
 petstore_client.api.options.patch_memo_options.PatchMemoOptions.timeout: int | None
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.__delattr__(self, name)
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.__eq__(self, other)
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.__init__(self, x_revision: int | None = None, x_labels: list[str] | None = None, x_archived: bool | None = None) -> None
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.__repr__(self)
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.__setattr__(self, name, value)
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.classmethod from_headers(cls, headers: collections.abc.Mapping[str, str]) -> petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.x_archived: bool | None
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.x_labels: list[str] | None
+petstore_client.api.options.patch_memo_response_headers.PatchMemoResponseHeaders.x_revision: int | None
 petstore_client.api.options.place_order_options.PlaceOrderOptions.__delattr__(self, name)
 petstore_client.api.options.place_order_options.PlaceOrderOptions.__eq__(self, other)
 petstore_client.api.options.place_order_options.PlaceOrderOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1229,10 +1278,11 @@ petstore_client.api.options.set_pet_avatar_thumbnail_options.SetPetAvatarThumbna
 petstore_client.api.options.set_pet_avatar_thumbnail_options.SetPetAvatarThumbnailOptions.timeout: int | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__delattr__(self, name)
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__eq__(self, other)
-petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__init__(self, nickname: str, tags: list[str] | None = None, note: str | None = None, renewal_date: datetime.date | None = None, reminder: pydantic.types.AwareDatetime | None = None, interval_days: int | None = None, ratio: float | None = None, urgent: bool | None = None, snooze: datetime.timedelta | None = None, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
+petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__init__(self, nickname: str, tags: list[str] | None = None, note: str | None = None, renewal_date: datetime.date | None = None, reminder: pydantic.types.AwareDatetime | None = None, interval_days: int | None = None, ratio: float | None = None, urgent: bool | None = None, snooze: datetime.timedelta | None = None, route: str | None = None, aliases: list[str] | None = None, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__post_init__(self) -> None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__repr__(self)
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.__setattr__(self, name, value)
+petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.aliases: list[str] | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.interval_days: int | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.max_retries: int | None
@@ -1241,6 +1291,7 @@ petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.ratio: float | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.reminder: pydantic.types.AwareDatetime | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.renewal_date: datetime.date | None
+petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.route: str | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.snooze: datetime.timedelta | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.tags: list[str] | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.timeout: int | None
@@ -2495,12 +2546,13 @@ petstore_client.paginator.Paginator.static of_offset(start: int | None, fetch: C
 petstore_client.paginator.Paginator.static of_page(start: int | None, fetch: Callable[[int | None], collections.abc.Awaitable[petstore_client.api_result.ApiResult[~B]]], items: Callable[[~B], list[~T] | None], has_more: Callable[[~B], bool | None] | None, request_path: str) -> petstore_client.paginator.Paginator[~T, int]
 petstore_client.server_configuration.ServerConfiguration.__delattr__(self, name)
 petstore_client.server_configuration.ServerConfiguration.__eq__(self, other)
-petstore_client.server_configuration.ServerConfiguration.__init__(self, url_template: str, description: str | None = None, variables: collections.abc.Mapping[str, petstore_client.server_configuration.ServerVariable] = <factory>) -> None
+petstore_client.server_configuration.ServerConfiguration.__init__(self, url_template: str, description: str | None = None, variables: collections.abc.Mapping[str, petstore_client.server_configuration.ServerVariable] = <factory>, name: str | None = None) -> None
 petstore_client.server_configuration.ServerConfiguration.__post_init__(self) -> None
 petstore_client.server_configuration.ServerConfiguration.__repr__(self)
 petstore_client.server_configuration.ServerConfiguration.__setattr__(self, name, value)
 petstore_client.server_configuration.ServerConfiguration.description: str | None
 petstore_client.server_configuration.ServerConfiguration.get_url(self, overrides: dict[str, str] | None = None) -> str
+petstore_client.server_configuration.ServerConfiguration.name: str | None
 petstore_client.server_configuration.ServerConfiguration.url_template: str
 petstore_client.server_configuration.ServerConfiguration.variables: collections.abc.Mapping[str, petstore_client.server_configuration.ServerVariable]
 petstore_client.server_configuration.ServerVariable.__delattr__(self, name)

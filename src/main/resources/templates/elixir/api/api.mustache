@@ -112,10 +112,18 @@ end
 defmodule {{moduleName}}.Api.{{classname}} do
   @moduledoc ~S"""
   {{classname}} provides functions for the {{baseName}} API group.
+  {{#tagSummary}}
+
+  {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+  {{/tagSummary}}
   {{#tagDescription}}
 
   {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
   {{/tagDescription}}
+  {{#tagParent}}
+
+  {{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}
+  {{/tagParent}}
   {{#tagExternalDocs}}
 
   See [{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}]({{{url}}})
@@ -201,6 +209,27 @@ defmodule {{moduleName}}.Api.{{classname}} do
     * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+{{#vendorExtensions.op.hasOperationExamples}}
+
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  {{#lambda.elixirHeredoc}}{{{heading}}}{{/lambda.elixirHeredoc}} example: {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+  {{#hasDescription}}
+
+  {{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}
+  {{/hasDescription}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{^-last}}
+
+{{/-last}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  Extension {{#lambda.elixirHeredoc}}{{{name}}}{{/lambda.elixirHeredoc}}: {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.op.exposedExtensions}}
 
   ## Returns
 
@@ -402,7 +431,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = "{{{path}}}"
 {{#pathParams}}
 {{=<% %>=}}
-    path = String.replace(path, "{<%baseName%>}", <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string()<%/vendorExtensions.param.queryContent%>)
+    path = String.replace(path, "{<%baseName%>}", <%#vendorExtensions.param.queryContent%>URI.encode(<%moduleName%>.ObjectSerializer.serialize(<%paramName%>), &URI.char_unreserved?/1)<%/vendorExtensions.param.queryContent%><%^vendorExtensions.param.queryContent%><%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(<%paramName%>)<%/items.isUuid%><%^items.isUuid%><%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string()<%#vendorExtensions.param.pathAllowReserved%> |> <%moduleName%>.ValueSerializer.allow_reserved_in_path()<%/vendorExtensions.param.pathAllowReserved%><%/vendorExtensions.param.queryContent%>)
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -495,6 +524,20 @@ defmodule {{moduleName}}.Api.{{classname}} do
     cookie_parts = []
 {{#cookieParams}}
 {{=<% %>=}}
+<%#vendorExtensions.param.cookieStyle%>
+    # OpenAPI 3.2 style: cookie; cookie_pairs/4 writes the name=value pairs and
+    # applies the RFC 6265 cookie-octet check to every item, key and value.
+    cookie_parts =
+      if not is_nil(options) and not is_nil(options.<%paramName%>) do
+        case <%moduleName%>.ValueSerializer.cookie_pairs("<%baseName%>", <%#isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/isByteArray%><%^isByteArray%><%#items.isByteArray%><%moduleName%>.ObjectSerializer.encode_base64_param(options.<%paramName%>)<%/items.isByteArray%><%^items.isByteArray%><%#isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/isUuid%><%^isUuid%><%#items.isUuid%><%moduleName%>.ObjectSerializer.encode_uuid_param(options.<%paramName%>)<%/items.isUuid%><%^items.isUuid%>options.<%paramName%><%/items.isUuid%><%/isUuid%><%/items.isByteArray%><%/isByteArray%>, <%isExplode%>, "<%& dataType%>") do
+          "" -> cookie_parts
+          pairs -> cookie_parts ++ [pairs]
+        end
+      else
+        cookie_parts
+      end
+<%/vendorExtensions.param.cookieStyle%>
+<%^vendorExtensions.param.cookieStyle%>
     cookie_parts =
       if not is_nil(options) and not is_nil(options.<%paramName%>) do
         # RFC 6265 — operation-level cookie params are interpolated raw into the
@@ -515,6 +558,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       else
         cookie_parts
       end
+<%/vendorExtensions.param.cookieStyle%>
 <%={{ }}=%>
 {{/cookieParams}}
     header_params = if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
@@ -526,12 +570,15 @@ defmodule {{moduleName}}.Api.{{classname}} do
     element individually) so the body builder emits a FILE part — reusing the
     field name as the filename with an extension-guessed Content-Type — rather
     than a plain text part. A string is indistinguishable from raw bytes at
-    runtime in Elixir, so binary-ness must be tagged here at generation time. }}
+    runtime in Elixir, so binary-ness must be tagged here at generation time.
+    A field whose Encoding Object declares a style is serialized here like a
+    query parameter, and a multipart field with a declared part Content-Type or
+    part headers is wrapped by ValueSerializer.encoded_part/3. }}
 {{#required}}
-    request_body = request_body ++ [{"{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}}]
+    request_body = request_body ++ [{"{{baseName}}", {{#vendorExtensions.param.partEncoded}}{{moduleName}}.ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}{{moduleName}}.ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}{{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{/vendorExtensions.param.formStyled}}{{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}{{#vendorExtensions.param.formStyled}}, :query, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}){{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}"{{#lambda.elixirString}}{{{.}}}{{/lambda.elixirString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}{"{{#lambda.elixirString}}{{{name}}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{value}}}{{/lambda.elixirString}}"}{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}}]
 {{/required}}
 {{^required}}
-    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: request_body ++ [{"{{baseName}}", {{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}}], else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: request_body ++ [{"{{baseName}}", {{#vendorExtensions.param.partEncoded}}{{moduleName}}.ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}{{moduleName}}.ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.formStyled}}{{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", {{/vendorExtensions.param.formStyled}}{{#isArray}}{{#items.isFile}}Enum.map(options.{{paramName}}, &{:raw, &1}){{/items.isFile}}{{^items.isFile}}options.{{paramName}}{{/items.isFile}}{{/isArray}}{{^isArray}}{{#isFile}}{:raw, options.{{paramName}}}{{/isFile}}{{^isFile}}options.{{paramName}}{{/isFile}}{{/isArray}}{{#vendorExtensions.param.formStyled}}, :query, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}){{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}"{{#lambda.elixirString}}{{{.}}}{{/lambda.elixirString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}{"{{#lambda.elixirString}}{{{name}}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{value}}}{{/lambda.elixirString}}"}{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}}], else: request_body
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
@@ -782,6 +829,27 @@ defmodule {{moduleName}}.Api.{{classname}} do
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}.
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
     * `opts` - Keyword list. The per-call settings `:timeout`, `:headers` and `:max_retries`, and the stream settings `:idle_timeout`{{#vendorExtensions.op.streamsSse}}, `:max_reconnects`, `:reconnect_delay`, `:last_event_id`{{/vendorExtensions.op.streamsSse}}, `:max_event_bytes`.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type`.{{/consumes.1}}
+{{#vendorExtensions.op.hasOperationExamples}}
+
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+  {{#lambda.elixirHeredoc}}{{{heading}}}{{/lambda.elixirHeredoc}} example: {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
+  {{#hasDescription}}
+
+  {{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}
+  {{/hasDescription}}
+
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{^-last}}
+
+{{/-last}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+  Extension {{#lambda.elixirHeredoc}}{{{name}}}{{/lambda.elixirHeredoc}}: {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
+{{/vendorExtensions.op.exposedExtensions}}
 
   ## Returns
 

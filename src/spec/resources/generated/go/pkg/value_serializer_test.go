@@ -1677,3 +1677,66 @@ func TestBhvSerializationparam108_ValueSerializer_SerializeStyledChecked_NestedO
 		t.Errorf("an object of scalars must serialize, got %v", err)
 	}
 }
+
+// A style: cookie parameter is written as its own name=value pairs, never percent-encoded.
+func TestBhvSerializationparam501_ValueSerializer_CookiePairs_WritesEachShape(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value   any
+		explode bool
+		want    string
+	}{
+		{"eu", true, "region=eu"},
+		{[]string{"a", "b"}, false, "region=a,b"},
+		{[]string{"a", "b"}, true, "region=a; region=b"},
+		{map[string]string{"k1": "v1", "k2": "v2"}, false, "region=k1,v1,k2,v2"},
+		{map[string]string{"k1": "v1", "k2": "v2"}, true, "k1=v1; k2=v2"},
+		{"a%2Cb", true, "region=a%2Cb"},
+		{nil, true, ""},
+	}
+	for _, c := range cases {
+		got, err := cookiePairs("region", c.value, c.explode)
+		if err != nil {
+			t.Fatalf("cookiePairs(%v, %v) failed: %v", c.value, c.explode, err)
+		}
+		if got != c.want {
+			t.Errorf("cookiePairs(%v, %v): expected %q, got %q", c.value, c.explode, c.want, got)
+		}
+	}
+}
+
+// A style: cookie item outside the RFC 6265 cookie-octet set is refused with ErrInvalidCookie.
+func TestBhvSerializationparam502_ValueSerializer_CookiePairs_RefusesNonCookieOctets(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value   any
+		explode bool
+	}{
+		{[]string{"a b"}, false},
+		{"a;b", true},
+		{[]string{"a,b"}, true},
+	}
+	for _, c := range cases {
+		_, err := cookiePairs("region", c.value, c.explode)
+		if !errors.Is(err, ErrInvalidCookie) {
+			t.Fatalf("cookiePairs(%v, %v): expected ErrInvalidCookie, got %v", c.value, c.explode, err)
+		}
+		if !strings.Contains(err.Error(), "region") {
+			t.Errorf("expected the message to name the parameter, got %q", err.Error())
+		}
+	}
+}
+
+// allowReserved on a path parameter turns the encoded reserved characters back into literals.
+func TestBhvSerializationparam503_ValueSerializer_AllowReservedInPath_KeepsReservedLiteral(t *testing.T) {
+	t.Parallel()
+	if got := allowReservedInPath(encodePathSegment("v1.0/beta:rc1@x")); got != "v1.0/beta:rc1@x" {
+		t.Errorf("expected v1.0/beta:rc1@x, got %q", got)
+	}
+	if got := allowReservedInPath(encodePathSegment("a?b#c[d]e%f g")); got != "a%3Fb%23c%5Bd%5De%25f%20g" {
+		t.Errorf("expected a%%3Fb%%23c%%5Bd%%5De%%25f%%20g, got %q", got)
+	}
+	if got := allowReservedInPath("%2f"); got != "/" {
+		t.Errorf("expected /, got %q", got)
+	}
+}

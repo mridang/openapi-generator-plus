@@ -433,6 +433,10 @@ GetBySwatchOptions.readonly querySwatch?: Swatch | undefined
 GetExternalPetInfoServer.abstract getUrl(): string
 GetExternalPetInfoServerServer0.constructor()
 GetExternalPetInfoServerServer0.getUrl(): string
+GetMemoResponseHeaders.readonly xArchived: boolean | undefined
+GetMemoResponseHeaders.readonly xLabels: string[] | undefined
+GetMemoResponseHeaders.readonly xRevision: number | undefined
+GetMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): GetMemoResponseHeaders
 GetMemoServer.abstract getUrl(): string
 GetMemoServerMemos.constructor()
 GetMemoServerMemos.getUrl(): string
@@ -476,6 +480,8 @@ GetStagingPetInfoServerStagingServer.readonly environment: GetStagingPetInfoServ
 GetStagingPetInfoServerStagingServer.readonly version: GetStagingPetInfoServerVersion
 GetStockItemOptions.readonly asOf?: Date | undefined
 GoneError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
+HeadMemoResponseHeaders.readonly xRevision: number | undefined
+HeadMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): HeadMemoResponseHeaders
 HttpAwareAuthenticator.setApiClient(apiClient: ApiClient): void
 InternalApiKeyAuthenticator.constructor(host: string, apiKey?: string)
 InternalServerError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
@@ -515,6 +521,8 @@ ListPetCatalogOptions.readonly cursor?: string | undefined
 ListPetCatalogOptions.readonly limit?: number | undefined
 ListPetEventsOptions.readonly since?: string | undefined
 ListPetFeedOptions.readonly limit?: number | undefined
+ListPetFeedResponseHeaders.readonly link: string | undefined
+ListPetFeedResponseHeaders.static from(headers: Readonly<Record<string, string>>): ListPetFeedResponseHeaders
 ListPetMatchesOptions.readonly cursor?: string | undefined
 ListPetNextUrlOptions.readonly limit?: number | undefined
 ListPetNotesOptions.readonly pos?: string | undefined
@@ -713,6 +721,8 @@ OpenIdConnectAuthenticator.toJSON(): Record<string, string>
 OpenedBody.close(): Promise<void>
 OpenedBody.readonly content: Uint8Array<ArrayBufferLike> | ReadableStream<Uint8Array<ArrayBufferLike>>
 OpenedBody.readonly length: number | null
+OptionsMemoResponseHeaders.readonly allow: string | undefined
+OptionsMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): OptionsMemoResponseHeaders
 Order.__validate(): void
 Order.constructor(data?: Partial<Order>)
 Order.equals(other: unknown): boolean
@@ -764,6 +774,10 @@ Parcel.static readonly DISCRIMINATOR_DEFAULT: "Letter"
 Parcel.static readonly DISCRIMINATOR_MAPPING: Record<string, string>
 Parcel.static readonly DISCRIMINATOR_PROPERTY: "kind"
 Parcel.static readonly ONE_OF_SCHEMAS: string[]
+PatchMemoResponseHeaders.readonly xArchived: boolean | undefined
+PatchMemoResponseHeaders.readonly xLabels: string[] | undefined
+PatchMemoResponseHeaders.readonly xRevision: number | undefined
+PatchMemoResponseHeaders.static from(headers: Readonly<Record<string, string>>): PatchMemoResponseHeaders
 PayloadTooLargeError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 PaymentRequiredError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 Pet.__validate(): void
@@ -1364,9 +1378,10 @@ SerializationErrorResponse.readonly requestPath: string
 SerializationErrorResponse.readonly responseBody: string | null
 SerializationErrorResponse.readonly responseHeaders: Record<string, string> | null
 SerializationErrorResponse.readonly statusCode: number
-ServerConfiguration.constructor(urlTemplate: string, description?: string | null, variables?: Record<string, ServerVariable>)
+ServerConfiguration.constructor(urlTemplate: string, description?: string | null, variables?: Record<string, ServerVariable>, name?: string | null)
 ServerConfiguration.getUrl(overrides?: Record<string, string>): string
 ServerConfiguration.readonly description: string | null
+ServerConfiguration.readonly name: string | null
 ServerConfiguration.readonly urlTemplate: string
 ServerConfiguration.readonly variables: Readonly<Record<string, ServerVariable>>
 ServerError.constructor<T = unknown>(statusCode: number, message: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
@@ -1379,6 +1394,7 @@ ServerVariable.constructor(defaultValue: string, description?: string | null, en
 ServerVariable.readonly defaultValue: string
 ServerVariable.readonly description: string | null
 ServerVariable.readonly enumValues: readonly string[]
+Servers.static byName(name: string): ServerConfiguration
 Servers.static readonly ALL: readonly ServerConfiguration[]
 Servers.static readonly SERVER_0: ServerConfiguration
 Servers.static readonly SERVER_1: ServerConfiguration
@@ -1397,12 +1413,14 @@ SetPetAvatarRequest.static readonly __requiredNullableFields: ReadonlySet<string
 SetPetAvatarRequest.static readonly __stringDecimalFields: ReadonlySet<string>
 SetPetAvatarRequest.static readonly __uuidFields: ReadonlySet<string>
 SetPetAvatarRequest.with(patch: Partial<SetPetAvatarRequest>): SetPetAvatarRequest
+SetPetPreferencesOptions.readonly aliases?: string[] | undefined
 SetPetPreferencesOptions.readonly intervalDays?: number | undefined
 SetPetPreferencesOptions.readonly nickname: string
 SetPetPreferencesOptions.readonly note?: string | undefined
 SetPetPreferencesOptions.readonly ratio?: number | undefined
 SetPetPreferencesOptions.readonly reminder?: Date | undefined
 SetPetPreferencesOptions.readonly renewalDate?: string | Date | undefined
+SetPetPreferencesOptions.readonly route?: string | undefined
 SetPetPreferencesOptions.readonly snooze?: Temporal.Duration | undefined [uses temporal-spec:Temporal.Duration]
 SetPetPreferencesOptions.readonly tags?: string[] | undefined
 SetPetPreferencesOptions.readonly urgent?: boolean | undefined
@@ -1857,6 +1875,7 @@ class ForbiddenError<T = unknown> extends ClientError<T>
 class Freeform
 class GatewayTimeoutError<T = unknown> extends ServerError<T>
 class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer
+class GetMemoResponseHeaders
 class GetMemoServerMemos extends GetMemoServer
 class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer
 class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer
@@ -1864,12 +1883,14 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
 class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer
 class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer
 class GoneError<T = unknown> extends ClientError<T>
+class HeadMemoResponseHeaders
 class InternalApiKeyAuthenticator extends ApiKeyAuthenticator
 class InternalServerError<T = unknown> extends ServerError<T>
 class JsonLinesStream<T> implements AsyncIterableIterator<T>, AsyncDisposable
 class Ledger
 class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
 class Letter
+class ListPetFeedResponseHeaders
 class LockedError<T = unknown> extends ClientError<T>
 class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
 class Medication
@@ -1895,11 +1916,13 @@ class OAuth2ServerError extends OpenAPIError
 class OAuth2TokenError extends OpenAPIError
 class OpenAPIError extends Error
 class OpenIdConnectAuthenticator implements HttpAwareAuthenticator
+class OptionsMemoResponseHeaders
 class Order
 class Packet
 class PaginationError extends OpenAPIError
 class Paginator<T, C = never> implements AsyncIterable<T>
 class Parcel
+class PatchMemoResponseHeaders
 class PayloadTooLargeError<T = unknown> extends ClientError<T>
 class PaymentRequiredError<T = unknown> extends ClientError<T>
 class Pet

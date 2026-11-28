@@ -137,6 +137,13 @@ com.example.petstore.JsonLinesStream: public java.lang.String toString()
 com.example.petstore.JsonLinesStream: public java.util.Map<java.lang.String, java.lang.String> getHeaders()
 com.example.petstore.JsonLinesStream: public java.util.stream.Stream<T> stream()
 com.example.petstore.JsonLinesStream: public void close()
+com.example.petstore.ObjectSerializer$EncodedPart: public com.example.petstore.ObjectSerializer$EncodedPart(java.lang.Object, java.lang.String, java.util.Map<java.lang.String, java.lang.String>)
+com.example.petstore.ObjectSerializer$EncodedPart: public final boolean equals(java.lang.Object)
+com.example.petstore.ObjectSerializer$EncodedPart: public final int hashCode()
+com.example.petstore.ObjectSerializer$EncodedPart: public final java.lang.String toString()
+com.example.petstore.ObjectSerializer$EncodedPart: public java.lang.Object value()
+com.example.petstore.ObjectSerializer$EncodedPart: public java.lang.String contentType()
+com.example.petstore.ObjectSerializer$EncodedPart: public java.util.Map<java.lang.String, java.lang.String> headers()
 com.example.petstore.ObjectSerializer$Ipv4StringDeserializer: public com.example.petstore.ObjectSerializer$Ipv4StringDeserializer()
 com.example.petstore.ObjectSerializer$Ipv4StringDeserializer: public java.lang.Object deserialize(com.fasterxml.jackson.core.JsonParser, com.fasterxml.jackson.databind.DeserializationContext) throws java.io.IOException, com.fasterxml.jackson.core.JacksonException
 com.example.petstore.ObjectSerializer$Ipv4StringDeserializer: public java.lang.String deserialize(com.fasterxml.jackson.core.JsonParser, com.fasterxml.jackson.databind.DeserializationContext) throws java.io.IOException
@@ -159,6 +166,7 @@ com.example.petstore.ObjectSerializer: public static boolean structuralEquals(ja
 com.example.petstore.ObjectSerializer: public static final int MAX_JSON_DEPTH
 com.example.petstore.ObjectSerializer: public static int structuralHashCode(java.lang.Object)
 com.example.petstore.ObjectSerializer: public static java.lang.Object toQueryValue(java.lang.Object, java.lang.String)
+com.example.petstore.ObjectSerializer: public static java.lang.Object withoutPartEncoding(java.lang.Object)
 com.example.petstore.ObjectSerializer: public static java.lang.String formatTime(java.time.LocalTime)
 com.example.petstore.ObjectSerializer: public static java.lang.String stringify(java.lang.Object)
 com.example.petstore.ObjectSerializer: public static java.lang.String structuralToString(java.lang.Object)
@@ -188,7 +196,9 @@ com.example.petstore.Paginator: public static <T, C, B> com.example.petstore.Pag
 com.example.petstore.ServerConfiguration: public com.example.petstore.ServerConfiguration(java.lang.String)
 com.example.petstore.ServerConfiguration: public com.example.petstore.ServerConfiguration(java.lang.String, java.lang.String)
 com.example.petstore.ServerConfiguration: public com.example.petstore.ServerConfiguration(java.lang.String, java.lang.String, java.util.Map<java.lang.String, com.example.petstore.ServerVariable>)
+com.example.petstore.ServerConfiguration: public com.example.petstore.ServerConfiguration(java.lang.String, java.lang.String, java.util.Map<java.lang.String, com.example.petstore.ServerVariable>, java.lang.String)
 com.example.petstore.ServerConfiguration: public java.lang.String getDescription()
+com.example.petstore.ServerConfiguration: public java.lang.String getName()
 com.example.petstore.ServerConfiguration: public java.lang.String getUrl()
 com.example.petstore.ServerConfiguration: public java.lang.String getUrl(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.ServerConfiguration: public java.lang.String getUrlTemplate()
@@ -210,6 +220,7 @@ com.example.petstore.ServerVariable: public int hashCode()
 com.example.petstore.ServerVariable: public java.lang.String getDefaultValue()
 com.example.petstore.ServerVariable: public java.lang.String getDescription()
 com.example.petstore.ServerVariable: public java.util.List<java.lang.String> getEnumValues()
+com.example.petstore.Servers: public static com.example.petstore.ServerConfiguration byName(java.lang.String)
 com.example.petstore.Servers: public static final com.example.petstore.ServerConfiguration SERVER_0
 com.example.petstore.Servers: public static final com.example.petstore.ServerConfiguration SERVER_1
 com.example.petstore.Servers: public static final com.example.petstore.ServerConfiguration SERVER_2
@@ -1150,6 +1161,10 @@ com.example.petstore.api.options.GetMemoOptions: public com.example.petstore.api
 com.example.petstore.api.options.GetMemoOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.GetMemoOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.GetMemoOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.GetMemoResponseHeaders: public java.lang.Boolean xArchived()
+com.example.petstore.api.options.GetMemoResponseHeaders: public java.lang.Integer xRevision()
+com.example.petstore.api.options.GetMemoResponseHeaders: public java.util.List<java.lang.String> xLabels()
+com.example.petstore.api.options.GetMemoResponseHeaders: public static com.example.petstore.api.options.GetMemoResponseHeaders from(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.GetMultiServerPetInfoOptions: public com.example.petstore.api.options.GetMultiServerPetInfoOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.GetMultiServerPetInfoOptions: public com.example.petstore.api.options.GetMultiServerPetInfoOptions maxRetries(java.lang.Integer)
 com.example.petstore.api.options.GetMultiServerPetInfoOptions: public com.example.petstore.api.options.GetMultiServerPetInfoOptions timeout(java.lang.Integer)
@@ -1355,6 +1370,8 @@ com.example.petstore.api.options.HeadMemoOptions: public com.example.petstore.ap
 com.example.petstore.api.options.HeadMemoOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.HeadMemoOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.HeadMemoOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.HeadMemoResponseHeaders: public java.lang.Integer xRevision()
+com.example.petstore.api.options.HeadMemoResponseHeaders: public static com.example.petstore.api.options.HeadMemoResponseHeaders from(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions maxRetries(java.lang.Integer)
 com.example.petstore.api.options.ListNativeAmountsOptions: public com.example.petstore.api.options.ListNativeAmountsOptions timeout(java.lang.Integer)
@@ -1403,6 +1420,8 @@ com.example.petstore.api.options.ListPetFeedOptions: public java.lang.Integer li
 com.example.petstore.api.options.ListPetFeedOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.ListPetFeedOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.ListPetFeedOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.ListPetFeedResponseHeaders: public java.lang.String link()
+com.example.petstore.api.options.ListPetFeedResponseHeaders: public static com.example.petstore.api.options.ListPetFeedResponseHeaders from(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.ListPetMatchesOptions: public com.example.petstore.api.options.ListPetMatchesOptions cursor(java.lang.String)
 com.example.petstore.api.options.ListPetMatchesOptions: public com.example.petstore.api.options.ListPetMatchesOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.ListPetMatchesOptions: public com.example.petstore.api.options.ListPetMatchesOptions maxRetries(java.lang.Integer)
@@ -1475,6 +1494,8 @@ com.example.petstore.api.options.OptionsMemoOptions: public com.example.petstore
 com.example.petstore.api.options.OptionsMemoOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.OptionsMemoOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.OptionsMemoOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.OptionsMemoResponseHeaders: public java.lang.String allow()
+com.example.petstore.api.options.OptionsMemoResponseHeaders: public static com.example.petstore.api.options.OptionsMemoResponseHeaders from(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.PatchMemoOptions: public com.example.petstore.api.options.PatchMemoOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.PatchMemoOptions: public com.example.petstore.api.options.PatchMemoOptions maxRetries(java.lang.Integer)
 com.example.petstore.api.options.PatchMemoOptions: public com.example.petstore.api.options.PatchMemoOptions timeout(java.lang.Integer)
@@ -1482,6 +1503,10 @@ com.example.petstore.api.options.PatchMemoOptions: public com.example.petstore.a
 com.example.petstore.api.options.PatchMemoOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.PatchMemoOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.PatchMemoOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.PatchMemoResponseHeaders: public java.lang.Boolean xArchived()
+com.example.petstore.api.options.PatchMemoResponseHeaders: public java.lang.Integer xRevision()
+com.example.petstore.api.options.PatchMemoResponseHeaders: public java.util.List<java.lang.String> xLabels()
+com.example.petstore.api.options.PatchMemoResponseHeaders: public static com.example.petstore.api.options.PatchMemoResponseHeaders from(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.PlaceOrderOptions: public com.example.petstore.api.options.PlaceOrderOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.PlaceOrderOptions: public com.example.petstore.api.options.PlaceOrderOptions maxRetries(java.lang.Integer)
 com.example.petstore.api.options.PlaceOrderOptions: public com.example.petstore.api.options.PlaceOrderOptions timeout(java.lang.Integer)
@@ -1525,6 +1550,7 @@ com.example.petstore.api.options.SetPetAvatarThumbnailOptions: public com.exampl
 com.example.petstore.api.options.SetPetAvatarThumbnailOptions: public java.lang.Integer maxRetries()
 com.example.petstore.api.options.SetPetAvatarThumbnailOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.SetPetAvatarThumbnailOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
+com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions aliases(java.util.List<java.lang.String>)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions headers(java.util.Map<java.lang.String, java.lang.String>)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions intervalDays(java.lang.Integer)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions maxRetries(java.lang.Integer)
@@ -1532,6 +1558,7 @@ com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.pe
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions ratio(java.lang.Double)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions reminder(java.time.OffsetDateTime)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions renewalDate(java.time.LocalDate)
+com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions route(java.lang.String)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions snooze(java.time.Duration)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions tags(java.util.List<java.lang.String>)
 com.example.petstore.api.options.SetPetPreferencesOptions: public com.example.petstore.api.options.SetPetPreferencesOptions timeout(java.lang.Integer)
@@ -1544,9 +1571,11 @@ com.example.petstore.api.options.SetPetPreferencesOptions: public java.lang.Inte
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.lang.Integer timeout()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.lang.String nickname()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.lang.String note()
+com.example.petstore.api.options.SetPetPreferencesOptions: public java.lang.String route()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.time.Duration snooze()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.time.LocalDate renewalDate()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.time.OffsetDateTime reminder()
+com.example.petstore.api.options.SetPetPreferencesOptions: public java.util.List<java.lang.String> aliases()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.util.List<java.lang.String> tags()
 com.example.petstore.api.options.SetPetPreferencesOptions: public java.util.Map<java.lang.String, java.lang.String> headers()
 com.example.petstore.api.options.SubmitAllowanceOptions: public com.example.petstore.api.options.SubmitAllowanceOptions headers(java.util.Map<java.lang.String, java.lang.String>)
@@ -3303,6 +3332,7 @@ public final class com.example.petstore.Configuration$Builder
 public final class com.example.petstore.DefaultApiClient implements com.example.petstore.ApiClient
 public final class com.example.petstore.JsonLinesStream<T> implements java.util.Iterator<T>, java.lang.AutoCloseable
 public final class com.example.petstore.ObjectSerializer
+public final class com.example.petstore.ObjectSerializer$EncodedPart extends java.lang.Record
 public final class com.example.petstore.ObjectSerializer$Ipv4StringDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<java.lang.String>
 public final class com.example.petstore.ObjectSerializer$Ipv6StringDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<java.lang.String>
 public final class com.example.petstore.ObjectSerializer$StringDecimalDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<java.math.BigDecimal>
@@ -3353,6 +3383,7 @@ public final class com.example.petstore.api.options.GetInventoryOptions
 public final class com.example.petstore.api.options.GetMatrixOptions
 public final class com.example.petstore.api.options.GetMemberOptions
 public final class com.example.petstore.api.options.GetMemoOptions
+public final class com.example.petstore.api.options.GetMemoResponseHeaders
 public final class com.example.petstore.api.options.GetMultiServerPetInfoOptions
 public final class com.example.petstore.api.options.GetNativeAmountOptions
 public final class com.example.petstore.api.options.GetNativeValuesOptions
@@ -3377,11 +3408,13 @@ public final class com.example.petstore.api.options.GetTimestampGroupsOptions
 public final class com.example.petstore.api.options.GetTreeOptions
 public final class com.example.petstore.api.options.GetUpstreamOptions
 public final class com.example.petstore.api.options.HeadMemoOptions
+public final class com.example.petstore.api.options.HeadMemoResponseHeaders
 public final class com.example.petstore.api.options.ListNativeAmountsOptions
 public final class com.example.petstore.api.options.ListPetArchiveOptions
 public final class com.example.petstore.api.options.ListPetCatalogOptions
 public final class com.example.petstore.api.options.ListPetEventsOptions
 public final class com.example.petstore.api.options.ListPetFeedOptions
+public final class com.example.petstore.api.options.ListPetFeedResponseHeaders
 public final class com.example.petstore.api.options.ListPetMatchesOptions
 public final class com.example.petstore.api.options.ListPetNextUrlOptions
 public final class com.example.petstore.api.options.ListPetNotesOptions
@@ -3389,7 +3422,9 @@ public final class com.example.petstore.api.options.ListPetOffsetsOptions
 public final class com.example.petstore.api.options.ListPetPageNumbersOptions
 public final class com.example.petstore.api.options.ListPetsAfterOptions
 public final class com.example.petstore.api.options.OptionsMemoOptions
+public final class com.example.petstore.api.options.OptionsMemoResponseHeaders
 public final class com.example.petstore.api.options.PatchMemoOptions
+public final class com.example.petstore.api.options.PatchMemoResponseHeaders
 public final class com.example.petstore.api.options.PlaceOrderOptions
 public final class com.example.petstore.api.options.ReserveStockOptions
 public final class com.example.petstore.api.options.SearchStoreOptions

@@ -133,6 +133,11 @@ Petstore::Client::Api::Options::GetMemoOptions#headers()
 Petstore::Client::Api::Options::GetMemoOptions#max_retries()
 Petstore::Client::Api::Options::GetMemoOptions#timeout()
 Petstore::Client::Api::Options::GetMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: GetMemoOptions]
+Petstore::Client::Api::Options::GetMemoResponseHeaders#x_archived() [doc return: Boolean, nil]
+Petstore::Client::Api::Options::GetMemoResponseHeaders#x_labels() [doc return: Array<String>, nil]
+Petstore::Client::Api::Options::GetMemoResponseHeaders#x_revision() [doc return: Integer, nil]
+Petstore::Client::Api::Options::GetMemoResponseHeaders.from_headers(headers) [doc param headers: Hash{String => String}; raise: Petstore::Client::Errors::SerializationError; return: GetMemoResponseHeaders]
+Petstore::Client::Api::Options::GetMemoResponseHeaders.new(x_revision: ?, x_labels: ?, x_archived: ?) [doc return: GetMemoResponseHeaders]
 Petstore::Client::Api::Options::GetMultiServerPetInfoOptions#headers()
 Petstore::Client::Api::Options::GetMultiServerPetInfoOptions#max_retries()
 Petstore::Client::Api::Options::GetMultiServerPetInfoOptions#timeout()
@@ -250,6 +255,9 @@ Petstore::Client::Api::Options::HeadMemoOptions#headers()
 Petstore::Client::Api::Options::HeadMemoOptions#max_retries()
 Petstore::Client::Api::Options::HeadMemoOptions#timeout()
 Petstore::Client::Api::Options::HeadMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: HeadMemoOptions]
+Petstore::Client::Api::Options::HeadMemoResponseHeaders#x_revision() [doc return: Integer, nil]
+Petstore::Client::Api::Options::HeadMemoResponseHeaders.from_headers(headers) [doc param headers: Hash{String => String}; raise: Petstore::Client::Errors::SerializationError; return: HeadMemoResponseHeaders]
+Petstore::Client::Api::Options::HeadMemoResponseHeaders.new(x_revision: ?) [doc return: HeadMemoResponseHeaders]
 Petstore::Client::Api::Options::ListNativeAmountsOptions#headers()
 Petstore::Client::Api::Options::ListNativeAmountsOptions#max_retries()
 Petstore::Client::Api::Options::ListNativeAmountsOptions#timeout()
@@ -278,6 +286,9 @@ Petstore::Client::Api::Options::ListPetFeedOptions#limit()
 Petstore::Client::Api::Options::ListPetFeedOptions#max_retries()
 Petstore::Client::Api::Options::ListPetFeedOptions#timeout()
 Petstore::Client::Api::Options::ListPetFeedOptions.new(limit: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: ListPetFeedOptions]
+Petstore::Client::Api::Options::ListPetFeedResponseHeaders#link() [doc return: String, nil]
+Petstore::Client::Api::Options::ListPetFeedResponseHeaders.from_headers(headers) [doc param headers: Hash{String => String}; raise: Petstore::Client::Errors::SerializationError; return: ListPetFeedResponseHeaders]
+Petstore::Client::Api::Options::ListPetFeedResponseHeaders.new(link: ?) [doc return: ListPetFeedResponseHeaders]
 Petstore::Client::Api::Options::ListPetMatchesOptions#cursor()
 Petstore::Client::Api::Options::ListPetMatchesOptions#headers()
 Petstore::Client::Api::Options::ListPetMatchesOptions#max_retries()
@@ -320,10 +331,18 @@ Petstore::Client::Api::Options::OptionsMemoOptions#headers()
 Petstore::Client::Api::Options::OptionsMemoOptions#max_retries()
 Petstore::Client::Api::Options::OptionsMemoOptions#timeout()
 Petstore::Client::Api::Options::OptionsMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: OptionsMemoOptions]
+Petstore::Client::Api::Options::OptionsMemoResponseHeaders#allow() [doc return: String, nil]
+Petstore::Client::Api::Options::OptionsMemoResponseHeaders.from_headers(headers) [doc param headers: Hash{String => String}; raise: Petstore::Client::Errors::SerializationError; return: OptionsMemoResponseHeaders]
+Petstore::Client::Api::Options::OptionsMemoResponseHeaders.new(allow: ?) [doc return: OptionsMemoResponseHeaders]
 Petstore::Client::Api::Options::PatchMemoOptions#headers()
 Petstore::Client::Api::Options::PatchMemoOptions#max_retries()
 Petstore::Client::Api::Options::PatchMemoOptions#timeout()
 Petstore::Client::Api::Options::PatchMemoOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: PatchMemoOptions]
+Petstore::Client::Api::Options::PatchMemoResponseHeaders#x_archived() [doc return: Boolean, nil]
+Petstore::Client::Api::Options::PatchMemoResponseHeaders#x_labels() [doc return: Array<String>, nil]
+Petstore::Client::Api::Options::PatchMemoResponseHeaders#x_revision() [doc return: Integer, nil]
+Petstore::Client::Api::Options::PatchMemoResponseHeaders.from_headers(headers) [doc param headers: Hash{String => String}; raise: Petstore::Client::Errors::SerializationError; return: PatchMemoResponseHeaders]
+Petstore::Client::Api::Options::PatchMemoResponseHeaders.new(x_revision: ?, x_labels: ?, x_archived: ?) [doc return: PatchMemoResponseHeaders]
 Petstore::Client::Api::Options::PlaceOrderOptions#headers()
 Petstore::Client::Api::Options::PlaceOrderOptions#max_retries()
 Petstore::Client::Api::Options::PlaceOrderOptions#timeout()
@@ -348,6 +367,7 @@ Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions#headers()
 Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions#max_retries()
 Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions#timeout()
 Petstore::Client::Api::Options::SetPetAvatarThumbnailOptions.new(timeout: ?, headers: ?, max_retries: ?) [doc return: SetPetAvatarThumbnailOptions]
+Petstore::Client::Api::Options::SetPetPreferencesOptions#aliases()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#headers()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#interval_days()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#max_retries()
@@ -356,11 +376,12 @@ Petstore::Client::Api::Options::SetPetPreferencesOptions#note()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#ratio()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#reminder()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#renewal_date()
+Petstore::Client::Api::Options::SetPetPreferencesOptions#route()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#snooze()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#tags()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#timeout()
 Petstore::Client::Api::Options::SetPetPreferencesOptions#urgent()
-Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname:, tags: ?, note: ?, renewal_date: ?, reminder: ?, interval_days: ?, ratio: ?, urgent: ?, snooze: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: SetPetPreferencesOptions]
+Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname:, tags: ?, note: ?, renewal_date: ?, reminder: ?, interval_days: ?, ratio: ?, urgent: ?, snooze: ?, route: ?, aliases: ?, timeout: ?, headers: ?, max_retries: ?) [doc return: SetPetPreferencesOptions]
 Petstore::Client::Api::Options::SubmitAllowanceOptions#headers()
 Petstore::Client::Api::Options::SubmitAllowanceOptions#max_retries()
 Petstore::Client::Api::Options::SubmitAllowanceOptions#timeout()
@@ -1870,10 +1891,11 @@ Petstore::Client::Petstore.new(authenticator = ?, transport_options = ?, pet_sto
 Petstore::Client::Petstore.with_authenticator(authenticator, transport_options = ?, call_hook: ?) [doc param authenticator: Auth::Authenticator; param transport_options: TransportOptions, nil; param call_hook: #start, nil; return: Petstore]
 Petstore::Client::Petstore.with_token(host, access_token = ?, transport_options = ?, token_provider: ?, call_hook: ?) [doc param host: String; param access_token: String, nil; param transport_options: TransportOptions, nil; param token_provider: #call, nil; param call_hook: #start, nil; return: Petstore]
 Petstore::Client::ServerConfiguration#description() [doc return: String, nil]
+Petstore::Client::ServerConfiguration#name() [doc return: String, nil]
 Petstore::Client::ServerConfiguration#url(overrides = ?) [doc param overrides: Hash{String => String}; raise: ArgumentError; return: String]
 Petstore::Client::ServerConfiguration#url_template() [doc return: String]
 Petstore::Client::ServerConfiguration#variables() [doc return: Hash{String => ServerVariable}]
-Petstore::Client::ServerConfiguration.new(url_template:, description: ?, variables: ?) [doc param url_template: String; param description: String, nil; param variables: Hash{String => ServerVariable}; return: ServerConfiguration]
+Petstore::Client::ServerConfiguration.new(url_template:, description: ?, variables: ?, name: ?) [doc param url_template: String; param description: String, nil; param variables: Hash{String => ServerVariable}; param name: String, nil; return: ServerConfiguration]
 Petstore::Client::ServerSentEvent#data() [doc return: Object, nil]
 Petstore::Client::ServerSentEvent#event() [doc return: String]
 Petstore::Client::ServerSentEvent#id() [doc return: String, nil]
@@ -1892,6 +1914,7 @@ Petstore::Client::ServerVariable#enum_values() [doc return: Array<String>]
 Petstore::Client::ServerVariable#eql?(other) [doc param other: Object; return: Boolean]
 Petstore::Client::ServerVariable#hash() [doc return: Integer]
 Petstore::Client::ServerVariable.new(default_value:, description: ?, enum_values: ?) [doc param default_value: String; param description: String, nil; param enum_values: Array<String>; return: ServerVariable]
+Petstore::Client::Servers.by_name(name) [doc param name: String; raise: ArgumentError; return: ServerConfiguration]
 Petstore::Client::Servers::ALL = Array
 Petstore::Client::Servers::SERVER_0 = Petstore::Client::ServerConfiguration
 Petstore::Client::Servers::SERVER_1 = Petstore::Client::ServerConfiguration
@@ -1986,6 +2009,7 @@ class Petstore::Client::Api::Options::GetInventoryOptions
 class Petstore::Client::Api::Options::GetMatrixOptions
 class Petstore::Client::Api::Options::GetMemberOptions
 class Petstore::Client::Api::Options::GetMemoOptions
+class Petstore::Client::Api::Options::GetMemoResponseHeaders
 class Petstore::Client::Api::Options::GetMultiServerPetInfoOptions
 class Petstore::Client::Api::Options::GetNativeAmountOptions
 class Petstore::Client::Api::Options::GetNativeValuesOptions
@@ -2010,11 +2034,13 @@ class Petstore::Client::Api::Options::GetTimestampGroupsOptions
 class Petstore::Client::Api::Options::GetTreeOptions
 class Petstore::Client::Api::Options::GetUpstreamOptions
 class Petstore::Client::Api::Options::HeadMemoOptions
+class Petstore::Client::Api::Options::HeadMemoResponseHeaders
 class Petstore::Client::Api::Options::ListNativeAmountsOptions
 class Petstore::Client::Api::Options::ListPetArchiveOptions
 class Petstore::Client::Api::Options::ListPetCatalogOptions
 class Petstore::Client::Api::Options::ListPetEventsOptions
 class Petstore::Client::Api::Options::ListPetFeedOptions
+class Petstore::Client::Api::Options::ListPetFeedResponseHeaders
 class Petstore::Client::Api::Options::ListPetMatchesOptions
 class Petstore::Client::Api::Options::ListPetNextUrlOptions
 class Petstore::Client::Api::Options::ListPetNotesOptions
@@ -2022,7 +2048,9 @@ class Petstore::Client::Api::Options::ListPetOffsetsOptions
 class Petstore::Client::Api::Options::ListPetPageNumbersOptions
 class Petstore::Client::Api::Options::ListPetsAfterOptions
 class Petstore::Client::Api::Options::OptionsMemoOptions
+class Petstore::Client::Api::Options::OptionsMemoResponseHeaders
 class Petstore::Client::Api::Options::PatchMemoOptions
+class Petstore::Client::Api::Options::PatchMemoResponseHeaders
 class Petstore::Client::Api::Options::PlaceOrderOptions
 class Petstore::Client::Api::Options::ReserveStockOptions
 class Petstore::Client::Api::Options::SearchStoreOptions

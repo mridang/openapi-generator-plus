@@ -31,15 +31,21 @@ module Petstore::Client
     # @return [Hash{String => ServerVariable}]
     attr_reader :variables
 
+    # The name the specification gives this server (OpenAPI 3.2 +name+).
+    # @return [String, nil]
+    attr_reader :name
+
     # Create a new server configuration.
     #
     # @param url_template [String] the URL template, possibly containing +{variable}+ placeholders
     # @param description [String, nil] human-readable description of this server
     # @param variables [Hash{String => ServerVariable}] map of variable names to their definitions
-    def initialize(url_template:, description: nil, variables: {})
+    # @param name [String, nil] the name the specification gives this server
+    def initialize(url_template:, description: nil, variables: {}, name: nil)
       @url_template = url_template
       @description = description
       @variables = variables.dup.freeze
+      @name = name
       freeze
     end
 

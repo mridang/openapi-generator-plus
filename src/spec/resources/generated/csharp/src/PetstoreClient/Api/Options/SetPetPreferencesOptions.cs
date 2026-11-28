@@ -25,6 +25,10 @@ public sealed class SetPetPreferencesOptions
 
     public TimeSpan? Snooze { get; init; }
 
+    public string? Route { get; init; }
+
+    public List<string>? Aliases { get; init; }
+
     /// <summary>
     /// End-to-end timeout in milliseconds for this call only: it replaces
     /// <see cref="TransportOptions.Timeout"/> and must be greater than zero.

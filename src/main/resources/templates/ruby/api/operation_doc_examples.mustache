@@ -1,0 +1,16 @@
+{{#vendorExtensions.op.hasOperationExamples}}
+      #
+{{/vendorExtensions.op.hasOperationExamples}}
+{{#vendorExtensions.op.operationExamples}}
+      # {{#lambda.rubyComment}}{{{heading}}}{{/lambda.rubyComment}} example: {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
+{{#hasDescription}}
+      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
+{{/hasDescription}}
+      # {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.hasExposedExtensions}}
+      #
+{{/vendorExtensions.op.hasExposedExtensions}}
+{{#vendorExtensions.op.exposedExtensions}}
+      # Extension {{#lambda.rubyComment}}{{{name}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+{{/vendorExtensions.op.exposedExtensions}}

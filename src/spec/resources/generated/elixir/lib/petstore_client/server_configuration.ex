@@ -50,17 +50,20 @@ defmodule PetstoreClient.ServerConfiguration do
   * `url_template` - The raw URL template before variable substitution.
   * `description` - Human-readable description of this server, or `nil` if not specified.
   * `variables` - The server variables and their definitions, keyed by variable name.
+  * `name` - The name the specification gives this server (OpenAPI 3.2 `name`), or `nil` if it has none.
   """
   @type t :: %__MODULE__{
           url_template: String.t(),
           description: String.t() | nil,
-          variables: %{optional(String.t()) => PetstoreClient.ServerVariable.t()}
+          variables: %{optional(String.t()) => PetstoreClient.ServerVariable.t()},
+          name: String.t() | nil
         }
 
   @enforce_keys [:url_template]
   defstruct url_template: nil,
             description: nil,
-            variables: %{}
+            variables: %{},
+            name: nil
 
   @doc """
   Resolve the URL template, substituting variable values.

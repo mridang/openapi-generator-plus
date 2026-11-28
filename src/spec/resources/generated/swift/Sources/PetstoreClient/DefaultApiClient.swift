@@ -1167,7 +1167,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     var body = Data()
     let crlf = "\r\n"
 
-    for (name, value) in formParts {
+    for (name, field) in formParts {
+      /* A form field wrapped for allowReserved or a part encoding is sent as its bare value. */
+      let value = ValueSerializer.unwrapFormField(field).value
       if let list = value as? [Any] {
         for item in list {
           try appendMultipartField(&body, name: name, value: item, boundary: boundary, crlf: crlf)

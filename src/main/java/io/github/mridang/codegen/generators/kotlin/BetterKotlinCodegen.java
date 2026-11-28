@@ -1251,6 +1251,83 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * D168: writes the {@code <Operation>ResponseHeaders} class of an operation whose success
+     * response declares headers, next to its Options class (package {@code <api>.options}). Each
+     * row gets the name of the parse helper for its kind, and the class only declares the helpers
+     * its rows use.
+     *
+     * @param op the operation
+     * @param opDeco the operation decorator map holding the D168 rows
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(CodegenOperation op, Map<String, Object> opDeco) {
+        if (!Boolean.TRUE.equals(opDeco.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = String.valueOf(opDeco.get("responseHeadersClassName"));
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        final Set<String> parsers = new LinkedHashSet<>();
+        final Set<String> extraImports = new LinkedHashSet<>();
+        final Object declared = opDeco.get("responseHeaders");
+        if (!(declared instanceof List)) {
+            return;
+        }
+        for (final Map<String, Object> source : (List<Map<String, Object>>) declared) {
+            final Map<String, Object> row = new HashMap<>(source);
+            final String itemType = String.valueOf(source.get("itemDataType"));
+            final String parser;
+            switch (String.valueOf(source.get("kind"))) {
+                case "integer":
+                    parser = "parseInteger";
+                    break;
+                case "long":
+                    parser = "parseLong";
+                    break;
+                case "boolean":
+                    parser = "parseBoolean";
+                    break;
+                case "number":
+                    parser = itemType.endsWith("BigDecimal")
+                            ? "parseDecimal" : itemType.endsWith("Float") ? "parseFloat" : "parseDouble";
+                    break;
+                default:
+                    parser = null;
+                    break;
+            }
+            if (parser != null) {
+                parsers.add(parser);
+                row.put("parser", parser);
+            }
+            if (source.get("description") != null) {
+                row.put("description", kdocLine(String.valueOf(source.get("description"))));
+            }
+            for (final Map.Entry<String, String> mapping : importMapping.entrySet()) {
+                if (mapping.getValue().startsWith("java.")
+                        && typeReferencesName(String.valueOf(source.get("dataType")), mapping.getKey())) {
+                    extraImports.add(mapping.getValue());
+                }
+            }
+            rows.add(row);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("package", apiPackage() + ".options");
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("rows", rows);
+        context.put("extraImports", new ArrayList<>(extraImports));
+        for (final String parser : parsers) {
+            context.put(parser, true);
+        }
+        context.put("hasParser", !parsers.isEmpty());
+        context.put("needsIntegerPattern", parsers.contains("parseInteger") || parsers.contains("parseLong"));
+        context.put("needsDecimalPattern", parsers.contains("parseDouble") || parsers.contains("parseFloat")
+                || parsers.contains("parseDecimal"));
+        final String filePath = getOptionsFilePath(op.operationId, className);
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
+    }
+
+    /**
      * The named examples of a parameter as KDoc-safe single-line entries: a
      * comment terminator or a line break inside a summary or value would end or
      * break the comment.
@@ -1482,6 +1559,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 anyJsonLinesStream |= "JsonLinesStream".equals(op.returnBaseType);
                 if (deco instanceof Map) {
                     final Map<String, Object> opDeco = (Map<String, Object>) deco;
+                    writeResponseHeadersFile(op, opDeco);
                     final Object sigArgs = opDeco.get("signatureArgs");
                     if (sigArgs instanceof List) {
                         opDeco.put(

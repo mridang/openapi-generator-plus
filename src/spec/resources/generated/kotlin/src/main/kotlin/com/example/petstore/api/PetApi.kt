@@ -316,7 +316,12 @@ class PetApi :
         val headerParams = mutableMapOf<String, String>()
         val formBody = mutableMapOf<String, Any?>()
         formBody["files"] = options.files
-        formBody["metadata"] = options.metadata
+        formBody["metadata"] =
+            ValueSerializer.encodedPart(
+                options.metadata,
+                "application/json",
+                linkedMapOf(),
+            )
 
         return invokeApiForResult<List<Photo>>(
             "POST",
@@ -448,7 +453,12 @@ class PetApi :
         val formBody = mutableMapOf<String, Any?>()
         formBody["file"] = options._file
         if (options.caption != null) {
-            formBody["caption"] = options.caption
+            formBody["caption"] =
+                ValueSerializer.encodedPart(
+                    options.caption,
+                    "text/markdown",
+                    linkedMapOf("X-Caption-Format" to "commonmark"),
+                )
         }
 
         return invokeApiForResult<ApiResponse>(
@@ -1372,6 +1382,9 @@ class PetApi :
     /**
      * Get a <plain> \"text\" summary & it's short
      * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+     *
+     * Response 200 example: Example
+     * `hello`
      * @param petId  (required)
      * @param asOf Summary date, sent as a matrix-style path segment (required)
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
@@ -2656,6 +2669,17 @@ class PetApi :
         }
         if (options.snooze != null) {
             formBody["snooze"] = options.snooze
+        }
+        if (options.route != null) {
+            formBody["route"] = ValueSerializer.maybeAllowReserved(options.route, true)
+        }
+        if (options.aliases != null) {
+            ValueSerializer.putQuery(
+                formBody,
+                "aliases",
+                ValueSerializer.serializeStyled("aliases", options.aliases, "query", "List<String>", null, "pipeDelimited", false),
+                false,
+            )
         }
 
         return invokeApiForResult<ApiResponse>(

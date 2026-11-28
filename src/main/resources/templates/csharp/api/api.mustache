@@ -82,9 +82,15 @@ public sealed class {{serverTypeName}}{{variantName}} : {{serverTypeName}}
 
 /// <summary>
 /// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+/// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
+{{/tagSummary}}
 {{#tagDescription}}
 /// {{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}
 {{/tagDescription}}
+{{#tagParent}}
+/// {{#lambda.escapeXml}}It belongs to the {{{.}}} API group.{{/lambda.escapeXml}}
+{{/tagParent}}
 /// </summary>
 {{#tagExternalDocs}}
 /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
@@ -182,6 +188,24 @@ public class {{classname}} : BaseApi, I{{classname}}
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
 {{/-first}}{{/-last}}{{/consumes}}
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+{{#vendorExtensions.op.operationExamples}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <example>
+    /// <para>{{#lambda.escapeXml}}{{{heading}}} example: {{{summary}}}{{/lambda.escapeXml}}</para>
+{{#hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</para>
+{{/hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{value}}}{{/lambda.escapeXml}}</para>
+    /// </example>
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.exposedExtensions}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <remarks>{{#lambda.escapeXml}}Extension {{{name}}}: {{{value}}}{{/lambda.escapeXml}}</remarks>
+{{/vendorExtensions.op.exposedExtensions}}
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
@@ -285,6 +309,24 @@ public class {{classname}} : BaseApi, I{{classname}}
     /// <param name="streamOptions">The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults.</param>
 {{/vendorExtensions.op.streamOnly}}
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+{{#vendorExtensions.op.operationExamples}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <example>
+    /// <para>{{#lambda.escapeXml}}{{{heading}}} example: {{{summary}}}{{/lambda.escapeXml}}</para>
+{{#hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</para>
+{{/hasDescription}}
+    /// <para>{{#lambda.escapeXml}}{{{value}}}{{/lambda.escapeXml}}</para>
+    /// </example>
+{{/vendorExtensions.op.operationExamples}}
+{{#vendorExtensions.op.exposedExtensions}}
+{{#-first}}
+    ///
+{{/-first}}
+    /// <remarks>{{#lambda.escapeXml}}Extension {{{name}}}: {{{value}}}{{/lambda.escapeXml}}</remarks>
+{{/vendorExtensions.op.exposedExtensions}}
 {{#vendorExtensions.op.streamOnly}}
     /// <returns>The open stream; dispose it (<c>await using</c>) when you stop early.</returns>
 {{/vendorExtensions.op.streamOnly}}
@@ -419,7 +461,14 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{^vendorExtensions.contentJson}}
         path = path.Replace(
             "{" + nameof({{paramName}}) + "}",
+{{#vendorExtensions.param.pathAllowReserved}}
+            ValueSerializer.AllowReservedInPath(
+                (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!
+            ),
+{{/vendorExtensions.param.pathAllowReserved}}
+{{^vendorExtensions.param.pathAllowReserved}}
             (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,
+{{/vendorExtensions.param.pathAllowReserved}}
             StringComparison.Ordinal
         );
 {{/vendorExtensions.contentJson}}
@@ -554,6 +603,23 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{#hasCookieParams}}
         List<string> cookieParts = [];
 {{#cookieParams}}
+{{#vendorExtensions.param.cookieStyle}}
+        if (options != null && options.{{vendorExtensions.pascalName}} != null)
+        {
+            /* OpenAPI 3.2 style: cookie. CookiePairs validates every item
+               against the RFC 6265 cookie-octet set and writes the pairs. */
+            string cookiePairs = ValueSerializer.CookiePairs(
+                "{{baseName}}",
+                options.{{vendorExtensions.pascalName}},
+                {{isExplode}}
+            );
+            if (cookiePairs.Length > 0)
+            {
+                cookieParts.Add(cookiePairs);
+            }
+        }
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
             /* RFC 6265 header-injection guard. An operation-level cookie
@@ -594,6 +660,7 @@ public class {{classname}} : BaseApi, I{{classname}}
             }
             cookieParts.Add(cookieName + "=" + cookieValue);
         }
+{{/vendorExtensions.param.cookieStyle}}
 {{/cookieParams}}
         if (cookieParts.Count > 0)
         {
@@ -604,12 +671,12 @@ public class {{classname}} : BaseApi, I{{classname}}
         Dictionary<string, object> formBody = [];
 {{#formParams}}
 {{#required}}
-        formBody["{{baseName}}"] = options.{{vendorExtensions.pascalName}};
+        formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}new ValueSerializer.EncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formStyled}}ValueSerializer.MaybeAllowReserved(ValueSerializer.SerializeStyled("{{baseName}}", options.{{vendorExtensions.pascalName}}, "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})!{{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}new ValueSerializer.AllowReservedValue({{/vendorExtensions.param.formAllowReserved}}options.{{vendorExtensions.pascalName}}{{#vendorExtensions.param.formAllowReserved}}){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}"{{#lambda.stringLiteral}}{{{vendorExtensions.param.partContentType}}}{{/lambda.stringLiteral}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}new("{{#lambda.stringLiteral}}{{{name}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{value}}}{{/lambda.stringLiteral}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}};
 {{/required}}
 {{^required}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
-            formBody["{{baseName}}"] = options.{{vendorExtensions.pascalName}};
+            formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}new ValueSerializer.EncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formStyled}}ValueSerializer.MaybeAllowReserved(ValueSerializer.SerializeStyled("{{baseName}}", options.{{vendorExtensions.pascalName}}, "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})!{{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}new ValueSerializer.AllowReservedValue({{/vendorExtensions.param.formAllowReserved}}options.{{vendorExtensions.pascalName}}{{#vendorExtensions.param.formAllowReserved}}){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}"{{#lambda.stringLiteral}}{{{vendorExtensions.param.partContentType}}}{{/lambda.stringLiteral}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}new("{{#lambda.stringLiteral}}{{{name}}}{{/lambda.stringLiteral}}", "{{#lambda.stringLiteral}}{{{value}}}{{/lambda.stringLiteral}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}};
         }
 {{/required}}
 {{/formParams}}

@@ -314,6 +314,10 @@ PetstoreClient.Api.Options.GetMemoOptions: public .ctor()
 PetstoreClient.Api.Options.GetMemoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.GetMemoOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.GetMemoOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.GetMemoResponseHeaders: public System.Collections.Generic.List<string>? XLabels { get; }
+PetstoreClient.Api.Options.GetMemoResponseHeaders: public bool? XArchived { get; }
+PetstoreClient.Api.Options.GetMemoResponseHeaders: public int? XRevision { get; }
+PetstoreClient.Api.Options.GetMemoResponseHeaders: public static PetstoreClient.Api.Options.GetMemoResponseHeaders From(System.Collections.Generic.IReadOnlyDictionary<string, string> headers)
 PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public .ctor()
 PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public int? MaxRetries { get; init; }
@@ -431,6 +435,8 @@ PetstoreClient.Api.Options.HeadMemoOptions: public .ctor()
 PetstoreClient.Api.Options.HeadMemoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.HeadMemoOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.HeadMemoOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.HeadMemoResponseHeaders: public int? XRevision { get; }
+PetstoreClient.Api.Options.HeadMemoResponseHeaders: public static PetstoreClient.Api.Options.HeadMemoResponseHeaders From(System.Collections.Generic.IReadOnlyDictionary<string, string> headers)
 PetstoreClient.Api.Options.ListNativeAmountsOptions: public .ctor()
 PetstoreClient.Api.Options.ListNativeAmountsOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.ListNativeAmountsOptions: public int? MaxRetries { get; init; }
@@ -456,6 +462,8 @@ PetstoreClient.Api.Options.ListPetFeedOptions: public System.Collections.Generic
 PetstoreClient.Api.Options.ListPetFeedOptions: public int? Limit { get; init; }
 PetstoreClient.Api.Options.ListPetFeedOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.ListPetFeedOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.ListPetFeedResponseHeaders: public static PetstoreClient.Api.Options.ListPetFeedResponseHeaders From(System.Collections.Generic.IReadOnlyDictionary<string, string> headers)
+PetstoreClient.Api.Options.ListPetFeedResponseHeaders: public string? Link { get; }
 PetstoreClient.Api.Options.ListPetMatchesOptions: public .ctor()
 PetstoreClient.Api.Options.ListPetMatchesOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.ListPetMatchesOptions: public int? MaxRetries { get; init; }
@@ -493,10 +501,16 @@ PetstoreClient.Api.Options.OptionsMemoOptions: public .ctor()
 PetstoreClient.Api.Options.OptionsMemoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.OptionsMemoOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.OptionsMemoOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.OptionsMemoResponseHeaders: public static PetstoreClient.Api.Options.OptionsMemoResponseHeaders From(System.Collections.Generic.IReadOnlyDictionary<string, string> headers)
+PetstoreClient.Api.Options.OptionsMemoResponseHeaders: public string? Allow { get; }
 PetstoreClient.Api.Options.PatchMemoOptions: public .ctor()
 PetstoreClient.Api.Options.PatchMemoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.PatchMemoOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.PatchMemoOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.PatchMemoResponseHeaders: public System.Collections.Generic.List<string>? XLabels { get; }
+PetstoreClient.Api.Options.PatchMemoResponseHeaders: public bool? XArchived { get; }
+PetstoreClient.Api.Options.PatchMemoResponseHeaders: public int? XRevision { get; }
+PetstoreClient.Api.Options.PatchMemoResponseHeaders: public static PetstoreClient.Api.Options.PatchMemoResponseHeaders From(System.Collections.Generic.IReadOnlyDictionary<string, string> headers)
 PetstoreClient.Api.Options.PlaceOrderOptions: public .ctor()
 PetstoreClient.Api.Options.PlaceOrderOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.PlaceOrderOptions: public int? MaxRetries { get; init; }
@@ -523,6 +537,7 @@ PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions: public int? MaxRetries 
 PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions: public int? Timeout { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public .ctor()
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+PetstoreClient.Api.Options.SetPetPreferencesOptions: public System.Collections.Generic.List<string>? Aliases { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public System.Collections.Generic.List<string>? Tags { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public System.DateOnly? RenewalDate { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public System.DateTimeOffset? Reminder { get; init; }
@@ -534,6 +549,7 @@ PetstoreClient.Api.Options.SetPetPreferencesOptions: public int? MaxRetries { ge
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public int? Timeout { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public required string Nickname { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public string? Note { get; init; }
+PetstoreClient.Api.Options.SetPetPreferencesOptions: public string? Route { get; init; }
 PetstoreClient.Api.Options.SubmitAllowanceOptions: public .ctor()
 PetstoreClient.Api.Options.SubmitAllowanceOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.SubmitAllowanceOptions: public int? MaxRetries { get; init; }
@@ -2326,12 +2342,13 @@ PetstoreClient.Page<T, TCursor>: public TCursor? NextCursor { get; }
 PetstoreClient.Paginator<T, TCursor>: public System.Collections.Generic.IAsyncEnumerable<PetstoreClient.Page<T?, TCursor?>> Pages()
 PetstoreClient.Paginator<T, TCursor>: public System.Collections.Generic.IAsyncEnumerable<T?> Items()
 PetstoreClient.Paginator<T, TCursor>: public System.Collections.Generic.IAsyncEnumerator<T?> GetAsyncEnumerator(System.Threading.CancellationToken cancellationToken = default)
-PetstoreClient.ServerConfiguration: public .ctor(string urlTemplate, string? description = null, System.Collections.Generic.Dictionary<string, PetstoreClient.ServerVariable>? variables = null)
+PetstoreClient.ServerConfiguration: public .ctor(string urlTemplate, string? description = null, System.Collections.Generic.Dictionary<string, PetstoreClient.ServerVariable>? variables = null, string? name = null)
 PetstoreClient.ServerConfiguration: public System.Collections.Generic.IReadOnlyDictionary<string, PetstoreClient.ServerVariable> Variables { get; }
 PetstoreClient.ServerConfiguration: public string GetUrl()
 PetstoreClient.ServerConfiguration: public string GetUrl(System.Collections.Generic.Dictionary<string, string> overrides)
 PetstoreClient.ServerConfiguration: public string UrlTemplate { get; }
 PetstoreClient.ServerConfiguration: public string? Description { get; }
+PetstoreClient.ServerConfiguration: public string? Name { get; }
 PetstoreClient.ServerSentEvent<T>: public .ctor(string? Id, string Event, T? Data, long? Retry, string Raw)
 PetstoreClient.ServerSentEvent<T>: public T? Data { get; init; }
 PetstoreClient.ServerSentEvent<T>: public bool Equals(PetstoreClient.ServerSentEvent<T>? other)
@@ -2358,6 +2375,7 @@ PetstoreClient.ServerVariable: public static bool op_Inequality(PetstoreClient.S
 PetstoreClient.ServerVariable: public string DefaultValue { get; init; }
 PetstoreClient.ServerVariable: public string? Description { get; init; }
 PetstoreClient.ServerVariable: public void Deconstruct(out string DefaultValue, out string Description, out System.Collections.Generic.IReadOnlyList<string> EnumValues)
+PetstoreClient.Servers: public static PetstoreClient.ServerConfiguration ByName(string name)
 PetstoreClient.Servers: public static readonly PetstoreClient.ServerConfiguration Server0
 PetstoreClient.Servers: public static readonly PetstoreClient.ServerConfiguration Server1
 PetstoreClient.Servers: public static readonly PetstoreClient.ServerConfiguration Server2
@@ -2610,6 +2628,7 @@ public sealed class PetstoreClient.Api.Options.GetInventoryOptions
 public sealed class PetstoreClient.Api.Options.GetMatrixOptions
 public sealed class PetstoreClient.Api.Options.GetMemberOptions
 public sealed class PetstoreClient.Api.Options.GetMemoOptions
+public sealed class PetstoreClient.Api.Options.GetMemoResponseHeaders
 public sealed class PetstoreClient.Api.Options.GetMultiServerPetInfoOptions
 public sealed class PetstoreClient.Api.Options.GetNativeAmountOptions
 public sealed class PetstoreClient.Api.Options.GetNativeValuesOptions
@@ -2634,11 +2653,13 @@ public sealed class PetstoreClient.Api.Options.GetTimestampGroupsOptions
 public sealed class PetstoreClient.Api.Options.GetTreeOptions
 public sealed class PetstoreClient.Api.Options.GetUpstreamOptions
 public sealed class PetstoreClient.Api.Options.HeadMemoOptions
+public sealed class PetstoreClient.Api.Options.HeadMemoResponseHeaders
 public sealed class PetstoreClient.Api.Options.ListNativeAmountsOptions
 public sealed class PetstoreClient.Api.Options.ListPetArchiveOptions
 public sealed class PetstoreClient.Api.Options.ListPetCatalogOptions
 public sealed class PetstoreClient.Api.Options.ListPetEventsOptions
 public sealed class PetstoreClient.Api.Options.ListPetFeedOptions
+public sealed class PetstoreClient.Api.Options.ListPetFeedResponseHeaders
 public sealed class PetstoreClient.Api.Options.ListPetMatchesOptions
 public sealed class PetstoreClient.Api.Options.ListPetNextUrlOptions
 public sealed class PetstoreClient.Api.Options.ListPetNotesOptions
@@ -2646,7 +2667,9 @@ public sealed class PetstoreClient.Api.Options.ListPetOffsetsOptions
 public sealed class PetstoreClient.Api.Options.ListPetPageNumbersOptions
 public sealed class PetstoreClient.Api.Options.ListPetsAfterOptions
 public sealed class PetstoreClient.Api.Options.OptionsMemoOptions
+public sealed class PetstoreClient.Api.Options.OptionsMemoResponseHeaders
 public sealed class PetstoreClient.Api.Options.PatchMemoOptions
+public sealed class PetstoreClient.Api.Options.PatchMemoResponseHeaders
 public sealed class PetstoreClient.Api.Options.PlaceOrderOptions
 public sealed class PetstoreClient.Api.Options.ReserveStockOptions
 public sealed class PetstoreClient.Api.Options.SearchStoreOptions

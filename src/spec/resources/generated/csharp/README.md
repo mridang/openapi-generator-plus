@@ -57,7 +57,9 @@ for authentication, servers and error handling.
 
 Every operation has a `...WithHttpInfoAsync` variant returning an `ApiResult<T>`
 with `StatusCode`, `Data`, `RawBody` and the lower-cased `Headers`. It is the way
-to read a response header.
+to read a response header. An operation whose success response declares headers
+also has a `<Operation>ResponseHeaders` type;
+`<Operation>ResponseHeaders.From(result.Headers)` reads them in their declared types.
 
 ### Timeouts
 

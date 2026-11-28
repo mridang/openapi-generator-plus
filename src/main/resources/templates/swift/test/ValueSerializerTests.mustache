@@ -925,4 +925,46 @@ import Testing
         #expect(ValueSerializer.encodePathSegment("+") == "%2B")
         #expect(ValueSerializer.encodePathSegment("é") == "%C3%A9")
     }
+
+    /* A style: cookie parameter is written as its Cookie header pairs, never percent-encoded; a map's keys sort, so k1 precedes k2. */
+    @Test func testBhvSerializationparam501CookiePairsFollowTheCookieStyle() throws {
+        let entries = ["k1": "v1", "k2": "v2"]
+
+        #expect(try ValueSerializer.cookiePairs("region", value: "eu", explode: true) == "region=eu")
+        #expect(try ValueSerializer.cookiePairs("region", value: ["a", "b"], explode: false) == "region=a,b")
+        #expect(try ValueSerializer.cookiePairs("region", value: ["a", "b"], explode: true) == "region=a; region=b")
+        #expect(try ValueSerializer.cookiePairs("region", value: entries, explode: false) == "region=k1,v1,k2,v2")
+        #expect(try ValueSerializer.cookiePairs("region", value: entries, explode: true) == "k1=v1; k2=v2")
+        #expect(try ValueSerializer.cookiePairs("region", value: "a%2Cb", explode: true) == "region=a%2Cb")
+        #expect(try ValueSerializer.cookiePairs("region", value: nil, explode: true) == "")
+    }
+
+    /* A style: cookie item outside the RFC 6265 cookie-octet set is rejected, naming the parameter. */
+    @Test func testBhvSerializationparam502CookiePairsRejectNonCookieOctets() {
+        func rejection(_ value: Any, explode: Bool) -> String? {
+            do {
+                _ = try ValueSerializer.cookiePairs("region", value: value, explode: explode)
+            } catch ConfigurationError.invalidArgument(let text) {
+                return text
+            } catch {
+                return nil
+            }
+            return nil
+        }
+
+        #expect(rejection(["a b"], explode: false)?.contains("'region'") == true)
+        #expect(rejection("a;b", explode: true)?.contains("'region'") == true)
+        #expect(rejection(["a,b"], explode: true)?.contains("'region'") == true)
+    }
+
+    /* A path parameter with allowReserved keeps the reserved characters literal and the rest encoded. */
+    @Test func testBhvSerializationparam503AllowReservedInPathDecodesOnlyReservedCharacters() {
+        #expect(
+            ValueSerializer.allowReservedInPath(ValueSerializer.encodePathSegment("v1.0/beta:rc1@x"))
+                == "v1.0/beta:rc1@x")
+        #expect(
+            ValueSerializer.allowReservedInPath(ValueSerializer.encodePathSegment("a?b#c[d]e%f g"))
+                == "a%3Fb%23c%5Bd%5De%25f%20g")
+        #expect(ValueSerializer.allowReservedInPath("%2f") == "/")
+    }
 }

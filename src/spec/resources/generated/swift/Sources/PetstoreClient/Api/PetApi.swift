@@ -269,7 +269,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
      * `name=` pair. */
     var formBody: OrderedParams<Any> = [:]
     formBody["files"] = options.files
-    formBody["metadata"] = options.metadata
+    formBody["metadata"] = ValueSerializer.encodedPart(
+      options.metadata, contentType: "application/json", headers: [])
 
     let requestBody: Any? = formBody
     let params = InvokeAPIParams(
@@ -398,7 +399,9 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     var formBody: OrderedParams<Any> = [:]
     formBody["file"] = options.file
     if let val = options.caption {
-      formBody["caption"] = val
+      formBody["caption"] = ValueSerializer.encodedPart(
+        val, contentType: "text/markdown",
+        headers: [(name: "X-Caption-Format", value: "commonmark")])
     }
 
     let requestBody: Any? = formBody
@@ -1377,6 +1380,11 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
+  ///
+  /// Response 200 example: Example
+  /// ```json
+  /// hello
+  /// ```
   public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
     -> String
   {
@@ -2645,6 +2653,14 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     }
     if let val = options.snooze {
       formBody["snooze"] = val
+    }
+    if let val = options.route {
+      formBody["route"] = ValueSerializer.maybeAllowReserved(val, allowReserved: true)
+    }
+    if let val = options.aliases {
+      formBody["aliases"] = ValueSerializer.serializeStyled(
+        "aliases", value: val, location: "query", schemaType: "[String]", collectionFormat: "",
+        style: "pipeDelimited", explode: false)
     }
 
     let requestBody: Any? = formBody

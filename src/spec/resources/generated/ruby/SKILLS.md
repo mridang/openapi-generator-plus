@@ -206,7 +206,7 @@ authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthentica
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `Petstore::Client::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Petstore::Client::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. A server the spec gives a name is also found by that name with `Servers.by_name('name')`, which fails with `ArgumentError` when no server has the name. Pass the desired server's URL to the client:
 
 ```ruby statements
 require 'petstore_client'

@@ -530,6 +530,11 @@ GetMemoOptions::GetMemoOptions({int? timeout, Map<String, String>? headers, int?
 GetMemoOptions::final Map<String, String>? headers
 GetMemoOptions::final int? maxRetries
 GetMemoOptions::final int? timeout
+GetMemoResponseHeaders::GetMemoResponseHeaders({int? xRevision, List<String>? xLabels, bool? xArchived})
+GetMemoResponseHeaders::GetMemoResponseHeaders.from(Map<String, String> headers)
+GetMemoResponseHeaders::final List<String>? xLabels
+GetMemoResponseHeaders::final bool? xArchived
+GetMemoResponseHeaders::final int? xRevision
 GetMemoServer::GetMemoServer()
 GetMemoServer::String getUrl()
 GetMemoServerMemos::GetMemoServerMemos()
@@ -694,6 +699,9 @@ HeadMemoOptions::HeadMemoOptions({int? timeout, Map<String, String>? headers, in
 HeadMemoOptions::final Map<String, String>? headers
 HeadMemoOptions::final int? maxRetries
 HeadMemoOptions::final int? timeout
+HeadMemoResponseHeaders::HeadMemoResponseHeaders({int? xRevision})
+HeadMemoResponseHeaders::HeadMemoResponseHeaders.from(Map<String, String> headers)
+HeadMemoResponseHeaders::final int? xRevision
 HttpAwareAuthenticator::HttpAwareAuthenticator()
 HttpAwareAuthenticator::void setApiClient(ApiClient client)
 InternalApiKeyAuthenticator::InternalApiKeyAuthenticator({required String host, String? apiKey, String Function()? apiKeyProvider, Map<String, String>? environment})
@@ -750,6 +758,9 @@ ListPetFeedOptions::final Map<String, String>? headers
 ListPetFeedOptions::final int? limit
 ListPetFeedOptions::final int? maxRetries
 ListPetFeedOptions::final int? timeout
+ListPetFeedResponseHeaders::ListPetFeedResponseHeaders({String? link})
+ListPetFeedResponseHeaders::ListPetFeedResponseHeaders.from(Map<String, String> headers)
+ListPetFeedResponseHeaders::final String? link
 ListPetMatchesOptions::ListPetMatchesOptions({String? cursor, int? timeout, Map<String, String>? headers, int? maxRetries})
 ListPetMatchesOptions::final Map<String, String>? headers
 ListPetMatchesOptions::final String? cursor
@@ -952,6 +963,9 @@ OptionsMemoOptions::OptionsMemoOptions({int? timeout, Map<String, String>? heade
 OptionsMemoOptions::final Map<String, String>? headers
 OptionsMemoOptions::final int? maxRetries
 OptionsMemoOptions::final int? timeout
+OptionsMemoResponseHeaders::OptionsMemoResponseHeaders({String? allow})
+OptionsMemoResponseHeaders::OptionsMemoResponseHeaders.from(Map<String, String> headers)
+OptionsMemoResponseHeaders::final String? allow
 Order::Map<String, dynamic> toJson()
 Order::Order copyWith({Object? id = copyUnset, Object? petId = copyUnset, Object? quantity = copyUnset, Object? trackingId = copyUnset, Object? shipDate = copyUnset, Object? status = copyUnset, Object? complete = copyUnset})
 Order::Order({int? id, int? petId, int? quantity, UuidValue? trackingId, DateTime? shipDate, OrderStatusEnum? status = OrderStatusEnum.placed, bool? complete})
@@ -1017,6 +1031,11 @@ PatchMemoOptions::PatchMemoOptions({int? timeout, Map<String, String>? headers, 
 PatchMemoOptions::final Map<String, String>? headers
 PatchMemoOptions::final int? maxRetries
 PatchMemoOptions::final int? timeout
+PatchMemoResponseHeaders::PatchMemoResponseHeaders({int? xRevision, List<String>? xLabels, bool? xArchived})
+PatchMemoResponseHeaders::PatchMemoResponseHeaders.from(Map<String, String> headers)
+PatchMemoResponseHeaders::final List<String>? xLabels
+PatchMemoResponseHeaders::final bool? xArchived
+PatchMemoResponseHeaders::final int? xRevision
 PayloadTooLargeException::PayloadTooLargeException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
 PaymentRequiredException::PaymentRequiredException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
 Pet::Map<String, dynamic> toJson()
@@ -1625,10 +1644,12 @@ SerializationException::final String? requestMethod
 SerializationException::final String? requestPath
 SerializationException::final String? responseBody
 SerializationException::final int? statusCode
-ServerConfiguration::ServerConfiguration({required String urlTemplate, String description = '', Map<String, ServerVariable> variables = const {}})
+ServerConfiguration serverByName(String name)
+ServerConfiguration::ServerConfiguration({required String urlTemplate, String description = '', Map<String, ServerVariable> variables = const {}, String name = ''})
 ServerConfiguration::String url([Map<String, String>? overrides])
 ServerConfiguration::final Map<String, ServerVariable> variables
 ServerConfiguration::final String description
+ServerConfiguration::final String name
 ServerConfiguration::final String urlTemplate
 ServerException::ServerException({required int statusCode, required String message, String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
 ServerSentEvent::ServerSentEvent<T>({String? id, String event = 'message', required T data, int? retry, required String raw})
@@ -1671,14 +1692,16 @@ SetPetAvatarThumbnailRequest::SetPetAvatarThumbnailRequest.fromJson(Object? json
 SetPetAvatarThumbnailRequest::String toString()
 SetPetAvatarThumbnailRequest::bool ==(Object other)
 SetPetAvatarThumbnailRequest::int get hashCode
-SetPetPreferencesOptions::SetPetPreferencesOptions({required String nickname, List<String>? tags, String? note, DateTime? renewalDate, DateTime? reminder, int? intervalDays, double? ratio, bool? urgent, Duration? snooze, int? timeout, Map<String, String>? headers, int? maxRetries})
+SetPetPreferencesOptions::SetPetPreferencesOptions({required String nickname, List<String>? tags, String? note, DateTime? renewalDate, DateTime? reminder, int? intervalDays, double? ratio, bool? urgent, Duration? snooze, String? route, List<String>? aliases, int? timeout, Map<String, String>? headers, int? maxRetries})
 SetPetPreferencesOptions::final DateTime? reminder
 SetPetPreferencesOptions::final DateTime? renewalDate
 SetPetPreferencesOptions::final Duration? snooze
+SetPetPreferencesOptions::final List<String>? aliases
 SetPetPreferencesOptions::final List<String>? tags
 SetPetPreferencesOptions::final Map<String, String>? headers
 SetPetPreferencesOptions::final String nickname
 SetPetPreferencesOptions::final String? note
+SetPetPreferencesOptions::final String? route
 SetPetPreferencesOptions::final bool? urgent
 SetPetPreferencesOptions::final double? ratio
 SetPetPreferencesOptions::final int? intervalDays
@@ -2209,6 +2232,7 @@ class GetInventoryOptions
 class GetMatrixOptions
 class GetMemberOptions
 class GetMemoOptions
+class GetMemoResponseHeaders
 class GetMemoServerMemos extends GetMemoServer
 class GetMultiServerPetInfoOptions
 class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer
@@ -2240,6 +2264,7 @@ class GetTreeOptions
 class GetUpstreamOptions
 class GoneException extends ClientException
 class HeadMemoOptions
+class HeadMemoResponseHeaders
 class InternalApiKeyAuthenticator extends ApiKeyAuthenticator
 class InternalServerErrorException extends ServerException
 class Ledger
@@ -2250,6 +2275,7 @@ class ListPetArchiveOptions
 class ListPetCatalogOptions
 class ListPetEventsOptions
 class ListPetFeedOptions
+class ListPetFeedResponseHeaders
 class ListPetMatchesOptions
 class ListPetNextUrlOptions
 class ListPetNotesOptions
@@ -2281,11 +2307,13 @@ class OAuth2TokenException extends OpenAPIException
 class OAuth2TokenManager
 class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
 class OptionsMemoOptions
+class OptionsMemoResponseHeaders
 class Order
 class Packet
 class PaginationException extends OpenAPIException
 class Parcel
 class PatchMemoOptions
+class PatchMemoResponseHeaders
 class PayloadTooLargeException extends ClientException
 class PaymentRequiredException extends ClientException
 class Pet

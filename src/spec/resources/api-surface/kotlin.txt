@@ -176,10 +176,11 @@ com/example/petstore/Page: public fun toString ()Ljava/lang/String;
 com/example/petstore/Paginator: public final fun items ()Lkotlinx/coroutines/flow/Flow;
 com/example/petstore/Paginator: public final fun pages ()Lkotlinx/coroutines/flow/Flow;
 com/example/petstore/ServerConfiguration: public final fun getDescription ()Ljava/lang/String;
+com/example/petstore/ServerConfiguration: public final fun getName ()Ljava/lang/String;
 com/example/petstore/ServerConfiguration: public final fun getUrl (Ljava/util/Map;)Ljava/lang/String;
 com/example/petstore/ServerConfiguration: public final fun getUrlTemplate ()Ljava/lang/String;
 com/example/petstore/ServerConfiguration: public final fun getVariables ()Ljava/util/Map;
-com/example/petstore/ServerConfiguration: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+com/example/petstore/ServerConfiguration: public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)V
 com/example/petstore/ServerSentEvent: public final fun component1 ()Ljava/lang/String;
 com/example/petstore/ServerSentEvent: public final fun component2 ()Ljava/lang/String;
 com/example/petstore/ServerSentEvent: public final fun component3 ()Ljava/lang/Object;
@@ -207,6 +208,7 @@ com/example/petstore/ServerVariable: public fun <init> (Ljava/lang/String;Ljava/
 com/example/petstore/ServerVariable: public fun equals (Ljava/lang/Object;)Z
 com/example/petstore/ServerVariable: public fun hashCode ()I
 com/example/petstore/ServerVariable: public fun toString ()Ljava/lang/String;
+com/example/petstore/Servers: public final fun byName (Ljava/lang/String;)Lcom/example/petstore/ServerConfiguration;
 com/example/petstore/Servers: public final fun getALL ()Ljava/util/List;
 com/example/petstore/Servers: public final fun getSERVER_0 ()Lcom/example/petstore/ServerConfiguration;
 com/example/petstore/Servers: public final fun getSERVER_1 ()Lcom/example/petstore/ServerConfiguration;
@@ -821,6 +823,13 @@ com/example/petstore/api/options/GetMemoOptions: public final fun getMaxRetries 
 com/example/petstore/api/options/GetMemoOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/GetMemoOptions: public fun <init> ()V
 com/example/petstore/api/options/GetMemoOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/GetMemoResponseHeaders$Companion: public final fun from (Ljava/util/Map;)Lcom/example/petstore/api/options/GetMemoResponseHeaders;
+com/example/petstore/api/options/GetMemoResponseHeaders: public final fun getXArchived ()Ljava/lang/Boolean;
+com/example/petstore/api/options/GetMemoResponseHeaders: public final fun getXLabels ()Ljava/util/List;
+com/example/petstore/api/options/GetMemoResponseHeaders: public final fun getXRevision ()Ljava/lang/Integer;
+com/example/petstore/api/options/GetMemoResponseHeaders: public fun <init> ()V
+com/example/petstore/api/options/GetMemoResponseHeaders: public fun <init> (Ljava/lang/Integer;Ljava/util/List;Ljava/lang/Boolean;)V
+com/example/petstore/api/options/GetMemoResponseHeaders: public static final field Companion Lcom/example/petstore/api/options/GetMemoResponseHeaders$Companion;
 com/example/petstore/api/options/GetMultiServerPetInfoOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/GetMultiServerPetInfoOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
 com/example/petstore/api/options/GetMultiServerPetInfoOptions: public final fun getTimeout ()Ljava/lang/Long;
@@ -959,6 +968,11 @@ com/example/petstore/api/options/HeadMemoOptions: public final fun getMaxRetries
 com/example/petstore/api/options/HeadMemoOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/HeadMemoOptions: public fun <init> ()V
 com/example/petstore/api/options/HeadMemoOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/HeadMemoResponseHeaders$Companion: public final fun from (Ljava/util/Map;)Lcom/example/petstore/api/options/HeadMemoResponseHeaders;
+com/example/petstore/api/options/HeadMemoResponseHeaders: public final fun getXRevision ()Ljava/lang/Integer;
+com/example/petstore/api/options/HeadMemoResponseHeaders: public fun <init> ()V
+com/example/petstore/api/options/HeadMemoResponseHeaders: public fun <init> (Ljava/lang/Integer;)V
+com/example/petstore/api/options/HeadMemoResponseHeaders: public static final field Companion Lcom/example/petstore/api/options/HeadMemoResponseHeaders$Companion;
 com/example/petstore/api/options/ListNativeAmountsOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/ListNativeAmountsOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
 com/example/petstore/api/options/ListNativeAmountsOptions: public final fun getTimeout ()Ljava/lang/Long;
@@ -989,6 +1003,11 @@ com/example/petstore/api/options/ListPetFeedOptions: public final fun getMaxRetr
 com/example/petstore/api/options/ListPetFeedOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/ListPetFeedOptions: public fun <init> ()V
 com/example/petstore/api/options/ListPetFeedOptions: public fun <init> (Ljava/lang/Integer;Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/ListPetFeedResponseHeaders$Companion: public final fun from (Ljava/util/Map;)Lcom/example/petstore/api/options/ListPetFeedResponseHeaders;
+com/example/petstore/api/options/ListPetFeedResponseHeaders: public final fun getLink ()Ljava/lang/String;
+com/example/petstore/api/options/ListPetFeedResponseHeaders: public fun <init> ()V
+com/example/petstore/api/options/ListPetFeedResponseHeaders: public fun <init> (Ljava/lang/String;)V
+com/example/petstore/api/options/ListPetFeedResponseHeaders: public static final field Companion Lcom/example/petstore/api/options/ListPetFeedResponseHeaders$Companion;
 com/example/petstore/api/options/ListPetMatchesOptions: public final fun getCursor ()Ljava/lang/String;
 com/example/petstore/api/options/ListPetMatchesOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/ListPetMatchesOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
@@ -1033,11 +1052,23 @@ com/example/petstore/api/options/OptionsMemoOptions: public final fun getMaxRetr
 com/example/petstore/api/options/OptionsMemoOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/OptionsMemoOptions: public fun <init> ()V
 com/example/petstore/api/options/OptionsMemoOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/OptionsMemoResponseHeaders$Companion: public final fun from (Ljava/util/Map;)Lcom/example/petstore/api/options/OptionsMemoResponseHeaders;
+com/example/petstore/api/options/OptionsMemoResponseHeaders: public final fun getAllow ()Ljava/lang/String;
+com/example/petstore/api/options/OptionsMemoResponseHeaders: public fun <init> ()V
+com/example/petstore/api/options/OptionsMemoResponseHeaders: public fun <init> (Ljava/lang/String;)V
+com/example/petstore/api/options/OptionsMemoResponseHeaders: public static final field Companion Lcom/example/petstore/api/options/OptionsMemoResponseHeaders$Companion;
 com/example/petstore/api/options/PatchMemoOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/PatchMemoOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
 com/example/petstore/api/options/PatchMemoOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/PatchMemoOptions: public fun <init> ()V
 com/example/petstore/api/options/PatchMemoOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/PatchMemoResponseHeaders$Companion: public final fun from (Ljava/util/Map;)Lcom/example/petstore/api/options/PatchMemoResponseHeaders;
+com/example/petstore/api/options/PatchMemoResponseHeaders: public final fun getXArchived ()Ljava/lang/Boolean;
+com/example/petstore/api/options/PatchMemoResponseHeaders: public final fun getXLabels ()Ljava/util/List;
+com/example/petstore/api/options/PatchMemoResponseHeaders: public final fun getXRevision ()Ljava/lang/Integer;
+com/example/petstore/api/options/PatchMemoResponseHeaders: public fun <init> ()V
+com/example/petstore/api/options/PatchMemoResponseHeaders: public fun <init> (Ljava/lang/Integer;Ljava/util/List;Ljava/lang/Boolean;)V
+com/example/petstore/api/options/PatchMemoResponseHeaders: public static final field Companion Lcom/example/petstore/api/options/PatchMemoResponseHeaders$Companion;
 com/example/petstore/api/options/PlaceOrderOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/PlaceOrderOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
 com/example/petstore/api/options/PlaceOrderOptions: public final fun getTimeout ()Ljava/lang/Long;
@@ -1067,6 +1098,7 @@ com/example/petstore/api/options/SetPetAvatarThumbnailOptions: public final fun 
 com/example/petstore/api/options/SetPetAvatarThumbnailOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/SetPetAvatarThumbnailOptions: public fun <init> ()V
 com/example/petstore/api/options/SetPetAvatarThumbnailOptions: public fun <init> (Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getAliases ()Ljava/util/List;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getIntervalDays ()Ljava/lang/Integer;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
@@ -1075,11 +1107,12 @@ com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getN
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getRatio ()Ljava/lang/Double;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getReminder ()Ljava/time/OffsetDateTime;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getRenewalDate ()Ljava/time/LocalDate;
+com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getRoute ()Ljava/lang/String;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getSnooze ()Ljava/time/Duration;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getTags ()Ljava/util/List;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getTimeout ()Ljava/lang/Long;
 com/example/petstore/api/options/SetPetPreferencesOptions: public final fun getUrgent ()Ljava/lang/Boolean;
-com/example/petstore/api/options/SetPetPreferencesOptions: public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/time/LocalDate;Ljava/time/OffsetDateTime;Ljava/lang/Integer;Ljava/lang/Double;Ljava/lang/Boolean;Ljava/time/Duration;Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
+com/example/petstore/api/options/SetPetPreferencesOptions: public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/time/LocalDate;Ljava/time/OffsetDateTime;Ljava/lang/Integer;Ljava/lang/Double;Ljava/lang/Boolean;Ljava/time/Duration;Ljava/lang/String;Ljava/util/List;Ljava/lang/Long;Ljava/util/Map;Ljava/lang/Integer;)V
 com/example/petstore/api/options/SubmitAllowanceOptions: public final fun getHeaders ()Ljava/util/Map;
 com/example/petstore/api/options/SubmitAllowanceOptions: public final fun getMaxRetries ()Ljava/lang/Integer;
 com/example/petstore/api/options/SubmitAllowanceOptions: public final fun getTimeout ()Ljava/lang/Long;
@@ -2831,6 +2864,8 @@ public final class com/example/petstore/api/options/GetInventoryOptions
 public final class com/example/petstore/api/options/GetMatrixOptions
 public final class com/example/petstore/api/options/GetMemberOptions
 public final class com/example/petstore/api/options/GetMemoOptions
+public final class com/example/petstore/api/options/GetMemoResponseHeaders
+public final class com/example/petstore/api/options/GetMemoResponseHeaders$Companion
 public final class com/example/petstore/api/options/GetMultiServerPetInfoOptions
 public final class com/example/petstore/api/options/GetNativeAmountOptions
 public final class com/example/petstore/api/options/GetNativeValuesOptions
@@ -2855,11 +2890,15 @@ public final class com/example/petstore/api/options/GetTimestampGroupsOptions
 public final class com/example/petstore/api/options/GetTreeOptions
 public final class com/example/petstore/api/options/GetUpstreamOptions
 public final class com/example/petstore/api/options/HeadMemoOptions
+public final class com/example/petstore/api/options/HeadMemoResponseHeaders
+public final class com/example/petstore/api/options/HeadMemoResponseHeaders$Companion
 public final class com/example/petstore/api/options/ListNativeAmountsOptions
 public final class com/example/petstore/api/options/ListPetArchiveOptions
 public final class com/example/petstore/api/options/ListPetCatalogOptions
 public final class com/example/petstore/api/options/ListPetEventsOptions
 public final class com/example/petstore/api/options/ListPetFeedOptions
+public final class com/example/petstore/api/options/ListPetFeedResponseHeaders
+public final class com/example/petstore/api/options/ListPetFeedResponseHeaders$Companion
 public final class com/example/petstore/api/options/ListPetMatchesOptions
 public final class com/example/petstore/api/options/ListPetNextUrlOptions
 public final class com/example/petstore/api/options/ListPetNotesOptions
@@ -2867,7 +2906,11 @@ public final class com/example/petstore/api/options/ListPetOffsetsOptions
 public final class com/example/petstore/api/options/ListPetPageNumbersOptions
 public final class com/example/petstore/api/options/ListPetsAfterOptions
 public final class com/example/petstore/api/options/OptionsMemoOptions
+public final class com/example/petstore/api/options/OptionsMemoResponseHeaders
+public final class com/example/petstore/api/options/OptionsMemoResponseHeaders$Companion
 public final class com/example/petstore/api/options/PatchMemoOptions
+public final class com/example/petstore/api/options/PatchMemoResponseHeaders
+public final class com/example/petstore/api/options/PatchMemoResponseHeaders$Companion
 public final class com/example/petstore/api/options/PlaceOrderOptions
 public final class com/example/petstore/api/options/ReserveStockOptions
 public final class com/example/petstore/api/options/SearchStoreOptions

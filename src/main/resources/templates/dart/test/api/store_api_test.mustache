@@ -485,6 +485,25 @@ void main() {
       expect(json['status'], equals('placed'));
     });
 
+    test('bhv headers 501 GetMemoResponseHeaders reads each declared header in its type whatever its case', () {
+      final headers = GetMemoResponseHeaders.from({'x-revision': '7', 'X-LABELS': 'a, b'});
+
+      expect(headers.xRevision, equals(7));
+      expect(headers.xLabels, equals(['a', 'b']));
+      expect(headers.xArchived, isNull);
+    });
+
+    test('bhv headers 502 GetMemoResponseHeaders rejects a header value that is not its declared type', () {
+      expect(
+        () => GetMemoResponseHeaders.from({'x-revision': 'seven'}),
+        throwsA(isA<SerializationException>().having(
+          (error) => error.message,
+          'message',
+          "Response header 'X-Revision' is not a valid integer: 'seven'",
+        )),
+      );
+    });
+
     test('bhv operations 102 getInventory', () async {
       final api = _newStoreApiForIntegration();
 

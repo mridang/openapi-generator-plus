@@ -874,6 +874,33 @@ async fn test_bhv_headers_032_the_accept_header_lists_media_types_without_qualit
     assert!(!accept.contains("q="), "quality weights must not be sent: {}", accept);
 }
 
+/* headers501: the declared response headers of get_memo are read by name, without case, in their
+ * declared types, and an absent one is left empty. */
+#[test]
+fn test_bhv_headers_501_store_api_get_memo_response_headers_read_the_declared_types() {
+    let raw = HashMap::from([
+        ("x-revision".to_string(), "7".to_string()),
+        ("X-LABELS".to_string(), "a, b".to_string()),
+    ]);
+
+    let headers = GetMemoResponseHeaders::from_headers(&raw).expect("the headers parse");
+
+    assert_eq!(
+        (Some(7), Some(&["a".to_string(), "b".to_string()][..]), None),
+        (headers.x_revision(), headers.x_labels(), headers.x_archived())
+    );
+}
+
+/* headers502: a declared response header that does not parse is a SerializationError. */
+#[test]
+fn test_bhv_headers_502_store_api_get_memo_response_header_that_does_not_parse_is_refused() {
+    let raw = HashMap::from([("x-revision".to_string(), "seven".to_string())]);
+
+    let err = GetMemoResponseHeaders::from_headers(&raw).expect_err("seven is not an integer");
+
+    assert_eq!("Response header 'X-Revision' is not a valid integer: 'seven'", err.message());
+}
+
 /* transport068: a call that is dropped before it runs sends no request. */
 #[tokio::test]
 async fn test_bhv_transport_068_a_call_dropped_before_it_runs_sends_no_request() {

@@ -106,6 +106,31 @@ final class Servers
         ];
     }
 
+    /**
+     * Return the server the specification gives the name $name (OpenAPI 3.2 name).
+     *
+     * @param string $name the server name
+     * @return ServerConfiguration the server with that name
+     *
+     * @throws \InvalidArgumentException if no server has that name; the message lists the known names
+     */
+    public static function byName(string $name): ServerConfiguration
+    {
+        $known = [];
+        foreach (self::all() as $server) {
+            if ($server->name === null) {
+                continue;
+            }
+            if ($server->name === $name) {
+                return $server;
+            }
+            $known[] = $server->name;
+        }
+        throw new \InvalidArgumentException(
+            "Unknown server name '$name'. Known names: [" . implode(', ', $known) . ']'
+        );
+    }
+
     /** @codeCoverageIgnore */
     private function __construct()
     {

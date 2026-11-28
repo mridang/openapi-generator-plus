@@ -174,6 +174,25 @@ class ServerConfigurationTest {
     }
 
     @Test
+    @DisplayName("bhvServers501 a server keeps its name and a server built without one has none")
+    fun serverKeepsItsName() {
+        val named = ServerConfiguration("https://api.example.com", null, emptyMap(), "primary")
+        val unnamed = ServerConfiguration("https://api.example.com")
+        assertEquals("primary", named.name)
+        assertNull(unnamed.name)
+    }
+
+    @Test
+    @DisplayName("bhvServers502 an unknown server name is rejected with the known names")
+    fun unknownServerNameIsRejected() {
+        val ex =
+            assertThrowsExactly(IllegalArgumentException::class.java) {
+                Servers.byName("missing")
+            }
+        assertEquals("Unknown server name 'missing'. Known names: []", ex.message)
+    }
+
+    @Test
     @DisplayName("bhvServers004 a default outside the enum is rejected when no override is given")
     fun getUrlRejectsADefaultOutsideTheEnum() {
         val server =

@@ -203,7 +203,13 @@ interface StoreApiInterface
 
     /**
      * Reads a memo from the server its path declares
+     *
+     * Response 200 example: A short memo
+     * {"memoId":"m1","text":"Restock on Friday"}
+     *
+     * Extension x-audience: internal-tools
      * @param string $memoId The memo to address
+     * @example m1 Example
      * @param GetMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -353,14 +359,16 @@ interface StoreApiInterface
 
     /**
      * Checks that a memo exists with a HEAD request
-     * @param string $memoId The memo to address
+     * Revisions of one memo, read and changed with the less common HTTP methods.
+     * @param string $memoId The memo whose revisions are read or changed
+     * @example m1 Example
      * @param HeadMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function headMemo(string $memoId, ?HeadMemoOptions $options = null): void;
 
     /**
-     * @param string $memoId The memo to address
+     * @param string $memoId The memo whose revisions are read or changed
      * @param HeadMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
@@ -384,14 +392,16 @@ interface StoreApiInterface
 
     /**
      * Lists the methods a memo accepts with an OPTIONS request
-     * @param string $memoId The memo to address
+     * Revisions of one memo, read and changed with the less common HTTP methods.
+     * @param string $memoId The memo whose revisions are read or changed
+     * @example m1 Example
      * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function optionsMemo(string $memoId, ?OptionsMemoOptions $options = null): void;
 
     /**
-     * @param string $memoId The memo to address
+     * @param string $memoId The memo whose revisions are read or changed
      * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
@@ -400,7 +410,16 @@ interface StoreApiInterface
 
     /**
      * Changes a memo with a PATCH request
-     * @param string $memoId The memo to address
+     * Revisions of one memo, read and changed with the less common HTTP methods.
+     *
+     * Request body example: A short memo
+     * {"memoId":"m1","text":"Restock on Friday"}
+     * Request body example: A memo kept as a file
+     * https://example.com/memos/m1.json
+     * Response 200 example: A short memo
+     * {"memoId":"m1","text":"Restock on Friday"}
+     * @param string $memoId The memo whose revisions are read or changed
+     * @example m1 Example
      * @param \PetstoreClient\Models\Memo $memo The fields of the memo to change
      * @param PatchMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
@@ -408,7 +427,7 @@ interface StoreApiInterface
     public function patchMemo(string $memoId, \PetstoreClient\Models\Memo $memo, ?PatchMemoOptions $options = null): \PetstoreClient\Models\Memo;
 
     /**
-     * @param string $memoId The memo to address
+     * @param string $memoId The memo whose revisions are read or changed
      * @param \PetstoreClient\Models\Memo $memo The fields of the memo to change
      * @param PatchMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Memo>
@@ -480,14 +499,16 @@ interface StoreApiInterface
 
     /**
      * Echoes a memo request with a TRACE request
-     * @param string $memoId The memo to address
+     * Revisions of one memo, read and changed with the less common HTTP methods.
+     * @param string $memoId The memo whose revisions are read or changed
+     * @example m1 Example
      * @param TraceMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function traceMemo(string $memoId, ?TraceMemoOptions $options = null): void;
 
     /**
-     * @param string $memoId The memo to address
+     * @param string $memoId The memo whose revisions are read or changed
      * @param TraceMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException

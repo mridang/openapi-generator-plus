@@ -641,6 +641,56 @@ class TestAllowReserved:
             == "a/b%23c%5Bd%5D"
         )
 
+    def test_bhv_serializationparam_503_allow_reserved_in_path_decodes_only_the_reserved_characters(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.allow_reserved_in_path(
+                ValueSerializer.encode_path_segment("v1.0/beta:rc1@x")
+            )
+            == "v1.0/beta:rc1@x"
+        )
+        assert (
+            ValueSerializer.allow_reserved_in_path(
+                ValueSerializer.encode_path_segment("a?b#c[d]e%f g")
+            )
+            == "a%3Fb%23c%5Bd%5De%25f%20g"
+        )
+        assert ValueSerializer.allow_reserved_in_path("%2f") == "/"
+
+
+class TestCookiePairs:
+    """OpenAPI 3.2 ``style: cookie`` parameters."""
+
+    def test_bhv_serializationparam_501_cookie_pairs_writes_each_shape(self) -> None:
+        assert ValueSerializer.cookie_pairs("region", "eu", True) == "region=eu"
+        assert ValueSerializer.cookie_pairs("region", ["a", "b"], False) == "region=a,b"
+        assert (
+            ValueSerializer.cookie_pairs("region", ["a", "b"], True)
+            == "region=a; region=b"
+        )
+        assert (
+            ValueSerializer.cookie_pairs("region", {"k1": "v1", "k2": "v2"}, False)
+            == "region=k1,v1,k2,v2"
+        )
+        assert (
+            ValueSerializer.cookie_pairs("region", {"k1": "v1", "k2": "v2"}, True)
+            == "k1=v1; k2=v2"
+        )
+        assert ValueSerializer.cookie_pairs("region", "a%2Cb", True) == "region=a%2Cb"
+        assert ValueSerializer.cookie_pairs("region", None, True) == ""
+
+    @pytest.mark.parametrize(
+        ("value", "explode"),
+        [(["a b"], False), ("a;b", True), (["a,b"], True)],
+    )
+    def test_bhv_serializationparam_502_cookie_pairs_refuses_a_value_outside_the_cookie_octets(
+        self, value: object, explode: bool
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            ValueSerializer.cookie_pairs("region", value, explode)
+        assert "'region'" in str(exc_info.value)
+
 
 class TestPathEncodingParity:
     """Cross-language parity tests for path-segment percent-encoding.

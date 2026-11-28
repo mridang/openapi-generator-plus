@@ -640,6 +640,38 @@ describe Petstore::Client::ValueSerializer do
     end
   end
 
+  # OAS 3.2 style: cookie writes the Cookie header pairs itself, and
+  # allowReserved on a path parameter keeps the reserved characters literal.
+  describe 'cookie style and allowReserved in a path' do
+    it 'bhv_serializationparam_501 writes the cookie pairs of a scalar, an array and an object by explode' do
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', 'eu', true)).must_equal('region=eu')
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', %w[a b], false)).must_equal('region=a,b')
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', %w[a b], true)).must_equal('region=a; region=b')
+      entries = { 'k1' => 'v1', 'k2' => 'v2' }
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', entries, false)).must_equal('region=k1,v1,k2,v2')
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', entries, true)).must_equal('k1=v1; k2=v2')
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', 'a%2Cb', true)).must_equal('region=a%2Cb')
+      _(Petstore::Client::ValueSerializer.cookie_pairs('region', nil, true)).must_equal('')
+    end
+
+    it 'bhv_serializationparam_502 refuses a cookie piece outside the cookie-octet set' do
+      [[['a b'], false], ['a;b', true], [['a,b'], true]].each_case do |value, explode|
+        err = _(lambda {
+          Petstore::Client::ValueSerializer.cookie_pairs('region', value, explode)
+        }).must_raise ArgumentError
+        _(err.message).must_equal "Cookie value for 'region' contains characters forbidden by RFC 6265"
+      end
+    end
+
+    it 'bhv_serializationparam_503 turns the encoded path reserved characters back into literals' do
+      reserved = Petstore::Client::ValueSerializer.encode_path_segment('v1.0/beta:rc1@x')
+      _(Petstore::Client::ValueSerializer.allow_reserved_in_path(reserved)).must_equal('v1.0/beta:rc1@x')
+      other = Petstore::Client::ValueSerializer.encode_path_segment('a?b#c[d]e%f g')
+      _(Petstore::Client::ValueSerializer.allow_reserved_in_path(other)).must_equal('a%3Fb%23c%5Bd%5De%25f%20g')
+      _(Petstore::Client::ValueSerializer.allow_reserved_in_path('%2f')).must_equal('/')
+    end
+  end
+
   # N3/W3 parity: `format: date` path parameters must emit a date-only
   # string (YYYY-MM-DD), not a full ISO datetime. Ruby models
   # `format: date` as `Date`, whose `to_s` already produces YYYY-MM-DD.

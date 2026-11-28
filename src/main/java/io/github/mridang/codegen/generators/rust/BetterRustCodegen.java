@@ -1344,6 +1344,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             marked instanceof Map
                                     && Boolean.TRUE.equals(
                                             ((Map<String, Object>) marked).get("streamsJsonLines"));
+                    if (marked instanceof Map) {
+                        writeResponseHeadersFile(op, (Map<String, Object>) marked);
+                    }
                 }
             }
             result.put("hasBinaryStream", anyBinaryStream);
@@ -1934,6 +1937,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("name", NamingConvention.SNAKE_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            // D169: the parameter's examples, documented on the Options field.
+            Object pluralExamples = p.vendorExtensions == null ? null : p.vendorExtensions.get("pluralExamples");
+            if (pluralExamples == null && p.examples != null && !p.examples.isEmpty()) {
+                pluralExamples = buildPluralExamplesList(p.examples);
+            }
+            param.put("pluralExamples", pluralExamples);
+            param.put("hasPluralExamples", pluralExamples instanceof List && !((List<?>) pluralExamples).isEmpty());
             param.put("requiredNullable", isRequiredNullableQuery(p));
             // Propagate the spec-level deprecation flag so the options template
             // can emit `#[deprecated]` on the corresponding field/accessor,
@@ -2251,10 +2261,56 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return true;
     }
 
+    /** The modules of the {@code <Operation>ResponseHeaders} types written so far (D168). */
+    private final List<String> responseHeadersModules = new ArrayList<>();
+
+    /**
+     * D168: writes the {@code <Operation>ResponseHeaders} struct of an operation whose success
+     * response declares headers into {@code src/api/options}, next to its options struct, and
+     * remembers the module for the options {@code mod.rs}.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(CodegenOperation op, Map<String, Object> decorators) {
+        if (!Boolean.TRUE.equals(decorators.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = String.valueOf(decorators.get("responseHeadersClassName"));
+        final String modName = NamingConvention.SNAKE_CASE.apply(className);
+        if (responseHeadersModules.contains(modName)) {
+            return;
+        }
+        final Object declared = decorators.get("responseHeaders");
+        if (!(declared instanceof List)) {
+            return;
+        }
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final Map<String, Object> row : (List<Map<String, Object>>) declared) {
+            final Map<String, Object> copy = new HashMap<>(row);
+            final Object description = row.get("description");
+            /* The shared rows carry the core's escaped text (a quote as a backslash and a quote);
+             * the template renders without HTML escaping, so only the rustdoc escape is needed. */
+            copy.put(
+                    "description",
+                    description == null
+                            ? ""
+                            : escapeRustdoc(description.toString().replace("\\\"", "\"").replace("\\\\", "\\")));
+            rows.add(copy);
+        }
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put("className", className);
+        ctx.put("operationId", op.operationId);
+        ctx.put("responseHeaders", rows);
+        ctx.put("parsesValues", rows.stream().anyMatch(row -> !Boolean.TRUE.equals(row.get("isString"))));
+        final String path = Path.of(getOutputDir(), "src", "api", "options", modName + ".rs").toString();
+        writeFile(path, renderOptionsTemplate("api/response_headers.mustache", ctx));
+        postProcessFile(Path.of(path).toFile(), "source");
+        responseHeadersModules.add(modName);
+    }
+
     /** {@inheritDoc} */
     @Override
     public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
-        if (optionsFiles.isEmpty()) {
+        if (optionsFiles.isEmpty() && responseHeadersModules.isEmpty()) {
             return;
         }
         final List<Map<String, String>> exports = new ArrayList<>();
@@ -2263,6 +2319,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             final Map<String, String> e = new HashMap<>();
             e.put("modName", NamingConvention.SNAKE_CASE.apply(className));
             exports.add(e);
+        }
+        for (final String modName : responseHeadersModules) {
+            exports.add(Map.of("modName", modName));
         }
         final Map<String, Object> ctx = new HashMap<>();
         ctx.put("exports", exports);

@@ -1060,6 +1060,39 @@ defmodule PetstoreClient.Api.PetApiTest do
         headers: %{"Content-Type" => "application/json"}
       }
     end
+
+    def send_streaming(_method, _url, headers, _body) do
+      name = Process.get(__MODULE__)
+      Agent.update(name, fn _ -> headers end)
+
+      %PetstoreClient.ApiStreamResponse{
+        status_code: 200,
+        headers: %{"content-type" => "image/png"},
+        body: ["png"]
+      }
+    end
+  end
+
+  test "bhv operations 501 a per-call Accept header replaces the declared response media types" do
+    {:ok, name} = HeaderCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config, nil, %{})
+
+    assert {:ok, photo} =
+             PetstoreClient.Api.PetApi.get_pet_photo(api, 1, 2, nil,
+               headers: %{"Accept" => "image/png"}
+             )
+
+    assert {:ok, "png"} = PetstoreClient.ByteStream.read_all(photo)
+
+    accept =
+      for {header, value} <- HeaderCapturingApiClient.captured_headers(name),
+          String.downcase(header) == "accept",
+          do: value
+
+    assert accept == ["image/png"]
+
+    Agent.stop(name)
   end
 
   defp credential(label), do: %{auth_headers: %{"Authorization" => label}}

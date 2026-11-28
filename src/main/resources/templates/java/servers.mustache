@@ -2,6 +2,7 @@
 
 package {{invokerPackage}};
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -38,13 +39,35 @@ public final class Servers {
                             "{{#lambda.javaString}}{{{varDefault}}}{{/lambda.javaString}}",
                             {{#varDescription}}"{{#lambda.javaString}}{{#lambda.unescapeDocComment}}{{{varDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javaString}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
                             {{#hasEnumValues}}List.of({{#varEnumValues}}"{{#lambda.javaString}}{{{.}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}List.of(){{/hasEnumValues}}){{^-last}},{{/-last}}
-{{/serverVariables}}            ){{/hasVariables}}{{^hasVariables}}Map.of(){{/hasVariables}});
+{{/serverVariables}}            ){{/hasVariables}}{{^hasVariables}}Map.of(){{/hasVariables}},
+            {{#serverName}}"{{#lambda.javaString}}{{{serverName}}}{{/lambda.javaString}}"{{/serverName}}{{^serverName}}null{{/serverName}});
 
 {{/serverConfigs}}
     /** All server configurations in declaration order. */
     public static final List<ServerConfiguration> ALL = List.of(
 {{#serverConfigs}}            SERVER_{{serverIndex}}{{^-last}},{{/-last}}
 {{/serverConfigs}}    );
+
+    /**
+     * The server the specification gives the name {@code name} (OpenAPI 3.2 {@code name}).
+     * @param name the server name
+     * @return the server with that name
+     * @throws IllegalArgumentException if no server has that name; the message lists the known names
+     */
+    public static ServerConfiguration byName(String name) {
+        List<String> known = new ArrayList<>();
+        for (ServerConfiguration server : ALL) {
+            String serverName = server.getName();
+            if (serverName != null) {
+                if (serverName.equals(name)) {
+                    return server;
+                }
+                known.add(serverName);
+            }
+        }
+        throw new IllegalArgumentException(
+                "Unknown server name '" + name + "'. Known names: " + known);
+    }
 
     private Servers() {}
 }

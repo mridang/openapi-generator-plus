@@ -42,6 +42,35 @@ pub enum MultipartValue {
     Json(String),
     /// A list of values for the same field name.
     List(Vec<MultipartValue>),
+    /// A part whose OAS Encoding Object declares a part `Content-Type` and/or
+    /// part headers with a fixed value (D166). The declared `content_type`
+    /// replaces the one the client would choose for `value`, and each header
+    /// is written as `Name: value` after it, in order. A `List` value applies
+    /// the encoding to each item.
+    Encoded {
+        /// The wrapped part value.
+        value: Box<MultipartValue>,
+        /// The declared part `Content-Type`, or `None` to keep the default.
+        content_type: Option<String>,
+        /// The declared part headers as `(name, value)`, in declaration order.
+        headers: Vec<(String, String)>,
+    },
+}
+
+impl MultipartValue {
+    /// Wraps `value` with the part `Content-Type` and headers an Encoding
+    /// Object declares (D166).
+    #[must_use]
+    pub fn encoded(value: MultipartValue, content_type: Option<&str>, headers: &[(&str, &str)]) -> Self {
+        MultipartValue::Encoded {
+            value: Box::new(value),
+            content_type: content_type.map(str::to_string),
+            headers: headers
+                .iter()
+                .map(|(name, text)| ((*name).to_string(), (*text).to_string()))
+                .collect(),
+        }
+    }
 }
 
 /// Per-request options that complement the transport-wide `TransportOptions`.

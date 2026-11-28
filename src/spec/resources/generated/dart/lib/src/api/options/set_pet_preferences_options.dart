@@ -18,6 +18,10 @@ class SetPetPreferencesOptions {
 
   final Duration? snooze;
 
+  final String? route;
+
+  final List<String>? aliases;
+
   /// End-to-end timeout in milliseconds for this call only. When non-null it
   /// replaces the transport's timeout; null keeps it. Must not be negative.
   final int? timeout;
@@ -41,6 +45,8 @@ class SetPetPreferencesOptions {
     this.ratio,
     this.urgent,
     this.snooze,
+    this.route,
+    this.aliases,
     this.timeout,
     this.headers,
     this.maxRetries,

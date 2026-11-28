@@ -28,9 +28,15 @@ import javax.annotation.Nullable;
 {{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/tagSummary}}
 {{#tagDescription}}
  * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/tagDescription}}
+{{#tagParent}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}It belongs to the {{{.}}} API group.{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/tagParent}}
 {{#tagExternalDocs}}
  * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/tagExternalDocs}}
@@ -172,6 +178,7 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#vendorExtensions.op.responseSummaries}}
      * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
      *
 {{>api/operation_doc_args}}
 {{>api/operation_doc_options}}

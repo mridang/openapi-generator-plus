@@ -2,7 +2,7 @@ import pytest
 
 from petstore_client.errors import OpenAPIException
 from petstore_client.server_configuration import ServerConfiguration, ServerVariable
-from petstore_client.servers import ALL
+from petstore_client.servers import ALL, by_name
 
 
 class TestServerConfiguration:
@@ -204,6 +204,25 @@ class TestServerVariableResolution:
         assert str(exc_info.value) == (
             "Invalid value '3' for server variable 'version'. Allowed values: [1, 2]"
         )
+
+    def test_bhv_servers_501_a_server_keeps_its_name_and_one_without_a_name_has_none(
+        self,
+    ) -> None:
+        named = ServerConfiguration(
+            url_template="https://api.example.com", name="primary"
+        )
+        unnamed = ServerConfiguration(url_template="https://api.example.com")
+
+        assert named.name == "primary"
+        assert unnamed.name is None
+
+    def test_bhv_servers_502_an_unknown_server_name_is_rejected_with_the_known_names(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            by_name("missing")
+
+        assert str(exc_info.value) == "Unknown server name 'missing'. Known names: []"
 
     def test_bhv_servers_029_a_placeholder_from_a_default_stays_literal_in_the_url(
         self,

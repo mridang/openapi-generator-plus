@@ -1,0 +1,112 @@
+{{#usesParser}}
+import { SerializationError } from '../../errors/serialization-error.js';
+
+{{/usesParser}}
+/**
+ * The headers the success response of the {{operationId}} operation declares,
+ * read in their declared types. An absent header leaves its field undefined.
+ */
+export class {{className}} {
+{{#headers}}
+{{#hasExample}}
+  /**
+{{#hasDescription}}
+   * {{{description}}}
+{{/hasDescription}}
+{{^hasDescription}}
+   * The `{{{wireName}}}` response header.
+{{/hasDescription}}
+   * Example: {{#lambda.tsComment}}{{{example}}}{{/lambda.tsComment}}
+   */
+{{/hasExample}}
+{{^hasExample}}
+{{#hasDescription}}
+  /** {{{description}}} */
+{{/hasDescription}}
+{{^hasDescription}}
+  /** The `{{{wireName}}}` response header. */
+{{/hasDescription}}
+{{/hasExample}}
+  readonly {{fieldName}}: {{tsType}} | undefined;
+{{/headers}}
+
+  private constructor(headers: Readonly<Record<string, string>>) {
+{{#headers}}
+    this.{{fieldName}} = readHeader(headers, '{{{wireName}}}', (value) =>
+{{#isArray}}
+      value.split(',').map((item) => {{#hasParser}}{{parser}}('{{{wireName}}}', '{{kind}}', item.trim()){{/hasParser}}{{^hasParser}}item.trim(){{/hasParser}})
+{{/isArray}}
+{{^isArray}}
+      {{#hasParser}}{{parser}}('{{{wireName}}}', '{{kind}}', value){{/hasParser}}{{^hasParser}}value{{/hasParser}}
+{{/isArray}}
+    );
+{{/headers}}
+  }
+
+  /**
+   * Reads the declared headers from a response's headers, matching each name
+   * without regard to case.
+   *
+   * @param headers the response headers, for example `ApiResult.headers`
+   * @returns the headers in their declared types
+   * @throws SerializationError when a header value does not parse as its declared type
+   */
+  static from(headers: Readonly<Record<string, string>>): {{className}} {
+    return new {{className}}(headers);
+  }
+}
+
+/** The value of the header with this name in any case, parsed, or undefined when it is absent. */
+function readHeader<T>(
+  headers: Readonly<Record<string, string>>,
+  wireName: string,
+  parse: (value: string) => T
+): T | undefined {
+  const wanted = wireName.toLowerCase();
+  for (const [name, value] of Object.entries(headers)) {
+    if (name.toLowerCase() === wanted) {
+      return parse(value);
+    }
+  }
+  return undefined;
+}
+{{#usesParser}}
+
+/** The error for a header value that does not parse as its declared type. */
+function invalidHeader(wireName: string, kind: string, value: string): SerializationError {
+  return new SerializationError(`Response header '${wireName}' is not a valid ${kind}: '${value}'`);
+}
+{{/usesParser}}
+{{#usesInteger}}
+
+/** A base-10 integer with an optional sign. */
+function parseIntegerHeader(wireName: string, kind: string, value: string): number {
+  if (!/^[+-]?\d+$/.test(value)) {
+    throw invalidHeader(wireName, kind, value);
+  }
+  return Number(value);
+}
+{{/usesInteger}}
+{{#usesNumber}}
+
+/** A decimal floating-point number. */
+function parseNumberHeader(wireName: string, kind: string, value: string): number {
+  if (!/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(value)) {
+    throw invalidHeader(wireName, kind, value);
+  }
+  return Number(value);
+}
+{{/usesNumber}}
+{{#usesBoolean}}
+
+/** Exactly `true` or `false`. */
+function parseBooleanHeader(wireName: string, kind: string, value: string): boolean {
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+  throw invalidHeader(wireName, kind, value);
+}
+{{/usesBoolean}}

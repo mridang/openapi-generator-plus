@@ -38,6 +38,7 @@ interface {{classname}}Interface
 {{#vendorExtensions.op.responseSummaries}}
      * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
 {{#pathParams}}
 {{#description}}
      * @param {{{dataType}}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}

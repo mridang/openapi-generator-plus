@@ -101,3 +101,16 @@ from .submit_allowance_options import SubmitAllowanceOptions as SubmitAllowanceO
 from .trace_memo_options import TraceMemoOptions as TraceMemoOptions
 from .watch_notices_options import WatchNoticesOptions as WatchNoticesOptions
 from .watch_orders_options import WatchOrdersOptions as WatchOrdersOptions
+from .get_memo_response_headers import GetMemoResponseHeaders as GetMemoResponseHeaders
+from .head_memo_response_headers import (
+    HeadMemoResponseHeaders as HeadMemoResponseHeaders,
+)
+from .list_pet_feed_response_headers import (
+    ListPetFeedResponseHeaders as ListPetFeedResponseHeaders,
+)
+from .options_memo_response_headers import (
+    OptionsMemoResponseHeaders as OptionsMemoResponseHeaders,
+)
+from .patch_memo_response_headers import (
+    PatchMemoResponseHeaders as PatchMemoResponseHeaders,
+)

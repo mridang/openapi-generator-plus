@@ -1165,9 +1165,17 @@ class StoreApi(BaseApi):
     ) -> Memo:
         """Reads a memo from the server its path declares
         :param memo_id: The memo to address (required)
+        # Example
+        #
+        # >>> m1
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Memo
         :raises ApiException: if fails to make API call
+
+        Response 200 example: A short memo
+        # >>> {"memoId":"m1","text":"Restock on Friday"}
+
+        Extension x-audience: internal-tools
         """
         result = await self.get_memo_with_http_info(
             memo_id,
@@ -1868,7 +1876,11 @@ class StoreApi(BaseApi):
         options: Optional[HeadMemoOptions] = None,
     ) -> None:
         """Checks that a memo exists with a HEAD request
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
+        # Example
+        #
+        # >>> m1
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
@@ -1885,7 +1897,8 @@ class StoreApi(BaseApi):
         options: Optional[HeadMemoOptions] = None,
     ) -> "ApiResult[None]":
         """Checks that a memo exists with a HEAD request (with HTTP info)
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -1984,7 +1997,11 @@ class StoreApi(BaseApi):
         options: Optional[OptionsMemoOptions] = None,
     ) -> None:
         """Lists the methods a memo accepts with an OPTIONS request
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
+        # Example
+        #
+        # >>> m1
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
@@ -2001,7 +2018,8 @@ class StoreApi(BaseApi):
         options: Optional[OptionsMemoOptions] = None,
     ) -> "ApiResult[None]":
         """Lists the methods a memo accepts with an OPTIONS request (with HTTP info)
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -2046,11 +2064,22 @@ class StoreApi(BaseApi):
         options: Optional[PatchMemoOptions] = None,
     ) -> Memo:
         """Changes a memo with a PATCH request
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
+        # Example
+        #
+        # >>> m1
         :param memo: The fields of the memo to change (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: Memo
         :raises ApiException: if fails to make API call
+
+        Request body example: A short memo
+        # >>> {"memoId":"m1","text":"Restock on Friday"}
+        Request body example: A memo kept as a file
+        # >>> https://example.com/memos/m1.json
+        Response 200 example: A short memo
+        # >>> {"memoId":"m1","text":"Restock on Friday"}
         """
         result = await self.patch_memo_with_http_info(
             memo_id,
@@ -2078,7 +2107,8 @@ class StoreApi(BaseApi):
         options: Optional[PatchMemoOptions] = None,
     ) -> "ApiResult[Memo]":
         """Changes a memo with a PATCH request (with HTTP info)
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
         :param memo: The fields of the memo to change (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -2417,7 +2447,11 @@ class StoreApi(BaseApi):
         options: Optional[TraceMemoOptions] = None,
     ) -> None:
         """Echoes a memo request with a TRACE request
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
+        # Example
+        #
+        # >>> m1
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :raises ApiException: if fails to make API call
         """
@@ -2434,7 +2468,8 @@ class StoreApi(BaseApi):
         options: Optional[TraceMemoOptions] = None,
     ) -> "ApiResult[None]":
         """Echoes a memo request with a TRACE request (with HTTP info)
-        :param memo_id: The memo to address (required)
+        Revisions of one memo, read and changed with the less common HTTP methods.
+        :param memo_id: The memo whose revisions are read or changed (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call

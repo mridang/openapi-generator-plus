@@ -223,7 +223,7 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 {{#hasServers}}
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. A server the spec gives a name is also found by that name with `Servers.byName("name")`, which fails with `IllegalArgumentException` when no server has the name. Pass the desired server's URL to the client:
 
 ```java statements
 import {{invokerPackage}}.{{clientClassName}};

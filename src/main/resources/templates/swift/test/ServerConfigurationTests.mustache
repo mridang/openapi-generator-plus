@@ -107,6 +107,19 @@ import Testing
                 == "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]")
     }
 
+    @Test func testBhvServers501AServerKeepsItsNameAndOneWithoutANameHasNone() {
+        let named = ServerConfiguration(urlTemplate: "https://api.example.com", name: "primary")
+        let unnamed = ServerConfiguration(urlTemplate: "https://api.example.com")
+        #expect(named.name == "primary")
+        #expect(unnamed.name.isEmpty)
+    }
+
+    @Test func testBhvServers502AnUnknownServerNameIsRejectedWithTheKnownNames() {
+        #expect(throws: ConfigurationError.invalidArgument("Unknown server name 'missing'. Known names: []")) {
+            try Servers.byName("missing")
+        }
+    }
+
     @Test func testBhvServers014VariableWithoutEnumAcceptsAnyOverride() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",

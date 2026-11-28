@@ -1,0 +1,127 @@
+
+package {{package}}
+
+import {{invokerPackage}}.errors.SerializationException
+{{#extraImports}}
+import {{{.}}}
+{{/extraImports}}
+
+/**
+ * The headers the success response of the {{operationId}} operation declares, read in their
+ * declared types. Build one from the headers of an `ApiResult` with [from].
+ */
+class {{className}}(
+{{#rows}}
+{{#hasExample}}
+    /**
+{{#hasDescription}}
+     * {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}
+{{/hasDescription}}
+{{^hasDescription}}
+     * The `{{{wireName}}}` response header; null when the response does not carry it.
+{{/hasDescription}}
+     * Example: `{{#lambda.kdoc}}{{{example}}}{{/lambda.kdoc}}`
+     */
+{{/hasExample}}
+{{^hasExample}}
+{{#hasDescription}}
+    /** {{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}} */
+{{/hasDescription}}
+{{^hasDescription}}
+    /** The `{{{wireName}}}` response header; null when the response does not carry it. */
+{{/hasDescription}}
+{{/hasExample}}
+    val {{varName}}: {{{dataType}}}? = null,
+{{/rows}}
+) {
+    companion object {
+{{#needsIntegerPattern}}
+        private val INTEGER = Regex("[+-]?[0-9]+")
+{{/needsIntegerPattern}}
+{{#needsDecimalPattern}}
+        private val DECIMAL = Regex("[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?")
+{{/needsDecimalPattern}}
+
+        /**
+         * Reads the declared headers from the response headers of a call, matching each name in
+         * any letter case. A header the response does not carry stays null; an array header is
+         * split on commas and each item trimmed.
+         *
+         * @param headers the response headers, as `ApiResult.headers` holds them
+         * @return the declared headers in their declared types
+         * @throws SerializationException when a declared header does not parse as its type
+         */
+        fun from(headers: Map<String, String>): {{className}} =
+            {{className}}(
+{{#rows}}
+{{#isArray}}
+                {{varName}} =
+                    header(headers, "{{{wireName}}}")?.split(',')?.map { {{#parser}}{{parser}}("{{{wireName}}}", it.trim()){{/parser}}{{^parser}}it.trim(){{/parser}} },
+{{/isArray}}
+{{^isArray}}
+                {{varName}} = header(headers, "{{{wireName}}}"){{#parser}}?.let { {{parser}}("{{{wireName}}}", it) }{{/parser}},
+{{/isArray}}
+{{/rows}}
+            )
+
+        private fun header(
+            headers: Map<String, String>,
+            name: String,
+        ): String? = headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
+{{#hasParser}}
+
+        private fun invalid(
+            name: String,
+            kind: String,
+            value: String,
+        ): SerializationException = SerializationException("Response header '$name' is not a valid $kind: '$value'")
+{{/hasParser}}
+{{#parseInteger}}
+
+        private fun parseInteger(
+            name: String,
+            value: String,
+        ): Int = value.takeIf { INTEGER.matches(it) }?.toIntOrNull() ?: throw invalid(name, "integer", value)
+{{/parseInteger}}
+{{#parseLong}}
+
+        private fun parseLong(
+            name: String,
+            value: String,
+        ): Long = value.takeIf { INTEGER.matches(it) }?.toLongOrNull() ?: throw invalid(name, "long", value)
+{{/parseLong}}
+{{#parseDouble}}
+
+        private fun parseDouble(
+            name: String,
+            value: String,
+        ): Double = value.takeIf { DECIMAL.matches(it) }?.toDoubleOrNull() ?: throw invalid(name, "number", value)
+{{/parseDouble}}
+{{#parseFloat}}
+
+        private fun parseFloat(
+            name: String,
+            value: String,
+        ): Float = value.takeIf { DECIMAL.matches(it) }?.toFloatOrNull() ?: throw invalid(name, "number", value)
+{{/parseFloat}}
+{{#parseDecimal}}
+
+        private fun parseDecimal(
+            name: String,
+            value: String,
+        ): BigDecimal = value.takeIf { DECIMAL.matches(it) }?.toBigDecimalOrNull() ?: throw invalid(name, "number", value)
+{{/parseDecimal}}
+{{#parseBoolean}}
+
+        private fun parseBoolean(
+            name: String,
+            value: String,
+        ): Boolean =
+            when (value) {
+                "true" -> true
+                "false" -> false
+                else -> throw invalid(name, "boolean", value)
+            }
+{{/parseBoolean}}
+    }
+}

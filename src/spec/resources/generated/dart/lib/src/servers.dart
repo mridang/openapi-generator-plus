@@ -34,6 +34,7 @@ const server0 = ServerConfiguration(
   urlTemplate: '/api/v3',
   description: 'Relative URL (no variables)',
   variables: {},
+  name: '',
 );
 
 /// Server 1: `https://{environment}.example.com/api/{version}`
@@ -54,6 +55,7 @@ const server1 = ServerConfiguration(
       enumValues: ['v2', 'v3'],
     ),
   },
+  name: '',
 );
 
 /// Server 2: `https://{tenant}.example.com/api`
@@ -69,6 +71,7 @@ const server2 = ServerConfiguration(
       enumValues: ['o\'neil', 'a&b'],
     ),
   },
+  name: '',
 );
 
 /// All server configurations in declaration order.
@@ -76,3 +79,20 @@ const server2 = ServerConfiguration(
 /// The servers and this list are compile-time constants, so none of them can
 /// be modified by a caller.
 const allServers = <ServerConfiguration>[server0, server1, server2];
+
+/// The server the specification gives the name [name] (OpenAPI 3.2 `name`).
+///
+/// Throws [ArgumentError] if no server has that name; the message lists the
+/// known names.
+ServerConfiguration serverByName(String name) {
+  for (final server in allServers) {
+    if (server.name.isNotEmpty && server.name == name) {
+      return server;
+    }
+  }
+  final known = [
+    for (final server in allServers)
+      if (server.name.isNotEmpty) server.name,
+  ];
+  throw ArgumentError("Unknown server name '$name'. Known names: $known");
+}

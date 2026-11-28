@@ -1287,9 +1287,33 @@ class BaseApi {
       if (body is Map<String, Object?>) {
         final parts = <String>[];
         for (final entry in body.entries) {
-          final value = entry.value;
+          var value = entry.value;
           /* A null field is dropped entirely rather than emitted as `key=`. */
           if (value == null) continue;
+          /* A multipart part encoding has no effect on a form-urlencoded
+           * body: the field is sent as its plain value. */
+          if (value is EncodedPart) {
+            value = value.value;
+          }
+          /* OAS allowReserved on the field's Encoding Object: the value keeps
+           * the query-legal reserved characters literal, exactly as a query
+           * parameter with allowReserved does. */
+          var allowReserved = false;
+          if (value is AllowReservedValue) {
+            value = value.value;
+            allowReserved = true;
+          }
+          final encode = allowReserved
+              ? encodeQueryAllowingReserved
+              : _encodeFormComponent;
+          /* An object field styled by its Encoding Object (style form,
+           * explode true) contributes one field per property. */
+          if (value is ExplodedObject) {
+            for (final (name, text) in value.entries) {
+              parts.add('${_encodeFormComponent(name)}=${encode(text)}');
+            }
+            continue;
+          }
           final encodedKey = _encodeFormComponent(entry.key);
           if (value is List && value is! Uint8List) {
             /* Array values emit a REPEATED key (`tags=a&tags=b`), never a
@@ -1297,11 +1321,11 @@ class BaseApi {
             for (final item in value) {
               if (item == null) continue;
               _requireFormScalar(entry.key, item as Object);
-              parts.add('$encodedKey=${_encodeFormComponent(stringify(item))}');
+              parts.add('$encodedKey=${encode(stringify(item))}');
             }
           } else {
             _requireFormScalar(entry.key, value);
-            parts.add('$encodedKey=${_encodeFormComponent(stringify(value))}');
+            parts.add('$encodedKey=${encode(stringify(value))}');
           }
         }
         return Uint8List.fromList(utf8.encode(parts.join('&')));
@@ -1350,13 +1374,41 @@ class BaseApi {
 
     for (final entry in formFields.entries) {
       final name = entry.key;
-      final value = entry.value;
+      var value = entry.value;
+      /* The field's Encoding Object declares the part Content-Type and part
+       * headers; a list applies them to each item. */
+      String? contentType;
+      var partHeaders = const <String, String>{};
+      if (value is EncodedPart) {
+        contentType = value.contentType;
+        partHeaders = value.headers;
+        value = value.value;
+      }
+      /* allowReserved has no effect on a multipart body: the value is sent
+       * unchanged. */
+      if (value is AllowReservedValue) {
+        value = value.value;
+      }
       if (value is List && value is! List<int>) {
         for (final item in value) {
-          _appendMultipartField(parts, boundary, name, item);
+          _appendMultipartField(
+            parts,
+            boundary,
+            name,
+            item,
+            contentType: contentType,
+            headers: partHeaders,
+          );
         }
       } else {
-        _appendMultipartField(parts, boundary, name, value);
+        _appendMultipartField(
+          parts,
+          boundary,
+          name,
+          value,
+          contentType: contentType,
+          headers: partHeaders,
+        );
       }
     }
     parts.add(utf8.encode('--$boundary--\r\n'));
@@ -1369,12 +1421,19 @@ class BaseApi {
   }
 
   /// Appends one multipart field named [name] with [value] to [parts].
+  ///
+  /// [contentType] is the part Content-Type the field's Encoding Object
+  /// declares, which replaces the one chosen here (a text part that has none
+  /// gets it); [headers] are the declared part headers, written after the
+  /// Content-Type in order.
   void _appendMultipartField(
     List<List<int>> parts,
     String boundary,
     String name,
-    Object? value,
-  ) {
+    Object? value, {
+    String? contentType,
+    Map<String, String> headers = const {},
+  }) {
     /* Validate the field name on every branch (string, number, boolean,
      * JSON, binary) before it lands in Content-Disposition. The name is
      * interpolated directly into `Content-Disposition: form-data; name="..."`,
@@ -1383,6 +1442,9 @@ class BaseApi {
      * the `name="..."` parameter. */
     validateMultipartFieldName(name);
     final safeName = escapeMultipartFieldName(name);
+    final extraHeaders = headers.entries
+        .map((h) => '${h.key}: ${h.value}\r\n')
+        .join();
     if (value is List<int>) {
       /* Derive the part's Content-Type from the filename extension
        * (`.png` -> `image/png`), falling back to `application/octet-stream`
@@ -1390,7 +1452,8 @@ class BaseApi {
        * doubles as the filename here because the spec models a binary form
        * field as raw bytes with no separate filename slot. */
       validateMultipartFilename(name);
-      final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
+      final mimeType =
+          contentType ?? lookupMimeType(name) ?? 'application/octet-stream';
       /* A non-ASCII filename must be emitted as an RFC 5987
        * `filename*=UTF-8''<pct-encoded>` parameter (with an ASCII
        * `filename="..."` fallback), not as raw UTF-8 bytes inside the quoted
@@ -1400,32 +1463,36 @@ class BaseApi {
       final filenameDirective = buildFilenameDirective(name);
       parts.add(
         utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; $filenameDirective\r\nContent-Type: $mimeType\r\n\r\n',
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"; $filenameDirective\r\nContent-Type: $mimeType\r\n$extraHeaders\r\n',
         ),
       );
       parts.add(value);
       parts.add(utf8.encode('\r\n'));
     } else if (value != null && _isScalar(value)) {
       /* A primitive (string, number, boolean, date-time, duration, uuid,
-       * enum) is a text part with no part Content-Type, carrying the
-       * canonical [stringify] form; only maps and models are JSON parts. */
+       * enum) is a text part with no part Content-Type unless the Encoding
+       * Object declares one, carrying the canonical [stringify] form; only
+       * maps and models are JSON parts. */
+      final typeHeader = contentType == null
+          ? ''
+          : 'Content-Type: $contentType\r\n';
       parts.add(
         utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n\r\n${stringify(value)}\r\n',
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n$typeHeader$extraHeaders\r\n${stringify(value)}\r\n',
         ),
       );
     } else if (value is Map) {
       final json = serialize(value);
       parts.add(
         utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: ${contentType ?? 'application/json'}\r\n$extraHeaders\r\n$json\r\n',
         ),
       );
     } else if (value != null) {
       final serialized = serialize(value);
       parts.add(
         utf8.encode(
-          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
+          '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\nContent-Type: ${contentType ?? 'application/json'}\r\n$extraHeaders\r\n$serialized\r\n',
         ),
       );
     }

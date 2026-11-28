@@ -564,6 +564,19 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   ///   - memoId: The memo to address
   ///   - server: Optional per-operation server override.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
+  ///
+  /// Response 200 example: A short memo
+  /// ```json
+  /// {"memoId":"m1","text":"Restock on Friday"}
+  /// ```
+  ///
+  /// Extension x-audience: internal-tools
   public func getMemo(
     memoId: String, server: (any GetMemoServer)? = nil, options: GetMemoOptions? = nil
   ) async throws -> Memo {
@@ -1137,10 +1150,17 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   }
 
   /// Checks that a memo exists with a HEAD request
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
   ///
   /// - Parameters:
-  ///   - memoId: The memo to address
+  ///   - memoId: The memo whose revisions are read or changed
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
   public func headMemo(memoId: String, options: HeadMemoOptions? = nil) async throws {
     let result = try await headMemoWithHTTPInfo(memoId: memoId, options: options)
     _ = result
@@ -1238,10 +1258,17 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   }
 
   /// Lists the methods a memo accepts with an OPTIONS request
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
   ///
   /// - Parameters:
-  ///   - memoId: The memo to address
+  ///   - memoId: The memo whose revisions are read or changed
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
   public func optionsMemo(memoId: String, options: OptionsMemoOptions? = nil) async throws {
     let result = try await optionsMemoWithHTTPInfo(memoId: memoId, options: options)
     _ = result
@@ -1288,11 +1315,31 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   }
 
   /// Changes a memo with a PATCH request
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
   ///
   /// - Parameters:
-  ///   - memoId: The memo to address
+  ///   - memoId: The memo whose revisions are read or changed
   ///   - memo: The fields of the memo to change
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
+  ///
+  /// Request body example: A short memo
+  /// ```json
+  /// {"memoId":"m1","text":"Restock on Friday"}
+  /// ```
+  /// Request body example: A memo kept as a file
+  /// ```json
+  /// https://example.com/memos/m1.json
+  /// ```
+  /// Response 200 example: A short memo
+  /// ```json
+  /// {"memoId":"m1","text":"Restock on Friday"}
+  /// ```
   public func patchMemo(memoId: String, memo: Memo, options: PatchMemoOptions? = nil) async throws
     -> Memo
   {
@@ -1617,10 +1664,17 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   }
 
   /// Echoes a memo request with a TRACE request
+  /// Revisions of one memo, read and changed with the less common HTTP methods.
   ///
   /// - Parameters:
-  ///   - memoId: The memo to address
+  ///   - memoId: The memo whose revisions are read or changed
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// ### `memoId` — Example
+  ///
+  /// ```json
+  /// m1
+  /// ```
   public func traceMemo(memoId: String, options: TraceMemoOptions? = nil) async throws {
     let result = try await traceMemoWithHTTPInfo(memoId: memoId, options: options)
     _ = result

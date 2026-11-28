@@ -199,7 +199,7 @@ func newAuthenticator() petstore.Authenticator {
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. A server the spec gives a name is also found by that name with `ServerByName("name")`, which fails with `ErrUnknownServer` when no server has the name. Pass the desired server's URL to the client:
 
 ```go file
 import "petstore/pkg"

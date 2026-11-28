@@ -7,6 +7,7 @@ import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServ
 import type { UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
 import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
+import { ApiStreamResponse } from '../../src/api-stream-response{{importFileExtension}}';
 import { ApiKeyAuthenticator } from '../../src/auth/api-key-authenticator{{importFileExtension}}';
 import { ApiKeyLocation } from '../../src/auth/api-key-location{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
@@ -180,6 +181,30 @@ describe('PetApi', () => {
 
     expect(result).toBeDefined();
     await result.close();
+  });
+
+  test('bhv operations 501 getPetPhoto with a per-call Accept header sends exactly that one Accept header', async () => {
+    const sent: Record<string, string>[] = [];
+    const capturingClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        return { statusCode: 200, body: '', headers: {} };
+      },
+      async sendStreaming(_method: string, _url: string, headers: Record<string, string>): Promise<ApiStreamResponse> {
+        sent.push({ ...headers });
+        return new ApiStreamResponse(200, { 'content-type': 'image/png' }, new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }));
+      },
+    };
+    const capturingApi = new PetApi(capturingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+    const result = await capturingApi.getPetPhoto(1, 100, { headers: { Accept: 'image/png' } });
+    await result.close();
+
+    const accepts = Object.entries(sent[0]!).filter(([name]) => name.toLowerCase() === 'accept');
+    expect(accepts).toEqual([['Accept', 'image/png']]);
   });
 
   test('bhv operations 073 setPetAvatar streams raw bytes with declared content type', async () => {
@@ -814,6 +839,28 @@ describe('PetApi form-urlencoded body serialization', () => {
     }
   });
 
+  test('bhv serializationwire 501 an allowReserved form field keeps reserved characters literal', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'rex', route: 'v1.0/beta:rc1 a#b' };
+      await api.setPetPreferences(1, options);
+      expect(getCapture().body).toBe('nickname=rex&route=v1.0/beta:rc1%20a%23b');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv serializationwire 502 a styled form field is joined with its style and form encoded', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'rex', aliases: ['a b', 'c'] };
+      await api.setPetPreferences(1, options);
+      expect(getCapture().body).toBe('nickname=rex&aliases=a+b%7Cc');
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 075 set_pet_preferences serialises the date-time form field in the canonical form', async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
@@ -916,6 +963,26 @@ describe('PetApi multipart model-part serialization', () => {
       // date-time carries the SDK's offset format (the equivalent of the
       // 2020-01-02T03:04:05.123Z input), not Date.toJSON()'s trailing `Z`.
       expect(modelPart.takenAt).toBe('2020-01-02T03:04:05.123+00:00');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv serializationwire 503 a multipart part carries its declared Content-Type and part headers', async () => {
+    const { api, getCapture, close } = await captureMultipartBody();
+    try {
+      try {
+        await api.attachPetFiles(1, { file: Buffer.from('data'), caption: 'hello' });
+      } catch {
+        // Only the outgoing body matters here, not the canned response.
+      }
+      const { body } = getCapture();
+      expect(body).toContain(
+        'Content-Disposition: form-data; name="caption"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello'
+      );
+      expect(body).toContain(
+        'Content-Disposition: form-data; name="file"; filename="file"\r\nContent-Type: application/octet-stream\r\n\r\ndata'
+      );
     } finally {
       close();
     }

@@ -311,7 +311,7 @@
 @type PetstoreClient.Api.Options.SearchStoreOptions.t() :: %PetstoreClient.Api.Options.SearchStoreOptions{at: Time.t() | nil, headers: %{optional(String.t()) => String.t()} | nil, labels: [String.t()] | nil, max_retries: non_neg_integer() | nil, q: PetstoreClient.Models.PhotoMetadata.t() | nil, timeout: pos_integer() | nil, x_filter: map() | nil}
 @type PetstoreClient.Api.Options.SetPetAvatarOptions.t() :: %PetstoreClient.Api.Options.SetPetAvatarOptions{headers: %{optional(String.t()) => String.t()} | nil, max_retries: non_neg_integer() | nil, timeout: pos_integer() | nil}
 @type PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions.t() :: %PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions{headers: %{optional(String.t()) => String.t()} | nil, max_retries: non_neg_integer() | nil, timeout: pos_integer() | nil}
-@type PetstoreClient.Api.Options.SetPetPreferencesOptions.t() :: %PetstoreClient.Api.Options.SetPetPreferencesOptions{headers: %{optional(String.t()) => String.t()} | nil, interval_days: integer() | nil, max_retries: non_neg_integer() | nil, nickname: String.t(), note: String.t() | nil, ratio: float() | nil, reminder: DateTime.t() | nil, renewal_date: Date.t() | nil, snooze: Duration.t() | nil, tags: [String.t()] | nil, timeout: pos_integer() | nil, urgent: boolean() | nil}
+@type PetstoreClient.Api.Options.SetPetPreferencesOptions.t() :: %PetstoreClient.Api.Options.SetPetPreferencesOptions{aliases: [String.t()] | nil, headers: %{optional(String.t()) => String.t()} | nil, interval_days: integer() | nil, max_retries: non_neg_integer() | nil, nickname: String.t(), note: String.t() | nil, ratio: float() | nil, reminder: DateTime.t() | nil, renewal_date: Date.t() | nil, route: String.t() | nil, snooze: Duration.t() | nil, tags: [String.t()] | nil, timeout: pos_integer() | nil, urgent: boolean() | nil}
 @type PetstoreClient.Api.Options.SubmitAllowanceOptions.t() :: %PetstoreClient.Api.Options.SubmitAllowanceOptions{headers: %{optional(String.t()) => String.t()} | nil, max_retries: non_neg_integer() | nil, timeout: pos_integer() | nil}
 @type PetstoreClient.Api.Options.TakeLockOptions.t() :: %PetstoreClient.Api.Options.TakeLockOptions{headers: %{optional(String.t()) => String.t()} | nil, max_retries: non_neg_integer() | nil, timeout: pos_integer() | nil}
 @type PetstoreClient.Api.Options.TraceMemoOptions.t() :: %PetstoreClient.Api.Options.TraceMemoOptions{headers: %{optional(String.t()) => String.t()} | nil, max_retries: non_neg_integer() | nil, timeout: pos_integer() | nil}
@@ -322,6 +322,11 @@
 @type PetstoreClient.Api.Options.WatchOrdersOptions.t() :: %PetstoreClient.Api.Options.WatchOrdersOptions{headers: %{optional(String.t()) => String.t()} | nil, max_retries: non_neg_integer() | nil, status: String.t() | nil, timeout: pos_integer() | nil}
 @type PetstoreClient.Api.PetApi.t() :: %PetstoreClient.Api.PetApi{api_client: term(), authenticator: term(), config: PetstoreClient.Configuration.t(), scheme_authenticators: %{optional(String.t()) => term()}}
 @type PetstoreClient.Api.ProblemsApi.t() :: %PetstoreClient.Api.ProblemsApi{api_client: term(), authenticator: term(), config: PetstoreClient.Configuration.t(), scheme_authenticators: %{optional(String.t()) => term()}}
+@type PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders.t() :: %PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders{x_archived: boolean() | nil, x_labels: [String.t()] | nil, x_revision: integer() | nil}
+@type PetstoreClient.Api.ResponseHeaders.HeadMemoResponseHeaders.t() :: %PetstoreClient.Api.ResponseHeaders.HeadMemoResponseHeaders{x_revision: integer() | nil}
+@type PetstoreClient.Api.ResponseHeaders.ListPetFeedResponseHeaders.t() :: %PetstoreClient.Api.ResponseHeaders.ListPetFeedResponseHeaders{link: String.t() | nil}
+@type PetstoreClient.Api.ResponseHeaders.OptionsMemoResponseHeaders.t() :: %PetstoreClient.Api.ResponseHeaders.OptionsMemoResponseHeaders{allow: String.t() | nil}
+@type PetstoreClient.Api.ResponseHeaders.PatchMemoResponseHeaders.t() :: %PetstoreClient.Api.ResponseHeaders.PatchMemoResponseHeaders{x_archived: boolean() | nil, x_labels: [String.t()] | nil, x_revision: integer() | nil}
 @type PetstoreClient.Api.StoreApi.t() :: %PetstoreClient.Api.StoreApi{api_client: term(), authenticator: term(), config: PetstoreClient.Configuration.t(), scheme_authenticators: %{optional(String.t()) => term()}}
 @type PetstoreClient.ApiHttpResponse.t() :: %PetstoreClient.ApiHttpResponse{body: String.t(), headers: %{optional(String.t()) => String.t()}, status_code: integer()}
 @type PetstoreClient.ApiResult.t() :: %PetstoreClient.ApiResult{data: term() | nil, headers: %{optional(String.t()) => String.t()}, raw_body: String.t(), status_code: integer()}
@@ -500,7 +505,7 @@
 @type PetstoreClient.Models.WetFood.t() :: %PetstoreClient.Models.WetFood{food_type: String.t(), volume_ml: integer()}
 @type PetstoreClient.Page.t() :: %PetstoreClient.Page{items: [term()], next_cursor: String.t() | integer() | nil, result: PetstoreClient.ApiResult.t()}
 @type PetstoreClient.Paginator.t() :: %PetstoreClient.Paginator{base_url: String.t() | nil, fetch: (term() -> {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}), has_more: (term() -> boolean() | nil) | nil, items: (term() -> [term()] | nil), kind: :cursor | :offset | :page | :link, next: (term() -> String.t() | integer() | nil) | nil, path: String.t(), start: String.t() | integer() | nil}
-@type PetstoreClient.ServerConfiguration.t() :: %PetstoreClient.ServerConfiguration{description: String.t() | nil, url_template: String.t(), variables: %{optional(String.t()) => PetstoreClient.ServerVariable.t()}}
+@type PetstoreClient.ServerConfiguration.t() :: %PetstoreClient.ServerConfiguration{description: String.t() | nil, name: String.t() | nil, url_template: String.t(), variables: %{optional(String.t()) => PetstoreClient.ServerVariable.t()}}
 @type PetstoreClient.ServerSentEvent.t() :: %PetstoreClient.ServerSentEvent{data: term(), event: String.t(), id: String.t() | nil, raw: String.t(), retry: non_neg_integer() | nil}
 @type PetstoreClient.ServerVariable.t() :: %PetstoreClient.ServerVariable{default_value: String.t(), description: String.t() | nil, enum_values: [String.t()]}
 @type PetstoreClient.SseStream.t() :: %PetstoreClient.SseStream{cell: term(), config: map(), counters: :atomics.atomics_ref(), headers: %{optional(String.t()) => String.t()}, status_code: integer()}
@@ -658,6 +663,11 @@ def PetstoreClient.Api.ProblemsApi.new/4 (term(), PetstoreClient.Configuration.t
 def PetstoreClient.Api.ProblemsApi.take_lock!/4 (t(), String.t(), PetstoreClient.Api.Options.TakeLockOptions.t() | nil, keyword()) :: PetstoreClient.Models.Result.t()
 def PetstoreClient.Api.ProblemsApi.take_lock/4 (t(), String.t(), PetstoreClient.Api.Options.TakeLockOptions.t() | nil, keyword()) :: {:ok, PetstoreClient.Models.Result.t()} | {:error, Exception.t()}
 def PetstoreClient.Api.ProblemsApi.take_lock_with_http_info/4 (t(), String.t(), PetstoreClient.Api.Options.TakeLockOptions.t() | nil, keyword()) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+def PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders.from_headers/1 (%{optional(String.t()) => String.t()} | nil) :: t()
+def PetstoreClient.Api.ResponseHeaders.HeadMemoResponseHeaders.from_headers/1 (%{optional(String.t()) => String.t()} | nil) :: t()
+def PetstoreClient.Api.ResponseHeaders.ListPetFeedResponseHeaders.from_headers/1 (%{optional(String.t()) => String.t()} | nil) :: t()
+def PetstoreClient.Api.ResponseHeaders.OptionsMemoResponseHeaders.from_headers/1 (%{optional(String.t()) => String.t()} | nil) :: t()
+def PetstoreClient.Api.ResponseHeaders.PatchMemoResponseHeaders.from_headers/1 (%{optional(String.t()) => String.t()} | nil) :: t()
 def PetstoreClient.Api.StoreApi.create_account!/4 (t(), PetstoreClient.Models.Account.t(), PetstoreClient.Api.Options.CreateAccountOptions.t() | nil, keyword()) :: PetstoreClient.Models.Account.t()
 def PetstoreClient.Api.StoreApi.create_account/4 (t(), PetstoreClient.Models.Account.t(), PetstoreClient.Api.Options.CreateAccountOptions.t() | nil, keyword()) :: {:ok, PetstoreClient.Models.Account.t()} | {:error, Exception.t()}
 def PetstoreClient.Api.StoreApi.create_account_with_http_info/4 (t(), PetstoreClient.Models.Account.t(), PetstoreClient.Api.Options.CreateAccountOptions.t() | nil, keyword()) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
@@ -1536,6 +1546,7 @@ def PetstoreClient.Paginator.items/1 (t()) :: Enumerable.t()
 def PetstoreClient.Paginator.pages/1 (t()) :: Enumerable.t()
 def PetstoreClient.ServerConfiguration.url/2 (t(), %{optional(String.t()) => String.t()}) :: String.t()
 def PetstoreClient.Servers.all/0 () :: [PetstoreClient.ServerConfiguration.t()]
+def PetstoreClient.Servers.by_name/1 (String.t()) :: PetstoreClient.ServerConfiguration.t()
 def PetstoreClient.Servers.server_0/0 () :: PetstoreClient.ServerConfiguration.t()
 def PetstoreClient.Servers.server_1/0 () :: PetstoreClient.ServerConfiguration.t()
 def PetstoreClient.Servers.server_2/0 () :: PetstoreClient.ServerConfiguration.t()
@@ -1547,9 +1558,12 @@ def PetstoreClient.StreamBody.open/2 (spec(), integer() | nil) :: {:ok, integer(
 def PetstoreClient.StreamBody.read/1 (t()) :: {:chunk, binary()} | :done | {:error, Exception.t()}
 def PetstoreClient.TraceContextUtil.inject_trace_context/1 (%{optional(String.t()) => String.t()}) :: %{optional(String.t()) => String.t()}
 def PetstoreClient.TransportOptions.new/1 (keyword()) :: t()
+def PetstoreClient.ValueSerializer.allow_reserved_in_path/1 (String.t()) :: String.t()
+def PetstoreClient.ValueSerializer.cookie_pairs/4 (String.t(), term(), boolean(), String.t() | nil) :: String.t()
 def PetstoreClient.ValueSerializer.encode_content_cookie/1 (String.t()) :: String.t()
 def PetstoreClient.ValueSerializer.encode_path_segment/1 (String.t()) :: String.t()
 def PetstoreClient.ValueSerializer.encode_query_allowing_reserved/1 (String.t()) :: String.t()
+def PetstoreClient.ValueSerializer.encoded_part/3 (term(), String.t() | nil, [{String.t(), String.t()}]) :: {:encoded_part, term(), String.t() | nil, [{String.t(), String.t()}]} | nil
 def PetstoreClient.ValueSerializer.maybe_allow_reserved/2 (term(), boolean()) :: term()
 def PetstoreClient.ValueSerializer.serialize/4 (term(), atom(), String.t(), keyword()) :: String.t() | [String.t()] | nil
 def PetstoreClient.ValueSerializer.serialize_deep_object/2 (String.t(), map() | nil) :: %{optional(String.t()) => String.t()}
@@ -1654,6 +1668,11 @@ defmodule PetstoreClient.Api.PetApi
 defmodule PetstoreClient.Api.PetApiBehaviour
 defmodule PetstoreClient.Api.ProblemsApi
 defmodule PetstoreClient.Api.ProblemsApiBehaviour
+defmodule PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders
+defmodule PetstoreClient.Api.ResponseHeaders.HeadMemoResponseHeaders
+defmodule PetstoreClient.Api.ResponseHeaders.ListPetFeedResponseHeaders
+defmodule PetstoreClient.Api.ResponseHeaders.OptionsMemoResponseHeaders
+defmodule PetstoreClient.Api.ResponseHeaders.PatchMemoResponseHeaders
 defmodule PetstoreClient.Api.StoreApi
 defmodule PetstoreClient.Api.StoreApiBehaviour
 defmodule PetstoreClient.ApiClient
@@ -1862,6 +1881,11 @@ defstruct PetstoreClient.Api.Options.ListPetPageNumbersOptions [:headers, :max_r
 defstruct PetstoreClient.Api.Options.ListPetsAfterOptions [:headers, :limit, :max_retries, :starting_after, :timeout]
 defstruct PetstoreClient.Api.PetApi [:api_client, :authenticator, :config, :scheme_authenticators]
 defstruct PetstoreClient.Api.ProblemsApi [:api_client, :authenticator, :config, :scheme_authenticators]
+defstruct PetstoreClient.Api.ResponseHeaders.GetMemoResponseHeaders [:x_archived, :x_labels, :x_revision]
+defstruct PetstoreClient.Api.ResponseHeaders.HeadMemoResponseHeaders [:x_revision]
+defstruct PetstoreClient.Api.ResponseHeaders.ListPetFeedResponseHeaders [:link]
+defstruct PetstoreClient.Api.ResponseHeaders.OptionsMemoResponseHeaders [:allow]
+defstruct PetstoreClient.Api.ResponseHeaders.PatchMemoResponseHeaders [:x_archived, :x_labels, :x_revision]
 defstruct PetstoreClient.Api.StoreApi [:api_client, :authenticator, :config, :scheme_authenticators]
 defstruct PetstoreClient.ApiHttpResponse [:body, :headers, :status_code]
 defstruct PetstoreClient.ApiResult [:data, :headers, :raw_body, :status_code]
@@ -1947,7 +1971,7 @@ defstruct PetstoreClient.Models.Surgery [:duration_minutes, :notes, :procedure_n
 defstruct PetstoreClient.Models.WetFood [:food_type, :volume_ml]
 defstruct PetstoreClient.Page [:items, :next_cursor, :result]
 defstruct PetstoreClient.Paginator [:base_url, :fetch, :has_more, :items, :kind, :next, :path, :start]
-defstruct PetstoreClient.ServerConfiguration [:description, :url_template, :variables]
+defstruct PetstoreClient.ServerConfiguration [:description, :name, :url_template, :variables]
 defstruct PetstoreClient.ServerSentEvent [:data, :event, :id, :raw, :retry]
 defstruct PetstoreClient.ServerVariable [:default_value, :description, :enum_values]
 defstruct PetstoreClient.SseStream [:cell, :config, :counters, :headers, :status_code]

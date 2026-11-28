@@ -105,7 +105,7 @@
 		if styledErr != nil {
 			return nil, styledErr
 		}
-		path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", styledValue))
+		path = replacePathParam(path, "{{baseName}}", {{#vendorExtensions.param.pathAllowReserved}}allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}fmt.Sprintf("%v", styledValue){{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}})
 	}
 {{/isDate}}
 {{^isDate}}
@@ -118,7 +118,7 @@
 		if styledErr != nil {
 			return nil, styledErr
 		}
-		path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", styledValue))
+		path = replacePathParam(path, "{{baseName}}", {{#vendorExtensions.param.pathAllowReserved}}allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}fmt.Sprintf("%v", styledValue){{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}})
 	}
 {{/isDate}}
 {{/vendorExtensions.goContent}}
@@ -268,6 +268,21 @@
 	var cookieParts []string
 {{#cookieParams}}
 {{#required}}
+{{#vendorExtensions.param.cookieStyle}}
+	/* A style: cookie parameter (OAS 3.2) is written as its own
+	 * name=value pairs by cookiePairs, which applies the same RFC 6265
+	 * cookie-octet check to every item, key and value. */
+	{
+		pairs, pairsErr := cookiePairs("{{baseName}}", options.{{nameInPascalCase}}, {{isExplode}})
+		if pairsErr != nil {
+			return nil, pairsErr
+		}
+		if pairs != "" {
+			cookieParts = append(cookieParts, pairs)
+		}
+	}
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
 	/* Required cookie param: non-pointer Options field, always present.
 	 * The serialized value is routed through isValidCookieValue (the same
 	 * RFC 6265 cookie-octet check the auth-cookie path in base_api applies)
@@ -300,9 +315,25 @@
 		}
 		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
 	}
+{{/vendorExtensions.param.cookieStyle}}
 {{/required}}
 {{^required}}
 	if options != nil && options.{{nameInPascalCase}} != nil {
+{{#vendorExtensions.param.cookieStyle}}
+		/* A style: cookie parameter (OAS 3.2) is written as its own
+		 * name=value pairs by cookiePairs, which applies the same RFC 6265
+		 * cookie-octet check to every item, key and value. */
+		{
+			pairs, pairsErr := cookiePairs("{{baseName}}", options.{{nameInPascalCase}}, {{isExplode}})
+			if pairsErr != nil {
+				return nil, pairsErr
+			}
+			if pairs != "" {
+				cookieParts = append(cookieParts, pairs)
+			}
+		}
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
 		/* Optional cookie param: same RFC 6265 validation as the required
 		 * branch above. Fail closed by returning an error so a CR/LF or
 		 * control-char value cannot be injected into the Cookie header. */
@@ -329,6 +360,7 @@
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
 		}
 		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
+{{/vendorExtensions.param.cookieStyle}}
 	}
 {{/required}}
 {{/cookieParams}}
@@ -342,17 +374,45 @@
 	if options != nil {
 {{#formParams}}
 {{#required}}
-		formBody["{{baseName}}"] = options.{{nameInPascalCase}}
+{{#vendorExtensions.param.formStyled}}
+		{
+			/* The field's Encoding Object declares style or explode: the value is
+			 * styled exactly as a query parameter, and the form encoder writes the
+			 * result (a joined string, or a list that repeats the key). */
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			formBody["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})
+		}
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+		formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}newEncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, "{{#vendorExtensions.param.partContentType}}{{{.}}}{{/vendorExtensions.param.partContentType}}"{{#vendorExtensions.param.partHeaders}}, [2]string{"{{{name}}}", "{{{value}}}"}{{/vendorExtensions.param.partHeaders}}){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
 {{#isFile}}
 		if options.{{nameInPascalCase}} != nil {
-			formBody["{{baseName}}"] = options.{{nameInPascalCase}}
+			formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}newEncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, "{{#vendorExtensions.param.partContentType}}{{{.}}}{{/vendorExtensions.param.partContentType}}"{{#vendorExtensions.param.partHeaders}}, [2]string{"{{{name}}}", "{{{value}}}"}{{/vendorExtensions.param.partHeaders}}){{/vendorExtensions.param.partEncoded}}
 		}
 {{/isFile}}
 {{^isFile}}
 		if options.{{nameInPascalCase}} != nil {
-			formBody["{{baseName}}"] = *options.{{nameInPascalCase}}
+{{#vendorExtensions.param.formStyled}}
+			{
+				/* The field's Encoding Object declares style or explode: the value is
+				 * styled exactly as a query parameter, and the form encoder writes the
+				 * result (a joined string, or a list that repeats the key). */
+				styledValue, styledErr := serializeStyledChecked("{{baseName}}", *options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+				if styledErr != nil {
+					return nil, styledErr
+				}
+				formBody["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})
+			}
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+			formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}newEncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}*options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, "{{#vendorExtensions.param.partContentType}}{{{.}}}{{/vendorExtensions.param.partContentType}}"{{#vendorExtensions.param.partHeaders}}, [2]string{"{{{name}}}", "{{{value}}}"}{{/vendorExtensions.param.partHeaders}}){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 		}
 {{/isFile}}
 {{/required}}

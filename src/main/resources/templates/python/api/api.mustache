@@ -166,9 +166,15 @@ class {{classname}}Protocol(Protocol):
 
 class {{classname}}(BaseApi):
     r"""{{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagSummary}}
 {{#tagDescription}}
     {{#lambda.rstText}}{{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}{{/lambda.rstText}}
 {{/tagDescription}}
+{{#tagParent}}
+    {{#lambda.rstText}}{{#lambda.singleLine}}It belongs to the {{{.}}} API group.{{/lambda.singleLine}}{{/lambda.rstText}}
+{{/tagParent}}
 {{#tagExternalDocs}}
 
     .. seealso::
@@ -208,7 +214,7 @@ class {{classname}}(BaseApi):
         :param stream_options: the stream settings: idle timeout, reconnects, reconnect delay, last event id and the longest line or event
         :return: {{{returnType}}}
         :raises ApiException: if the first request fails
-{{>api/operation_doc_raises}}{{#isDeprecated}}
+{{>api/operation_doc_raises}}{{>api/operation_doc_examples}}{{#isDeprecated}}
 
         .. deprecated::
             This operation is deprecated.
@@ -321,7 +327,7 @@ class {{classname}}(BaseApi):
         :return: {{{returnType}}}
 {{/returnType}}
         :raises ApiException: if fails to make API call
-{{>api/operation_doc_raises}}{{#isDeprecated}}
+{{>api/operation_doc_raises}}{{>api/operation_doc_examples}}{{#isDeprecated}}
 
         .. deprecated::
             This operation is deprecated.

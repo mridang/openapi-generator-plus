@@ -256,6 +256,7 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "java", "challengeauthenticator", "java declares the challenge interface of the digest authenticator in its own file");
     allow(ALLOWED_EXTRA, "php", "deviceauthorization", "PHP class for the device authorization response (one class per file)");
     allow(ALLOWED_EXTRA, "ruby", "deviceauthorization", "Ruby class for the device authorization response (one class per file)");
+    allow(ALLOWED_EXTRA, "php", "encodedpart", "PHP multipart part carrying its Encoding Object headers");
     allow(ALLOWED_EXTRA, "php", "rawhttpresponse", "PHP wrapper for the PSR-7 response");
     allow(ALLOWED_EXTRA, "go", "requestoption", "go functional request options");
     for (String language : Arrays.asList("java", "php", "ruby")) {

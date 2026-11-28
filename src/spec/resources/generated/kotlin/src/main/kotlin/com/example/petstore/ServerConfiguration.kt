@@ -25,6 +25,8 @@ class ServerConfiguration(
     /** Human-readable description of this server, or null if not specified. */
     val description: String? = null,
     variables: Map<String, ServerVariable> = emptyMap(),
+    /** The name the specification gives this server (OpenAPI 3.2 `name`), or null if it has none. */
+    val name: String? = null,
 ) {
     private val storedVariables: Map<String, ServerVariable> = variables.toMap()
 

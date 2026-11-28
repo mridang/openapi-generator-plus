@@ -647,6 +647,20 @@ paths:
                 snooze:
                   type: string
                   format: duration
+                # D164: the Encoding Object below sets allowReserved, so the
+                # reserved characters of this field are sent literally.
+                route:
+                  type: string
+                # D165: the Encoding Object below writes this field pipe-delimited.
+                aliases:
+                  type: array
+                  items:
+                    type: string
+            encoding:
+              route:
+                allowReserved: true
+              aliases:
+                style: pipeDelimited
       responses:
         '200':
           description: Successful operation
@@ -685,6 +699,16 @@ paths:
                   format: binary
                 caption:
                   type: string
+            # D166: the caption part carries its declared Content-Type and the
+            # part header whose schema fixes its value.
+            encoding:
+              caption:
+                contentType: text/markdown
+                headers:
+                  X-Caption-Format:
+                    schema:
+                      type: string
+                      default: commonmark
       responses:
         '200':
           description: Successful operation
@@ -2002,6 +2026,9 @@ paths:
       summary: Reads a memo from the server its path declares
       operationId: getMemo
       security: []
+      # D170: shown in the operation documentation because the golden generation lists it in
+      # the exposedExtensions option.
+      x-audience: internal-tools
       responses:
         '200':
           $ref: '#/components/responses/MemoFound'
@@ -3957,6 +3984,8 @@ components:
       description: The memo to address
       schema:
         type: string
+      # D169: a single example is shown in the operation documentation.
+      example: m1
 
   responses:
     MemoFound:
@@ -3964,6 +3993,18 @@ components:
       headers:
         X-Revision:
           $ref: '#/components/headers/Revision'
+        # D168: read through the typed response headers of getMemo.
+        X-Labels:
+          description: The labels of the memo
+          schema:
+            type: array
+            items:
+              type: string
+        X-Archived:
+          description: Whether the memo is archived
+          schema:
+            type: boolean
+          example: false
       content:
         application/json:
           schema:
@@ -3983,6 +4024,10 @@ components:
           examples:
             memo:
               $ref: '#/components/examples/MemoExample'
+            # D169: an example kept in another document is shown by its URL.
+            stored:
+              summary: A memo kept as a file
+              externalValue: https://example.com/memos/m1.json
 
   headers:
     Revision:
@@ -4019,8 +4064,13 @@ components:
 
   pathItems:
     MemoRevisions:
+      # The path item's own text (#58): every operation below has a summary
+      # of its own and no description, so each one takes this description.
+      description: Revisions of one memo, read and changed with the less common HTTP methods.
       parameters:
+        # The description beside the reference overrides the component's (#81).
         - $ref: '#/components/parameters/MemoId'
+          description: The memo whose revisions are read or changed
       patch:
         tags: [store]
         summary: Changes a memo with a PATCH request

@@ -856,6 +856,12 @@ PetstoreClient.GetMemoOptions: init(timeout: Int? = nil, headers: [String: Strin
 PetstoreClient.GetMemoOptions: let headers: [String: String]?
 PetstoreClient.GetMemoOptions: let maxRetries: Int?
 PetstoreClient.GetMemoOptions: let timeout: Int?
+PetstoreClient.GetMemoResponseHeaders: conforms to Swift.Sendable
+PetstoreClient.GetMemoResponseHeaders: conforms to Swift.SendableMetatype
+PetstoreClient.GetMemoResponseHeaders: let xArchived: Bool?
+PetstoreClient.GetMemoResponseHeaders: let xLabels: [String]?
+PetstoreClient.GetMemoResponseHeaders: let xRevision: Int?
+PetstoreClient.GetMemoResponseHeaders: static func from(_: [String: String]) throws -> GetMemoResponseHeaders
 PetstoreClient.GetMemoServer: func getUrl() -> String
 PetstoreClient.GetMemoServerMemos: conforms to PetstoreClient.GetMemoServer
 PetstoreClient.GetMemoServerMemos: func getUrl() -> String
@@ -1086,6 +1092,10 @@ PetstoreClient.HeadMemoOptions: init(timeout: Int? = nil, headers: [String: Stri
 PetstoreClient.HeadMemoOptions: let headers: [String: String]?
 PetstoreClient.HeadMemoOptions: let maxRetries: Int?
 PetstoreClient.HeadMemoOptions: let timeout: Int?
+PetstoreClient.HeadMemoResponseHeaders: conforms to Swift.Sendable
+PetstoreClient.HeadMemoResponseHeaders: conforms to Swift.SendableMetatype
+PetstoreClient.HeadMemoResponseHeaders: let xRevision: Int?
+PetstoreClient.HeadMemoResponseHeaders: static func from(_: [String: String]) throws -> HeadMemoResponseHeaders
 PetstoreClient.HttpAwareAuthenticator: conforms to PetstoreClient.Authenticator
 PetstoreClient.HttpAwareAuthenticator: conforms to Swift.Sendable
 PetstoreClient.HttpAwareAuthenticator: conforms to Swift.SendableMetatype
@@ -1205,6 +1215,10 @@ PetstoreClient.ListPetFeedOptions: let headers: [String: String]?
 PetstoreClient.ListPetFeedOptions: let limit: Int?
 PetstoreClient.ListPetFeedOptions: let maxRetries: Int?
 PetstoreClient.ListPetFeedOptions: let timeout: Int?
+PetstoreClient.ListPetFeedResponseHeaders: conforms to Swift.Sendable
+PetstoreClient.ListPetFeedResponseHeaders: conforms to Swift.SendableMetatype
+PetstoreClient.ListPetFeedResponseHeaders: let link: String?
+PetstoreClient.ListPetFeedResponseHeaders: static func from(_: [String: String]) throws -> ListPetFeedResponseHeaders
 PetstoreClient.ListPetMatchesOptions: conforms to Swift.Sendable
 PetstoreClient.ListPetMatchesOptions: conforms to Swift.SendableMetatype
 PetstoreClient.ListPetMatchesOptions: init(cursor: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
@@ -1584,6 +1598,10 @@ PetstoreClient.OptionsMemoOptions: init(timeout: Int? = nil, headers: [String: S
 PetstoreClient.OptionsMemoOptions: let headers: [String: String]?
 PetstoreClient.OptionsMemoOptions: let maxRetries: Int?
 PetstoreClient.OptionsMemoOptions: let timeout: Int?
+PetstoreClient.OptionsMemoResponseHeaders: conforms to Swift.Sendable
+PetstoreClient.OptionsMemoResponseHeaders: conforms to Swift.SendableMetatype
+PetstoreClient.OptionsMemoResponseHeaders: let allow: String?
+PetstoreClient.OptionsMemoResponseHeaders: static func from(_: [String: String]) throws -> OptionsMemoResponseHeaders
 PetstoreClient.Order: conforms to Swift.Decodable
 PetstoreClient.Order: conforms to Swift.Encodable
 PetstoreClient.Order: conforms to Swift.Equatable
@@ -1703,6 +1721,12 @@ PetstoreClient.PatchMemoOptions: init(timeout: Int? = nil, headers: [String: Str
 PetstoreClient.PatchMemoOptions: let headers: [String: String]?
 PetstoreClient.PatchMemoOptions: let maxRetries: Int?
 PetstoreClient.PatchMemoOptions: let timeout: Int?
+PetstoreClient.PatchMemoResponseHeaders: conforms to Swift.Sendable
+PetstoreClient.PatchMemoResponseHeaders: conforms to Swift.SendableMetatype
+PetstoreClient.PatchMemoResponseHeaders: let xArchived: Bool?
+PetstoreClient.PatchMemoResponseHeaders: let xLabels: [String]?
+PetstoreClient.PatchMemoResponseHeaders: let xRevision: Int?
+PetstoreClient.PatchMemoResponseHeaders: static func from(_: [String: String]) throws -> PatchMemoResponseHeaders
 PetstoreClient.PayloadTooLargeError: conforms to FoundationEssentials.LocalizedError
 PetstoreClient.PayloadTooLargeError: conforms to PetstoreClient.OpenAPIError
 PetstoreClient.PayloadTooLargeError: conforms to Swift.Error
@@ -2609,8 +2633,9 @@ PetstoreClient.SerializationError: var errorDescription: String? { get }
 PetstoreClient.ServerConfiguration: conforms to Swift.Sendable
 PetstoreClient.ServerConfiguration: conforms to Swift.SendableMetatype
 PetstoreClient.ServerConfiguration: func url(variables: [String: String]? = nil) throws -> String
-PetstoreClient.ServerConfiguration: init(urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:])
+PetstoreClient.ServerConfiguration: init(urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:], name: String = "")
 PetstoreClient.ServerConfiguration: let description: String
+PetstoreClient.ServerConfiguration: let name: String
 PetstoreClient.ServerConfiguration: let urlTemplate: String
 PetstoreClient.ServerConfiguration: let variables: [String: ServerVariable]
 PetstoreClient.ServerError: conforms to FoundationEssentials.LocalizedError
@@ -2640,6 +2665,7 @@ PetstoreClient.ServerVariable: init(defaultValue: String, description: String = 
 PetstoreClient.ServerVariable: let defaultValue: String
 PetstoreClient.ServerVariable: let description: String
 PetstoreClient.ServerVariable: let enumValues: [String]
+PetstoreClient.Servers: static func byName(_: String) throws -> ServerConfiguration
 PetstoreClient.Servers: static let all: [ServerConfiguration]
 PetstoreClient.Servers: static let server0: ServerConfiguration
 PetstoreClient.Servers: static let server1: ServerConfiguration
@@ -2715,7 +2741,8 @@ PetstoreClient.SetPetAvatarThumbnailRequest: var isData: Bool { get }
 PetstoreClient.SetPetAvatarThumbnailRequest: var isDataList: Bool { get }
 PetstoreClient.SetPetPreferencesOptions: conforms to Swift.Sendable
 PetstoreClient.SetPetPreferencesOptions: conforms to Swift.SendableMetatype
-PetstoreClient.SetPetPreferencesOptions: init(nickname: String, tags: [String]? = nil, note: String? = nil, renewalDate: String? = nil, reminder: Date? = nil, intervalDays: Int? = nil, ratio: Double? = nil, urgent: Bool? = nil, snooze: Duration? = nil, timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
+PetstoreClient.SetPetPreferencesOptions: init(nickname: String, tags: [String]? = nil, note: String? = nil, renewalDate: String? = nil, reminder: Date? = nil, intervalDays: Int? = nil, ratio: Double? = nil, urgent: Bool? = nil, snooze: Duration? = nil, route: String? = nil, aliases: [String]? = nil, timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
+PetstoreClient.SetPetPreferencesOptions: let aliases: [String]?
 PetstoreClient.SetPetPreferencesOptions: let headers: [String: String]?
 PetstoreClient.SetPetPreferencesOptions: let intervalDays: Int?
 PetstoreClient.SetPetPreferencesOptions: let maxRetries: Int?
@@ -2724,6 +2751,7 @@ PetstoreClient.SetPetPreferencesOptions: let note: String?
 PetstoreClient.SetPetPreferencesOptions: let ratio: Double?
 PetstoreClient.SetPetPreferencesOptions: let reminder: Date?
 PetstoreClient.SetPetPreferencesOptions: let renewalDate: String?
+PetstoreClient.SetPetPreferencesOptions: let route: String?
 PetstoreClient.SetPetPreferencesOptions: let snooze: Duration?
 PetstoreClient.SetPetPreferencesOptions: let tags: [String]?
 PetstoreClient.SetPetPreferencesOptions: let timeout: Int?
@@ -3593,6 +3621,7 @@ PetstoreClient: struct GetInventoryOptions
 PetstoreClient: struct GetMatrixOptions
 PetstoreClient: struct GetMemberOptions
 PetstoreClient: struct GetMemoOptions
+PetstoreClient: struct GetMemoResponseHeaders
 PetstoreClient: struct GetMemoServerMemos
 PetstoreClient: struct GetMultiServerPetInfoOptions
 PetstoreClient: struct GetMultiServerPetInfoServerMirror
@@ -3623,6 +3652,7 @@ PetstoreClient: struct GetTimestampGroupsOptions
 PetstoreClient: struct GetTreeOptions
 PetstoreClient: struct GetUpstreamOptions
 PetstoreClient: struct HeadMemoOptions
+PetstoreClient: struct HeadMemoResponseHeaders
 PetstoreClient: struct Ledger
 PetstoreClient: struct Letter
 PetstoreClient: struct ListNativeAmountsOptions
@@ -3630,6 +3660,7 @@ PetstoreClient: struct ListPetArchiveOptions
 PetstoreClient: struct ListPetCatalogOptions
 PetstoreClient: struct ListPetEventsOptions
 PetstoreClient: struct ListPetFeedOptions
+PetstoreClient: struct ListPetFeedResponseHeaders
 PetstoreClient: struct ListPetMatchesOptions
 PetstoreClient: struct ListPetNextUrlOptions
 PetstoreClient: struct ListPetNotesOptions
@@ -3646,6 +3677,7 @@ PetstoreClient: struct Moments
 PetstoreClient: struct NativeValues
 PetstoreClient: struct OAuth2ServerError
 PetstoreClient: struct OptionsMemoOptions
+PetstoreClient: struct OptionsMemoResponseHeaders
 PetstoreClient: struct Order
 PetstoreClient: struct Packet
 PetstoreClient: struct Page<T, C> where T: Sendable, C: Sendable
@@ -3653,6 +3685,7 @@ PetstoreClient: struct PaginationError
 PetstoreClient: struct Paginator<T, C> where T: Sendable, C: Sendable
 PetstoreClient: struct Parcel
 PetstoreClient: struct PatchMemoOptions
+PetstoreClient: struct PatchMemoResponseHeaders
 PetstoreClient: struct Pet
 PetstoreClient: struct PetAfterPage
 PetstoreClient: struct PetArchivePage

@@ -208,6 +208,11 @@ PetstoreClient\Api\Options\GetMemoOptions::public function __construct(promoted 
 PetstoreClient\Api\Options\GetMemoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\GetMemoOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\GetMemoOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\GetMemoResponseHeaders::public function __construct(promoted ?int $xRevision = NULL, promoted ?array $xLabels = NULL, promoted ?bool $xArchived = NULL) [doc $xRevision: int|null; $xLabels: list<string>|null; $xArchived: bool|null]
+PetstoreClient\Api\Options\GetMemoResponseHeaders::public readonly ?array $xLabels
+PetstoreClient\Api\Options\GetMemoResponseHeaders::public readonly ?bool $xArchived
+PetstoreClient\Api\Options\GetMemoResponseHeaders::public readonly ?int $xRevision
+PetstoreClient\Api\Options\GetMemoResponseHeaders::public static function from(array $headers): PetstoreClient\Api\Options\GetMemoResponseHeaders [doc $headers: array<string,string>; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public readonly ?int $maxRetries
@@ -325,6 +330,9 @@ PetstoreClient\Api\Options\HeadMemoOptions::public function __construct(promoted
 PetstoreClient\Api\Options\HeadMemoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\HeadMemoOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\HeadMemoOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\HeadMemoResponseHeaders::public function __construct(promoted ?int $xRevision = NULL) [doc $xRevision: int|null]
+PetstoreClient\Api\Options\HeadMemoResponseHeaders::public readonly ?int $xRevision
+PetstoreClient\Api\Options\HeadMemoResponseHeaders::public static function from(array $headers): PetstoreClient\Api\Options\HeadMemoResponseHeaders [doc $headers: array<string,string>; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\Options\ListNativeAmountsOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\ListNativeAmountsOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\ListNativeAmountsOptions::public readonly ?int $maxRetries
@@ -352,6 +360,9 @@ PetstoreClient\Api\Options\ListPetFeedOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\ListPetFeedOptions::public readonly ?int $limit
 PetstoreClient\Api\Options\ListPetFeedOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\ListPetFeedOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\ListPetFeedResponseHeaders::public function __construct(promoted ?string $link = NULL) [doc $link: string|null]
+PetstoreClient\Api\Options\ListPetFeedResponseHeaders::public readonly ?string $link
+PetstoreClient\Api\Options\ListPetFeedResponseHeaders::public static function from(array $headers): PetstoreClient\Api\Options\ListPetFeedResponseHeaders [doc $headers: array<string,string>]
 PetstoreClient\Api\Options\ListPetMatchesOptions::public function __construct(promoted ?string $cursor = NULL, promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\ListPetMatchesOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\ListPetMatchesOptions::public readonly ?int $maxRetries
@@ -393,10 +404,18 @@ PetstoreClient\Api\Options\OptionsMemoOptions::public function __construct(promo
 PetstoreClient\Api\Options\OptionsMemoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\OptionsMemoOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\OptionsMemoOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\OptionsMemoResponseHeaders::public function __construct(promoted ?string $allow = NULL) [doc $allow: string|null]
+PetstoreClient\Api\Options\OptionsMemoResponseHeaders::public readonly ?string $allow
+PetstoreClient\Api\Options\OptionsMemoResponseHeaders::public static function from(array $headers): PetstoreClient\Api\Options\OptionsMemoResponseHeaders [doc $headers: array<string,string>]
 PetstoreClient\Api\Options\PatchMemoOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\PatchMemoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\PatchMemoOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\PatchMemoOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\PatchMemoResponseHeaders::public function __construct(promoted ?int $xRevision = NULL, promoted ?array $xLabels = NULL, promoted ?bool $xArchived = NULL) [doc $xRevision: int|null; $xLabels: list<string>|null; $xArchived: bool|null]
+PetstoreClient\Api\Options\PatchMemoResponseHeaders::public readonly ?array $xLabels
+PetstoreClient\Api\Options\PatchMemoResponseHeaders::public readonly ?bool $xArchived
+PetstoreClient\Api\Options\PatchMemoResponseHeaders::public readonly ?int $xRevision
+PetstoreClient\Api\Options\PatchMemoResponseHeaders::public static function from(array $headers): PetstoreClient\Api\Options\PatchMemoResponseHeaders [doc $headers: array<string,string>; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\Options\PlaceOrderOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\PlaceOrderOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\PlaceOrderOptions::public readonly ?int $maxRetries
@@ -421,10 +440,11 @@ PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions::public function __const
 PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions::public readonly ?int $timeout
-PetstoreClient\Api\Options\SetPetPreferencesOptions::public function __construct(promoted string $nickname, promoted ?array $tags = NULL, promoted ?string $note = NULL, promoted ?DateTime $renewalDate = NULL, promoted ?DateTime $reminder = NULL, promoted ?int $intervalDays = NULL, promoted ?float $ratio = NULL, promoted ?bool $urgent = NULL, promoted ?DateInterval $snooze = NULL, promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $tags: string[]|null; $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
+PetstoreClient\Api\Options\SetPetPreferencesOptions::public function __construct(promoted string $nickname, promoted ?array $tags = NULL, promoted ?string $note = NULL, promoted ?DateTime $renewalDate = NULL, promoted ?DateTime $reminder = NULL, promoted ?int $intervalDays = NULL, promoted ?float $ratio = NULL, promoted ?bool $urgent = NULL, promoted ?DateInterval $snooze = NULL, promoted ?string $route = NULL, promoted ?array $aliases = NULL, promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $tags: string[]|null; $aliases: string[]|null; $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?DateInterval $snooze
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?DateTime $reminder
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?DateTime $renewalDate
+PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?array $aliases
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?array $tags
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?bool $urgent
@@ -433,6 +453,7 @@ PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?int $inter
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?int $timeout
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?string $note
+PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?string $route
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly string $nickname
 PetstoreClient\Api\Options\SubmitAllowanceOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\SubmitAllowanceOptions::public readonly ?array $headers
@@ -2093,9 +2114,10 @@ PetstoreClient\Psr18ApiClient::protected function execute(string $method, string
 PetstoreClient\Psr18ApiClient::protected function executeStreaming(string $method, string $url, array $headers, mixed $body, ?float $idleSeconds): PetstoreClient\RawStreamResponse [doc $headers: array<string,string>; $idleSeconds: float|null; throws PetstoreClient\Errors\NetworkException]
 PetstoreClient\Psr18ApiClient::public function __construct(promoted Psr\Http\Client\ClientInterface $httpClient, promoted Psr\Http\Message\RequestFactoryInterface $requestFactory, promoted Psr\Http\Message\StreamFactoryInterface $streamFactory, ?PetstoreClient\TransportOptions $transportOptions = NULL) [doc $httpClient: Psr\Http\Client\ClientInterface; $requestFactory: Psr\Http\Message\RequestFactoryInterface; $streamFactory: Psr\Http\Message\StreamFactoryInterface; $transportOptions: PetstoreClient\TransportOptions|null]
 PetstoreClient\Psr18ApiClient::public function close(): void
-PetstoreClient\ServerConfiguration::public function __construct(promoted string $urlTemplate, promoted ?string $description = NULL, promoted array $variables = [)) [doc $urlTemplate: string; $description: string|null; $variables: array<string,PetstoreClient\ServerVariable>]
+PetstoreClient\ServerConfiguration::public function __construct(promoted string $urlTemplate, promoted ?string $description = NULL, promoted array $variables = [), promoted ?string $name = NULL) [doc $urlTemplate: string; $description: string|null; $variables: array<string,PetstoreClient\ServerVariable>; $name: string|null]
 PetstoreClient\ServerConfiguration::public function getUrl(array $overrides = [)): string [doc $overrides: array<string,string>; return string; throws InvalidArgumentException]
 PetstoreClient\ServerConfiguration::public readonly ?string $description
+PetstoreClient\ServerConfiguration::public readonly ?string $name
 PetstoreClient\ServerConfiguration::public readonly array $variables
 PetstoreClient\ServerConfiguration::public readonly string $urlTemplate
 PetstoreClient\ServerSentEvent::public function __construct(promoted ?string $id, promoted string $event, promoted mixed $data, promoted ?int $retry, promoted string $raw) [doc $id: string|null; $event: string; $data: PetstoreClient\T|null; $retry: int|null; $raw: string]
@@ -2110,6 +2132,7 @@ PetstoreClient\ServerVariable::public readonly ?string $description
 PetstoreClient\ServerVariable::public readonly array $enumValues
 PetstoreClient\ServerVariable::public readonly string $defaultValue
 PetstoreClient\Servers::public static function all(): array [doc return PetstoreClient\ServerConfiguration[]]
+PetstoreClient\Servers::public static function byName(string $name): PetstoreClient\ServerConfiguration [doc $name: string; return PetstoreClient\ServerConfiguration; throws InvalidArgumentException]
 PetstoreClient\Servers::public static function server0(): PetstoreClient\ServerConfiguration
 PetstoreClient\Servers::public static function server1(): PetstoreClient\ServerConfiguration
 PetstoreClient\Servers::public static function server2(): PetstoreClient\ServerConfiguration
@@ -2400,6 +2423,11 @@ final class PetstoreClient\Api\GetMultiServerPetInfoServerPrimary extends Petsto
 final class PetstoreClient\Api\GetMultiServerPetInfoServerRegional extends PetstoreClient\Api\GetMultiServerPetInfoServer
 final class PetstoreClient\Api\GetPetByIdServerCDNBackedReadEndpointForPetDetails extends PetstoreClient\Api\GetPetByIdServer
 final class PetstoreClient\Api\GetStagingPetInfoServerStagingServer extends PetstoreClient\Api\GetStagingPetInfoServer
+final class PetstoreClient\Api\Options\GetMemoResponseHeaders
+final class PetstoreClient\Api\Options\HeadMemoResponseHeaders
+final class PetstoreClient\Api\Options\ListPetFeedResponseHeaders
+final class PetstoreClient\Api\Options\OptionsMemoResponseHeaders
+final class PetstoreClient\Api\Options\PatchMemoResponseHeaders
 final class PetstoreClient\Auth\AdminBasicAuthenticator extends PetstoreClient\Auth\BasicAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\ApiKeyHeaderAuthenticator extends PetstoreClient\Auth\ApiKeyAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\ApiKeyQueryAuthenticator extends PetstoreClient\Auth\ApiKeyAuthenticator implements PetstoreClient\Auth\Authenticator

@@ -839,11 +839,12 @@ func isRetryableTransportError(err error) bool {
 }
 
 // isIdempotentMethod reports whether a request may be sent again after its
-// connection dropped without changing server state (RFC 9110 section 9.2.2).
-// A POST or PATCH is sent once, because the server may already have acted on it.
+// connection dropped without changing server state (RFC 9110 section 9.2.2, plus
+// QUERY, which is safe and idempotent). A POST or PATCH is sent once, because the
+// server may already have acted on it.
 func isIdempotentMethod(method string) bool {
 	switch strings.ToUpper(method) {
-	case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE":
+	case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY":
 		return true
 	}
 	return false
@@ -1084,11 +1085,20 @@ func serializeBodyOrdered(body any, contentType string, rawBody bool, order []st
 			 *    `+` for spaces (HTML form-encoding), matching every other SDK.
 			 * url.Values.Encode also sorts keys for deterministic output. */
 			var pairs []string
-			add := func(k, v string) {
+			add := func(k, v string, allowReserved bool) {
+				if allowReserved {
+					pairs = append(pairs, url.QueryEscape(k)+"="+encodeQueryAllowingReserved(v))
+					return
+				}
 				pairs = append(pairs, url.QueryEscape(k)+"="+url.QueryEscape(v))
 			}
 			for _, k := range orderedKeys(params, order) {
 				v := params[k]
+				/* OAS allowReserved in the field's Encoding Object: the value
+				 * keeps the RFC 3986 reserved characters literal, exactly as a
+				 * query parameter with allowReserved does. A multipart part
+				 * encoding has no effect on a form-urlencoded field. */
+				v, allowReserved, _ := unwrapFormValue(v)
 				if v == nil {
 					continue
 				}
@@ -1098,11 +1108,11 @@ func serializeBodyOrdered(body any, contentType string, rawBody bool, order []st
 				}
 				if items, isArray := toStringSlice(v); isArray {
 					for _, item := range items {
-						add(k, item)
+						add(k, item, allowReserved)
 					}
 					continue
 				}
-				add(k, stringify(v))
+				add(k, stringify(v), allowReserved)
 			}
 			return []byte(strings.Join(pairs, "&")), nil
 		}
@@ -1190,7 +1200,10 @@ func buildMultipartBodyOrdered(formFields map[string]any, boundary string, order
 	_ = writer.SetBoundary(boundary)
 
 	for _, name := range orderedKeys(formFields, order) {
-		value := formFields[name]
+		/* allowReserved has no effect on a multipart part: the value is sent
+		 * unchanged. A part encoding (OAS Encoding Object contentType and
+		 * headers) applies to every part written for the field. */
+		value, _, encoding := unwrapFormValue(formFields[name])
 		if value == nil {
 			continue
 		}
@@ -1204,13 +1217,13 @@ func buildMultipartBodyOrdered(formFields map[string]any, boundary string, order
 		rv := reflect.ValueOf(value)
 		if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array) && rv.Type().Elem().Kind() != reflect.Uint8 {
 			for i := 0; i < rv.Len(); i++ {
-				if err := writeMultipartField(writer, name, rv.Index(i).Interface()); err != nil {
+				if err := writeMultipartField(writer, name, rv.Index(i).Interface(), encoding); err != nil {
 					return nil, err
 				}
 			}
 			continue
 		}
-		if err := writeMultipartField(writer, name, value); err != nil {
+		if err := writeMultipartField(writer, name, value, encoding); err != nil {
 			return nil, err
 		}
 	}
@@ -1222,20 +1235,21 @@ func buildMultipartBodyOrdered(formFields map[string]any, boundary string, order
 
 // writeMultipartField writes one form field to the multipart body, choosing the
 // part encoding from the value's type: a plain text field, a file part, or a
-// JSON part.
-func writeMultipartField(writer *multipart.Writer, name string, value any) error {
+// JSON part. A non-nil encoding (the field's OAS Encoding Object) replaces the
+// part Content-Type with the declared one and adds the declared part headers.
+func writeMultipartField(writer *multipart.Writer, name string, value any, encoding *encodedPart) error {
 	if value == nil {
 		return nil
 	}
 	switch v := value.(type) {
 	case string:
-		return writer.WriteField(name, v)
+		return writeTextMultipartPart(writer, name, v, encoding)
 	case *os.File:
 		if v == nil {
 			return nil
 		}
 		fileName := filepath.Base(v.Name())
-		part, err := createMultipartFilePart(writer, name, fileName)
+		part, err := createEncodedFilePart(writer, name, fileName, encoding)
 		if err != nil {
 			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
 		}
@@ -1245,21 +1259,21 @@ func writeMultipartField(writer *multipart.Writer, name string, value any) error
 		_, err = io.Copy(part, v)
 		return err
 	case io.Reader:
-		part, err := createMultipartFilePart(writer, name, name)
+		part, err := createEncodedFilePart(writer, name, name, encoding)
 		if err != nil {
 			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
 		}
 		_, err = io.Copy(part, v)
 		return err
 	case []byte:
-		part, err := createMultipartFilePart(writer, name, name)
+		part, err := createEncodedFilePart(writer, name, name, encoding)
 		if err != nil {
 			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
 		}
 		_, err = part.Write(v)
 		return err
 	case map[string]any:
-		return writeJSONMultipartPart(writer, name, v)
+		return writeJSONMultipartPart(writer, name, v, encoding)
 	default:
 		/* Object/model/map form values are serialised as JSON, so the part must
 		 * advertise Content-Type: application/json (matching the other SDKs).
@@ -1267,10 +1281,64 @@ func writeMultipartField(writer *multipart.Writer, name string, value any) error
 		 * part carrying the same stringify form as a query or form-urlencoded
 		 * value: true, 3, 2024-01-15T10:30:00.000+00:00, red. */
 		if isJSONObjectValue(v) {
-			return writeJSONMultipartPart(writer, name, v)
+			return writeJSONMultipartPart(writer, name, v, encoding)
 		}
-		return writer.WriteField(name, stringify(v))
+		return writeTextMultipartPart(writer, name, stringify(v), encoding)
 	}
+}
+
+// writeTextMultipartPart writes a plain text part. Without an encoding it has
+// no Content-Type; with one it carries the declared Content-Type and headers.
+func writeTextMultipartPart(writer *multipart.Writer, name, text string, encoding *encodedPart) error {
+	if encoding == nil {
+		return writer.WriteField(name, text)
+	}
+	if err := validateMultipartFieldName(name); err != nil {
+		return err
+	}
+	part, err := createOrderedPart(writer, encodedPartFields(
+		fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(name)), "", encoding))
+	if err != nil {
+		return fmt.Errorf("failed to create multipart field %q: %w", name, err)
+	}
+	_, err = io.WriteString(part, text)
+	return err
+}
+
+// encodedPartFields lists the header fields of a part in the order they are
+// written: Content-Disposition, then the Content-Type (the declared one when
+// the encoding has it, otherwise contentType; none when both are empty), then
+// each declared part header in declaration order.
+func encodedPartFields(disposition, contentType string, encoding *encodedPart) [][2]string {
+	fields := make([][2]string, 0, 2+len(encoding.headers))
+	fields = append(fields, [2]string{"Content-Disposition", disposition})
+	if encoding.contentType != "" {
+		contentType = encoding.contentType
+	}
+	if contentType != "" {
+		fields = append(fields, [2]string{"Content-Type", contentType})
+	}
+	return append(fields, encoding.headers...)
+}
+
+// createOrderedPart starts a part whose header fields are written in the given
+// order. multipart.Writer.CreatePart writes the fields of a MIMEHeader sorted by
+// name, which would move a declared part header before Content-Type, so the
+// fields after the first are written as further lines of the first field's
+// value. Every name and value is checked first to hold no CR, LF or NUL (and a
+// name no colon), so no field can be split or a header injected.
+func createOrderedPart(writer *multipart.Writer, fields [][2]string) (io.Writer, error) {
+	var block strings.Builder
+	for i, field := range fields {
+		if field[0] == "" || strings.ContainsAny(field[0], "\r\n\x00:") || strings.ContainsAny(field[1], "\r\n\x00") {
+			return nil, fmt.Errorf("multipart part header %q must not contain CR, LF, or NUL characters", field[0])
+		}
+		if i > 0 {
+			block.WriteString("\r\n" + field[0] + ": ")
+		}
+		block.WriteString(field[1])
+	}
+	return writer.CreatePart(textproto.MIMEHeader{fields[0][0]: []string{block.String()}})
 }
 
 // isJSONObjectValue reports whether a multipart form value should be emitted as
@@ -1303,7 +1371,7 @@ func isJSONObjectValue(value any) bool {
 // CreateFormField sets only Content-Disposition, which would leave the JSON
 // part to be treated as text/plain by content-type-dispatching servers, so the
 // part header is built manually here.
-func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) error {
+func writeJSONMultipartPart(writer *multipart.Writer, name string, value any, encoding *encodedPart) error {
 	/* serialize, not json.Marshal: a JSON part goes out with the same bytes as
 	 * a JSON request body (no HTML escaping of < > &). */
 	jsonBytes, err := serialize(value)
@@ -1313,10 +1381,16 @@ func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) er
 	if err := validateMultipartFieldName(name); err != nil {
 		return err
 	}
-	header := make(textproto.MIMEHeader)
-	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(name)))
-	header.Set("Content-Type", "application/json")
-	part, err := writer.CreatePart(header)
+	disposition := fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(name))
+	var part io.Writer
+	if encoding != nil {
+		part, err = createOrderedPart(writer, encodedPartFields(disposition, "application/json", encoding))
+	} else {
+		header := make(textproto.MIMEHeader)
+		header.Set("Content-Disposition", disposition)
+		header.Set("Content-Type", "application/json")
+		part, err = writer.CreatePart(header)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to create multipart field %q: %w", name, err)
 	}
@@ -1370,13 +1444,23 @@ func mimeTypeForFilename(filename string) string {
 // RFC 5987 filename*= parameter alongside an ASCII fallback so that servers
 // receive the original filename intact rather than mangled UTF-8.
 func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName string) (io.Writer, error) {
+	return createEncodedFilePart(writer, fieldName, fileName, nil)
+}
+
+// createEncodedFilePart is createMultipartFilePart with the field's part
+// encoding: a declared Content-Type replaces the one detected from the
+// filename, and the declared part headers follow it.
+func createEncodedFilePart(writer *multipart.Writer, fieldName, fileName string, encoding *encodedPart) (io.Writer, error) {
 	if err := validateMultipartFilename(fileName); err != nil {
 		return nil, err
 	}
+	disposition := fmt.Sprintf(`form-data; name="%s"; %s`,
+		escapeQuotes(fieldName), buildFilenameDirective(fileName))
+	if encoding != nil {
+		return createOrderedPart(writer, encodedPartFields(disposition, mimeTypeForFilename(fileName), encoding))
+	}
 	header := make(textproto.MIMEHeader)
-	header.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; %s`,
-			escapeQuotes(fieldName), buildFilenameDirective(fileName)))
+	header.Set("Content-Disposition", disposition)
 	header.Set("Content-Type", mimeTypeForFilename(fileName))
 	return writer.CreatePart(header)
 }

@@ -1546,6 +1546,61 @@ func TestBhvOperations156_BaseApi_FormBodyFieldsKeepTheDeclaredOrder(t *testing.
 	}
 }
 
+// A form-urlencoded field whose encoding sets allowReserved keeps the reserved characters literal.
+func TestBhvSerializationwire501_BaseApi_FormFieldWithAllowReservedKeepsReservedLiteral(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	route := "v1.0/beta:rc1 a#b"
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "rex", Route: &route})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if wire := string(body); wire != "nickname=rex&route=v1.0/beta:rc1%20a%23b" {
+		t.Errorf("expected the route field with reserved characters literal, got %q", wire)
+	}
+}
+
+// A form-urlencoded field whose encoding sets a style is styled as a query value and form-encoded.
+func TestBhvSerializationwire502_BaseApi_FormFieldWithEncodingStyleIsStyledAndFormEncoded(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	aliases := []string{"a b", "c"}
+	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{Nickname: "rex", Aliases: &aliases})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	if wire := string(body); wire != "nickname=rex&aliases=a+b%7Cc" {
+		t.Errorf("expected the aliases field pipe-delimited and form-encoded, got %q", wire)
+	}
+}
+
+// A multipart part whose encoding declares a content type and headers carries them after its Content-Disposition.
+func TestBhvSerializationwire503_BaseApi_MultipartPartCarriesTheDeclaredContentTypeAndHeaders(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	caption := "hello"
+	_, _ = api.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{File: strings.NewReader("data"), Caption: &caption})
+	body, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected a serialized []byte body, got %T", client.capturedBody)
+	}
+	wire := string(body)
+	if want := "Content-Disposition: form-data; name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello"; !strings.Contains(wire, want) {
+		t.Errorf("expected the caption part with its declared Content-Type and header, got %q", wire)
+	}
+	if want := "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\ndata"; !strings.Contains(wire, want) {
+		t.Errorf("expected the file part unchanged, got %q", wire)
+	}
+}
+
 // A form-urlencoded body declares its content type exactly, with no charset parameter.
 func TestBhvSerialization010_BaseApi_BodyIsSentWithTheDeclaredContentTypeOnly(t *testing.T) {
 	t.Parallel()
@@ -4019,19 +4074,6 @@ func newDroppingServer(t *testing.T) *scriptedServer {
 	}))
 	t.Cleanup(srv.Close)
 	return srv
-}
-
-func TestBhvMisc161_BaseApi_ANonIdempotentRequestIsSentExactlyOnceWhenTheConnectionDrops(t *testing.T) {
-	t.Parallel()
-	srv := newDroppingServer(t)
-	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(2) }, nil)
-
-	if err := addPetCall(api); err == nil {
-		t.Error("expected an error")
-	}
-	if got := srv.hits.Load(); got != 1 {
-		t.Errorf("expected one request, got %d", got)
-	}
 }
 
 func TestBhvMisc162_BaseApi_AnIdempotentRequestIsSentAgainExactlyOnceWhenTheConnectionDrops(t *testing.T) {

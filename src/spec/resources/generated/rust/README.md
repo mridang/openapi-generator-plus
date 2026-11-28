@@ -64,6 +64,10 @@ response arrived, and `TooManyRequestsError` is HTTP 429. See
 Every operation has a `..._with_http_info` variant returning an `ApiResult<T>`
 with `status_code()`, `data()`, `raw_body()` and the lower-cased `headers()`.
 It is the way to read a response header.
+An operation whose success response declares headers also has a
+`<Operation>ResponseHeaders` type;
+`<Operation>ResponseHeaders::from_headers(result.headers())` reads them in their
+declared types.
 
 ### Timeouts
 

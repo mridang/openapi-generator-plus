@@ -126,7 +126,7 @@
      * value directly — it is encoded exactly once. A `format: date`
      * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
      * before it flows through serializeStyled. */
-    path = path.replaceAll('{' + '{{{baseName}}}' + '}', {{#vendorExtensions.param.queryContent}}encodePathSegment(serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}serializeStyled('{{baseName}}', {{#isDate}}stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates({{paramName}}){{/items.isDate}}{{^items.isDate}}{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}{{paramName}}{{/isArray}}{{/isDate}}, 'path','{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString(){{/vendorExtensions.param.queryContent}});
+    path = path.replaceAll('{' + '{{{baseName}}}' + '}', {{#vendorExtensions.param.pathAllowReserved}}allowReservedInPath({{/vendorExtensions.param.pathAllowReserved}}{{#vendorExtensions.param.queryContent}}encodePathSegment(serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}serializeStyled('{{baseName}}', {{#isDate}}stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates({{paramName}}){{/items.isDate}}{{^items.isDate}}{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}{{paramName}}{{/isArray}}{{/isDate}}, 'path','{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString(){{/vendorExtensions.param.queryContent}}{{#vendorExtensions.param.pathAllowReserved}}){{/vendorExtensions.param.pathAllowReserved}});
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -239,30 +239,39 @@
     /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
        base_api. Operation cookie params are interpolated straight into the
        Cookie request header, so an attacker-controlled CR/LF/control-char
-       value would otherwise smuggle in extra headers. Validate every
-       assembled value the same way the auth-cookie path does and fail closed
-       with the same ArgumentError so header injection is impossible. */
-    final operationCookieValueRe = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
-    void addCookiePart(String name, String value) {
-      if (!operationCookieValueRe.hasMatch(value)) {
-        throw ArgumentError("Cookie value for '$name' contains characters forbidden by RFC 6265");
-      }
-      cookieParts.add('$name=$value');
-    }
+       value would otherwise smuggle in extra headers. cookiePairs validates
+       every assembled value the same way the auth-cookie path does and fails
+       closed with the same ArgumentError so header injection is impossible;
+       a single styled string becomes exactly `name=value`. */
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+{{#vendorExtensions.param.cookieStyle}}
+    cookieParts.addAll([cookiePairs('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, {{isExplode}})].where((pair) => pair.isNotEmpty));
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+    cookieParts.add(cookiePairs('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}}, false));
+{{/vendorExtensions.param.cookieStyle}}
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+{{#vendorExtensions.param.cookieStyle}}
+      cookieParts.addAll([cookiePairs('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, {{isExplode}})].where((pair) => pair.isNotEmpty));
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+      cookieParts.add(cookiePairs('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}}, false));
+{{/vendorExtensions.param.cookieStyle}}
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+{{#vendorExtensions.param.cookieStyle}}
+      cookieParts.addAll([cookiePairs('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, {{isExplode}})].where((pair) => pair.isNotEmpty));
+{{/vendorExtensions.param.cookieStyle}}
+{{^vendorExtensions.param.cookieStyle}}
+      cookieParts.add(cookiePairs('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}}, false));
+{{/vendorExtensions.param.cookieStyle}}
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}
@@ -282,28 +291,31 @@
      *     filename-derived Content-Type instead of stringifying the bytes;
      *   - a scalar is stringified at the edge by the serializer.
      * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
+     * the wire (form-optional-null-omitted). A form-urlencoded field whose
+     * Encoding Object sets style or explode is written with the query
+     * styling, and a multipart field whose Encoding Object declares a part
+     * Content-Type or part headers is wrapped by encodedPart. */
     final formBody = <String, Object?>{};
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
-    formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+    formBody['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formStyled}}maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, 'query', '{{{dataType}}}', '', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}r'{{{.}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, const <String, String>{ {{#vendorExtensions.param.partHeaders}}r'{{{name}}}': r'{{{value}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}} }){{/vendorExtensions.param.partEncoded}};
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null) {
-      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+      formBody['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formStyled}}maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, 'query', '{{{dataType}}}', '', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}r'{{{.}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, const <String, String>{ {{#vendorExtensions.param.partHeaders}}r'{{{name}}}': r'{{{value}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}} }){{/vendorExtensions.param.partEncoded}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     if (options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+      formBody['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formStyled}}maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, 'query', '{{{dataType}}}', '', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}r'{{{.}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, const <String, String>{ {{#vendorExtensions.param.partHeaders}}r'{{{name}}}': r'{{{value}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}} }){{/vendorExtensions.param.partEncoded}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+      formBody['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formStyled}}maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}, 'query', '{{{dataType}}}', '', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}){{/vendorExtensions.param.formStyled}}{{^vendorExtensions.param.formStyled}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}{{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.formStyled}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}r'{{{.}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, const <String, String>{ {{#vendorExtensions.param.partHeaders}}r'{{{name}}}': r'{{{value}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}} }){{/vendorExtensions.param.partEncoded}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}

@@ -484,6 +484,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("raw_stream_response.mustache", invokerFolder, "RawStreamResponse.php"),
             new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.php"),
+            new SupportingFileSpec("encoded_part.mustache", invokerFolder, "EncodedPart.php"),
             new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.php"),
             new SupportingFileSpec("page.mustache", invokerFolder, "Page.php"),
             new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.php"),
@@ -2278,6 +2279,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     final Object deco = op.vendorExtensions.get("op");
                     if (deco instanceof Map) {
                         final Map<String, Object> decoMap = (Map<String, Object>) deco;
+                        writeResponseHeadersFile(op, decoMap);
                         hasPagedOperation |= markPaged(op, decoMap);
                         final Object sigArgs = decoMap.get("signatureArgs");
                         if (sigArgs instanceof List) {
@@ -2307,6 +2309,63 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return processed;
+    }
+
+    /**
+     * D168: writes {@code <Operation>ResponseHeaders} next to the operation's Options class when its
+     * success response declares headers. Each row gains {@code phpType} (the native property type),
+     * {@code phpDocType} (the docblock type) and {@code phpItemType} (the scalar the value parses to).
+     *
+     * @param op the operation
+     * @param decorators the operation decorators, which hold the shared {@code responseHeaders} rows
+     */
+    @SuppressWarnings("unchecked")
+    void writeResponseHeadersFile(final CodegenOperation op, final Map<String, Object> decorators) {
+        final Object declared = decorators.get("responseHeaders");
+        if (!Boolean.TRUE.equals(decorators.get("hasResponseHeaders")) || !(declared instanceof List)) {
+            return;
+        }
+        final List<Map<String, Object>> rows = (List<Map<String, Object>>) declared;
+        final Set<String> scalars = new HashSet<>();
+        for (final Map<String, Object> row : rows) {
+            final String item = phpScalarOfHeaderKind(String.valueOf(row.get("kind")));
+            final boolean array = Boolean.TRUE.equals(row.get("isArray"));
+            scalars.add(item);
+            row.put("phpItemType", item);
+            row.put("phpType", array ? "array" : item);
+            row.put("phpDocType", array ? "list<" + item + ">" : item);
+            row.put("lowerWireName", String.valueOf(row.get("wireName")).toLowerCase(Locale.ROOT));
+        }
+        final String className = String.valueOf(decorators.get("responseHeadersClassName"));
+        final Map<String, Object> ctx = new HashMap<>();
+        /* Only the parsers a declared header needs are emitted, since an unused private method
+         * fails the static analysis. */
+        ctx.put("parsesInt", scalars.contains("int"));
+        ctx.put("parsesFloat", scalars.contains("float"));
+        ctx.put("parsesBool", scalars.contains("bool"));
+        ctx.put("parsesAny", scalars.size() > 1 || !scalars.contains("string"));
+        ctx.put("className", className);
+        ctx.put("namespace", invokerPackage + "\\Api\\Options");
+        ctx.put("invokerPackage", invokerPackage);
+        ctx.put("operationId", op.operationId);
+        ctx.put("responseHeaders", rows);
+        writePhpClassFile(Path.of(outputFolder, SRC_BASE_PATH, "Api", "Options").toString(),
+                className, "api/response_headers.mustache", ctx);
+    }
+
+    /** The PHP scalar a response header value of the given D168 kind parses to. */
+    static String phpScalarOfHeaderKind(final String kind) {
+        switch (kind) {
+            case "integer":
+            case "long":
+                return "int";
+            case "number":
+                return "float";
+            case "boolean":
+                return "bool";
+            default:
+                return "string";
+        }
     }
 
     /**

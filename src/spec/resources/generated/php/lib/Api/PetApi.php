@@ -212,7 +212,11 @@ class PetApi extends BaseApi implements PetApiInterface
         $headerParams = [];
         $requestBody = [];
         $requestBody['files'] = $options->files;
-        $requestBody['metadata'] = $options->metadata;
+        $requestBody['metadata'] = ValueSerializer::encodedPart(
+            $options->metadata,
+            'application/json',
+            [],
+        );
 
         /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Photo>> $result */
         $result = $this->invokeApiForResult(
@@ -396,7 +400,11 @@ class PetApi extends BaseApi implements PetApiInterface
         $requestBody = [];
         $requestBody['file'] = $options->file;
         if ($options->caption !== null) {
-            $requestBody['caption'] = $options->caption;
+            $requestBody['caption'] = ValueSerializer::encodedPart(
+                $options->caption,
+                'text/markdown',
+                ['X-Caption-Format' => 'commonmark'],
+            );
         }
 
         /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
@@ -1737,6 +1745,9 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Get a <plain> "text" summary & it's short
      * Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
+     *
+     * Response 200 example: Example
+     * hello
      * @param \DateTime $asOf Summary date, sent as a matrix-style path segment
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -3572,6 +3583,7 @@ class PetApi extends BaseApi implements PetApiInterface
         $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = [];
+        $allowReservedKeys['form:route'] = true;
         $requestBody['nickname'] = $options->nickname;
         if ($options->tags !== null) {
             $requestBody['tags'] = $options->tags;
@@ -3596,6 +3608,20 @@ class PetApi extends BaseApi implements PetApiInterface
         }
         if ($options->snooze instanceof \DateInterval) {
             $requestBody['snooze'] = $options->snooze;
+        }
+        if ($options->route !== null) {
+            $requestBody['route'] = $options->route;
+        }
+        if ($options->aliases !== null) {
+            $requestBody = ValueSerializer::putQueryParam($requestBody, 'aliases', ValueSerializer::serializeStyled(
+                'aliases',
+                $options->aliases,
+                'query',
+                \Ds\Vector::class,
+                null,
+                'pipeDelimited',
+                false,
+            ));
         }
 
         /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */

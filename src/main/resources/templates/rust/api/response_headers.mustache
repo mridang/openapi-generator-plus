@@ -1,0 +1,153 @@
+use std::collections::HashMap;
+
+use crate::errors::SerializationError;
+
+/// The headers the success response of the {{operationId}} operation declares,
+/// read in their declared types.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct {{className}} {
+{{#responseHeaders}}
+{{#hasDescription}}
+    /// {{{description}}}
+{{/hasDescription}}
+{{^hasDescription}}
+    /// The `{{wireName}}` response header.
+{{/hasDescription}}
+{{#hasExample}}
+    /// Example:
+    /// ```json
+    /// {{{example}}}
+    /// ```
+{{/hasExample}}
+    {{varName}}: Option<{{{dataType}}}>,
+{{/responseHeaders}}
+}
+
+/// Returns the value of the header called `name`, compared without case.
+fn header_value<'a>(headers: &'a HashMap<String, String>, name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case(name))
+        .map(|(_, value)| value.as_str())
+}
+
+{{#parsesValues}}
+/// The error for a header value that does not parse as its declared type.
+fn invalid(name: &str, kind: &str, value: &str) -> SerializationError {
+    SerializationError::new(
+        format!("Response header '{}' is not a valid {}: '{}'", name, kind, value),
+        None,
+    )
+}
+
+{{/parsesValues}}
+impl {{className}} {
+    /// Reads the declared headers from the response headers, as
+    /// `ApiResult::headers()` returns them; names are compared without case. A
+    /// header that is absent is left `None`, and a value that does not parse as
+    /// its declared type is a `SerializationError`.
+    pub fn from_headers(headers: &HashMap<String, String>) -> Result<Self, SerializationError> {
+        Ok(Self {
+{{#responseHeaders}}
+{{#isArray}}
+{{#isString}}
+            {{varName}}: header_value(headers, "{{{wireName}}}")
+                .map(|raw| raw.split(',').map(|item| item.trim().to_string()).collect()),
+{{/isString}}
+{{^isString}}
+            {{varName}}: header_value(headers, "{{{wireName}}}")
+                .map(|raw| {
+                    raw.split(',')
+                        .map(|item| {
+                            let item = item.trim();
+{{#isInteger}}
+                            item.parse::<{{{itemDataType}}}>().map_err(|_| invalid("{{{wireName}}}", "{{kind}}", item))
+{{/isInteger}}
+{{#isLong}}
+                            item.parse::<{{{itemDataType}}}>().map_err(|_| invalid("{{{wireName}}}", "{{kind}}", item))
+{{/isLong}}
+{{#isNumber}}
+                            item.parse::<{{{itemDataType}}}>()
+                                .ok()
+                                .filter(|value| value.is_finite())
+                                .ok_or_else(|| invalid("{{{wireName}}}", "{{kind}}", item))
+{{/isNumber}}
+{{#isBoolean}}
+                            match item {
+                                "true" => Ok(true),
+                                "false" => Ok(false),
+                                _ => Err(invalid("{{{wireName}}}", "{{kind}}", item)),
+                            }
+{{/isBoolean}}
+                        })
+                        .collect::<Result<{{{dataType}}}, SerializationError>>()
+                })
+                .transpose()?,
+{{/isString}}
+{{/isArray}}
+{{^isArray}}
+{{#isString}}
+            {{varName}}: header_value(headers, "{{{wireName}}}").map(str::to_string),
+{{/isString}}
+{{^isString}}
+            {{varName}}: header_value(headers, "{{{wireName}}}")
+                .map(|item| {
+{{#isInteger}}
+                    item.parse::<{{{itemDataType}}}>().map_err(|_| invalid("{{{wireName}}}", "{{kind}}", item))
+{{/isInteger}}
+{{#isLong}}
+                    item.parse::<{{{itemDataType}}}>().map_err(|_| invalid("{{{wireName}}}", "{{kind}}", item))
+{{/isLong}}
+{{#isNumber}}
+                    item.parse::<{{{itemDataType}}}>()
+                        .ok()
+                        .filter(|value| value.is_finite())
+                        .ok_or_else(|| invalid("{{{wireName}}}", "{{kind}}", item))
+{{/isNumber}}
+{{#isBoolean}}
+                    match item {
+                        "true" => Ok(true),
+                        "false" => Ok(false),
+                        _ => Err(invalid("{{{wireName}}}", "{{kind}}", item)),
+                    }
+{{/isBoolean}}
+                })
+                .transpose()?,
+{{/isString}}
+{{/isArray}}
+{{/responseHeaders}}
+        })
+    }
+{{#responseHeaders}}
+
+{{#hasDescription}}
+    /// {{{description}}}
+{{/hasDescription}}
+{{^hasDescription}}
+    /// The `{{wireName}}` response header.
+{{/hasDescription}}
+{{#hasExample}}
+    /// Example:
+    /// ```json
+    /// {{{example}}}
+    /// ```
+{{/hasExample}}
+{{#isArray}}
+    pub fn {{varName}}(&self) -> Option<&[{{{itemDataType}}}]> {
+        self.{{varName}}.as_deref()
+    }
+{{/isArray}}
+{{^isArray}}
+{{#isString}}
+    pub fn {{varName}}(&self) -> Option<&str> {
+        self.{{varName}}.as_deref()
+    }
+{{/isString}}
+{{^isString}}
+    pub fn {{varName}}(&self) -> Option<{{{dataType}}}> {
+        self.{{varName}}
+    }
+{{/isString}}
+{{/isArray}}
+{{/responseHeaders}}
+}

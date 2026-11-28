@@ -13,6 +13,8 @@ pub struct SetPetPreferencesOptions {
     pub ratio: Option<f64>,
     pub urgent: Option<bool>,
     pub snooze: Option<chrono::TimeDelta>,
+    pub route: Option<String>,
+    pub aliases: Option<Vec<String>>,
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
     pub timeout: Option<Duration>,
@@ -42,6 +44,8 @@ impl SetPetPreferencesOptions {
             ratio: None,
             urgent: None,
             snooze: None,
+            route: None,
+            aliases: None,
             timeout: None,
             max_retries: None,
             headers: HashMap::new(),
@@ -93,6 +97,18 @@ impl SetPetPreferencesOptions {
     /// Sets the snooze field.
     pub fn snooze(mut self, snooze: chrono::TimeDelta) -> Self {
         self.snooze = Some(snooze);
+        self
+    }
+
+    /// Sets the route field.
+    pub fn route(mut self, route: String) -> Self {
+        self.route = Some(route);
+        self
+    }
+
+    /// Sets the aliases field.
+    pub fn aliases(mut self, aliases: Vec<String>) -> Self {
+        self.aliases = Some(aliases);
         self
     }
 

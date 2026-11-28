@@ -1943,11 +1943,21 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `memo_id` - String.t() - The memo to address
 
+  ### `memo_id` example — Example
+
+      m1
+
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
 
     * `opts` - Keyword list. Supports `:server` (per-call server override).
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  Response 200 example: A short memo
+
+      {"memoId":"m1","text":"Restock on Friday"}
+
+  Extension x-audience: internal-tools
 
   ## Returns
 
@@ -3275,8 +3285,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Checks that a memo exists with a HEAD request
 
+  Revisions of one memo, read and changed with the less common HTTP methods.
+
   ## Parameters
-    * `memo_id` - String.t() - The memo to address
+    * `memo_id` - String.t() - The memo whose revisions are read or changed
+
+  ### `memo_id` example — Example
+
+      m1
 
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
 
@@ -3514,8 +3530,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Lists the methods a memo accepts with an OPTIONS request
 
+  Revisions of one memo, read and changed with the less common HTTP methods.
+
   ## Parameters
-    * `memo_id` - String.t() - The memo to address
+    * `memo_id` - String.t() - The memo whose revisions are read or changed
+
+  ### `memo_id` example — Example
+
+      m1
 
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
 
@@ -3639,8 +3661,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Changes a memo with a PATCH request
 
+  Revisions of one memo, read and changed with the less common HTTP methods.
+
   ## Parameters
-    * `memo_id` - String.t() - The memo to address
+    * `memo_id` - String.t() - The memo whose revisions are read or changed
+
+  ### `memo_id` example — Example
+
+      m1
     * `memo` - Memo - The fields of the memo to change
 
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
@@ -3648,6 +3676,18 @@ defmodule PetstoreClient.Api.StoreApi do
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  Request body example: A short memo
+
+      {"memoId":"m1","text":"Restock on Friday"}
+
+  Request body example: A memo kept as a file
+
+      https://example.com/memos/m1.json
+
+  Response 200 example: A short memo
+
+      {"memoId":"m1","text":"Restock on Friday"}
 
   ## Returns
 
@@ -4307,8 +4347,14 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Echoes a memo request with a TRACE request
 
+  Revisions of one memo, read and changed with the less common HTTP methods.
+
   ## Parameters
-    * `memo_id` - String.t() - The memo to address
+    * `memo_id` - String.t() - The memo whose revisions are read or changed
+
+  ### `memo_id` example — Example
+
+      m1
 
     * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
 

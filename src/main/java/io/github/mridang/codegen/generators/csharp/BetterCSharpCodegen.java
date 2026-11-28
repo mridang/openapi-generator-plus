@@ -1377,8 +1377,49 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             flagJsonContent(op.pathParams);
             flagJsonContent(op.headerParams);
             flagJsonContent(op.cookieParams);
+            writeResponseHeadersFile(op, deco);
         }
         return result;
+    }
+
+    /**
+     * D168: writes the {@code <OperationId>ResponseHeaders} class of an operation whose success
+     * responses declare headers, next to its Options class. A header read as a string (any schema
+     * that is not a number or a boolean) is typed {@code string}, so a format the parser does not
+     * read never gives a property the value cannot be assigned to.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(final CodegenOperation op, final Map<String, Object> deco) {
+        final Object declared = deco.get("responseHeaders");
+        if (!Boolean.TRUE.equals(deco.get("hasResponseHeaders")) || !(declared instanceof List)) {
+            return;
+        }
+        final String className = String.valueOf(deco.get("responseHeadersClassName"));
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        boolean hasParsed = false;
+        int index = 0;
+        for (final Map<String, Object> source : (List<Map<String, Object>>) declared) {
+            final Map<String, Object> row = new HashMap<>(source);
+            final boolean isString = Boolean.TRUE.equals(source.get("isString"));
+            final boolean isArray = Boolean.TRUE.equals(source.get("isArray"));
+            final String itemType = isString ? "string" : String.valueOf(source.get("itemDataType"));
+            row.put("itemType", itemType);
+            row.put("fieldType", isArray ? "List<" + itemType + ">" : itemType);
+            row.put("propertyName", NamingConvention.PASCAL_CASE.apply(String.valueOf(source.get("varName"))));
+            row.put("localName", "header" + index);
+            hasParsed |= !isString;
+            rows.add(row);
+            index++;
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("packageName", packageName);
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("rows", rows);
+        context.put("hasParsed", hasParsed);
+        final String filePath = getOptionsFilePath(op.operationId, className);
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
     }
 
     /**

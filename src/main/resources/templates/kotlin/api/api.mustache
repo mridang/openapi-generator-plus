@@ -47,9 +47,15 @@ import {{modelPackage}}.{{{returnType}}}
 {{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagSummary}}
+ * {{{.}}}
+{{/tagSummary}}
 {{#tagDescription}}
  * {{{.}}}
 {{/tagDescription}}
+{{#tagParent}}
+ * It belongs to the {{{.}}} API group.
+{{/tagParent}}
 {{#tagExternalDocs}}
  * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/tagExternalDocs}}
@@ -124,6 +130,7 @@ class {{classname}} : BaseApi, {{classname}}Interface {
 {{#vendorExtensions.op.responseSummaries}}
      * {{#lambda.kdoc}}{{{.}}}{{/lambda.kdoc}}
 {{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
 {{#pathParams}}
      * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/pathParams}}
@@ -198,6 +205,7 @@ class {{classname}} : BaseApi, {{classname}}Interface {
 {{#vendorExtensions.op.responseSummaries}}
      * {{#lambda.kdoc}}{{{.}}}{{/lambda.kdoc}}
 {{/vendorExtensions.op.responseSummaries}}
+{{>api/operation_doc_examples}}
 {{#pathParams}}
      * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}

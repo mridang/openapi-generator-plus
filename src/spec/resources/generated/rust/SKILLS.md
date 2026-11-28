@@ -229,7 +229,7 @@ One optional hook runs around every call: `client.with_call_hook(Arc::new(hook))
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them. A server the spec gives a name is also found by that name with `servers::by_name("name")`, which fails with `ConfigurationError::InvalidArgument` when no server has the name. Pass the desired server's URL to the client:
 
 ```rust file
 use std::collections::HashMap;

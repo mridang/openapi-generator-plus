@@ -60,7 +60,7 @@ Close the client to release its connections: requests already in flight finish, 
 
 ### Raw responses
 
-Every operation has a `...WithHTTPInfo` variant returning an `*ApiResult[T]` with `StatusCode`, `Data`, `RawBody` and the lower-cased `Headers`. It is the way to read a response header.
+Every operation has a `...WithHTTPInfo` variant returning an `*ApiResult[T]` with `StatusCode`, `Data`, `RawBody` and the lower-cased `Headers`. It is the way to read a response header. An operation whose success response declares headers also has an `options.<Operation>ResponseHeaders` type; `options.New<Operation>ResponseHeadersFrom(result.Headers)` reads them in their declared types.
 
 ### Timeouts
 

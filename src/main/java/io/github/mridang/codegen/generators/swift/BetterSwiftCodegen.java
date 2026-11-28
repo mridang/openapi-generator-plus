@@ -296,7 +296,58 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 markBinaryUpload(op);
             }
         }
-        return super.postProcessOperationsWithModels(objs, allModels);
+        final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        if (operations != null && operations.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+                writeResponseHeadersFile(op);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * D168: writes {@code <OperationId>ResponseHeaders.swift} next to the operation's Options
+     * file when its success responses declare headers. The shared decorator pass has filled
+     * {@code vendorExtensions.op.responseHeaders} by now; a {@code Decimal} number row reads its
+     * value with {@code Decimal(string:)}, every other row with its type's string initializer.
+     *
+     * @param op the operation
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)
+                || !Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasResponseHeaders"))) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final String className = String.valueOf(d.get("responseHeadersClassName"));
+        final Object declared = d.get("responseHeaders");
+        if (!(declared instanceof List)) {
+            return;
+        }
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        for (final Map<String, Object> row : (List<Map<String, Object>>) declared) {
+            final Map<String, Object> copy = new HashMap<>(row);
+            copy.put("isDecimal", "Decimal".equals(row.get("itemDataType")));
+            /* The description arrives escaped for a string literal; a doc comment wants it as
+             * written, one `///` line per line. */
+            final Object description = row.get("description");
+            if (description instanceof String) {
+                copy.put("description", ((String) description)
+                        .replace("\\\"", "\"")
+                        .replace("\r", "")
+                        .replace("\n", "\n    /// "));
+            }
+            rows.add(copy);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("rows", rows);
+        final String filePath = getOptionsFilePath(op.operationId, className);
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
     }
 
     /**

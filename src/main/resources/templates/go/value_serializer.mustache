@@ -151,6 +151,136 @@ func maybeAllowReserved(value any, allowReserved bool) any {
 	return allowReservedValue{value: value}
 }
 
+// encodedPart wraps a multipart field value with what the field's Encoding
+// Object declares: the part Content-Type (empty when none is declared) and the
+// part headers, in declaration order. The multipart encoder writes them on the
+// part (on each part, for a list value); every other reader of the form map
+// sees through the wrapper to the value.
+type encodedPart struct {
+	value       any
+	contentType string
+	headers     [][2]string
+}
+
+// newEncodedPart wraps value in an encodedPart. A nil value is never wrapped,
+// so it is still omitted from the body.
+func newEncodedPart(value any, contentType string, headers ...[2]string) any {
+	if value == nil {
+		return nil
+	}
+	return encodedPart{value: value, contentType: contentType, headers: headers}
+}
+
+// unwrapFormValue returns the value of a form field with its allowReserved and
+// encodedPart wrappers removed, whether allowReserved was set, and the part
+// encoding (nil when none is declared).
+func unwrapFormValue(value any) (any, bool, *encodedPart) {
+	allowReserved := false
+	var part *encodedPart
+	for {
+		switch wrapped := value.(type) {
+		case allowReservedValue:
+			allowReserved = true
+			value = wrapped.value
+		case encodedPart:
+			declared := wrapped
+			part = &declared
+			value = wrapped.value
+		default:
+			return value, allowReserved, part
+		}
+	}
+}
+
+// pathReservedOctets maps the upper-case hex of each percent-encoded octet that
+// allowReservedInPath turns back into its literal reserved character.
+var pathReservedOctets = map[string]byte{
+	"2F": '/', "3A": ':', "40": '@', "21": '!', "24": '$', "26": '&', "27": '\'',
+	"28": '(', "29": ')', "2A": '*', "2B": '+', "2C": ',', "3B": ';', "3D": '=',
+}
+
+// allowReservedInPath turns the percent-encoded RFC 3986 reserved characters
+// / : @ ! $ & ' ( ) * + , ; = of an already path-encoded value back into their
+// literal form (OAS 3.2 allowReserved: true on a path parameter). The hex may be
+// upper or lower case. Every other escape stays as it is, so "?", "#", "[",
+// "]", a space and "%" (as %25) remain encoded, and a value the caller already
+// percent-encoded (encoded again to %252F) is not decoded.
+func allowReservedInPath(encoded string) string {
+	if !strings.Contains(encoded, "%") {
+		return encoded
+	}
+	var out strings.Builder
+	out.Grow(len(encoded))
+	for i := 0; i < len(encoded); i++ {
+		if encoded[i] == '%' && i+2 < len(encoded) {
+			if literal, ok := pathReservedOctets[strings.ToUpper(encoded[i+1:i+3])]; ok {
+				out.WriteByte(literal)
+				i += 2
+				continue
+			}
+		}
+		out.WriteByte(encoded[i])
+	}
+	return out.String()
+}
+
+// cookiePairs renders one style: cookie parameter (OAS 3.2) as its Cookie
+// header fragment. A nil value, an empty array and an empty object give the
+// empty string, so nothing is sent. A scalar is name=value; an array is
+// name=a,b (explode false) or name=a; name=b (explode true); an object, in its
+// wire-name declaration order with null properties dropped, is
+// name=k1,v1,k2,v2 (explode false) or k1=v1; k2=v2 (explode true). Values are
+// never percent-encoded: every item, key and value must consist of RFC 6265
+// cookie-octets, or ErrInvalidCookie is returned naming the parameter.
+func cookiePairs(name string, value any, explode bool) (string, error) {
+	if value == nil {
+		return "", nil
+	}
+	if rv := reflect.ValueOf(value); rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return "", nil
+	}
+	invalid := fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, name)
+	if items, isArray := toStringSlice(value); isArray {
+		if len(items) == 0 {
+			return "", nil
+		}
+		parts := make([]string, 0, len(items))
+		for _, item := range items {
+			if !isValidCookieValue(item) {
+				return "", invalid
+			}
+			parts = append(parts, name+"="+item)
+		}
+		if explode {
+			return strings.Join(parts, "; "), nil
+		}
+		return name + "=" + strings.Join(items, ","), nil
+	}
+	if pairs, ok := objectEntries(value); ok {
+		if len(pairs) == 0 {
+			return "", nil
+		}
+		flat := make([]string, 0, len(pairs)*2)
+		assigned := make([]string, 0, len(pairs))
+		for _, pair := range pairs {
+			if !isValidCookieValue(pair[0]) || !isValidCookieValue(pair[1]) {
+				return "", invalid
+			}
+			flat = append(flat, pair[0], pair[1])
+			assigned = append(assigned, pair[0]+"="+pair[1])
+		}
+		if explode {
+			return strings.Join(assigned, "; "), nil
+		}
+		return name + "=" + strings.Join(flat, ","), nil
+	}
+	text := stringify(value)
+	if !isValidCookieValue(text) {
+		return "", invalid
+	}
+	return name + "=" + text, nil
+}
+
 // serializeDeepObject serializes a deepObject-style query parameter.
 //
 // Produces a map of flattened keys in the form paramName[key] to stringified

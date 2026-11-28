@@ -36,6 +36,7 @@ export class Servers {
     "/api/v3",
     "Relative URL (no variables)",
     {},
+    null,
   );
 
   /**
@@ -54,6 +55,7 @@ export class Servers {
       ]),
       version: new ServerVariable("v3", "API version", ["v2", "v3"]),
     },
+    null,
   );
 
   /**
@@ -67,6 +69,7 @@ export class Servers {
     {
       tenant: new ServerVariable("o'neil", 'Tenant\'s "id"', ["o'neil", "a&b"]),
     },
+    null,
   );
 
   /** All server configurations in declaration order. */
@@ -75,6 +78,26 @@ export class Servers {
     Servers.SERVER_1,
     Servers.SERVER_2,
   ];
+
+  /**
+   * The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+   *
+   * @param name the server name
+   * @returns the server with that name
+   * @throws TypeError if no server has that name; the message lists the known names
+   */
+  public static byName(name: string): ServerConfiguration {
+    const found = Servers.ALL.find((server) => server.name === name);
+    if (found !== undefined) {
+      return found;
+    }
+    const known = Servers.ALL.flatMap((server) =>
+      server.name === null ? [] : [server.name],
+    );
+    throw new TypeError(
+      `Unknown server name '${name}'. Known names: [${known.join(", ")}]`,
+    );
+  }
 
   private constructor() {}
 }

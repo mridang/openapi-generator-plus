@@ -222,7 +222,7 @@ An operation that declares an error response with a schema raises a class of its
 
 ### Raw responses
 
-Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a frozen copy, lower-cased names) and `data`.
+Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a frozen copy, lower-cased names) and `data`. It is the way to read a response header. An operation whose success response declares headers also has a `<Operation>ResponseHeaders` type; `<Operation>ResponseHeaders.from_headers(result.headers)` reads them in their declared types.
 
 ### Cancellation
 

@@ -844,8 +844,99 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 }
                 op.vendorExtensions.put("hasMultipleConsumes", true);
             }
+            generateResponseHeadersFile(op);
         }
         return objs;
+    }
+
+    /**
+     * D168: an operation whose success responses declare headers gets a
+     * {@code <Operation>ResponseHeaders} class beside its Options class, with
+     * one reader per header and a {@code from_headers} factory that reads them
+     * from the raw response headers in their declared types. Its RBS goes to
+     * {@code sig/} like the Options one, and its file joins the Options
+     * requires of the entry file.
+     */
+    @SuppressWarnings("unchecked")
+    private void generateResponseHeadersFile(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        if (!Boolean.TRUE.equals(d.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = String.valueOf(d.get("responseHeadersClassName"));
+        final List<Map<String, Object>> headers = new ArrayList<>();
+        final StringBuilder accessors = new StringBuilder();
+        final StringBuilder sig = new StringBuilder();
+        final StringBuilder rbsSig = new StringBuilder();
+        final Object declared = d.get("responseHeaders");
+        if (!(declared instanceof List)) {
+            return;
+        }
+        for (final Map<String, Object> row : (List<Map<String, Object>>) declared) {
+            final Map<String, Object> header = new HashMap<>(row);
+            final String varName = String.valueOf(row.get("varName"));
+            final String kind = String.valueOf(row.get("kind"));
+            final String itemType = String.valueOf(row.get("itemDataType"));
+            // The parser of one value: an integer is checked against the int32
+            // range, a long against int64, and a number is read as the type the
+            // schema maps to (BigDecimal or Float).
+            final String parser;
+            if ("number".equals(kind)) {
+                parser = "BigDecimal".equals(itemType) ? "decimal" : "float";
+            } else {
+                parser = kind;
+            }
+            header.put("parser", parser);
+            // A header of any other schema (a date, a uuid) is read as the
+            // string it is on the wire, so its reader is typed String.
+            if ("string".equals(kind)) {
+                header.put("dataType",
+                        Boolean.TRUE.equals(row.get("isArray")) ? "Array<String>" : "String");
+            }
+            final String rbsType = toRbsType(String.valueOf(header.get("dataType")));
+            header.put("rbsType", rbsType);
+            headers.add(header);
+            if (accessors.length() > 0) {
+                accessors.append(", ");
+                sig.append(", ");
+                rbsSig.append(", ");
+            }
+            accessors.append(':').append(varName);
+            sig.append(varName).append(": nil");
+            rbsSig.append('?').append(varName).append(": ").append(rbsType).append('?');
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("moduleName", moduleName);
+        context.put("operationId", op.operationId);
+        context.put("headers", headers);
+        context.put("accessorList", accessors.toString());
+        context.put("initializeSignature", sig.toString());
+        context.put("rbsInitializeSignature", rbsSig.toString());
+
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String fileName = NamingConvention.SNAKE_CASE.apply(className);
+        final Path dir = Path.of(getOutputDir(), LIB_FOLDER, modulePath, "api", "options");
+        final String rbPath = dir.resolve(fileName + ".rb").toString();
+        writeFile(rbPath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(rbPath).toFile(), "source");
+        final String rbsPath = dir.resolve(fileName + ".rbs").toString();
+        writeFile(rbsPath, renderOptionsTemplate("api/response_headers_rbs.mustache", context));
+        postProcessFile(Path.of(rbsPath).toFile(), "source");
+
+        additionalProperties.put("hasAnyOptionsClasses", true);
+        final List<String> requires = (List<String>) additionalProperties
+                .computeIfAbsent("optionsRequires", k -> new ArrayList<String>());
+        final String require = modulePath + "/api/options/" + fileName;
+        if (!requires.contains(require)) {
+            requires.add(require);
+        }
     }
 
     /**

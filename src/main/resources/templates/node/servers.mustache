@@ -33,12 +33,29 @@ export class Servers {
     {{#serverDescription}}{{#lambda.tsString}}{{{serverDescription}}}{{/lambda.tsString}}{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
     {
 {{#serverVariables}}      '{{varName}}': new ServerVariable({{#lambda.tsString}}{{{varDefault}}}{{/lambda.tsString}}, {{#varDescription}}{{#lambda.tsString}}{{{varDescription}}}{{/lambda.tsString}}{{/varDescription}}{{^varDescription}}null{{/varDescription}}, {{#hasEnumValues}}[{{#varEnumValues}}{{#lambda.tsString}}{{{.}}}{{/lambda.tsString}}{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}){{^-last}},{{/-last}}
-{{/serverVariables}}    }
-  );{{/hasVariables}}{{^hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration('{{{serverUrl}}}', {{#serverDescription}}{{#lambda.tsString}}{{{serverDescription}}}{{/lambda.tsString}}{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, {});{{/hasVariables}}
+{{/serverVariables}}    },
+    {{#serverName}}{{#lambda.tsString}}{{{serverName}}}{{/lambda.tsString}}{{/serverName}}{{^serverName}}null{{/serverName}}
+  );{{/hasVariables}}{{^hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration('{{{serverUrl}}}', {{#serverDescription}}{{#lambda.tsString}}{{{serverDescription}}}{{/lambda.tsString}}{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, {}, {{#serverName}}{{#lambda.tsString}}{{{serverName}}}{{/lambda.tsString}}{{/serverName}}{{^serverName}}null{{/serverName}});{{/hasVariables}}
 
 {{/serverConfigs}}
   /** All server configurations in declaration order. */
   public static readonly ALL: readonly ServerConfiguration[] = [{{#serverConfigs}}Servers.SERVER_{{serverIndex}}{{^-last}}, {{/-last}}{{/serverConfigs}}];
+
+  /**
+   * The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+   *
+   * @param name the server name
+   * @returns the server with that name
+   * @throws TypeError if no server has that name; the message lists the known names
+   */
+  public static byName(name: string): ServerConfiguration {
+    const found = Servers.ALL.find((server) => server.name === name);
+    if (found !== undefined) {
+      return found;
+    }
+    const known = Servers.ALL.flatMap((server) => (server.name === null ? [] : [server.name]));
+    throw new TypeError(`Unknown server name '${name}'. Known names: [${known.join(', ')}]`);
+  }
 
   private constructor() {}
 }

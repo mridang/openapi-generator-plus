@@ -358,6 +358,81 @@ export class ValueSerializer {
   }
 
   /**
+   * Turns the reserved characters a path parameter with `allowReserved: true`
+   * may carry back into their literal form after path encoding (OpenAPI 3.2).
+   *
+   * The value must already be path encoded with {@link encodePathSegment}.
+   * Only the percent-encoded RFC 3986 reserved characters that are legal in a
+   * path, `/ : @ ! $ & ' ( ) * + , ; =`, are decoded (either hex case); `?`,
+   * `#`, `[`, `]`, spaces and an encoded `%` (`%25`) stay encoded, so a value
+   * the caller already percent-encoded is not decoded.
+   *
+   * @param encoded the path-encoded parameter value
+   * @returns the value with the reserved characters literal
+   */
+  static allowReservedInPath(encoded: string): string {
+    return encoded.replace(/%(2[1F46789ABC]|3[ABD]|40)/gi, (triplet) =>
+      decodeURIComponent(triplet),
+    );
+  }
+
+  /**
+   * The Cookie header fragment of one `style: cookie` parameter
+   * (OpenAPI 3.2).
+   *
+   * A scalar is `name=value`; an array is `name=a,b` (explode false) or
+   * `name=a; name=b` (explode true); an object (a model or a map, by wire
+   * name in declaration order, nulls dropped) is `name=k1,v1,k2,v2` (explode
+   * false) or `k1=v1; k2=v2` (explode true). Values are never
+   * percent-encoded. A null value, an empty array or an empty object gives
+   * the empty string, and nothing is sent.
+   *
+   * @param name the parameter name
+   * @param value the parameter value
+   * @param explode whether arrays and objects are exploded
+   * @returns the Cookie header fragment, or the empty string
+   * @throws TypeError if an item, key or value holds a character outside the
+   *   RFC 6265 cookie-octet set
+   */
+  static cookiePairs(name: string, value: unknown, explode: boolean): string {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    const octet = (text: string): string => {
+      if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(text)) {
+        throw new TypeError(
+          `Cookie value for '${name}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it`,
+        );
+      }
+      return text;
+    };
+    const normalized = ValueSerializer.normalize(value, "", name);
+    if (Array.isArray(normalized)) {
+      const items = normalized.map((item) =>
+        octet(ObjectSerializer.stringify(item)),
+      );
+      if (items.length === 0) {
+        return "";
+      }
+      return explode
+        ? items.map((item) => `${name}=${item}`).join("; ")
+        : `${name}=${items.join(",")}`;
+    }
+    if (ValueSerializer.isObjectValue(normalized)) {
+      const pairs = ValueSerializer.toWireMap(name, normalized).map(
+        ([k, v]) => [octet(k), octet(v)] as [string, string],
+      );
+      if (pairs.length === 0) {
+        return "";
+      }
+      return explode
+        ? pairs.map(([k, v]) => `${k}=${v}`).join("; ")
+        : `${name}=${pairs.flat().join(",")}`;
+    }
+    return `${name}=${octet(ObjectSerializer.stringify(normalized))}`;
+  }
+
+  /**
    * Whether a parameter value is an object (a model or a free-form map) that
    * the OAS style rules expand into name and value pairs, as opposed to a
    * scalar-like value (a `Date`, a byte array, a Decimal or a Temporal value).
@@ -474,6 +549,26 @@ export class ValueSerializer {
   }
 
   /**
+   * Wraps a multipart field value in an {@link EncodedPart} carrying the
+   * part Content-Type and part headers its Encoding Object declares
+   * (OpenAPI `encoding.contentType` and `encoding.headers`). The multipart
+   * encoder unwraps it; every other consumer of the form map sees the value.
+   *
+   * @param value the field value (a list applies the encoding to each item)
+   * @param contentType the declared part Content-Type, or null to keep the
+   *   one the SDK chooses
+   * @param headers the declared part headers, in declaration order
+   * @returns the wrapped value
+   */
+  static encodedPart(
+    value: unknown,
+    contentType: string | null,
+    headers: ReadonlyArray<readonly [string, string]>,
+  ): EncodedPart {
+    return new EncodedPart(value, contentType, headers);
+  }
+
+  /**
    * Serialize a deepObject-style query parameter.
    *
    * Produces a record of flattened keys in the form `paramName[key]` to
@@ -508,6 +603,31 @@ export class ValueSerializer {
  */
 export class AllowReservedValue {
   constructor(readonly value: string | string[] | ExplodedObject) {}
+}
+
+/**
+ * A multipart field value with the part Content-Type and part headers its
+ * Encoding Object declares. Produced by {@link ValueSerializer.encodedPart};
+ * the multipart encoder writes the declared Content-Type in place of the one
+ * it would choose, then each header as `Name: value` in declaration order.
+ */
+export class EncodedPart {
+  constructor(
+    readonly value: unknown,
+    readonly contentType: string | null,
+    readonly headers: ReadonlyArray<readonly [string, string]>,
+  ) {}
+
+  /**
+   * The field value without the part encoding, for any consumer of the form
+   * map other than the multipart encoder.
+   *
+   * @param value a form map value, wrapped or not
+   * @returns the value inside an {@link EncodedPart}, or `value` itself
+   */
+  static unwrap(value: unknown): unknown {
+    return value instanceof EncodedPart ? value.value : value;
+  }
 }
 
 /**

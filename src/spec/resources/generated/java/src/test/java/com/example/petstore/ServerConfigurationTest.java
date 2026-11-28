@@ -230,6 +230,24 @@ class ServerConfigurationTest {
   }
 
   @Test
+  void bhvServers501AServerKeepsItsNameAndAServerWithoutOneHasNone() {
+    ServerConfiguration named =
+        new ServerConfiguration("https://api.example.com", null, Map.of(), "primary");
+    ServerConfiguration unnamed =
+        new ServerConfiguration("https://api.example.com", null, Map.of());
+
+    assertEquals("primary", named.getName());
+    assertNull(unnamed.getName());
+  }
+
+  @Test
+  void bhvServers502AnUnknownServerNameIsRejectedWithTheKnownNames() {
+    IllegalArgumentException ex =
+        assertThrowsExactly(IllegalArgumentException.class, () -> Servers.byName("missing"));
+    assertEquals("Unknown server name 'missing'. Known names: []", ex.getMessage());
+  }
+
+  @Test
   void bhvServers015AServerDescriptionMayBeNull() {
     ServerConfiguration config = new ServerConfiguration("https://api.example.com", null, Map.of());
 
