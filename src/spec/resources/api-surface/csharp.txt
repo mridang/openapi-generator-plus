@@ -158,6 +158,7 @@ PetstoreClient.Api.IProblemsApi: public System.Threading.Tasks.Task<PetstoreClie
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task DeleteOrderAsync(long orderId, PetstoreClient.Api.Options.DeleteOrderOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task HeadMemoAsync(string memoId, PetstoreClient.Api.Options.HeadMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task OptionsMemoAsync(string memoId, PetstoreClient.Api.Options.OptionsMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task SubmitAllowanceAsync(PetstoreClient.Models.Allowance allowance, PetstoreClient.Api.Options.SubmitAllowanceOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task TraceMemoAsync(string memoId, PetstoreClient.Api.Options.TraceMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<PetstoreClient.Models.Account>> CreateAccountWithHttpInfoAsync(PetstoreClient.Models.Account account, PetstoreClient.Api.Options.CreateAccountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<PetstoreClient.Models.ApiResponse>> GetAuditTrailWithHttpInfoAsync(PetstoreClient.Api.Options.GetAuditTrailOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
@@ -180,9 +181,12 @@ PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, PetstoreClient.Models.Swatch>>>> GetSwatchGroupsWithHttpInfoAsync(PetstoreClient.Api.Options.GetSwatchGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, System.DateTimeOffset>>>> GetTimestampGroupsWithHttpInfoAsync(PetstoreClient.Api.Options.GetTimestampGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<System.Collections.Generic.List<int>>>> GetMatrixWithHttpInfoAsync(PetstoreClient.Api.Options.GetMatrixOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<decimal>>> ListNativeAmountsWithHttpInfoAsync(PetstoreClient.Api.Options.ListNativeAmountsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<decimal>> GetNativeAmountWithHttpInfoAsync(PetstoreClient.Api.Options.GetNativeAmountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId, PetstoreClient.Api.Options.DeleteOrderOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> HeadMemoWithHttpInfoAsync(string memoId, PetstoreClient.Api.Options.HeadMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> OptionsMemoWithHttpInfoAsync(string memoId, PetstoreClient.Api.Options.OptionsMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> SubmitAllowanceWithHttpInfoAsync(PetstoreClient.Models.Allowance allowance, PetstoreClient.Api.Options.SubmitAllowanceOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> TraceMemoWithHttpInfoAsync(string memoId, PetstoreClient.Api.Options.TraceMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.JsonLinesStream<PetstoreClient.Models.Order>> ExportOrdersStreamAsync(PetstoreClient.Api.Options.ExportOrdersOptions? options = null, PetstoreClient.StreamOptions? streamOptions = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<PetstoreClient.Models.Account> CreateAccountAsync(PetstoreClient.Models.Account account, PetstoreClient.Api.Options.CreateAccountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
@@ -208,6 +212,8 @@ PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<System.Collecti
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, PetstoreClient.Models.Swatch>>> GetSwatchGroupsAsync(PetstoreClient.Api.Options.GetSwatchGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, System.DateTimeOffset>>> GetTimestampGroupsAsync(PetstoreClient.Api.Options.GetTimestampGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.List<int>>> GetMatrixAsync(PetstoreClient.Api.Options.GetMatrixOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<decimal>> ListNativeAmountsAsync(PetstoreClient.Api.Options.ListNativeAmountsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.IStoreApi: public System.Threading.Tasks.Task<decimal> GetNativeAmountAsync(PetstoreClient.Api.Options.GetNativeAmountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.Options.AddPetOptions: public .ctor()
 PetstoreClient.Api.Options.AddPetOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.AddPetOptions: public int? MaxRetries { get; init; }
@@ -312,6 +318,10 @@ PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public .ctor()
 PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.GetMultiServerPetInfoOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.GetNativeAmountOptions: public .ctor()
+PetstoreClient.Api.Options.GetNativeAmountOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+PetstoreClient.Api.Options.GetNativeAmountOptions: public int? MaxRetries { get; init; }
+PetstoreClient.Api.Options.GetNativeAmountOptions: public int? Timeout { get; init; }
 PetstoreClient.Api.Options.GetNativeValuesOptions: public .ctor()
 PetstoreClient.Api.Options.GetNativeValuesOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.GetNativeValuesOptions: public System.Net.IPAddress? Address4 { get; init; }
@@ -421,6 +431,10 @@ PetstoreClient.Api.Options.HeadMemoOptions: public .ctor()
 PetstoreClient.Api.Options.HeadMemoOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.HeadMemoOptions: public int? MaxRetries { get; init; }
 PetstoreClient.Api.Options.HeadMemoOptions: public int? Timeout { get; init; }
+PetstoreClient.Api.Options.ListNativeAmountsOptions: public .ctor()
+PetstoreClient.Api.Options.ListNativeAmountsOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+PetstoreClient.Api.Options.ListNativeAmountsOptions: public int? MaxRetries { get; init; }
+PetstoreClient.Api.Options.ListNativeAmountsOptions: public int? Timeout { get; init; }
 PetstoreClient.Api.Options.ListPetArchiveOptions: public .ctor()
 PetstoreClient.Api.Options.ListPetArchiveOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.ListPetArchiveOptions: public int? MaxRetries { get; init; }
@@ -520,6 +534,10 @@ PetstoreClient.Api.Options.SetPetPreferencesOptions: public int? MaxRetries { ge
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public int? Timeout { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public required string Nickname { get; init; }
 PetstoreClient.Api.Options.SetPetPreferencesOptions: public string? Note { get; init; }
+PetstoreClient.Api.Options.SubmitAllowanceOptions: public .ctor()
+PetstoreClient.Api.Options.SubmitAllowanceOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
+PetstoreClient.Api.Options.SubmitAllowanceOptions: public int? MaxRetries { get; init; }
+PetstoreClient.Api.Options.SubmitAllowanceOptions: public int? Timeout { get; init; }
 PetstoreClient.Api.Options.TakeLockOptions: public .ctor()
 PetstoreClient.Api.Options.TakeLockOptions: public System.Collections.Generic.IReadOnlyDictionary<string, string>? Headers { get; init; }
 PetstoreClient.Api.Options.TakeLockOptions: public int? MaxRetries { get; init; }
@@ -661,6 +679,7 @@ PetstoreClient.Api.StoreApi: public .ctor(PetstoreClient.IApiClient apiClient, P
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task DeleteOrderAsync(long orderId, PetstoreClient.Api.Options.DeleteOrderOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task HeadMemoAsync(string memoId, PetstoreClient.Api.Options.HeadMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task OptionsMemoAsync(string memoId, PetstoreClient.Api.Options.OptionsMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task SubmitAllowanceAsync(PetstoreClient.Models.Allowance allowance, PetstoreClient.Api.Options.SubmitAllowanceOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task TraceMemoAsync(string memoId, PetstoreClient.Api.Options.TraceMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<PetstoreClient.Models.Account>> CreateAccountWithHttpInfoAsync(PetstoreClient.Models.Account account, PetstoreClient.Api.Options.CreateAccountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<PetstoreClient.Models.ApiResponse>> GetAuditTrailWithHttpInfoAsync(PetstoreClient.Api.Options.GetAuditTrailOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
@@ -683,9 +702,12 @@ PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.A
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, PetstoreClient.Models.Swatch>>>> GetSwatchGroupsWithHttpInfoAsync(PetstoreClient.Api.Options.GetSwatchGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, System.DateTimeOffset>>>> GetTimestampGroupsWithHttpInfoAsync(PetstoreClient.Api.Options.GetTimestampGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<System.Collections.Generic.List<int>>>> GetMatrixWithHttpInfoAsync(PetstoreClient.Api.Options.GetMatrixOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<System.Collections.Generic.List<decimal>>> ListNativeAmountsWithHttpInfoAsync(PetstoreClient.Api.Options.ListNativeAmountsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<decimal>> GetNativeAmountWithHttpInfoAsync(PetstoreClient.Api.Options.GetNativeAmountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId, PetstoreClient.Api.Options.DeleteOrderOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> HeadMemoWithHttpInfoAsync(string memoId, PetstoreClient.Api.Options.HeadMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> OptionsMemoWithHttpInfoAsync(string memoId, PetstoreClient.Api.Options.OptionsMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> SubmitAllowanceWithHttpInfoAsync(PetstoreClient.Models.Allowance allowance, PetstoreClient.Api.Options.SubmitAllowanceOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.ApiResult<object?>> TraceMemoWithHttpInfoAsync(string memoId, PetstoreClient.Api.Options.TraceMemoOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.JsonLinesStream<PetstoreClient.Models.Order>> ExportOrdersStreamAsync(PetstoreClient.Api.Options.ExportOrdersOptions? options = null, PetstoreClient.StreamOptions? streamOptions = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<PetstoreClient.Models.Account> CreateAccountAsync(PetstoreClient.Models.Account account, PetstoreClient.Api.Options.CreateAccountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
@@ -711,6 +733,8 @@ PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<System.Collectio
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, PetstoreClient.Models.Swatch>>> GetSwatchGroupsAsync(PetstoreClient.Api.Options.GetSwatchGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, System.DateTimeOffset>>> GetTimestampGroupsAsync(PetstoreClient.Api.Options.GetTimestampGroupsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<System.Collections.Generic.List<int>>> GetMatrixAsync(PetstoreClient.Api.Options.GetMatrixOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<System.Collections.Generic.List<decimal>> ListNativeAmountsAsync(PetstoreClient.Api.Options.ListNativeAmountsOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Api.StoreApi: public System.Threading.Tasks.Task<decimal> GetNativeAmountAsync(PetstoreClient.Api.Options.GetNativeAmountOptions? options = null, System.Threading.CancellationToken cancellationToken = default)
 PetstoreClient.ApiHttpResponse: public .ctor(int statusCode, string body, System.Collections.Generic.IReadOnlyDictionary<string, string> headers)
 PetstoreClient.ApiHttpResponse: public System.Collections.Generic.IReadOnlyDictionary<string, string> Headers { get; }
 PetstoreClient.ApiHttpResponse: public int StatusCode { get; }
@@ -740,6 +764,7 @@ PetstoreClient.Auth.ApiKeyLocation: Cookie = 2
 PetstoreClient.Auth.ApiKeyLocation: Header = 0
 PetstoreClient.Auth.ApiKeyLocation: Query = 1
 PetstoreClient.Auth.ApiKeyQueryAuthenticator: public .ctor(string host, string? apiKey = null)
+PetstoreClient.Auth.ArchiveDigestAuthenticator: public .ctor(string host, string? username = null, string? password = null)
 PetstoreClient.Auth.BaseAuthenticator: protected .ctor()
 PetstoreClient.Auth.BaseAuthenticator: protected static System.Uri ResolveUri(System.Uri? explicitValue, string environmentVariable)
 PetstoreClient.Auth.BaseAuthenticator: protected static string ResolveCredential(string? explicitValue, string environmentVariable)
@@ -759,6 +784,10 @@ PetstoreClient.Auth.BearerAuthenticator: public override System.Collections.Gene
 PetstoreClient.Auth.BearerAuthenticator: public override System.Threading.Tasks.Task<System.Collections.Generic.Dictionary<string, string>> GetAuthHeadersAsync(System.Threading.CancellationToken cancellationToken)
 PetstoreClient.Auth.BearerAuthenticator: public override string GetHost()
 PetstoreClient.Auth.BearerAuthenticator: public override string ToString()
+PetstoreClient.Auth.DigestAuthenticator: public .ctor(string host, string username, string password)
+PetstoreClient.Auth.DigestAuthenticator: public override System.Collections.Generic.Dictionary<string, string> GetAuthHeaders()
+PetstoreClient.Auth.DigestAuthenticator: public override string GetHost()
+PetstoreClient.Auth.DigestAuthenticator: public override string ToString()
 PetstoreClient.Auth.IAuthenticator: public System.Collections.Generic.Dictionary<string, string> GetAuthHeaders()
 PetstoreClient.Auth.IAuthenticator: public default System.Collections.Generic.Dictionary<string, string> GetCookieParams()
 PetstoreClient.Auth.IAuthenticator: public default System.Collections.Generic.Dictionary<string, string> GetQueryParams()
@@ -771,8 +800,24 @@ PetstoreClient.Auth.InternalApiKeyAuthenticator: public .ctor(string host, strin
 PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator: public .ctor(string host, string? clientId = null)
 PetstoreClient.Auth.OAuth.ClientAuthMethod: Basic = 1
 PetstoreClient.Auth.OAuth.ClientAuthMethod: Body = 0
+PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator: public .ctor(string host, string? clientId = null)
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public .ctor(string DeviceCode, string UserCode, string VerificationUri, string? VerificationUriComplete, long ExpiresIn, long Interval)
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public bool Equals(PetstoreClient.Auth.OAuth.DeviceAuthorization? other)
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public long ExpiresIn { get; init; }
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public long Interval { get; init; }
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public override bool Equals(object? obj)
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public override int GetHashCode()
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public override string ToString()
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public static bool op_Equality(PetstoreClient.Auth.OAuth.DeviceAuthorization? left, PetstoreClient.Auth.OAuth.DeviceAuthorization? right)
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public static bool op_Inequality(PetstoreClient.Auth.OAuth.DeviceAuthorization? left, PetstoreClient.Auth.OAuth.DeviceAuthorization? right)
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public string DeviceCode { get; init; }
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public string UserCode { get; init; }
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public string VerificationUri { get; init; }
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public string? VerificationUriComplete { get; init; }
+PetstoreClient.Auth.OAuth.DeviceAuthorization: public void Deconstruct(out string DeviceCode, out string UserCode, out string VerificationUri, out string VerificationUriComplete, out long ExpiresIn, out long Interval)
 PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator: public .ctor(string host, string? clientId = null, string? clientSecret = null, string? username = null, string? password = null)
 PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator: public .ctor(string host, string? clientId = null, string? clientSecret = null)
+PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator: public const string MetadataUrl = "https://auth.example.com/.well-known/oauth-authorization-server"
 PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator: public .ctor(string host, string clientId, string clientSecret, System.Uri authorizationUrl, System.Uri tokenUrl, System.Uri redirectUri, string[] scopes, System.Uri? refreshUrl = null)
 PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator: public System.Threading.Tasks.Task ExchangeCodeAsync(string code)
 PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator: public System.Uri BuildAuthorizationUrl(string? state = null)
@@ -789,6 +834,15 @@ PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator: public override 
 PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator: public override string ToString()
 PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator: public void InvalidateAccessToken()
 PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator: public void SetApiClient(PetstoreClient.IApiClient apiClient)
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public .ctor(string host, string clientId, System.Uri deviceAuthorizationUrl, System.Uri tokenUrl, string[] scopes, System.Uri? refreshUrl = null)
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public System.Threading.Tasks.Task PollForTokenAsync(PetstoreClient.Auth.OAuth.DeviceAuthorization authorization, System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public System.Threading.Tasks.Task<PetstoreClient.Auth.OAuth.DeviceAuthorization> RequestDeviceAuthorizationAsync(System.Threading.CancellationToken cancellationToken = default)
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public override System.Collections.Generic.Dictionary<string, string> GetAuthHeaders()
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public override System.Threading.Tasks.Task<System.Collections.Generic.Dictionary<string, string>> GetAuthHeadersAsync(System.Threading.CancellationToken cancellationToken)
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public override string GetHost()
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public override string ToString()
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public void InvalidateAccessToken()
+PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator: public void SetApiClient(PetstoreClient.IApiClient apiClient)
 PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator: public .ctor(string host, string clientId, System.Uri authorizationUrl, string[] scopes)
 PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator: public System.Uri BuildAuthorizationUrl(string? state = null)
 PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator: public override System.Collections.Generic.Dictionary<string, string> GetAuthHeaders()
@@ -882,7 +936,7 @@ PetstoreClient.CallOutcome: public static bool op_Inequality(PetstoreClient.Call
 PetstoreClient.CallOutcome: public void Deconstruct(out int StatusCode, out System.Collections.Generic.IReadOnlyDictionary<string, string> Headers, out System.Exception Error)
 PetstoreClient.Client: public .ctor(PetstoreClient.Auth.IAuthenticator authenticator)
 PetstoreClient.Client: public .ctor(PetstoreClient.Auth.IAuthenticator authenticator, PetstoreClient.TransportOptions? transportOptions, PetstoreClient.ICallHook? callHook = null)
-PetstoreClient.Client: public .ctor(string host, PetstoreClient.Auth.PetStoreBasicAuthenticator? petStoreBasic = null, PetstoreClient.Auth.AdminBasicAuthenticator? adminBasic = null, PetstoreClient.Auth.PetStoreBearerAuthenticator? petStoreBearer = null, PetstoreClient.Auth.ServiceTokenAuthenticator? serviceToken = null, PetstoreClient.Auth.ApiKeyHeaderAuthenticator? apiKeyHeader = null, PetstoreClient.Auth.InternalApiKeyAuthenticator? internalApiKey = null, PetstoreClient.Auth.ApiKeyQueryAuthenticator? apiKeyQuery = null, PetstoreClient.Auth.SessionCookieAuthenticator? sessionCookie = null, PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator? machineAuth = null, PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator? legacyAuth = null, PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator? userAuth = null, PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator? browserAuth = null, PetstoreClient.Auth.OAuth.SsoAuthAuthenticator? ssoAuth = null, PetstoreClient.TransportOptions? transportOptions = null, PetstoreClient.ICallHook? callHook = null)
+PetstoreClient.Client: public .ctor(string host, PetstoreClient.Auth.PetStoreBasicAuthenticator? petStoreBasic = null, PetstoreClient.Auth.AdminBasicAuthenticator? adminBasic = null, PetstoreClient.Auth.ArchiveDigestAuthenticator? archiveDigest = null, PetstoreClient.Auth.PetStoreBearerAuthenticator? petStoreBearer = null, PetstoreClient.Auth.ServiceTokenAuthenticator? serviceToken = null, PetstoreClient.Auth.ApiKeyHeaderAuthenticator? apiKeyHeader = null, PetstoreClient.Auth.InternalApiKeyAuthenticator? internalApiKey = null, PetstoreClient.Auth.ApiKeyQueryAuthenticator? apiKeyQuery = null, PetstoreClient.Auth.SessionCookieAuthenticator? sessionCookie = null, PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator? machineAuth = null, PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator? legacyAuth = null, PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator? userAuth = null, PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator? browserAuth = null, PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator? deviceAuth = null, PetstoreClient.Auth.OAuth.SsoAuthAuthenticator? ssoAuth = null, PetstoreClient.TransportOptions? transportOptions = null, PetstoreClient.ICallHook? callHook = null)
 PetstoreClient.Client: public PetstoreClient.Api.PetApi Pet { get; }
 PetstoreClient.Client: public PetstoreClient.Api.ProblemsApi Problems { get; }
 PetstoreClient.Client: public PetstoreClient.Api.StoreApi Store { get; }
@@ -890,9 +944,10 @@ PetstoreClient.Client: public static PetstoreClient.Client FromEnvironment(strin
 PetstoreClient.Client: public static PetstoreClient.Client WithAuthenticator(PetstoreClient.Auth.IAuthenticator authenticator, PetstoreClient.TransportOptions? transportOptions = null, PetstoreClient.ICallHook? callHook = null)
 PetstoreClient.Client: public static PetstoreClient.Client WithToken(string host, string accessToken, PetstoreClient.TransportOptions? transportOptions = null, PetstoreClient.ICallHook? callHook = null)
 PetstoreClient.Client: public void Dispose()
-PetstoreClient.Configuration: public .ctor(string baseUrl = "/api/v3", System.Collections.Generic.Dictionary<string, string>? defaultHeaders = null, PetstoreClient.ICallHook? callHook = null)
+PetstoreClient.Configuration: public .ctor(string baseUrl = "/api/v3", System.Collections.Generic.Dictionary<string, string>? defaultHeaders = null, PetstoreClient.ICallHook? callHook = null, bool validateConstraints = false)
 PetstoreClient.Configuration: public PetstoreClient.ICallHook? CallHook { get; }
 PetstoreClient.Configuration: public System.Collections.Generic.IReadOnlyDictionary<string, string> DefaultHeaders { get; }
+PetstoreClient.Configuration: public bool ValidateConstraints { get; }
 PetstoreClient.Configuration: public override string ToString()
 PetstoreClient.Configuration: public static PetstoreClient.Configuration DefaultConfiguration()
 PetstoreClient.Configuration: public static PetstoreClient.ConfigurationBuilder Builder()
@@ -904,6 +959,7 @@ PetstoreClient.ConfigurationBuilder: public PetstoreClient.ConfigurationBuilder 
 PetstoreClient.ConfigurationBuilder: public PetstoreClient.ConfigurationBuilder DefaultHeader(string name, string value)
 PetstoreClient.ConfigurationBuilder: public PetstoreClient.ConfigurationBuilder DefaultHeaders(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string>> headers)
 PetstoreClient.ConfigurationBuilder: public PetstoreClient.ConfigurationBuilder Server(PetstoreClient.ServerConfiguration serverConfig, System.Collections.Generic.Dictionary<string, string>? variables = null)
+PetstoreClient.ConfigurationBuilder: public PetstoreClient.ConfigurationBuilder ValidateConstraints(bool validateConstraints)
 PetstoreClient.DefaultApiClient: public .ctor()
 PetstoreClient.DefaultApiClient: public .ctor(PetstoreClient.TransportOptions transportOptions)
 PetstoreClient.DefaultApiClient: public System.Threading.Tasks.Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(string method, System.Uri url, System.Collections.Generic.Dictionary<string, string> headers, object? body)
@@ -1136,6 +1192,36 @@ PetstoreClient.Models.Account: public static bool op_Equality(PetstoreClient.Mod
 PetstoreClient.Models.Account: public static bool op_Inequality(PetstoreClient.Models.Account? left, PetstoreClient.Models.Account? right)
 PetstoreClient.Models.Account: public string? Password { get; init; }
 PetstoreClient.Models.Account: public virtual bool Equals(PetstoreClient.Models.Account? other)
+PetstoreClient.Models.Allowance: protected .ctor(PetstoreClient.Models.Allowance original)
+PetstoreClient.Models.Allowance: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.Allowance: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Allowance: public .ctor()
+PetstoreClient.Models.Allowance: public PetstoreClient.Models.AllowanceTier? Tier { get; init; }
+PetstoreClient.Models.Allowance: public System.Collections.Generic.Dictionary<string, int>? Limits { get; init; }
+PetstoreClient.Models.Allowance: public System.Collections.Generic.List<PetstoreClient.Models.AllowanceTier>? Parts { get; init; }
+PetstoreClient.Models.Allowance: public System.Collections.Generic.List<string>? Codes { get; init; }
+PetstoreClient.Models.Allowance: public double? Ratio { get; init; }
+PetstoreClient.Models.Allowance: public int? Count { get; init; }
+PetstoreClient.Models.Allowance: public int? Step { get; init; }
+PetstoreClient.Models.Allowance: public override bool Equals(object? obj)
+PetstoreClient.Models.Allowance: public override int GetHashCode()
+PetstoreClient.Models.Allowance: public override string ToString()
+PetstoreClient.Models.Allowance: public static bool op_Equality(PetstoreClient.Models.Allowance? left, PetstoreClient.Models.Allowance? right)
+PetstoreClient.Models.Allowance: public static bool op_Inequality(PetstoreClient.Models.Allowance? left, PetstoreClient.Models.Allowance? right)
+PetstoreClient.Models.Allowance: public string? Label { get; init; }
+PetstoreClient.Models.Allowance: public virtual bool Equals(PetstoreClient.Models.Allowance? other)
+PetstoreClient.Models.AllowanceTier: protected .ctor(PetstoreClient.Models.AllowanceTier original)
+PetstoreClient.Models.AllowanceTier: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.AllowanceTier: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.AllowanceTier: public .ctor()
+PetstoreClient.Models.AllowanceTier: public int? Level { get; init; }
+PetstoreClient.Models.AllowanceTier: public override bool Equals(object? obj)
+PetstoreClient.Models.AllowanceTier: public override int GetHashCode()
+PetstoreClient.Models.AllowanceTier: public override string ToString()
+PetstoreClient.Models.AllowanceTier: public static bool op_Equality(PetstoreClient.Models.AllowanceTier? left, PetstoreClient.Models.AllowanceTier? right)
+PetstoreClient.Models.AllowanceTier: public static bool op_Inequality(PetstoreClient.Models.AllowanceTier? left, PetstoreClient.Models.AllowanceTier? right)
+PetstoreClient.Models.AllowanceTier: public string? Name { get; init; }
+PetstoreClient.Models.AllowanceTier: public virtual bool Equals(PetstoreClient.Models.AllowanceTier? other)
 PetstoreClient.Models.ApiResponse: protected .ctor(PetstoreClient.Models.ApiResponse original)
 PetstoreClient.Models.ApiResponse: protected virtual System.Type EqualityContract { get; }
 PetstoreClient.Models.ApiResponse: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
@@ -1162,6 +1248,19 @@ PetstoreClient.Models.AttachPetFilesRequest: public static bool op_Equality(Pets
 PetstoreClient.Models.AttachPetFilesRequest: public static bool op_Inequality(PetstoreClient.Models.AttachPetFilesRequest? left, PetstoreClient.Models.AttachPetFilesRequest? right)
 PetstoreClient.Models.AttachPetFilesRequest: public string? Caption { get; init; }
 PetstoreClient.Models.AttachPetFilesRequest: public virtual bool Equals(PetstoreClient.Models.AttachPetFilesRequest? other)
+PetstoreClient.Models.Audit: protected .ctor(PetstoreClient.Models.Audit original)
+PetstoreClient.Models.Audit: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.Audit: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Audit: public .ctor()
+PetstoreClient.Models.Audit: public System.Collections.Generic.List<string>? Tags { get; init; }
+PetstoreClient.Models.Audit: public int? Score { get; init; }
+PetstoreClient.Models.Audit: public override bool Equals(object? obj)
+PetstoreClient.Models.Audit: public override int GetHashCode()
+PetstoreClient.Models.Audit: public override string ToString()
+PetstoreClient.Models.Audit: public static bool op_Equality(PetstoreClient.Models.Audit? left, PetstoreClient.Models.Audit? right)
+PetstoreClient.Models.Audit: public static bool op_Inequality(PetstoreClient.Models.Audit? left, PetstoreClient.Models.Audit? right)
+PetstoreClient.Models.Audit: public string? Payload { get; init; }
+PetstoreClient.Models.Audit: public virtual bool Equals(PetstoreClient.Models.Audit? other)
 PetstoreClient.Models.Availability: AB = 4
 PetstoreClient.Models.Availability: Available = 0
 PetstoreClient.Models.Availability: Eq = 5
@@ -1292,6 +1391,7 @@ PetstoreClient.Models.DryFood: protected override System.Type EqualityContract {
 PetstoreClient.Models.DryFood: protected override bool PrintMembers(System.Text.StringBuilder builder)
 PetstoreClient.Models.DryFood: public .ctor()
 PetstoreClient.Models.DryFood: public .ctor(double weightKg)
+PetstoreClient.Models.DryFood: public decimal? PricePerKg { get; init; }
 PetstoreClient.Models.DryFood: public override bool Equals(object? obj)
 PetstoreClient.Models.DryFood: public override int GetHashCode()
 PetstoreClient.Models.DryFood: public override string ToString()
@@ -1385,6 +1485,19 @@ PetstoreClient.Models.Ledger: public required long EntryId { get; init; }
 PetstoreClient.Models.Ledger: public static bool op_Equality(PetstoreClient.Models.Ledger? left, PetstoreClient.Models.Ledger? right)
 PetstoreClient.Models.Ledger: public static bool op_Inequality(PetstoreClient.Models.Ledger? left, PetstoreClient.Models.Ledger? right)
 PetstoreClient.Models.Ledger: public virtual bool Equals(PetstoreClient.Models.Ledger? other)
+PetstoreClient.Models.Letter: protected .ctor(PetstoreClient.Models.Letter original)
+PetstoreClient.Models.Letter: protected override System.Type EqualityContract { get; }
+PetstoreClient.Models.Letter: protected override bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Letter: public .ctor()
+PetstoreClient.Models.Letter: public int? Pages { get; init; }
+PetstoreClient.Models.Letter: public override bool Equals(object? obj)
+PetstoreClient.Models.Letter: public override int GetHashCode()
+PetstoreClient.Models.Letter: public override string ToString()
+PetstoreClient.Models.Letter: public sealed override bool Equals(PetstoreClient.Models.Parcel? other)
+PetstoreClient.Models.Letter: public static bool op_Equality(PetstoreClient.Models.Letter? left, PetstoreClient.Models.Letter? right)
+PetstoreClient.Models.Letter: public static bool op_Inequality(PetstoreClient.Models.Letter? left, PetstoreClient.Models.Letter? right)
+PetstoreClient.Models.Letter: public string Kind { get; init; }
+PetstoreClient.Models.Letter: public virtual bool Equals(PetstoreClient.Models.Letter? other)
 PetstoreClient.Models.Medication: protected .ctor(PetstoreClient.Models.Medication original)
 PetstoreClient.Models.Medication: protected virtual System.Type EqualityContract { get; }
 PetstoreClient.Models.Medication: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
@@ -1455,6 +1568,7 @@ PetstoreClient.Models.NativeValues: protected virtual System.Type EqualityContra
 PetstoreClient.Models.NativeValues: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
 PetstoreClient.Models.NativeValues: public .ctor()
 PetstoreClient.Models.NativeValues: public System.Collections.Generic.List<System.Net.IPAddress>? Addresses { get; init; }
+PetstoreClient.Models.NativeValues: public System.Collections.Generic.List<decimal>? Amounts { get; init; }
 PetstoreClient.Models.NativeValues: public System.DateOnly? Since { get; init; }
 PetstoreClient.Models.NativeValues: public System.Net.IPAddress? Address4 { get; init; }
 PetstoreClient.Models.NativeValues: public System.Net.IPAddress? Address6 { get; init; }
@@ -1491,6 +1605,29 @@ PetstoreClient.Models.Order: public override string ToString()
 PetstoreClient.Models.Order: public static bool op_Equality(PetstoreClient.Models.Order? left, PetstoreClient.Models.Order? right)
 PetstoreClient.Models.Order: public static bool op_Inequality(PetstoreClient.Models.Order? left, PetstoreClient.Models.Order? right)
 PetstoreClient.Models.Order: public virtual bool Equals(PetstoreClient.Models.Order? other)
+PetstoreClient.Models.Packet: protected .ctor(PetstoreClient.Models.Packet original)
+PetstoreClient.Models.Packet: protected override System.Type EqualityContract { get; }
+PetstoreClient.Models.Packet: protected override bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Packet: public .ctor()
+PetstoreClient.Models.Packet: public double? WeightKg { get; init; }
+PetstoreClient.Models.Packet: public override bool Equals(object? obj)
+PetstoreClient.Models.Packet: public override int GetHashCode()
+PetstoreClient.Models.Packet: public override string ToString()
+PetstoreClient.Models.Packet: public sealed override bool Equals(PetstoreClient.Models.Parcel? other)
+PetstoreClient.Models.Packet: public static bool op_Equality(PetstoreClient.Models.Packet? left, PetstoreClient.Models.Packet? right)
+PetstoreClient.Models.Packet: public static bool op_Inequality(PetstoreClient.Models.Packet? left, PetstoreClient.Models.Packet? right)
+PetstoreClient.Models.Packet: public string Kind { get; init; }
+PetstoreClient.Models.Packet: public virtual bool Equals(PetstoreClient.Models.Packet? other)
+PetstoreClient.Models.Parcel: protected .ctor()
+PetstoreClient.Models.Parcel: protected .ctor(PetstoreClient.Models.Parcel original)
+PetstoreClient.Models.Parcel: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.Parcel: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Parcel: public override bool Equals(object? obj)
+PetstoreClient.Models.Parcel: public override int GetHashCode()
+PetstoreClient.Models.Parcel: public override string ToString()
+PetstoreClient.Models.Parcel: public static bool op_Equality(PetstoreClient.Models.Parcel? left, PetstoreClient.Models.Parcel? right)
+PetstoreClient.Models.Parcel: public static bool op_Inequality(PetstoreClient.Models.Parcel? left, PetstoreClient.Models.Parcel? right)
+PetstoreClient.Models.Parcel: public virtual bool Equals(PetstoreClient.Models.Parcel? other)
 PetstoreClient.Models.Pet.StatusEnum: Available = 0
 PetstoreClient.Models.Pet.StatusEnum: Pending = 1
 PetstoreClient.Models.Pet.StatusEnum: Sold = 2
@@ -1766,6 +1903,54 @@ PetstoreClient.Models.Rank: HIGH = 3
 PetstoreClient.Models.Rank: LOW = 1
 PetstoreClient.Models.Rank: MEDIUM = 2
 PetstoreClient.Models.Rank: UnknownDefaultOpenApi = -2147483648
+PetstoreClient.Models.Reading: protected .ctor(PetstoreClient.Models.Reading original)
+PetstoreClient.Models.Reading: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.Reading: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Reading: public .ctor()
+PetstoreClient.Models.Reading: public .ctor(PetstoreClient.Models.ReadingLevel level)
+PetstoreClient.Models.Reading: public PetstoreClient.Models.ReadingInlineLevel? InlineLevel { get; init; }
+PetstoreClient.Models.Reading: public PetstoreClient.Models.ReadingShape? Shape { get; init; }
+PetstoreClient.Models.Reading: public object? Nothing { get; init; }
+PetstoreClient.Models.Reading: public override bool Equals(object? obj)
+PetstoreClient.Models.Reading: public override int GetHashCode()
+PetstoreClient.Models.Reading: public override string ToString()
+PetstoreClient.Models.Reading: public required PetstoreClient.Models.ReadingLevel Level { get; init; }
+PetstoreClient.Models.Reading: public static bool op_Equality(PetstoreClient.Models.Reading? left, PetstoreClient.Models.Reading? right)
+PetstoreClient.Models.Reading: public static bool op_Inequality(PetstoreClient.Models.Reading? left, PetstoreClient.Models.Reading? right)
+PetstoreClient.Models.Reading: public virtual bool Equals(PetstoreClient.Models.Reading? other)
+PetstoreClient.Models.ReadingInlineLevel: public .ctor(System.Collections.Generic.IReadOnlyList<object> matchedInstances)
+PetstoreClient.Models.ReadingInlineLevel: public .ctor(object value)
+PetstoreClient.Models.ReadingInlineLevel: public System.Collections.Generic.IReadOnlyList<object> MatchedInstances { get; }
+PetstoreClient.Models.ReadingInlineLevel: public bool Equals(PetstoreClient.Models.ReadingInlineLevel? other)
+PetstoreClient.Models.ReadingInlineLevel: public bool IsLong()
+PetstoreClient.Models.ReadingInlineLevel: public bool IsString()
+PetstoreClient.Models.ReadingInlineLevel: public long? AsLong()
+PetstoreClient.Models.ReadingInlineLevel: public object? ActualInstance { get; }
+PetstoreClient.Models.ReadingInlineLevel: public override bool Equals(object? obj)
+PetstoreClient.Models.ReadingInlineLevel: public override int GetHashCode()
+PetstoreClient.Models.ReadingInlineLevel: public string? AsString()
+PetstoreClient.Models.ReadingLevel: public .ctor(System.Collections.Generic.IReadOnlyList<object> matchedInstances)
+PetstoreClient.Models.ReadingLevel: public .ctor(object value)
+PetstoreClient.Models.ReadingLevel: public System.Collections.Generic.IReadOnlyList<object> MatchedInstances { get; }
+PetstoreClient.Models.ReadingLevel: public bool Equals(PetstoreClient.Models.ReadingLevel? other)
+PetstoreClient.Models.ReadingLevel: public bool IsLong()
+PetstoreClient.Models.ReadingLevel: public bool IsString()
+PetstoreClient.Models.ReadingLevel: public long? AsLong()
+PetstoreClient.Models.ReadingLevel: public object? ActualInstance { get; }
+PetstoreClient.Models.ReadingLevel: public override bool Equals(object? obj)
+PetstoreClient.Models.ReadingLevel: public override int GetHashCode()
+PetstoreClient.Models.ReadingLevel: public string? AsString()
+PetstoreClient.Models.ReadingShape: public .ctor(System.Collections.Generic.IReadOnlyList<object> matchedInstances)
+PetstoreClient.Models.ReadingShape: public .ctor(object value)
+PetstoreClient.Models.ReadingShape: public System.Collections.Generic.Dictionary<string, string>? AsDictionaryStringString()
+PetstoreClient.Models.ReadingShape: public System.Collections.Generic.IReadOnlyList<object> MatchedInstances { get; }
+PetstoreClient.Models.ReadingShape: public System.Collections.Generic.List<string>? AsListString()
+PetstoreClient.Models.ReadingShape: public bool Equals(PetstoreClient.Models.ReadingShape? other)
+PetstoreClient.Models.ReadingShape: public bool IsDictionaryStringString()
+PetstoreClient.Models.ReadingShape: public bool IsListString()
+PetstoreClient.Models.ReadingShape: public object? ActualInstance { get; }
+PetstoreClient.Models.ReadingShape: public override bool Equals(object? obj)
+PetstoreClient.Models.ReadingShape: public override int GetHashCode()
 PetstoreClient.Models.RejectedRequest: protected .ctor(PetstoreClient.Models.RejectedRequest original)
 PetstoreClient.Models.RejectedRequest: protected virtual System.Type EqualityContract { get; }
 PetstoreClient.Models.RejectedRequest: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
@@ -1851,6 +2036,19 @@ PetstoreClient.Models.Roster: public static bool op_Equality(PetstoreClient.Mode
 PetstoreClient.Models.Roster: public static bool op_Inequality(PetstoreClient.Models.Roster? left, PetstoreClient.Models.Roster? right)
 PetstoreClient.Models.Roster: public string? Label { get; init; }
 PetstoreClient.Models.Roster: public virtual bool Equals(PetstoreClient.Models.Roster? other)
+PetstoreClient.Models.Sensors: protected .ctor(PetstoreClient.Models.Sensors original)
+PetstoreClient.Models.Sensors: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.Sensors: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Sensors: public .ctor()
+PetstoreClient.Models.Sensors: public System.Collections.Generic.Dictionary<string, System.Text.Json.JsonElement> AdditionalPropertiesWire { get; init; }
+PetstoreClient.Models.Sensors: public System.Collections.Generic.Dictionary<string, int> AdditionalProperties { get; init; }
+PetstoreClient.Models.Sensors: public override bool Equals(object? obj)
+PetstoreClient.Models.Sensors: public override int GetHashCode()
+PetstoreClient.Models.Sensors: public override string ToString()
+PetstoreClient.Models.Sensors: public static bool op_Equality(PetstoreClient.Models.Sensors? left, PetstoreClient.Models.Sensors? right)
+PetstoreClient.Models.Sensors: public static bool op_Inequality(PetstoreClient.Models.Sensors? left, PetstoreClient.Models.Sensors? right)
+PetstoreClient.Models.Sensors: public string? Site { get; init; }
+PetstoreClient.Models.Sensors: public virtual bool Equals(PetstoreClient.Models.Sensors? other)
 PetstoreClient.Models.Separator: AB = 2
 PetstoreClient.Models.Separator: AB2 = 3
 PetstoreClient.Models.Separator: SPACE1 = 0
@@ -1894,6 +2092,20 @@ PetstoreClient.Models.Shape: public static bool op_Inequality(PetstoreClient.Mod
 PetstoreClient.Models.Shape: public string? Label { get; init; }
 PetstoreClient.Models.Shape: public virtual bool Equals(PetstoreClient.Models.Shape? other)
 PetstoreClient.Models.Shape: public virtual void OnDeserialized()
+PetstoreClient.Models.Shipment: protected .ctor(PetstoreClient.Models.Shipment original)
+PetstoreClient.Models.Shipment: protected virtual System.Type EqualityContract { get; }
+PetstoreClient.Models.Shipment: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
+PetstoreClient.Models.Shipment: public .ctor()
+PetstoreClient.Models.Shipment: public .ctor(string kind)
+PetstoreClient.Models.Shipment: public override bool Equals(object? obj)
+PetstoreClient.Models.Shipment: public override int GetHashCode()
+PetstoreClient.Models.Shipment: public override string ToString()
+PetstoreClient.Models.Shipment: public required string Kind { get; init; }
+PetstoreClient.Models.Shipment: public static bool op_Equality(PetstoreClient.Models.Shipment? left, PetstoreClient.Models.Shipment? right)
+PetstoreClient.Models.Shipment: public static bool op_Inequality(PetstoreClient.Models.Shipment? left, PetstoreClient.Models.Shipment? right)
+PetstoreClient.Models.Shipment: public string? CustomsCode { get; init; }
+PetstoreClient.Models.Shipment: public string? Postcode { get; init; }
+PetstoreClient.Models.Shipment: public virtual bool Equals(PetstoreClient.Models.Shipment? other)
 PetstoreClient.Models.Sparse: protected .ctor(PetstoreClient.Models.Sparse original)
 PetstoreClient.Models.Sparse: protected virtual System.Type EqualityContract { get; }
 PetstoreClient.Models.Sparse: protected virtual bool PrintMembers(System.Text.StringBuilder builder)
@@ -2206,6 +2418,7 @@ public abstract class PetstoreClient.Api.GetMultiServerPetInfoServer
 public abstract class PetstoreClient.Api.GetPetByIdServer
 public abstract class PetstoreClient.Api.GetStagingPetInfoServer
 public abstract class PetstoreClient.Auth.BaseAuthenticator : PetstoreClient.Auth.IAuthenticator
+public abstract record PetstoreClient.Models.Parcel : System.IEquatable<PetstoreClient.Models.Parcel>
 public abstract record PetstoreClient.Models.PetFood : System.IEquatable<PetstoreClient.Models.PetFood>
 public abstract record PetstoreClient.Models.Shape : System.IEquatable<PetstoreClient.Models.Shape>, System.Text.Json.Serialization.IJsonOnDeserialized
 public abstract record PetstoreClient.Models.Vehicle : System.IEquatable<PetstoreClient.Models.Vehicle>, System.Text.Json.Serialization.IJsonOnDeserialized
@@ -2217,8 +2430,10 @@ public class PetstoreClient.ApiResult<T> : PetstoreClient.IApiResult
 public class PetstoreClient.Auth.ApiKeyAuthenticator : PetstoreClient.Auth.BaseAuthenticator
 public class PetstoreClient.Auth.BasicAuthenticator : PetstoreClient.Auth.BaseAuthenticator
 public class PetstoreClient.Auth.BearerAuthenticator : PetstoreClient.Auth.BaseAuthenticator
+public class PetstoreClient.Auth.DigestAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IChallengeAuthenticator
 public class PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IHttpAwareAuthenticator, PetstoreClient.Auth.IInvalidatableAuthenticator
 public class PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IHttpAwareAuthenticator, PetstoreClient.Auth.IInvalidatableAuthenticator
+public class PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IHttpAwareAuthenticator, PetstoreClient.Auth.IInvalidatableAuthenticator
 public class PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IHttpAwareAuthenticator
 public class PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IHttpAwareAuthenticator, PetstoreClient.Auth.IInvalidatableAuthenticator
 public class PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator : PetstoreClient.Auth.BaseAuthenticator, PetstoreClient.Auth.IHttpAwareAuthenticator, PetstoreClient.Auth.IInvalidatableAuthenticator
@@ -2258,6 +2473,9 @@ public class PetstoreClient.Errors.UnprocessableEntityException : PetstoreClient
 public class PetstoreClient.Errors.UnsupportedMediaTypeException : PetstoreClient.Errors.ClientException
 public class PetstoreClient.Errors.UpstreamFailureException : PetstoreClient.Errors.ServerException
 public class PetstoreClient.Models.PetTreatment : System.IEquatable<PetstoreClient.Models.PetTreatment>
+public class PetstoreClient.Models.ReadingInlineLevel : System.IEquatable<PetstoreClient.Models.ReadingInlineLevel>
+public class PetstoreClient.Models.ReadingLevel : System.IEquatable<PetstoreClient.Models.ReadingLevel>
+public class PetstoreClient.Models.ReadingShape : System.IEquatable<PetstoreClient.Models.ReadingShape>
 public class PetstoreClient.Models.ReserveStockResponse : PetstoreClient.IOneOfWrapper, System.IEquatable<PetstoreClient.Models.ReserveStockResponse>
 public class PetstoreClient.Models.SetPetAvatarThumbnailRequest : PetstoreClient.IOneOfWrapper, System.IEquatable<PetstoreClient.Models.SetPetAvatarThumbnailRequest>
 public class PetstoreClient.Models.TreatmentRecord : System.IEquatable<PetstoreClient.Models.TreatmentRecord>
@@ -2290,8 +2508,11 @@ public interface PetstoreClient.ICallHook
 public interface PetstoreClient.ICallObserver
 public interface PetstoreClient.IClient : System.IDisposable
 public record PetstoreClient.Models.Account : System.IEquatable<PetstoreClient.Models.Account>, System.Text.Json.Serialization.IJsonOnDeserialized
+public record PetstoreClient.Models.Allowance : System.IEquatable<PetstoreClient.Models.Allowance>
+public record PetstoreClient.Models.AllowanceTier : System.IEquatable<PetstoreClient.Models.AllowanceTier>
 public record PetstoreClient.Models.ApiResponse : System.IEquatable<PetstoreClient.Models.ApiResponse>
 public record PetstoreClient.Models.AttachPetFilesRequest : System.IEquatable<PetstoreClient.Models.AttachPetFilesRequest>, System.Text.Json.Serialization.IJsonOnDeserialized
+public record PetstoreClient.Models.Audit : System.IEquatable<PetstoreClient.Models.Audit>
 public record PetstoreClient.Models.BinaryVault : System.IEquatable<PetstoreClient.Models.BinaryVault>
 public record PetstoreClient.Models.Blobs : System.IEquatable<PetstoreClient.Models.Blobs>
 public record PetstoreClient.Models.Car : PetstoreClient.Models.Vehicle, System.IEquatable<PetstoreClient.Models.Car>
@@ -2306,6 +2527,7 @@ public record PetstoreClient.Models.Employee : System.IEquatable<PetstoreClient.
 public record PetstoreClient.Models.Error : System.IEquatable<PetstoreClient.Models.Error>
 public record PetstoreClient.Models.Freeform : System.IEquatable<PetstoreClient.Models.Freeform>
 public record PetstoreClient.Models.Ledger : System.IEquatable<PetstoreClient.Models.Ledger>
+public record PetstoreClient.Models.Letter : PetstoreClient.Models.Parcel, System.IEquatable<PetstoreClient.Models.Letter>
 public record PetstoreClient.Models.Medication : System.IEquatable<PetstoreClient.Models.Medication>, System.Text.Json.Serialization.IJsonOnDeserialized
 public record PetstoreClient.Models.MemberNotFound : System.IEquatable<PetstoreClient.Models.MemberNotFound>
 public record PetstoreClient.Models.Memo : System.IEquatable<PetstoreClient.Models.Memo>, System.Text.Json.Serialization.IJsonOnDeserialized
@@ -2313,6 +2535,7 @@ public record PetstoreClient.Models.Metadata : System.IEquatable<PetstoreClient.
 public record PetstoreClient.Models.Moments : System.IEquatable<PetstoreClient.Models.Moments>
 public record PetstoreClient.Models.NativeValues : System.IEquatable<PetstoreClient.Models.NativeValues>
 public record PetstoreClient.Models.Order : System.IEquatable<PetstoreClient.Models.Order>
+public record PetstoreClient.Models.Packet : PetstoreClient.Models.Parcel, System.IEquatable<PetstoreClient.Models.Packet>
 public record PetstoreClient.Models.Pet : System.IEquatable<PetstoreClient.Models.Pet>, System.Text.Json.Serialization.IJsonOnDeserialized
 public record PetstoreClient.Models.PetAfterPage : System.IEquatable<PetstoreClient.Models.PetAfterPage>
 public record PetstoreClient.Models.PetArchivePage : System.IEquatable<PetstoreClient.Models.PetArchivePage>
@@ -2330,13 +2553,16 @@ public record PetstoreClient.Models.Photo : System.IEquatable<PetstoreClient.Mod
 public record PetstoreClient.Models.PhotoMetadata : System.IEquatable<PetstoreClient.Models.PhotoMetadata>
 public record PetstoreClient.Models.PhotoMetadataLocation : System.IEquatable<PetstoreClient.Models.PhotoMetadataLocation>
 public record PetstoreClient.Models.ProjectNotFound : System.IEquatable<PetstoreClient.Models.ProjectNotFound>
+public record PetstoreClient.Models.Reading : System.IEquatable<PetstoreClient.Models.Reading>, System.Text.Json.Serialization.IJsonOnDeserialized
 public record PetstoreClient.Models.RejectedRequest : System.IEquatable<PetstoreClient.Models.RejectedRequest>
 public record PetstoreClient.Models.RequiredNullable : System.IEquatable<PetstoreClient.Models.RequiredNullable>
 public record PetstoreClient.Models.Reservation : System.IEquatable<PetstoreClient.Models.Reservation>
 public record PetstoreClient.Models.ReservationReceipt : System.IEquatable<PetstoreClient.Models.ReservationReceipt>, System.Text.Json.Serialization.IJsonOnDeserialized
 public record PetstoreClient.Models.Result : System.IEquatable<PetstoreClient.Models.Result>
 public record PetstoreClient.Models.Roster : System.IEquatable<PetstoreClient.Models.Roster>
+public record PetstoreClient.Models.Sensors : System.IEquatable<PetstoreClient.Models.Sensors>
 public record PetstoreClient.Models.SetPetAvatarRequest : System.IEquatable<PetstoreClient.Models.SetPetAvatarRequest>, System.Text.Json.Serialization.IJsonOnDeserialized
+public record PetstoreClient.Models.Shipment : System.IEquatable<PetstoreClient.Models.Shipment>, System.Text.Json.Serialization.IJsonOnDeserialized
 public record PetstoreClient.Models.Sparse : System.IEquatable<PetstoreClient.Models.Sparse>
 public record PetstoreClient.Models.Square : PetstoreClient.Models.Shape, System.IEquatable<PetstoreClient.Models.Square>
 public record PetstoreClient.Models.StateConflict : System.IEquatable<PetstoreClient.Models.StateConflict>
@@ -2385,6 +2611,7 @@ public sealed class PetstoreClient.Api.Options.GetMatrixOptions
 public sealed class PetstoreClient.Api.Options.GetMemberOptions
 public sealed class PetstoreClient.Api.Options.GetMemoOptions
 public sealed class PetstoreClient.Api.Options.GetMultiServerPetInfoOptions
+public sealed class PetstoreClient.Api.Options.GetNativeAmountOptions
 public sealed class PetstoreClient.Api.Options.GetNativeValuesOptions
 public sealed class PetstoreClient.Api.Options.GetOrderByIdOptions
 public sealed class PetstoreClient.Api.Options.GetOrderByTrackingIdOptions
@@ -2407,6 +2634,7 @@ public sealed class PetstoreClient.Api.Options.GetTimestampGroupsOptions
 public sealed class PetstoreClient.Api.Options.GetTreeOptions
 public sealed class PetstoreClient.Api.Options.GetUpstreamOptions
 public sealed class PetstoreClient.Api.Options.HeadMemoOptions
+public sealed class PetstoreClient.Api.Options.ListNativeAmountsOptions
 public sealed class PetstoreClient.Api.Options.ListPetArchiveOptions
 public sealed class PetstoreClient.Api.Options.ListPetCatalogOptions
 public sealed class PetstoreClient.Api.Options.ListPetEventsOptions
@@ -2425,6 +2653,7 @@ public sealed class PetstoreClient.Api.Options.SearchStoreOptions
 public sealed class PetstoreClient.Api.Options.SetPetAvatarOptions
 public sealed class PetstoreClient.Api.Options.SetPetAvatarThumbnailOptions
 public sealed class PetstoreClient.Api.Options.SetPetPreferencesOptions
+public sealed class PetstoreClient.Api.Options.SubmitAllowanceOptions
 public sealed class PetstoreClient.Api.Options.TakeLockOptions
 public sealed class PetstoreClient.Api.Options.TraceMemoOptions
 public sealed class PetstoreClient.Api.Options.UpdatePetOptions
@@ -2436,8 +2665,10 @@ public sealed class PetstoreClient.ApiStreamResponse : System.IAsyncDisposable, 
 public sealed class PetstoreClient.Auth.AdminBasicAuthenticator : PetstoreClient.Auth.BasicAuthenticator
 public sealed class PetstoreClient.Auth.ApiKeyHeaderAuthenticator : PetstoreClient.Auth.ApiKeyAuthenticator
 public sealed class PetstoreClient.Auth.ApiKeyQueryAuthenticator : PetstoreClient.Auth.ApiKeyAuthenticator
+public sealed class PetstoreClient.Auth.ArchiveDigestAuthenticator : PetstoreClient.Auth.DigestAuthenticator
 public sealed class PetstoreClient.Auth.InternalApiKeyAuthenticator : PetstoreClient.Auth.ApiKeyAuthenticator
 public sealed class PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator : PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator
+public sealed class PetstoreClient.Auth.OAuth.DeviceAuthDeviceAuthorizationAuthenticator : PetstoreClient.Auth.OAuth.OAuth2DeviceAuthorizationAuthenticator
 public sealed class PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator : PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator
 public sealed class PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator : PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator
 public sealed class PetstoreClient.Auth.OAuth.OAuth2TokenManager
@@ -2464,6 +2695,7 @@ public sealed class PetstoreClient.SseStream<T> : System.Collections.Generic.IAs
 public sealed class PetstoreClient.StreamOptions
 public sealed class PetstoreClient.TransportOptions
 public sealed class PetstoreClient.TransportOptionsBuilder
+public sealed record PetstoreClient.Auth.OAuth.DeviceAuthorization : System.IEquatable<PetstoreClient.Auth.OAuth.DeviceAuthorization>
 public sealed record PetstoreClient.CallInfo : System.IEquatable<PetstoreClient.CallInfo>
 public sealed record PetstoreClient.CallOutcome : System.IEquatable<PetstoreClient.CallOutcome>
 public sealed record PetstoreClient.ServerSentEvent<T> : System.IEquatable<PetstoreClient.ServerSentEvent<T>>

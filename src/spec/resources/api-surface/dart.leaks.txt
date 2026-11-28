@@ -8,3 +8,15 @@ GetNativeValuesOptions::final Decimal? amount [uses decimal:Decimal] | format: d
 NativeValues::NativeValues({String? address4, String? address6, List<String>? addresses, String? homepage, Decimal? amount, Decimal? ledger, Duration? wait, DateTime? since, String? host, String? contact}) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
 NativeValues::final Decimal? amount [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
 NativeValues::final Decimal? ledger [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+DryFood::DryFood({String foodType = 'dry', required double weightKg, Decimal? pricePerKg}) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+DryFood::final Decimal? pricePerKg [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+NativeValues::NativeValues({String? address4, String? address6, List<String>? addresses, String? homepage, Decimal? amount, List<Decimal>? amounts, Decimal? ledger, Duration? wait, DateTime? since, String? host, String? contact}) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+NativeValues::final List<Decimal>? amounts [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApi::Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(GetNativeAmountOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApi::Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(ListNativeAmountsOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApi::Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApi::Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApiInterface::Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(GetNativeAmountOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApiInterface::Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(ListNativeAmountsOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApiInterface::Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal
+StoreApiInterface::Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options) [uses decimal:Decimal] | format: decimal maps to package:decimal's Decimal

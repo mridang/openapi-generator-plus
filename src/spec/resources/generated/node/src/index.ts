@@ -94,6 +94,7 @@ export { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
 export type { CredentialProvider } from "./auth/credentials.js";
 export { BasicAuthenticator } from "./auth/basic-authenticator.js";
 export { DigestAuthenticator } from "./auth/digest-authenticator.js";
+export type { ChallengeAuthenticator } from "./auth/digest-authenticator.js";
 export { BearerAuthenticator } from "./auth/bearer-authenticator.js";
 export { ApiKeyAuthenticator } from "./auth/api-key-authenticator.js";
 export { ApiKeyLocation } from "./auth/api-key-location.js";

@@ -75,6 +75,7 @@ export { BasicAuthenticator } from './auth/basic-authenticator{{importFileExtens
 {{/hasBasicAuth}}
 {{#hasDigestAuth}}
 export { DigestAuthenticator } from './auth/digest-authenticator{{importFileExtension}}';
+export type { ChallengeAuthenticator } from './auth/digest-authenticator{{importFileExtension}}';
 {{/hasDigestAuth}}
 export { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
 {{#hasApiKeyAuth}}

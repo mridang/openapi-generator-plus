@@ -69,7 +69,15 @@ final class FileRoleNormaliser {
       SpecNames names = new SpecNames();
       Iterator<String> schemaNames = root.path("components").path("schemas").fieldNames();
       while (schemaNames.hasNext()) {
-        names.schemas.add(roleName(schemaNames.next()));
+        String schema = schemaNames.next();
+        names.schemas.add(roleName(schema));
+        // an inline oneOf or anyOf property becomes a model named after the schema and property
+        for (Map.Entry<String, JsonNode> property :
+            root.path("components").path("schemas").path(schema).path("properties").properties()) {
+          if (property.getValue().has("anyOf") || property.getValue().has("oneOf")) {
+            names.schemas.add(roleName(schema + property.getKey()));
+          }
+        }
       }
       for (JsonNode tag : root.path("tags")) {
         names.tags.add(roleName(tag.path("name").asText()));

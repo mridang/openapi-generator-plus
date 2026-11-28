@@ -46,6 +46,36 @@ PetstoreClient.AdminBasicAuthenticator: conforms to Swift.Sendable
 PetstoreClient.AdminBasicAuthenticator: conforms to Swift.SendableMetatype
 PetstoreClient.AdminBasicAuthenticator: inherits from PetstoreClient.BasicAuthenticator
 PetstoreClient.AdminBasicAuthenticator: override convenience init(host: String, username: String? = nil, password: String? = nil) throws
+PetstoreClient.Allowance: conforms to Swift.Decodable
+PetstoreClient.Allowance: conforms to Swift.Encodable
+PetstoreClient.Allowance: conforms to Swift.Equatable
+PetstoreClient.Allowance: conforms to Swift.Hashable
+PetstoreClient.Allowance: conforms to Swift.Sendable
+PetstoreClient.Allowance: conforms to Swift.SendableMetatype
+PetstoreClient.Allowance: func copy(label: String?? = .none, count: Int?? = .none, ratio: Double?? = .none, step: Int?? = .none, codes: [String]?? = .none, limits: [String: Int]?? = .none, tier: AllowanceTier?? = .none, parts: [AllowanceTier]?? = .none) -> Allowance
+PetstoreClient.Allowance: func encode(to: any Encoder) throws
+PetstoreClient.Allowance: init(from: any Decoder) throws
+PetstoreClient.Allowance: init(label: String? = nil, count: Int? = nil, ratio: Double? = nil, step: Int? = nil, codes: [String]? = nil, limits: [String: Int]? = nil, tier: AllowanceTier? = nil, parts: [AllowanceTier]? = nil)
+PetstoreClient.Allowance: let codes: [String]?
+PetstoreClient.Allowance: let count: Int?
+PetstoreClient.Allowance: let label: String?
+PetstoreClient.Allowance: let limits: [String: Int]?
+PetstoreClient.Allowance: let parts: [AllowanceTier]?
+PetstoreClient.Allowance: let ratio: Double?
+PetstoreClient.Allowance: let step: Int?
+PetstoreClient.Allowance: let tier: AllowanceTier?
+PetstoreClient.AllowanceTier: conforms to Swift.Decodable
+PetstoreClient.AllowanceTier: conforms to Swift.Encodable
+PetstoreClient.AllowanceTier: conforms to Swift.Equatable
+PetstoreClient.AllowanceTier: conforms to Swift.Hashable
+PetstoreClient.AllowanceTier: conforms to Swift.Sendable
+PetstoreClient.AllowanceTier: conforms to Swift.SendableMetatype
+PetstoreClient.AllowanceTier: func copy(level: Int?? = .none, name: String?? = .none) -> AllowanceTier
+PetstoreClient.AllowanceTier: func encode(to: any Encoder) throws
+PetstoreClient.AllowanceTier: init(from: any Decoder) throws
+PetstoreClient.AllowanceTier: init(level: Int? = nil, name: String? = nil)
+PetstoreClient.AllowanceTier: let level: Int?
+PetstoreClient.AllowanceTier: let name: String?
 PetstoreClient.AnyCodable: conforms to Swift.CustomStringConvertible
 PetstoreClient.AnyCodable: conforms to Swift.Decodable
 PetstoreClient.AnyCodable: conforms to Swift.Encodable
@@ -165,6 +195,14 @@ PetstoreClient.ApiStreamResponse: let headers: [String: String]
 PetstoreClient.ApiStreamResponse: let statusCode: Int
 PetstoreClient.ApiStreamResponse: var debugDescription: String { get }
 PetstoreClient.ApiStreamResponse: var description: String { get }
+PetstoreClient.ArchiveDigestAuthenticator: conforms to PetstoreClient.Authenticator
+PetstoreClient.ArchiveDigestAuthenticator: conforms to Swift.CustomDebugStringConvertible
+PetstoreClient.ArchiveDigestAuthenticator: conforms to Swift.CustomReflectable
+PetstoreClient.ArchiveDigestAuthenticator: conforms to Swift.CustomStringConvertible
+PetstoreClient.ArchiveDigestAuthenticator: conforms to Swift.Sendable
+PetstoreClient.ArchiveDigestAuthenticator: conforms to Swift.SendableMetatype
+PetstoreClient.ArchiveDigestAuthenticator: inherits from PetstoreClient.DigestAuthenticator
+PetstoreClient.ArchiveDigestAuthenticator: override convenience init(host: String, username: String? = nil, password: String? = nil) throws
 PetstoreClient.AttachPetFilesOptions: conforms to Swift.Sendable
 PetstoreClient.AttachPetFilesOptions: conforms to Swift.SendableMetatype
 PetstoreClient.AttachPetFilesOptions: init(file: Data, caption: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
@@ -185,6 +223,19 @@ PetstoreClient.AttachPetFilesRequest: init(file: Data, caption: String? = nil)
 PetstoreClient.AttachPetFilesRequest: init(from: any Decoder) throws
 PetstoreClient.AttachPetFilesRequest: let caption: String?
 PetstoreClient.AttachPetFilesRequest: let file: Data
+PetstoreClient.Audit: conforms to Swift.Decodable
+PetstoreClient.Audit: conforms to Swift.Encodable
+PetstoreClient.Audit: conforms to Swift.Equatable
+PetstoreClient.Audit: conforms to Swift.Hashable
+PetstoreClient.Audit: conforms to Swift.Sendable
+PetstoreClient.Audit: conforms to Swift.SendableMetatype
+PetstoreClient.Audit: func copy(tags: [String]?? = .none, score: Int?? = .none, payload: String?? = .none) -> Audit
+PetstoreClient.Audit: func encode(to: any Encoder) throws
+PetstoreClient.Audit: init(from: any Decoder) throws
+PetstoreClient.Audit: init(tags: [String]? = nil, score: Int? = nil, payload: String? = nil)
+PetstoreClient.Audit: let payload: String?
+PetstoreClient.Audit: let score: Int?
+PetstoreClient.Audit: let tags: [String]?
 PetstoreClient.Authenticator: conforms to Swift.Sendable
 PetstoreClient.Authenticator: conforms to Swift.SendableMetatype
 PetstoreClient.Authenticator: func authHeaders() async throws -> [String: String]
@@ -397,7 +448,7 @@ PetstoreClient.Client: conforms to Swift.Sendable
 PetstoreClient.Client: conforms to Swift.SendableMetatype
 PetstoreClient.Client: convenience init(authenticator: any Authenticator, transportOptions: TransportOptions? = nil, callHook: (any CallHook)? = nil) throws
 PetstoreClient.Client: convenience init(host: String, accessToken: String, transportOptions: TransportOptions? = nil, callHook: (any CallHook)? = nil) throws
-PetstoreClient.Client: convenience init(host: String, petStoreBasic: (any Authenticator)? = nil, adminBasic: (any Authenticator)? = nil, petStoreBearer: (any Authenticator)? = nil, serviceToken: (any Authenticator)? = nil, apiKeyHeader: (any Authenticator)? = nil, internalApiKey: (any Authenticator)? = nil, apiKeyQuery: (any Authenticator)? = nil, sessionCookie: (any Authenticator)? = nil, machineAuth: (any Authenticator)? = nil, legacyAuth: (any Authenticator)? = nil, userAuth: (any Authenticator)? = nil, browserAuth: (any Authenticator)? = nil, ssoAuth: (any Authenticator)? = nil, transportOptions: TransportOptions? = nil, callHook: (any CallHook)? = nil) throws
+PetstoreClient.Client: convenience init(host: String, petStoreBasic: (any Authenticator)? = nil, adminBasic: (any Authenticator)? = nil, archiveDigest: (any Authenticator)? = nil, petStoreBearer: (any Authenticator)? = nil, serviceToken: (any Authenticator)? = nil, apiKeyHeader: (any Authenticator)? = nil, internalApiKey: (any Authenticator)? = nil, apiKeyQuery: (any Authenticator)? = nil, sessionCookie: (any Authenticator)? = nil, machineAuth: (any Authenticator)? = nil, legacyAuth: (any Authenticator)? = nil, userAuth: (any Authenticator)? = nil, browserAuth: (any Authenticator)? = nil, deviceAuth: (any Authenticator)? = nil, ssoAuth: (any Authenticator)? = nil, transportOptions: TransportOptions? = nil, callHook: (any CallHook)? = nil) throws
 PetstoreClient.Client: func close()
 PetstoreClient.Client: let pet: PetApi
 PetstoreClient.Client: let problems: ProblemsApi
@@ -452,6 +503,7 @@ PetstoreClient.Configuration: conforms to Swift.SendableMetatype
 PetstoreClient.Configuration: let baseURL: String
 PetstoreClient.Configuration: let callHook: (any CallHook)?
 PetstoreClient.Configuration: let defaultHeaders: [String: String]
+PetstoreClient.Configuration: let validateConstraints: Bool
 PetstoreClient.Configuration: static func `default`() -> Configuration
 PetstoreClient.Configuration: static func builder() -> ConfigurationBuilder
 PetstoreClient.Configuration: var debugDescription: String { get }
@@ -461,12 +513,14 @@ PetstoreClient.ConfigurationBuilder: @discardableResult func callHook(_: (any Ca
 PetstoreClient.ConfigurationBuilder: @discardableResult func defaultHeader(name: String, value: String) -> ConfigurationBuilder
 PetstoreClient.ConfigurationBuilder: @discardableResult func defaultHeaders(_: [String: String]) -> ConfigurationBuilder
 PetstoreClient.ConfigurationBuilder: @discardableResult func server(_: ServerConfiguration, variables: [String: String]? = nil) throws -> ConfigurationBuilder
+PetstoreClient.ConfigurationBuilder: @discardableResult func validateConstraints(_: Bool) -> ConfigurationBuilder
 PetstoreClient.ConfigurationBuilder: func build() -> Configuration
 PetstoreClient.ConfigurationBuilder: init()
 PetstoreClient.ConfigurationError: case invalidArgument(String)
 PetstoreClient.ConfigurationError: case invalidCACertificate(String)
 PetstoreClient.ConfigurationError: case invalidMaxResponseBytes(Int)
 PetstoreClient.ConfigurationError: case invalidProxy(String)
+PetstoreClient.ConfigurationError: case invalidRequestBody(String)
 PetstoreClient.ConfigurationError: case invalidServerVariable(variable: String, value: String, allowed: [String])
 PetstoreClient.ConfigurationError: case invalidState(String)
 PetstoreClient.ConfigurationError: case invalidTimeout(Int)
@@ -575,6 +629,39 @@ PetstoreClient.Department: func encode(to: any Encoder) throws
 PetstoreClient.Department: init(from: any Decoder) throws
 PetstoreClient.Department: init(name: String, lead: Employee? = nil)
 PetstoreClient.Department: let name: String
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to PetstoreClient.AccessTokenInvalidating
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to PetstoreClient.Authenticator
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to PetstoreClient.HttpAwareAuthenticator
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to Swift.CustomDebugStringConvertible
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to Swift.CustomReflectable
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to Swift.CustomStringConvertible
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to Swift.Sendable
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: conforms to Swift.SendableMetatype
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: convenience init(host: String, clientId: String? = nil) throws
+PetstoreClient.DeviceAuthDeviceAuthorizationAuthenticator: inherits from PetstoreClient.OAuth2DeviceAuthorizationAuthenticator
+PetstoreClient.DeviceAuthorization: conforms to Swift.Equatable
+PetstoreClient.DeviceAuthorization: conforms to Swift.Sendable
+PetstoreClient.DeviceAuthorization: conforms to Swift.SendableMetatype
+PetstoreClient.DeviceAuthorization: init(deviceCode: String, userCode: String, verificationURI: String, verificationURIComplete: String? = nil, expiresIn: Int, interval: Int = 5)
+PetstoreClient.DeviceAuthorization: let deviceCode: String
+PetstoreClient.DeviceAuthorization: let expiresIn: Int
+PetstoreClient.DeviceAuthorization: let interval: Int
+PetstoreClient.DeviceAuthorization: let userCode: String
+PetstoreClient.DeviceAuthorization: let verificationURI: String
+PetstoreClient.DeviceAuthorization: let verificationURIComplete: String?
+PetstoreClient.DigestAuthenticator: conforms to PetstoreClient.Authenticator
+PetstoreClient.DigestAuthenticator: conforms to Swift.Copyable
+PetstoreClient.DigestAuthenticator: conforms to Swift.CustomDebugStringConvertible
+PetstoreClient.DigestAuthenticator: conforms to Swift.CustomReflectable
+PetstoreClient.DigestAuthenticator: conforms to Swift.CustomStringConvertible
+PetstoreClient.DigestAuthenticator: conforms to Swift.Sendable
+PetstoreClient.DigestAuthenticator: conforms to Swift.SendableMetatype
+PetstoreClient.DigestAuthenticator: inherits from PetstoreClient.BaseAuthenticator
+PetstoreClient.DigestAuthenticator: init(host: String, username: String, password: String) throws
+PetstoreClient.DigestAuthenticator: override func authHeaders() async -> [String: String]
+PetstoreClient.DigestAuthenticator: override func host() -> String
+PetstoreClient.DigestAuthenticator: var debugDescription: String { get }
+PetstoreClient.DigestAuthenticator: var description: String { get }
 PetstoreClient.DownloadPetDocumentOptions: conforms to Swift.Sendable
 PetstoreClient.DownloadPetDocumentOptions: conforms to Swift.SendableMetatype
 PetstoreClient.DownloadPetDocumentOptions: init(timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
@@ -587,11 +674,12 @@ PetstoreClient.DryFood: conforms to Swift.Equatable
 PetstoreClient.DryFood: conforms to Swift.Hashable
 PetstoreClient.DryFood: conforms to Swift.Sendable
 PetstoreClient.DryFood: conforms to Swift.SendableMetatype
-PetstoreClient.DryFood: func copy(foodType: String? = nil, weightKg: Double? = nil) -> DryFood
+PetstoreClient.DryFood: func copy(foodType: String? = nil, weightKg: Double? = nil, pricePerKg: Decimal?? = .none) -> DryFood
 PetstoreClient.DryFood: func encode(to: any Encoder) throws
-PetstoreClient.DryFood: init(foodType: String = "dry", weightKg: Double)
+PetstoreClient.DryFood: init(foodType: String = "dry", weightKg: Double, pricePerKg: Decimal? = nil)
 PetstoreClient.DryFood: init(from: any Decoder) throws
 PetstoreClient.DryFood: let foodType: String
+PetstoreClient.DryFood: let pricePerKg: Decimal?
 PetstoreClient.DryFood: let weightKg: Double
 PetstoreClient.EdgeCases: conforms to Swift.Decodable
 PetstoreClient.EdgeCases: conforms to Swift.Encodable
@@ -810,6 +898,12 @@ PetstoreClient.GetMultiServerPetInfoServerRegionalRegion: conforms to Swift.Equa
 PetstoreClient.GetMultiServerPetInfoServerRegionalRegion: conforms to Swift.Hashable
 PetstoreClient.GetMultiServerPetInfoServerRegionalRegion: conforms to Swift.RawRepresentable
 PetstoreClient.GetMultiServerPetInfoServerRegionalRegion: init?(rawValue: String)
+PetstoreClient.GetNativeAmountOptions: conforms to Swift.Sendable
+PetstoreClient.GetNativeAmountOptions: conforms to Swift.SendableMetatype
+PetstoreClient.GetNativeAmountOptions: init(timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
+PetstoreClient.GetNativeAmountOptions: let headers: [String: String]?
+PetstoreClient.GetNativeAmountOptions: let maxRetries: Int?
+PetstoreClient.GetNativeAmountOptions: let timeout: Int?
 PetstoreClient.GetNativeValuesOptions: conforms to Swift.Sendable
 PetstoreClient.GetNativeValuesOptions: conforms to Swift.SendableMetatype
 PetstoreClient.GetNativeValuesOptions: init(address4: String? = nil, delay: Duration? = nil, amount: Decimal? = nil, xAddress6: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
@@ -1062,6 +1156,24 @@ PetstoreClient.LegacyAuthPasswordAuthenticator: conforms to Swift.Sendable
 PetstoreClient.LegacyAuthPasswordAuthenticator: conforms to Swift.SendableMetatype
 PetstoreClient.LegacyAuthPasswordAuthenticator: convenience init(host: String, clientId: String? = nil, clientSecret: String? = nil, username: String? = nil, password: String? = nil) throws
 PetstoreClient.LegacyAuthPasswordAuthenticator: inherits from PetstoreClient.OAuth2PasswordAuthenticator
+PetstoreClient.Letter: conforms to Swift.Decodable
+PetstoreClient.Letter: conforms to Swift.Encodable
+PetstoreClient.Letter: conforms to Swift.Equatable
+PetstoreClient.Letter: conforms to Swift.Hashable
+PetstoreClient.Letter: conforms to Swift.Sendable
+PetstoreClient.Letter: conforms to Swift.SendableMetatype
+PetstoreClient.Letter: func copy(kind: String? = nil, pages: Int?? = .none) -> Letter
+PetstoreClient.Letter: func encode(to: any Encoder) throws
+PetstoreClient.Letter: init(from: any Decoder) throws
+PetstoreClient.Letter: init(kind: String = "letter", pages: Int? = nil)
+PetstoreClient.Letter: let kind: String
+PetstoreClient.Letter: let pages: Int?
+PetstoreClient.ListNativeAmountsOptions: conforms to Swift.Sendable
+PetstoreClient.ListNativeAmountsOptions: conforms to Swift.SendableMetatype
+PetstoreClient.ListNativeAmountsOptions: init(timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
+PetstoreClient.ListNativeAmountsOptions: let headers: [String: String]?
+PetstoreClient.ListNativeAmountsOptions: let maxRetries: Int?
+PetstoreClient.ListNativeAmountsOptions: let timeout: Int?
 PetstoreClient.ListPetArchiveOptions: conforms to Swift.Sendable
 PetstoreClient.ListPetArchiveOptions: conforms to Swift.SendableMetatype
 PetstoreClient.ListPetArchiveOptions: init(cursor: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
@@ -1159,6 +1271,7 @@ PetstoreClient.MachineAuthClientCredentialsAuthenticator: conforms to Swift.Send
 PetstoreClient.MachineAuthClientCredentialsAuthenticator: conforms to Swift.SendableMetatype
 PetstoreClient.MachineAuthClientCredentialsAuthenticator: convenience init(host: String, clientId: String? = nil, clientSecret: String? = nil) throws
 PetstoreClient.MachineAuthClientCredentialsAuthenticator: inherits from PetstoreClient.OAuth2ClientCredentialsAuthenticator
+PetstoreClient.MachineAuthClientCredentialsAuthenticator: static let metadataUrl: String
 PetstoreClient.Medication: conforms to Swift.Decodable
 PetstoreClient.Medication: conforms to Swift.Encodable
 PetstoreClient.Medication: conforms to Swift.Equatable
@@ -1265,14 +1378,15 @@ PetstoreClient.NativeValues: conforms to Swift.Equatable
 PetstoreClient.NativeValues: conforms to Swift.Hashable
 PetstoreClient.NativeValues: conforms to Swift.Sendable
 PetstoreClient.NativeValues: conforms to Swift.SendableMetatype
-PetstoreClient.NativeValues: func copy(address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none, homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none, wait: Duration?? = .none, since: String?? = .none, host: String?? = .none, contact: String?? = .none) -> NativeValues
+PetstoreClient.NativeValues: func copy(address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none, homepage: String?? = .none, amount: Decimal?? = .none, amounts: [Decimal]?? = .none, ledger: Decimal?? = .none, wait: Duration?? = .none, since: String?? = .none, host: String?? = .none, contact: String?? = .none) -> NativeValues
 PetstoreClient.NativeValues: func encode(to: any Encoder) throws
-PetstoreClient.NativeValues: init(address4: String? = nil, address6: String? = nil, addresses: [String]? = nil, homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil, wait: Duration? = nil, since: String? = nil, host: String? = nil, contact: String? = nil)
+PetstoreClient.NativeValues: init(address4: String? = nil, address6: String? = nil, addresses: [String]? = nil, homepage: String? = nil, amount: Decimal? = nil, amounts: [Decimal]? = nil, ledger: Decimal? = nil, wait: Duration? = nil, since: String? = nil, host: String? = nil, contact: String? = nil)
 PetstoreClient.NativeValues: init(from: any Decoder) throws
 PetstoreClient.NativeValues: let address4: String?
 PetstoreClient.NativeValues: let address6: String?
 PetstoreClient.NativeValues: let addresses: [String]?
 PetstoreClient.NativeValues: let amount: Decimal?
+PetstoreClient.NativeValues: let amounts: [Decimal]?
 PetstoreClient.NativeValues: let contact: String?
 PetstoreClient.NativeValues: let homepage: String?
 PetstoreClient.NativeValues: let host: String?
@@ -1326,6 +1440,7 @@ PetstoreClient.OAuth2AuthorizationCodeAuthenticator: override func host() -> Str
 PetstoreClient.OAuth2AuthorizationCodeAuthenticator: var debugDescription: String { get }
 PetstoreClient.OAuth2AuthorizationCodeAuthenticator: var description: String { get }
 PetstoreClient.OAuth2AuthorizationCodeError: case codeNotExchanged
+PetstoreClient.OAuth2AuthorizationCodeError: case deviceTokenNotPolled
 PetstoreClient.OAuth2AuthorizationCodeError: case emptyCode
 PetstoreClient.OAuth2AuthorizationCodeError: conforms to FoundationEssentials.LocalizedError
 PetstoreClient.OAuth2AuthorizationCodeError: conforms to Swift.Equatable
@@ -1351,6 +1466,26 @@ PetstoreClient.OAuth2ClientCredentialsAuthenticator: override func authHeaders()
 PetstoreClient.OAuth2ClientCredentialsAuthenticator: override func host() -> String
 PetstoreClient.OAuth2ClientCredentialsAuthenticator: var debugDescription: String { get }
 PetstoreClient.OAuth2ClientCredentialsAuthenticator: var description: String { get }
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to PetstoreClient.AccessTokenInvalidating
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to PetstoreClient.Authenticator
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to PetstoreClient.HttpAwareAuthenticator
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to Swift.Copyable
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to Swift.CustomDebugStringConvertible
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to Swift.CustomReflectable
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to Swift.CustomStringConvertible
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to Swift.Sendable
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: conforms to Swift.SendableMetatype
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: func authHeadersOrThrow() async throws -> [String: String]
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: func invalidateAccessToken()
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: func pollForToken(_: DeviceAuthorization) async throws
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: func requestDeviceAuthorization() async throws -> DeviceAuthorization
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: func setApiClient(_: any ApiClient)
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: inherits from PetstoreClient.BaseAuthenticator
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: init(host: String, clientID: String, deviceAuthorizationURL: String, tokenURL: String, scopes: [String] = [], refreshURL: String = "")
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: override func authHeaders() async throws -> [String: String]
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: override func host() -> String
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: var debugDescription: String { get }
+PetstoreClient.OAuth2DeviceAuthorizationAuthenticator: var description: String { get }
 PetstoreClient.OAuth2ImplicitAuthenticator: conforms to PetstoreClient.Authenticator
 PetstoreClient.OAuth2ImplicitAuthenticator: conforms to PetstoreClient.HttpAwareAuthenticator
 PetstoreClient.OAuth2ImplicitAuthenticator: conforms to Swift.Copyable
@@ -1484,6 +1619,18 @@ PetstoreClient.OrderStatusEnum: init(from: any Decoder) throws
 PetstoreClient.OrderStatusEnum: init?(rawValue: String)
 PetstoreClient.OrderStatusEnum: static var allCases: [OrderStatusEnum] { get }
 PetstoreClient.OrderStatusEnum: var description: String { get }
+PetstoreClient.Packet: conforms to Swift.Decodable
+PetstoreClient.Packet: conforms to Swift.Encodable
+PetstoreClient.Packet: conforms to Swift.Equatable
+PetstoreClient.Packet: conforms to Swift.Hashable
+PetstoreClient.Packet: conforms to Swift.Sendable
+PetstoreClient.Packet: conforms to Swift.SendableMetatype
+PetstoreClient.Packet: func copy(kind: String? = nil, weightKg: Double?? = .none) -> Packet
+PetstoreClient.Packet: func encode(to: any Encoder) throws
+PetstoreClient.Packet: init(from: any Decoder) throws
+PetstoreClient.Packet: init(kind: String = "packet", weightKg: Double? = nil)
+PetstoreClient.Packet: let kind: String
+PetstoreClient.Packet: let weightKg: Double?
 PetstoreClient.Page: conforms to Swift.CustomDebugStringConvertible
 PetstoreClient.Page: conforms to Swift.CustomStringConvertible
 PetstoreClient.Page: conforms to Swift.Sendable
@@ -1529,6 +1676,27 @@ PetstoreClient.Paginator: struct Items
 PetstoreClient.Paginator: struct Pages
 PetstoreClient.Paginator: typealias AsyncIterator = Paginator<T, C>.Items.AsyncIterator
 PetstoreClient.Paginator: typealias Element = T
+PetstoreClient.Parcel: conforms to Swift.Copyable
+PetstoreClient.Parcel: conforms to Swift.Decodable
+PetstoreClient.Parcel: conforms to Swift.Encodable
+PetstoreClient.Parcel: conforms to Swift.Equatable
+PetstoreClient.Parcel: conforms to Swift.Hashable
+PetstoreClient.Parcel: conforms to Swift.Sendable
+PetstoreClient.Parcel: conforms to Swift.SendableMetatype
+PetstoreClient.Parcel: func actualInstance() -> Any
+PetstoreClient.Parcel: func actualInstance<T>(as: T.Type) -> T?
+PetstoreClient.Parcel: func encode(to: any Encoder) throws
+PetstoreClient.Parcel: func hash(into: inout Hasher)
+PetstoreClient.Parcel: init(_: Letter)
+PetstoreClient.Parcel: init(_: Packet)
+PetstoreClient.Parcel: init(from: any Decoder) throws
+PetstoreClient.Parcel: static func == (: Parcel,: Parcel) -> Bool
+PetstoreClient.Parcel: static func fromLetter(_: Letter) -> Parcel
+PetstoreClient.Parcel: static func fromPacket(_: Packet) -> Parcel
+PetstoreClient.Parcel: var asLetter: Letter? { get }
+PetstoreClient.Parcel: var asPacket: Packet? { get }
+PetstoreClient.Parcel: var isLetter: Bool { get }
+PetstoreClient.Parcel: var isPacket: Bool { get }
 PetstoreClient.PatchMemoOptions: conforms to Swift.Sendable
 PetstoreClient.PatchMemoOptions: conforms to Swift.SendableMetatype
 PetstoreClient.PatchMemoOptions: init(timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
@@ -2204,6 +2372,74 @@ PetstoreClient.Rank: init(from: any Decoder) throws
 PetstoreClient.Rank: init?(rawValue: Int)
 PetstoreClient.Rank: static var allCases: [Rank] { get }
 PetstoreClient.Rank: var description: String { get }
+PetstoreClient.Reading: conforms to Swift.Decodable
+PetstoreClient.Reading: conforms to Swift.Encodable
+PetstoreClient.Reading: conforms to Swift.Equatable
+PetstoreClient.Reading: conforms to Swift.Hashable
+PetstoreClient.Reading: conforms to Swift.Sendable
+PetstoreClient.Reading: conforms to Swift.SendableMetatype
+PetstoreClient.Reading: func copy(level: ReadingLevel? = nil, shape: ReadingShape?? = .none, inlineLevel: ReadingInlineLevel?? = .none, nothing: AnyCodable?? = .none) -> Reading
+PetstoreClient.Reading: func encode(to: any Encoder) throws
+PetstoreClient.Reading: init(from: any Decoder) throws
+PetstoreClient.Reading: init(level: ReadingLevel, shape: ReadingShape? = nil, inlineLevel: ReadingInlineLevel? = nil, nothing: AnyCodable? = nil)
+PetstoreClient.Reading: let inlineLevel: ReadingInlineLevel?
+PetstoreClient.Reading: let level: ReadingLevel
+PetstoreClient.Reading: let nothing: AnyCodable?
+PetstoreClient.Reading: let shape: ReadingShape?
+PetstoreClient.ReadingInlineLevel: conforms to Swift.Copyable
+PetstoreClient.ReadingInlineLevel: conforms to Swift.Decodable
+PetstoreClient.ReadingInlineLevel: conforms to Swift.Encodable
+PetstoreClient.ReadingInlineLevel: conforms to Swift.Equatable
+PetstoreClient.ReadingInlineLevel: conforms to Swift.Hashable
+PetstoreClient.ReadingInlineLevel: conforms to Swift.Sendable
+PetstoreClient.ReadingInlineLevel: conforms to Swift.SendableMetatype
+PetstoreClient.ReadingInlineLevel: func actualInstance() -> Any
+PetstoreClient.ReadingInlineLevel: func encode(to: any Encoder) throws
+PetstoreClient.ReadingInlineLevel: func hash(into: inout Hasher)
+PetstoreClient.ReadingInlineLevel: func matchedInstances() -> [Any]
+PetstoreClient.ReadingInlineLevel: init(from: any Decoder) throws
+PetstoreClient.ReadingInlineLevel: init?(_: [Any])
+PetstoreClient.ReadingInlineLevel: static func == (: ReadingInlineLevel,: ReadingInlineLevel) -> Bool
+PetstoreClient.ReadingInlineLevel: var asInt64: Int64? { get }
+PetstoreClient.ReadingInlineLevel: var asString: String? { get }
+PetstoreClient.ReadingInlineLevel: var isInt64: Bool { get }
+PetstoreClient.ReadingInlineLevel: var isString: Bool { get }
+PetstoreClient.ReadingLevel: conforms to Swift.Copyable
+PetstoreClient.ReadingLevel: conforms to Swift.Decodable
+PetstoreClient.ReadingLevel: conforms to Swift.Encodable
+PetstoreClient.ReadingLevel: conforms to Swift.Equatable
+PetstoreClient.ReadingLevel: conforms to Swift.Hashable
+PetstoreClient.ReadingLevel: conforms to Swift.Sendable
+PetstoreClient.ReadingLevel: conforms to Swift.SendableMetatype
+PetstoreClient.ReadingLevel: func actualInstance() -> Any
+PetstoreClient.ReadingLevel: func encode(to: any Encoder) throws
+PetstoreClient.ReadingLevel: func hash(into: inout Hasher)
+PetstoreClient.ReadingLevel: func matchedInstances() -> [Any]
+PetstoreClient.ReadingLevel: init(from: any Decoder) throws
+PetstoreClient.ReadingLevel: init?(_: [Any])
+PetstoreClient.ReadingLevel: static func == (: ReadingLevel,: ReadingLevel) -> Bool
+PetstoreClient.ReadingLevel: var asInt64: Int64? { get }
+PetstoreClient.ReadingLevel: var asString: String? { get }
+PetstoreClient.ReadingLevel: var isInt64: Bool { get }
+PetstoreClient.ReadingLevel: var isString: Bool { get }
+PetstoreClient.ReadingShape: conforms to Swift.Copyable
+PetstoreClient.ReadingShape: conforms to Swift.Decodable
+PetstoreClient.ReadingShape: conforms to Swift.Encodable
+PetstoreClient.ReadingShape: conforms to Swift.Equatable
+PetstoreClient.ReadingShape: conforms to Swift.Hashable
+PetstoreClient.ReadingShape: conforms to Swift.Sendable
+PetstoreClient.ReadingShape: conforms to Swift.SendableMetatype
+PetstoreClient.ReadingShape: func actualInstance() -> Any
+PetstoreClient.ReadingShape: func encode(to: any Encoder) throws
+PetstoreClient.ReadingShape: func hash(into: inout Hasher)
+PetstoreClient.ReadingShape: func matchedInstances() -> [Any]
+PetstoreClient.ReadingShape: init(from: any Decoder) throws
+PetstoreClient.ReadingShape: init?(_: [Any])
+PetstoreClient.ReadingShape: static func == (: ReadingShape,: ReadingShape) -> Bool
+PetstoreClient.ReadingShape: var asStringList: [String]? { get }
+PetstoreClient.ReadingShape: var asStringStringMap: [String: String]? { get }
+PetstoreClient.ReadingShape: var isStringList: Bool { get }
+PetstoreClient.ReadingShape: var isStringStringMap: Bool { get }
 PetstoreClient.RejectedRequest: conforms to Swift.Decodable
 PetstoreClient.RejectedRequest: conforms to Swift.Encodable
 PetstoreClient.RejectedRequest: conforms to Swift.Equatable
@@ -2325,6 +2561,18 @@ PetstoreClient.SearchStoreOptions: let maxRetries: Int?
 PetstoreClient.SearchStoreOptions: let q: PhotoMetadata?
 PetstoreClient.SearchStoreOptions: let timeout: Int?
 PetstoreClient.SearchStoreOptions: let xFilter: [String: String]?
+PetstoreClient.Sensors: conforms to Swift.Decodable
+PetstoreClient.Sensors: conforms to Swift.Encodable
+PetstoreClient.Sensors: conforms to Swift.Equatable
+PetstoreClient.Sensors: conforms to Swift.Hashable
+PetstoreClient.Sensors: conforms to Swift.Sendable
+PetstoreClient.Sensors: conforms to Swift.SendableMetatype
+PetstoreClient.Sensors: func copy(site: String?? = .none, additionalProperties: [String: Int]? = nil) -> Sensors
+PetstoreClient.Sensors: func encode(to: any Encoder) throws
+PetstoreClient.Sensors: init(from: any Decoder) throws
+PetstoreClient.Sensors: init(site: String? = nil, additionalProperties: [String: Int] = [:])
+PetstoreClient.Sensors: let additionalProperties: [String: Int]
+PetstoreClient.Sensors: let site: String?
 PetstoreClient.Separator: case ab
 PetstoreClient.Separator: case ab2
 PetstoreClient.Separator: case space1
@@ -2501,6 +2749,19 @@ PetstoreClient.Shape: var asCircle: Circle? { get }
 PetstoreClient.Shape: var asSquare: Square? { get }
 PetstoreClient.Shape: var isCircle: Bool { get }
 PetstoreClient.Shape: var isSquare: Bool { get }
+PetstoreClient.Shipment: conforms to Swift.Decodable
+PetstoreClient.Shipment: conforms to Swift.Encodable
+PetstoreClient.Shipment: conforms to Swift.Equatable
+PetstoreClient.Shipment: conforms to Swift.Hashable
+PetstoreClient.Shipment: conforms to Swift.Sendable
+PetstoreClient.Shipment: conforms to Swift.SendableMetatype
+PetstoreClient.Shipment: func copy(kind: String? = nil, customsCode: String?? = .none, postcode: String?? = .none) -> Shipment
+PetstoreClient.Shipment: func encode(to: any Encoder) throws
+PetstoreClient.Shipment: init(from: any Decoder) throws
+PetstoreClient.Shipment: init(kind: String, customsCode: String? = nil, postcode: String? = nil)
+PetstoreClient.Shipment: let customsCode: String?
+PetstoreClient.Shipment: let kind: String
+PetstoreClient.Shipment: let postcode: String?
 PetstoreClient.Sparse: conforms to Swift.Decodable
 PetstoreClient.Sparse: conforms to Swift.Encodable
 PetstoreClient.Sparse: conforms to Swift.Equatable
@@ -2629,6 +2890,8 @@ PetstoreClient.StoreApi: func getMatrix(options: GetMatrixOptions? = nil) async 
 PetstoreClient.StoreApi: func getMatrixWithHTTPInfo(options: GetMatrixOptions? = nil) async throws -> ApiResult<[[Int]]>
 PetstoreClient.StoreApi: func getMemo(memoId: String, server: (any GetMemoServer)? = nil, options: GetMemoOptions? = nil) async throws -> Memo
 PetstoreClient.StoreApi: func getMemoWithHTTPInfo(memoId: String, server: (any GetMemoServer)? = nil, options: GetMemoOptions? = nil) async throws -> ApiResult<Memo>
+PetstoreClient.StoreApi: func getNativeAmount(options: GetNativeAmountOptions? = nil) async throws -> Decimal
+PetstoreClient.StoreApi: func getNativeAmountWithHTTPInfo(options: GetNativeAmountOptions? = nil) async throws -> ApiResult<Decimal>
 PetstoreClient.StoreApi: func getNativeValues(options: GetNativeValuesOptions? = nil) async throws -> NativeValues
 PetstoreClient.StoreApi: func getNativeValuesWithHTTPInfo(options: GetNativeValuesOptions? = nil) async throws -> ApiResult<NativeValues>
 PetstoreClient.StoreApi: func getOrderById(orderId: Int64, options: GetOrderByIdOptions? = nil) async throws -> Order
@@ -2647,6 +2910,8 @@ PetstoreClient.StoreApi: func getTree(options: GetTreeOptions? = nil) async thro
 PetstoreClient.StoreApi: func getTreeWithHTTPInfo(options: GetTreeOptions? = nil) async throws -> ApiResult<TreeNode>
 PetstoreClient.StoreApi: func headMemo(memoId: String, options: HeadMemoOptions? = nil) async throws
 PetstoreClient.StoreApi: func headMemoWithHTTPInfo(memoId: String, options: HeadMemoOptions? = nil) async throws -> ApiResult<Void>
+PetstoreClient.StoreApi: func listNativeAmounts(options: ListNativeAmountsOptions? = nil) async throws -> [Decimal]
+PetstoreClient.StoreApi: func listNativeAmountsWithHTTPInfo(options: ListNativeAmountsOptions? = nil) async throws -> ApiResult<[Decimal]>
 PetstoreClient.StoreApi: func optionsMemo(memoId: String, options: OptionsMemoOptions? = nil) async throws
 PetstoreClient.StoreApi: func optionsMemoWithHTTPInfo(memoId: String, options: OptionsMemoOptions? = nil) async throws -> ApiResult<Void>
 PetstoreClient.StoreApi: func patchMemo(memoId: String, memo: Memo, options: PatchMemoOptions? = nil) async throws -> Memo
@@ -2657,6 +2922,8 @@ PetstoreClient.StoreApi: func reserveStock(options: ReserveStockOptions? = nil) 
 PetstoreClient.StoreApi: func reserveStockWithHTTPInfo(options: ReserveStockOptions? = nil) async throws -> ApiResult<ReserveStockResponse>
 PetstoreClient.StoreApi: func searchStore(options: SearchStoreOptions? = nil) async throws -> [Order]
 PetstoreClient.StoreApi: func searchStoreWithHTTPInfo(options: SearchStoreOptions? = nil) async throws -> ApiResult<[Order]>
+PetstoreClient.StoreApi: func submitAllowance(allowance: Allowance, options: SubmitAllowanceOptions? = nil) async throws
+PetstoreClient.StoreApi: func submitAllowanceWithHTTPInfo(allowance: Allowance, options: SubmitAllowanceOptions? = nil) async throws -> ApiResult<Void>
 PetstoreClient.StoreApi: func traceMemo(memoId: String, options: TraceMemoOptions? = nil) async throws
 PetstoreClient.StoreApi: func traceMemoWithHTTPInfo(memoId: String, options: TraceMemoOptions? = nil) async throws -> ApiResult<Void>
 PetstoreClient.StoreApi: func watchNoticesStream(options: WatchNoticesOptions? = nil, streamOptions: StreamOptions? = nil) async throws -> SseStream<String>
@@ -2707,6 +2974,10 @@ PetstoreClient.StoreApiProtocol: func getMemo(memoId: String) async throws -> Me
 PetstoreClient.StoreApiProtocol: func getMemo(memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?) async throws -> Memo
 PetstoreClient.StoreApiProtocol: func getMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Memo>
 PetstoreClient.StoreApiProtocol: func getMemoWithHTTPInfo(memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?) async throws -> ApiResult<Memo>
+PetstoreClient.StoreApiProtocol: func getNativeAmount() async throws -> Decimal
+PetstoreClient.StoreApiProtocol: func getNativeAmount(options: GetNativeAmountOptions?) async throws -> Decimal
+PetstoreClient.StoreApiProtocol: func getNativeAmountWithHTTPInfo() async throws -> ApiResult<Decimal>
+PetstoreClient.StoreApiProtocol: func getNativeAmountWithHTTPInfo(options: GetNativeAmountOptions?) async throws -> ApiResult<Decimal>
 PetstoreClient.StoreApiProtocol: func getNativeValues() async throws -> NativeValues
 PetstoreClient.StoreApiProtocol: func getNativeValues(options: GetNativeValuesOptions?) async throws -> NativeValues
 PetstoreClient.StoreApiProtocol: func getNativeValuesWithHTTPInfo() async throws -> ApiResult<NativeValues>
@@ -2743,6 +3014,10 @@ PetstoreClient.StoreApiProtocol: func headMemo(memoId: String) async throws
 PetstoreClient.StoreApiProtocol: func headMemo(memoId: String, options: HeadMemoOptions?) async throws
 PetstoreClient.StoreApiProtocol: func headMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Void>
 PetstoreClient.StoreApiProtocol: func headMemoWithHTTPInfo(memoId: String, options: HeadMemoOptions?) async throws -> ApiResult<Void>
+PetstoreClient.StoreApiProtocol: func listNativeAmounts() async throws -> [Decimal]
+PetstoreClient.StoreApiProtocol: func listNativeAmounts(options: ListNativeAmountsOptions?) async throws -> [Decimal]
+PetstoreClient.StoreApiProtocol: func listNativeAmountsWithHTTPInfo() async throws -> ApiResult<[Decimal]>
+PetstoreClient.StoreApiProtocol: func listNativeAmountsWithHTTPInfo(options: ListNativeAmountsOptions?) async throws -> ApiResult<[Decimal]>
 PetstoreClient.StoreApiProtocol: func optionsMemo(memoId: String) async throws
 PetstoreClient.StoreApiProtocol: func optionsMemo(memoId: String, options: OptionsMemoOptions?) async throws
 PetstoreClient.StoreApiProtocol: func optionsMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Void>
@@ -2763,6 +3038,10 @@ PetstoreClient.StoreApiProtocol: func searchStore() async throws -> [Order]
 PetstoreClient.StoreApiProtocol: func searchStore(options: SearchStoreOptions?) async throws -> [Order]
 PetstoreClient.StoreApiProtocol: func searchStoreWithHTTPInfo() async throws -> ApiResult<[Order]>
 PetstoreClient.StoreApiProtocol: func searchStoreWithHTTPInfo(options: SearchStoreOptions?) async throws -> ApiResult<[Order]>
+PetstoreClient.StoreApiProtocol: func submitAllowance(allowance: Allowance) async throws
+PetstoreClient.StoreApiProtocol: func submitAllowance(allowance: Allowance, options: SubmitAllowanceOptions?) async throws
+PetstoreClient.StoreApiProtocol: func submitAllowanceWithHTTPInfo(allowance: Allowance) async throws -> ApiResult<Void>
+PetstoreClient.StoreApiProtocol: func submitAllowanceWithHTTPInfo(allowance: Allowance, options: SubmitAllowanceOptions?) async throws -> ApiResult<Void>
 PetstoreClient.StoreApiProtocol: func traceMemo(memoId: String) async throws
 PetstoreClient.StoreApiProtocol: func traceMemo(memoId: String, options: TraceMemoOptions?) async throws
 PetstoreClient.StoreApiProtocol: func traceMemoWithHTTPInfo(memoId: String) async throws -> ApiResult<Void>
@@ -2803,6 +3082,12 @@ PetstoreClient.StrictTag: init(from: any Decoder) throws
 PetstoreClient.StrictTag: init(id: Int64? = nil, name: String? = nil)
 PetstoreClient.StrictTag: let id: Int64?
 PetstoreClient.StrictTag: let name: String?
+PetstoreClient.SubmitAllowanceOptions: conforms to Swift.Sendable
+PetstoreClient.SubmitAllowanceOptions: conforms to Swift.SendableMetatype
+PetstoreClient.SubmitAllowanceOptions: init(timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil)
+PetstoreClient.SubmitAllowanceOptions: let headers: [String: String]?
+PetstoreClient.SubmitAllowanceOptions: let maxRetries: Int?
+PetstoreClient.SubmitAllowanceOptions: let timeout: Int?
 PetstoreClient.Subscription: conforms to Swift.Decodable
 PetstoreClient.Subscription: conforms to Swift.Encodable
 PetstoreClient.Subscription: conforms to Swift.Equatable
@@ -3152,6 +3437,7 @@ PetstoreClient: class BasicAuthenticator
 PetstoreClient: class BearerAuthenticator
 PetstoreClient: class ClientError
 PetstoreClient: class ConflictError
+PetstoreClient: class DigestAuthenticator
 PetstoreClient: class ForbiddenError
 PetstoreClient: class GatewayTimeoutError
 PetstoreClient: class GoneError
@@ -3165,6 +3451,7 @@ PetstoreClient: class NotFoundError
 PetstoreClient: class NotImplementedError
 PetstoreClient: class OAuth2AuthorizationCodeAuthenticator
 PetstoreClient: class OAuth2ClientCredentialsAuthenticator
+PetstoreClient: class OAuth2DeviceAuthorizationAuthenticator
 PetstoreClient: class OAuth2ImplicitAuthenticator
 PetstoreClient: class OAuth2PasswordAuthenticator
 PetstoreClient: class OpenIdConnectAuthenticator
@@ -3215,6 +3502,7 @@ PetstoreClient: final class AdminBasicAuthenticator
 PetstoreClient: final class ApiKeyHeaderAuthenticator
 PetstoreClient: final class ApiKeyQueryAuthenticator
 PetstoreClient: final class ApiStreamResponse
+PetstoreClient: final class ArchiveDigestAuthenticator
 PetstoreClient: final class BodySource
 PetstoreClient: final class BrowserAuthImplicitAuthenticator
 PetstoreClient: final class ByteStream
@@ -3222,6 +3510,7 @@ PetstoreClient: final class Client
 PetstoreClient: final class Configuration
 PetstoreClient: final class ConfigurationBuilder
 PetstoreClient: final class DefaultApiClient
+PetstoreClient: final class DeviceAuthDeviceAuthorizationAuthenticator
 PetstoreClient: final class InternalApiKeyAuthenticator
 PetstoreClient: final class JsonLinesStream<T> where T: Sendable
 PetstoreClient: final class LegacyAuthPasswordAuthenticator
@@ -3261,12 +3550,15 @@ PetstoreClient: struct Account
 PetstoreClient: struct AddPetOptions
 PetstoreClient: struct AddPetPhotosOptions
 PetstoreClient: struct AddPetTreatmentOptions
+PetstoreClient: struct Allowance
+PetstoreClient: struct AllowanceTier
 PetstoreClient: struct AnyCodable
 PetstoreClient: struct ApiHttpResponse
 PetstoreClient: struct ApiResponse
 PetstoreClient: struct ApiResult<T> where T: Sendable
 PetstoreClient: struct AttachPetFilesOptions
 PetstoreClient: struct AttachPetFilesRequest
+PetstoreClient: struct Audit
 PetstoreClient: struct BinaryVault
 PetstoreClient: struct Blobs
 PetstoreClient: struct CallInfo
@@ -3280,6 +3572,7 @@ PetstoreClient: struct Defaults
 PetstoreClient: struct DeleteOrderOptions
 PetstoreClient: struct DeletePetOptions
 PetstoreClient: struct Department
+PetstoreClient: struct DeviceAuthorization
 PetstoreClient: struct DownloadPetDocumentOptions
 PetstoreClient: struct DryFood
 PetstoreClient: struct EdgeCases
@@ -3305,6 +3598,7 @@ PetstoreClient: struct GetMultiServerPetInfoOptions
 PetstoreClient: struct GetMultiServerPetInfoServerMirror
 PetstoreClient: struct GetMultiServerPetInfoServerPrimary
 PetstoreClient: struct GetMultiServerPetInfoServerRegional
+PetstoreClient: struct GetNativeAmountOptions
 PetstoreClient: struct GetNativeValuesOptions
 PetstoreClient: struct GetOrderByIdOptions
 PetstoreClient: struct GetOrderByTrackingIdOptions
@@ -3330,6 +3624,8 @@ PetstoreClient: struct GetTreeOptions
 PetstoreClient: struct GetUpstreamOptions
 PetstoreClient: struct HeadMemoOptions
 PetstoreClient: struct Ledger
+PetstoreClient: struct Letter
+PetstoreClient: struct ListNativeAmountsOptions
 PetstoreClient: struct ListPetArchiveOptions
 PetstoreClient: struct ListPetCatalogOptions
 PetstoreClient: struct ListPetEventsOptions
@@ -3351,9 +3647,11 @@ PetstoreClient: struct NativeValues
 PetstoreClient: struct OAuth2ServerError
 PetstoreClient: struct OptionsMemoOptions
 PetstoreClient: struct Order
+PetstoreClient: struct Packet
 PetstoreClient: struct Page<T, C> where T: Sendable, C: Sendable
 PetstoreClient: struct PaginationError
 PetstoreClient: struct Paginator<T, C> where T: Sendable, C: Sendable
+PetstoreClient: struct Parcel
 PetstoreClient: struct PatchMemoOptions
 PetstoreClient: struct Pet
 PetstoreClient: struct PetAfterPage
@@ -3375,6 +3673,10 @@ PetstoreClient: struct PhotoMetadata
 PetstoreClient: struct PhotoMetadataLocation
 PetstoreClient: struct PlaceOrderOptions
 PetstoreClient: struct ProjectNotFound
+PetstoreClient: struct Reading
+PetstoreClient: struct ReadingInlineLevel
+PetstoreClient: struct ReadingLevel
+PetstoreClient: struct ReadingShape
 PetstoreClient: struct RejectedRequest
 PetstoreClient: struct RequiredNullable
 PetstoreClient: struct Reservation
@@ -3383,6 +3685,7 @@ PetstoreClient: struct ReserveStockOptions
 PetstoreClient: struct ReserveStockResponse
 PetstoreClient: struct Roster
 PetstoreClient: struct SearchStoreOptions
+PetstoreClient: struct Sensors
 PetstoreClient: struct SerializationError
 PetstoreClient: struct ServerConfiguration
 PetstoreClient: struct ServerSentEvent<T> where T: Sendable
@@ -3393,12 +3696,14 @@ PetstoreClient: struct SetPetAvatarThumbnailOptions
 PetstoreClient: struct SetPetAvatarThumbnailRequest
 PetstoreClient: struct SetPetPreferencesOptions
 PetstoreClient: struct Shape
+PetstoreClient: struct Shipment
 PetstoreClient: struct Sparse
 PetstoreClient: struct Square
 PetstoreClient: struct StateConflict
 PetstoreClient: struct StockItem
 PetstoreClient: struct StreamOptions
 PetstoreClient: struct StrictTag
+PetstoreClient: struct SubmitAllowanceOptions
 PetstoreClient: struct Subscription
 PetstoreClient: struct Surgery
 PetstoreClient: struct Tag

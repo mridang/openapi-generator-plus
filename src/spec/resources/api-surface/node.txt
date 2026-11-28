@@ -13,6 +13,34 @@ Account.with(patch: Partial<Account>): Account
 AddPetPhotosOptions.readonly files: (Buffer<ArrayBufferLike> | Blob)[]
 AddPetPhotosOptions.readonly metadata: PhotoMetadata
 AdminBasicAuthenticator.constructor(host: string, username?: string, password?: string)
+Allowance.__validate(): void
+Allowance.constructor(data?: Partial<Allowance>)
+Allowance.equals(other: unknown): boolean
+Allowance.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Allowance.readonly codes?: string[] | undefined
+Allowance.readonly count?: number | undefined
+Allowance.readonly label?: string | undefined
+Allowance.readonly limits?: { [key: string]: number; } | undefined
+Allowance.readonly parts?: AllowanceTier[] | undefined
+Allowance.readonly ratio?: number | undefined
+Allowance.readonly step?: number | undefined
+Allowance.readonly tier?: AllowanceTier | undefined
+Allowance.static readonly __decimalFields: ReadonlySet<string>
+Allowance.static readonly __requiredNullableFields: ReadonlySet<string>
+Allowance.static readonly __stringDecimalFields: ReadonlySet<string>
+Allowance.static readonly __uuidFields: ReadonlySet<string>
+Allowance.with(patch: Partial<Allowance>): Allowance
+AllowanceTier.__validate(): void
+AllowanceTier.constructor(data?: Partial<AllowanceTier>)
+AllowanceTier.equals(other: unknown): boolean
+AllowanceTier.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+AllowanceTier.readonly level?: number | undefined
+AllowanceTier.readonly name?: string | undefined
+AllowanceTier.static readonly __decimalFields: ReadonlySet<string>
+AllowanceTier.static readonly __requiredNullableFields: ReadonlySet<string>
+AllowanceTier.static readonly __stringDecimalFields: ReadonlySet<string>
+AllowanceTier.static readonly __uuidFields: ReadonlySet<string>
+AllowanceTier.with(patch: Partial<AllowanceTier>): AllowanceTier
 ApiClient.sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | BodySource | null, options?: SendRequestOptions): Promise<ApiHttpResponse>
 ApiError.constructor<T = unknown>(statusCode: number, message: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 ApiError.get isRetryable: boolean
@@ -65,6 +93,7 @@ ApiStreamResponse.readonly headers: Readonly<Record<string, string>>
 ApiStreamResponse.readonly statusCode: number
 ApiStreamResponse.toJSON(): Record<string, unknown>
 ApiStreamResponse.toString(): string
+ArchiveDigestAuthenticator.constructor(host: string, username?: string, password?: string)
 AttachPetFilesOptions.readonly caption?: string | undefined
 AttachPetFilesOptions.readonly file: Buffer<ArrayBufferLike> | Blob
 AttachPetFilesRequest.__validate(): void
@@ -78,6 +107,18 @@ AttachPetFilesRequest.static readonly __requiredNullableFields: ReadonlySet<stri
 AttachPetFilesRequest.static readonly __stringDecimalFields: ReadonlySet<string>
 AttachPetFilesRequest.static readonly __uuidFields: ReadonlySet<string>
 AttachPetFilesRequest.with(patch: Partial<AttachPetFilesRequest>): AttachPetFilesRequest
+Audit.__validate(): void
+Audit.constructor(data?: Partial<Audit>)
+Audit.equals(other: unknown): boolean
+Audit.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Audit.readonly payload?: string | undefined
+Audit.readonly score?: number | undefined
+Audit.readonly tags?: string[] | undefined
+Audit.static readonly __decimalFields: ReadonlySet<string>
+Audit.static readonly __requiredNullableFields: ReadonlySet<string>
+Audit.static readonly __stringDecimalFields: ReadonlySet<string>
+Audit.static readonly __uuidFields: ReadonlySet<string>
+Audit.with(patch: Partial<Audit>): Audit
 Authenticator.getAuthHeaders(): Record<string, string>
 Authenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
 Authenticator.getCookieParams(): Record<string, string>
@@ -176,6 +217,8 @@ Category.static readonly __requiredNullableFields: ReadonlySet<string>
 Category.static readonly __stringDecimalFields: ReadonlySet<string>
 Category.static readonly __uuidFields: ReadonlySet<string>
 Category.with(patch: Partial<Category>): Category
+ChallengeAuthenticator.acceptChallenge(wwwAuthenticate: string): boolean
+ChallengeAuthenticator.authorization(method: string, requestTarget: string): string | null
 Circle.__validate(): void
 Circle.constructor(data?: Partial<Circle>)
 Circle.equals(other: unknown): boolean
@@ -207,11 +250,12 @@ ClientInterface.readonly problems: ProblemsApiInterface
 ClientInterface.readonly store: StoreApiInterface
 ClientOptions.readonly callHook?: CallHook | undefined
 ClientOptions.readonly signal?: AbortSignal | undefined
-Configuration.constructor(options?: Partial<{ baseUrl: string; defaultHeaders: Record<string, string>; signal: AbortSignal; callHook: CallHook; }>)
+Configuration.constructor(options?: Partial<{ baseUrl: string; defaultHeaders: Record<string, string>; signal: AbortSignal; callHook: CallHook; validateConstraints: boolean; }>)
 Configuration.readonly baseUrl: string
 Configuration.readonly callHook: CallHook | undefined
 Configuration.readonly defaultHeaders: Readonly<Record<string, string>>
 Configuration.readonly signal: AbortSignal | undefined
+Configuration.readonly validateConstraints: boolean
 Configuration.static builder(): ConfigurationBuilder
 Configuration.static defaultConfiguration(): Configuration
 Configuration.toJSON(): Record<string, unknown>
@@ -223,6 +267,7 @@ ConfigurationBuilder.defaultHeader(name: string, value: string): this
 ConfigurationBuilder.defaultHeaders(headers: Record<string, string>): this
 ConfigurationBuilder.server(serverConfig: ServerConfiguration, variables?: Record<string, string>): this
 ConfigurationBuilder.signal(signal: AbortSignal | undefined): this
+ConfigurationBuilder.validateConstraints(validate: boolean): this
 ConflictError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 Counters.[key: string]: unknown
 Counters.__validate(): void
@@ -292,11 +337,28 @@ Department.static readonly __requiredNullableFields: ReadonlySet<string>
 Department.static readonly __stringDecimalFields: ReadonlySet<string>
 Department.static readonly __uuidFields: ReadonlySet<string>
 Department.with(patch: Partial<Department>): Department
+DeviceAuthDeviceAuthorizationAuthenticator.constructor(host: string, clientId?: string)
+DeviceAuthorization.readonly deviceCode: string
+DeviceAuthorization.readonly expiresIn: number
+DeviceAuthorization.readonly interval: number
+DeviceAuthorization.readonly userCode: string
+DeviceAuthorization.readonly verificationUri: string
+DeviceAuthorization.readonly verificationUriComplete: string | null
+DigestAuthenticator.acceptChallenge(wwwAuthenticate: string): boolean
+DigestAuthenticator.authorization(method: string, requestTarget: string): string | null
+DigestAuthenticator.constructor(host: string, username: string | undefined, password: string | undefined)
+DigestAuthenticator.getAuthHeaders(): Record<string, string>
+DigestAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+DigestAuthenticator.getCookieParams(): Record<string, string>
+DigestAuthenticator.getHost(): string
+DigestAuthenticator.getQueryParams(): Record<string, string>
+DigestAuthenticator.toJSON(): Record<string, string>
 DryFood.__validate(): void
 DryFood.constructor(data?: Partial<DryFood>)
 DryFood.equals(other: unknown): boolean
 DryFood.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
 DryFood.readonly foodType: string
+DryFood.readonly pricePerKg?: Decimal | undefined [uses decimal.js:Decimal]
 DryFood.readonly weightKg: number
 DryFood.static readonly __decimalFields: ReadonlySet<string>
 DryFood.static readonly __requiredNullableFields: ReadonlySet<string>
@@ -437,6 +499,17 @@ Ledger.static readonly __stringDecimalFields: ReadonlySet<string>
 Ledger.static readonly __uuidFields: ReadonlySet<string>
 Ledger.with(patch: Partial<Ledger>): Ledger
 LegacyAuthPasswordAuthenticator.constructor(host: string, clientId?: string, clientSecret?: string, username?: string, password?: string)
+Letter.__validate(): void
+Letter.constructor(data?: Partial<Letter>)
+Letter.equals(other: unknown): boolean
+Letter.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Letter.readonly kind: string
+Letter.readonly pages?: number | undefined
+Letter.static readonly __decimalFields: ReadonlySet<string>
+Letter.static readonly __requiredNullableFields: ReadonlySet<string>
+Letter.static readonly __stringDecimalFields: ReadonlySet<string>
+Letter.static readonly __uuidFields: ReadonlySet<string>
+Letter.with(patch: Partial<Letter>): Letter
 ListPetArchiveOptions.readonly cursor?: string | undefined
 ListPetCatalogOptions.readonly cursor?: string | undefined
 ListPetCatalogOptions.readonly limit?: number | undefined
@@ -453,6 +526,7 @@ ListPetsAfterOptions.readonly limit?: number | undefined
 ListPetsAfterOptions.readonly startingAfter?: string | undefined
 LockedError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 MachineAuthClientCredentialsAuthenticator.constructor(host: string, clientId?: string, clientSecret?: string)
+MachineAuthClientCredentialsAuthenticator.static readonly METADATA_URL: "https://auth.example.com/.well-known/oauth-authorization-server"
 Medication.__validate(): void
 Medication.constructor(data?: Partial<Medication>)
 Medication.equals(other: unknown): boolean
@@ -551,6 +625,7 @@ NativeValues.readonly address4?: string | undefined
 NativeValues.readonly address6?: string | undefined
 NativeValues.readonly addresses?: string[] | undefined
 NativeValues.readonly amount?: Decimal | undefined [uses decimal.js:Decimal]
+NativeValues.readonly amounts?: Decimal[] | undefined [uses decimal.js:Decimal]
 NativeValues.readonly contact?: Email | undefined
 NativeValues.readonly homepage?: URI | undefined
 NativeValues.readonly host?: string | undefined
@@ -586,6 +661,17 @@ OAuth2ClientCredentialsAuthenticator.getQueryParams(): Record<string, string>
 OAuth2ClientCredentialsAuthenticator.invalidateAccessToken(): void
 OAuth2ClientCredentialsAuthenticator.setApiClient(apiClient: ApiClient): void
 OAuth2ClientCredentialsAuthenticator.toJSON(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.constructor(host: string, clientId: string, deviceAuthorizationUrl: string, tokenUrl: string, scopes: string[], refreshUrl?: string | null)
+OAuth2DeviceAuthorizationAuthenticator.getAuthHeaders(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.getAuthHeadersAsync(): Promise<Record<string, string>>
+OAuth2DeviceAuthorizationAuthenticator.getCookieParams(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.getHost(): string
+OAuth2DeviceAuthorizationAuthenticator.getQueryParams(): Record<string, string>
+OAuth2DeviceAuthorizationAuthenticator.invalidateAccessToken(): void
+OAuth2DeviceAuthorizationAuthenticator.pollForToken(authorization: DeviceAuthorization): Promise<void>
+OAuth2DeviceAuthorizationAuthenticator.requestDeviceAuthorization(): Promise<DeviceAuthorization>
+OAuth2DeviceAuthorizationAuthenticator.setApiClient(apiClient: ApiClient): void
+OAuth2DeviceAuthorizationAuthenticator.toJSON(): Record<string, string>
 OAuth2ImplicitAuthenticator.buildAuthorizationUrl(state?: string): string
 OAuth2ImplicitAuthenticator.constructor(host: string, clientId: string, authorizationUrl: string, scopes: string[])
 OAuth2ImplicitAuthenticator.getAuthHeaders(): Record<string, string>
@@ -643,6 +729,17 @@ Order.static readonly __requiredNullableFields: ReadonlySet<string>
 Order.static readonly __stringDecimalFields: ReadonlySet<string>
 Order.static readonly __uuidFields: ReadonlySet<string>
 Order.with(patch: Partial<Order>): Order
+Packet.__validate(): void
+Packet.constructor(data?: Partial<Packet>)
+Packet.equals(other: unknown): boolean
+Packet.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Packet.readonly kind: string
+Packet.readonly weightKg?: number | undefined
+Packet.static readonly __decimalFields: ReadonlySet<string>
+Packet.static readonly __requiredNullableFields: ReadonlySet<string>
+Packet.static readonly __stringDecimalFields: ReadonlySet<string>
+Packet.static readonly __uuidFields: ReadonlySet<string>
+Packet.with(patch: Partial<Packet>): Packet
 Page.readonly items: readonly T[]
 Page.readonly nextCursor: C | null
 Page.readonly result: ApiResult<unknown>
@@ -656,6 +753,17 @@ Paginator.static ofLink<T, B>(baseUrl: string, fetch: (url: string | undefined) 
 Paginator.static ofNextUrl<T, B>(baseUrl: string, fetch: (url: string | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, next: (page: B) => string | null | undefined, requestPath: string): Paginator<T, never>
 Paginator.static ofOffset<T, B>(start: number | undefined, fetch: (offset: number | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, hasMore: ((page: B) => boolean | null | undefined) | undefined, requestPath: string): Paginator<T, number>
 Paginator.static ofPage<T, B>(start: number | undefined, fetch: (page: number | undefined) => Promise<ApiResult<B>>, items: (page: B) => readonly T[] | null | undefined, hasMore: ((page: B) => boolean | null | undefined) | undefined, requestPath: string): Paginator<T, number>
+Parcel.asLetter(): Letter | null
+Parcel.asPacket(): Packet | null
+Parcel.constructor(instance: ParcelType)
+Parcel.equals(other: unknown): boolean
+Parcel.getActualInstance(): ParcelType
+Parcel.isLetter(): boolean
+Parcel.isPacket(): boolean
+Parcel.static readonly DISCRIMINATOR_DEFAULT: "Letter"
+Parcel.static readonly DISCRIMINATOR_MAPPING: Record<string, string>
+Parcel.static readonly DISCRIMINATOR_PROPERTY: "kind"
+Parcel.static readonly ONE_OF_SCHEMAS: string[]
 PayloadTooLargeError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 PaymentRequiredError.constructor<T = unknown>(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: T | null, options?: ApiErrorOptions)
 Pet.__validate(): void
@@ -761,11 +869,11 @@ PetApi.listPetPageNumbersWithHttpInfo(options?: ListPetPageNumbersOptions, reque
 PetApi.listPetsAfter(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Promise<PetAfterPage>
 PetApi.listPetsAfterPages(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Paginator<Pet, string>
 PetApi.listPetsAfterWithHttpInfo(options?: ListPetsAfterOptions, requestOptions?: RequestOptions): Promise<ApiResult<PetAfterPage>>
-PetApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<T | void>
-PetApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string): Promise<JsonLinesStream<T>>
-PetApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<ApiResult<T>>
-PetApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string): Promise<SseStream<T>>
-PetApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<ApiResult<ByteStream>>
+PetApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<T | void>
+PetApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<JsonLinesStream<T>>
+PetApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<T>>
+PetApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<SseStream<T>>
+PetApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<ByteStream>>
 PetApi.protected readonly apiClient: ApiClient
 PetApi.protected readonly authenticator: Authenticator | null
 PetApi.protected readonly config: Configuration
@@ -1001,7 +1109,7 @@ PetTreatment.isMedication(): boolean
 PetTreatment.isSurgery(): boolean
 PetTreatment.readonly __isAnyOfComposite: true
 PetTreatment.static readonly ANY_OF_SCHEMAS: string[]
-PetTreatment.toJSON(): Record<string, unknown>
+PetTreatment.toJSON(): unknown
 PetWithOwner.__validate(): void
 PetWithOwner.constructor(data?: Partial<PetWithOwner>)
 PetWithOwner.equals(other: unknown): boolean
@@ -1073,11 +1181,11 @@ ProblemsApi.getRange(rangeId: string, requestOptions?: RequestOptions): Promise<
 ProblemsApi.getRangeWithHttpInfo(rangeId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
 ProblemsApi.getUpstream(upstreamId: string, requestOptions?: RequestOptions): Promise<ModelResult>
 ProblemsApi.getUpstreamWithHttpInfo(upstreamId: string, requestOptions?: RequestOptions): Promise<ApiResult<ModelResult>>
-ProblemsApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<T | void>
-ProblemsApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string): Promise<JsonLinesStream<T>>
-ProblemsApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<ApiResult<T>>
-ProblemsApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string): Promise<SseStream<T>>
-ProblemsApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<ApiResult<ByteStream>>
+ProblemsApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<T | void>
+ProblemsApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<JsonLinesStream<T>>
+ProblemsApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<T>>
+ProblemsApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<SseStream<T>>
+ProblemsApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<ByteStream>>
 ProblemsApi.protected readonly apiClient: ApiClient
 ProblemsApi.protected readonly authenticator: Authenticator | null
 ProblemsApi.protected readonly config: Configuration
@@ -1112,6 +1220,40 @@ ProjectNotFound.static readonly __uuidFields: ReadonlySet<string>
 ProjectNotFound.with(patch: Partial<ProjectNotFound>): ProjectNotFound
 ProjectNotFoundError.constructor(message?: string, responseHeaders?: Record<string, string> | null, responseBody?: string | null, errorBody?: ProjectNotFound | null, options?: ApiErrorOptions)
 ProjectNotFoundError.static fromErrorResponse(statusCode: number, responseHeaders: Record<string, string> | null, responseBody: string | null, request?: { readonly method: string; readonly path: string; }): ApiError
+Reading.__validate(): void
+Reading.constructor(data?: Partial<Reading>)
+Reading.equals(other: unknown): boolean
+Reading.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Reading.readonly inlineLevel?: ReadingInlineLevel | undefined
+Reading.readonly level: ReadingLevel
+Reading.readonly nothing?: unknown
+Reading.readonly shape?: ReadingShape | undefined
+Reading.static readonly __decimalFields: ReadonlySet<string>
+Reading.static readonly __requiredNullableFields: ReadonlySet<string>
+Reading.static readonly __stringDecimalFields: ReadonlySet<string>
+Reading.static readonly __uuidFields: ReadonlySet<string>
+Reading.with(patch: Partial<Reading>): Reading
+ReadingInlineLevel.constructor(instance: ReadingInlineLevelType | ReadingInlineLevelType[])
+ReadingInlineLevel.equals(other: unknown): boolean
+ReadingInlineLevel.getActualInstance(): ReadingInlineLevelType
+ReadingInlineLevel.getMatchedInstances(): ReadingInlineLevelType[]
+ReadingInlineLevel.readonly __isAnyOfComposite: true
+ReadingInlineLevel.static readonly ANY_OF_SCHEMAS: string[]
+ReadingInlineLevel.toJSON(): unknown
+ReadingLevel.constructor(instance: ReadingLevelType | ReadingLevelType[])
+ReadingLevel.equals(other: unknown): boolean
+ReadingLevel.getActualInstance(): ReadingLevelType
+ReadingLevel.getMatchedInstances(): ReadingLevelType[]
+ReadingLevel.readonly __isAnyOfComposite: true
+ReadingLevel.static readonly ANY_OF_SCHEMAS: string[]
+ReadingLevel.toJSON(): unknown
+ReadingShape.constructor(instance: ReadingShapeType | ReadingShapeType[])
+ReadingShape.equals(other: unknown): boolean
+ReadingShape.getActualInstance(): ReadingShapeType
+ReadingShape.getMatchedInstances(): ReadingShapeType[]
+ReadingShape.readonly __isAnyOfComposite: true
+ReadingShape.static readonly ANY_OF_SCHEMAS: string[]
+ReadingShape.toJSON(): unknown
 RejectedRequest.__validate(): void
 RejectedRequest.constructor(data?: Partial<RejectedRequest>)
 RejectedRequest.equals(other: unknown): boolean
@@ -1193,6 +1335,22 @@ SendRequestOptions.readonly refreshAuthHeaders?: (() => Promise<Record<string, s
 SendRequestOptions.readonly signal?: AbortSignal | undefined
 SendRequestOptions.readonly timeout?: number | null | undefined
 SendStreamingOptions.readonly idleTimeout?: number | null | undefined
+Sensors.[key: string]: unknown
+Sensors.__validate(): void
+Sensors.constructor(data?: Partial<Sensors>)
+Sensors.equals(other: unknown): boolean
+Sensors.get additionalProperties: Record<string, number>
+Sensors.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Sensors.readonly site?: string | undefined
+Sensors.static __additionalPropertiesKeyOf(instance: object): { value: unknown; } | undefined
+Sensors.static __holdAdditionalPropertiesKey(instance: object, value: unknown): void
+Sensors.static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string>
+Sensors.static readonly __decimalFields: ReadonlySet<string>
+Sensors.static readonly __decodeAdditionalProperties: (raw: Record<string, unknown>) => Record<string, number>
+Sensors.static readonly __requiredNullableFields: ReadonlySet<string>
+Sensors.static readonly __stringDecimalFields: ReadonlySet<string>
+Sensors.static readonly __uuidFields: ReadonlySet<string>
+Sensors.with(patch: Partial<Sensors>): Sensors
 SerializationError.constructor(message: string, cause?: Error, response?: SerializationErrorResponse)
 SerializationError.readonly cause?: Error | undefined
 SerializationError.readonly requestMethod: string | null
@@ -1261,6 +1419,18 @@ Shape.static readonly __requiredNullableFields: ReadonlySet<string>
 Shape.static readonly __stringDecimalFields: ReadonlySet<string>
 Shape.static readonly __uuidFields: ReadonlySet<string>
 Shape.with(patch: Partial<Shape>): Shape
+Shipment.__validate(): void
+Shipment.constructor(data?: Partial<Shipment>)
+Shipment.equals(other: unknown): boolean
+Shipment.protected static __deepEquals(a: unknown, b: unknown, decimal?: boolean): boolean
+Shipment.readonly customsCode?: string | undefined
+Shipment.readonly kind: string
+Shipment.readonly postcode?: string | undefined
+Shipment.static readonly __decimalFields: ReadonlySet<string>
+Shipment.static readonly __requiredNullableFields: ReadonlySet<string>
+Shipment.static readonly __stringDecimalFields: ReadonlySet<string>
+Shipment.static readonly __uuidFields: ReadonlySet<string>
+Shipment.with(patch: Partial<Shipment>): Shipment
 Sparse.[key: string]: unknown
 Sparse.__validate(): void
 Sparse.constructor(data?: Partial<Sparse>)
@@ -1344,6 +1514,8 @@ StoreApi.getMatrix(requestOptions?: RequestOptions): Promise<Array<Array<number>
 StoreApi.getMatrixWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Array<number>>>>
 StoreApi.getMemo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<Memo>
 StoreApi.getMemoWithHttpInfo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
+StoreApi.getNativeAmount(requestOptions?: RequestOptions): Promise<Decimal> [uses decimal.js:Decimal]
+StoreApi.getNativeAmountWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Decimal>> [uses decimal.js:Decimal]
 StoreApi.getNativeValues(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<NativeValues>
 StoreApi.getNativeValuesWithHttpInfo(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<ApiResult<NativeValues>>
 StoreApi.getOrderById(orderId: number, requestOptions?: RequestOptions): Promise<Order>
@@ -1362,17 +1534,19 @@ StoreApi.getTree(requestOptions?: RequestOptions): Promise<TreeNode>
 StoreApi.getTreeWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<TreeNode>>
 StoreApi.headMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
 StoreApi.headMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApi.listNativeAmounts(requestOptions?: RequestOptions): Promise<Array<Decimal>> [uses decimal.js:Decimal]
+StoreApi.listNativeAmountsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Decimal>>> [uses decimal.js:Decimal]
 StoreApi.optionsMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
 StoreApi.optionsMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
 StoreApi.patchMemo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<Memo>
 StoreApi.patchMemoWithHttpInfo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
 StoreApi.placeOrder(order?: DeepInput<Order>, requestOptions?: RequestOptions): Promise<Order>
 StoreApi.placeOrderWithHttpInfo(order?: DeepInput<Order>, requestOptions?: RequestOptions): Promise<ApiResult<Order>>
-StoreApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<T | void>
-StoreApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string): Promise<JsonLinesStream<T>>
-StoreApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<ApiResult<T>>
-StoreApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string): Promise<SseStream<T>>
-StoreApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string): Promise<ApiResult<ByteStream>>
+StoreApi.protected invokeApi<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<T | void>
+StoreApi.protected invokeApiForJsonLines<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<JsonLinesStream<T>>
+StoreApi.protected invokeApiForResult<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, returnType: ((json: unknown, statusCode: number) => T) | null, auth?: Authenticator | null, rawBody?: boolean, returnKind?: "model" | "string" | "binary", operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<T>>
+StoreApi.protected invokeApiForSse<T>(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth: Authenticator | null | undefined, rawBody: boolean, decode: ((json: unknown) => T) | null, terminator: string | null, streamOptions?: StreamOptions, errorSchemas?: ErrorSchemas, operationName?: string, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<SseStream<T>>
+StoreApi.protected invokeApiForStream(method: string, path: string, queryParams: Record<string, unknown>, headerParams: Record<string, string>, body: unknown, accepts: string[], contentType: string, auth?: Authenticator | null, rawBody?: boolean, operationName?: string, requestOptions?: RequestOptions, errorSchemas?: ErrorSchemas, operationId?: string, urlTemplate?: string, bodyType?: string): Promise<ApiResult<ByteStream>>
 StoreApi.protected readonly apiClient: ApiClient
 StoreApi.protected readonly authenticator: Authenticator | null
 StoreApi.protected readonly config: Configuration
@@ -1384,6 +1558,8 @@ StoreApi.reserveStock(requestOptions?: RequestOptions): Promise<ReserveStockResp
 StoreApi.reserveStockWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ReserveStockResponse>>
 StoreApi.searchStore(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<Array<Order>>
 StoreApi.searchStoreWithHttpInfo(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Order>>>
+StoreApi.submitAllowance(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<void>
+StoreApi.submitAllowanceWithHttpInfo(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<ApiResult<void>>
 StoreApi.traceMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
 StoreApi.traceMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
 StoreApi.watchNoticesStream(streamOptions?: StreamOptions): Promise<SseStream<string>>
@@ -1409,6 +1585,8 @@ StoreApiInterface.getMatrix(requestOptions?: RequestOptions): Promise<Array<Arra
 StoreApiInterface.getMatrixWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Array<number>>>>
 StoreApiInterface.getMemo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<Memo>
 StoreApiInterface.getMemoWithHttpInfo(memoId: string, server?: GetMemoServer, requestOptions?: RequestOptions): Promise<ApiResult<Memo>>
+StoreApiInterface.getNativeAmount(requestOptions?: RequestOptions): Promise<Decimal> [uses decimal.js:Decimal]
+StoreApiInterface.getNativeAmountWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Decimal>> [uses decimal.js:Decimal]
 StoreApiInterface.getNativeValues(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<NativeValues>
 StoreApiInterface.getNativeValuesWithHttpInfo(options?: GetNativeValuesOptions, requestOptions?: RequestOptions): Promise<ApiResult<NativeValues>>
 StoreApiInterface.getOrderById(orderId: number, requestOptions?: RequestOptions): Promise<Order>
@@ -1427,6 +1605,8 @@ StoreApiInterface.getTree(requestOptions?: RequestOptions): Promise<TreeNode>
 StoreApiInterface.getTreeWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<TreeNode>>
 StoreApiInterface.headMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
 StoreApiInterface.headMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
+StoreApiInterface.listNativeAmounts(requestOptions?: RequestOptions): Promise<Array<Decimal>> [uses decimal.js:Decimal]
+StoreApiInterface.listNativeAmountsWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<Array<Decimal>>> [uses decimal.js:Decimal]
 StoreApiInterface.optionsMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
 StoreApiInterface.optionsMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
 StoreApiInterface.patchMemo(memoId: string, memo: DeepInput<Memo>, requestOptions?: RequestOptions): Promise<Memo>
@@ -1437,6 +1617,8 @@ StoreApiInterface.reserveStock(requestOptions?: RequestOptions): Promise<Reserve
 StoreApiInterface.reserveStockWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ReserveStockResponse>>
 StoreApiInterface.searchStore(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<Array<Order>>
 StoreApiInterface.searchStoreWithHttpInfo(options?: SearchStoreOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Order>>>
+StoreApiInterface.submitAllowance(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<void>
+StoreApiInterface.submitAllowanceWithHttpInfo(allowance: DeepInput<Allowance>, requestOptions?: RequestOptions): Promise<ApiResult<void>>
 StoreApiInterface.traceMemo(memoId: string, requestOptions?: RequestOptions): Promise<void>
 StoreApiInterface.traceMemoWithHttpInfo(memoId: string, requestOptions?: RequestOptions): Promise<ApiResult<void>>
 StoreApiInterface.watchNoticesStream(streamOptions?: StreamOptions): Promise<SseStream<string>>
@@ -1541,7 +1723,7 @@ TreatmentRecord.isMedication(): boolean
 TreatmentRecord.isSurgery(): boolean
 TreatmentRecord.readonly __isAnyOfComposite: true
 TreatmentRecord.static readonly ANY_OF_SCHEMAS: string[]
-TreatmentRecord.toJSON(): Record<string, unknown>
+TreatmentRecord.toJSON(): unknown
 TreeNode.__validate(): void
 TreeNode.constructor(data?: Partial<TreeNode>)
 TreeNode.equals(other: unknown): boolean
@@ -1634,13 +1816,17 @@ abstract class GetPetByIdServer
 abstract class GetStagingPetInfoServer
 class Account
 class AdminBasicAuthenticator extends BasicAuthenticator
+class Allowance
+class AllowanceTier
 class ApiError<T = unknown> extends OpenAPIError
 class ApiKeyAuthenticator extends BaseAuthenticator
 class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator
 class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator
 class ApiResponse
 class ApiStreamResponse
+class ArchiveDigestAuthenticator extends DigestAuthenticator
 class AttachPetFilesRequest
+class Audit
 class BadGatewayError<T = unknown> extends ServerError<T>
 class BadRequestError<T = unknown> extends ClientError<T>
 class BasicAuthenticator extends BaseAuthenticator
@@ -1662,6 +1848,8 @@ class Counters
 class DefaultApiClient extends AbstractApiClient
 class Defaults
 class Department
+class DeviceAuthDeviceAuthorizationAuthenticator extends OAuth2DeviceAuthorizationAuthenticator
+class DigestAuthenticator extends BaseAuthenticator implements ChallengeAuthenticator
 class DryFood
 class EdgeCases
 class Employee
@@ -1681,6 +1869,7 @@ class InternalServerError<T = unknown> extends ServerError<T>
 class JsonLinesStream<T> implements AsyncIterableIterator<T>, AsyncDisposable
 class Ledger
 class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
+class Letter
 class LockedError<T = unknown> extends ClientError<T>
 class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
 class Medication
@@ -1699,6 +1888,7 @@ class NotFoundError<T = unknown> extends ClientError<T>
 class NotImplementedError<T = unknown> extends ServerError<T>
 class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthenticator
 class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthenticator
+class OAuth2DeviceAuthorizationAuthenticator implements HttpAwareAuthenticator
 class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator
 class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator
 class OAuth2ServerError extends OpenAPIError
@@ -1706,8 +1896,10 @@ class OAuth2TokenError extends OpenAPIError
 class OpenAPIError extends Error
 class OpenIdConnectAuthenticator implements HttpAwareAuthenticator
 class Order
+class Packet
 class PaginationError extends OpenAPIError
 class Paginator<T, C = never> implements AsyncIterable<T>
+class Parcel
 class PayloadTooLargeError<T = unknown> extends ClientError<T>
 class PaymentRequiredError<T = unknown> extends ClientError<T>
 class Pet
@@ -1734,6 +1926,10 @@ class PhotoMetadataLocation
 class ProblemsApi extends BaseApi implements ProblemsApiInterface
 class ProjectNotFound
 class ProjectNotFoundError extends NotFoundError<ProjectNotFound>
+class Reading
+class ReadingInlineLevel
+class ReadingLevel
+class ReadingShape
 class RejectedRequest
 class RejectedRequestError extends ClientError<RejectedRequest>
 class RequestTimeoutError<T = unknown> extends ClientError<T>
@@ -1742,6 +1938,7 @@ class Reservation
 class ReservationReceipt
 class ResponseTooLargeError extends ApiError
 class Roster
+class Sensors
 class SerializationError extends OpenAPIError
 class ServerConfiguration
 class ServerError<T = unknown> extends ApiError<T>
@@ -1752,6 +1949,7 @@ class ServiceUnavailableError<T = unknown> extends ServerError<T>
 class SessionCookieAuthenticator extends ApiKeyAuthenticator
 class SetPetAvatarRequest
 class Shape
+class Shipment
 class Sparse
 class Square extends Shape
 class SseStream<T> implements AsyncIterableIterator<ServerSentEvent<T>>, AsyncDisposable
@@ -1820,9 +2018,11 @@ interface CallHook
 interface CallInfo
 interface CallObserver
 interface CallOutcome
+interface ChallengeAuthenticator extends Authenticator
 interface ClientInterface
 interface ClientOptions
 interface DeletePetOptions
+interface DeviceAuthorization
 interface FindPetsByStatusOptions
 interface GetBySwatchOptions
 interface GetNativeValuesOptions
@@ -1879,12 +2079,16 @@ type GetMultiServerPetInfoServerRegionalRegion = (typeof GetMultiServerPetInfoSe
 type GetStagingPetInfoServerEnvironment = (typeof GetStagingPetInfoServerEnvironment)[keyof typeof GetStagingPetInfoServerEnvironment]
 type GetStagingPetInfoServerVersion = (typeof GetStagingPetInfoServerVersion)[keyof typeof GetStagingPetInfoServerVersion]
 type OrderStatusEnum = (typeof OrderStatusEnum)[keyof typeof OrderStatusEnum]
+type ParcelType = Letter | Packet
 type PetFoodType = DryFood | WetFood
 type PetStatusEnum = (typeof PetStatusEnum)[keyof typeof PetStatusEnum]
 type PetTreatmentType = Medication | Surgery
 type PetWithOwnerStatusEnum = (typeof PetWithOwnerStatusEnum)[keyof typeof PetWithOwnerStatusEnum]
 type Priority = (typeof Priority)[keyof typeof Priority]
 type Rank = (typeof Rank)[keyof typeof Rank]
+type ReadingInlineLevelType = number | string
+type ReadingLevelType = number | string
+type ReadingShapeType = Array<string> | { [key: string]: string }
 type ReserveStockResponse = Reservation | ReservationReceipt
 type Separator = (typeof Separator)[keyof typeof Separator]
 type SetPetAvatarThumbnailRequest = Array<Buffer> | Buffer

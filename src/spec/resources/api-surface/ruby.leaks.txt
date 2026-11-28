@@ -65,3 +65,11 @@ class Petstore::Client::Models::UnexpectedFailure < Dry::Struct | models are Dry
 class Petstore::Client::Models::UpstreamFailure < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
 class Petstore::Client::Models::Vehicle < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
 class Petstore::Client::Models::WetFood < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Allowance < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::AllowanceTier < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Audit < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Letter < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Packet < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Reading < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Sensors < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model
+class Petstore::Client::Models::Shipment < Dry::Struct | models are Dry::Struct classes by design, so the dry-struct API (new, attributes, schema) is part of every model

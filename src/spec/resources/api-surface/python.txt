@@ -22,6 +22,7 @@ class petstore_client.api.options.get_matrix_options.GetMatrixOptions
 class petstore_client.api.options.get_member_options.GetMemberOptions
 class petstore_client.api.options.get_memo_options.GetMemoOptions
 class petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions
+class petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions
 class petstore_client.api.options.get_native_values_options.GetNativeValuesOptions
 class petstore_client.api.options.get_order_by_id_options.GetOrderByIdOptions
 class petstore_client.api.options.get_order_by_tracking_id_options.GetOrderByTrackingIdOptions
@@ -44,6 +45,7 @@ class petstore_client.api.options.get_timestamp_groups_options.GetTimestampGroup
 class petstore_client.api.options.get_tree_options.GetTreeOptions
 class petstore_client.api.options.get_upstream_options.GetUpstreamOptions
 class petstore_client.api.options.head_memo_options.HeadMemoOptions
+class petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions
 class petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions
 class petstore_client.api.options.list_pet_catalog_options.ListPetCatalogOptions
 class petstore_client.api.options.list_pet_events_options.ListPetEventsOptions
@@ -62,6 +64,7 @@ class petstore_client.api.options.search_store_options.SearchStoreOptions
 class petstore_client.api.options.set_pet_avatar_options.SetPetAvatarOptions
 class petstore_client.api.options.set_pet_avatar_thumbnail_options.SetPetAvatarThumbnailOptions
 class petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions
+class petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions
 class petstore_client.api.options.take_lock_options.TakeLockOptions
 class petstore_client.api.options.trace_memo_options.TraceMemoOptions
 class petstore_client.api.options.update_pet_options.UpdatePetOptions
@@ -78,10 +81,13 @@ class petstore_client.auth.authenticator.Authenticator(abc.ABC)
 class petstore_client.auth.base_authenticator.BaseAuthenticator(petstore_client.auth.authenticator.Authenticator)
 class petstore_client.auth.basic_authenticator.BasicAuthenticator(petstore_client.auth.base_authenticator.BaseAuthenticator)
 class petstore_client.auth.bearer_authenticator.BearerAuthenticator(petstore_client.auth.base_authenticator.BaseAuthenticator)
+class petstore_client.auth.digest_authenticator.DigestAuthenticator(petstore_client.auth.base_authenticator.BaseAuthenticator)
 class petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator(petstore_client.auth.authenticator.Authenticator)
 class petstore_client.auth.oauth.client_auth_method.ClientAuthMethod(str, enum.Enum)
 class petstore_client.auth.oauth.oauth2_authorization_code_authenticator.OAuth2AuthorizationCodeAuthenticator(petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator)
 class petstore_client.auth.oauth.oauth2_client_credentials_authenticator.OAuth2ClientCredentialsAuthenticator(petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator)
+class petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization
+class petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator(petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator)
 class petstore_client.auth.oauth.oauth2_implicit_authenticator.OAuth2ImplicitAuthenticator(petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator)
 class petstore_client.auth.oauth.oauth2_password_authenticator.OAuth2PasswordAuthenticator(petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator)
 class petstore_client.auth.oauth.oauth2_token_manager.OAuth2TokenManager
@@ -131,8 +137,11 @@ class petstore_client.errors.unsupported_media_type_exception.UnsupportedMediaTy
 class petstore_client.errors.upstream_failure_exception.UpstreamFailureException(petstore_client.errors.server_exception.ServerException)
 class petstore_client.json_lines_stream.JsonLinesStream(typing.Generic)
 class petstore_client.models.account.Account(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.allowance.Allowance(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.allowance_tier.AllowanceTier(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.api_response.ApiResponse(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.attach_pet_files_request.AttachPetFilesRequest(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.audit.Audit(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.availability.Availability(str, petstore_client._types.CatchAllEnum(enum.Enum))
 class petstore_client.models.binary_vault.BinaryVault(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.blobs.Blobs(petstore_client._types.ApiModel(pydantic.main.BaseModel))
@@ -149,6 +158,7 @@ class petstore_client.models.employee.Employee(petstore_client._types.ApiModel(p
 class petstore_client.models.error.Error(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.freeform.Freeform(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.ledger.Ledger(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.letter.Letter(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.medication.Medication(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.member_not_found.MemberNotFound(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.memo.Memo(petstore_client._types.ApiModel(pydantic.main.BaseModel))
@@ -156,6 +166,8 @@ class petstore_client.models.metadata.Metadata(petstore_client._types.ApiModel(p
 class petstore_client.models.moments.Moments(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.native_values.NativeValues(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.order.Order(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.packet.Packet(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.parcel.Parcel(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.pet.Pet(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.pet_after_page.PetAfterPage(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.pet_archive_page.PetArchivePage(petstore_client._types.ApiModel(pydantic.main.BaseModel))
@@ -177,6 +189,10 @@ class petstore_client.models.photo_metadata_location.PhotoMetadataLocation(petst
 class petstore_client.models.priority.Priority(int, petstore_client._types.CatchAllEnum(enum.Enum))
 class petstore_client.models.project_not_found.ProjectNotFound(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.rank.Rank(int, petstore_client._types.CatchAllEnum(enum.Enum))
+class petstore_client.models.reading.Reading(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.reading_inline_level.ReadingInlineLevel(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.reading_level.ReadingLevel(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.reading_shape.ReadingShape(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.rejected_request.RejectedRequest(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.required_nullable.RequiredNullable(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.reservation.Reservation(petstore_client._types.ApiModel(pydantic.main.BaseModel))
@@ -184,10 +200,12 @@ class petstore_client.models.reservation_receipt.ReservationReceipt(petstore_cli
 class petstore_client.models.reserve_stock_response.ReserveStockResponse(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.result.Result(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.roster.Roster(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.sensors.Sensors(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.separator.Separator(str, petstore_client._types.CatchAllEnum(enum.Enum))
 class petstore_client.models.set_pet_avatar_request.SetPetAvatarRequest(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.shape.Shape(petstore_client._types.ApiModel(pydantic.main.BaseModel))
+class petstore_client.models.shipment.Shipment(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.sparse.Sparse(petstore_client._types.ApiModel(pydantic.main.BaseModel))
 class petstore_client.models.square.Square(petstore_client.models.shape.Shape)
 class petstore_client.models.stage.Stage(str, petstore_client._types.CatchAllEnum(enum.Enum))
@@ -217,10 +235,13 @@ class petstore_client.stream_options.StreamOptions
 class petstore_client.transport_options.TransportOptions
 def petstore_client.call_hook.chain(*hooks: petstore_client.call_hook.CallHook) -> petstore_client.call_hook.CallHook
 export petstore_client.Account = petstore_client.models.account.Account
+export petstore_client.Allowance = petstore_client.models.allowance.Allowance
+export petstore_client.AllowanceTier = petstore_client.models.allowance_tier.AllowanceTier
 export petstore_client.ApiClient = petstore_client.api_client.ApiClient
 export petstore_client.ApiException = petstore_client.errors.ApiException
 export petstore_client.ApiResponse = petstore_client.models.api_response.ApiResponse
 export petstore_client.AttachPetFilesRequest = petstore_client.models.attach_pet_files_request.AttachPetFilesRequest
+export petstore_client.Audit = petstore_client.models.audit.Audit
 export petstore_client.Authenticator = petstore_client.auth.authenticator.Authenticator
 export petstore_client.Availability = petstore_client.models.availability.Availability
 export petstore_client.BadGatewayException = petstore_client.errors.bad_gateway_exception.BadGatewayException
@@ -256,6 +277,7 @@ export petstore_client.GoneException = petstore_client.errors.gone_exception.Gon
 export petstore_client.InternalServerErrorException = petstore_client.errors.internal_server_error_exception.InternalServerErrorException
 export petstore_client.JsonLinesStream = petstore_client.json_lines_stream.JsonLinesStream
 export petstore_client.Ledger = petstore_client.models.ledger.Ledger
+export petstore_client.Letter = petstore_client.models.letter.Letter
 export petstore_client.LockedException = petstore_client.errors.locked_exception.LockedException
 export petstore_client.Medication = petstore_client.models.medication.Medication
 export petstore_client.MemberNotFound = petstore_client.models.member_not_found.MemberNotFound
@@ -272,9 +294,11 @@ export petstore_client.OAuth2ServerException = petstore_client.errors.oauth2_ser
 export petstore_client.OAuth2TokenException = petstore_client.errors.oauth2_token_exception.OAuth2TokenException
 export petstore_client.OpenAPIException = petstore_client.errors.OpenAPIException
 export petstore_client.Order = petstore_client.models.order.Order
+export petstore_client.Packet = petstore_client.models.packet.Packet
 export petstore_client.Page = petstore_client.page.Page
 export petstore_client.PaginationException = petstore_client.errors.pagination_exception.PaginationException
 export petstore_client.Paginator = petstore_client.paginator.Paginator
+export petstore_client.Parcel = petstore_client.models.parcel.Parcel
 export petstore_client.PayloadTooLargeException = petstore_client.errors.payload_too_large_exception.PayloadTooLargeException
 export petstore_client.PaymentRequiredException = petstore_client.errors.payment_required_exception.PaymentRequiredException
 export petstore_client.Pet = petstore_client.models.pet.Pet
@@ -302,6 +326,10 @@ export petstore_client.ProblemsApi = petstore_client.api.problems_api.ProblemsAp
 export petstore_client.ProblemsApiProtocol = petstore_client.api.problems_api.ProblemsApiProtocol
 export petstore_client.ProjectNotFound = petstore_client.models.project_not_found.ProjectNotFound
 export petstore_client.Rank = petstore_client.models.rank.Rank
+export petstore_client.Reading = petstore_client.models.reading.Reading
+export petstore_client.ReadingInlineLevel = petstore_client.models.reading_inline_level.ReadingInlineLevel
+export petstore_client.ReadingLevel = petstore_client.models.reading_level.ReadingLevel
+export petstore_client.ReadingShape = petstore_client.models.reading_shape.ReadingShape
 export petstore_client.RejectedRequest = petstore_client.models.rejected_request.RejectedRequest
 export petstore_client.RequestTimeoutException = petstore_client.errors.request_timeout_exception.RequestTimeoutException
 export petstore_client.RequiredNullable = petstore_client.models.required_nullable.RequiredNullable
@@ -311,6 +339,7 @@ export petstore_client.ReserveStockResponse = petstore_client.models.reserve_sto
 export petstore_client.ResponseTooLargeException = petstore_client.errors.response_too_large_exception.ResponseTooLargeException
 export petstore_client.Result = petstore_client.models.result.Result
 export petstore_client.Roster = petstore_client.models.roster.Roster
+export petstore_client.Sensors = petstore_client.models.sensors.Sensors
 export petstore_client.Separator = petstore_client.models.separator.Separator
 export petstore_client.SerializationException = petstore_client.errors.serialization_exception.SerializationException
 export petstore_client.ServerConfiguration = petstore_client.server_configuration.ServerConfiguration
@@ -321,6 +350,7 @@ export petstore_client.ServiceUnavailableException = petstore_client.errors.serv
 export petstore_client.SetPetAvatarRequest = petstore_client.models.set_pet_avatar_request.SetPetAvatarRequest
 export petstore_client.SetPetAvatarThumbnailRequest = petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest
 export petstore_client.Shape = petstore_client.models.shape.Shape
+export petstore_client.Shipment = petstore_client.models.shipment.Shipment
 export petstore_client.Sparse = petstore_client.models.sparse.Sparse
 export petstore_client.Square = petstore_client.models.square.Square
 export petstore_client.SseStream = petstore_client.sse_stream.SseStream
@@ -375,6 +405,7 @@ export petstore_client.api.options.GetMatrixOptions = petstore_client.api.option
 export petstore_client.api.options.GetMemberOptions = petstore_client.api.options.get_member_options.GetMemberOptions
 export petstore_client.api.options.GetMemoOptions = petstore_client.api.options.get_memo_options.GetMemoOptions
 export petstore_client.api.options.GetMultiServerPetInfoOptions = petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions
+export petstore_client.api.options.GetNativeAmountOptions = petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions
 export petstore_client.api.options.GetNativeValuesOptions = petstore_client.api.options.get_native_values_options.GetNativeValuesOptions
 export petstore_client.api.options.GetOrderByIdOptions = petstore_client.api.options.get_order_by_id_options.GetOrderByIdOptions
 export petstore_client.api.options.GetOrderByTrackingIdOptions = petstore_client.api.options.get_order_by_tracking_id_options.GetOrderByTrackingIdOptions
@@ -397,6 +428,7 @@ export petstore_client.api.options.GetTimestampGroupsOptions = petstore_client.a
 export petstore_client.api.options.GetTreeOptions = petstore_client.api.options.get_tree_options.GetTreeOptions
 export petstore_client.api.options.GetUpstreamOptions = petstore_client.api.options.get_upstream_options.GetUpstreamOptions
 export petstore_client.api.options.HeadMemoOptions = petstore_client.api.options.head_memo_options.HeadMemoOptions
+export petstore_client.api.options.ListNativeAmountsOptions = petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions
 export petstore_client.api.options.ListPetArchiveOptions = petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions
 export petstore_client.api.options.ListPetCatalogOptions = petstore_client.api.options.list_pet_catalog_options.ListPetCatalogOptions
 export petstore_client.api.options.ListPetEventsOptions = petstore_client.api.options.list_pet_events_options.ListPetEventsOptions
@@ -415,6 +447,7 @@ export petstore_client.api.options.SearchStoreOptions = petstore_client.api.opti
 export petstore_client.api.options.SetPetAvatarOptions = petstore_client.api.options.set_pet_avatar_options.SetPetAvatarOptions
 export petstore_client.api.options.SetPetAvatarThumbnailOptions = petstore_client.api.options.set_pet_avatar_thumbnail_options.SetPetAvatarThumbnailOptions
 export petstore_client.api.options.SetPetPreferencesOptions = petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions
+export petstore_client.api.options.SubmitAllowanceOptions = petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions
 export petstore_client.api.options.TakeLockOptions = petstore_client.api.options.take_lock_options.TakeLockOptions
 export petstore_client.api.options.TraceMemoOptions = petstore_client.api.options.trace_memo_options.TraceMemoOptions
 export petstore_client.api.options.UpdatePetOptions = petstore_client.api.options.update_pet_options.UpdatePetOptions
@@ -428,10 +461,13 @@ export petstore_client.auth.Authenticator = petstore_client.auth.authenticator.A
 export petstore_client.auth.BaseAuthenticator = petstore_client.auth.base_authenticator.BaseAuthenticator
 export petstore_client.auth.BasicAuthenticator = petstore_client.auth.basic_authenticator.BasicAuthenticator
 export petstore_client.auth.BearerAuthenticator = petstore_client.auth.bearer_authenticator.BearerAuthenticator
+export petstore_client.auth.DigestAuthenticator = petstore_client.auth.digest_authenticator.DigestAuthenticator
 export petstore_client.auth.HttpAwareAuthenticator = petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator
 export petstore_client.auth.oauth.ClientAuthMethod = petstore_client.auth.oauth.client_auth_method.ClientAuthMethod
+export petstore_client.auth.oauth.DeviceAuthorization = petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization
 export petstore_client.auth.oauth.OAuth2AuthorizationCodeAuthenticator = petstore_client.auth.oauth.oauth2_authorization_code_authenticator.OAuth2AuthorizationCodeAuthenticator
 export petstore_client.auth.oauth.OAuth2ClientCredentialsAuthenticator = petstore_client.auth.oauth.oauth2_client_credentials_authenticator.OAuth2ClientCredentialsAuthenticator
+export petstore_client.auth.oauth.OAuth2DeviceAuthorizationAuthenticator = petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator
 export petstore_client.auth.oauth.OAuth2ImplicitAuthenticator = petstore_client.auth.oauth.oauth2_implicit_authenticator.OAuth2ImplicitAuthenticator
 export petstore_client.auth.oauth.OAuth2PasswordAuthenticator = petstore_client.auth.oauth.oauth2_password_authenticator.OAuth2PasswordAuthenticator
 export petstore_client.auth.oauth.OAuth2TokenManager = petstore_client.auth.oauth.oauth2_token_manager.OAuth2TokenManager
@@ -476,8 +512,11 @@ export petstore_client.errors.UnprocessableEntityException = petstore_client.err
 export petstore_client.errors.UnsupportedMediaTypeException = petstore_client.errors.unsupported_media_type_exception.UnsupportedMediaTypeException
 export petstore_client.errors.UpstreamFailureException = petstore_client.errors.upstream_failure_exception.UpstreamFailureException
 export petstore_client.models.Account = petstore_client.models.account.Account
+export petstore_client.models.Allowance = petstore_client.models.allowance.Allowance
+export petstore_client.models.AllowanceTier = petstore_client.models.allowance_tier.AllowanceTier
 export petstore_client.models.ApiResponse = petstore_client.models.api_response.ApiResponse
 export petstore_client.models.AttachPetFilesRequest = petstore_client.models.attach_pet_files_request.AttachPetFilesRequest
+export petstore_client.models.Audit = petstore_client.models.audit.Audit
 export petstore_client.models.Availability = petstore_client.models.availability.Availability
 export petstore_client.models.BinaryVault = petstore_client.models.binary_vault.BinaryVault
 export petstore_client.models.Blobs = petstore_client.models.blobs.Blobs
@@ -494,6 +533,7 @@ export petstore_client.models.Employee = petstore_client.models.employee.Employe
 export petstore_client.models.Error = petstore_client.models.error.Error
 export petstore_client.models.Freeform = petstore_client.models.freeform.Freeform
 export petstore_client.models.Ledger = petstore_client.models.ledger.Ledger
+export petstore_client.models.Letter = petstore_client.models.letter.Letter
 export petstore_client.models.Medication = petstore_client.models.medication.Medication
 export petstore_client.models.MemberNotFound = petstore_client.models.member_not_found.MemberNotFound
 export petstore_client.models.Memo = petstore_client.models.memo.Memo
@@ -501,6 +541,8 @@ export petstore_client.models.Metadata = petstore_client.models.metadata.Metadat
 export petstore_client.models.Moments = petstore_client.models.moments.Moments
 export petstore_client.models.NativeValues = petstore_client.models.native_values.NativeValues
 export petstore_client.models.Order = petstore_client.models.order.Order
+export petstore_client.models.Packet = petstore_client.models.packet.Packet
+export petstore_client.models.Parcel = petstore_client.models.parcel.Parcel
 export petstore_client.models.Pet = petstore_client.models.pet.Pet
 export petstore_client.models.PetAfterPage = petstore_client.models.pet_after_page.PetAfterPage
 export petstore_client.models.PetArchivePage = petstore_client.models.pet_archive_page.PetArchivePage
@@ -522,6 +564,10 @@ export petstore_client.models.PhotoMetadataLocation = petstore_client.models.pho
 export petstore_client.models.Priority = petstore_client.models.priority.Priority
 export petstore_client.models.ProjectNotFound = petstore_client.models.project_not_found.ProjectNotFound
 export petstore_client.models.Rank = petstore_client.models.rank.Rank
+export petstore_client.models.Reading = petstore_client.models.reading.Reading
+export petstore_client.models.ReadingInlineLevel = petstore_client.models.reading_inline_level.ReadingInlineLevel
+export petstore_client.models.ReadingLevel = petstore_client.models.reading_level.ReadingLevel
+export petstore_client.models.ReadingShape = petstore_client.models.reading_shape.ReadingShape
 export petstore_client.models.RejectedRequest = petstore_client.models.rejected_request.RejectedRequest
 export petstore_client.models.RequiredNullable = petstore_client.models.required_nullable.RequiredNullable
 export petstore_client.models.Reservation = petstore_client.models.reservation.Reservation
@@ -529,10 +575,12 @@ export petstore_client.models.ReservationReceipt = petstore_client.models.reserv
 export petstore_client.models.ReserveStockResponse = petstore_client.models.reserve_stock_response.ReserveStockResponse
 export petstore_client.models.Result = petstore_client.models.result.Result
 export petstore_client.models.Roster = petstore_client.models.roster.Roster
+export petstore_client.models.Sensors = petstore_client.models.sensors.Sensors
 export petstore_client.models.Separator = petstore_client.models.separator.Separator
 export petstore_client.models.SetPetAvatarRequest = petstore_client.models.set_pet_avatar_request.SetPetAvatarRequest
 export petstore_client.models.SetPetAvatarThumbnailRequest = petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest
 export petstore_client.models.Shape = petstore_client.models.shape.Shape
+export petstore_client.models.Shipment = petstore_client.models.shipment.Shipment
 export petstore_client.models.Sparse = petstore_client.models.sparse.Sparse
 export petstore_client.models.Square = petstore_client.models.square.Square
 export petstore_client.models.Stage = petstore_client.models.stage.Stage
@@ -771,6 +819,15 @@ petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetI
 petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions.max_retries: int | None
 petstore_client.api.options.get_multi_server_pet_info_options.GetMultiServerPetInfoOptions.timeout: int | None
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.__delattr__(self, name)
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.__eq__(self, other)
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.__post_init__(self) -> None
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.__repr__(self)
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.__setattr__(self, name, value)
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.headers: collections.abc.Mapping[str, str] | None
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.max_retries: int | None
+petstore_client.api.options.get_native_amount_options.GetNativeAmountOptions.timeout: int | None
 petstore_client.api.options.get_native_values_options.GetNativeValuesOptions.__delattr__(self, name)
 petstore_client.api.options.get_native_values_options.GetNativeValuesOptions.__eq__(self, other)
 petstore_client.api.options.get_native_values_options.GetNativeValuesOptions.__init__(self, address4: ipaddress.IPv4Address | None = None, delay: datetime.timedelta | None = None, amount: decimal.Decimal | None = None, x_address6: ipaddress.IPv6Address | None = None, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -990,6 +1047,15 @@ petstore_client.api.options.head_memo_options.HeadMemoOptions.__setattr__(self, 
 petstore_client.api.options.head_memo_options.HeadMemoOptions.headers: collections.abc.Mapping[str, str] | None
 petstore_client.api.options.head_memo_options.HeadMemoOptions.max_retries: int | None
 petstore_client.api.options.head_memo_options.HeadMemoOptions.timeout: int | None
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__delattr__(self, name)
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__eq__(self, other)
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__post_init__(self) -> None
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__repr__(self)
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.__setattr__(self, name, value)
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.headers: collections.abc.Mapping[str, str] | None
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.max_retries: int | None
+petstore_client.api.options.list_native_amounts_options.ListNativeAmountsOptions.timeout: int | None
 petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions.__delattr__(self, name)
 petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions.__eq__(self, other)
 petstore_client.api.options.list_pet_archive_options.ListPetArchiveOptions.__init__(self, cursor: str | None = None, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1179,6 +1245,15 @@ petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.tags: list[str] | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.timeout: int | None
 petstore_client.api.options.set_pet_preferences_options.SetPetPreferencesOptions.urgent: bool | None
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.__delattr__(self, name)
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.__eq__(self, other)
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.__post_init__(self) -> None
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.__repr__(self)
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.__setattr__(self, name, value)
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.headers: collections.abc.Mapping[str, str] | None
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.max_retries: int | None
+petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions.timeout: int | None
 petstore_client.api.options.take_lock_options.TakeLockOptions.__delattr__(self, name)
 petstore_client.api.options.take_lock_options.TakeLockOptions.__eq__(self, other)
 petstore_client.api.options.take_lock_options.TakeLockOptions.__init__(self, timeout: int | None = None, headers: collections.abc.Mapping[str, str] | None = None, max_retries: int | None = None) -> None
@@ -1461,6 +1536,8 @@ petstore_client.api.store_api.StoreApi.get_matrix(self, options: petstore_client
 petstore_client.api.store_api.StoreApi.get_matrix_with_http_info(self, options: petstore_client.api.options.get_matrix_options.GetMatrixOptions | None = None) -> petstore_client.api_result.ApiResult[list[list[int]]]
 petstore_client.api.store_api.StoreApi.get_memo(self, memo_id: str, server: petstore_client.api.store_api.GetMemoServer | None = None, options: petstore_client.api.options.get_memo_options.GetMemoOptions | None = None) -> petstore_client.models.memo.Memo
 petstore_client.api.store_api.StoreApi.get_memo_with_http_info(self, memo_id: str, server: petstore_client.api.store_api.GetMemoServer | None = None, options: petstore_client.api.options.get_memo_options.GetMemoOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.memo.Memo]
+petstore_client.api.store_api.StoreApi.get_native_amount(self, options: Optional[GetNativeAmountOptions] = None) -> JsonNumber
+petstore_client.api.store_api.StoreApi.get_native_amount_with_http_info(self, options: Optional[GetNativeAmountOptions] = None) -> 'ApiResult[JsonNumber]'
 petstore_client.api.store_api.StoreApi.get_native_values(self, options: petstore_client.api.options.get_native_values_options.GetNativeValuesOptions | None = None) -> petstore_client.models.native_values.NativeValues
 petstore_client.api.store_api.StoreApi.get_native_values_with_http_info(self, options: petstore_client.api.options.get_native_values_options.GetNativeValuesOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.native_values.NativeValues]
 petstore_client.api.store_api.StoreApi.get_order_by_id(self, order_id: int, options: petstore_client.api.options.get_order_by_id_options.GetOrderByIdOptions | None = None) -> petstore_client.models.order.Order
@@ -1479,6 +1556,8 @@ petstore_client.api.store_api.StoreApi.get_tree(self, options: petstore_client.a
 petstore_client.api.store_api.StoreApi.get_tree_with_http_info(self, options: petstore_client.api.options.get_tree_options.GetTreeOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.tree_node.TreeNode]
 petstore_client.api.store_api.StoreApi.head_memo(self, memo_id: str, options: petstore_client.api.options.head_memo_options.HeadMemoOptions | None = None) -> None
 petstore_client.api.store_api.StoreApi.head_memo_with_http_info(self, memo_id: str, options: petstore_client.api.options.head_memo_options.HeadMemoOptions | None = None) -> petstore_client.api_result.ApiResult[None]
+petstore_client.api.store_api.StoreApi.list_native_amounts(self, options: Optional[ListNativeAmountsOptions] = None) -> List[JsonNumber]
+petstore_client.api.store_api.StoreApi.list_native_amounts_with_http_info(self, options: Optional[ListNativeAmountsOptions] = None) -> 'ApiResult[List[JsonNumber]]'
 petstore_client.api.store_api.StoreApi.options_memo(self, memo_id: str, options: petstore_client.api.options.options_memo_options.OptionsMemoOptions | None = None) -> None
 petstore_client.api.store_api.StoreApi.options_memo_with_http_info(self, memo_id: str, options: petstore_client.api.options.options_memo_options.OptionsMemoOptions | None = None) -> petstore_client.api_result.ApiResult[None]
 petstore_client.api.store_api.StoreApi.patch_memo(self, memo_id: str, memo: petstore_client.models.memo.Memo, options: petstore_client.api.options.patch_memo_options.PatchMemoOptions | None = None) -> petstore_client.models.memo.Memo
@@ -1489,6 +1568,8 @@ petstore_client.api.store_api.StoreApi.reserve_stock(self, options: petstore_cli
 petstore_client.api.store_api.StoreApi.reserve_stock_with_http_info(self, options: petstore_client.api.options.reserve_stock_options.ReserveStockOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.reserve_stock_response.ReserveStockResponse]
 petstore_client.api.store_api.StoreApi.search_store(self, options: petstore_client.api.options.search_store_options.SearchStoreOptions | None = None) -> list[petstore_client.models.order.Order]
 petstore_client.api.store_api.StoreApi.search_store_with_http_info(self, options: petstore_client.api.options.search_store_options.SearchStoreOptions | None = None) -> petstore_client.api_result.ApiResult[list[petstore_client.models.order.Order]]
+petstore_client.api.store_api.StoreApi.submit_allowance(self, allowance: petstore_client.models.allowance.Allowance, options: petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions | None = None) -> None
+petstore_client.api.store_api.StoreApi.submit_allowance_with_http_info(self, allowance: petstore_client.models.allowance.Allowance, options: petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions | None = None) -> petstore_client.api_result.ApiResult[None]
 petstore_client.api.store_api.StoreApi.trace_memo(self, memo_id: str, options: petstore_client.api.options.trace_memo_options.TraceMemoOptions | None = None) -> None
 petstore_client.api.store_api.StoreApi.trace_memo_with_http_info(self, memo_id: str, options: petstore_client.api.options.trace_memo_options.TraceMemoOptions | None = None) -> petstore_client.api_result.ApiResult[None]
 petstore_client.api.store_api.StoreApi.watch_notices_stream(self, options: petstore_client.api.options.watch_notices_options.WatchNoticesOptions | None = None, stream_options: petstore_client.stream_options.StreamOptions | None = None) -> petstore_client.sse_stream.SseStream[str]
@@ -1515,6 +1596,8 @@ petstore_client.api.store_api.StoreApiProtocol.get_matrix(self, options: petstor
 petstore_client.api.store_api.StoreApiProtocol.get_matrix_with_http_info(self, options: petstore_client.api.options.get_matrix_options.GetMatrixOptions | None = None) -> petstore_client.api_result.ApiResult[list[list[int]]]
 petstore_client.api.store_api.StoreApiProtocol.get_memo(self, memo_id: str, server: petstore_client.api.store_api.GetMemoServer | None = None, options: petstore_client.api.options.get_memo_options.GetMemoOptions | None = None) -> petstore_client.models.memo.Memo
 petstore_client.api.store_api.StoreApiProtocol.get_memo_with_http_info(self, memo_id: str, server: petstore_client.api.store_api.GetMemoServer | None = None, options: petstore_client.api.options.get_memo_options.GetMemoOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.memo.Memo]
+petstore_client.api.store_api.StoreApiProtocol.get_native_amount(self, options: Optional[GetNativeAmountOptions] = None) -> JsonNumber
+petstore_client.api.store_api.StoreApiProtocol.get_native_amount_with_http_info(self, options: Optional[GetNativeAmountOptions] = None) -> 'ApiResult[JsonNumber]'
 petstore_client.api.store_api.StoreApiProtocol.get_native_values(self, options: petstore_client.api.options.get_native_values_options.GetNativeValuesOptions | None = None) -> petstore_client.models.native_values.NativeValues
 petstore_client.api.store_api.StoreApiProtocol.get_native_values_with_http_info(self, options: petstore_client.api.options.get_native_values_options.GetNativeValuesOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.native_values.NativeValues]
 petstore_client.api.store_api.StoreApiProtocol.get_order_by_id(self, order_id: int, options: petstore_client.api.options.get_order_by_id_options.GetOrderByIdOptions | None = None) -> petstore_client.models.order.Order
@@ -1533,6 +1616,8 @@ petstore_client.api.store_api.StoreApiProtocol.get_tree(self, options: petstore_
 petstore_client.api.store_api.StoreApiProtocol.get_tree_with_http_info(self, options: petstore_client.api.options.get_tree_options.GetTreeOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.tree_node.TreeNode]
 petstore_client.api.store_api.StoreApiProtocol.head_memo(self, memo_id: str, options: petstore_client.api.options.head_memo_options.HeadMemoOptions | None = None) -> None
 petstore_client.api.store_api.StoreApiProtocol.head_memo_with_http_info(self, memo_id: str, options: petstore_client.api.options.head_memo_options.HeadMemoOptions | None = None) -> petstore_client.api_result.ApiResult[None]
+petstore_client.api.store_api.StoreApiProtocol.list_native_amounts(self, options: Optional[ListNativeAmountsOptions] = None) -> List[JsonNumber]
+petstore_client.api.store_api.StoreApiProtocol.list_native_amounts_with_http_info(self, options: Optional[ListNativeAmountsOptions] = None) -> 'ApiResult[List[JsonNumber]]'
 petstore_client.api.store_api.StoreApiProtocol.options_memo(self, memo_id: str, options: petstore_client.api.options.options_memo_options.OptionsMemoOptions | None = None) -> None
 petstore_client.api.store_api.StoreApiProtocol.options_memo_with_http_info(self, memo_id: str, options: petstore_client.api.options.options_memo_options.OptionsMemoOptions | None = None) -> petstore_client.api_result.ApiResult[None]
 petstore_client.api.store_api.StoreApiProtocol.patch_memo(self, memo_id: str, memo: petstore_client.models.memo.Memo, options: petstore_client.api.options.patch_memo_options.PatchMemoOptions | None = None) -> petstore_client.models.memo.Memo
@@ -1543,6 +1628,8 @@ petstore_client.api.store_api.StoreApiProtocol.reserve_stock(self, options: pets
 petstore_client.api.store_api.StoreApiProtocol.reserve_stock_with_http_info(self, options: petstore_client.api.options.reserve_stock_options.ReserveStockOptions | None = None) -> petstore_client.api_result.ApiResult[petstore_client.models.reserve_stock_response.ReserveStockResponse]
 petstore_client.api.store_api.StoreApiProtocol.search_store(self, options: petstore_client.api.options.search_store_options.SearchStoreOptions | None = None) -> list[petstore_client.models.order.Order]
 petstore_client.api.store_api.StoreApiProtocol.search_store_with_http_info(self, options: petstore_client.api.options.search_store_options.SearchStoreOptions | None = None) -> petstore_client.api_result.ApiResult[list[petstore_client.models.order.Order]]
+petstore_client.api.store_api.StoreApiProtocol.submit_allowance(self, allowance: petstore_client.models.allowance.Allowance, options: petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions | None = None) -> None
+petstore_client.api.store_api.StoreApiProtocol.submit_allowance_with_http_info(self, allowance: petstore_client.models.allowance.Allowance, options: petstore_client.api.options.submit_allowance_options.SubmitAllowanceOptions | None = None) -> petstore_client.api_result.ApiResult[None]
 petstore_client.api.store_api.StoreApiProtocol.trace_memo(self, memo_id: str, options: petstore_client.api.options.trace_memo_options.TraceMemoOptions | None = None) -> None
 petstore_client.api.store_api.StoreApiProtocol.trace_memo_with_http_info(self, memo_id: str, options: petstore_client.api.options.trace_memo_options.TraceMemoOptions | None = None) -> petstore_client.api_result.ApiResult[None]
 petstore_client.api.store_api.StoreApiProtocol.watch_notices_stream(self, options: petstore_client.api.options.watch_notices_options.WatchNoticesOptions | None = None, stream_options: petstore_client.stream_options.StreamOptions | None = None) -> petstore_client.sse_stream.SseStream[str]
@@ -1594,6 +1681,12 @@ petstore_client.auth.bearer_authenticator.BearerAuthenticator.get_host(self) -> 
 petstore_client.auth.bearer_authenticator.BearerAuthenticator.host: str
 petstore_client.auth.bearer_authenticator.BearerAuthenticator.token: str
 petstore_client.auth.bearer_authenticator.BearerAuthenticator.token_provider: Callable[[], str] | None
+petstore_client.auth.digest_authenticator.DigestAuthenticator.__init__(self, host: str, username: str, password: str) -> None
+petstore_client.auth.digest_authenticator.DigestAuthenticator.__repr__(self) -> str
+petstore_client.auth.digest_authenticator.DigestAuthenticator.accept_challenge(self, www_authenticate: str) -> bool
+petstore_client.auth.digest_authenticator.DigestAuthenticator.authorization(self, method: str, request_target: str) -> str | None
+petstore_client.auth.digest_authenticator.DigestAuthenticator.get_auth_headers(self) -> dict[str, str]
+petstore_client.auth.digest_authenticator.DigestAuthenticator.get_host(self) -> str
 petstore_client.auth.http_aware_authenticator.HttpAwareAuthenticator.set_api_client(self, api_client: petstore_client.api_client.ApiClient) -> None
 petstore_client.auth.oauth.client_auth_method.ClientAuthMethod.BASIC = 'basic'
 petstore_client.auth.oauth.client_auth_method.ClientAuthMethod.BODY = 'body'
@@ -1626,6 +1719,25 @@ petstore_client.auth.oauth.oauth2_client_credentials_authenticator.OAuth2ClientC
 petstore_client.auth.oauth.oauth2_client_credentials_authenticator.OAuth2ClientCredentialsAuthenticator.scopes: collections.abc.Sequence[str]
 petstore_client.auth.oauth.oauth2_client_credentials_authenticator.OAuth2ClientCredentialsAuthenticator.set_api_client(self, api_client: petstore_client.api_client.ApiClient) -> None
 petstore_client.auth.oauth.oauth2_client_credentials_authenticator.OAuth2ClientCredentialsAuthenticator.token_url: str
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.__delattr__(self, name)
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.__eq__(self, other)
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.__init__(self, device_code: str, user_code: str, verification_uri: str, verification_uri_complete: str | None, expires_in: int, interval: int) -> None
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.__repr__(self)
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.__setattr__(self, name, value)
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.device_code: str
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.expires_in: int
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.interval: int
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.user_code: str
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.verification_uri: str
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization.verification_uri_complete: str | None
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.__init__(self, host: str, client_id: str, device_authorization_url: str, token_url: str, scopes: collections.abc.Sequence[str], refresh_url: str | None = None) -> None
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.__repr__(self) -> str
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.get_auth_headers(self) -> dict[str, str]
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.get_host(self) -> str
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.invalidate_access_token(self) -> None
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.poll_for_token(self, authorization: petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization) -> None
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.request_device_authorization(self) -> petstore_client.auth.oauth.oauth2_device_authorization_authenticator.DeviceAuthorization
+petstore_client.auth.oauth.oauth2_device_authorization_authenticator.OAuth2DeviceAuthorizationAuthenticator.set_api_client(self, api_client: petstore_client.api_client.ApiClient) -> None
 petstore_client.auth.oauth.oauth2_implicit_authenticator.OAuth2ImplicitAuthenticator.__init__(self, host: str, client_id: str, authorization_url: str, scopes: collections.abc.Sequence[str]) -> None
 petstore_client.auth.oauth.oauth2_implicit_authenticator.OAuth2ImplicitAuthenticator.__repr__(self) -> str
 petstore_client.auth.oauth.oauth2_implicit_authenticator.OAuth2ImplicitAuthenticator.build_authorization_url(self, state: str | None = None) -> str
@@ -1714,7 +1826,7 @@ petstore_client.call_hook.CallOutcome.headers: collections.abc.Mapping[str, str]
 petstore_client.call_hook.CallOutcome.status_code: int
 petstore_client.client.Client.__enter__(self) -> petstore_client.client.Client
 petstore_client.client.Client.__exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None
-petstore_client.client.Client.__init__(self, authenticator: petstore_client.auth.authenticator.Authenticator | None = None, transport_options: petstore_client.transport_options.TransportOptions | None = None, pool_manager: Any | None = None, call_hook: petstore_client.call_hook.CallHook | None = None, *, pet_store_basic: petstore_client.auth.authenticator.Authenticator | None = None, admin_basic: petstore_client.auth.authenticator.Authenticator | None = None, pet_store_bearer: petstore_client.auth.authenticator.Authenticator | None = None, service_token: petstore_client.auth.authenticator.Authenticator | None = None, api_key_header: petstore_client.auth.authenticator.Authenticator | None = None, internal_api_key: petstore_client.auth.authenticator.Authenticator | None = None, api_key_query: petstore_client.auth.authenticator.Authenticator | None = None, session_cookie: petstore_client.auth.authenticator.Authenticator | None = None, machine_auth: petstore_client.auth.authenticator.Authenticator | None = None, legacy_auth: petstore_client.auth.authenticator.Authenticator | None = None, user_auth: petstore_client.auth.authenticator.Authenticator | None = None, browser_auth: petstore_client.auth.authenticator.Authenticator | None = None, sso_auth: petstore_client.auth.authenticator.Authenticator | None = None) -> None
+petstore_client.client.Client.__init__(self, authenticator: petstore_client.auth.authenticator.Authenticator | None = None, transport_options: petstore_client.transport_options.TransportOptions | None = None, pool_manager: Any | None = None, call_hook: petstore_client.call_hook.CallHook | None = None, *, pet_store_basic: petstore_client.auth.authenticator.Authenticator | None = None, admin_basic: petstore_client.auth.authenticator.Authenticator | None = None, archive_digest: petstore_client.auth.authenticator.Authenticator | None = None, pet_store_bearer: petstore_client.auth.authenticator.Authenticator | None = None, service_token: petstore_client.auth.authenticator.Authenticator | None = None, api_key_header: petstore_client.auth.authenticator.Authenticator | None = None, internal_api_key: petstore_client.auth.authenticator.Authenticator | None = None, api_key_query: petstore_client.auth.authenticator.Authenticator | None = None, session_cookie: petstore_client.auth.authenticator.Authenticator | None = None, machine_auth: petstore_client.auth.authenticator.Authenticator | None = None, legacy_auth: petstore_client.auth.authenticator.Authenticator | None = None, user_auth: petstore_client.auth.authenticator.Authenticator | None = None, browser_auth: petstore_client.auth.authenticator.Authenticator | None = None, device_auth: petstore_client.auth.authenticator.Authenticator | None = None, sso_auth: petstore_client.auth.authenticator.Authenticator | None = None) -> None
 petstore_client.client.Client.classmethod with_authenticator(cls, authenticator: petstore_client.auth.authenticator.Authenticator, transport_options: petstore_client.transport_options.TransportOptions | None = None, pool_manager: Any | None = None, call_hook: petstore_client.call_hook.CallHook | None = None) -> petstore_client.client.Client
 petstore_client.client.Client.classmethod with_token(cls, host: str | None = None, access_token: str | None = None, transport_options: petstore_client.transport_options.TransportOptions | None = None, pool_manager: Any | None = None, token_provider: Callable[[], str] | None = None, call_hook: petstore_client.call_hook.CallHook | None = None) -> petstore_client.client.Client
 petstore_client.client.Client.close(self) -> None
@@ -1727,7 +1839,7 @@ petstore_client.client.ClientProtocol.property problems: petstore_client.api.pro
 petstore_client.client.ClientProtocol.property store: petstore_client.api.store_api.StoreApiProtocol
 petstore_client.configuration.Configuration.__delattr__(self, name)
 petstore_client.configuration.Configuration.__eq__(self, other)
-petstore_client.configuration.Configuration.__init__(self, base_url: str = '/api/v3', default_headers: collections.abc.Mapping[str, str] = <factory>, call_hook: petstore_client.call_hook.CallHook | None = None) -> None
+petstore_client.configuration.Configuration.__init__(self, base_url: str = '/api/v3', default_headers: collections.abc.Mapping[str, str] = <factory>, call_hook: petstore_client.call_hook.CallHook | None = None, validate_constraints: bool = False) -> None
 petstore_client.configuration.Configuration.__post_init__(self) -> None
 petstore_client.configuration.Configuration.__repr__(self) -> str
 petstore_client.configuration.Configuration.__setattr__(self, name, value)
@@ -1736,6 +1848,7 @@ petstore_client.configuration.Configuration.call_hook: petstore_client.call_hook
 petstore_client.configuration.Configuration.classmethod builder(cls) -> petstore_client.configuration.ConfigurationBuilder
 petstore_client.configuration.Configuration.classmethod default_configuration(cls) -> petstore_client.configuration.Configuration
 petstore_client.configuration.Configuration.default_headers: collections.abc.Mapping[str, str]
+petstore_client.configuration.Configuration.validate_constraints: bool
 petstore_client.errors.ApiException.__init__(self, status_code: int = 0, message: str | None = None, response_headers: Any | None = None, response_body: str | None = None, error_body: Any | None = None, cause: BaseException | None = None, request_method: str | None = None, request_path: str | None = None) -> None
 petstore_client.errors.ApiException.__str__(self) -> str
 petstore_client.errors.ApiException.get_typed_error_body(self, clazz: type[~T]) -> ~T | None
@@ -1822,6 +1935,21 @@ petstore_client.models.account.Account.id: int | None
 petstore_client.models.account.Account.model_config: dict
 petstore_client.models.account.Account.password: pydantic.types.SecretStr | None
 petstore_client.models.account.Account.username: str
+petstore_client.models.allowance.Allowance.__init__(self, /, **data: Any) -> None
+petstore_client.models.allowance.Allowance.classmethod label_validate_regular_expression(cls, value: Any) -> Any
+petstore_client.models.allowance.Allowance.codes: list[str] | None
+petstore_client.models.allowance.Allowance.count: int | None
+petstore_client.models.allowance.Allowance.label: str | None
+petstore_client.models.allowance.Allowance.limits: dict[str, int] | None
+petstore_client.models.allowance.Allowance.model_config: dict
+petstore_client.models.allowance.Allowance.parts: list[petstore_client.models.allowance_tier.AllowanceTier] | None
+petstore_client.models.allowance.Allowance.ratio: float | None
+petstore_client.models.allowance.Allowance.step: int | None
+petstore_client.models.allowance.Allowance.tier: petstore_client.models.allowance_tier.AllowanceTier | None
+petstore_client.models.allowance_tier.AllowanceTier.__init__(self, /, **data: Any) -> None
+petstore_client.models.allowance_tier.AllowanceTier.level: int | None
+petstore_client.models.allowance_tier.AllowanceTier.model_config: dict
+petstore_client.models.allowance_tier.AllowanceTier.name: str | None
 petstore_client.models.api_response.ApiResponse.__init__(self, /, **data: Any) -> None
 petstore_client.models.api_response.ApiResponse.code: int | None
 petstore_client.models.api_response.ApiResponse.message: str | None
@@ -1831,6 +1959,11 @@ petstore_client.models.attach_pet_files_request.AttachPetFilesRequest.__init__(s
 petstore_client.models.attach_pet_files_request.AttachPetFilesRequest.caption: str | None
 petstore_client.models.attach_pet_files_request.AttachPetFilesRequest.file: bytes
 petstore_client.models.attach_pet_files_request.AttachPetFilesRequest.model_config: dict
+petstore_client.models.audit.Audit.__init__(self, /, **data: Any) -> None
+petstore_client.models.audit.Audit.model_config: dict
+petstore_client.models.audit.Audit.payload: str | None
+petstore_client.models.audit.Audit.score: int | None
+petstore_client.models.audit.Audit.tags: list[str] | None
 petstore_client.models.availability.Availability.AVAILABLE = 'Available'
 petstore_client.models.availability.Availability.A_B = 'a\\b'
 petstore_client.models.availability.Availability.EQ = '$eq'
@@ -1896,6 +2029,7 @@ petstore_client.models.department.Department.name: str
 petstore_client.models.dry_food.DryFood.__init__(self, /, **data: Any) -> None
 petstore_client.models.dry_food.DryFood.food_type: str (alias 'foodType')
 petstore_client.models.dry_food.DryFood.model_config: dict
+petstore_client.models.dry_food.DryFood.price_per_kg: decimal.Decimal | None (alias 'pricePerKg')
 petstore_client.models.dry_food.DryFood.weight_kg: float (alias 'weightKg')
 petstore_client.models.edge_cases.EdgeCases.__init__(self, /, **data: Any) -> None
 petstore_client.models.edge_cases.EdgeCases.and_: bool | None (alias 'and')
@@ -1936,6 +2070,10 @@ petstore_client.models.ledger.Ledger.__init__(self, /, **data: Any) -> None
 petstore_client.models.ledger.Ledger.entry_id: int (alias 'entryId')
 petstore_client.models.ledger.Ledger.entry_ids: list[int] | None (alias 'entryIds')
 petstore_client.models.ledger.Ledger.model_config: dict
+petstore_client.models.letter.Letter.__init__(self, /, **data: Any) -> None
+petstore_client.models.letter.Letter.kind: str
+petstore_client.models.letter.Letter.model_config: dict
+petstore_client.models.letter.Letter.pages: int | None
 petstore_client.models.medication.Medication.__init__(self, /, **data: Any) -> None
 petstore_client.models.medication.Medication.dosage: str | None
 petstore_client.models.medication.Medication.drug_name: str (alias 'drugName')
@@ -1962,6 +2100,7 @@ petstore_client.models.native_values.NativeValues.address4: ipaddress.IPv4Addres
 petstore_client.models.native_values.NativeValues.address6: ipaddress.IPv6Address | None
 petstore_client.models.native_values.NativeValues.addresses: list[ipaddress.IPv6Address] | None
 petstore_client.models.native_values.NativeValues.amount: decimal.Decimal | None
+petstore_client.models.native_values.NativeValues.amounts: list[decimal.Decimal] | None
 petstore_client.models.native_values.NativeValues.contact: str | None
 petstore_client.models.native_values.NativeValues.homepage: str | None
 petstore_client.models.native_values.NativeValues.host: str | None
@@ -1978,6 +2117,21 @@ petstore_client.models.order.Order.quantity: int | None
 petstore_client.models.order.Order.ship_date: pydantic.types.AwareDatetime | None (alias 'shipDate')
 petstore_client.models.order.Order.status: petstore_client.models.order.OrderStatusEnum | None
 petstore_client.models.order.Order.tracking_id: uuid.UUID | None (alias 'trackingId')
+petstore_client.models.packet.Packet.__init__(self, /, **data: Any) -> None
+petstore_client.models.packet.Packet.kind: str
+petstore_client.models.packet.Packet.model_config: dict
+petstore_client.models.packet.Packet.weight_kg: float | None (alias 'weightKg')
+petstore_client.models.parcel.Parcel.__init__(self, *args: Any, **kwargs: Any) -> None
+petstore_client.models.parcel.Parcel.__init__(self, /, **data: Any) -> None
+petstore_client.models.parcel.Parcel.actual_instance: petstore_client.models.letter.Letter | petstore_client.models.packet.Packet | None
+petstore_client.models.parcel.Parcel.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
+petstore_client.models.parcel.Parcel.classmethod get_discriminator_value(cls, obj: dict[str, Any]) -> str
+petstore_client.models.parcel.Parcel.classvar discriminator_value_class_map: dict[str, str]
+petstore_client.models.parcel.Parcel.classvar one_of_schemas: tuple[str, ...]
+petstore_client.models.parcel.Parcel.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
+petstore_client.models.parcel.Parcel.model_config: dict
+petstore_client.models.parcel.Parcel.one_of_0: petstore_client.models.letter.Letter | None
+petstore_client.models.parcel.Parcel.one_of_1: petstore_client.models.packet.Packet | None
 petstore_client.models.pet.Pet.__init__(self, /, **data: Any) -> None
 petstore_client.models.pet.Pet.category: petstore_client.models.category.Category | None
 petstore_client.models.pet.Pet.classmethod nickname_validate_regular_expression(cls, value: Any) -> Any
@@ -2018,9 +2172,11 @@ petstore_client.models.pet_event_page.PetEventPage.upto: str | None
 petstore_client.models.pet_food.PetFood.__init__(self, *args: Any, **kwargs: Any) -> None
 petstore_client.models.pet_food.PetFood.__init__(self, /, **data: Any) -> None
 petstore_client.models.pet_food.PetFood.actual_instance: petstore_client.models.dry_food.DryFood | petstore_client.models.wet_food.WetFood | None
+petstore_client.models.pet_food.PetFood.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
 petstore_client.models.pet_food.PetFood.classmethod get_discriminator_value(cls, obj: dict[str, Any]) -> str
 petstore_client.models.pet_food.PetFood.classvar discriminator_value_class_map: dict[str, str]
 petstore_client.models.pet_food.PetFood.classvar one_of_schemas: tuple[str, ...]
+petstore_client.models.pet_food.PetFood.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
 petstore_client.models.pet_food.PetFood.model_config: dict
 petstore_client.models.pet_food.PetFood.one_of_0: petstore_client.models.dry_food.DryFood | None
 petstore_client.models.pet_food.PetFood.one_of_1: petstore_client.models.wet_food.WetFood | None
@@ -2057,7 +2213,9 @@ petstore_client.models.pet_treatment.PetTreatment.__init__(self, /, **data: Any)
 petstore_client.models.pet_treatment.PetTreatment.actual_instance: petstore_client.models.medication.Medication | petstore_client.models.surgery.Surgery | None
 petstore_client.models.pet_treatment.PetTreatment.anyof_merged_dump(self, exact_numbers: bool = False) -> dict[str, Any]
 petstore_client.models.pet_treatment.PetTreatment.classmethod actual_instance_must_validate_anyof(cls, v: Any) -> Any
+petstore_client.models.pet_treatment.PetTreatment.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
 petstore_client.models.pet_treatment.PetTreatment.classvar any_of_schemas: tuple[str, ...]
+petstore_client.models.pet_treatment.PetTreatment.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
 petstore_client.models.pet_treatment.PetTreatment.matched_instances: list[petstore_client.models.medication.Medication | petstore_client.models.surgery.Surgery]
 petstore_client.models.pet_treatment.PetTreatment.model_config: dict
 petstore_client.models.pet_with_owner.PetWithOwner.__init__(self, /, **data: Any) -> None
@@ -2113,6 +2271,42 @@ petstore_client.models.rank.Rank.__format__(self, format_spec)
 petstore_client.models.rank.Rank.__new__(cls, value)
 petstore_client.models.rank.Rank.__repr__(self)
 petstore_client.models.rank.Rank.__str__(self) -> str
+petstore_client.models.reading.Reading.__init__(self, /, **data: Any) -> None
+petstore_client.models.reading.Reading.inline_level: petstore_client.models.reading_inline_level.ReadingInlineLevel | None (alias 'inlineLevel')
+petstore_client.models.reading.Reading.level: petstore_client.models.reading_level.ReadingLevel
+petstore_client.models.reading.Reading.model_config: dict
+petstore_client.models.reading.Reading.nothing: object | None
+petstore_client.models.reading.Reading.shape: petstore_client.models.reading_shape.ReadingShape | None
+petstore_client.models.reading_inline_level.ReadingInlineLevel.__init__(self, *args: Any, **kwargs: Any) -> None
+petstore_client.models.reading_inline_level.ReadingInlineLevel.__init__(self, /, **data: Any) -> None
+petstore_client.models.reading_inline_level.ReadingInlineLevel.actual_instance: str | int | None
+petstore_client.models.reading_inline_level.ReadingInlineLevel.anyof_merged_dump(self, exact_numbers: bool = False) -> dict[str, Any]
+petstore_client.models.reading_inline_level.ReadingInlineLevel.classmethod actual_instance_must_validate_anyof(cls, v: Any) -> Any
+petstore_client.models.reading_inline_level.ReadingInlineLevel.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
+petstore_client.models.reading_inline_level.ReadingInlineLevel.classvar any_of_schemas: tuple[str, ...]
+petstore_client.models.reading_inline_level.ReadingInlineLevel.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
+petstore_client.models.reading_inline_level.ReadingInlineLevel.matched_instances: list[str | int]
+petstore_client.models.reading_inline_level.ReadingInlineLevel.model_config: dict
+petstore_client.models.reading_level.ReadingLevel.__init__(self, *args: Any, **kwargs: Any) -> None
+petstore_client.models.reading_level.ReadingLevel.__init__(self, /, **data: Any) -> None
+petstore_client.models.reading_level.ReadingLevel.actual_instance: str | int | None
+petstore_client.models.reading_level.ReadingLevel.anyof_merged_dump(self, exact_numbers: bool = False) -> dict[str, Any]
+petstore_client.models.reading_level.ReadingLevel.classmethod actual_instance_must_validate_anyof(cls, v: Any) -> Any
+petstore_client.models.reading_level.ReadingLevel.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
+petstore_client.models.reading_level.ReadingLevel.classvar any_of_schemas: tuple[str, ...]
+petstore_client.models.reading_level.ReadingLevel.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
+petstore_client.models.reading_level.ReadingLevel.matched_instances: list[str | int]
+petstore_client.models.reading_level.ReadingLevel.model_config: dict
+petstore_client.models.reading_shape.ReadingShape.__init__(self, *args: Any, **kwargs: Any) -> None
+petstore_client.models.reading_shape.ReadingShape.__init__(self, /, **data: Any) -> None
+petstore_client.models.reading_shape.ReadingShape.actual_instance: list[str] | dict[str, str] | None
+petstore_client.models.reading_shape.ReadingShape.anyof_merged_dump(self, exact_numbers: bool = False) -> dict[str, Any]
+petstore_client.models.reading_shape.ReadingShape.classmethod actual_instance_must_validate_anyof(cls, v: Any) -> Any
+petstore_client.models.reading_shape.ReadingShape.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
+petstore_client.models.reading_shape.ReadingShape.classvar any_of_schemas: tuple[str, ...]
+petstore_client.models.reading_shape.ReadingShape.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
+petstore_client.models.reading_shape.ReadingShape.matched_instances: list[list[str] | dict[str, str]]
+petstore_client.models.reading_shape.ReadingShape.model_config: dict
 petstore_client.models.rejected_request.RejectedRequest.__init__(self, /, **data: Any) -> None
 petstore_client.models.rejected_request.RejectedRequest.code: int | None
 petstore_client.models.rejected_request.RejectedRequest.message: str | None
@@ -2132,7 +2326,9 @@ petstore_client.models.reserve_stock_response.ReserveStockResponse.__init__(self
 petstore_client.models.reserve_stock_response.ReserveStockResponse.__init__(self, /, **data: Any) -> None
 petstore_client.models.reserve_stock_response.ReserveStockResponse.actual_instance: petstore_client.models.reservation.Reservation | petstore_client.models.reservation_receipt.ReservationReceipt | None
 petstore_client.models.reserve_stock_response.ReserveStockResponse.classmethod actual_instance_must_validate_oneof(cls, v: Any) -> Any
+petstore_client.models.reserve_stock_response.ReserveStockResponse.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
 petstore_client.models.reserve_stock_response.ReserveStockResponse.classvar one_of_schemas: tuple[str, ...]
+petstore_client.models.reserve_stock_response.ReserveStockResponse.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
 petstore_client.models.reserve_stock_response.ReserveStockResponse.model_config: dict
 petstore_client.models.reserve_stock_response.ReserveStockResponse.one_of_0: petstore_client.models.reservation.Reservation | None
 petstore_client.models.reserve_stock_response.ReserveStockResponse.one_of_1: petstore_client.models.reservation_receipt.ReservationReceipt | None
@@ -2143,6 +2339,10 @@ petstore_client.models.roster.Roster.__init__(self, /, **data: Any) -> None
 petstore_client.models.roster.Roster.additional_properties: dict[str, petstore_client.models.category.Category]
 petstore_client.models.roster.Roster.label: str | None
 petstore_client.models.roster.Roster.model_config: dict
+petstore_client.models.sensors.Sensors.__init__(self, /, **data: Any) -> None
+petstore_client.models.sensors.Sensors.additional_properties: dict[str, int]
+petstore_client.models.sensors.Sensors.model_config: dict
+petstore_client.models.sensors.Sensors.site: str | None
 petstore_client.models.separator.Separator.A_B = 'a-b'
 petstore_client.models.separator.Separator.A_B_2 = 'a_b'
 petstore_client.models.separator.Separator.SPACE_1 = ' '
@@ -2160,7 +2360,9 @@ petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailReq
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.__init__(self, /, **data: Any) -> None
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.actual_instance: bytes | list[bytes] | None
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.classmethod actual_instance_must_validate_oneof(cls, v: Any) -> Any
+petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.classvar one_of_schemas: tuple[str, ...]
+petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.model_config: dict
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.one_of_0: bytes | None
 petstore_client.models.set_pet_avatar_thumbnail_request.SetPetAvatarThumbnailRequest.one_of_1: list[bytes] | None
@@ -2169,6 +2371,11 @@ petstore_client.models.shape.Shape.classmethod get_discriminator_value(cls, obj:
 petstore_client.models.shape.Shape.label: str | None
 petstore_client.models.shape.Shape.model_config: dict
 petstore_client.models.shape.Shape.shape_type: str (alias 'shapeType')
+petstore_client.models.shipment.Shipment.__init__(self, /, **data: Any) -> None
+petstore_client.models.shipment.Shipment.customs_code: str | None (alias 'customsCode')
+petstore_client.models.shipment.Shipment.kind: str
+petstore_client.models.shipment.Shipment.model_config: dict
+petstore_client.models.shipment.Shipment.postcode: str | None
 petstore_client.models.sparse.Sparse.__init__(self, /, **data: Any) -> None
 petstore_client.models.sparse.Sparse.additional_properties: dict[str, str | None]
 petstore_client.models.sparse.Sparse.label: str | None
@@ -2235,7 +2442,9 @@ petstore_client.models.treatment_record.TreatmentRecord.__init__(self, /, **data
 petstore_client.models.treatment_record.TreatmentRecord.actual_instance: petstore_client.models.medication.Medication | petstore_client.models.surgery.Surgery | None
 petstore_client.models.treatment_record.TreatmentRecord.anyof_merged_dump(self, exact_numbers: bool = False) -> dict[str, Any]
 petstore_client.models.treatment_record.TreatmentRecord.classmethod actual_instance_must_validate_anyof(cls, v: Any) -> Any
+petstore_client.models.treatment_record.TreatmentRecord.classmethod decode_wire_value(cls, data: Any, handler: Any) -> Any
 petstore_client.models.treatment_record.TreatmentRecord.classvar any_of_schemas: tuple[str, ...]
+petstore_client.models.treatment_record.TreatmentRecord.encode_wire_value(self, handler: Any, info: pydantic_core.core_schema.SerializationInfo) -> Any
 petstore_client.models.treatment_record.TreatmentRecord.matched_instances: list[petstore_client.models.medication.Medication | petstore_client.models.surgery.Surgery]
 petstore_client.models.treatment_record.TreatmentRecord.model_config: dict
 petstore_client.models.tree_node.TreeNode.__init__(self, /, **data: Any) -> None

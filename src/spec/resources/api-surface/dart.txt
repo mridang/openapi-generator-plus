@@ -48,6 +48,30 @@ AdmittingApiClient::Future<ApiHttpResponse> sendAdmittedRequest(String method, S
 AdmittingApiClient::void Function() beginRequest()
 AdmittingStreamingApiClient::AdmittingStreamingApiClient()
 AdmittingStreamingApiClient::Future<ApiStreamResponse> sendAdmittedStreaming(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false, int? idleTimeout})
+Allowance::Allowance copyWith({Object? label = copyUnset, Object? count = copyUnset, Object? ratio = copyUnset, Object? step = copyUnset, Object? codes = copyUnset, Object? limits = copyUnset, Object? tier = copyUnset, Object? parts = copyUnset})
+Allowance::Allowance({String? label, int? count, double? ratio, int? step, List<String>? codes, Map<String, int>? limits, AllowanceTier? tier, List<AllowanceTier>? parts})
+Allowance::Allowance.fromJson(Map<String, dynamic> json)
+Allowance::Map<String, dynamic> toJson()
+Allowance::String toString()
+Allowance::bool ==(Object other)
+Allowance::final AllowanceTier? tier
+Allowance::final List<AllowanceTier>? parts
+Allowance::final List<String>? codes
+Allowance::final Map<String, int>? limits
+Allowance::final String? label
+Allowance::final double? ratio
+Allowance::final int? count
+Allowance::final int? step
+Allowance::int get hashCode
+AllowanceTier::AllowanceTier copyWith({Object? level = copyUnset, Object? name = copyUnset})
+AllowanceTier::AllowanceTier({int? level, String? name})
+AllowanceTier::AllowanceTier.fromJson(Map<String, dynamic> json)
+AllowanceTier::Map<String, dynamic> toJson()
+AllowanceTier::String toString()
+AllowanceTier::bool ==(Object other)
+AllowanceTier::final String? name
+AllowanceTier::final int? level
+AllowanceTier::int get hashCode
 ApiClient::ApiClient()
 ApiClient::Future<ApiHttpResponse> sendRequest(String method, String url, Map<String, String> headers, Object? body, {bool noRedirect = false, int? timeout, bool noDefaultHeaders = false})
 ApiException::ApiException withRequest(String method, String path)
@@ -105,6 +129,7 @@ ApiStreamResponse::String toString()
 ApiStreamResponse::final Map<String, String> headers
 ApiStreamResponse::final Stream<List<int>> body
 ApiStreamResponse::final int statusCode
+ArchiveDigestAuthenticator::ArchiveDigestAuthenticator({required String host, String? username, String? password, Map<String, String>? environment})
 AttachPetFilesOptions::AttachPetFilesOptions({required Uint8List file, String? caption, int? timeout, Map<String, String>? headers, int? maxRetries})
 AttachPetFilesOptions::final Map<String, String>? headers
 AttachPetFilesOptions::final String? caption
@@ -120,6 +145,16 @@ AttachPetFilesRequest::bool ==(Object other)
 AttachPetFilesRequest::final String? caption
 AttachPetFilesRequest::final Uint8List file
 AttachPetFilesRequest::int get hashCode
+Audit::Audit copyWith({Object? tags = copyUnset, Object? score = copyUnset, Object? payload = copyUnset})
+Audit::Audit({List<String>? tags, int? score, String? payload})
+Audit::Audit.fromJson(Map<String, dynamic> json)
+Audit::Map<String, dynamic> toJson()
+Audit::String toString()
+Audit::bool ==(Object other)
+Audit::final List<String>? tags
+Audit::final String? payload
+Audit::final int? score
+Audit::int get hashCode
 Authenticator::Authenticator()
 Authenticator::Future<Map<String, String>> authHeadersAsync()
 Authenticator::Map<String, String> authHeaders()
@@ -235,7 +270,7 @@ Circle::String toString()
 Circle::bool ==(Object other)
 Circle::final double radius
 Circle::int get hashCode
-Client::Client({Authenticator? authenticator, Authenticator? petStoreBasic, Authenticator? adminBasic, Authenticator? petStoreBearer, Authenticator? serviceToken, Authenticator? apiKeyHeader, Authenticator? internalApiKey, Authenticator? apiKeyQuery, Authenticator? sessionCookie, Authenticator? machineAuth, Authenticator? legacyAuth, Authenticator? userAuth, Authenticator? browserAuth, Authenticator? ssoAuth, TransportOptions? transportOptions, CallHook? callHook})
+Client::Client({Authenticator? authenticator, Authenticator? petStoreBasic, Authenticator? adminBasic, Authenticator? archiveDigest, Authenticator? petStoreBearer, Authenticator? serviceToken, Authenticator? apiKeyHeader, Authenticator? internalApiKey, Authenticator? apiKeyQuery, Authenticator? sessionCookie, Authenticator? machineAuth, Authenticator? legacyAuth, Authenticator? userAuth, Authenticator? browserAuth, Authenticator? deviceAuth, Authenticator? ssoAuth, TransportOptions? transportOptions, CallHook? callHook})
 Client::Client.withToken({required String host, String? accessToken, FutureOr<String> Function()? tokenProvider, TransportOptions? transportOptions, CallHook? callHook})
 Client::final PetApi pet
 Client::final ProblemsApi problems
@@ -265,6 +300,7 @@ Configuration::Map<String, String> get defaultHeaders
 Configuration::String toString()
 Configuration::final CallHook? callHook
 Configuration::final String baseUrl
+Configuration::final bool validateConstraints
 Configuration::static ConfigurationBuilder builder()
 ConfigurationBuilder::Configuration build()
 ConfigurationBuilder::ConfigurationBuilder baseUrl(String val)
@@ -272,6 +308,7 @@ ConfigurationBuilder::ConfigurationBuilder callHook(CallHook? val)
 ConfigurationBuilder::ConfigurationBuilder defaultHeader(String name, String value)
 ConfigurationBuilder::ConfigurationBuilder defaultHeaders(Map<String, String> headers)
 ConfigurationBuilder::ConfigurationBuilder server(ServerConfiguration server, [Map<String, String>? variables])
+ConfigurationBuilder::ConfigurationBuilder validateConstraints(bool val)
 ConfigurationBuilder::ConfigurationBuilder()
 ConflictException::ConflictException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
 Counters::Counters copyWith({Object? label = copyUnset, Map<String, int>? additionalProperties})
@@ -335,16 +372,37 @@ Department::bool ==(Object other)
 Department::final Employee? lead
 Department::final String name
 Department::int get hashCode
+DeviceAuthDeviceAuthorizationAuthenticator::DeviceAuthDeviceAuthorizationAuthenticator({required String host, String? clientId, Map<String, String>? environment})
+DeviceAuthorization::DeviceAuthorization({required String deviceCode, required String userCode, required String verificationUri, String? verificationUriComplete, required int expiresIn, required int interval})
+DeviceAuthorization::String toString()
+DeviceAuthorization::bool ==(Object other)
+DeviceAuthorization::final String deviceCode
+DeviceAuthorization::final String userCode
+DeviceAuthorization::final String verificationUri
+DeviceAuthorization::final String? verificationUriComplete
+DeviceAuthorization::final int expiresIn
+DeviceAuthorization::final int interval
+DeviceAuthorization::int get hashCode
+DigestAuthenticator::DigestAuthenticator({required String host, String? username, String? password, String? usernameVariable, String? passwordVariable, Map<String, String>? environment})
+DigestAuthenticator::Map<String, String> authHeaders()
+DigestAuthenticator::String Function() cnonceSource
+DigestAuthenticator::String host()
+DigestAuthenticator::String toString()
+DigestAuthenticator::String? authorization(String method, String requestTarget)
+DigestAuthenticator::bool acceptChallenge(String wwwAuthenticate)
+DigestAuthenticator::static const String defaultPasswordVariable
+DigestAuthenticator::static const String defaultUsernameVariable
 DownloadPetDocumentOptions::DownloadPetDocumentOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
 DownloadPetDocumentOptions::final Map<String, String>? headers
 DownloadPetDocumentOptions::final int? maxRetries
 DownloadPetDocumentOptions::final int? timeout
-DryFood::DryFood copyWith({String? foodType, double? weightKg})
-DryFood::DryFood({String foodType = 'dry', required double weightKg})
+DryFood::DryFood copyWith({String? foodType, double? weightKg, Object? pricePerKg = copyUnset})
+DryFood::DryFood({String foodType = 'dry', required double weightKg, Decimal? pricePerKg}) [uses decimal:Decimal]
 DryFood::DryFood.fromJson(Map<String, dynamic> json)
 DryFood::Map<String, dynamic> toJson()
 DryFood::String toString()
 DryFood::bool ==(Object other)
+DryFood::final Decimal? pricePerKg [uses decimal:Decimal]
 DryFood::final String foodType
 DryFood::final double weightKg
 DryFood::int get hashCode
@@ -504,6 +562,10 @@ GetMultiServerPetInfoServerRegionalRegion::enum value AP
 GetMultiServerPetInfoServerRegionalRegion::enum value EU
 GetMultiServerPetInfoServerRegionalRegion::enum value US
 GetMultiServerPetInfoServerRegionalRegion::final String value
+GetNativeAmountOptions::GetNativeAmountOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+GetNativeAmountOptions::final Map<String, String>? headers
+GetNativeAmountOptions::final int? maxRetries
+GetNativeAmountOptions::final int? timeout
 GetNativeValuesOptions::GetNativeValuesOptions({String? address4, Duration? delay, Decimal? amount, String? xAddress6, int? timeout, Map<String, String>? headers, int? maxRetries}) [uses decimal:Decimal]
 GetNativeValuesOptions::final Decimal? amount [uses decimal:Decimal]
 GetNativeValuesOptions::final Duration? delay
@@ -652,6 +714,19 @@ Ledger::final List<int>? entryIds
 Ledger::final int entryId
 Ledger::int get hashCode
 LegacyAuthPasswordAuthenticator::LegacyAuthPasswordAuthenticator({required String host, String? clientId, String? clientSecret, String? username, String? password, Map<String, String>? environment})
+Letter::Letter copyWith({String? kind, Object? pages = copyUnset})
+Letter::Letter({String kind = 'letter', int? pages})
+Letter::Letter.fromJson(Map<String, dynamic> json)
+Letter::Map<String, dynamic> toJson()
+Letter::String toString()
+Letter::bool ==(Object other)
+Letter::final String kind
+Letter::final int? pages
+Letter::int get hashCode
+ListNativeAmountsOptions::ListNativeAmountsOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+ListNativeAmountsOptions::final Map<String, String>? headers
+ListNativeAmountsOptions::final int? maxRetries
+ListNativeAmountsOptions::final int? timeout
 ListPetArchiveOptions::ListPetArchiveOptions({String? cursor, int? timeout, Map<String, String>? headers, int? maxRetries})
 ListPetArchiveOptions::final Map<String, String>? headers
 ListPetArchiveOptions::final String? cursor
@@ -714,6 +789,7 @@ ListPetsAfterOptions::final int? maxRetries
 ListPetsAfterOptions::final int? timeout
 LockedException::LockedException({String message = '', String? responseBody, Map<String, String>? responseHeaders, Object? errorBody, Object? cause, String? requestMethod, String? requestPath})
 MachineAuthClientCredentialsAuthenticator::MachineAuthClientCredentialsAuthenticator({required String host, String? clientId, String? clientSecret, Map<String, String>? environment})
+MachineAuthClientCredentialsAuthenticator::static const String metadataUrl
 Medication::Map<String, dynamic> toJson()
 Medication::Medication copyWith({String? drugName, Object? dosage = copyUnset, Object? notes = copyUnset})
 Medication::Medication({required String drugName, String? dosage, String? notes})
@@ -774,8 +850,8 @@ Moments::bool ==(Object other)
 Moments::final String? label
 Moments::int get hashCode
 NativeValues::Map<String, dynamic> toJson()
-NativeValues::NativeValues copyWith({Object? address4 = copyUnset, Object? address6 = copyUnset, Object? addresses = copyUnset, Object? homepage = copyUnset, Object? amount = copyUnset, Object? ledger = copyUnset, Object? wait = copyUnset, Object? since = copyUnset, Object? host = copyUnset, Object? contact = copyUnset})
-NativeValues::NativeValues({String? address4, String? address6, List<String>? addresses, String? homepage, Decimal? amount, Decimal? ledger, Duration? wait, DateTime? since, String? host, String? contact}) [uses decimal:Decimal]
+NativeValues::NativeValues copyWith({Object? address4 = copyUnset, Object? address6 = copyUnset, Object? addresses = copyUnset, Object? homepage = copyUnset, Object? amount = copyUnset, Object? amounts = copyUnset, Object? ledger = copyUnset, Object? wait = copyUnset, Object? since = copyUnset, Object? host = copyUnset, Object? contact = copyUnset})
+NativeValues::NativeValues({String? address4, String? address6, List<String>? addresses, String? homepage, Decimal? amount, List<Decimal>? amounts, Decimal? ledger, Duration? wait, DateTime? since, String? host, String? contact}) [uses decimal:Decimal]
 NativeValues::NativeValues.fromJson(Map<String, dynamic> json)
 NativeValues::String toString()
 NativeValues::bool ==(Object other)
@@ -783,6 +859,7 @@ NativeValues::final DateTime? since
 NativeValues::final Decimal? amount [uses decimal:Decimal]
 NativeValues::final Decimal? ledger [uses decimal:Decimal]
 NativeValues::final Duration? wait
+NativeValues::final List<Decimal>? amounts [uses decimal:Decimal]
 NativeValues::final List<String>? addresses
 NativeValues::final String? address4
 NativeValues::final String? address6
@@ -813,6 +890,17 @@ OAuth2ClientCredentialsAuthenticator::String host()
 OAuth2ClientCredentialsAuthenticator::String toString()
 OAuth2ClientCredentialsAuthenticator::void invalidateAccessToken()
 OAuth2ClientCredentialsAuthenticator::void setApiClient(ApiClient client)
+OAuth2DeviceAuthorizationAuthenticator::Future<DeviceAuthorization> requestDeviceAuthorization()
+OAuth2DeviceAuthorizationAuthenticator::Future<Map<String, String>> authHeadersAsync()
+OAuth2DeviceAuthorizationAuthenticator::Future<void> pollForToken(DeviceAuthorization authorization)
+OAuth2DeviceAuthorizationAuthenticator::Future<void> sleepBeforePoll(Duration delay)
+OAuth2DeviceAuthorizationAuthenticator::Map<String, String> authHeaders()
+OAuth2DeviceAuthorizationAuthenticator::OAuth2DeviceAuthorizationAuthenticator({required String host, String? clientId, String? clientIdVariable, required String deviceAuthorizationUrl, required String tokenUrl, List<String> scopes = const [], String? refreshUrl, Map<String, String>? environment})
+OAuth2DeviceAuthorizationAuthenticator::String host()
+OAuth2DeviceAuthorizationAuthenticator::String toString()
+OAuth2DeviceAuthorizationAuthenticator::int monotonicMilliseconds()
+OAuth2DeviceAuthorizationAuthenticator::void invalidateAccessToken()
+OAuth2DeviceAuthorizationAuthenticator::void setApiClient(ApiClient client)
 OAuth2ImplicitAuthenticator::Map<String, String> authHeaders()
 OAuth2ImplicitAuthenticator::OAuth2ImplicitAuthenticator({required String host, String? clientId, String? clientIdVariable, required String authorizationUrl, List<String> scopes = const [], Map<String, String>? environment})
 OAuth2ImplicitAuthenticator::String buildAuthorizationUrl([String state = ''])
@@ -839,9 +927,11 @@ OAuth2TokenException::OAuth2TokenException(String message)
 OAuth2TokenException::String toString()
 OAuth2TokenException::final String message
 OAuth2TokenManager::Future<String> getAccessToken(String tokenUrl, Map<String, String> params, [Map<String, String> extraHeaders = const {}, String? refreshUrl])
+OAuth2TokenManager::Future<String> postForm(String url, Map<String, String> params)
 OAuth2TokenManager::Future<void> exchange(String tokenUrl, Map<String, String> params, [Map<String, String> extraHeaders = const {}, void Function(String?)? idTokenCheck])
 OAuth2TokenManager::OAuth2TokenManager()
 OAuth2TokenManager::String get refreshToken
+OAuth2TokenManager::static int lifetimeSeconds(Object? raw)
 OAuth2TokenManager::void invalidateAccessToken()
 OAuth2TokenManager::void setAccessToken(String token)
 OAuth2TokenManager::void setApiClient(ApiClient client)
@@ -885,6 +975,15 @@ OrderStatusEnum::enum value placed
 OrderStatusEnum::enum value unknownDefaultOpenApi
 OrderStatusEnum::final String value
 OrderStatusEnum::static OrderStatusEnum fromJson(String value)
+Packet::Map<String, dynamic> toJson()
+Packet::Packet copyWith({String? kind, Object? weightKg = copyUnset})
+Packet::Packet({String kind = 'packet', double? weightKg})
+Packet::Packet.fromJson(Map<String, dynamic> json)
+Packet::String toString()
+Packet::bool ==(Object other)
+Packet::final String kind
+Packet::final double? weightKg
+Packet::int get hashCode
 Page::Page<T, C>(Iterable<T> items, C? nextCursor, ApiResult<Object?> result)
 Page::String toString()
 Page::final ApiResult<Object?> result
@@ -901,6 +1000,19 @@ Paginator::static Paginator<T, int> ofOffset<T, B>({int? start, required Future<
 Paginator::static Paginator<T, int> ofPage<T, B>({int? start, required Future<ApiResult<B>> Function(int?) fetch, required Iterable<T>? Function(B) items, bool? Function(B)? hasMore, required String requestPath})
 Paginator::static Paginator<T, void> ofLink<T, B>({required String baseUrl, required Future<ApiResult<B>> Function(String?) fetch, required Iterable<T>? Function(B) items, required String requestPath})
 Paginator::static Paginator<T, void> ofNextUrl<T, B>({required String baseUrl, required Future<ApiResult<B>> Function(String?) fetch, required Iterable<T>? Function(B) items, required String? Function(B) next, required String requestPath})
+Parcel::Letter? get asLetter
+Parcel::Object? get actualInstance
+Parcel::Object? toJson()
+Parcel::Packet? get asPacket
+Parcel::Parcel(Object? actualInstance)
+Parcel::Parcel.fromJson(Map<String, dynamic> json)
+Parcel::Parcel.letter(Letter value)
+Parcel::Parcel.packet(Packet value)
+Parcel::String toString()
+Parcel::bool ==(Object other)
+Parcel::bool get isLetter
+Parcel::bool get isPacket
+Parcel::int get hashCode
 PatchMemoOptions::PatchMemoOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
 PatchMemoOptions::final Map<String, String>? headers
 PatchMemoOptions::final int? maxRetries
@@ -1353,6 +1465,50 @@ Rank::enum value unknownDefaultOpenApi
 Rank::final int value
 Rank::int toJson()
 Rank::static Rank fromJson(int value)
+Reading::Map<String, dynamic> toJson()
+Reading::Reading copyWith({ReadingLevel? level, Object? shape = copyUnset, Object? inlineLevel = copyUnset, Object? nothing = copyUnset})
+Reading::Reading({required ReadingLevel level, ReadingShape? shape, ReadingInlineLevel? inlineLevel, Object? nothing})
+Reading::Reading.fromJson(Map<String, dynamic> json)
+Reading::String toString()
+Reading::bool ==(Object other)
+Reading::final Object? nothing
+Reading::final ReadingInlineLevel? inlineLevel
+Reading::final ReadingLevel level
+Reading::final ReadingShape? shape
+Reading::int get hashCode
+ReadingInlineLevel::Object? get actualInstance
+ReadingInlineLevel::Object? toJson()
+ReadingInlineLevel::ReadingInlineLevel(Object? actualInstance)
+ReadingInlineLevel::ReadingInlineLevel.fromJson(Object? json)
+ReadingInlineLevel::ReadingInlineLevel.int(int value)
+ReadingInlineLevel::ReadingInlineLevel.string(String value)
+ReadingInlineLevel::String toString()
+ReadingInlineLevel::String? get asString
+ReadingInlineLevel::bool ==(Object other)
+ReadingInlineLevel::bool get isInt
+ReadingInlineLevel::bool get isString
+ReadingInlineLevel::int get hashCode
+ReadingInlineLevel::int? get asInt
+ReadingLevel::Object? get actualInstance
+ReadingLevel::Object? toJson()
+ReadingLevel::ReadingLevel(Object? actualInstance)
+ReadingLevel::ReadingLevel.fromJson(Object? json)
+ReadingLevel::ReadingLevel.int(int value)
+ReadingLevel::ReadingLevel.string(String value)
+ReadingLevel::String toString()
+ReadingLevel::String? get asString
+ReadingLevel::bool ==(Object other)
+ReadingLevel::bool get isInt
+ReadingLevel::bool get isString
+ReadingLevel::int get hashCode
+ReadingLevel::int? get asInt
+ReadingShape::Object? get actualInstance
+ReadingShape::Object? toJson()
+ReadingShape::ReadingShape(Object? actualInstance)
+ReadingShape::ReadingShape.fromJson(Object? json)
+ReadingShape::String toString()
+ReadingShape::bool ==(Object other)
+ReadingShape::int get hashCode
 RejectedRequest::Map<String, dynamic> toJson()
 RejectedRequest::RejectedRequest copyWith({Object? code = copyUnset, Object? message = copyUnset})
 RejectedRequest::RejectedRequest({int? code, String? message})
@@ -1440,6 +1596,15 @@ SearchStoreOptions::final PhotoMetadata? q
 SearchStoreOptions::final String? at
 SearchStoreOptions::final int? maxRetries
 SearchStoreOptions::final int? timeout
+Sensors::Map<String, dynamic> toJson()
+Sensors::Map<String, int> get additionalProperties
+Sensors::Sensors copyWith({Object? site = copyUnset, Map<String, int>? additionalProperties})
+Sensors::Sensors({String? site, Map<String, int> additionalProperties = const {}})
+Sensors::Sensors.fromJson(Map<String, dynamic> json)
+Sensors::String toString()
+Sensors::bool ==(Object other)
+Sensors::final String? site
+Sensors::int get hashCode
 Separator::Separator(String value)
 Separator::String toJson()
 Separator::String toString()
@@ -1527,6 +1692,16 @@ Shape::bool ==(Object other)
 Shape::final String shapeType
 Shape::final String? label
 Shape::int get hashCode
+Shipment::Map<String, dynamic> toJson()
+Shipment::Shipment copyWith({String? kind, Object? customsCode = copyUnset, Object? postcode = copyUnset})
+Shipment::Shipment({required String kind, String? customsCode, String? postcode})
+Shipment::Shipment.fromJson(Map<String, dynamic> json)
+Shipment::String toString()
+Shipment::bool ==(Object other)
+Shipment::final String kind
+Shipment::final String? customsCode
+Shipment::final String? postcode
+Shipment::int get hashCode
 Sparse::Map<String, String?> get additionalProperties
 Sparse::Map<String, dynamic> toJson()
 Sparse::Sparse copyWith({Object? label = copyUnset, Map<String, String?>? additionalProperties})
@@ -1589,8 +1764,10 @@ StoreApi::Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? options)
 StoreApi::Future<ApiResult<Account>> createAccountWithHttpInfo(Account account, CreateAccountOptions? options)
 StoreApi::Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(GetAuditTrailOptions? options)
 StoreApi::Future<ApiResult<Category>> getBySwatchWithHttpInfo(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApi::Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(GetNativeAmountOptions? options) [uses decimal:Decimal]
 StoreApi::Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(GetDefaultsOptions? options)
 StoreApi::Future<ApiResult<Department>> getDepartmentWithHttpInfo(GetDepartmentOptions? options)
+StoreApi::Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(ListNativeAmountsOptions? options) [uses decimal:Decimal]
 StoreApi::Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(GetMatrixOptions? options)
 StoreApi::Future<ApiResult<List<Map<String, Category>>>> getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options)
 StoreApi::Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(GetTimestampGroupsOptions? options)
@@ -1610,11 +1787,14 @@ StoreApi::Future<ApiResult<TreeNode>> getTreeWithHttpInfo(GetTreeOptions? option
 StoreApi::Future<ApiResult<void>> deleteOrderWithHttpInfo(int orderId, DeleteOrderOptions? options)
 StoreApi::Future<ApiResult<void>> headMemoWithHttpInfo(String memoId, HeadMemoOptions? options)
 StoreApi::Future<ApiResult<void>> optionsMemoWithHttpInfo(String memoId, OptionsMemoOptions? options)
+StoreApi::Future<ApiResult<void>> submitAllowanceWithHttpInfo(Allowance allowance, SubmitAllowanceOptions? options)
 StoreApi::Future<ApiResult<void>> traceMemoWithHttpInfo(String memoId, TraceMemoOptions? options)
 StoreApi::Future<Category> getBySwatch(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApi::Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) [uses decimal:Decimal]
 StoreApi::Future<Defaults> getDefaults(GetDefaultsOptions? options)
 StoreApi::Future<Department> getDepartment(GetDepartmentOptions? options)
 StoreApi::Future<JsonLinesStream<Order>> exportOrdersStream(ExportOrdersOptions? options, [StreamOptions? streamOptions])
+StoreApi::Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options) [uses decimal:Decimal]
 StoreApi::Future<List<List<int>>> getMatrix(GetMatrixOptions? options)
 StoreApi::Future<List<Map<String, Category>>> getGroupedCategories(GetGroupedCategoriesOptions? options)
 StoreApi::Future<List<Map<String, DateTime>>> getTimestampGroups(GetTimestampGroupsOptions? options)
@@ -1636,6 +1816,7 @@ StoreApi::Future<TreeNode> getTree(GetTreeOptions? options)
 StoreApi::Future<void> deleteOrder(int orderId, DeleteOrderOptions? options)
 StoreApi::Future<void> headMemo(String memoId, HeadMemoOptions? options)
 StoreApi::Future<void> optionsMemo(String memoId, OptionsMemoOptions? options)
+StoreApi::Future<void> submitAllowance(Allowance allowance, SubmitAllowanceOptions? options)
 StoreApi::Future<void> traceMemo(String memoId, TraceMemoOptions? options)
 StoreApi::StoreApi({ApiClient? apiClient, Configuration? config, Authenticator? authenticator, Map<String, Authenticator>? schemeAuthenticators})
 StoreApiInterface::Future<Account> createAccount(Account account, CreateAccountOptions? options)
@@ -1643,8 +1824,10 @@ StoreApiInterface::Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? optio
 StoreApiInterface::Future<ApiResult<Account>> createAccountWithHttpInfo(Account account, CreateAccountOptions? options)
 StoreApiInterface::Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(GetAuditTrailOptions? options)
 StoreApiInterface::Future<ApiResult<Category>> getBySwatchWithHttpInfo(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApiInterface::Future<ApiResult<Decimal>> getNativeAmountWithHttpInfo(GetNativeAmountOptions? options) [uses decimal:Decimal]
 StoreApiInterface::Future<ApiResult<Defaults>> getDefaultsWithHttpInfo(GetDefaultsOptions? options)
 StoreApiInterface::Future<ApiResult<Department>> getDepartmentWithHttpInfo(GetDepartmentOptions? options)
+StoreApiInterface::Future<ApiResult<List<Decimal>>> listNativeAmountsWithHttpInfo(ListNativeAmountsOptions? options) [uses decimal:Decimal]
 StoreApiInterface::Future<ApiResult<List<List<int>>>> getMatrixWithHttpInfo(GetMatrixOptions? options)
 StoreApiInterface::Future<ApiResult<List<Map<String, Category>>>> getGroupedCategoriesWithHttpInfo(GetGroupedCategoriesOptions? options)
 StoreApiInterface::Future<ApiResult<List<Map<String, DateTime>>>> getTimestampGroupsWithHttpInfo(GetTimestampGroupsOptions? options)
@@ -1664,11 +1847,14 @@ StoreApiInterface::Future<ApiResult<TreeNode>> getTreeWithHttpInfo(GetTreeOption
 StoreApiInterface::Future<ApiResult<void>> deleteOrderWithHttpInfo(int orderId, DeleteOrderOptions? options)
 StoreApiInterface::Future<ApiResult<void>> headMemoWithHttpInfo(String memoId, HeadMemoOptions? options)
 StoreApiInterface::Future<ApiResult<void>> optionsMemoWithHttpInfo(String memoId, OptionsMemoOptions? options)
+StoreApiInterface::Future<ApiResult<void>> submitAllowanceWithHttpInfo(Allowance allowance, SubmitAllowanceOptions? options)
 StoreApiInterface::Future<ApiResult<void>> traceMemoWithHttpInfo(String memoId, TraceMemoOptions? options)
 StoreApiInterface::Future<Category> getBySwatch(Swatch pathSwatch, GetBySwatchOptions? options)
+StoreApiInterface::Future<Decimal> getNativeAmount(GetNativeAmountOptions? options) [uses decimal:Decimal]
 StoreApiInterface::Future<Defaults> getDefaults(GetDefaultsOptions? options)
 StoreApiInterface::Future<Department> getDepartment(GetDepartmentOptions? options)
 StoreApiInterface::Future<JsonLinesStream<Order>> exportOrdersStream(ExportOrdersOptions? options, [StreamOptions? streamOptions])
+StoreApiInterface::Future<List<Decimal>> listNativeAmounts(ListNativeAmountsOptions? options) [uses decimal:Decimal]
 StoreApiInterface::Future<List<List<int>>> getMatrix(GetMatrixOptions? options)
 StoreApiInterface::Future<List<Map<String, Category>>> getGroupedCategories(GetGroupedCategoriesOptions? options)
 StoreApiInterface::Future<List<Map<String, DateTime>>> getTimestampGroups(GetTimestampGroupsOptions? options)
@@ -1690,6 +1876,7 @@ StoreApiInterface::Future<TreeNode> getTree(GetTreeOptions? options)
 StoreApiInterface::Future<void> deleteOrder(int orderId, DeleteOrderOptions? options)
 StoreApiInterface::Future<void> headMemo(String memoId, HeadMemoOptions? options)
 StoreApiInterface::Future<void> optionsMemo(String memoId, OptionsMemoOptions? options)
+StoreApiInterface::Future<void> submitAllowance(Allowance allowance, SubmitAllowanceOptions? options)
 StoreApiInterface::Future<void> traceMemo(String memoId, TraceMemoOptions? options)
 StoreApiInterface::StoreApiInterface()
 StreamException::StreamException({required String message, Object? cause, String? requestMethod, String? requestPath})
@@ -1716,6 +1903,10 @@ String escapeMultipartFieldName(String name)
 String formatProtobufDuration(Duration duration)
 String rfc5987EncodeValue(String s)
 String validatePartialTime(String input)
+SubmitAllowanceOptions::SubmitAllowanceOptions({int? timeout, Map<String, String>? headers, int? maxRetries})
+SubmitAllowanceOptions::final Map<String, String>? headers
+SubmitAllowanceOptions::final int? maxRetries
+SubmitAllowanceOptions::final int? timeout
 Subscription::Map<String, dynamic> toJson()
 Subscription::String toString()
 Subscription::Subscription copyWith({Object? tier = copyUnset, Rank? rank, Object? stage = copyUnset, Object? interval = copyUnset})
@@ -1955,6 +2146,8 @@ class AddPetOptions
 class AddPetPhotosOptions
 class AddPetTreatmentOptions
 class AdminBasicAuthenticator extends BasicAuthenticator
+class Allowance
+class AllowanceTier
 class ApiException extends OpenAPIException
 class ApiHttpResponse
 class ApiKeyAuthenticator extends BaseAuthenticator
@@ -1963,8 +2156,10 @@ class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator
 class ApiResponse
 class ApiResult<T>
 class ApiStreamResponse
+class ArchiveDigestAuthenticator extends DigestAuthenticator
 class AttachPetFilesOptions
 class AttachPetFilesRequest
+class Audit
 class BadGatewayException extends ServerException
 class BadRequestException extends ClientException
 class BasicAuthenticator extends BaseAuthenticator
@@ -1989,6 +2184,9 @@ class Defaults
 class DeleteOrderOptions
 class DeletePetOptions
 class Department
+class DeviceAuthDeviceAuthorizationAuthenticator extends OAuth2DeviceAuthorizationAuthenticator
+class DeviceAuthorization
+class DigestAuthenticator extends BaseAuthenticator
 class DownloadPetDocumentOptions
 class DryFood
 class EdgeCases
@@ -2016,6 +2214,7 @@ class GetMultiServerPetInfoOptions
 class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer
 class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer
 class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
+class GetNativeAmountOptions
 class GetNativeValuesOptions
 class GetOrderByIdOptions
 class GetOrderByTrackingIdOptions
@@ -2045,6 +2244,8 @@ class InternalApiKeyAuthenticator extends ApiKeyAuthenticator
 class InternalServerErrorException extends ServerException
 class Ledger
 class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
+class Letter
+class ListNativeAmountsOptions
 class ListPetArchiveOptions
 class ListPetCatalogOptions
 class ListPetEventsOptions
@@ -2072,6 +2273,7 @@ class NotFoundException extends ClientException
 class NotImplementedException extends ServerException
 class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
 class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
+class OAuth2DeviceAuthorizationAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
 class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
 class OAuth2PasswordAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
 class OAuth2ServerException extends OpenAPIException
@@ -2080,7 +2282,9 @@ class OAuth2TokenManager
 class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator, AccessTokenInvalidating
 class OptionsMemoOptions
 class Order
+class Packet
 class PaginationException extends OpenAPIException
+class Parcel
 class PatchMemoOptions
 class PayloadTooLargeException extends ClientException
 class PaymentRequiredException extends ClientException
@@ -2109,6 +2313,10 @@ class PlaceOrderOptions
 class ProblemsApi extends BaseApi implements ProblemsApiInterface
 class ProjectNotFound
 class ProjectNotFoundException extends NotFoundException
+class Reading
+class ReadingInlineLevel
+class ReadingLevel
+class ReadingShape
 class RejectedRequest
 class RejectedRequestException extends ClientException
 class RequestTimeoutException extends ClientException
@@ -2121,6 +2329,7 @@ class ResponseTooLargeException extends ApiException
 class Result
 class Roster
 class SearchStoreOptions
+class Sensors
 class SerializationException extends OpenAPIException
 class ServerConfiguration
 class ServerException extends ApiException
@@ -2134,6 +2343,7 @@ class SetPetAvatarRequest
 class SetPetAvatarThumbnailOptions
 class SetPetAvatarThumbnailRequest
 class SetPetPreferencesOptions
+class Shipment
 class Sparse
 class Square extends Shape
 class SsoAuthAuthenticator extends OpenIdConnectAuthenticator
@@ -2144,6 +2354,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
 class StreamException extends NetworkException
 class StreamOptions
 class StrictTag
+class SubmitAllowanceOptions
 class Subscription
 class Surgery
 class Tag

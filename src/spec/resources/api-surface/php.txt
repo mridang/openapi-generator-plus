@@ -212,6 +212,10 @@ PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public function __const
 PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\GetMultiServerPetInfoOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\GetNativeAmountOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
+PetstoreClient\Api\Options\GetNativeAmountOptions::public readonly ?array $headers
+PetstoreClient\Api\Options\GetNativeAmountOptions::public readonly ?int $maxRetries
+PetstoreClient\Api\Options\GetNativeAmountOptions::public readonly ?int $timeout
 PetstoreClient\Api\Options\GetNativeValuesOptions::public function __construct(promoted ?string $address4 = NULL, promoted ?DateInterval $delay = NULL, promoted ?Brick\Math\BigDecimal $amount = NULL, promoted ?string $xAddress6 = NULL, promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\GetNativeValuesOptions::public readonly ?Brick\Math\BigDecimal $amount
 PetstoreClient\Api\Options\GetNativeValuesOptions::public readonly ?DateInterval $delay
@@ -321,6 +325,10 @@ PetstoreClient\Api\Options\HeadMemoOptions::public function __construct(promoted
 PetstoreClient\Api\Options\HeadMemoOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\HeadMemoOptions::public readonly ?int $maxRetries
 PetstoreClient\Api\Options\HeadMemoOptions::public readonly ?int $timeout
+PetstoreClient\Api\Options\ListNativeAmountsOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
+PetstoreClient\Api\Options\ListNativeAmountsOptions::public readonly ?array $headers
+PetstoreClient\Api\Options\ListNativeAmountsOptions::public readonly ?int $maxRetries
+PetstoreClient\Api\Options\ListNativeAmountsOptions::public readonly ?int $timeout
 PetstoreClient\Api\Options\ListPetArchiveOptions::public function __construct(promoted ?string $cursor = NULL, promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\ListPetArchiveOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\ListPetArchiveOptions::public readonly ?int $maxRetries
@@ -426,6 +434,10 @@ PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?int $maxRe
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?int $timeout
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly ?string $note
 PetstoreClient\Api\Options\SetPetPreferencesOptions::public readonly string $nickname
+PetstoreClient\Api\Options\SubmitAllowanceOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
+PetstoreClient\Api\Options\SubmitAllowanceOptions::public readonly ?array $headers
+PetstoreClient\Api\Options\SubmitAllowanceOptions::public readonly ?int $maxRetries
+PetstoreClient\Api\Options\SubmitAllowanceOptions::public readonly ?int $timeout
 PetstoreClient\Api\Options\TakeLockOptions::public function __construct(promoted ?int $timeout = NULL, promoted ?array $headers = NULL, promoted ?int $maxRetries = NULL) [doc $timeout: int|null; $headers: array<string,string>|null; $maxRetries: int|null]
 PetstoreClient\Api\Options\TakeLockOptions::public readonly ?array $headers
 PetstoreClient\Api\Options\TakeLockOptions::public readonly ?int $maxRetries
@@ -668,6 +680,8 @@ PetstoreClient\Api\StoreApi::public function getMatrix(?PetstoreClient\Api\Optio
 PetstoreClient\Api\StoreApi::public function getMatrixWithHttpInfo(?PetstoreClient\Api\Options\GetMatrixOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetMatrixOptions|null; return PetstoreClient\ApiResult<Ds\Vector<Ds\Vector<int>>>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function getMemo(string $memoId, ?PetstoreClient\Api\GetMemoServer $server = NULL, ?PetstoreClient\Api\Options\GetMemoOptions $options = NULL): PetstoreClient\Models\Memo [doc $memoId: string; $options: PetstoreClient\Api\Options\GetMemoOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function getMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\GetMemoServer $server = NULL, ?PetstoreClient\Api\Options\GetMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\GetMemoOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\Memo>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
+PetstoreClient\Api\StoreApi::public function getNativeAmount(?PetstoreClient\Api\Options\GetNativeAmountOptions $options = NULL): Brick\Math\BigDecimal [doc $options: PetstoreClient\Api\Options\GetNativeAmountOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
+PetstoreClient\Api\StoreApi::public function getNativeAmountWithHttpInfo(?PetstoreClient\Api\Options\GetNativeAmountOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetNativeAmountOptions|null; return PetstoreClient\ApiResult<Brick\Math\BigDecimal>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function getNativeValues(?PetstoreClient\Api\Options\GetNativeValuesOptions $options = NULL): PetstoreClient\Models\NativeValues [doc $options: PetstoreClient\Api\Options\GetNativeValuesOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function getNativeValuesWithHttpInfo(?PetstoreClient\Api\Options\GetNativeValuesOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetNativeValuesOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\NativeValues>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function getOrderById(int $orderId, ?PetstoreClient\Api\Options\GetOrderByIdOptions $options = NULL): PetstoreClient\Models\Order [doc $orderId: int; $options: PetstoreClient\Api\Options\GetOrderByIdOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException; throws PetstoreClient\Errors\BadRequestException; throws PetstoreClient\Errors\NotFoundException]
@@ -686,6 +700,8 @@ PetstoreClient\Api\StoreApi::public function getTree(?PetstoreClient\Api\Options
 PetstoreClient\Api\StoreApi::public function getTreeWithHttpInfo(?PetstoreClient\Api\Options\GetTreeOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetTreeOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\TreeNode>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function headMemo(string $memoId, ?PetstoreClient\Api\Options\HeadMemoOptions $options = NULL): void [doc $memoId: string; $options: PetstoreClient\Api\Options\HeadMemoOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function headMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\Options\HeadMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\HeadMemoOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
+PetstoreClient\Api\StoreApi::public function listNativeAmounts(?PetstoreClient\Api\Options\ListNativeAmountsOptions $options = NULL): Ds\Vector [doc $options: PetstoreClient\Api\Options\ListNativeAmountsOptions|null; return Ds\Vector<Brick\Math\BigDecimal>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
+PetstoreClient\Api\StoreApi::public function listNativeAmountsWithHttpInfo(?PetstoreClient\Api\Options\ListNativeAmountsOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\ListNativeAmountsOptions|null; return PetstoreClient\ApiResult<Ds\Vector<Brick\Math\BigDecimal>>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function optionsMemo(string $memoId, ?PetstoreClient\Api\Options\OptionsMemoOptions $options = NULL): void [doc $memoId: string; $options: PetstoreClient\Api\Options\OptionsMemoOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function optionsMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\Options\OptionsMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\OptionsMemoOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function patchMemo(string $memoId, PetstoreClient\Models\Memo $memo, ?PetstoreClient\Api\Options\PatchMemoOptions $options = NULL): PetstoreClient\Models\Memo [doc $memoId: string; $memo: PetstoreClient\Models\Memo; $options: PetstoreClient\Api\Options\PatchMemoOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
@@ -696,6 +712,8 @@ PetstoreClient\Api\StoreApi::public function reserveStock(?PetstoreClient\Api\Op
 PetstoreClient\Api\StoreApi::public function reserveStockWithHttpInfo(?PetstoreClient\Api\Options\ReserveStockOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\ReserveStockOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\ReserveStockResponse>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException; throws PetstoreClient\Errors\BadRequestException]
 PetstoreClient\Api\StoreApi::public function searchStore(?PetstoreClient\Api\Options\SearchStoreOptions $options = NULL): Ds\Vector [doc $options: PetstoreClient\Api\Options\SearchStoreOptions|null; return Ds\Vector<PetstoreClient\Models\Order>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function searchStoreWithHttpInfo(?PetstoreClient\Api\Options\SearchStoreOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\SearchStoreOptions|null; return PetstoreClient\ApiResult<Ds\Vector<PetstoreClient\Models\Order>>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
+PetstoreClient\Api\StoreApi::public function submitAllowance(PetstoreClient\Models\Allowance $allowance, ?PetstoreClient\Api\Options\SubmitAllowanceOptions $options = NULL): void [doc $options: PetstoreClient\Api\Options\SubmitAllowanceOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
+PetstoreClient\Api\StoreApi::public function submitAllowanceWithHttpInfo(PetstoreClient\Models\Allowance $allowance, ?PetstoreClient\Api\Options\SubmitAllowanceOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\SubmitAllowanceOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function traceMemo(string $memoId, ?PetstoreClient\Api\Options\TraceMemoOptions $options = NULL): void [doc $memoId: string; $options: PetstoreClient\Api\Options\TraceMemoOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function traceMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\Options\TraceMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\TraceMemoOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
 PetstoreClient\Api\StoreApi::public function watchNoticesStream(?PetstoreClient\Api\Options\WatchNoticesOptions $options = NULL, ?PetstoreClient\StreamOptions $streamOptions = NULL): PetstoreClient\SseStream [doc $options: PetstoreClient\Api\Options\WatchNoticesOptions|null; $streamOptions: PetstoreClient\StreamOptions|null; return PetstoreClient\SseStream<string>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\SerializationException]
@@ -721,6 +739,8 @@ PetstoreClient\Api\StoreApiInterface::abstract public function getMatrix(?Petsto
 PetstoreClient\Api\StoreApiInterface::abstract public function getMatrixWithHttpInfo(?PetstoreClient\Api\Options\GetMatrixOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetMatrixOptions|null; return PetstoreClient\ApiResult<Ds\Vector<Ds\Vector<int>>>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function getMemo(string $memoId, ?PetstoreClient\Api\GetMemoServer $server = NULL, ?PetstoreClient\Api\Options\GetMemoOptions $options = NULL): PetstoreClient\Models\Memo [doc $memoId: string; $options: PetstoreClient\Api\Options\GetMemoOptions|null; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function getMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\GetMemoServer $server = NULL, ?PetstoreClient\Api\Options\GetMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\GetMemoOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\Memo>; throws PetstoreClient\Errors\ApiException]
+PetstoreClient\Api\StoreApiInterface::abstract public function getNativeAmount(?PetstoreClient\Api\Options\GetNativeAmountOptions $options = NULL): Brick\Math\BigDecimal [doc $options: PetstoreClient\Api\Options\GetNativeAmountOptions|null; throws PetstoreClient\Errors\ApiException]
+PetstoreClient\Api\StoreApiInterface::abstract public function getNativeAmountWithHttpInfo(?PetstoreClient\Api\Options\GetNativeAmountOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetNativeAmountOptions|null; return PetstoreClient\ApiResult<Brick\Math\BigDecimal>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function getNativeValues(?PetstoreClient\Api\Options\GetNativeValuesOptions $options = NULL): PetstoreClient\Models\NativeValues [doc $options: PetstoreClient\Api\Options\GetNativeValuesOptions|null; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function getNativeValuesWithHttpInfo(?PetstoreClient\Api\Options\GetNativeValuesOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetNativeValuesOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\NativeValues>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function getOrderById(int $orderId, ?PetstoreClient\Api\Options\GetOrderByIdOptions $options = NULL): PetstoreClient\Models\Order [doc $orderId: int; $options: PetstoreClient\Api\Options\GetOrderByIdOptions|null; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\BadRequestException; throws PetstoreClient\Errors\NotFoundException]
@@ -739,6 +759,8 @@ PetstoreClient\Api\StoreApiInterface::abstract public function getTree(?Petstore
 PetstoreClient\Api\StoreApiInterface::abstract public function getTreeWithHttpInfo(?PetstoreClient\Api\Options\GetTreeOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\GetTreeOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\TreeNode>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function headMemo(string $memoId, ?PetstoreClient\Api\Options\HeadMemoOptions $options = NULL): void [doc $memoId: string; $options: PetstoreClient\Api\Options\HeadMemoOptions|null; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function headMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\Options\HeadMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\HeadMemoOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException]
+PetstoreClient\Api\StoreApiInterface::abstract public function listNativeAmounts(?PetstoreClient\Api\Options\ListNativeAmountsOptions $options = NULL): Ds\Vector [doc $options: PetstoreClient\Api\Options\ListNativeAmountsOptions|null; return Ds\Vector<Brick\Math\BigDecimal>; throws PetstoreClient\Errors\ApiException]
+PetstoreClient\Api\StoreApiInterface::abstract public function listNativeAmountsWithHttpInfo(?PetstoreClient\Api\Options\ListNativeAmountsOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\ListNativeAmountsOptions|null; return PetstoreClient\ApiResult<Ds\Vector<Brick\Math\BigDecimal>>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function optionsMemo(string $memoId, ?PetstoreClient\Api\Options\OptionsMemoOptions $options = NULL): void [doc $memoId: string; $options: PetstoreClient\Api\Options\OptionsMemoOptions|null; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function optionsMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\Options\OptionsMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\OptionsMemoOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function patchMemo(string $memoId, PetstoreClient\Models\Memo $memo, ?PetstoreClient\Api\Options\PatchMemoOptions $options = NULL): PetstoreClient\Models\Memo [doc $memoId: string; $memo: PetstoreClient\Models\Memo; $options: PetstoreClient\Api\Options\PatchMemoOptions|null; throws PetstoreClient\Errors\ApiException]
@@ -749,6 +771,8 @@ PetstoreClient\Api\StoreApiInterface::abstract public function reserveStock(?Pet
 PetstoreClient\Api\StoreApiInterface::abstract public function reserveStockWithHttpInfo(?PetstoreClient\Api\Options\ReserveStockOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\ReserveStockOptions|null; return PetstoreClient\ApiResult<PetstoreClient\Models\ReserveStockResponse>; throws PetstoreClient\Errors\ApiException; throws PetstoreClient\Errors\BadRequestException]
 PetstoreClient\Api\StoreApiInterface::abstract public function searchStore(?PetstoreClient\Api\Options\SearchStoreOptions $options = NULL): Ds\Vector [doc $options: PetstoreClient\Api\Options\SearchStoreOptions|null; return Ds\Vector<PetstoreClient\Models\Order>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function searchStoreWithHttpInfo(?PetstoreClient\Api\Options\SearchStoreOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\SearchStoreOptions|null; return PetstoreClient\ApiResult<Ds\Vector<PetstoreClient\Models\Order>>; throws PetstoreClient\Errors\ApiException]
+PetstoreClient\Api\StoreApiInterface::abstract public function submitAllowance(PetstoreClient\Models\Allowance $allowance, ?PetstoreClient\Api\Options\SubmitAllowanceOptions $options = NULL): void [doc $options: PetstoreClient\Api\Options\SubmitAllowanceOptions|null; throws PetstoreClient\Errors\ApiException]
+PetstoreClient\Api\StoreApiInterface::abstract public function submitAllowanceWithHttpInfo(PetstoreClient\Models\Allowance $allowance, ?PetstoreClient\Api\Options\SubmitAllowanceOptions $options = NULL): PetstoreClient\ApiResult [doc $options: PetstoreClient\Api\Options\SubmitAllowanceOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function traceMemo(string $memoId, ?PetstoreClient\Api\Options\TraceMemoOptions $options = NULL): void [doc $memoId: string; $options: PetstoreClient\Api\Options\TraceMemoOptions|null; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function traceMemoWithHttpInfo(string $memoId, ?PetstoreClient\Api\Options\TraceMemoOptions $options = NULL): PetstoreClient\ApiResult [doc $memoId: string; $options: PetstoreClient\Api\Options\TraceMemoOptions|null; return PetstoreClient\ApiResult<null>; throws PetstoreClient\Errors\ApiException]
 PetstoreClient\Api\StoreApiInterface::abstract public function watchNoticesStream(?PetstoreClient\Api\Options\WatchNoticesOptions $options = NULL, ?PetstoreClient\StreamOptions $streamOptions = NULL): PetstoreClient\SseStream [doc $options: PetstoreClient\Api\Options\WatchNoticesOptions|null; $streamOptions: PetstoreClient\StreamOptions|null; return PetstoreClient\SseStream<string>; throws PetstoreClient\Errors\ApiException]
@@ -772,6 +796,7 @@ PetstoreClient\Auth\ApiKeyLocation::public static function from(string|int $valu
 PetstoreClient\Auth\ApiKeyLocation::public static function tryFrom(string|int $value): ?static
 PetstoreClient\Auth\ApiKeyQueryAuthenticator::protected const ENV_VARS = [ 'apiKey' => 'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY']
 PetstoreClient\Auth\ApiKeyQueryAuthenticator::public function __construct(string $host, ?string $apiKey = NULL)
+PetstoreClient\Auth\ArchiveDigestAuthenticator::protected const ENV_VARS = [ 'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_USERNAME', 'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_ARCHIVE_DIGEST_PASSWORD']
 PetstoreClient\Auth\Authenticator::abstract public function getAuthHeaders(): array [doc return array<string,string>]
 PetstoreClient\Auth\Authenticator::abstract public function getCookieParams(): array [doc return array<string,string>]
 PetstoreClient\Auth\Authenticator::abstract public function getHost(): string
@@ -797,6 +822,12 @@ PetstoreClient\Auth\CompositeAuthenticator::public function getAuthHeaders(): ar
 PetstoreClient\Auth\CompositeAuthenticator::public function getCookieParams(): array [doc return array<string,string>]
 PetstoreClient\Auth\CompositeAuthenticator::public function getHost(): string
 PetstoreClient\Auth\CompositeAuthenticator::public function getQueryParams(): array [doc return array<string,string>]
+PetstoreClient\Auth\DigestAuthenticator::public function __construct(string $host, ?string $username = NULL, ?string $password = NULL) [doc $host: string; $username: string|null; $password: string|null; throws InvalidArgumentException]
+PetstoreClient\Auth\DigestAuthenticator::public function __debugInfo(): array [doc return array<string,string>]
+PetstoreClient\Auth\DigestAuthenticator::public function acceptChallenge(string $wwwAuthenticate): bool [doc $wwwAuthenticate: string; return bool]
+PetstoreClient\Auth\DigestAuthenticator::public function authorization(string $method, string $requestTarget): ?string [doc $method: string; $requestTarget: string; return string|null]
+PetstoreClient\Auth\DigestAuthenticator::public function getAuthHeaders(): array [doc return array<string,string>]
+PetstoreClient\Auth\DigestAuthenticator::public function getHost(): string
 PetstoreClient\Auth\HttpAwareAuthenticator::abstract public function setApiClient(PetstoreClient\ApiClient $apiClient): void [doc $apiClient: PetstoreClient\ApiClient]
 PetstoreClient\Auth\InternalApiKeyAuthenticator::protected const ENV_VARS = [ 'apiKey' => 'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY']
 PetstoreClient\Auth\InternalApiKeyAuthenticator::public function __construct(string $host, ?string $apiKey = NULL)
@@ -814,9 +845,19 @@ PetstoreClient\Auth\OAuth\ClientAuthMethod::public readonly string $value
 PetstoreClient\Auth\OAuth\ClientAuthMethod::public static function cases(): array
 PetstoreClient\Auth\OAuth\ClientAuthMethod::public static function from(string|int $value): static
 PetstoreClient\Auth\OAuth\ClientAuthMethod::public static function tryFrom(string|int $value): ?static
+PetstoreClient\Auth\OAuth\DeviceAuthDeviceAuthorizationAuthenticator::protected const ENV_VARS = [ 'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_DEVICE_AUTH_CLIENT_ID']
+PetstoreClient\Auth\OAuth\DeviceAuthDeviceAuthorizationAuthenticator::public function __construct(string $host, ?string $clientId = NULL)
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public function __construct(promoted string $deviceCode, promoted string $userCode, promoted string $verificationUri, promoted ?string $verificationUriComplete, promoted int $expiresIn, promoted int $interval) [doc $deviceCode: string; $userCode: string; $verificationUri: string; $verificationUriComplete: string|null; $expiresIn: int; $interval: int]
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public readonly ?string $verificationUriComplete
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public readonly int $expiresIn
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public readonly int $interval
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public readonly string $deviceCode
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public readonly string $userCode
+PetstoreClient\Auth\OAuth\DeviceAuthorization::public readonly string $verificationUri
 PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator::protected const ENV_VARS = [ 'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID', 'clientSecret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET', 'username' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME', 'password' => 'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD']
 PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator::public function __construct(string $host, ?string $clientId = NULL, ?string $clientSecret = NULL, ?string $username = NULL, ?string $password = NULL)
 PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::protected const ENV_VARS = [ 'clientId' => 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID', 'clientSecret' => 'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET']
+PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::public const METADATA_URL = 'https://auth.example.com/.well-known/oauth-authorization-server'
 PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::public function __construct(string $host, ?string $clientId = NULL, ?string $clientSecret = NULL)
 PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator::public function __construct(string $host, string $clientId, string $clientSecret, string $authorizationUrl, string $tokenUrl, string $redirectUri, array $scopes, ?string $refreshUrl = NULL, ?PetstoreClient\Auth\OAuth\OAuth2TokenManager $tokenManager = NULL) [doc $host: string; $clientId: string; $clientSecret: string; $authorizationUrl: string; $tokenUrl: string; $redirectUri: string; $scopes: string[]; $refreshUrl: string|null]
 PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator::public function __debugInfo(): array [doc return array<string,mixed>]
@@ -833,6 +874,14 @@ PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator::public function 
 PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator::public function getHost(): string [doc return string]
 PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator::public function invalidateAccessToken(): void
 PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator::public function setApiClient(PetstoreClient\ApiClient $apiClient): void [doc $apiClient: PetstoreClient\ApiClient]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function __construct(string $host, string $clientId, string $deviceAuthorizationUrl, string $tokenUrl, array $scopes, ?string $refreshUrl = NULL) [doc $host: string; $clientId: string; $deviceAuthorizationUrl: string; $tokenUrl: string; $scopes: string[]; $refreshUrl: string|null]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function __debugInfo(): array [doc return array<string,mixed>]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function getAuthHeaders(): array [doc return array<string,string>; throws LogicException]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function getHost(): string [doc return string]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function invalidateAccessToken(): void
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function pollForToken(PetstoreClient\Auth\OAuth\DeviceAuthorization $authorization): void [doc $authorization: PetstoreClient\Auth\OAuth\DeviceAuthorization; throws PetstoreClient\Errors\OAuth2ServerException; throws PetstoreClient\Errors\OAuth2TokenException]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function requestDeviceAuthorization(): PetstoreClient\Auth\OAuth\DeviceAuthorization [doc return PetstoreClient\Auth\OAuth\DeviceAuthorization; throws PetstoreClient\Errors\OAuth2ServerException; throws PetstoreClient\Errors\OAuth2TokenException]
+PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator::public function setApiClient(PetstoreClient\ApiClient $apiClient): void [doc $apiClient: PetstoreClient\ApiClient]
 PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator::public function __construct(string $host, string $clientId, string $authorizationUrl, array $scopes) [doc $host: string; $clientId: string; $authorizationUrl: string; $scopes: string[]]
 PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator::public function __debugInfo(): array [doc return array<string,mixed>]
 PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator::public function buildAuthorizationUrl(?string $state = NULL): string [doc $state: string|null; return string]
@@ -913,7 +962,7 @@ PetstoreClient\CallOutcome::public function __construct(promoted int $statusCode
 PetstoreClient\CallOutcome::public readonly ?Throwable $error
 PetstoreClient\CallOutcome::public readonly ?array $headers
 PetstoreClient\CallOutcome::public readonly int $statusCode
-PetstoreClient\Client::public function __construct(?PetstoreClient\Auth\Authenticator $authenticator = NULL, ?PetstoreClient\TransportOptions $transportOptions = NULL, ?PetstoreClient\ApiClient $apiClient = NULL, ?PetstoreClient\Auth\Authenticator $petStoreBasic = NULL, ?PetstoreClient\Auth\Authenticator $adminBasic = NULL, ?PetstoreClient\Auth\Authenticator $petStoreBearer = NULL, ?PetstoreClient\Auth\Authenticator $serviceToken = NULL, ?PetstoreClient\Auth\Authenticator $apiKeyHeader = NULL, ?PetstoreClient\Auth\Authenticator $internalApiKey = NULL, ?PetstoreClient\Auth\Authenticator $apiKeyQuery = NULL, ?PetstoreClient\Auth\Authenticator $sessionCookie = NULL, ?PetstoreClient\Auth\Authenticator $machineAuth = NULL, ?PetstoreClient\Auth\Authenticator $legacyAuth = NULL, ?PetstoreClient\Auth\Authenticator $userAuth = NULL, ?PetstoreClient\Auth\Authenticator $browserAuth = NULL, ?PetstoreClient\Auth\Authenticator $ssoAuth = NULL, ?PetstoreClient\CallHook $callHook = NULL) [doc $authenticator: PetstoreClient\Auth\Authenticator|null; $transportOptions: PetstoreClient\TransportOptions|null; $apiClient: PetstoreClient\ApiClient|null; $petStoreBasic: PetstoreClient\Auth\Authenticator|null; $adminBasic: PetstoreClient\Auth\Authenticator|null; $petStoreBearer: PetstoreClient\Auth\Authenticator|null; $serviceToken: PetstoreClient\Auth\Authenticator|null; $apiKeyHeader: PetstoreClient\Auth\Authenticator|null; $internalApiKey: PetstoreClient\Auth\Authenticator|null; $apiKeyQuery: PetstoreClient\Auth\Authenticator|null; $sessionCookie: PetstoreClient\Auth\Authenticator|null; $machineAuth: PetstoreClient\Auth\Authenticator|null; $legacyAuth: PetstoreClient\Auth\Authenticator|null; $userAuth: PetstoreClient\Auth\Authenticator|null; $browserAuth: PetstoreClient\Auth\Authenticator|null; $ssoAuth: PetstoreClient\Auth\Authenticator|null; $callHook: PetstoreClient\CallHook|null; throws InvalidArgumentException]
+PetstoreClient\Client::public function __construct(?PetstoreClient\Auth\Authenticator $authenticator = NULL, ?PetstoreClient\TransportOptions $transportOptions = NULL, ?PetstoreClient\ApiClient $apiClient = NULL, ?PetstoreClient\Auth\Authenticator $petStoreBasic = NULL, ?PetstoreClient\Auth\Authenticator $adminBasic = NULL, ?PetstoreClient\Auth\Authenticator $archiveDigest = NULL, ?PetstoreClient\Auth\Authenticator $petStoreBearer = NULL, ?PetstoreClient\Auth\Authenticator $serviceToken = NULL, ?PetstoreClient\Auth\Authenticator $apiKeyHeader = NULL, ?PetstoreClient\Auth\Authenticator $internalApiKey = NULL, ?PetstoreClient\Auth\Authenticator $apiKeyQuery = NULL, ?PetstoreClient\Auth\Authenticator $sessionCookie = NULL, ?PetstoreClient\Auth\Authenticator $machineAuth = NULL, ?PetstoreClient\Auth\Authenticator $legacyAuth = NULL, ?PetstoreClient\Auth\Authenticator $userAuth = NULL, ?PetstoreClient\Auth\Authenticator $browserAuth = NULL, ?PetstoreClient\Auth\Authenticator $deviceAuth = NULL, ?PetstoreClient\Auth\Authenticator $ssoAuth = NULL, ?PetstoreClient\CallHook $callHook = NULL) [doc $authenticator: PetstoreClient\Auth\Authenticator|null; $transportOptions: PetstoreClient\TransportOptions|null; $apiClient: PetstoreClient\ApiClient|null; $petStoreBasic: PetstoreClient\Auth\Authenticator|null; $adminBasic: PetstoreClient\Auth\Authenticator|null; $archiveDigest: PetstoreClient\Auth\Authenticator|null; $petStoreBearer: PetstoreClient\Auth\Authenticator|null; $serviceToken: PetstoreClient\Auth\Authenticator|null; $apiKeyHeader: PetstoreClient\Auth\Authenticator|null; $internalApiKey: PetstoreClient\Auth\Authenticator|null; $apiKeyQuery: PetstoreClient\Auth\Authenticator|null; $sessionCookie: PetstoreClient\Auth\Authenticator|null; $machineAuth: PetstoreClient\Auth\Authenticator|null; $legacyAuth: PetstoreClient\Auth\Authenticator|null; $userAuth: PetstoreClient\Auth\Authenticator|null; $browserAuth: PetstoreClient\Auth\Authenticator|null; $deviceAuth: PetstoreClient\Auth\Authenticator|null; $ssoAuth: PetstoreClient\Auth\Authenticator|null; $callHook: PetstoreClient\CallHook|null; throws InvalidArgumentException]
 PetstoreClient\Client::public function __destruct()
 PetstoreClient\Client::public function close(): void
 PetstoreClient\Client::public function getPet(): PetstoreClient\Api\PetApi
@@ -936,11 +985,12 @@ PetstoreClient\ClientLifecycle::public function close(): void
 PetstoreClient\ClientLifecycle::public function isClosed(): bool
 PetstoreClient\ClientLifecycle::public function release(PetstoreClient\ByteStream $stream): void
 PetstoreClient\ClientLifecycle::public function track(PetstoreClient\ByteStream $stream): void [doc throws LogicException]
-PetstoreClient\Configuration::public function __construct(promoted string $baseUrl = '/api/v3', promoted array $defaultHeaders = [), promoted ?PetstoreClient\CallHook $callHook = NULL) [doc $baseUrl: string; $defaultHeaders: array<string,string>; $callHook: PetstoreClient\CallHook|null]
+PetstoreClient\Configuration::public function __construct(promoted string $baseUrl = '/api/v3', promoted array $defaultHeaders = [), promoted ?PetstoreClient\CallHook $callHook = NULL, promoted bool $validateConstraints = false) [doc $baseUrl: string; $defaultHeaders: array<string,string>; $callHook: PetstoreClient\CallHook|null; $validateConstraints: bool]
 PetstoreClient\Configuration::public function __debugInfo(): array [doc return array<string,mixed>]
 PetstoreClient\Configuration::public function getCallHook(): ?PetstoreClient\CallHook
 PetstoreClient\Configuration::public readonly ?PetstoreClient\CallHook $callHook
 PetstoreClient\Configuration::public readonly array $defaultHeaders
+PetstoreClient\Configuration::public readonly bool $validateConstraints
 PetstoreClient\Configuration::public readonly string $baseUrl
 PetstoreClient\Configuration::public static function builder(): PetstoreClient\ConfigurationBuilder
 PetstoreClient\Configuration::public static function defaultConfiguration(): PetstoreClient\Configuration
@@ -950,6 +1000,7 @@ PetstoreClient\ConfigurationBuilder::public function callHook(?PetstoreClient\Ca
 PetstoreClient\ConfigurationBuilder::public function defaultHeader(string $name, string $value): PetstoreClient\ConfigurationBuilder [doc $name: string; $value: string; return self]
 PetstoreClient\ConfigurationBuilder::public function defaultHeaders(array $headers): PetstoreClient\ConfigurationBuilder [doc $headers: array<string,string>; return self]
 PetstoreClient\ConfigurationBuilder::public function server(PetstoreClient\ServerConfiguration $serverConfig, array $variables = [)): PetstoreClient\ConfigurationBuilder [doc $serverConfig: PetstoreClient\ServerConfiguration; $variables: array<string,string>; return self]
+PetstoreClient\ConfigurationBuilder::public function validateConstraints(bool $validateConstraints): PetstoreClient\ConfigurationBuilder [doc $validateConstraints: bool; return self]
 PetstoreClient\DefaultApiClient::protected function execute(string $method, string $url, array $headers, mixed $body): PetstoreClient\RawHttpResponse [doc $headers: array<string,string>; throws PetstoreClient\Errors\NetworkException]
 PetstoreClient\DefaultApiClient::protected function executeStreaming(string $method, string $url, array $headers, mixed $body, ?float $idleSeconds): PetstoreClient\RawStreamResponse [doc $headers: array<string,string>; $idleSeconds: float|null; throws PetstoreClient\Errors\NetworkException]
 PetstoreClient\DefaultApiClient::protected function maxResponseBytes(): ?int
@@ -1039,6 +1090,34 @@ PetstoreClient\Models\Account::public function withUsername(string $username): P
 PetstoreClient\Models\Account::public readonly ?int $id
 PetstoreClient\Models\Account::public readonly ?string $password
 PetstoreClient\Models\Account::public readonly string $username
+PetstoreClient\Models\Allowance::public function __construct(?string $label = NULL, ?int $count = NULL, ?float $ratio = NULL, ?int $step = NULL, ?Ds\Vector $codes = NULL, ?Ds\Map $limits = NULL, ?PetstoreClient\Models\AllowanceTier $tier = NULL, ?Ds\Vector $parts = NULL) [doc $codes: Ds\Vector<string>|null; $limits: Ds\Map<string,int>|null; $parts: Ds\Vector<PetstoreClient\Models\AllowanceTier>|null]
+PetstoreClient\Models\Allowance::public function __toString(): string
+PetstoreClient\Models\Allowance::public function equals(mixed $other): bool
+PetstoreClient\Models\Allowance::public function hash(): mixed
+PetstoreClient\Models\Allowance::public function withCodes(?Ds\Vector $codes): PetstoreClient\Models\Allowance [doc $codes: Ds\Vector<string>|null]
+PetstoreClient\Models\Allowance::public function withCount(?int $count): PetstoreClient\Models\Allowance
+PetstoreClient\Models\Allowance::public function withLabel(?string $label): PetstoreClient\Models\Allowance
+PetstoreClient\Models\Allowance::public function withLimits(?Ds\Map $limits): PetstoreClient\Models\Allowance [doc $limits: Ds\Map<string,int>|null]
+PetstoreClient\Models\Allowance::public function withParts(?Ds\Vector $parts): PetstoreClient\Models\Allowance [doc $parts: Ds\Vector<PetstoreClient\Models\AllowanceTier>|null]
+PetstoreClient\Models\Allowance::public function withRatio(?float $ratio): PetstoreClient\Models\Allowance
+PetstoreClient\Models\Allowance::public function withStep(?int $step): PetstoreClient\Models\Allowance
+PetstoreClient\Models\Allowance::public function withTier(?PetstoreClient\Models\AllowanceTier $tier): PetstoreClient\Models\Allowance
+PetstoreClient\Models\Allowance::public readonly ?Ds\Map $limits [doc Ds\Map<string,int>|null]
+PetstoreClient\Models\Allowance::public readonly ?Ds\Vector $codes [doc Ds\Vector<string>|null]
+PetstoreClient\Models\Allowance::public readonly ?Ds\Vector $parts [doc Ds\Vector<PetstoreClient\Models\AllowanceTier>|null]
+PetstoreClient\Models\Allowance::public readonly ?PetstoreClient\Models\AllowanceTier $tier
+PetstoreClient\Models\Allowance::public readonly ?float $ratio
+PetstoreClient\Models\Allowance::public readonly ?int $count
+PetstoreClient\Models\Allowance::public readonly ?int $step
+PetstoreClient\Models\Allowance::public readonly ?string $label
+PetstoreClient\Models\AllowanceTier::public function __construct(?int $level = NULL, ?string $name = NULL)
+PetstoreClient\Models\AllowanceTier::public function __toString(): string
+PetstoreClient\Models\AllowanceTier::public function equals(mixed $other): bool
+PetstoreClient\Models\AllowanceTier::public function hash(): mixed
+PetstoreClient\Models\AllowanceTier::public function withLevel(?int $level): PetstoreClient\Models\AllowanceTier
+PetstoreClient\Models\AllowanceTier::public function withName(?string $name): PetstoreClient\Models\AllowanceTier
+PetstoreClient\Models\AllowanceTier::public readonly ?int $level
+PetstoreClient\Models\AllowanceTier::public readonly ?string $name
 PetstoreClient\Models\ApiResponse::public function __construct(?int $code = NULL, ?string $type = NULL, ?string $message = NULL)
 PetstoreClient\Models\ApiResponse::public function __toString(): string
 PetstoreClient\Models\ApiResponse::public function equals(mixed $other): bool
@@ -1057,6 +1136,16 @@ PetstoreClient\Models\AttachPetFilesRequest::public function withCaption(?string
 PetstoreClient\Models\AttachPetFilesRequest::public function withFile(SplFileObject $file): PetstoreClient\Models\AttachPetFilesRequest
 PetstoreClient\Models\AttachPetFilesRequest::public readonly ?string $caption
 PetstoreClient\Models\AttachPetFilesRequest::public readonly SplFileObject $file
+PetstoreClient\Models\Audit::public function __construct(?Ds\Vector $tags = NULL, ?int $score = NULL, ?string $payload = NULL) [doc $tags: Ds\Vector<string>|null]
+PetstoreClient\Models\Audit::public function __toString(): string
+PetstoreClient\Models\Audit::public function equals(mixed $other): bool
+PetstoreClient\Models\Audit::public function hash(): mixed
+PetstoreClient\Models\Audit::public function withPayload(?string $payload): PetstoreClient\Models\Audit
+PetstoreClient\Models\Audit::public function withScore(?int $score): PetstoreClient\Models\Audit
+PetstoreClient\Models\Audit::public function withTags(?Ds\Vector $tags): PetstoreClient\Models\Audit [doc $tags: Ds\Vector<string>|null]
+PetstoreClient\Models\Audit::public readonly ?Ds\Vector $tags [doc Ds\Vector<string>|null]
+PetstoreClient\Models\Audit::public readonly ?int $score
+PetstoreClient\Models\Audit::public readonly ?string $payload
 PetstoreClient\Models\Availability::case AVAILABLE = 'Available'
 PetstoreClient\Models\Availability::case A_B = 'a\\b'
 PetstoreClient\Models\Availability::case EQ = '$eq'
@@ -1176,12 +1265,14 @@ PetstoreClient\Models\Department::public function withLead(?PetstoreClient\Model
 PetstoreClient\Models\Department::public function withName(string $name): PetstoreClient\Models\Department
 PetstoreClient\Models\Department::public readonly ?PetstoreClient\Models\Employee $lead
 PetstoreClient\Models\Department::public readonly string $name
-PetstoreClient\Models\DryFood::public function __construct(float $weightKg, string $foodType = 'dry')
+PetstoreClient\Models\DryFood::public function __construct(float $weightKg, ?Brick\Math\BigDecimal $pricePerKg = NULL, string $foodType = 'dry')
 PetstoreClient\Models\DryFood::public function __toString(): string
 PetstoreClient\Models\DryFood::public function equals(mixed $other): bool
 PetstoreClient\Models\DryFood::public function hash(): mixed
 PetstoreClient\Models\DryFood::public function withFoodType(string $foodType): PetstoreClient\Models\DryFood
+PetstoreClient\Models\DryFood::public function withPricePerKg(?Brick\Math\BigDecimal $pricePerKg): PetstoreClient\Models\DryFood
 PetstoreClient\Models\DryFood::public function withWeightKg(float $weightKg): PetstoreClient\Models\DryFood
+PetstoreClient\Models\DryFood::public readonly ?Brick\Math\BigDecimal $pricePerKg
 PetstoreClient\Models\DryFood::public readonly float $weightKg
 PetstoreClient\Models\DryFood::public readonly string $foodType
 PetstoreClient\Models\EdgeCases::public function __construct(mixed $freeFormAny = NULL, ?PetstoreClient\Models\Color $favoriteColor = NULL, ?string $permissionsNote = NULL, ?bool $and = NULL, ?bool $or = NULL, ?bool $not = NULL, ?string $class = NULL, ?string $return = NULL, ?DateInterval $retryAfter = NULL, ?DateTime $expiresAt = NULL, ?bool $n2fa = NULL, ?PetstoreClient\Models\Separator $separator = NULL, ?string $null = NULL, ?bool $true = NULL, ?bool $false = NULL, ?PetstoreClient\Models\Error $lastError = NULL, ?PetstoreClient\Models\Result $outcome = NULL, ?DateTimeImmutable $cutoff = NULL, ?PetstoreClient\Models\EdgeCasesPhaseEnum $phase = NULL, ?string $slug = NULL)
@@ -1269,6 +1360,14 @@ PetstoreClient\Models\Ledger::public function withEntryId(int $entryId): Petstor
 PetstoreClient\Models\Ledger::public function withEntryIds(?Ds\Vector $entryIds): PetstoreClient\Models\Ledger [doc $entryIds: Ds\Vector<int>|null]
 PetstoreClient\Models\Ledger::public readonly ?Ds\Vector $entryIds [doc Ds\Vector<int>|null]
 PetstoreClient\Models\Ledger::public readonly int $entryId
+PetstoreClient\Models\Letter::public function __construct(?int $pages = NULL, string $kind = 'letter')
+PetstoreClient\Models\Letter::public function __toString(): string
+PetstoreClient\Models\Letter::public function equals(mixed $other): bool
+PetstoreClient\Models\Letter::public function hash(): mixed
+PetstoreClient\Models\Letter::public function withKind(string $kind): PetstoreClient\Models\Letter
+PetstoreClient\Models\Letter::public function withPages(?int $pages): PetstoreClient\Models\Letter
+PetstoreClient\Models\Letter::public readonly ?int $pages
+PetstoreClient\Models\Letter::public readonly string $kind
 PetstoreClient\Models\Medication::public function __construct(string $drugName, ?string $dosage = NULL, ?string $notes = NULL)
 PetstoreClient\Models\Medication::public function __toString(): string
 PetstoreClient\Models\Medication::public function equals(mixed $other): bool
@@ -1313,7 +1412,7 @@ PetstoreClient\Models\Moments::public function withAdditionalProperties(Ds\Map $
 PetstoreClient\Models\Moments::public function withLabel(?string $label): PetstoreClient\Models\Moments
 PetstoreClient\Models\Moments::public readonly ?string $label
 PetstoreClient\Models\Moments::public readonly Ds\Map $additionalProperties [doc Ds\Map<string,DateTime>]
-PetstoreClient\Models\NativeValues::public function __construct(?string $address4 = NULL, ?string $address6 = NULL, ?Ds\Vector $addresses = NULL, ?string $homepage = NULL, ?Brick\Math\BigDecimal $amount = NULL, ?Brick\Math\BigDecimal $ledger = NULL, ?DateInterval $wait = NULL, ?DateTime $since = NULL, ?string $host = NULL, ?string $contact = NULL) [doc $addresses: Ds\Vector<string>|null]
+PetstoreClient\Models\NativeValues::public function __construct(?string $address4 = NULL, ?string $address6 = NULL, ?Ds\Vector $addresses = NULL, ?string $homepage = NULL, ?Brick\Math\BigDecimal $amount = NULL, ?Ds\Vector $amounts = NULL, ?Brick\Math\BigDecimal $ledger = NULL, ?DateInterval $wait = NULL, ?DateTime $since = NULL, ?string $host = NULL, ?string $contact = NULL) [doc $addresses: Ds\Vector<string>|null; $amounts: Ds\Vector<Brick\Math\BigDecimal>|null]
 PetstoreClient\Models\NativeValues::public function __toString(): string
 PetstoreClient\Models\NativeValues::public function equals(mixed $other): bool
 PetstoreClient\Models\NativeValues::public function hash(): mixed
@@ -1321,6 +1420,7 @@ PetstoreClient\Models\NativeValues::public function withAddress4(?string $addres
 PetstoreClient\Models\NativeValues::public function withAddress6(?string $address6): PetstoreClient\Models\NativeValues
 PetstoreClient\Models\NativeValues::public function withAddresses(?Ds\Vector $addresses): PetstoreClient\Models\NativeValues [doc $addresses: Ds\Vector<string>|null]
 PetstoreClient\Models\NativeValues::public function withAmount(?Brick\Math\BigDecimal $amount): PetstoreClient\Models\NativeValues
+PetstoreClient\Models\NativeValues::public function withAmounts(?Ds\Vector $amounts): PetstoreClient\Models\NativeValues [doc $amounts: Ds\Vector<Brick\Math\BigDecimal>|null]
 PetstoreClient\Models\NativeValues::public function withContact(?string $contact): PetstoreClient\Models\NativeValues
 PetstoreClient\Models\NativeValues::public function withHomepage(?string $homepage): PetstoreClient\Models\NativeValues
 PetstoreClient\Models\NativeValues::public function withHost(?string $host): PetstoreClient\Models\NativeValues
@@ -1332,6 +1432,7 @@ PetstoreClient\Models\NativeValues::public readonly ?Brick\Math\BigDecimal $ledg
 PetstoreClient\Models\NativeValues::public readonly ?DateInterval $wait
 PetstoreClient\Models\NativeValues::public readonly ?DateTime $since
 PetstoreClient\Models\NativeValues::public readonly ?Ds\Vector $addresses [doc Ds\Vector<string>|null]
+PetstoreClient\Models\NativeValues::public readonly ?Ds\Vector $amounts [doc Ds\Vector<Brick\Math\BigDecimal>|null]
 PetstoreClient\Models\NativeValues::public readonly ?string $address4
 PetstoreClient\Models\NativeValues::public readonly ?string $address6
 PetstoreClient\Models\NativeValues::public readonly ?string $contact
@@ -1364,6 +1465,25 @@ PetstoreClient\Models\OrderStatusEnum::public readonly string $value
 PetstoreClient\Models\OrderStatusEnum::public static function cases(): array
 PetstoreClient\Models\OrderStatusEnum::public static function from(string|int $value): static
 PetstoreClient\Models\OrderStatusEnum::public static function tryFrom(string|int $value): ?static
+PetstoreClient\Models\Packet::public function __construct(?float $weightKg = NULL, string $kind = 'packet')
+PetstoreClient\Models\Packet::public function __toString(): string
+PetstoreClient\Models\Packet::public function equals(mixed $other): bool
+PetstoreClient\Models\Packet::public function hash(): mixed
+PetstoreClient\Models\Packet::public function withKind(string $kind): PetstoreClient\Models\Packet
+PetstoreClient\Models\Packet::public function withWeightKg(?float $weightKg): PetstoreClient\Models\Packet
+PetstoreClient\Models\Packet::public readonly ?float $weightKg
+PetstoreClient\Models\Packet::public readonly string $kind
+PetstoreClient\Models\Parcel::public function __construct(mixed $actualInstance = NULL)
+PetstoreClient\Models\Parcel::public function asLetter(): ?PetstoreClient\Models\Letter
+PetstoreClient\Models\Parcel::public function asPacket(): ?PetstoreClient\Models\Packet
+PetstoreClient\Models\Parcel::public function equals(mixed $other): bool
+PetstoreClient\Models\Parcel::public function getActualInstance(): mixed
+PetstoreClient\Models\Parcel::public function hash(): mixed
+PetstoreClient\Models\Parcel::public function isLetter(): bool
+PetstoreClient\Models\Parcel::public function isPacket(): bool
+PetstoreClient\Models\Parcel::public static function build(mixed $data): PetstoreClient\Models\Parcel
+PetstoreClient\Models\Parcel::public static function fromLetter(PetstoreClient\Models\Letter $value): PetstoreClient\Models\Parcel
+PetstoreClient\Models\Parcel::public static function fromPacket(PetstoreClient\Models\Packet $value): PetstoreClient\Models\Parcel
 PetstoreClient\Models\Pet::public function __construct(string $name, Ds\Set $photoUrls, ?int $id = NULL, ?PetstoreClient\Models\Category $category = NULL, ?Ds\Vector $tags = NULL, ?PetstoreClient\Models\PetStatusEnum $status = NULL, ?Ds\Vector $location = NULL, ?string $homepageUrl = NULL, ?string $thumbnailRef = NULL, ?string $linkTemplate = NULL, ?string $ownerEmail = NULL, ?float $weightKg = NULL, ?string $nickname = NULL) [doc $photoUrls: Ds\Set<string>; $tags: Ds\Vector<PetstoreClient\Models\Tag>|null; $location: Ds\Vector<mixed>|null]
 PetstoreClient\Models\Pet::public function __toString(): string
 PetstoreClient\Models\Pet::public function equals(mixed $other): bool
@@ -1624,6 +1744,48 @@ PetstoreClient\Models\Rank::public readonly string $name
 PetstoreClient\Models\Rank::public static function cases(): array
 PetstoreClient\Models\Rank::public static function from(string|int $value): static
 PetstoreClient\Models\Rank::public static function tryFrom(string|int $value): ?static
+PetstoreClient\Models\Reading::public function __construct(PetstoreClient\Models\ReadingLevel $level, ?PetstoreClient\Models\ReadingShape $shape = NULL, ?PetstoreClient\Models\ReadingInlineLevel $inlineLevel = NULL, mixed $nothing = NULL)
+PetstoreClient\Models\Reading::public function __toString(): string
+PetstoreClient\Models\Reading::public function equals(mixed $other): bool
+PetstoreClient\Models\Reading::public function hash(): mixed
+PetstoreClient\Models\Reading::public function withInlineLevel(?PetstoreClient\Models\ReadingInlineLevel $inlineLevel): PetstoreClient\Models\Reading
+PetstoreClient\Models\Reading::public function withLevel(PetstoreClient\Models\ReadingLevel $level): PetstoreClient\Models\Reading
+PetstoreClient\Models\Reading::public function withNothing(mixed $nothing): PetstoreClient\Models\Reading
+PetstoreClient\Models\Reading::public function withShape(?PetstoreClient\Models\ReadingShape $shape): PetstoreClient\Models\Reading
+PetstoreClient\Models\Reading::public readonly ?PetstoreClient\Models\ReadingInlineLevel $inlineLevel
+PetstoreClient\Models\Reading::public readonly ?PetstoreClient\Models\ReadingShape $shape
+PetstoreClient\Models\Reading::public readonly PetstoreClient\Models\ReadingLevel $level
+PetstoreClient\Models\Reading::public readonly mixed $nothing
+PetstoreClient\Models\ReadingInlineLevel::public function __construct(array $matchedInstances = [)) [doc $matchedInstances: array<int,mixed>]
+PetstoreClient\Models\ReadingInlineLevel::public function asInt(): ?int
+PetstoreClient\Models\ReadingInlineLevel::public function asString(): ?string
+PetstoreClient\Models\ReadingInlineLevel::public function equals(mixed $other): bool
+PetstoreClient\Models\ReadingInlineLevel::public function getActualInstance(): mixed
+PetstoreClient\Models\ReadingInlineLevel::public function getMatchedInstances(): array [doc return array<int,mixed>]
+PetstoreClient\Models\ReadingInlineLevel::public function hash(): mixed
+PetstoreClient\Models\ReadingInlineLevel::public function isInt(): bool
+PetstoreClient\Models\ReadingInlineLevel::public function isString(): bool
+PetstoreClient\Models\ReadingInlineLevel::public static function build(mixed $data): PetstoreClient\Models\ReadingInlineLevel
+PetstoreClient\Models\ReadingInlineLevel::public static function fromInt(int $value): PetstoreClient\Models\ReadingInlineLevel
+PetstoreClient\Models\ReadingInlineLevel::public static function fromString(string $value): PetstoreClient\Models\ReadingInlineLevel
+PetstoreClient\Models\ReadingLevel::public function __construct(array $matchedInstances = [)) [doc $matchedInstances: array<int,mixed>]
+PetstoreClient\Models\ReadingLevel::public function asInt(): ?int
+PetstoreClient\Models\ReadingLevel::public function asString(): ?string
+PetstoreClient\Models\ReadingLevel::public function equals(mixed $other): bool
+PetstoreClient\Models\ReadingLevel::public function getActualInstance(): mixed
+PetstoreClient\Models\ReadingLevel::public function getMatchedInstances(): array [doc return array<int,mixed>]
+PetstoreClient\Models\ReadingLevel::public function hash(): mixed
+PetstoreClient\Models\ReadingLevel::public function isInt(): bool
+PetstoreClient\Models\ReadingLevel::public function isString(): bool
+PetstoreClient\Models\ReadingLevel::public static function build(mixed $data): PetstoreClient\Models\ReadingLevel
+PetstoreClient\Models\ReadingLevel::public static function fromInt(int $value): PetstoreClient\Models\ReadingLevel
+PetstoreClient\Models\ReadingLevel::public static function fromString(string $value): PetstoreClient\Models\ReadingLevel
+PetstoreClient\Models\ReadingShape::public function __construct(array $matchedInstances = [)) [doc $matchedInstances: array<int,mixed>]
+PetstoreClient\Models\ReadingShape::public function equals(mixed $other): bool
+PetstoreClient\Models\ReadingShape::public function getActualInstance(): mixed
+PetstoreClient\Models\ReadingShape::public function getMatchedInstances(): array [doc return array<int,mixed>]
+PetstoreClient\Models\ReadingShape::public function hash(): mixed
+PetstoreClient\Models\ReadingShape::public static function build(mixed $data): PetstoreClient\Models\ReadingShape
 PetstoreClient\Models\RejectedRequest::public function __construct(?int $code = NULL, ?string $message = NULL)
 PetstoreClient\Models\RejectedRequest::public function __toString(): string
 PetstoreClient\Models\RejectedRequest::public function equals(mixed $other): bool
@@ -1681,6 +1843,16 @@ PetstoreClient\Models\Roster::public function withAdditionalProperties(Ds\Map $a
 PetstoreClient\Models\Roster::public function withLabel(?string $label): PetstoreClient\Models\Roster
 PetstoreClient\Models\Roster::public readonly ?string $label
 PetstoreClient\Models\Roster::public readonly Ds\Map $additionalProperties [doc Ds\Map<string,PetstoreClient\Models\Category>]
+PetstoreClient\Models\Sensors::protected const ADDITIONAL_PROPERTIES_INT32 = true
+PetstoreClient\Models\Sensors::protected const ADDITIONAL_PROPERTIES_TYPE = 'int'
+PetstoreClient\Models\Sensors::public function __construct(?string $site = NULL, ?Ds\Map $additionalProperties = NULL) [doc $additionalProperties: Ds\Map<string,int>|null]
+PetstoreClient\Models\Sensors::public function __toString(): string
+PetstoreClient\Models\Sensors::public function equals(mixed $other): bool
+PetstoreClient\Models\Sensors::public function hash(): mixed
+PetstoreClient\Models\Sensors::public function withAdditionalProperties(Ds\Map $additionalProperties): PetstoreClient\Models\Sensors [doc $additionalProperties: Ds\Map<string,int>]
+PetstoreClient\Models\Sensors::public function withSite(?string $site): PetstoreClient\Models\Sensors
+PetstoreClient\Models\Sensors::public readonly ?string $site
+PetstoreClient\Models\Sensors::public readonly Ds\Map $additionalProperties [doc Ds\Map<string,int>]
 PetstoreClient\Models\Separator::case A_B = 'a-b'
 PetstoreClient\Models\Separator::case A_B_2 = 'a_b'
 PetstoreClient\Models\Separator::case SPACE_1 = ' '
@@ -1718,6 +1890,16 @@ PetstoreClient\Models\Shape::public function withShapeType(string $shapeType): P
 PetstoreClient\Models\Shape::public readonly ?string $label
 PetstoreClient\Models\Shape::public readonly string $shapeType
 PetstoreClient\Models\Shape::public static function subtypeClass(array $payload): string [doc $payload: array; return class-string; throws InvalidArgumentException]
+PetstoreClient\Models\Shipment::public function __construct(string $kind, ?string $customsCode = NULL, ?string $postcode = NULL)
+PetstoreClient\Models\Shipment::public function __toString(): string
+PetstoreClient\Models\Shipment::public function equals(mixed $other): bool
+PetstoreClient\Models\Shipment::public function hash(): mixed
+PetstoreClient\Models\Shipment::public function withCustomsCode(?string $customsCode): PetstoreClient\Models\Shipment
+PetstoreClient\Models\Shipment::public function withKind(string $kind): PetstoreClient\Models\Shipment
+PetstoreClient\Models\Shipment::public function withPostcode(?string $postcode): PetstoreClient\Models\Shipment
+PetstoreClient\Models\Shipment::public readonly ?string $customsCode
+PetstoreClient\Models\Shipment::public readonly ?string $postcode
+PetstoreClient\Models\Shipment::public readonly string $kind
 PetstoreClient\Models\Sparse::protected const ADDITIONAL_PROPERTIES_NULLABLE = true
 PetstoreClient\Models\Sparse::protected const ADDITIONAL_PROPERTIES_TYPE = 'string'
 PetstoreClient\Models\Sparse::public function __construct(?string $label = NULL, ?Ds\Map $additionalProperties = NULL) [doc $additionalProperties: Ds\Map<string,string|null>|null]
@@ -2008,6 +2190,7 @@ class PetstoreClient\Api\Options\GetMatrixOptions
 class PetstoreClient\Api\Options\GetMemberOptions
 class PetstoreClient\Api\Options\GetMemoOptions
 class PetstoreClient\Api\Options\GetMultiServerPetInfoOptions
+class PetstoreClient\Api\Options\GetNativeAmountOptions
 class PetstoreClient\Api\Options\GetNativeValuesOptions
 class PetstoreClient\Api\Options\GetOrderByIdOptions
 class PetstoreClient\Api\Options\GetOrderByTrackingIdOptions
@@ -2030,6 +2213,7 @@ class PetstoreClient\Api\Options\GetTimestampGroupsOptions
 class PetstoreClient\Api\Options\GetTreeOptions
 class PetstoreClient\Api\Options\GetUpstreamOptions
 class PetstoreClient\Api\Options\HeadMemoOptions
+class PetstoreClient\Api\Options\ListNativeAmountsOptions
 class PetstoreClient\Api\Options\ListPetArchiveOptions
 class PetstoreClient\Api\Options\ListPetCatalogOptions
 class PetstoreClient\Api\Options\ListPetEventsOptions
@@ -2048,6 +2232,7 @@ class PetstoreClient\Api\Options\SearchStoreOptions
 class PetstoreClient\Api\Options\SetPetAvatarOptions
 class PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions
 class PetstoreClient\Api\Options\SetPetPreferencesOptions
+class PetstoreClient\Api\Options\SubmitAllowanceOptions
 class PetstoreClient\Api\Options\TakeLockOptions
 class PetstoreClient\Api\Options\TraceMemoOptions
 class PetstoreClient\Api\Options\UpdatePetOptions
@@ -2061,8 +2246,10 @@ class PetstoreClient\Api\StoreApi extends PetstoreClient\Api\BaseApi implements 
 class PetstoreClient\Auth\ApiKeyAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator
 class PetstoreClient\Auth\BasicAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator
 class PetstoreClient\Auth\BearerAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator
+class PetstoreClient\Auth\DigestAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator
 class PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 class PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
+class PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 class PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 class PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 class PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator extends PetstoreClient\Auth\BaseAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
@@ -2105,8 +2292,11 @@ class PetstoreClient\Errors\UnprocessableEntityException extends PetstoreClient\
 class PetstoreClient\Errors\UnsupportedMediaTypeException extends PetstoreClient\Errors\ClientException implements Stringable, Throwable
 class PetstoreClient\Errors\UpstreamFailureException extends PetstoreClient\Errors\ServerException implements Stringable, Throwable
 class PetstoreClient\Models\Account implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Allowance implements Ds\Hashable, Stringable
+class PetstoreClient\Models\AllowanceTier implements Ds\Hashable, Stringable
 class PetstoreClient\Models\ApiResponse implements Ds\Hashable, Stringable
 class PetstoreClient\Models\AttachPetFilesRequest implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Audit implements Ds\Hashable, Stringable
 class PetstoreClient\Models\BinaryVault implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Blobs implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Car extends PetstoreClient\Models\Vehicle implements Ds\Hashable, Stringable
@@ -2121,6 +2311,7 @@ class PetstoreClient\Models\Employee implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Error implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Freeform implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Ledger implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Letter implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Medication implements Ds\Hashable, Stringable
 class PetstoreClient\Models\MemberNotFound implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Memo implements Ds\Hashable, Stringable
@@ -2128,6 +2319,8 @@ class PetstoreClient\Models\Metadata implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Moments implements Ds\Hashable, Stringable
 class PetstoreClient\Models\NativeValues implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Order implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Packet implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Parcel implements Ds\Hashable
 class PetstoreClient\Models\Pet implements Ds\Hashable, Stringable
 class PetstoreClient\Models\PetAfterPage implements Ds\Hashable, Stringable
 class PetstoreClient\Models\PetArchivePage implements Ds\Hashable, Stringable
@@ -2147,6 +2340,10 @@ class PetstoreClient\Models\Photo implements Ds\Hashable, Stringable
 class PetstoreClient\Models\PhotoMetadata implements Ds\Hashable, Stringable
 class PetstoreClient\Models\PhotoMetadataLocation implements Ds\Hashable, Stringable
 class PetstoreClient\Models\ProjectNotFound implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Reading implements Ds\Hashable, Stringable
+class PetstoreClient\Models\ReadingInlineLevel implements Ds\Hashable
+class PetstoreClient\Models\ReadingLevel implements Ds\Hashable
+class PetstoreClient\Models\ReadingShape implements Ds\Hashable
 class PetstoreClient\Models\RejectedRequest implements Ds\Hashable, Stringable
 class PetstoreClient\Models\RequiredNullable implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Reservation implements Ds\Hashable, Stringable
@@ -2154,9 +2351,11 @@ class PetstoreClient\Models\ReservationReceipt implements Ds\Hashable, Stringabl
 class PetstoreClient\Models\ReserveStockResponse implements Ds\Hashable
 class PetstoreClient\Models\Result implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Roster implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Sensors implements Ds\Hashable, Stringable
 class PetstoreClient\Models\SetPetAvatarRequest implements Ds\Hashable, Stringable
 class PetstoreClient\Models\SetPetAvatarThumbnailRequest implements Ds\Hashable
 class PetstoreClient\Models\Shape implements Ds\Hashable, Stringable
+class PetstoreClient\Models\Shipment implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Sparse implements Ds\Hashable, Stringable
 class PetstoreClient\Models\Square extends PetstoreClient\Models\Shape implements Ds\Hashable, Stringable
 class PetstoreClient\Models\StateConflict implements Ds\Hashable, Stringable
@@ -2204,10 +2403,12 @@ final class PetstoreClient\Api\GetStagingPetInfoServerStagingServer extends Pets
 final class PetstoreClient\Auth\AdminBasicAuthenticator extends PetstoreClient\Auth\BasicAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\ApiKeyHeaderAuthenticator extends PetstoreClient\Auth\ApiKeyAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\ApiKeyQueryAuthenticator extends PetstoreClient\Auth\ApiKeyAuthenticator implements PetstoreClient\Auth\Authenticator
+final class PetstoreClient\Auth\ArchiveDigestAuthenticator extends PetstoreClient\Auth\DigestAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\CompositeAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\InternalApiKeyAuthenticator extends PetstoreClient\Auth\ApiKeyAuthenticator implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\NoAuth implements PetstoreClient\Auth\Authenticator
 final class PetstoreClient\Auth\OAuth\BrowserAuthImplicitAuthenticator extends PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
+final class PetstoreClient\Auth\OAuth\DeviceAuthDeviceAuthorizationAuthenticator extends PetstoreClient\Auth\OAuth\OAuth2DeviceAuthorizationAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 final class PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator extends PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 final class PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator extends PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator implements PetstoreClient\Auth\Authenticator, PetstoreClient\Auth\HttpAwareAuthenticator
 final class PetstoreClient\Auth\OAuth\OAuth2TokenManager
@@ -2235,6 +2436,7 @@ final class PetstoreClient\SseStream implements IteratorAggregate, Stringable, T
 final class PetstoreClient\StreamOptions
 final class PetstoreClient\TransportOptions
 final class PetstoreClient\TransportOptionsBuilder
+final readonly class PetstoreClient\Auth\OAuth\DeviceAuthorization
 final readonly class PetstoreClient\CallInfo
 final readonly class PetstoreClient\CallOutcome
 final readonly class PetstoreClient\WireFormat

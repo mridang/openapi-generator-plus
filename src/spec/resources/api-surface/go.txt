@@ -16,6 +16,7 @@ const petstore/pkg/auth.ApiKeyLocationHeader petstore/pkg/auth.ApiKeyLocation = 
 const petstore/pkg/auth.ApiKeyLocationQuery petstore/pkg/auth.ApiKeyLocation = 1
 const petstore/pkg/auth/oauth.ClientAuthMethodBasic petstore/pkg/auth/oauth.ClientAuthMethod = 1
 const petstore/pkg/auth/oauth.ClientAuthMethodBody petstore/pkg/auth/oauth.ClientAuthMethod = 0
+const petstore/pkg/auth/oauth.MachineAuthClientCredentialsAuthenticatorMetadataURL untyped string = "https://auth.example.com/.well-known/oauth-authorization-server"
 const petstore/pkg/models.AvailabilityAB petstore/pkg/models.Availability = "a\\b"
 const petstore/pkg/models.AvailabilityAvailable petstore/pkg/models.Availability = "Available"
 const petstore/pkg/models.AvailabilityEq petstore/pkg/models.Availability = "$eq"
@@ -109,7 +110,9 @@ field petstore/pkg.Client.Store petstore/pkg.StoreApiInterface
 field petstore/pkg.Credentials.AdminBasic petstore/pkg.Authenticator
 field petstore/pkg.Credentials.ApiKeyHeader petstore/pkg.Authenticator
 field petstore/pkg.Credentials.ApiKeyQuery petstore/pkg.Authenticator
+field petstore/pkg.Credentials.ArchiveDigest petstore/pkg.Authenticator
 field petstore/pkg.Credentials.BrowserAuth petstore/pkg.Authenticator
+field petstore/pkg.Credentials.DeviceAuth petstore/pkg.Authenticator
 field petstore/pkg.Credentials.InternalApiKey petstore/pkg.Authenticator
 field petstore/pkg.Credentials.LegacyAuth petstore/pkg.Authenticator
 field petstore/pkg.Credentials.MachineAuth petstore/pkg.Authenticator
@@ -144,8 +147,10 @@ field petstore/pkg/auth.ApiHttpResponse.StatusCode int
 field petstore/pkg/auth.ApiKeyAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth.ApiKeyHeaderAuthenticator.ApiKeyAuthenticator *petstore/pkg/auth.ApiKeyAuthenticator embedded
 field petstore/pkg/auth.ApiKeyQueryAuthenticator.ApiKeyAuthenticator *petstore/pkg/auth.ApiKeyAuthenticator embedded
+field petstore/pkg/auth.ArchiveDigestAuthenticator.DigestAuthenticator *petstore/pkg/auth.DigestAuthenticator embedded
 field petstore/pkg/auth.BasicAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth.BearerAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
+field petstore/pkg/auth.DigestAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth.InternalApiKeyAuthenticator.ApiKeyAuthenticator *petstore/pkg/auth.ApiKeyAuthenticator embedded
 field petstore/pkg/auth.PetStoreBasicAuthenticator.BasicAuthenticator *petstore/pkg/auth.BasicAuthenticator embedded
 field petstore/pkg/auth.PetStoreBearerAuthenticator.BearerAuthenticator *petstore/pkg/auth.BearerAuthenticator embedded
@@ -154,10 +159,18 @@ field petstore/pkg/auth.RequestOptions.NoRedirect bool
 field petstore/pkg/auth.ServiceTokenAuthenticator.BearerAuthenticator *petstore/pkg/auth.BearerAuthenticator embedded
 field petstore/pkg/auth.SessionCookieAuthenticator.ApiKeyAuthenticator *petstore/pkg/auth.ApiKeyAuthenticator embedded
 field petstore/pkg/auth/oauth.BrowserAuthImplicitAuthenticator.OAuth2ImplicitAuthenticator *petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator embedded
+field petstore/pkg/auth/oauth.DeviceAuthDeviceAuthorizationAuthenticator.OAuth2DeviceAuthorizationAuthenticator *petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator embedded
+field petstore/pkg/auth/oauth.DeviceAuthorization.DeviceCode string
+field petstore/pkg/auth/oauth.DeviceAuthorization.ExpiresIn int64
+field petstore/pkg/auth/oauth.DeviceAuthorization.Interval int64
+field petstore/pkg/auth/oauth.DeviceAuthorization.UserCode string
+field petstore/pkg/auth/oauth.DeviceAuthorization.VerificationURI string
+field petstore/pkg/auth/oauth.DeviceAuthorization.VerificationURIComplete *string
 field petstore/pkg/auth/oauth.LegacyAuthPasswordAuthenticator.OAuth2PasswordAuthenticator *petstore/pkg/auth/oauth.OAuth2PasswordAuthenticator embedded
 field petstore/pkg/auth/oauth.MachineAuthClientCredentialsAuthenticator.OAuth2ClientCredentialsAuthenticator *petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator embedded
 field petstore/pkg/auth/oauth.OAuth2AuthorizationCodeAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
+field petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth/oauth.OAuth2PasswordAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
 field petstore/pkg/auth/oauth.OpenIdConnectAuthenticator.BaseAuthenticator petstore/pkg/auth.BaseAuthenticator embedded
@@ -197,11 +210,24 @@ field petstore/pkg/errors.UpstreamFailureError.ServerError petstore/pkg/errors.S
 field petstore/pkg/models.Account.Id *int64 `json:"id,omitempty"`
 field petstore/pkg/models.Account.Password *string `json:"password,omitempty"`
 field petstore/pkg/models.Account.Username string `json:"username"`
+field petstore/pkg/models.Allowance.Codes *[]string `json:"codes,omitempty"`
+field petstore/pkg/models.Allowance.Count *int32 `json:"count,omitempty"`
+field petstore/pkg/models.Allowance.Label *string `json:"label,omitempty"`
+field petstore/pkg/models.Allowance.Limits *map[string]int32 `json:"limits,omitempty"`
+field petstore/pkg/models.Allowance.Parts *[]petstore/pkg/models.AllowanceTier `json:"parts,omitempty"`
+field petstore/pkg/models.Allowance.Ratio *float64 `json:"ratio,omitempty"`
+field petstore/pkg/models.Allowance.Step *int32 `json:"step,omitempty"`
+field petstore/pkg/models.Allowance.Tier *petstore/pkg/models.AllowanceTier `json:"tier,omitempty"`
+field petstore/pkg/models.AllowanceTier.Level *int32 `json:"level,omitempty"`
+field petstore/pkg/models.AllowanceTier.Name *string `json:"name,omitempty"`
 field petstore/pkg/models.ApiResponse.Code *int32 `json:"code,omitempty"`
 field petstore/pkg/models.ApiResponse.Message *string `json:"message,omitempty"`
 field petstore/pkg/models.ApiResponse.Type *string `json:"type,omitempty"`
 field petstore/pkg/models.AttachPetFilesRequest.Caption *string `json:"caption,omitempty"`
 field petstore/pkg/models.AttachPetFilesRequest.File io.Reader `json:"file"`
+field petstore/pkg/models.Audit.Payload *string `json:"payload,omitempty"`
+field petstore/pkg/models.Audit.Score *int32 `json:"score,omitempty"`
+field petstore/pkg/models.Audit.Tags *[]string `json:"tags,omitempty"`
 field petstore/pkg/models.BinaryVault.Labels *map[string][]byte `json:"labels,omitempty"`
 field petstore/pkg/models.BinaryVault.Seal *[]byte `json:"seal,omitempty"`
 field petstore/pkg/models.BinaryVault.Shards *[][]byte `json:"shards,omitempty"`
@@ -229,6 +255,7 @@ field petstore/pkg/models.Defaults.Weight *float64 `json:"weight,omitempty"`
 field petstore/pkg/models.Department.Lead *petstore/pkg/models.Employee `json:"lead,omitempty"`
 field petstore/pkg/models.Department.Name string `json:"name"`
 field petstore/pkg/models.DryFood.FoodType string `json:"foodType"`
+field petstore/pkg/models.DryFood.PricePerKg *github.com/shopspring/decimal.Decimal `json:"pricePerKg,omitempty"`
 field petstore/pkg/models.DryFood.WeightKg float64 `json:"weightKg"`
 field petstore/pkg/models.EdgeCases.And *bool `json:"and,omitempty"`
 field petstore/pkg/models.EdgeCases.Class *string `json:"class,omitempty"`
@@ -258,6 +285,8 @@ field petstore/pkg/models.Freeform.AdditionalProperties map[string]any `json:"-"
 field petstore/pkg/models.Freeform.Label *string `json:"label,omitempty"`
 field petstore/pkg/models.Ledger.EntryId int64 `json:"entryId"`
 field petstore/pkg/models.Ledger.EntryIds *[]int64 `json:"entryIds,omitempty"`
+field petstore/pkg/models.Letter.Kind string `json:"kind"`
+field petstore/pkg/models.Letter.Pages *int32 `json:"pages,omitempty"`
 field petstore/pkg/models.Medication.Dosage *string `json:"dosage,omitempty"`
 field petstore/pkg/models.Medication.DrugName string `json:"drugName"`
 field petstore/pkg/models.Medication.Notes *string `json:"notes,omitempty"`
@@ -273,6 +302,7 @@ field petstore/pkg/models.NativeValues.Address4 *net/netip.Addr `json:"address4,
 field petstore/pkg/models.NativeValues.Address6 *net/netip.Addr `json:"address6,omitempty"`
 field petstore/pkg/models.NativeValues.Addresses *[]net/netip.Addr `json:"addresses,omitempty"`
 field petstore/pkg/models.NativeValues.Amount *github.com/shopspring/decimal.Decimal `json:"amount,omitempty"`
+field petstore/pkg/models.NativeValues.Amounts *[]github.com/shopspring/decimal.Decimal `json:"amounts,omitempty"`
 field petstore/pkg/models.NativeValues.Contact *string `json:"contact,omitempty"`
 field petstore/pkg/models.NativeValues.Homepage *string `json:"homepage,omitempty"`
 field petstore/pkg/models.NativeValues.Host *string `json:"host,omitempty"`
@@ -286,6 +316,8 @@ field petstore/pkg/models.Order.Quantity *int32 `json:"quantity,omitempty"`
 field petstore/pkg/models.Order.ShipDate *petstore/pkg/models.DateTime `json:"shipDate,omitempty"`
 field petstore/pkg/models.Order.Status *petstore/pkg/models.OrderStatusEnum `json:"status,omitempty"`
 field petstore/pkg/models.Order.TrackingId *github.com/google/uuid.UUID `json:"trackingId,omitempty"`
+field petstore/pkg/models.Packet.Kind string `json:"kind"`
+field petstore/pkg/models.Packet.WeightKg *float64 `json:"weightKg,omitempty"`
 field petstore/pkg/models.Pet.Category *petstore/pkg/models.Category `json:"category,omitempty"`
 field petstore/pkg/models.Pet.HomepageUrl *string `json:"homepageUrl,omitempty"`
 field petstore/pkg/models.Pet.Id *int64 `json:"id,omitempty"`
@@ -352,6 +384,10 @@ field petstore/pkg/models.PhotoMetadataLocation.Lat *float64 `json:"lat,omitempt
 field petstore/pkg/models.PhotoMetadataLocation.Lng *float64 `json:"lng,omitempty"`
 field petstore/pkg/models.ProjectNotFound.Code *int32 `json:"code,omitempty"`
 field petstore/pkg/models.ProjectNotFound.Message *string `json:"message,omitempty"`
+field petstore/pkg/models.Reading.InlineLevel *petstore/pkg/models.ReadingInlineLevel `json:"inlineLevel,omitempty"`
+field petstore/pkg/models.Reading.Level petstore/pkg/models.ReadingLevel `json:"level"`
+field petstore/pkg/models.Reading.Nothing *any `json:"nothing,omitempty"`
+field petstore/pkg/models.Reading.Shape *petstore/pkg/models.ReadingShape `json:"shape,omitempty"`
 field petstore/pkg/models.RejectedRequest.Code *int32 `json:"code,omitempty"`
 field petstore/pkg/models.RejectedRequest.Message *string `json:"message,omitempty"`
 field petstore/pkg/models.RequiredNullable.Note *string `json:"note"`
@@ -362,8 +398,13 @@ field petstore/pkg/models.ReservationReceipt.ReceiptCode string `json:"receiptCo
 field petstore/pkg/models.Result.Ok *bool `json:"ok,omitempty"`
 field petstore/pkg/models.Roster.AdditionalProperties map[string]petstore/pkg/models.Category `json:"-"`
 field petstore/pkg/models.Roster.Label *string `json:"label,omitempty"`
+field petstore/pkg/models.Sensors.AdditionalProperties map[string]int32 `json:"-"`
+field petstore/pkg/models.Sensors.Site *string `json:"site,omitempty"`
 field petstore/pkg/models.SetPetAvatarRequest.Data []byte `json:"data"`
 field petstore/pkg/models.SetPetAvatarRequest.MimeType string `json:"mimeType"`
+field petstore/pkg/models.Shipment.CustomsCode *string `json:"customsCode,omitempty"`
+field petstore/pkg/models.Shipment.Kind string `json:"kind"`
+field petstore/pkg/models.Shipment.Postcode *string `json:"postcode,omitempty"`
 field petstore/pkg/models.Sparse.AdditionalProperties map[string]*string `json:"-"`
 field petstore/pkg/models.Sparse.Label *string `json:"label,omitempty"`
 field petstore/pkg/models.Square.Label *string `json:"label,omitempty"`
@@ -509,9 +550,11 @@ func petstore/pkg/auth.NewApiKeyAuthenticator(string, string, string, petstore/p
 func petstore/pkg/auth.NewApiKeyAuthenticatorWithProvider(string, string, petstore/pkg/auth.KeyProvider, petstore/pkg/auth.ApiKeyLocation) (*petstore/pkg/auth.ApiKeyAuthenticator, error)
 func petstore/pkg/auth.NewApiKeyHeaderAuthenticator(string, string) (*petstore/pkg/auth.ApiKeyHeaderAuthenticator, error)
 func petstore/pkg/auth.NewApiKeyQueryAuthenticator(string, string) (*petstore/pkg/auth.ApiKeyQueryAuthenticator, error)
+func petstore/pkg/auth.NewArchiveDigestAuthenticator(string, string, string) (*petstore/pkg/auth.ArchiveDigestAuthenticator, error)
 func petstore/pkg/auth.NewBasicAuthenticator(string, string, string) (*petstore/pkg/auth.BasicAuthenticator, error)
 func petstore/pkg/auth.NewBearerAuthenticator(string, string) (*petstore/pkg/auth.BearerAuthenticator, error)
 func petstore/pkg/auth.NewBearerAuthenticatorWithProvider(string, petstore/pkg/auth.TokenProvider) (*petstore/pkg/auth.BearerAuthenticator, error)
+func petstore/pkg/auth.NewDigestAuthenticator(string, string, string) (*petstore/pkg/auth.DigestAuthenticator, error)
 func petstore/pkg/auth.NewInternalApiKeyAuthenticator(string, string) (*petstore/pkg/auth.InternalApiKeyAuthenticator, error)
 func petstore/pkg/auth.NewPetStoreBasicAuthenticator(string, string, string) (*petstore/pkg/auth.PetStoreBasicAuthenticator, error)
 func petstore/pkg/auth.NewPetStoreBearerAuthenticator(string, string) (*petstore/pkg/auth.PetStoreBearerAuthenticator, error)
@@ -521,10 +564,12 @@ func petstore/pkg/auth.NewServiceTokenAuthenticatorWithProvider(string, petstore
 func petstore/pkg/auth.NewSessionCookieAuthenticator(string, string) (*petstore/pkg/auth.SessionCookieAuthenticator, error)
 func petstore/pkg/auth.ResolveCredential(string, string, string) (string, error)
 func petstore/pkg/auth/oauth.NewBrowserAuthImplicitAuthenticator(string, string) (*petstore/pkg/auth/oauth.BrowserAuthImplicitAuthenticator, error)
+func petstore/pkg/auth/oauth.NewDeviceAuthDeviceAuthorizationAuthenticator(string, string) (*petstore/pkg/auth/oauth.DeviceAuthDeviceAuthorizationAuthenticator, error)
 func petstore/pkg/auth/oauth.NewLegacyAuthPasswordAuthenticator(string, string, string, string, string) (*petstore/pkg/auth/oauth.LegacyAuthPasswordAuthenticator, error)
 func petstore/pkg/auth/oauth.NewMachineAuthClientCredentialsAuthenticator(string, string, string) (*petstore/pkg/auth/oauth.MachineAuthClientCredentialsAuthenticator, error)
 func petstore/pkg/auth/oauth.NewOAuth2AuthorizationCodeAuthenticator(string, string, string, string, string, string, []string, string) *petstore/pkg/auth/oauth.OAuth2AuthorizationCodeAuthenticator
 func petstore/pkg/auth/oauth.NewOAuth2ClientCredentialsAuthenticator(string, string, string, string, []string) *petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator
+func petstore/pkg/auth/oauth.NewOAuth2DeviceAuthorizationAuthenticator(string, string, string, string, []string, string) *petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator
 func petstore/pkg/auth/oauth.NewOAuth2ImplicitAuthenticator(string, string, string, []string) *petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator
 func petstore/pkg/auth/oauth.NewOAuth2PasswordAuthenticator(string, string, string, string, string, string, []string, string) *petstore/pkg/auth/oauth.OAuth2PasswordAuthenticator
 func petstore/pkg/auth/oauth.NewOAuth2TokenManager() *petstore/pkg/auth/oauth.OAuth2TokenManager
@@ -564,8 +609,11 @@ func petstore/pkg/models.AllSubscriptionIntervalEnumValues() []petstore/pkg/mode
 func petstore/pkg/models.AllSwatchValues() []petstore/pkg/models.Swatch
 func petstore/pkg/models.AllTierValues() []petstore/pkg/models.Tier
 func petstore/pkg/models.NewAccount(string) *petstore/pkg/models.Account
+func petstore/pkg/models.NewAllowance() *petstore/pkg/models.Allowance
+func petstore/pkg/models.NewAllowanceTier() *petstore/pkg/models.AllowanceTier
 func petstore/pkg/models.NewApiResponse() *petstore/pkg/models.ApiResponse
 func petstore/pkg/models.NewAttachPetFilesRequest(io.Reader) *petstore/pkg/models.AttachPetFilesRequest
+func petstore/pkg/models.NewAudit() *petstore/pkg/models.Audit
 func petstore/pkg/models.NewBinaryVault() *petstore/pkg/models.BinaryVault
 func petstore/pkg/models.NewBlobs() *petstore/pkg/models.Blobs
 func petstore/pkg/models.NewByteSliceSetPetAvatarThumbnailRequest([]byte) petstore/pkg/models.SetPetAvatarThumbnailRequest
@@ -584,7 +632,11 @@ func petstore/pkg/models.NewEdgeCases() *petstore/pkg/models.EdgeCases
 func petstore/pkg/models.NewEmployee(string) *petstore/pkg/models.Employee
 func petstore/pkg/models.NewError() *petstore/pkg/models.Error
 func petstore/pkg/models.NewFreeform() *petstore/pkg/models.Freeform
+func petstore/pkg/models.NewInt64ReadingInlineLevel(int64) petstore/pkg/models.ReadingInlineLevel
+func petstore/pkg/models.NewInt64ReadingLevel(int64) petstore/pkg/models.ReadingLevel
 func petstore/pkg/models.NewLedger(int64) *petstore/pkg/models.Ledger
+func petstore/pkg/models.NewLetter() *petstore/pkg/models.Letter
+func petstore/pkg/models.NewLetterParcel(petstore/pkg/models.Letter) petstore/pkg/models.Parcel
 func petstore/pkg/models.NewMedication(string) *petstore/pkg/models.Medication
 func petstore/pkg/models.NewMedicationPetTreatment(petstore/pkg/models.Medication) petstore/pkg/models.PetTreatment
 func petstore/pkg/models.NewMedicationTreatmentRecord(petstore/pkg/models.Medication) petstore/pkg/models.TreatmentRecord
@@ -594,6 +646,9 @@ func petstore/pkg/models.NewMetadata() *petstore/pkg/models.Metadata
 func petstore/pkg/models.NewMoments() *petstore/pkg/models.Moments
 func petstore/pkg/models.NewNativeValues() *petstore/pkg/models.NativeValues
 func petstore/pkg/models.NewOrder() *petstore/pkg/models.Order
+func petstore/pkg/models.NewPacket() *petstore/pkg/models.Packet
+func petstore/pkg/models.NewPacketParcel(petstore/pkg/models.Packet) petstore/pkg/models.Parcel
+func petstore/pkg/models.NewParcel(any) petstore/pkg/models.Parcel
 func petstore/pkg/models.NewPet(string, petstore/pkg/models.Set[string]) *petstore/pkg/models.Pet
 func petstore/pkg/models.NewPetAfterPage() *petstore/pkg/models.PetAfterPage
 func petstore/pkg/models.NewPetArchivePage() *petstore/pkg/models.PetArchivePage
@@ -613,6 +668,10 @@ func petstore/pkg/models.NewPhoto() *petstore/pkg/models.Photo
 func petstore/pkg/models.NewPhotoMetadata() *petstore/pkg/models.PhotoMetadata
 func petstore/pkg/models.NewPhotoMetadataLocation() *petstore/pkg/models.PhotoMetadataLocation
 func petstore/pkg/models.NewProjectNotFound() *petstore/pkg/models.ProjectNotFound
+func petstore/pkg/models.NewReading(petstore/pkg/models.ReadingLevel) *petstore/pkg/models.Reading
+func petstore/pkg/models.NewReadingInlineLevel(...any) petstore/pkg/models.ReadingInlineLevel
+func petstore/pkg/models.NewReadingLevel(...any) petstore/pkg/models.ReadingLevel
+func petstore/pkg/models.NewReadingShape(...any) petstore/pkg/models.ReadingShape
 func petstore/pkg/models.NewRejectedRequest() *petstore/pkg/models.RejectedRequest
 func petstore/pkg/models.NewRequiredNullable(*string) *petstore/pkg/models.RequiredNullable
 func petstore/pkg/models.NewReservation(int64, int32) *petstore/pkg/models.Reservation
@@ -622,15 +681,21 @@ func petstore/pkg/models.NewReservationReserveStockResponse(petstore/pkg/models.
 func petstore/pkg/models.NewReserveStockResponse(any) petstore/pkg/models.ReserveStockResponse
 func petstore/pkg/models.NewResult() *petstore/pkg/models.Result
 func petstore/pkg/models.NewRoster() *petstore/pkg/models.Roster
+func petstore/pkg/models.NewSensors() *petstore/pkg/models.Sensors
 func petstore/pkg/models.NewSetPetAvatarRequest([]byte, string) *petstore/pkg/models.SetPetAvatarRequest
 func petstore/pkg/models.NewSetPetAvatarThumbnailRequest(any) petstore/pkg/models.SetPetAvatarThumbnailRequest
 func petstore/pkg/models.NewShape(any) petstore/pkg/models.Shape
+func petstore/pkg/models.NewShipment(string) *petstore/pkg/models.Shipment
 func petstore/pkg/models.NewSparse() *petstore/pkg/models.Sparse
 func petstore/pkg/models.NewSquare(float64) *petstore/pkg/models.Square
 func petstore/pkg/models.NewSquareShape(petstore/pkg/models.Square) petstore/pkg/models.Shape
 func petstore/pkg/models.NewStateConflict() *petstore/pkg/models.StateConflict
 func petstore/pkg/models.NewStockItem(petstore/pkg/models.Priority) *petstore/pkg/models.StockItem
 func petstore/pkg/models.NewStrictTag() *petstore/pkg/models.StrictTag
+func petstore/pkg/models.NewStringMapReadingShape(map[string]string) petstore/pkg/models.ReadingShape
+func petstore/pkg/models.NewStringReadingInlineLevel(string) petstore/pkg/models.ReadingInlineLevel
+func petstore/pkg/models.NewStringReadingLevel(string) petstore/pkg/models.ReadingLevel
+func petstore/pkg/models.NewStringSliceReadingShape([]string) petstore/pkg/models.ReadingShape
 func petstore/pkg/models.NewSubscription(petstore/pkg/models.Rank) *petstore/pkg/models.Subscription
 func petstore/pkg/models.NewSurgery(string) *petstore/pkg/models.Surgery
 func petstore/pkg/models.NewSurgeryPetTreatment(petstore/pkg/models.Surgery) petstore/pkg/models.PetTreatment
@@ -666,12 +731,14 @@ method (*petstore/pkg.Client).Close() error
 method (*petstore/pkg.Configuration).BaseURL() string
 method (*petstore/pkg.Configuration).CallHook() petstore/pkg.CallHook
 method (*petstore/pkg.Configuration).DefaultHeaders() map[string]string
+method (*petstore/pkg.Configuration).ValidateConstraints() bool
 method (*petstore/pkg.ConfigurationBuilder).BaseURL(string) *petstore/pkg.ConfigurationBuilder
 method (*petstore/pkg.ConfigurationBuilder).Build() *petstore/pkg.Configuration
 method (*petstore/pkg.ConfigurationBuilder).CallHook(petstore/pkg.CallHook) *petstore/pkg.ConfigurationBuilder
 method (*petstore/pkg.ConfigurationBuilder).DefaultHeader(string, string) *petstore/pkg.ConfigurationBuilder
 method (*petstore/pkg.ConfigurationBuilder).DefaultHeaders(map[string]string) *petstore/pkg.ConfigurationBuilder
 method (*petstore/pkg.ConfigurationBuilder).Server(*petstore/pkg.ServerConfiguration, map[string]string) (*petstore/pkg.ConfigurationBuilder, error)
+method (*petstore/pkg.ConfigurationBuilder).ValidateConstraints(bool) *petstore/pkg.ConfigurationBuilder
 method (*petstore/pkg.DefaultApiClient).Close() error
 method (*petstore/pkg.DefaultApiClient).SendRequest(string, string, map[string]string, any) (*petstore/pkg.ApiHttpResponse, error)
 method (*petstore/pkg.DefaultApiClient).SendRequestWithOptions(string, string, map[string]string, any, *petstore/pkg.RequestOptions) (*petstore/pkg.ApiHttpResponse, error)
@@ -807,6 +874,8 @@ method (*petstore/pkg.StoreApi).GetMatrix(context.Context, ...petstore/pkg.Reque
 method (*petstore/pkg.StoreApi).GetMatrixWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[[][]int32], error)
 method (*petstore/pkg.StoreApi).GetMemo(context.Context, string, petstore/pkg.GetMemoServer, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Memo, error)
 method (*petstore/pkg.StoreApi).GetMemoWithHTTPInfo(context.Context, string, petstore/pkg.GetMemoServer, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.Memo], error)
+method (*petstore/pkg.StoreApi).GetNativeAmount(context.Context, ...petstore/pkg.RequestOption) (*github.com/shopspring/decimal.Decimal, error)
+method (*petstore/pkg.StoreApi).GetNativeAmountWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[github.com/shopspring/decimal.Decimal], error)
 method (*petstore/pkg.StoreApi).GetNativeValues(context.Context, *petstore/pkg/options.GetNativeValuesOptions, ...petstore/pkg.RequestOption) (*petstore/pkg/models.NativeValues, error)
 method (*petstore/pkg.StoreApi).GetNativeValuesWithHTTPInfo(context.Context, *petstore/pkg/options.GetNativeValuesOptions, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.NativeValues], error)
 method (*petstore/pkg.StoreApi).GetOrderById(context.Context, int64, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Order, error)
@@ -825,6 +894,8 @@ method (*petstore/pkg.StoreApi).GetTree(context.Context, ...petstore/pkg.Request
 method (*petstore/pkg.StoreApi).GetTreeWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.TreeNode], error)
 method (*petstore/pkg.StoreApi).HeadMemo(context.Context, string, ...petstore/pkg.RequestOption) error
 method (*petstore/pkg.StoreApi).HeadMemoWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
+method (*petstore/pkg.StoreApi).ListNativeAmounts(context.Context, ...petstore/pkg.RequestOption) ([]github.com/shopspring/decimal.Decimal, error)
+method (*petstore/pkg.StoreApi).ListNativeAmountsWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[[]github.com/shopspring/decimal.Decimal], error)
 method (*petstore/pkg.StoreApi).OptionsMemo(context.Context, string, ...petstore/pkg.RequestOption) error
 method (*petstore/pkg.StoreApi).OptionsMemoWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
 method (*petstore/pkg.StoreApi).PatchMemo(context.Context, string, petstore/pkg/models.Memo, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Memo, error)
@@ -835,6 +906,8 @@ method (*petstore/pkg.StoreApi).ReserveStock(context.Context, ...petstore/pkg.Re
 method (*petstore/pkg.StoreApi).ReserveStockWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.ReserveStockResponse], error)
 method (*petstore/pkg.StoreApi).SearchStore(context.Context, *petstore/pkg/options.SearchStoreOptions, ...petstore/pkg.RequestOption) ([]petstore/pkg/models.Order, error)
 method (*petstore/pkg.StoreApi).SearchStoreWithHTTPInfo(context.Context, *petstore/pkg/options.SearchStoreOptions, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[[]petstore/pkg/models.Order], error)
+method (*petstore/pkg.StoreApi).SubmitAllowance(context.Context, petstore/pkg/models.Allowance, ...petstore/pkg.RequestOption) error
+method (*petstore/pkg.StoreApi).SubmitAllowanceWithHTTPInfo(context.Context, petstore/pkg/models.Allowance, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
 method (*petstore/pkg.StoreApi).TraceMemo(context.Context, string, ...petstore/pkg.RequestOption) error
 method (*petstore/pkg.StoreApi).TraceMemoWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
 method (*petstore/pkg.StoreApi).WatchNoticesStream(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.SseStream[string], error)
@@ -882,6 +955,10 @@ method (*petstore/pkg/auth.BearerAuthenticator).AuthHeaders() map[string]string
 method (*petstore/pkg/auth.BearerAuthenticator).AuthHeadersOrError() (map[string]string, error)
 method (*petstore/pkg/auth.BearerAuthenticator).AuthHeadersOrErrorContext(context.Context) (map[string]string, error)
 method (*petstore/pkg/auth.BearerAuthenticator).Host() string
+method (*petstore/pkg/auth.DigestAuthenticator).AcceptChallenge(string) bool
+method (*petstore/pkg/auth.DigestAuthenticator).AuthHeaders() map[string]string
+method (*petstore/pkg/auth.DigestAuthenticator).Authorization(string, string) (string, bool)
+method (*petstore/pkg/auth.DigestAuthenticator).Host() string
 method (*petstore/pkg/auth/oauth.OAuth2AuthorizationCodeAuthenticator).AuthHeaders() map[string]string
 method (*petstore/pkg/auth/oauth.OAuth2AuthorizationCodeAuthenticator).AuthHeadersOrError() (map[string]string, error)
 method (*petstore/pkg/auth/oauth.OAuth2AuthorizationCodeAuthenticator).AuthHeadersOrErrorContext(context.Context) (map[string]string, error)
@@ -899,6 +976,16 @@ method (*petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator).Host() st
 method (*petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator).InvalidateAccessToken()
 method (*petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator).SetApiClient(petstore/pkg/auth.ApiClient)
 method (*petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator).WithClientAuthMethod(petstore/pkg/auth/oauth.ClientAuthMethod) *petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).AuthHeaders() map[string]string
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).AuthHeadersOrError() (map[string]string, error)
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).AuthHeadersOrErrorContext(context.Context) (map[string]string, error)
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).GoString() string
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).Host() string
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).InvalidateAccessToken()
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).PollForToken(petstore/pkg/auth/oauth.DeviceAuthorization) error
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).RequestDeviceAuthorization() (*petstore/pkg/auth/oauth.DeviceAuthorization, error)
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).SetApiClient(petstore/pkg/auth.ApiClient)
+method (*petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator).String() string
 method (*petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator).AuthHeaders() map[string]string
 method (*petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator).AuthHeadersOrError() (map[string]string, error)
 method (*petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator).BuildAuthorizationURL(string) string
@@ -994,12 +1081,21 @@ method (*petstore/pkg/errors.UpstreamFailureError).Unwrap() error
 method (*petstore/pkg/models.Account).Equal(*petstore/pkg/models.Account) bool
 method (*petstore/pkg/models.Account).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Account).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.Allowance).Equal(*petstore/pkg/models.Allowance) bool
+method (*petstore/pkg/models.Allowance).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Allowance).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.AllowanceTier).Equal(*petstore/pkg/models.AllowanceTier) bool
+method (*petstore/pkg/models.AllowanceTier).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.AllowanceTier).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.ApiResponse).Equal(*petstore/pkg/models.ApiResponse) bool
 method (*petstore/pkg/models.ApiResponse).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.ApiResponse).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.AttachPetFilesRequest).Equal(*petstore/pkg/models.AttachPetFilesRequest) bool
 method (*petstore/pkg/models.AttachPetFilesRequest).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.AttachPetFilesRequest).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.Audit).Equal(*petstore/pkg/models.Audit) bool
+method (*petstore/pkg/models.Audit).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Audit).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.Availability).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.BinaryVault).Equal(*petstore/pkg/models.BinaryVault) bool
 method (*petstore/pkg/models.BinaryVault).UnmarshalJSON([]byte) error
@@ -1048,6 +1144,9 @@ method (*petstore/pkg/models.Freeform).UnmarshalJSONFrom(*github.com/go-json-exp
 method (*petstore/pkg/models.Ledger).Equal(*petstore/pkg/models.Ledger) bool
 method (*petstore/pkg/models.Ledger).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Ledger).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.Letter).Equal(*petstore/pkg/models.Letter) bool
+method (*petstore/pkg/models.Letter).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Letter).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.Medication).Equal(*petstore/pkg/models.Medication) bool
 method (*petstore/pkg/models.Medication).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Medication).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
@@ -1070,6 +1169,11 @@ method (*petstore/pkg/models.Order).Equal(*petstore/pkg/models.Order) bool
 method (*petstore/pkg/models.Order).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Order).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.OrderStatusEnum).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Packet).Equal(*petstore/pkg/models.Packet) bool
+method (*petstore/pkg/models.Packet).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Packet).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.Parcel).Equal(*petstore/pkg/models.Parcel) bool
+method (*petstore/pkg/models.Parcel).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Pet).Equal(*petstore/pkg/models.Pet) bool
 method (*petstore/pkg/models.Pet).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Pet).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
@@ -1129,6 +1233,15 @@ method (*petstore/pkg/models.ProjectNotFound).Equal(*petstore/pkg/models.Project
 method (*petstore/pkg/models.ProjectNotFound).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.ProjectNotFound).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.Rank).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Reading).Equal(*petstore/pkg/models.Reading) bool
+method (*petstore/pkg/models.Reading).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Reading).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.ReadingInlineLevel).Equal(*petstore/pkg/models.ReadingInlineLevel) bool
+method (*petstore/pkg/models.ReadingInlineLevel).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.ReadingLevel).Equal(*petstore/pkg/models.ReadingLevel) bool
+method (*petstore/pkg/models.ReadingLevel).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.ReadingShape).Equal(*petstore/pkg/models.ReadingShape) bool
+method (*petstore/pkg/models.ReadingShape).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.RejectedRequest).Equal(*petstore/pkg/models.RejectedRequest) bool
 method (*petstore/pkg/models.RejectedRequest).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.RejectedRequest).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
@@ -1149,6 +1262,9 @@ method (*petstore/pkg/models.Result).UnmarshalJSONFrom(*github.com/go-json-exper
 method (*petstore/pkg/models.Roster).Equal(*petstore/pkg/models.Roster) bool
 method (*petstore/pkg/models.Roster).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Roster).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
+method (*petstore/pkg/models.Sensors).Equal(*petstore/pkg/models.Sensors) bool
+method (*petstore/pkg/models.Sensors).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Sensors).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.Separator).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Set).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.SetPetAvatarRequest).Equal(*petstore/pkg/models.SetPetAvatarRequest) bool
@@ -1158,6 +1274,9 @@ method (*petstore/pkg/models.SetPetAvatarThumbnailRequest).Equal(*petstore/pkg/m
 method (*petstore/pkg/models.SetPetAvatarThumbnailRequest).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Shape).Equal(*petstore/pkg/models.Shape) bool
 method (*petstore/pkg/models.Shape).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Shipment).Equal(*petstore/pkg/models.Shipment) bool
+method (*petstore/pkg/models.Shipment).UnmarshalJSON([]byte) error
+method (*petstore/pkg/models.Shipment).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
 method (*petstore/pkg/models.Sparse).Equal(*petstore/pkg/models.Sparse) bool
 method (*petstore/pkg/models.Sparse).UnmarshalJSON([]byte) error
 method (*petstore/pkg/models.Sparse).UnmarshalJSONFrom(*github.com/go-json-experiment/json/jsontext.Decoder) error
@@ -1233,10 +1352,14 @@ method (petstore/pkg/auth.ApiKeyHeaderAuthenticator).String() string
 method (petstore/pkg/auth.ApiKeyLocation).String() string
 method (petstore/pkg/auth.ApiKeyQueryAuthenticator).GoString() string
 method (petstore/pkg/auth.ApiKeyQueryAuthenticator).String() string
+method (petstore/pkg/auth.ArchiveDigestAuthenticator).GoString() string
+method (petstore/pkg/auth.ArchiveDigestAuthenticator).String() string
 method (petstore/pkg/auth.BasicAuthenticator).GoString() string
 method (petstore/pkg/auth.BasicAuthenticator).String() string
 method (petstore/pkg/auth.BearerAuthenticator).GoString() string
 method (petstore/pkg/auth.BearerAuthenticator).String() string
+method (petstore/pkg/auth.DigestAuthenticator).GoString() string
+method (petstore/pkg/auth.DigestAuthenticator).String() string
 method (petstore/pkg/auth.InternalApiKeyAuthenticator).GoString() string
 method (petstore/pkg/auth.InternalApiKeyAuthenticator).String() string
 method (petstore/pkg/auth.PetStoreBasicAuthenticator).GoString() string
@@ -1249,6 +1372,8 @@ method (petstore/pkg/auth.SessionCookieAuthenticator).GoString() string
 method (petstore/pkg/auth.SessionCookieAuthenticator).String() string
 method (petstore/pkg/auth/oauth.BrowserAuthImplicitAuthenticator).GoString() string
 method (petstore/pkg/auth/oauth.BrowserAuthImplicitAuthenticator).String() string
+method (petstore/pkg/auth/oauth.DeviceAuthDeviceAuthorizationAuthenticator).GoString() string
+method (petstore/pkg/auth/oauth.DeviceAuthDeviceAuthorizationAuthenticator).String() string
 method (petstore/pkg/auth/oauth.LegacyAuthPasswordAuthenticator).GoString() string
 method (petstore/pkg/auth/oauth.LegacyAuthPasswordAuthenticator).String() string
 method (petstore/pkg/auth/oauth.MachineAuthClientCredentialsAuthenticator).GoString() string
@@ -1268,6 +1393,30 @@ method (petstore/pkg/models.Account).WithPassword(string) petstore/pkg/models.Ac
 method (petstore/pkg/models.Account).WithUsername(string) petstore/pkg/models.Account
 method (petstore/pkg/models.Account).WithoutId() petstore/pkg/models.Account
 method (petstore/pkg/models.Account).WithoutPassword() petstore/pkg/models.Account
+method (petstore/pkg/models.Allowance).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Allowance).String() string
+method (petstore/pkg/models.Allowance).WithCodes([]string) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithCount(int32) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithLabel(string) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithLimits(map[string]int32) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithParts([]petstore/pkg/models.AllowanceTier) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithRatio(float64) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithStep(int32) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithTier(petstore/pkg/models.AllowanceTier) petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutCodes() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutCount() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutLabel() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutLimits() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutParts() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutRatio() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutStep() petstore/pkg/models.Allowance
+method (petstore/pkg/models.Allowance).WithoutTier() petstore/pkg/models.Allowance
+method (petstore/pkg/models.AllowanceTier).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.AllowanceTier).String() string
+method (petstore/pkg/models.AllowanceTier).WithLevel(int32) petstore/pkg/models.AllowanceTier
+method (petstore/pkg/models.AllowanceTier).WithName(string) petstore/pkg/models.AllowanceTier
+method (petstore/pkg/models.AllowanceTier).WithoutLevel() petstore/pkg/models.AllowanceTier
+method (petstore/pkg/models.AllowanceTier).WithoutName() petstore/pkg/models.AllowanceTier
 method (petstore/pkg/models.ApiResponse).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.ApiResponse).String() string
 method (petstore/pkg/models.ApiResponse).WithCode(int32) petstore/pkg/models.ApiResponse
@@ -1281,6 +1430,14 @@ method (petstore/pkg/models.AttachPetFilesRequest).String() string
 method (petstore/pkg/models.AttachPetFilesRequest).WithCaption(string) petstore/pkg/models.AttachPetFilesRequest
 method (petstore/pkg/models.AttachPetFilesRequest).WithFile(io.Reader) petstore/pkg/models.AttachPetFilesRequest
 method (petstore/pkg/models.AttachPetFilesRequest).WithoutCaption() petstore/pkg/models.AttachPetFilesRequest
+method (petstore/pkg/models.Audit).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Audit).String() string
+method (petstore/pkg/models.Audit).WithPayload(string) petstore/pkg/models.Audit
+method (petstore/pkg/models.Audit).WithScore(int32) petstore/pkg/models.Audit
+method (petstore/pkg/models.Audit).WithTags([]string) petstore/pkg/models.Audit
+method (petstore/pkg/models.Audit).WithoutPayload() petstore/pkg/models.Audit
+method (petstore/pkg/models.Audit).WithoutScore() petstore/pkg/models.Audit
+method (petstore/pkg/models.Audit).WithoutTags() petstore/pkg/models.Audit
 method (petstore/pkg/models.Availability).IsValid() bool
 method (petstore/pkg/models.Availability).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Availability).String() string
@@ -1359,7 +1516,9 @@ method (petstore/pkg/models.Department).WithoutLead() petstore/pkg/models.Depart
 method (petstore/pkg/models.DryFood).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.DryFood).String() string
 method (petstore/pkg/models.DryFood).WithFoodType(string) petstore/pkg/models.DryFood
+method (petstore/pkg/models.DryFood).WithPricePerKg(github.com/shopspring/decimal.Decimal) petstore/pkg/models.DryFood
 method (petstore/pkg/models.DryFood).WithWeightKg(float64) petstore/pkg/models.DryFood
+method (petstore/pkg/models.DryFood).WithoutPricePerKg() petstore/pkg/models.DryFood
 method (petstore/pkg/models.EdgeCases).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.EdgeCases).String() string
 method (petstore/pkg/models.EdgeCases).WithAnd(bool) petstore/pkg/models.EdgeCases
@@ -1427,6 +1586,11 @@ method (petstore/pkg/models.Ledger).String() string
 method (petstore/pkg/models.Ledger).WithEntryId(int64) petstore/pkg/models.Ledger
 method (petstore/pkg/models.Ledger).WithEntryIds([]int64) petstore/pkg/models.Ledger
 method (petstore/pkg/models.Ledger).WithoutEntryIds() petstore/pkg/models.Ledger
+method (petstore/pkg/models.Letter).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Letter).String() string
+method (petstore/pkg/models.Letter).WithKind(string) petstore/pkg/models.Letter
+method (petstore/pkg/models.Letter).WithPages(int32) petstore/pkg/models.Letter
+method (petstore/pkg/models.Letter).WithoutPages() petstore/pkg/models.Letter
 method (petstore/pkg/models.Medication).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Medication).String() string
 method (petstore/pkg/models.Medication).WithDosage(string) petstore/pkg/models.Medication
@@ -1463,6 +1627,7 @@ method (petstore/pkg/models.NativeValues).WithAddress4(net/netip.Addr) petstore/
 method (petstore/pkg/models.NativeValues).WithAddress6(net/netip.Addr) petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithAddresses([]net/netip.Addr) petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithAmount(github.com/shopspring/decimal.Decimal) petstore/pkg/models.NativeValues
+method (petstore/pkg/models.NativeValues).WithAmounts([]github.com/shopspring/decimal.Decimal) petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithContact(string) petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithHomepage(string) petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithHost(string) petstore/pkg/models.NativeValues
@@ -1473,6 +1638,7 @@ method (petstore/pkg/models.NativeValues).WithoutAddress4() petstore/pkg/models.
 method (petstore/pkg/models.NativeValues).WithoutAddress6() petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithoutAddresses() petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithoutAmount() petstore/pkg/models.NativeValues
+method (petstore/pkg/models.NativeValues).WithoutAmounts() petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithoutContact() petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithoutHomepage() petstore/pkg/models.NativeValues
 method (petstore/pkg/models.NativeValues).WithoutHost() petstore/pkg/models.NativeValues
@@ -1498,6 +1664,17 @@ method (petstore/pkg/models.Order).WithoutTrackingId() petstore/pkg/models.Order
 method (petstore/pkg/models.OrderStatusEnum).IsValid() bool
 method (petstore/pkg/models.OrderStatusEnum).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.OrderStatusEnum).String() string
+method (petstore/pkg/models.Packet).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Packet).String() string
+method (petstore/pkg/models.Packet).WithKind(string) petstore/pkg/models.Packet
+method (petstore/pkg/models.Packet).WithWeightKg(float64) petstore/pkg/models.Packet
+method (petstore/pkg/models.Packet).WithoutWeightKg() petstore/pkg/models.Packet
+method (petstore/pkg/models.Parcel).ActualInstance() any
+method (petstore/pkg/models.Parcel).AsLetter() (petstore/pkg/models.Letter, bool)
+method (petstore/pkg/models.Parcel).AsPacket() (petstore/pkg/models.Packet, bool)
+method (petstore/pkg/models.Parcel).IsLetter() bool
+method (petstore/pkg/models.Parcel).IsPacket() bool
+method (petstore/pkg/models.Parcel).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Pet).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Pet).String() string
 method (petstore/pkg/models.Pet).WithCategory(petstore/pkg/models.Category) petstore/pkg/models.Pet
@@ -1684,6 +1861,36 @@ method (petstore/pkg/models.ProjectNotFound).WithoutMessage() petstore/pkg/model
 method (petstore/pkg/models.Rank).IsValid() bool
 method (petstore/pkg/models.Rank).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Rank).String() string
+method (petstore/pkg/models.Reading).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Reading).String() string
+method (petstore/pkg/models.Reading).WithInlineLevel(petstore/pkg/models.ReadingInlineLevel) petstore/pkg/models.Reading
+method (petstore/pkg/models.Reading).WithLevel(petstore/pkg/models.ReadingLevel) petstore/pkg/models.Reading
+method (petstore/pkg/models.Reading).WithNothing(any) petstore/pkg/models.Reading
+method (petstore/pkg/models.Reading).WithShape(petstore/pkg/models.ReadingShape) petstore/pkg/models.Reading
+method (petstore/pkg/models.Reading).WithoutInlineLevel() petstore/pkg/models.Reading
+method (petstore/pkg/models.Reading).WithoutNothing() petstore/pkg/models.Reading
+method (petstore/pkg/models.Reading).WithoutShape() petstore/pkg/models.Reading
+method (petstore/pkg/models.ReadingInlineLevel).ActualInstance() any
+method (petstore/pkg/models.ReadingInlineLevel).AsInt64() (int64, bool)
+method (petstore/pkg/models.ReadingInlineLevel).AsString() (string, bool)
+method (petstore/pkg/models.ReadingInlineLevel).IsInt64() bool
+method (petstore/pkg/models.ReadingInlineLevel).IsString() bool
+method (petstore/pkg/models.ReadingInlineLevel).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.ReadingInlineLevel).MatchedInstances() []any
+method (petstore/pkg/models.ReadingLevel).ActualInstance() any
+method (petstore/pkg/models.ReadingLevel).AsInt64() (int64, bool)
+method (petstore/pkg/models.ReadingLevel).AsString() (string, bool)
+method (petstore/pkg/models.ReadingLevel).IsInt64() bool
+method (petstore/pkg/models.ReadingLevel).IsString() bool
+method (petstore/pkg/models.ReadingLevel).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.ReadingLevel).MatchedInstances() []any
+method (petstore/pkg/models.ReadingShape).ActualInstance() any
+method (petstore/pkg/models.ReadingShape).AsStringMap() (map[string]string, bool)
+method (petstore/pkg/models.ReadingShape).AsStringSlice() ([]string, bool)
+method (petstore/pkg/models.ReadingShape).IsStringMap() bool
+method (petstore/pkg/models.ReadingShape).IsStringSlice() bool
+method (petstore/pkg/models.ReadingShape).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.ReadingShape).MatchedInstances() []any
 method (petstore/pkg/models.RejectedRequest).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.RejectedRequest).String() string
 method (petstore/pkg/models.RejectedRequest).WithCode(int32) petstore/pkg/models.RejectedRequest
@@ -1718,6 +1925,12 @@ method (petstore/pkg/models.Roster).String() string
 method (petstore/pkg/models.Roster).WithAdditionalProperties(map[string]petstore/pkg/models.Category) petstore/pkg/models.Roster
 method (petstore/pkg/models.Roster).WithLabel(string) petstore/pkg/models.Roster
 method (petstore/pkg/models.Roster).WithoutLabel() petstore/pkg/models.Roster
+method (petstore/pkg/models.Sensors).GetAdditionalProperties() map[string]int32
+method (petstore/pkg/models.Sensors).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Sensors).String() string
+method (petstore/pkg/models.Sensors).WithAdditionalProperties(map[string]int32) petstore/pkg/models.Sensors
+method (petstore/pkg/models.Sensors).WithSite(string) petstore/pkg/models.Sensors
+method (petstore/pkg/models.Sensors).WithoutSite() petstore/pkg/models.Sensors
 method (petstore/pkg/models.Separator).IsValid() bool
 method (petstore/pkg/models.Separator).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Separator).String() string
@@ -1738,6 +1951,13 @@ method (petstore/pkg/models.Shape).AsSquare() (petstore/pkg/models.Square, bool)
 method (petstore/pkg/models.Shape).IsCircle() bool
 method (petstore/pkg/models.Shape).IsSquare() bool
 method (petstore/pkg/models.Shape).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Shipment).MarshalJSON() ([]byte, error)
+method (petstore/pkg/models.Shipment).String() string
+method (petstore/pkg/models.Shipment).WithCustomsCode(string) petstore/pkg/models.Shipment
+method (petstore/pkg/models.Shipment).WithKind(string) petstore/pkg/models.Shipment
+method (petstore/pkg/models.Shipment).WithPostcode(string) petstore/pkg/models.Shipment
+method (petstore/pkg/models.Shipment).WithoutCustomsCode() petstore/pkg/models.Shipment
+method (petstore/pkg/models.Shipment).WithoutPostcode() petstore/pkg/models.Shipment
 method (petstore/pkg/models.Sparse).GetAdditionalProperties() map[string]*string
 method (petstore/pkg/models.Sparse).MarshalJSON() ([]byte, error)
 method (petstore/pkg/models.Sparse).String() string
@@ -1973,6 +2193,8 @@ method petstore/pkg.StoreApiInterface.GetMatrix(context.Context, ...petstore/pkg
 method petstore/pkg.StoreApiInterface.GetMatrixWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[[][]int32], error)
 method petstore/pkg.StoreApiInterface.GetMemo(context.Context, string, petstore/pkg.GetMemoServer, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Memo, error)
 method petstore/pkg.StoreApiInterface.GetMemoWithHTTPInfo(context.Context, string, petstore/pkg.GetMemoServer, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.Memo], error)
+method petstore/pkg.StoreApiInterface.GetNativeAmount(context.Context, ...petstore/pkg.RequestOption) (*github.com/shopspring/decimal.Decimal, error)
+method petstore/pkg.StoreApiInterface.GetNativeAmountWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[github.com/shopspring/decimal.Decimal], error)
 method petstore/pkg.StoreApiInterface.GetNativeValues(context.Context, *petstore/pkg/options.GetNativeValuesOptions, ...petstore/pkg.RequestOption) (*petstore/pkg/models.NativeValues, error)
 method petstore/pkg.StoreApiInterface.GetNativeValuesWithHTTPInfo(context.Context, *petstore/pkg/options.GetNativeValuesOptions, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.NativeValues], error)
 method petstore/pkg.StoreApiInterface.GetOrderById(context.Context, int64, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Order, error)
@@ -1991,6 +2213,8 @@ method petstore/pkg.StoreApiInterface.GetTree(context.Context, ...petstore/pkg.R
 method petstore/pkg.StoreApiInterface.GetTreeWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.TreeNode], error)
 method petstore/pkg.StoreApiInterface.HeadMemo(context.Context, string, ...petstore/pkg.RequestOption) error
 method petstore/pkg.StoreApiInterface.HeadMemoWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
+method petstore/pkg.StoreApiInterface.ListNativeAmounts(context.Context, ...petstore/pkg.RequestOption) ([]github.com/shopspring/decimal.Decimal, error)
+method petstore/pkg.StoreApiInterface.ListNativeAmountsWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[[]github.com/shopspring/decimal.Decimal], error)
 method petstore/pkg.StoreApiInterface.OptionsMemo(context.Context, string, ...petstore/pkg.RequestOption) error
 method petstore/pkg.StoreApiInterface.OptionsMemoWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
 method petstore/pkg.StoreApiInterface.PatchMemo(context.Context, string, petstore/pkg/models.Memo, ...petstore/pkg.RequestOption) (*petstore/pkg/models.Memo, error)
@@ -2001,6 +2225,8 @@ method petstore/pkg.StoreApiInterface.ReserveStock(context.Context, ...petstore/
 method petstore/pkg.StoreApiInterface.ReserveStockWithHTTPInfo(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[petstore/pkg/models.ReserveStockResponse], error)
 method petstore/pkg.StoreApiInterface.SearchStore(context.Context, *petstore/pkg/options.SearchStoreOptions, ...petstore/pkg.RequestOption) ([]petstore/pkg/models.Order, error)
 method petstore/pkg.StoreApiInterface.SearchStoreWithHTTPInfo(context.Context, *petstore/pkg/options.SearchStoreOptions, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[[]petstore/pkg/models.Order], error)
+method petstore/pkg.StoreApiInterface.SubmitAllowance(context.Context, petstore/pkg/models.Allowance, ...petstore/pkg.RequestOption) error
+method petstore/pkg.StoreApiInterface.SubmitAllowanceWithHTTPInfo(context.Context, petstore/pkg/models.Allowance, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
 method petstore/pkg.StoreApiInterface.TraceMemo(context.Context, string, ...petstore/pkg.RequestOption) error
 method petstore/pkg.StoreApiInterface.TraceMemoWithHTTPInfo(context.Context, string, ...petstore/pkg.RequestOption) (*petstore/pkg.ApiResult[any], error)
 method petstore/pkg.StoreApiInterface.WatchNoticesStream(context.Context, ...petstore/pkg.RequestOption) (*petstore/pkg.SseStream[string], error)
@@ -2009,6 +2235,8 @@ method petstore/pkg.StreamingApiClient.SendStreaming(string, string, map[string]
 method petstore/pkg/auth.AccessTokenInvalidator.InvalidateAccessToken()
 method petstore/pkg/auth.ApiClient.SendRequest(string, string, map[string]string, any) (*petstore/pkg/auth.ApiHttpResponse, error)
 method petstore/pkg/auth.ApiClient.SendRequestWithOptions(string, string, map[string]string, any, *petstore/pkg/auth.RequestOptions) (*petstore/pkg/auth.ApiHttpResponse, error)
+method petstore/pkg/auth.ChallengeAuthenticator.AcceptChallenge(string) bool
+method petstore/pkg/auth.ChallengeAuthenticator.Authorization(string, string) (string, bool)
 method petstore/pkg/auth.ContextAuthenticator.AuthHeadersOrErrorContext(context.Context) (map[string]string, error)
 method petstore/pkg/auth.HttpAwareAuthenticator.AuthHeaders() map[string]string
 method petstore/pkg/auth.HttpAwareAuthenticator.CookieParams() map[string]string
@@ -2117,10 +2345,13 @@ type petstore/pkg/auth.ApiKeyAuthenticator struct
 type petstore/pkg/auth.ApiKeyHeaderAuthenticator struct
 type petstore/pkg/auth.ApiKeyLocation int
 type petstore/pkg/auth.ApiKeyQueryAuthenticator struct
+type petstore/pkg/auth.ArchiveDigestAuthenticator struct
 type petstore/pkg/auth.BaseAuthenticator struct
 type petstore/pkg/auth.BasicAuthenticator struct
 type petstore/pkg/auth.BearerAuthenticator struct
+type petstore/pkg/auth.ChallengeAuthenticator interface
 type petstore/pkg/auth.ContextAuthenticator interface
+type petstore/pkg/auth.DigestAuthenticator struct
 type petstore/pkg/auth.HttpAwareAuthenticator interface
 type petstore/pkg/auth.InternalApiKeyAuthenticator struct
 type petstore/pkg/auth.KeyProvider func(ctx context.Context) (string, error)
@@ -2132,10 +2363,13 @@ type petstore/pkg/auth.SessionCookieAuthenticator struct
 type petstore/pkg/auth.TokenProvider func(ctx context.Context) (string, error)
 type petstore/pkg/auth/oauth.BrowserAuthImplicitAuthenticator struct
 type petstore/pkg/auth/oauth.ClientAuthMethod int
+type petstore/pkg/auth/oauth.DeviceAuthDeviceAuthorizationAuthenticator struct
+type petstore/pkg/auth/oauth.DeviceAuthorization struct
 type petstore/pkg/auth/oauth.LegacyAuthPasswordAuthenticator struct
 type petstore/pkg/auth/oauth.MachineAuthClientCredentialsAuthenticator struct
 type petstore/pkg/auth/oauth.OAuth2AuthorizationCodeAuthenticator struct
 type petstore/pkg/auth/oauth.OAuth2ClientCredentialsAuthenticator struct
+type petstore/pkg/auth/oauth.OAuth2DeviceAuthorizationAuthenticator struct
 type petstore/pkg/auth/oauth.OAuth2ImplicitAuthenticator struct
 type petstore/pkg/auth/oauth.OAuth2PasswordAuthenticator struct
 type petstore/pkg/auth/oauth.OAuth2TokenManager struct
@@ -2182,8 +2416,11 @@ type petstore/pkg/errors.UnprocessableEntityError struct
 type petstore/pkg/errors.UnsupportedMediaTypeError struct
 type petstore/pkg/errors.UpstreamFailureError struct
 type petstore/pkg/models.Account struct
+type petstore/pkg/models.Allowance struct
+type petstore/pkg/models.AllowanceTier struct
 type petstore/pkg/models.ApiResponse struct
 type petstore/pkg/models.AttachPetFilesRequest struct
+type petstore/pkg/models.Audit struct
 type petstore/pkg/models.Availability string
 type petstore/pkg/models.BinaryVault struct
 type petstore/pkg/models.Blobs struct
@@ -2203,6 +2440,7 @@ type petstore/pkg/models.Employee struct
 type petstore/pkg/models.Error struct
 type petstore/pkg/models.Freeform struct
 type petstore/pkg/models.Ledger struct
+type petstore/pkg/models.Letter struct
 type petstore/pkg/models.Medication struct
 type petstore/pkg/models.MemberNotFound struct
 type petstore/pkg/models.Memo struct
@@ -2211,6 +2449,8 @@ type petstore/pkg/models.Moments struct
 type petstore/pkg/models.NativeValues struct
 type petstore/pkg/models.Order struct
 type petstore/pkg/models.OrderStatusEnum string
+type petstore/pkg/models.Packet struct
+type petstore/pkg/models.Parcel struct
 type petstore/pkg/models.Pet struct
 type petstore/pkg/models.PetAfterPage struct
 type petstore/pkg/models.PetArchivePage struct
@@ -2234,6 +2474,10 @@ type petstore/pkg/models.PhotoMetadataLocation struct
 type petstore/pkg/models.Priority int
 type petstore/pkg/models.ProjectNotFound struct
 type petstore/pkg/models.Rank int
+type petstore/pkg/models.Reading struct
+type petstore/pkg/models.ReadingInlineLevel struct
+type petstore/pkg/models.ReadingLevel struct
+type petstore/pkg/models.ReadingShape struct
 type petstore/pkg/models.RejectedRequest struct
 type petstore/pkg/models.RequiredNullable struct
 type petstore/pkg/models.Reservation struct
@@ -2241,11 +2485,13 @@ type petstore/pkg/models.ReservationReceipt struct
 type petstore/pkg/models.ReserveStockResponse struct
 type petstore/pkg/models.Result struct
 type petstore/pkg/models.Roster struct
+type petstore/pkg/models.Sensors struct
 type petstore/pkg/models.Separator string
 type petstore/pkg/models.SetPetAvatarRequest struct
 type petstore/pkg/models.SetPetAvatarThumbnailRequest struct
 type petstore/pkg/models.Set[T comparable] []T
 type petstore/pkg/models.Shape struct
+type petstore/pkg/models.Shipment struct
 type petstore/pkg/models.Sparse struct
 type petstore/pkg/models.Square struct
 type petstore/pkg/models.Stage string
@@ -2309,6 +2555,7 @@ var petstore/pkg.ErrInvalidMaxRetries error
 var petstore/pkg.ErrInvalidPathParameter error
 var petstore/pkg.ErrInvalidProxyURL error
 var petstore/pkg.ErrInvalidRequest error
+var petstore/pkg.ErrInvalidRequestBody error
 var petstore/pkg.ErrInvalidServerVariable error
 var petstore/pkg.ErrInvalidStreamOption error
 var petstore/pkg.ErrInvalidTimeout error
@@ -2330,6 +2577,9 @@ var petstore/pkg.Server2 *petstore/pkg.ServerConfiguration
 var petstore/pkg/auth.ErrBasicAuthPasswordControlChar error
 var petstore/pkg/auth.ErrBasicAuthUsernameColon error
 var petstore/pkg/auth.ErrBasicAuthUsernameControlChar error
+var petstore/pkg/auth.ErrDigestCredentialsControlChar error
+var petstore/pkg/auth.ErrDigestUsernameEmpty error
+var petstore/pkg/auth.ErrDigestUsernameQuote error
 var petstore/pkg/auth.ErrInvalidApiKey error
 var petstore/pkg/auth.ErrInvalidBearerToken error
 var petstore/pkg/auth.ErrMissingCredential error
@@ -2337,4 +2587,5 @@ var petstore/pkg/auth/oauth.ErrAccessTokenNotSet error
 var petstore/pkg/auth/oauth.ErrApiClientNotInjected error
 var petstore/pkg/auth/oauth.ErrAuthCodeEmpty error
 var petstore/pkg/auth/oauth.ErrAuthCodeNotExchanged error
+var petstore/pkg/auth/oauth.ErrDeviceTokenNotPolled error
 var petstore/pkg/auth/oauth.ErrInvalidAccessToken error
